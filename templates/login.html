@@ -3,31 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <title>Iniciar Sesión</title>
+    <!-- Tu CSS personalizado (opcional) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <!-- Puedes agregar Bootstrap o tus estilos adicionales aquí -->
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
-<body>
-    <div class="login-container">
-        <h1>Iniciar Sesión</h1>
+<body class="bg-light">
+
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <!-- Tarjeta de login -->
+    <div class="card p-4 shadow" style="max-width: 400px; width: 100%;">
+        <h2 class="text-center mb-4">Iniciar Sesión</h2>
+        
+        <!-- Mensajes flash -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
-            <ul class="flashes">
+            <div class="mb-3">
               {% for category, message in messages %}
-                <li class="{{ category }}">{{ message }}</li>
+                <div class="alert alert-{{ 'danger' if category=='error' else category }}" role="alert">
+                  {{ message }}
+                </div>
               {% endfor %}
-            </ul>
+            </div>
           {% endif %}
         {% endwith %}
+        
+        <!-- Formulario -->
         <form method="post" action="{{ url_for('login') }}">
-            <label for="username">Usuario:</label>
-            <input type="text" id="username" name="username" required>
-            <br>
-            <label for="password">Contraseña:</label>
-            <input type="password" id="password" name="password" required>
-            <br>
-            <button type="submit">Ingresar</button>
+            <div class="mb-3">
+                <label for="username" class="form-label">Usuario</label>
+                <input 
+                  type="text" 
+                  id="username" 
+                  name="username" 
+                  class="form-control" 
+                  required
+                >
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Contraseña</label>
+                <input 
+                  type="password" 
+                  id="password" 
+                  name="password" 
+                  class="form-control" 
+                  required
+                >
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
         </form>
     </div>
+</div>
+
+<!-- Bootstrap Bundle con Popper.js (opcional para JS de Bootstrap) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
+
 
