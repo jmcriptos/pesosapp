@@ -1,0 +1,94 @@
+('/Users/josedasilva/Dropbox/Mi Mac '
+ '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+ 'Mac/build/PesosAppMac/PesosAppMac',
+ False,
+ False,
+ True,
+ ['/Users/josedasilva/Dropbox/Mi Mac '
+  '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+  'Mac/iconoapp.icns'],
+ None,
+ False,
+ False,
+ None,
+ True,
+ True,
+ 'x86_64',
+ None,
+ None,
+ '/Users/josedasilva/Dropbox/Mi Mac '
+ '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+ 'Mac/build/PesosAppMac/PesosAppMac.pkg',
+ [('pyi-macos-argv-emulation', '', 'OPTION'),
+  ('pyi-contents-directory _internal', '', 'OPTION'),
+  ('PYZ-00.pyz',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/PYZ-00.pyz',
+   'PYZ'),
+  ('lib-dynload/_struct.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_struct.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/zlib.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/zlib.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('struct',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/localpycs/struct.pyc',
+   'PYMODULE'),
+  ('pyimod01_archive',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/localpycs/pyimod01_archive.pyc',
+   'PYMODULE'),
+  ('pyimod02_importers',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/localpycs/pyimod02_importers.pyc',
+   'PYMODULE'),
+  ('pyimod03_ctypes',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/localpycs/pyimod03_ctypes.pyc',
+   'PYMODULE'),
+  ('pyiboot01_bootstrap',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PyInstaller/loader/pyiboot01_bootstrap.py',
+   'PYSOURCE'),
+  ('pyi_rth_pkgres',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PyInstaller/hooks/rthooks/pyi_rth_pkgres.py',
+   'PYSOURCE'),
+  ('pyi_rth_inspect',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PyInstaller/hooks/rthooks/pyi_rth_inspect.py',
+   'PYSOURCE'),
+  ('pyi_rth_pkgutil',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PyInstaller/hooks/rthooks/pyi_rth_pkgutil.py',
+   'PYSOURCE'),
+  ('pyi_rth_multiprocessing',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PyInstaller/hooks/rthooks/pyi_rth_multiprocessing.py',
+   'PYSOURCE'),
+  ('app',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/app.py',
+   'PYSOURCE')],
+ [],
+ False,
+ False,
+ 1727634850,
+ [('runw',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PyInstaller/bootloader/Darwin-64bit/runw',
+   'EXECUTABLE')],
+ '/Users/josedasilva/opt/anaconda3/lib/libpython3.9.dylib')

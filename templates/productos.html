@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Productos{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-box" style="color: #ff6f61; margin-right: 10px;"></i>Productos
+{% endblock %}
+
+{% block content %}
+<div class="flash-message" id="flash-message"></div>
+
+<section>
+    <h2>Registrar Producto</h2>
+    <form id="form-crear-producto" method="POST" action="{{ url_for('crear_producto') }}">
+        <div class="form-group">
+            <label for="nombre">Nombre del Producto:</label>
+            <input type="text" id="nombre" name="nombre" required class="form-input">
+        </div>
+        
+        <div class="form-group">
+            <label for="descripcion">Descripción:</label>
+            <input type="text" id="descripcion" name="descripcion" class="form-input">
+        </div>
+        
+        <div class="form-group">
+            <label for="temperatura">Temperatura:</label>
+            <input type="text" id="temperatura" name="temperatura" class="form-input">
+        </div>
+        
+        <button type="submit" class="form-button">Crear Producto</button>
+    </form>
+</section>
+
+<!-- Sección para mostrar productos registrados -->
+<section>
+    <h2>Productos Registrados</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Temperatura</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr id="producto-{{ producto.id }}">
+                    <td>{{ producto.id }}</td>
+                    <td>{{ producto.nombre }}</td>
+                    <td>{{ producto.descripcion }}</td>
+                    <td>{{ producto.temperatura }}</td>
+                    <td>
+                        <button class="eliminar-producto btn-danger" data-id="{{ producto.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>                                                          
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-top: 1rem;
+    }
+
+    table {
+        min-width: 100%;
+    }
+
+    .eliminar-producto {
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+
+    .eliminar-producto i {
+        margin: 0;
+    }
+
+    @media (max-width: 768px) {
+        .form-input {
+            font-size: 16px; /* Previene zoom en iOS */
+        }
+
+        table th,
+        table td {
+            padding: 0.75rem 0.5rem;
+        }
+
+        .btn-danger {
+            padding: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{{ url_for('static', filename='scripts.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Asegurarse de que el contenido no se oculte detrás del menú inferior
+        const content = document.querySelector('.app-content');
+        const footer = document.querySelector('.app-footer');
+        if (footer) {
+            content.style.paddingBottom = `calc(${footer.offsetHeight}px + 1rem)`;
+        }
+    });
+</script>
+{% endblock %}

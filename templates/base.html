@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>{% block title %}Gestión de Inventario{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <!-- CSS personalizado -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header de la aplicación -->
+        <header class="app-header">
+            <div class="header-content">
+                {% block header %}
+                <h1>{% block header_title %}Gestión de Inventario{% endblock %}</h1>
+                {% endblock %}
+            </div>
+        </header>
+
+        <!-- Contenido principal -->
+        <main class="app-content">
+            {% block content %}{% endblock %}
+            
+            <!-- Mensajes Flash -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </main>
+
+        <!-- Footer con Navegación Móvil -->
+        <footer class="app-footer">
+            {% block footer %}
+            <nav class="mobile-nav">
+                <!-- Corregimos la etiqueta <a> para "Home" -->
+                <a href="/" class="nav-item {{ 'active' if request.endpoint == 'index' }}">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/facturacion" class="nav-item {{ 'active' if request.endpoint == 'facturacion' }}">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Facturación</span>
+                </a>
+                <a href="/etiquetas_vencimiento" class="nav-item {{ 'active' if request.endpoint == 'etiquetas_vencimiento' }}">
+                    <i class="fas fa-tags"></i>
+                    <span>Etiquetas</span>
+                </a>
+            </nav>
+            {% endblock %}
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    {% block scripts %}{% endblock %}
+
+    <!-- Script para prevenir zoom en doble tap -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prevenir zoom en doble tap en iOS
+            document.addEventListener('touchend', function(event) {
+                if (event.touches.length > 1) {
+                    event.preventDefault();
+                }
+            });
+
+            // Añadir efecto de toque activo en móviles
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.95)';
+                });
+                item.addEventListener('touchend', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

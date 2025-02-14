@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Generar Etiquetas{% endblock %}
+
+{% block header_title %}
+<i class="fas fa-tags" style="color: #007bff; margin-right: 10px;"></i>Etiquetas de Vencimiento
+{% endblock %}
+
+{% block content %}
+<section class="form-section">
+    <form method="POST" action="{{ url_for('etiquetas_vencimiento') }}" class="etiquetas-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="producto_id" class="form-label">Producto:</label>
+                <select name="producto_id" id="producto_id" class="form-select" required>
+                    {% for producto in productos %}
+                        <option value="{{ producto.id }}">{{ producto.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="fecha_fabricacion" class="form-label">Fecha de Fabricación:</label>
+                <input type="date" name="fecha_fabricacion" id="fecha_fabricacion" 
+                       class="form-input" required>
+            </div>
+
+            <div class="form-group">
+                <label for="lote" class="form-label">Lote:</label>
+                <input type="text" name="lote" id="lote" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+                <label for="cantidad_etiquetas" class="form-label">Cantidad de Etiquetas:</label>
+                <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas" 
+                       class="form-input" value="8" min="1" max="100" required>
+            </div>
+        </div>
+
+        <button type="submit" class="form-button">
+            <i class="fas fa-file-pdf"></i> Generar PDF
+        </button>
+    </form>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background-color: white;
+        border-radius: 8px;
+        padding: 2rem;
+        margin: 1rem auto;
+        max-width: 800px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .etiquetas-form {
+        width: 100%;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-input,
+    .form-select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        background-color: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        outline: none;
+    }
+
+    .form-button {
+        background-color: #007bff;
+        color: white;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 auto;
+        transition: background-color 0.2s, transform 0.2s;
+    }
+
+    .form-button:hover {
+        background-color: #0056b3;
+        transform: translateY(-1px);
+    }
+
+    .form-button:active {
+        transform: translateY(0);
+    }
+
+    .form-button i {
+        font-size: 1.2rem;
+    }
+
+    @media (max-width: 768px) {
+        .form-section {
+            padding: 1rem;
+            margin: 0.5rem;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .form-input,
+        .form-select {
+            font-size: 16px; /* Previene zoom en iOS */
+            padding: 0.875rem;
+        }
+
+        .form-button {
+            width: 100%;
+            padding: 0.875rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Establecer la fecha actual como valor predeterminado
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('fecha_fabricacion').value = today;
+
+        // Asegurarse de que el contenido no se oculte detrás del menú inferior
+        const content = document.querySelector('.app-content');
+        const footer = document.querySelector('.app-footer');
+        if (footer) {
+            content.style.paddingBottom = `calc(${footer.offsetHeight}px + 1rem)`;
+        }
+
+        // Validación de cantidad de etiquetas
+        const cantidadInput = document.getElementById('cantidad_etiquetas');
+        cantidadInput.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            if (value < 1) this.value = 1;
+            if (value > 100) this.value = 100;
+        });
+    });
+</script>
+{% endblock %}

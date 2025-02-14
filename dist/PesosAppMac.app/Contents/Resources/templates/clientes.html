@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Incluye Font Awesome para los iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Incluye jQuery desde un CDN -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <!-- Botón para regresar a la página de inicio -->
+    <a href="/" style="position: absolute; top: 20px; left: 20px; color: red;">
+       <i class="fas fa-home fa-2x"></i>
+   </a>
+   <h1>
+       <!-- Icono de Font Awesome dentro del h1 -->
+       <i class="fas fa-users" style="color: #6c63ff; margin-right: 10px;"></i> Clientes
+   </h1>
+   
+   <!-- Contenedor para mostrar los mensajes flash gestionados por JavaScript -->
+   <div id="flash-message" class="flash-message" style="display: none;"></div>
+
+   <!-- Sección para registrar un nuevo cliente -->
+   <section>
+       <h2>Registrar Nuevo Cliente</h2>
+       <form id="form-cliente" method="POST" action="{{ url_for('nuevo_cliente') }}">
+           <label for="nombre-cliente">Nombre del Cliente:</label>
+           <input type="text" id="nombre-cliente" name="nombre" required>
+           <button type="submit">Registrar Cliente</button>
+       </form>
+   </section>
+
+   <!-- Sección para mostrar los clientes registrados -->
+   <section>
+       <h2>Clientes Registrados</h2>
+       <table>
+           <thead>
+               <tr>
+                   <th>ID</th>
+                   <th>Nombre</th>
+                   <th>Acciones</th>
+               </tr>
+           </thead>
+           <tbody>
+               {% for cliente in clientes %}
+               <tr id="cliente-{{ cliente.id }}">
+                   <td>{{ cliente.id }}</td>
+                   <td>{{ cliente.nombre }}</td>
+                   <td>
+                       <button class="btn btn-danger eliminar-cliente" data-id="{{ cliente.id }}">Eliminar</button>
+                   </td>
+               </tr>
+               {% endfor %}
+           </tbody>
+       </table>
+   </section>
+
+   <!-- Incluye tu archivo scripts.js -->
+   <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+</body>
+</html>

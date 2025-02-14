@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Procesos{% endblock %}
+{% block header_title %}Gestión de Procesos{% endblock %}
+
+{% block content %}
+<div class="icon-grid">
+    <!-- Productos -->
+    <a href="/productos" class="icon-container icon-productos" aria-label="Ir a Productos">
+        <i class="fas fa-box" aria-hidden="true"></i>
+        <span class="icon-label">Productos</span>
+    </a>
+
+    <!-- Facturación -->
+    <a href="/facturacion" class="icon-container icon-facturacion" aria-label="Ir a Facturación">
+        <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+        <span class="icon-label">Facturación</span>
+    </a>
+
+    <!-- Etiquetas -->
+    <a href="/etiquetas_vencimiento" class="icon-container icon-etiquetas" aria-label="Ir a Etiquetas">
+        <i class="fas fa-tags" aria-hidden="true"></i>
+        <span class="icon-label">Etiquetas</span>
+    </a>
+
+    <!-- Clientes -->
+    <a href="/clientes" class="icon-container icon-clientes" aria-label="Ir a Clientes">
+        <i class="fas fa-users" aria-hidden="true"></i>
+        <span class="icon-label">Clientes</span>
+    </a>
+
+    <!-- Recepciones -->
+    <a href="/recepciones" class="icon-container icon-recepciones" aria-label="Ir a Recepciones">
+        <i class="fas fa-truck" aria-hidden="true"></i>
+        <span class="icon-label">Recepciones</span>
+    </a>
+
+    <!-- Importación -->
+    <a href="/formulario_importacion" class="icon-container icon-importacion" aria-label="Ir a Importación">
+        <i class="fas fa-file-alt" aria-hidden="true"></i>
+        <span class="icon-label">Importación</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block navigation %}
+<nav class="mobile-nav">
+    <a href="/productos" class="nav-item {{ 'active' if request.endpoint == 'productos' }}">
+        <i class="fas fa-box"></i>
+        <span>Productos</span>
+    </a>
+    <a href="/facturacion" class="nav-item {{ 'active' if request.endpoint == 'facturacion' }}">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <span>Facturación</span>
+    </a>
+    <a href="/etiquetas_vencimiento" class="nav-item {{ 'active' if request.endpoint == 'etiquetas_vencimiento' }}">
+        <i class="fas fa-tags"></i>
+        <span>Etiquetas</span>
+    </a>
+    <a href="/clientes" class="nav-item {{ 'active' if request.endpoint == 'mostrar_clientes' }}">
+        <i class="fas fa-users"></i>
+        <span>Clientes</span>
+    </a>
+    <a href="/recepciones" class="nav-item {{ 'active' if request.endpoint == 'mostrar_recepciones' }}">
+        <i class="fas fa-truck"></i>
+        <span>Recepciones</span>
+    </a>
+    <a href="/formulario_importacion" class="nav-item {{ 'active' if request.endpoint == 'formulario_importacion' }}">
+        <i class="fas fa-file-alt"></i>
+        <span>Importación</span>
+    </a>
+</nav>
+{% endblock %}

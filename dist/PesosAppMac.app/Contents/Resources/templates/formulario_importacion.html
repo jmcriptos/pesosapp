@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importaciones</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Incluye jQuery antes de scripts.js -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <!-- Botón para regresar a la página de inicio -->
+        <a href="/" style="position: absolute; top: 20px; left: 20px; color: red;">
+            <i class="fas fa-home fa-2x"></i>
+        </a>
+        <h1 class="page-title">Importaciones</h1>
+        <div id="flash-message" class="flash-message" style="display: none;"></div>
+    </header>
+
+    <section class="form-section">
+        <div class="form-container">
+            <form id="importacionForm" method="POST" action="/registrar_importacion">
+                <label for="numero_factura">Número de Factura:</label>
+                <input type="text" id="numero_factura" name="numero_factura">
+        
+                <label for="proveedor">Proveedor:</label>
+                <input type="text" id="proveedor" name="proveedor">
+
+                <!-- Campo de fecha de importación -->
+                <label for="fecha_importacion">Fecha de Importación:</label>
+                <input type="date" id="fecha_importacion" name="fecha_importacion" required>
+
+                <label for="moneda">Moneda:</label>
+                <select id="moneda" name="moneda">
+                    <option value="EUR">Euros (EUR)</option>
+                    <option value="USD">Dólares (USD)</option>
+                </select>
+        
+                <label for="tipo_cambio_ang">Tipo de Cambio (ANG):</label>
+                <input type="number" id="tipo_cambio_ang" name="tipo_cambio_ang" step="0.01">
+        
+                <label for="flete_total">Flete Total (en Moneda Seleccionada):</label>
+                <input type="number" id="flete_total" name="flete_total" step="0.01">
+        
+                <label for="gastos_agente_aduanal">Gastos Agente Aduanal:</label>
+                <input type="number" id="gastos_agente_aduanal" name="gastos_agente_aduanal" step="0.01">
+        
+                <label for="arancel">Arancel (%):</label>
+                <input type="number" id="arancel" name="arancel" step="0.01">
+        
+                <label for="ob">OB (%):</label>
+                <input type="number" id="ob" name="ob" step="0.01">
+        
+                <label for="flete_local">Flete Local:</label>
+                <input type="number" id="flete_local" name="flete_local" step="0.01">
+        
+                <h2>Productos</h2>
+                <table id="productosTable">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Und/Caja</th>
+                            <th>Qty Total</th>
+                            <th>Price FOB</th>
+                            <th>Total FOB</th>
+                            <th>Flete Proporcional</th>
+                            <th>Total CIF</th>
+                            <th>CIF (ANG)</th>
+                            <th>Arancel (ANG)</th>
+                            <th>OB (ANG)</th>
+                            <th>OB (4.5%)</th>
+                            <th>Costo Total Almacén</th>
+                            <th>Costo por Unidad (ANG)</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-body">
+                        <!-- Las filas de productos serán insertadas dinámicamente -->
+                    </tbody>
+                </table>
+                <button type="button" class="btn add-row">Agregar Producto</button>
+                <button type="submit" class="btn">Registrar Importación</button>
+            </form>
+        </div>
+    </section>
+    <section class="importaciones-listado">
+        <h2>Listado de Importaciones Registradas</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Número de Factura</th>
+                    <th>Cantidad de Productos</th>
+                    <th>Cantidad Total</th>
+                    <th>Total FOB</th>
+                    <th>Total Flete</th>
+                    <th>Total Arancel</th>
+                    <th>Total Costo Aduana</th>
+                    <th>Fecha Importación</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for factura in facturas %}
+                <tr>
+                    <td>{{ factura.numero_factura }}</td>
+                    <td>{{ factura.cantidad_productos }}</td>
+                    <td>{{ factura.cantidad_total }}</td>
+                    <td>{{ factura.total_fob }}</td>
+                    <td>{{ factura.total_flete }}</td>
+                    <td>{{ factura.total_arancel }}</td>
+                    <td>{{ factura.total_costo_aduana }}</td>
+                    <td>{{ factura.fecha_importacion.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <a href="/reporte_factura/{{ factura.numero_factura }}" class="btn btn-pdf">Generar PDF</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    <!-- Incluye tu archivo scripts.js -->
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+</body>
+</html>

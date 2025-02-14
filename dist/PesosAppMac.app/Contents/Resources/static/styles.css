@@ -1,0 +1,499 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f1f1f1;
+}
+
+h1, h2 {
+    color: #007bff;
+}
+
+h1 {
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    text-align: center; /* Esto centrará el título */
+}
+
+
+h2 {
+    margin-top: 30px;
+}
+
+section {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 400px; /* Ancho máximo del formulario */
+    margin-left: 0;
+    margin-right: auto;
+    padding: 20px; /* Añade un padding interno para separar el contenido del borde */
+    background-color: #e1e1e1; /* Color de fondo dentro del borde */
+    border: 1px solid #ccc; /* Borde ligero alrededor del formulario */
+    border-radius: 8px; /* Bordes redondeados */
+    box-shadow: 0 4px 6px rgba(0, 0.3, 0.3, 0.3); /* Sombra sutil para el relieve */
+}
+
+label {
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+input[type="text"], input[type="number"], input[type="date"], select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); /* Sombra interior para el relieve */
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    align-self: flex-start;
+    width: auto;
+    font-size: 14px;
+    padding: 8px 16px;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2); /* Sombra para el botón */
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+.content {
+    flex: 1;
+}
+.ip-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    text-align: left;
+    font-size: 16px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+.form-title {
+    font-size: 1.5rem;
+    color: #1a73e8; /* Color azul similar al del formulario de productos */
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 5px;
+    color: #333; /* Color del texto */
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    max-width: 400px; /* Limita el ancho del campo de selección */
+}
+
+#producto_id {
+    max-width: 420px; /* Ajusta este valor según tus necesidades */
+}
+
+
+.form-button {
+    padding: 10px 20px;
+    background-color: #1a73e8; /* Mismo color del botón de productos */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.form-button:hover {
+    background-color: #1558b8; /* Un poco más oscuro al pasar el cursor */
+}
+
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.eliminar-producto, .eliminar-recepcion {
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.eliminar-producto:hover, .eliminar-recepcion:hover {
+    background-color: darkred;
+}
+
+.btn.btn-danger {
+    display: inline-block;
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 10px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+
+ul li {
+    list-style-type: none;
+    margin: 10px 0;
+}
+
+ul li a {
+    text-decoration: none;
+    color: #000;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+}
+
+ul li a i {
+    margin-right: 10px;
+    font-size: 24px;
+}
+
+ul li a:hover {
+    text-decoration: underline;
+}
+
+.icon-container.icon-etiquetas {
+    background-color: #007bff; /* Ejemplo de color naranja */
+}
+
+.icon-container.icon-importacion {
+    background-color: red; /* Ejemplo de color naranja */
+}
+
+/* Agrega esto en tu archivo styles.css */
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    width: 100%;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+
+/* Estilos para la cuadrícula de íconos */
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 columnas */
+    grid-template-rows: repeat(2, 1fr); /* 2 filas */
+    grid-gap: 20px; /* Espacio entre los íconos */
+    justify-content: center; /* Centrar la cuadrícula */
+    align-items: center; /* Centrar verticalmente los elementos */
+    height: 100%; /* Ajusta la altura al 100% del contenedor */
+}
+
+.icon-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 150px; /* Ajusta la altura para más espacio */
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+    color: white; /* Color del ícono */
+    text-decoration: none;
+}
+
+.icon-container.icon-productos {
+    background-color: #FF6F61; /* Rojo */
+}
+
+.icon-container.icon-clientes {
+    background-color: #6B5B95; /* Morado */
+}
+
+.icon-container.icon-recepciones {
+    background-color: #88B04B; /* Verde */
+}
+
+.icon-container.icon-facturacion {
+    background-color: #FFD700; /* Amarillo */
+}
+
+.icon-container:hover {
+    transform: scale(1.1); /* Efecto al pasar el ratón */
+}
+
+.icon-container i {
+    font-size: 36px; /* Ajusta el tamaño del ícono */
+}
+
+.icon-label {
+    margin-top: 10px;
+    font-size: 18px; /* Ajusta el tamaño del texto */
+    color: white; /* Color del texto */
+    text-align: center;
+}
+
+@media (max-width: 480px) {
+    .icon-grid {
+        grid-template-columns: repeat(2, 1fr); /* Mantén 2 columnas en móviles */
+        grid-template-rows: repeat(2, 1fr); /* 2 filas */
+    }
+
+    .icon-container {
+        width: 100%;
+        height: 100px; /* Ajusta la altura para pantallas más pequeñas */
+    }
+
+    .icon-label {
+        font-size: 14px; /* Tamaño más pequeño para pantallas pequeñas */
+    }
+}
+
+.alert {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+
+/* Estilos para dispositivos móviles */
+@media (max-width: 600px) {
+    body {
+        margin: 10px;
+        font-size: 18px; /* Incrementa el tamaño general de la fuente */
+    }
+
+    h1 {
+        font-size: 28px; /* Aumenta el tamaño del título principal */
+        text-align: center;
+    }
+
+    h2 {
+        font-size: 22px; /* Aumenta el tamaño del subtítulo */
+        text-align: center;
+    }
+
+    section {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    form {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    label {
+        font-size: 18px; /* Aumenta el tamaño de la fuente en las etiquetas */
+        margin-bottom: 5px;
+    }
+
+    input[type="text"], input[type="number"], input[type="date"], select {
+        width: 100%; /* Asegura que los campos ocupen el ancho completo del contenedor */
+        margin-bottom: 12px;
+        padding: 14px; /* Aumenta el padding para mejorar la accesibilidad táctil */
+        font-size: 18px; /* Aumenta el tamaño de la fuente en los campos de entrada */
+        box-sizing: border-box; /* Asegura que el padding esté incluido en el ancho total */
+    }
+
+    button {
+        padding: 14px; /* Aumenta el padding del botón */
+        font-size: 18px; /* Aumenta el tamaño de la fuente en el botón */
+        width: 100%;
+        margin-top: 10px;
+        box-sizing: border-box; /* Asegura que el padding esté incluido en el ancho total */
+    }
+}
+
+.btn-danger {
+    background-color: #ff4d4d; /* Color rojo */
+    color: white; /* Color del texto en blanco */
+    border: none;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.btn-danger:hover {
+    background-color: #ff1a1a; /* Color rojo más oscuro para el hover */
+}
+
+/* Estilos para dispositivos más grandes (tabletas, desktops) */
+@media (min-width: 601px) {
+    form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    label {
+        width: 100%;
+        font-size: 16px;
+    }
+
+    input[type="text"], input[type="number"], input[type="date"], select {
+        width: 48%; /* Dos elementos por fila */
+        margin-bottom: 10px;
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    button {
+        padding: 10px;
+        font-size: 14px;
+        width: auto; /* El ancho del botón será ajustado por el contenido */
+    }
+}
+
+table input[type="text"],
+table input[type="number"],
+table select {
+    width: 100px; /* Ajusta el ancho */
+    padding: 8px; /* Ajusta el padding para más espacio interno */
+    font-size: 14px; /* Aumenta el tamaño del texto */
+    box-sizing: border-box; /* Asegura que el padding esté incluido en el ancho */
+}
+
+th, td {
+    padding: 12px; /* Aumenta el padding interno de las celdas */
+    font-size: 14px; /* Aumenta el tamaño de la fuente en la tabla */
+}
+
+.btn.add-row, 
+.btn {
+    font-size: 16px; /* Aumenta el tamaño del texto */
+    padding: 10px 20px; /* Aumenta el tamaño del botón */
+    border-radius: 4px; /* Bordes redondeados */
+    width: auto; /* Ajusta el ancho automático para que no ocupe el 100% */
+}
+
+#productosTable select {
+    width: 150px; /* Ancho mayor para el campo de selección */
+}
+
+#productosTable input[type="number"] {
+    width: 120px; /* Un ancho más grande para los campos de número */
+}
+
+table {
+    width: 100%; /* Asegura que la tabla ocupe todo el espacio disponible */
+}
+
+th, td {
+    text-align: center; /* Centra el texto para mayor uniformidad */
+}
+
+button {
+    padding: 12px 20px;
+    font-size: 16px; /* Aumenta el tamaño del texto */
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+    transform: scale(1.05); /* Efecto de agrandado al pasar el cursor */
+}
+
+.flash-message {
+    display: none;
+    background-color: #4CAF50; /* Verde para el éxito */
+    color: white;
+    padding: 10px 20px;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.flash-message.show {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+.flash-message.hide {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.flash-message .success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.flash-message .error {
+    background-color: #f44336;
+    color: white;
+}

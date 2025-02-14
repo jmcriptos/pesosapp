@@ -1,0 +1,3899 @@
+([('PesosAppMac',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/PesosAppMac',
+   'EXECUTABLE'),
+  ('lib-dynload/_struct.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_struct.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/zlib.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/zlib.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('libpython3.9.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libpython3.9.dylib',
+   'BINARY'),
+  ('lib-dynload/math.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/math.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/select.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/select.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_posixsubprocess.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_posixsubprocess.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/grp.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/grp.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/unicodedata.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/unicodedata.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_statistics.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_statistics.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_contextvars.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_contextvars.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_decimal.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_decimal.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_pickle.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_pickle.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_hashlib.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_hashlib.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_sha3.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_sha3.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_blake2.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_blake2.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_sha256.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_sha256.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_md5.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_md5.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_sha1.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_sha1.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_sha512.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_sha512.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_random.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_random.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_bisect.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_bisect.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_csv.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_csv.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/binascii.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/binascii.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/resource.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/resource.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_lzma.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_lzma.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_bz2.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_bz2.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_posixshmem.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_posixshmem.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_multiprocessing.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_multiprocessing.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/pyexpat.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/pyexpat.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_scproxy.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_scproxy.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/termios.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/termios.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_ssl.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_ssl.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/mmap.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/mmap.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_ctypes.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_ctypes.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/array.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/array.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_queue.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_queue.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_opcode.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_opcode.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_uuid.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_uuid.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/readline.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/readline.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_heapq.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_heapq.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_multibytecodec.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_multibytecodec.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_codecs_jp.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_codecs_jp.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_codecs_kr.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_codecs_kr.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_codecs_iso2022.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_codecs_iso2022.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_codecs_cn.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_codecs_cn.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_codecs_tw.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_codecs_tw.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_codecs_hk.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_codecs_hk.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('PIL/_webp.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/_webp.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('PIL/_imagingtk.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/_imagingtk.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('PIL/_imagingcms.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/_imagingcms.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/_core/_multiarray_tests.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/_core/_multiarray_tests.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/_core/_multiarray_umath.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/_core/_multiarray_umath.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/linalg/_umath_linalg.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/linalg/_umath_linalg.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_asyncio.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_asyncio.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/mtrand.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/mtrand.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_sfc64.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_sfc64.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_philox.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_philox.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_pcg64.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_pcg64.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_mt19937.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_mt19937.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/bit_generator.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/bit_generator.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_generator.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_generator.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_bounded_integers.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_bounded_integers.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/random/_common.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/random/_common.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('numpy/fft/_pocketfft_umath.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/numpy/fft/_pocketfft_umath.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_json.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_json.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('PIL/_imagingmath.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/_imagingmath.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('PIL/_imaging.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/_imaging.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_socket.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_socket.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('markupsafe/_speedups.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/markupsafe/_speedups.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('sqlalchemy/cyextension/resultproxy.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/sqlalchemy/cyextension/resultproxy.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('sqlalchemy/cyextension/util.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/sqlalchemy/cyextension/util.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('sqlalchemy/cyextension/processors.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/sqlalchemy/cyextension/processors.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('sqlalchemy/cyextension/immutabledict.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/sqlalchemy/cyextension/immutabledict.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('sqlalchemy/cyextension/collections.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/sqlalchemy/cyextension/collections.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('greenlet/_greenlet.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/greenlet/_greenlet.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/fcntl.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/fcntl.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_zoneinfo.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_zoneinfo.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_elementtree.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_elementtree.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_datetime.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_datetime.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/cmath.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/cmath.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/writers.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/writers.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/window/indexers.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/window/indexers.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/window/aggregations.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/window/aggregations.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/vectorized.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/vectorized.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/tzconversion.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/tzconversion.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/timezones.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/timezones.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/timestamps.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/timestamps.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/timedeltas.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/timedeltas.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/strptime.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/strptime.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/period.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/period.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/parsing.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/parsing.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/offsets.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/offsets.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/np_datetime.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/np_datetime.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/nattype.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/nattype.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/fields.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/fields.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/dtypes.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/dtypes.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/conversion.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/conversion.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/ccalendar.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/ccalendar.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslibs/base.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslibs/base.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/tslib.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/tslib.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/testing.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/testing.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/sparse.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/sparse.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/sas.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/sas.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/reshape.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/reshape.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/properties.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/properties.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/parsers.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/parsers.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/pandas_parser.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/pandas_parser.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/pandas_datetime.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/pandas_datetime.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/ops_dispatch.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/ops_dispatch.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/ops.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/ops.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/missing.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/missing.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/lib.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/lib.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/json.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/json.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/join.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/join.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/interval.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/interval.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/internals.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/internals.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/indexing.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/indexing.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/index.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/index.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/hashtable.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/hashtable.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/hashing.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/hashing.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/groupby.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/groupby.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/byteswap.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/byteswap.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/arrays.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/arrays.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('pandas/_libs/algos.cpython-39-darwin.so',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/_libs/algos.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('lib-dynload/_sqlite3.cpython-39-darwin.so',
+   '/Users/josedasilva/opt/anaconda3/lib/python3.9/lib-dynload/_sqlite3.cpython-39-darwin.so',
+   'EXTENSION'),
+  ('libcrypto.1.1.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libcrypto.1.1.dylib',
+   'BINARY'),
+  ('libz.1.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libz.1.dylib',
+   'BINARY'),
+  ('libssl.1.1.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libssl.1.1.dylib',
+   'BINARY'),
+  ('libffi.7.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libffi.7.dylib',
+   'BINARY'),
+  ('libreadline.8.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libreadline.8.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libwebp.7.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libwebp.7.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libwebpdemux.2.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libwebpdemux.2.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libwebpmux.3.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libwebpmux.3.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/liblcms2.2.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/liblcms2.2.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libjpeg.62.4.0.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libjpeg.62.4.0.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libopenjp2.2.5.2.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libopenjp2.2.5.2.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libz.1.3.1.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libz.1.3.1.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libxcb.1.1.0.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libxcb.1.1.0.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libtiff.6.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libtiff.6.dylib',
+   'BINARY'),
+  ('libsqlite3.0.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libsqlite3.0.dylib',
+   'BINARY'),
+  ('libncursesw.6.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libncursesw.6.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libsharpyuv.0.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libsharpyuv.0.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/libXau.6.0.0.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/libXau.6.0.0.dylib',
+   'BINARY'),
+  ('PIL/.dylibs/liblzma.5.dylib',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/PIL/.dylibs/liblzma.5.dylib',
+   'BINARY'),
+  ('libtinfow.6.dylib',
+   '/Users/josedasilva/opt/anaconda3/lib/libtinfow.6.dylib',
+   'BINARY'),
+  ('instance/productos.db',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/instance/productos.db',
+   'DATA'),
+  ('static/favicon.ico',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/static/favicon.ico',
+   'DATA'),
+  ('static/logo_etiquetas.png',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/static/logo_etiquetas.png',
+   'DATA'),
+  ('static/scripts.js',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/static/scripts.js',
+   'DATA'),
+  ('static/styles.css',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/static/styles.css',
+   'DATA'),
+  ('templates/clientes.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/clientes.html',
+   'DATA'),
+  ('templates/editar_producto.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/editar_producto.html',
+   'DATA'),
+  ('templates/facturacion.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/facturacion.html',
+   'DATA'),
+  ('templates/form_generar_etiquetas.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/form_generar_etiquetas.html',
+   'DATA'),
+  ('templates/formulario_importacion.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/formulario_importacion.html',
+   'DATA'),
+  ('templates/index.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/index.html',
+   'DATA'),
+  ('templates/productos.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/productos.html',
+   'DATA'),
+  ('templates/recepciones.html',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/templates/recepciones.html',
+   'DATA'),
+  ('base_library.zip',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app v6.0 '
+   'Mac/build/PesosAppMac/base_library.zip',
+   'DATA'),
+  ('importlib_metadata-8.4.0.dist-info/top_level.txt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/importlib_metadata-8.4.0.dist-info/top_level.txt',
+   'DATA'),
+  ('importlib_metadata-8.4.0.dist-info/LICENSE',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/importlib_metadata-8.4.0.dist-info/LICENSE',
+   'DATA'),
+  ('importlib_metadata-8.4.0.dist-info/RECORD',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/importlib_metadata-8.4.0.dist-info/RECORD',
+   'DATA'),
+  ('importlib_metadata-8.4.0.dist-info/METADATA',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/importlib_metadata-8.4.0.dist-info/METADATA',
+   'DATA'),
+  ('importlib_metadata-8.4.0.dist-info/WHEEL',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/importlib_metadata-8.4.0.dist-info/WHEEL',
+   'DATA'),
+  ('importlib_metadata-8.4.0.dist-info/INSTALLER',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/importlib_metadata-8.4.0.dist-info/INSTALLER',
+   'DATA'),
+  ('pandas/io/formats/templates/latex_table.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/latex_table.tpl',
+   'DATA'),
+  ('pandas/io/formats/templates/html_table.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/html_table.tpl',
+   'DATA'),
+  ('pandas/io/formats/templates/html.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/html.tpl',
+   'DATA'),
+  ('pandas/io/formats/templates/html_style.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/html_style.tpl',
+   'DATA'),
+  ('pandas/io/formats/templates/latex_longtable.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/latex_longtable.tpl',
+   'DATA'),
+  ('pandas/io/formats/templates/latex.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/latex.tpl',
+   'DATA'),
+  ('pandas/io/formats/templates/string.tpl',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pandas/io/formats/templates/string.tpl',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Currie',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Currie',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Kwajalein',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Kwajalein',
+   'DATA'),
+  ('pytz/zoneinfo/America/St_Lucia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/St_Lucia',
+   'DATA'),
+  ('pytz/zoneinfo/America/Sitka',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Sitka',
+   'DATA'),
+  ('pytz/zoneinfo/Iceland',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Iceland',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ulaanbaatar',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ulaanbaatar',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Pyongyang',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Pyongyang',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Samara',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Samara',
+   'DATA'),
+  ('pytz/zoneinfo/Eire',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Eire',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Bucharest',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Bucharest',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Kirov',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Kirov',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Guam',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Guam',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Palau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Palau',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Copenhagen',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Copenhagen',
+   'DATA'),
+  ('pytz/zoneinfo/America/Rosario',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Rosario',
+   'DATA'),
+  ('pytz/zoneinfo/America/Shiprock',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Shiprock',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Gibraltar',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Gibraltar',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Blantyre',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Blantyre',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Nauru',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Nauru',
+   'DATA'),
+  ('pytz/zoneinfo/America/Boa_Vista',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Boa_Vista',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Bissau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Bissau',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Minsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Minsk',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Efate',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Efate',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Bougainville',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Bougainville',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Tasmania',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Tasmania',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Pago_Pago',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Pago_Pago',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Brisbane',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Brisbane',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+4',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+4',
+   'DATA'),
+  ('pytz/zoneinfo/Poland',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Poland',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Rio_Gallegos',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Rio_Gallegos',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Chisinau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Chisinau',
+   'DATA'),
+  ('pytz/zoneinfo/America/Monterrey',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Monterrey',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-8',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-8',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+8',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+8',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Dili',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Dili',
+   'DATA'),
+  ('pytz/zoneinfo/America/Porto_Acre',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Porto_Acre',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/Universal',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/Universal',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Dakar',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Dakar',
+   'DATA'),
+  ('pytz/zoneinfo/America/Santarem',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Santarem',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Pohnpei',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Pohnpei',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/Greenwich',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/Greenwich',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Rome',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Rome',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Bahrain',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Bahrain',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Pontianak',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Pontianak',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Gambier',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Gambier',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/North',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/North',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Kaliningrad',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Kaliningrad',
+   'DATA'),
+  ('pytz/zoneinfo/US/Central',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Central',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Jersey',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Jersey',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Tucuman',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Tucuman',
+   'DATA'),
+  ('pytz/zoneinfo/America/Ensenada',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Ensenada',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Port_Moresby',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Port_Moresby',
+   'DATA'),
+  ('pytz/zoneinfo/America/Jamaica',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Jamaica',
+   'DATA'),
+  ('pytz/zoneinfo/Universal',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Universal',
+   'DATA'),
+  ('pytz/zoneinfo/America/Knox_IN',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Knox_IN',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Mendoza',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Mendoza',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Brazzaville',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Brazzaville',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-2',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-2',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Freetown',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Freetown',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Pitcairn',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Pitcairn',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Zurich',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Zurich',
+   'DATA'),
+  ('pytz/zoneinfo/Mexico/BajaSur',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Mexico/BajaSur',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Tokyo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Tokyo',
+   'DATA'),
+  ('pytz/zoneinfo/America/Santa_Isabel',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Santa_Isabel',
+   'DATA'),
+  ('pytz/zoneinfo/America/Fortaleza',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Fortaleza',
+   'DATA'),
+  ('pytz/zoneinfo/America/Recife',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Recife',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Djibouti',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Djibouti',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Saigon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Saigon',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Bangkok',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Bangkok',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Omsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Omsk',
+   'DATA'),
+  ('pytz/zoneinfo/America/Louisville',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Louisville',
+   'DATA'),
+  ('pytz/zoneinfo/America/Costa_Rica',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Costa_Rica',
+   'DATA'),
+  ('pytz/zoneinfo/America/Eirunepe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Eirunepe',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-3',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-3',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-12',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-12',
+   'DATA'),
+  ('pytz/zoneinfo/America/Havana',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Havana',
+   'DATA'),
+  ('pytz/zoneinfo/America/Hermosillo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Hermosillo',
+   'DATA'),
+  ('pytz/zoneinfo/Cuba',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Cuba',
+   'DATA'),
+  ('pytz/zoneinfo/America/Tortola',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Tortola',
+   'DATA'),
+  ('pytz/zoneinfo/America/Boise',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Boise',
+   'DATA'),
+  ('pytz/zoneinfo/Kwajalein',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Kwajalein',
+   'DATA'),
+  ('pytz/zoneinfo/America/Adak',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Adak',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Lusaka',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Lusaka',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Porto-Novo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Porto-Novo',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Reykjavik',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Reykjavik',
+   'DATA'),
+  ('pytz/zoneinfo/Greenwich',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Greenwich',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Nicosia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Nicosia',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Mogadishu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Mogadishu',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Dhaka',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Dhaka',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Luxembourg',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Luxembourg',
+   'DATA'),
+  ('pytz/zoneinfo/America/Puerto_Rico',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Puerto_Rico',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Marengo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Marengo',
+   'DATA'),
+  ('pytz/zoneinfo/America/Anguilla',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Anguilla',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Vatican',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Vatican',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Yap',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Yap',
+   'DATA'),
+  ('pytz/zoneinfo/America/Curacao',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Curacao',
+   'DATA'),
+  ('pytz/zoneinfo/America/Fort_Wayne',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Fort_Wayne',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Juba',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Juba',
+   'DATA'),
+  ('pytz/zoneinfo/ROK',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/ROK',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-1',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-1',
+   'DATA'),
+  ('pytz/zoneinfo/Brazil/Acre',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Brazil/Acre',
+   'DATA'),
+  ('pytz/zoneinfo/America/Bahia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Bahia',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Tel_Aviv',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Tel_Aviv',
+   'DATA'),
+  ('pytz/zoneinfo/Brazil/DeNoronha',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Brazil/DeNoronha',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Paris',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Paris',
+   'DATA'),
+  ('pytz/zoneinfo/America/Maceio',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Maceio',
+   'DATA'),
+  ('pytz/zoneinfo/America/Catamarca',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Catamarca',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Tell_City',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Tell_City',
+   'DATA'),
+  ('pytz/zoneinfo/America/Kentucky/Louisville',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Kentucky/Louisville',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Comoro',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Comoro',
+   'DATA'),
+  ('pytz/zoneinfo/America/Thule',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Thule',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Newfoundland',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Newfoundland',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Algiers',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Algiers',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Dar_es_Salaam',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Dar_es_Salaam',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Palmer',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Palmer',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/DumontDUrville',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/DumontDUrville',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Vilnius',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Vilnius',
+   'DATA'),
+  ('pytz/zoneinfo/America/Yakutat',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Yakutat',
+   'DATA'),
+  ('pytz/zoneinfo/America/Iqaluit',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Iqaluit',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Johannesburg',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Johannesburg',
+   'DATA'),
+  ('pytz/zoneinfo/America/Ojinaga',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Ojinaga',
+   'DATA'),
+  ('pytz/zoneinfo/Egypt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Egypt',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Damascus',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Damascus',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Manila',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Manila',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Tarawa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Tarawa',
+   'DATA'),
+  ('pytz/zoneinfo/America/Noronha',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Noronha',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Famagusta',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Famagusta',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Qostanay',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Qostanay',
+   'DATA'),
+  ('pytz/zoneinfo/America/Grand_Turk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Grand_Turk',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Reunion',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Reunion',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Honolulu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Honolulu',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+12',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+12',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Seoul',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Seoul',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Skopje',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Skopje',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Monaco',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Monaco',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/LHI',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/LHI',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-13',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-13',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Uzhgorod',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Uzhgorod',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Tiraspol',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Tiraspol',
+   'DATA'),
+  ('pytz/zoneinfo/America/Lima',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Lima',
+   'DATA'),
+  ('pytz/zoneinfo/America/Cuiaba',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Cuiaba',
+   'DATA'),
+  ('pytz/zoneinfo/America/Rio_Branco',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Rio_Branco',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Noumea',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Noumea',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Vientiane',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Vientiane',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Azores',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Azores',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Vincennes',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Vincennes',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Singapore',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Singapore',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Magadan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Magadan',
+   'DATA'),
+  ('pytz/zoneinfo/America/Edmonton',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Edmonton',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Lome',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Lome',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Buenos_Aires',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Buenos_Aires',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Phnom_Penh',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Phnom_Penh',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+6',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+6',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Harare',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Harare',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Srednekolymsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Srednekolymsk',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ujung_Pandang',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ujung_Pandang',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Douala',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Douala',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Baku',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Baku',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Fiji',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Fiji',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kamchatka',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kamchatka',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Malta',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Malta',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Rangoon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Rangoon',
+   'DATA'),
+  ('pytz/zoneinfo/America/Scoresbysund',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Scoresbysund',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Ouagadougou',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Ouagadougou',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Indianapolis',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Indianapolis',
+   'DATA'),
+  ('pytz/zoneinfo/America/St_Thomas',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/St_Thomas',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Qyzylorda',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Qyzylorda',
+   'DATA'),
+  ('pytz/zoneinfo/America/Denver',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Denver',
+   'DATA'),
+  ('pytz/zoneinfo/America/North_Dakota/Beulah',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/North_Dakota/Beulah',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Catamarca',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Catamarca',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Lord_Howe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Lord_Howe',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Cordoba',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Cordoba',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Maseru',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Maseru',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Sofia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Sofia',
+   'DATA'),
+  ('pytz/zoneinfo/America/Cordoba',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Cordoba',
+   'DATA'),
+  ('pytz/zoneinfo/America/La_Paz',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/La_Paz',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Accra',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Accra',
+   'DATA'),
+  ('pytz/zoneinfo/America/Caracas',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Caracas',
+   'DATA'),
+  ('pytz/zoneinfo/Israel',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Israel',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Istanbul',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Istanbul',
+   'DATA'),
+  ('pytz/zoneinfo/zone1970.tab',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/zone1970.tab',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/NSW',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/NSW',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Madeira',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Madeira',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Luanda',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Luanda',
+   'DATA'),
+  ('pytz/zoneinfo/America/Manaus',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Manaus',
+   'DATA'),
+  ('pytz/zoneinfo/America/Asuncion',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Asuncion',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Malabo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Malabo',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Prague',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Prague',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Mariehamn',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Mariehamn',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Colombo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Colombo',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Simferopol',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Simferopol',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/San_Marino',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/San_Marino',
+   'DATA'),
+  ('pytz/zoneinfo/America/Toronto',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Toronto',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Oslo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Oslo',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Winamac',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Winamac',
+   'DATA'),
+  ('pytz/zoneinfo/America/Atka',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Atka',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Rothera',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Rothera',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Yangon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Yangon',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/West',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/West',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Istanbul',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Istanbul',
+   'DATA'),
+  ('pytz/zoneinfo/America/Punta_Arenas',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Punta_Arenas',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Norfolk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Norfolk',
+   'DATA'),
+  ('pytz/zoneinfo/CST6CDT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/CST6CDT',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Apia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Apia',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/ACT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/ACT',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Lubumbashi',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Lubumbashi',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Funafuti',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Funafuti',
+   'DATA'),
+  ('pytz/zoneinfo/US/Arizona',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Arizona',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Fakaofo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Fakaofo',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kuwait',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kuwait',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Yerevan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Yerevan',
+   'DATA'),
+  ('pytz/zoneinfo/America/Guadeloupe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Guadeloupe',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Jakarta',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Jakarta',
+   'DATA'),
+  ('pytz/zoneinfo/America/Chihuahua',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Chihuahua',
+   'DATA'),
+  ('pytz/zoneinfo/Chile/EasterIsland',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Chile/EasterIsland',
+   'DATA'),
+  ('pytz/zoneinfo/America/Mazatlan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Mazatlan',
+   'DATA'),
+  ('pytz/zoneinfo/NZ',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/NZ',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Conakry',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Conakry',
+   'DATA'),
+  ('pytz/zoneinfo/US/Mountain',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Mountain',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Sydney',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Sydney',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/La_Rioja',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/La_Rioja',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Libreville',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Libreville',
+   'DATA'),
+  ('pytz/zoneinfo/America/Cayenne',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Cayenne',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Saratov',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Saratov',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Chagos',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Chagos',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Kyiv',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Kyiv',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-11',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-11',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Riga',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Riga',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+0',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+0',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Troll',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Troll',
+   'DATA'),
+  ('pytz/zoneinfo/America/Port_of_Spain',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Port_of_Spain',
+   'DATA'),
+  ('pytz/zoneinfo/America/Detroit',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Detroit',
+   'DATA'),
+  ('pytz/zoneinfo/America/Martinique',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Martinique',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/South',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/South',
+   'DATA'),
+  ('pytz/zoneinfo/America/Rankin_Inlet',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Rankin_Inlet',
+   'DATA'),
+  ('pytz/zoneinfo/America/Menominee',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Menominee',
+   'DATA'),
+  ('pytz/zoneinfo/EET',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/EET',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+11',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+11',
+   'DATA'),
+  ('pytz/zoneinfo/US/Eastern',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Eastern',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Tahiti',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Tahiti',
+   'DATA'),
+  ('pytz/zoneinfo/America/Fort_Nelson',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Fort_Nelson',
+   'DATA'),
+  ('pytz/zoneinfo/America/Dawson',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Dawson',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Asmara',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Asmara',
+   'DATA'),
+  ('pytz/zoneinfo/Brazil/West',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Brazil/West',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Atlantic',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Atlantic',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Bamako',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Bamako',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Sao_Tome',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Sao_Tome',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Riyadh',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Riyadh',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Thimphu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Thimphu',
+   'DATA'),
+  ('pytz/zoneinfo/America/Dawson_Creek',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Dawson_Creek',
+   'DATA'),
+  ('pytz/zoneinfo/America/Danmarkshavn',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Danmarkshavn',
+   'DATA'),
+  ('pytz/zoneinfo/GMT-0',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/GMT-0',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Rarotonga',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Rarotonga',
+   'DATA'),
+  ('pytz/zoneinfo/HST',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/HST',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Bratislava',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Bratislava',
+   'DATA'),
+  ('pytz/zoneinfo/PRC',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/PRC',
+   'DATA'),
+  ('pytz/zoneinfo/EST',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/EST',
+   'DATA'),
+  ('pytz/zoneinfo/America/Vancouver',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Vancouver',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Chatham',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Chatham',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Wallis',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Wallis',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Busingen',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Busingen',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Novokuznetsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Novokuznetsk',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Adelaide',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Adelaide',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Mauritius',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Mauritius',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Hobart',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Hobart',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Timbuktu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Timbuktu',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Stockholm',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Stockholm',
+   'DATA'),
+  ('pytz/zoneinfo/America/Cambridge_Bay',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Cambridge_Bay',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kashgar',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kashgar',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/San_Luis',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/San_Luis',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Yekaterinburg',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Yekaterinburg',
+   'DATA'),
+  ('pytz/zoneinfo/America/Regina',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Regina',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Canberra',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Canberra',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Faroe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Faroe',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/St_Helena',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/St_Helena',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Niue',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Niue',
+   'DATA'),
+  ('pytz/zoneinfo/MST',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/MST',
+   'DATA'),
+  ('pytz/zoneinfo/America/Metlakatla',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Metlakatla',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Chungking',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Chungking',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Gaborone',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Gaborone',
+   'DATA'),
+  ('pytz/zoneinfo/US/Hawaii',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Hawaii',
+   'DATA'),
+  ('pytz/zoneinfo/America/Cayman',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Cayman',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Kerguelen',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Kerguelen',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Guadalcanal',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Guadalcanal',
+   'DATA'),
+  ('pytz/zoneinfo/America/Paramaribo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Paramaribo',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Yancowinna',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Yancowinna',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Victoria',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Victoria',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Wake',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Wake',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Macquarie',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Macquarie',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Tomsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Tomsk',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Ceuta',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Ceuta',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Lindeman',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Lindeman',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Hong_Kong',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Hong_Kong',
+   'DATA'),
+  ('pytz/zoneinfo/America/Godthab',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Godthab',
+   'DATA'),
+  ('pytz/zoneinfo/America/Panama',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Panama',
+   'DATA'),
+  ('pytz/zoneinfo/America/Blanc-Sablon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Blanc-Sablon',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-10',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-10',
+   'DATA'),
+  ('pytz/zoneinfo/W-SU',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/W-SU',
+   'DATA'),
+  ('pytz/zoneinfo/America/Campo_Grande',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Campo_Grande',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Ushuaia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Ushuaia',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Almaty',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Almaty',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Amsterdam',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Amsterdam',
+   'DATA'),
+  ('pytz/zoneinfo/UTC',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/UTC',
+   'DATA'),
+  ('pytz/zoneinfo/America/Porto_Velho',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Porto_Velho',
+   'DATA'),
+  ('pytz/zoneinfo/America/Sao_Paulo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Sao_Paulo',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Chita',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Chita',
+   'DATA'),
+  ('pytz/zoneinfo/America/Miquelon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Miquelon',
+   'DATA'),
+  ('pytz/zoneinfo/MET',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/MET',
+   'DATA'),
+  ('pytz/zoneinfo/Zulu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Zulu',
+   'DATA'),
+  ('pytz/zoneinfo/America/Matamoros',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Matamoros',
+   'DATA'),
+  ('pytz/zoneinfo/America/Tijuana',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Tijuana',
+   'DATA'),
+  ('pytz/zoneinfo/WET',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/WET',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Windhoek',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Windhoek',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/South_Pole',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/South_Pole',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Tallinn',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Tallinn',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Lisbon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Lisbon',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Harbin',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Harbin',
+   'DATA'),
+  ('pytz/zoneinfo/GMT0',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/GMT0',
+   'DATA'),
+  ('pytz/zoneinfo/America/North_Dakota/Center',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/North_Dakota/Center',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Nicosia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Nicosia',
+   'DATA'),
+  ('pytz/zoneinfo/America/Nassau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Nassau',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Eucla',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Eucla',
+   'DATA'),
+  ('pytz/zoneinfo/Navajo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Navajo',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Galapagos',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Galapagos',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Queensland',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Queensland',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Tashkent',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Tashkent',
+   'DATA'),
+  ('pytz/zoneinfo/America/Guatemala',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Guatemala',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ho_Chi_Minh',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ho_Chi_Minh',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Niamey',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Niamey',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Knox',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Knox',
+   'DATA'),
+  ('pytz/zoneinfo/tzdata.zi',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/tzdata.zi',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Ndjamena',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Ndjamena',
+   'DATA'),
+  ('pytz/zoneinfo/America/Juneau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Juneau',
+   'DATA'),
+  ('pytz/zoneinfo/EST5EDT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/EST5EDT',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Canary',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Canary',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-5',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-5',
+   'DATA'),
+  ('pytz/zoneinfo/America/Bogota',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Bogota',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Dushanbe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Dushanbe',
+   'DATA'),
+  ('pytz/zoneinfo/America/Yellowknife',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Yellowknife',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Pacific',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Pacific',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/UTC',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/UTC',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Hovd',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Hovd',
+   'DATA'),
+  ('pytz/zoneinfo/America/Anchorage',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Anchorage',
+   'DATA'),
+  ('pytz/zoneinfo/America/Port-au-Prince',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Port-au-Prince',
+   'DATA'),
+  ('pytz/zoneinfo/America/Glace_Bay',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Glace_Bay',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Moscow',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Moscow',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Mbabane',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Mbabane',
+   'DATA'),
+  ('pytz/zoneinfo/America/Thunder_Bay',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Thunder_Bay',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Gaza',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Gaza',
+   'DATA'),
+  ('pytz/zoneinfo/America/Buenos_Aires',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Buenos_Aires',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Oral',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Oral',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Johnston',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Johnston',
+   'DATA'),
+  ('pytz/zoneinfo/ROC',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/ROC',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Mawson',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Mawson',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Budapest',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Budapest',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/South_Georgia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/South_Georgia',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Vienna',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Vienna',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-14',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-14',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Tripoli',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Tripoli',
+   'DATA'),
+  ('pytz/zoneinfo/Iran',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Iran',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Anadyr',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Anadyr',
+   'DATA'),
+  ('pytz/zoneinfo/America/Mendoza',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Mendoza',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Saipan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Saipan',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+5',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+5',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+7',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+7',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Isle_of_Man',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Isle_of_Man',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Broken_Hill',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Broken_Hill',
+   'DATA'),
+  ('pytz/zoneinfo/America/Grenada',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Grenada',
+   'DATA'),
+  ('pytz/zoneinfo/America/Belem',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Belem',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Thimbu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Thimbu',
+   'DATA'),
+  ('pytz/zoneinfo/America/Nipigon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Nipigon',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Kiritimati',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Kiritimati',
+   'DATA'),
+  ('pytz/zoneinfo/America/Kentucky/Monticello',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Kentucky/Monticello',
+   'DATA'),
+  ('pytz/zoneinfo/America/Araguaina',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Araguaina',
+   'DATA'),
+  ('pytz/zoneinfo/GB',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/GB',
+   'DATA'),
+  ('pytz/zoneinfo/America/Lower_Princes',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Lower_Princes',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Cocos',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Cocos',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/San_Juan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/San_Juan',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Yukon',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Yukon',
+   'DATA'),
+  ('pytz/zoneinfo/GB-Eire',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/GB-Eire',
+   'DATA'),
+  ('pytz/zoneinfo/America/Marigot',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Marigot',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-7',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-7',
+   'DATA'),
+  ('pytz/zoneinfo/zone.tab',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/zone.tab',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Khandyga',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Khandyga',
+   'DATA'),
+  ('pytz/zoneinfo/America/Atikokan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Atikokan',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Ulyanovsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Ulyanovsk',
+   'DATA'),
+  ('pytz/zoneinfo/America/Nuuk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Nuuk',
+   'DATA'),
+  ('pytz/zoneinfo/US/Samoa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Samoa',
+   'DATA'),
+  ('pytz/zoneinfo/America/Montreal',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Montreal',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Aden',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Aden',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Mahe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Mahe',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Krasnoyarsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Krasnoyarsk',
+   'DATA'),
+  ('pytz/zoneinfo/US/Michigan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Michigan',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/El_Aaiun',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/El_Aaiun',
+   'DATA'),
+  ('pytz/zoneinfo/America/Barbados',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Barbados',
+   'DATA'),
+  ('pytz/zoneinfo/America/Whitehorse',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Whitehorse',
+   'DATA'),
+  ('pytz/zoneinfo/Portugal',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Portugal',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Banjul',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Banjul',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Christmas',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Christmas',
+   'DATA'),
+  ('pytz/zoneinfo/PST8PDT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/PST8PDT',
+   'DATA'),
+  ('pytz/zoneinfo/US/Aleutian',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Aleutian',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Salta',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Salta',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Irkutsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Irkutsk',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Urumqi',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Urumqi',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Khartoum',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Khartoum',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Dacca',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Dacca',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Majuro',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Majuro',
+   'DATA'),
+  ('pytz/zoneinfo/America/Goose_Bay',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Goose_Bay',
+   'DATA'),
+  ('pytz/zoneinfo/America/St_Vincent',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/St_Vincent',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Vaduz',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Vaduz',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Dublin',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Dublin',
+   'DATA'),
+  ('pytz/zoneinfo/Arctic/Longyearbyen',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Arctic/Longyearbyen',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Enderbury',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Enderbury',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Ljubljana',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Ljubljana',
+   'DATA'),
+  ('pytz/zoneinfo/America/Chicago',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Chicago',
+   'DATA'),
+  ('pytz/zoneinfo/America/Montevideo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Montevideo',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Tbilisi',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Tbilisi',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Petersburg',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Petersburg',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Eastern',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Eastern',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Kinshasa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Kinshasa',
+   'DATA'),
+  ('pytz/zoneinfo/America/Phoenix',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Phoenix',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Monrovia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Monrovia',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Qatar',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Qatar',
+   'DATA'),
+  ('pytz/zoneinfo/America/Antigua',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Antigua',
+   'DATA'),
+  ('pytz/zoneinfo/CET',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/CET',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Makassar',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Makassar',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Faeroe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Faeroe',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Jan_Mayen',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Jan_Mayen',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Saskatchewan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Saskatchewan',
+   'DATA'),
+  ('pytz/zoneinfo/America/Tegucigalpa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Tegucigalpa',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Volgograd',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Volgograd',
+   'DATA'),
+  ('pytz/zoneinfo/Turkey',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Turkey',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Macao',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Macao',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Helsinki',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Helsinki',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Belfast',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Belfast',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Casablanca',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Casablanca',
+   'DATA'),
+  ('pytz/zoneinfo/America/Kralendijk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Kralendijk',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Syowa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Syowa',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Chongqing',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Chongqing',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Zagreb',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Zagreb',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Nairobi',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Nairobi',
+   'DATA'),
+  ('pytz/zoneinfo/GMT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/GMT',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Perth',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Perth',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Samoa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Samoa',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Marquesas',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Marquesas',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Baghdad',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Baghdad',
+   'DATA'),
+  ('pytz/zoneinfo/Libya',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Libya',
+   'DATA'),
+  ('pytz/zoneinfo/US/Pacific',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Pacific',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indiana/Vevay',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indiana/Vevay',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Aqtau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Aqtau',
+   'DATA'),
+  ('pytz/zoneinfo/America/St_Johns',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/St_Johns',
+   'DATA'),
+  ('pytz/zoneinfo/America/North_Dakota/New_Salem',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/North_Dakota/New_Salem',
+   'DATA'),
+  ('pytz/zoneinfo/America/Los_Angeles',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Los_Angeles',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Casey',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Casey',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Addis_Ababa',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Addis_Ababa',
+   'DATA'),
+  ('pytz/zoneinfo/America/Ciudad_Juarez',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Ciudad_Juarez',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Sarajevo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Sarajevo',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Cairo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Cairo',
+   'DATA'),
+  ('pytz/zoneinfo/America/El_Salvador',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/El_Salvador',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Kigali',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Kigali',
+   'DATA'),
+  ('pytz/zoneinfo/leapseconds',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/leapseconds',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kuala_Lumpur',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kuala_Lumpur',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Tirane',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Tirane',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Tunis',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Tunis',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Chuuk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Chuuk',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ashgabat',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ashgabat',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Muscat',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Muscat',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+2',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+2',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Antananarivo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Antananarivo',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Katmandu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Katmandu',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Kampala',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Kampala',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Bujumbura',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Bujumbura',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Bishkek',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Bishkek',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Andorra',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Andorra',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Calcutta',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Calcutta',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Jerusalem',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Jerusalem',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Karachi',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Karachi',
+   'DATA'),
+  ('pytz/zoneinfo/America/Indianapolis',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Indianapolis',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Truk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Truk',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kolkata',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kolkata',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Stanley',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Stanley',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Lagos',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Lagos',
+   'DATA'),
+  ('pytz/zoneinfo/America/Merida',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Merida',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Taipei',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Taipei',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-6',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-6',
+   'DATA'),
+  ('pytz/zoneinfo/America/New_York',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/New_York',
+   'DATA'),
+  ('pytz/zoneinfo/America/Santo_Domingo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Santo_Domingo',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Cape_Verde',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Cape_Verde',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Atyrau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Atyrau',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kabul',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kabul',
+   'DATA'),
+  ('pytz/zoneinfo/America/Resolute',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Resolute',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-0',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-0',
+   'DATA'),
+  ('pytz/zoneinfo/America/Jujuy',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Jujuy',
+   'DATA'),
+  ('pytz/zoneinfo/America/Moncton',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Moncton',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ust-Nera',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ust-Nera',
+   'DATA'),
+  ('pytz/zoneinfo/UCT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/UCT',
+   'DATA'),
+  ('pytz/zoneinfo/America/Guyana',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Guyana',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Brunei',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Brunei',
+   'DATA'),
+  ('pytz/zoneinfo/America/Guayaquil',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Guayaquil',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/Zulu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/Zulu',
+   'DATA'),
+  ('pytz/zoneinfo/America/Creston',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Creston',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ashkhabad',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ashkhabad',
+   'DATA'),
+  ('pytz/zoneinfo/zonenow.tab',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/zonenow.tab',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Dubai',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Dubai',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Jayapura',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Jayapura',
+   'DATA'),
+  ('pytz/zoneinfo/America/Halifax',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Halifax',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Mayotte',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Mayotte',
+   'DATA'),
+  ('pytz/zoneinfo/America/St_Barthelemy',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/St_Barthelemy',
+   'DATA'),
+  ('pytz/zoneinfo/America/Inuvik',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Inuvik',
+   'DATA'),
+  ('pytz/zoneinfo/America/Virgin',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Virgin',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Kosrae',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Kosrae',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Macau',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Macau',
+   'DATA'),
+  ('pytz/zoneinfo/US/East-Indiana',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/East-Indiana',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Warsaw',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Warsaw',
+   'DATA'),
+  ('pytz/zoneinfo/America/Winnipeg',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Winnipeg',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Beirut',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Beirut',
+   'DATA'),
+  ('pytz/zoneinfo/America/Swift_Current',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Swift_Current',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/UCT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/UCT',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+10',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+10',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT0',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT0',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Bangui',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Bangui',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+3',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+3',
+   'DATA'),
+  ('pytz/zoneinfo/Hongkong',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Hongkong',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Auckland',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Auckland',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Tehran',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Tehran',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Barnaul',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Barnaul',
+   'DATA'),
+  ('pytz/zoneinfo/America/Bahia_Banderas',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Bahia_Banderas',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Tongatapu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Tongatapu',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/ComodRivadavia',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/ComodRivadavia',
+   'DATA'),
+  ('pytz/zoneinfo/America/Pangnirtung',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Pangnirtung',
+   'DATA'),
+  ('pytz/zoneinfo/NZ-CHAT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/NZ-CHAT',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Novosibirsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Novosibirsk',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Vostok',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Vostok',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Central',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Central',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Abidjan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Abidjan',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-9',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-9',
+   'DATA'),
+  ('pytz/zoneinfo/Brazil/East',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Brazil/East',
+   'DATA'),
+  ('pytz/zoneinfo/America/Belize',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Belize',
+   'DATA'),
+  ('pytz/zoneinfo/America/Coral_Harbour',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Coral_Harbour',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Belgrade',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Belgrade',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/McMurdo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/McMurdo',
+   'DATA'),
+  ('pytz/zoneinfo/America/Rainy_River',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Rainy_River',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Maputo',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Maputo',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Asmera',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Asmera',
+   'DATA'),
+  ('pytz/zoneinfo/America/Dominica',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Dominica',
+   'DATA'),
+  ('pytz/zoneinfo/Antarctica/Davis',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Antarctica/Davis',
+   'DATA'),
+  ('pytz/zoneinfo/America/Nome',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Nome',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Amman',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Amman',
+   'DATA'),
+  ('pytz/zoneinfo/Mexico/BajaNorte',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Mexico/BajaNorte',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kuching',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kuching',
+   'DATA'),
+  ('pytz/zoneinfo/US/Indiana-Starke',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Indiana-Starke',
+   'DATA'),
+  ('pytz/zoneinfo/America/Aruba',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Aruba',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+9',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+9',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Kanton',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Kanton',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Brussels',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Brussels',
+   'DATA'),
+  ('pytz/zoneinfo/Indian/Maldives',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Indian/Maldives',
+   'DATA'),
+  ('pytz/zoneinfo/America/Argentina/Jujuy',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Argentina/Jujuy',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT-4',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT-4',
+   'DATA'),
+  ('pytz/zoneinfo/America/Mexico_City',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Mexico_City',
+   'DATA'),
+  ('pytz/zoneinfo/Atlantic/Bermuda',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Atlantic/Bermuda',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Astrakhan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Astrakhan',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Choibalsan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Choibalsan',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Vladivostok',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Vladivostok',
+   'DATA'),
+  ('pytz/zoneinfo/iso3166.tab',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/iso3166.tab',
+   'DATA'),
+  ('pytz/zoneinfo/America/St_Kitts',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/St_Kitts',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Athens',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Athens',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Kiev',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Kiev',
+   'DATA'),
+  ('pytz/zoneinfo/Africa/Nouakchott',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Africa/Nouakchott',
+   'DATA'),
+  ('pytz/zoneinfo/Chile/Continental',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Chile/Continental',
+   'DATA'),
+  ('pytz/zoneinfo/Singapore',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Singapore',
+   'DATA'),
+  ('pytz/zoneinfo/America/Cancun',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Cancun',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Kathmandu',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Kathmandu',
+   'DATA'),
+  ('pytz/zoneinfo/Jamaica',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Jamaica',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Yakutsk',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Yakutsk',
+   'DATA'),
+  ('pytz/zoneinfo/US/Alaska',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/US/Alaska',
+   'DATA'),
+  ('pytz/zoneinfo/Mexico/General',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Mexico/General',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Darwin',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Darwin',
+   'DATA'),
+  ('pytz/zoneinfo/Japan',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Japan',
+   'DATA'),
+  ('pytz/zoneinfo/GMT+0',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/GMT+0',
+   'DATA'),
+  ('pytz/zoneinfo/America/Montserrat',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Montserrat',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Berlin',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Berlin',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Easter',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Easter',
+   'DATA'),
+  ('pytz/zoneinfo/Factory',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Factory',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Guernsey',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Guernsey',
+   'DATA'),
+  ('pytz/zoneinfo/Australia/Melbourne',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Australia/Melbourne',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Hebron',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Hebron',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Ulan_Bator',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Ulan_Bator',
+   'DATA'),
+  ('pytz/zoneinfo/Etc/GMT+1',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Etc/GMT+1',
+   'DATA'),
+  ('pytz/zoneinfo/Canada/Mountain',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Canada/Mountain',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Midway',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Midway',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/London',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/London',
+   'DATA'),
+  ('pytz/zoneinfo/America/Santiago',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Santiago',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Shanghai',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Shanghai',
+   'DATA'),
+  ('pytz/zoneinfo/Pacific/Ponape',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Pacific/Ponape',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Zaporozhye',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Zaporozhye',
+   'DATA'),
+  ('pytz/zoneinfo/America/Managua',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/America/Managua',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Madrid',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Madrid',
+   'DATA'),
+  ('pytz/zoneinfo/MST7MDT',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/MST7MDT',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Samarkand',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Samarkand',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Sakhalin',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Sakhalin',
+   'DATA'),
+  ('pytz/zoneinfo/Asia/Aqtobe',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Asia/Aqtobe',
+   'DATA'),
+  ('pytz/zoneinfo/Europe/Podgorica',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/pytz/zoneinfo/Europe/Podgorica',
+   'DATA'),
+  ('flask_sqlalchemy-3.1.1.dist-info/METADATA',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask_sqlalchemy-3.1.1.dist-info/METADATA',
+   'DATA'),
+  ('blinker-1.8.2.dist-info/WHEEL',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/blinker-1.8.2.dist-info/WHEEL',
+   'DATA'),
+  ('flask-3.0.3.dist-info/entry_points.txt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/entry_points.txt',
+   'DATA'),
+  ('itsdangerous-2.2.0.dist-info/WHEEL',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/itsdangerous-2.2.0.dist-info/WHEEL',
+   'DATA'),
+  ('blinker-1.8.2.dist-info/RECORD',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/blinker-1.8.2.dist-info/RECORD',
+   'DATA'),
+  ('flask-3.0.3.dist-info/INSTALLER',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/INSTALLER',
+   'DATA'),
+  ('werkzeug-3.0.4.dist-info/METADATA',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/werkzeug-3.0.4.dist-info/METADATA',
+   'DATA'),
+  ('flask-3.0.3.dist-info/LICENSE.txt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/LICENSE.txt',
+   'DATA'),
+  ('flask-3.0.3.dist-info/REQUESTED',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/REQUESTED',
+   'DATA'),
+  ('flask_sqlalchemy-3.1.1.dist-info/INSTALLER',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask_sqlalchemy-3.1.1.dist-info/INSTALLER',
+   'DATA'),
+  ('flask_sqlalchemy-3.1.1.dist-info/LICENSE.rst',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask_sqlalchemy-3.1.1.dist-info/LICENSE.rst',
+   'DATA'),
+  ('itsdangerous-2.2.0.dist-info/METADATA',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/itsdangerous-2.2.0.dist-info/METADATA',
+   'DATA'),
+  ('werkzeug-3.0.4.dist-info/INSTALLER',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/werkzeug-3.0.4.dist-info/INSTALLER',
+   'DATA'),
+  ('itsdangerous-2.2.0.dist-info/RECORD',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/itsdangerous-2.2.0.dist-info/RECORD',
+   'DATA'),
+  ('werkzeug-3.0.4.dist-info/RECORD',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/werkzeug-3.0.4.dist-info/RECORD',
+   'DATA'),
+  ('werkzeug-3.0.4.dist-info/WHEEL',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/werkzeug-3.0.4.dist-info/WHEEL',
+   'DATA'),
+  ('itsdangerous-2.2.0.dist-info/INSTALLER',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/itsdangerous-2.2.0.dist-info/INSTALLER',
+   'DATA'),
+  ('itsdangerous-2.2.0.dist-info/LICENSE.txt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/itsdangerous-2.2.0.dist-info/LICENSE.txt',
+   'DATA'),
+  ('werkzeug-3.0.4.dist-info/LICENSE.txt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/werkzeug-3.0.4.dist-info/LICENSE.txt',
+   'DATA'),
+  ('blinker-1.8.2.dist-info/INSTALLER',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/blinker-1.8.2.dist-info/INSTALLER',
+   'DATA'),
+  ('blinker-1.8.2.dist-info/METADATA',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/blinker-1.8.2.dist-info/METADATA',
+   'DATA'),
+  ('flask-3.0.3.dist-info/RECORD',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/RECORD',
+   'DATA'),
+  ('flask-3.0.3.dist-info/METADATA',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/METADATA',
+   'DATA'),
+  ('flask-3.0.3.dist-info/WHEEL',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask-3.0.3.dist-info/WHEEL',
+   'DATA'),
+  ('blinker-1.8.2.dist-info/LICENSE.txt',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/blinker-1.8.2.dist-info/LICENSE.txt',
+   'DATA'),
+  ('flask_sqlalchemy-3.1.1.dist-info/RECORD',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask_sqlalchemy-3.1.1.dist-info/RECORD',
+   'DATA'),
+  ('flask_sqlalchemy-3.1.1.dist-info/WHEEL',
+   '/Users/josedasilva/Dropbox/Mi Mac '
+   '(MacBook-Air-de-Jose.local)/Desktop/CURAÇAO/Captura de Pesos app '
+   'v2.0/venv/lib/python3.9/site-packages/flask_sqlalchemy-3.1.1.dist-info/WHEEL',
+   'DATA'),
+  ('liblzma.5.dylib', 'PIL/.dylibs/liblzma.5.dylib', 'SYMLINK'),
+  ('libwebp.7.dylib', 'PIL/.dylibs/libwebp.7.dylib', 'SYMLINK'),
+  ('libwebpdemux.2.dylib', 'PIL/.dylibs/libwebpdemux.2.dylib', 'SYMLINK'),
+  ('libwebpmux.3.dylib', 'PIL/.dylibs/libwebpmux.3.dylib', 'SYMLINK'),
+  ('liblcms2.2.dylib', 'PIL/.dylibs/liblcms2.2.dylib', 'SYMLINK'),
+  ('libjpeg.62.4.0.dylib', 'PIL/.dylibs/libjpeg.62.4.0.dylib', 'SYMLINK'),
+  ('libopenjp2.2.5.2.dylib', 'PIL/.dylibs/libopenjp2.2.5.2.dylib', 'SYMLINK'),
+  ('libz.1.3.1.dylib', 'PIL/.dylibs/libz.1.3.1.dylib', 'SYMLINK'),
+  ('libxcb.1.1.0.dylib', 'PIL/.dylibs/libxcb.1.1.0.dylib', 'SYMLINK'),
+  ('libtiff.6.dylib', 'PIL/.dylibs/libtiff.6.dylib', 'SYMLINK'),
+  ('libsharpyuv.0.dylib', 'PIL/.dylibs/libsharpyuv.0.dylib', 'SYMLINK'),
+  ('libXau.6.0.0.dylib', 'PIL/.dylibs/libXau.6.0.0.dylib', 'SYMLINK')],)
