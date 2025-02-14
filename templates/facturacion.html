@@ -244,6 +244,7 @@
         margin-bottom: 0.5rem;
         font-weight: 500;
         color: #333;
+        font-size: 1rem;
     }
 
     .form-input,
@@ -329,6 +330,17 @@
             font-size: 16px;
         }
 
+        /* Aumentar el tamaño de fuente para las etiquetas de Cliente y Producto */
+        label[for="cliente-facturacion"],
+        label[for="producto-facturacion"] {
+            font-size: 1.4rem;
+        }
+        /* También se incrementa el tamaño de fuente en los campos de selección */
+        #cliente-facturacion,
+        #producto-facturacion {
+            font-size: 1.4rem;
+        }
+
         th, td {
             padding: 0.5rem;
             font-size: 0.9rem;
@@ -339,6 +351,7 @@
         }
     }
 </style>
+
 {% endblock %}
 
 {% block scripts %}
