@@ -1,10 +1,10 @@
+import os
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 import io
 import pandas as pd
 from io import BytesIO
-from sqlalchemy.orm import registry, Session
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # Asegúrate de instalar python-dateutil
 import openpyxl
@@ -13,7 +13,6 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from flask_migrate import Migrate
-import os
 import xlsxwriter
 import socket
 from reportlab.lib import colors
@@ -25,16 +24,36 @@ import traceback
 
 # Importar Flask-Login y funciones de seguridad
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+# from werkzeug.security import generate_password_hash, check_password_hash  # En este ejemplo se usa usuario por defecto
 
+# (Opcional) Usar Flask-Talisman para cabeceras de seguridad
+try:
+    from flask_talisman import Talisman
+except ImportError:
+    Talisman = None  # Si no está instalado, no se aplicarán las cabeceras de seguridad
+
+# Configuración de la aplicación
 app = Flask(__name__)
+# Usar variables de entorno para la configuración sensible
+app.secret_key = os.environ["SECRET_KEY"]
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'productos.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'supersecretkey'  # Cambia esta clave por una clave segura
+
+# Configuración de las cookies de sesión
+app.config['SESSION_COOKIE_SECURE'] = True        # Solo enviar cookies por HTTPS (en producción)
+app.config['SESSION_COOKIE_HTTPONLY'] = True        # No accesible vía JavaScript
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # Ajusta a 'Strict' o 'Lax' según necesidad
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# (Opcional) Aplicar Talisman para cabeceras de seguridad
+if Talisman:
+    Talisman(app, content_security_policy={
+        'default-src': ['\'self\''],
+        'img-src': ['\'self\'', 'data:']
+    })
 
 ############################################
 # Configuración de Flask-Login
@@ -43,38 +62,37 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'  # Redirige a /login si no está autenticado
 
-############################################
-# Modelo de Usuario para autenticación
-############################################
-class Usuario(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+# Definir las credenciales por defecto (se deben configurar vía variables de entorno)
+DEFAULT_USERNAME = os.environ["DEFAULT_USERNAME"]
+DEFAULT_PASSWORD = os.environ["DEFAULT_PASSWORD"]
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+############################################
+# Usuario por defecto (sin base de datos)
+############################################
+class DefaultUser(UserMixin):
+    def __init__(self, username):
+        self.id = username
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Usuario.query.get(int(user_id))
+    if user_id == DEFAULT_USERNAME:
+        return DefaultUser(DEFAULT_USERNAME)
+    return None
+
 
 ############################################
-# Rutas de autenticación
+# Rutas de autenticación usando usuario por defecto
 ############################################
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Si el usuario ya está autenticado, redirige al index
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        usuario = Usuario.query.filter_by(username=username).first()
-        if usuario and usuario.check_password(password):
-            login_user(usuario)
+        if username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
+            user = DefaultUser(username)
+            login_user(user)
             flash("Inicio de sesión exitoso", "success")
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
@@ -90,11 +108,10 @@ def logout():
     return redirect(url_for('login'))
 
 ############################################
-# Protección global de rutas
+# Protección global de rutas (excepto login, logout y static)
 ############################################
 @app.before_request
 def require_login():
-    # Permitir el acceso a login, logout y rutas estáticas
     allowed_endpoints = ['login', 'logout', 'static']
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
@@ -138,8 +155,8 @@ class Facturacion(db.Model):
     peso = db.Column(db.Float, nullable=False)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
     lote = db.Column(db.String(50), nullable=False)
-    fecha_fabricacion = db.Column(db.String(10), nullable=False)  # Formato 'YYYY-MM-DD'
-    fecha_expiracion = db.Column(db.String(10), nullable=False)   # Formato 'YYYY-MM-DD'
+    fecha_fabricacion = db.Column(db.String(10), nullable=False)  # 'YYYY-MM-DD'
+    fecha_expiracion = db.Column(db.String(10), nullable=False)   # 'YYYY-MM-DD'
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
     
     producto = db.relationship('Producto', back_populates='facturaciones')
@@ -168,6 +185,7 @@ class Recepcion(db.Model):
     recibido_en = db.Column(db.Date, nullable=False)
     
     producto = db.relationship('Producto', back_populates='recepciones')
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -201,7 +219,7 @@ class Importacion(db.Model):
     producto = db.relationship('Producto', back_populates='importaciones')
 
 ############################################
-# Función auxiliar para obtener IP del servidor
+# Función auxiliar para obtener la IP del servidor
 ############################################
 def obtener_ip_servidor():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -235,7 +253,6 @@ def crear_producto():
     nuevo_producto = Producto(nombre=nombre, descripcion=descripcion, temperatura=temperatura)
     db.session.add(nuevo_producto)
     db.session.commit()
-
     producto_data = nuevo_producto.to_dict()
     return jsonify({'message': 'Producto creado exitosamente.', 'producto': producto_data}), 200
 
@@ -311,7 +328,6 @@ def crear_recepcion():
             recibido_en = datetime.strptime(fecha_recepcion, '%Y-%m-%d').date()
         except ValueError:
             return jsonify({"error": "Formato de fecha inválido. Debe ser YYYY-MM-DD"}), 400
-
         nueva_recepcion = Recepcion(
             producto_id=producto_id,
             peso=peso,
@@ -319,16 +335,13 @@ def crear_recepcion():
             numero_factura=numero_factura,
             recibido_en=recibido_en
         )
-
         db.session.add(nueva_recepcion)
         db.session.commit()
-
         recepcion_data = nueva_recepcion.to_dict()
         return jsonify({
             "message": "Recepción registrada exitosamente",
             "recepcion": recepcion_data
         }), 200
-
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Error al registrar la recepción: {str(e)}"}), 500
@@ -768,10 +781,10 @@ def reporte_factura(numero_factura):
     elements.append(table)
     elements.append(Spacer(1, 12))
     doc.build(elements)
-    buffer.seek(0)
+    output.seek(0)
     nombre_archivo = f"reporte_factura_{numero_factura}.pdf"
     return send_file(
-        buffer,
+        output,
         as_attachment=True,
         download_name=nombre_archivo,
         mimetype='application/pdf'
@@ -1123,3 +1136,5 @@ if __name__ == '__main__':
     ip_servidor = obtener_ip_servidor()
     print(f"La aplicación está disponible en la IP: {ip_servidor}:{5002}")
     app.run(debug=False, host='0.0.0.0', port=5002)
+
+
