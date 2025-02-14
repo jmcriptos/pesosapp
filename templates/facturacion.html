@@ -13,42 +13,73 @@
 <section class="form-section">
     <form id="form-facturacion" method="POST" action="{{ url_for('registrar_facturacion') }}">
         <div class="form-grid">
+            <!-- Cliente -->
             <div class="form-group">
                 <label for="cliente-facturacion">Cliente:</label>
                 <select id="cliente-facturacion" name="cliente_id" required class="form-select">
                     {% for cliente in clientes %}
-                        <option value="{{ cliente.id }}" {% if previous_data.cliente_id == cliente.id %}selected{% endif %}>
+                        <option 
+                            value="{{ cliente.id }}" 
+                            {% if previous_data.cliente_id == cliente.id %}selected{% endif %}
+                        >
                             {{ cliente.nombre }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
 
+            <!-- Producto (ordenado alfabéticamente) -->
             <div class="form-group">
                 <label for="producto-facturacion">Producto:</label>
                 <select id="producto-facturacion" name="producto_id" required class="form-select">
-                    {% for producto in productos %}
-                        <option value="{{ producto.id }}" {% if previous_data.producto_id == producto.id %}selected{% endif %}>
+                    {% for producto in productos|sort(attribute='nombre') %}
+                        <option 
+                            value="{{ producto.id }}" 
+                            {% if previous_data.producto_id == producto.id %}selected{% endif %}
+                        >
                             {{ producto.nombre }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
 
+            <!-- Lote -->
             <div class="form-group">
                 <label for="lote-facturacion">Lote:</label>
-                <input type="text" id="lote-facturacion" name="lote" value="{{ previous_data.lote }}" required class="form-input">
+                <input 
+                    type="text" 
+                    id="lote-facturacion" 
+                    name="lote" 
+                    value="{{ previous_data.lote }}" 
+                    required 
+                    class="form-input"
+                >
             </div>
 
+            <!-- Fecha de Fabricación -->
             <div class="form-group">
                 <label for="fecha-fabricacion-facturacion">Fecha de Fabricación:</label>
-                <input type="date" id="fecha-fabricacion-facturacion" name="fecha_fabricacion" 
-                       value="{{ previous_data.fecha_fabricacion }}" required class="form-input">
+                <input 
+                    type="date" 
+                    id="fecha-fabricacion-facturacion" 
+                    name="fecha_fabricacion" 
+                    value="{{ previous_data.fecha_fabricacion }}" 
+                    required 
+                    class="form-input"
+                >
             </div>
 
+            <!-- Peso -->
             <div class="form-group">
                 <label for="peso-facturacion">Peso:</label>
-                <input type="number" step="0.01" id="peso-facturacion" name="peso" required class="form-input">
+                <input 
+                    type="number" 
+                    step="0.01" 
+                    id="peso-facturacion" 
+                    name="peso" 
+                    required 
+                    class="form-input"
+                >
             </div>
         </div>
 
@@ -115,12 +146,24 @@
 
             <div class="form-group">
                 <label for="fecha-inicio-reporte-pesos">Fecha de Inicio:</label>
-                <input type="date" id="fecha-inicio-reporte-pesos" name="fecha_inicio" required class="form-input">
+                <input 
+                    type="date" 
+                    id="fecha-inicio-reporte-pesos" 
+                    name="fecha_inicio" 
+                    required 
+                    class="form-input"
+                >
             </div>
 
             <div class="form-group">
                 <label for="fecha-fin-reporte-pesos">Fecha de Fin:</label>
-                <input type="date" id="fecha-fin-reporte-pesos" name="fecha_fin" required class="form-input">
+                <input 
+                    type="date" 
+                    id="fecha-fin-reporte-pesos" 
+                    name="fecha_fin" 
+                    required 
+                    class="form-input"
+                >
             </div>
         </div>
 
@@ -146,12 +189,24 @@
 
             <div class="form-group">
                 <label for="fecha-inicio-generar-etiquetas">Fecha de Inicio:</label>
-                <input type="date" id="fecha-inicio-generar-etiquetas" name="fecha_inicio" required class="form-input">
+                <input 
+                    type="date" 
+                    id="fecha-inicio-generar-etiquetas" 
+                    name="fecha_inicio" 
+                    required 
+                    class="form-input"
+                >
             </div>
 
             <div class="form-group">
                 <label for="fecha-fin-generar-etiquetas">Fecha de Fin:</label>
-                <input type="date" id="fecha-fin-generar-etiquetas" name="fecha_fin" required class="form-input">
+                <input 
+                    type="date" 
+                    id="fecha-fin-generar-etiquetas" 
+                    name="fecha_fin" 
+                    required 
+                    class="form-input"
+                >
             </div>
         </div>
 
@@ -259,6 +314,7 @@
         background-color: #c82333;
     }
 
+    /* Media query para aumentar fuente en móvil */
     @media (max-width: 768px) {
         .form-section {
             padding: 1rem;
@@ -266,6 +322,16 @@
 
         .form-grid {
             grid-template-columns: 1fr;
+        }
+
+        /* Aumentar fuente en Cliente y Producto */
+        label[for="cliente-facturacion"],
+        label[for="producto-facturacion"] {
+            font-size: 1.2rem;
+        }
+        #cliente-facturacion,
+        #producto-facturacion {
+            font-size: 1.2rem;
         }
 
         .form-input,
@@ -290,7 +356,7 @@
 <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Asegurarse de que el contenido no se oculte detrás del menú inferior
+        // Ajustar padding inferior para no tapar contenido con el menú inferior
         const content = document.querySelector('.app-content');
         const footer = document.querySelector('.app-footer');
         if (footer) {
@@ -299,3 +365,4 @@
     });
 </script>
 {% endblock %}
+
