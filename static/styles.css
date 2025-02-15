@@ -308,7 +308,9 @@ tr:nth-child(even) {
     z-index: 1000;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     transition: opacity 0.5s ease, transform 0.3s ease;
-    background-color: green;
+    background-color: #28a745; /* Verde más oscuro para mejor contraste */
+    color: white; /* Texto blanco */
+    font-weight: 500; /* Texto semi-negrita para mejor legibilidad */
 }
 
 .flash-message.show {
@@ -321,6 +323,13 @@ tr:nth-child(even) {
     transform: translateY(-20px);
 }
 
+.flash-message.success {
+    background-color: #28a745; /* Verde para éxito */
+}
+
+.flash-message.error {
+    background-color: #dc3545; /* Rojo para error */
+}
 /* Media Queries */
 @media (max-width: 480px) {
     .icon-grid {
