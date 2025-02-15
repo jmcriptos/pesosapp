@@ -258,15 +258,15 @@ tr:nth-child(even) {
 
 /* Estilos específicos para los íconos */
 .nav-item .fas.fa-home {
-    color: var(--icon-importacion);
+    color: #C0C0C0;
 }
 
 .nav-item .fas.fa-file-invoice-dollar {
-    color: var(--icon-facturacion);
+    color: #C0C0C0;
 }
 
 .nav-item .fas.fa-tags {
-    color: var(--icon-etiquetas);
+    color: #C0C0C0;
 }
 
 .nav-item i {
