@@ -295,16 +295,16 @@ table {
    border-radius: 8px;
    overflow: hidden;
    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-   table-layout: auto;
+   table-layout: fixed;
 }
 
 th, td {
    padding: 12px;
    text-align: left;
    border: 1px solid #ddd;
-   white-space: normal;
-   word-wrap: break-word;
-   min-width: 80px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
 }
 
 /* Encabezados de tabla */
@@ -317,12 +317,12 @@ th {
 
 /* Anchos específicos para cada columna */
 th:nth-child(1), td:nth-child(1) { width: 5%; }  /* ID */
-th:nth-child(2), td:nth-child(2) { width: 15%; } /* Producto */
-th:nth-child(3), td:nth-child(3) { width: 8%; }  /* Peso */
+th:nth-child(2), td:nth-child(2) { width: 20%; } /* Producto */
+th:nth-child(3), td:nth-child(3) { width: 7%; }  /* Peso */
 th:nth-child(4), td:nth-child(4) { width: 10%; } /* Cliente */
 th:nth-child(5), td:nth-child(5) { width: 12%; } /* Lote */
-th:nth-child(6), td:nth-child(6) { width: 12%; } /* F. Fabricación */
-th:nth-child(7), td:nth-child(7) { width: 12%; } /* F. Expiración */
+th:nth-child(6), td:nth-child(6) { width: 10%; } /* F. Fabricación */
+th:nth-child(7), td:nth-child(7) { width: 10%; } /* F. Expiración */
 th:nth-child(8), td:nth-child(8) { width: 18%; } /* F. Registro */
 th:nth-child(9), td:nth-child(9) { width: 8%; }  /* Acciones */
 
@@ -341,6 +341,7 @@ tbody tr:only-child td {
    font-size: 1.1rem;
    background-color: #e6e6e6;
    border: 2px solid #cccccc;
+   white-space: normal; /* Permitir wrap en el mensaje de no hay datos */
 }
 
 .btn-danger {
@@ -387,7 +388,7 @@ tbody tr:only-child td {
    }
 
    table {
-       min-width: 800px;
+       min-width: 1000px;
    }
 
    th, td {
