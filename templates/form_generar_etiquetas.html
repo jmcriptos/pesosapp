@@ -13,7 +13,8 @@
             <div class="form-group">
                 <label for="producto_id" class="form-label">Producto:</label>
                 <select name="producto_id" id="producto_id" class="form-select" required>
-                    {% for producto in productos %}
+                    {% set allowed_ids = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] %}
+                    {% for producto in productos|sort(attribute='nombre') if producto.id in allowed_ids %}
                         <option value="{{ producto.id }}">{{ producto.nombre }}</option>
                     {% endfor %}
                 </select>
