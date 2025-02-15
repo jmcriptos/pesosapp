@@ -120,9 +120,7 @@
                     <td>{{ facturacion.fecha_expiracion }}</td>
                     <td>{{ facturacion.fecha_registro }}</td>
                     <td>
-                        <button class="btn btn-danger eliminar-facturacion" data-id="{{ facturacion.id }}">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <i class="fas fa-trash-alt eliminar-facturacion" data-id="{{ facturacion.id }}" style="color: #dc3545; cursor: pointer;"></i>
                     </td>
                 </tr>
                 {% endfor %}
@@ -335,20 +333,17 @@ tbody tr:only-child td {
    white-space: normal;
 }
 
-.btn-danger {
-   background-color: #dc3545;
-   color: white;
-   border: none;
-   padding: 0.5rem 0.8rem;
-   border-radius: 4px;
-   cursor: pointer;
-   font-size: 0.85rem;
+/* Reemplazar los estilos del btn-danger por estos */
+.fa-trash-alt {
+    font-size: 1rem;
+    color: #dc3545;
+    cursor: pointer;
+    transition: color 0.2s;
 }
 
-.btn-danger:hover {
-   background-color: #c82333;
+.fa-trash-alt:hover {
+    color: #c82333;
 }
-
 /* Estilos responsivos */
 @media (max-width: 768px) {
    .form-section {

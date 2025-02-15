@@ -424,7 +424,7 @@ def ultimos_facturaciones():
         'lote': facturacion.lote,
         'fecha_fabricacion': facturacion.fecha_fabricacion,
         'fecha_expiracion': facturacion.fecha_expiracion,
-        'fecha_registro': facturacion.fecha_registro
+        'fecha_registro': facturacion.fecha_registro.strftime('%Y-%m-%d %H:%M')
     } for facturacion in facturaciones])
 
 @app.route('/facturacion/registrar', methods=['POST'])
