@@ -212,7 +212,7 @@ $(document).ready(function() {
                         <td>${producto.descripcion}</td>
                         <td>${producto.temperatura}</td>
                         <td>
-                            <button class="eliminar-producto btn btn-danger" data-id="${producto.id}">Eliminar</button>
+                            <i class="fas fa-trash-alt eliminar-producto" data-id="{{ producto.id }}" style="color: #dc3545; cursor: pointer;"></i>
                         </td>
                     </tr>
                 `;

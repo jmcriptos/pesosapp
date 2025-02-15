@@ -53,9 +53,7 @@
                     <td>{{ producto.descripcion }}</td>
                     <td>{{ producto.temperatura }}</td>
                     <td>
-                        <button class="eliminar-producto btn-danger" data-id="{{ producto.id }}">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <i class="fas fa-trash-alt eliminar-producto" data-id="{{ producto.id }}" style="color: #dc3545; cursor: pointer;"></i>
                     </td>                                                          
                 </tr>
                 {% endfor %}
