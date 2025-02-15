@@ -235,11 +235,12 @@ tr:nth-child(even) {
 }
 
 /* Estilos actualizados para la navegación inferior */
+/* Estilos actualizados para la navegación inferior */
 .mobile-nav {
     display: flex;
-    justify-content: center; /* Centra horizontalmente los enlaces */
-    align-items: center;     /* Alinea verticalmente los enlaces */
-    gap: 2rem;               /* Espacio entre cada opción */
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
     padding: 0.8rem 0;
     background-color: white;
     overflow-x: auto;
@@ -255,21 +256,50 @@ tr:nth-child(even) {
     margin: 0 1.3rem;
 }
 
+/* Estilos específicos para los íconos */
+.nav-item .fas.fa-home {
+    color: var(--primary-color);
+}
+
+.nav-item .fas.fa-file-invoice-dollar {
+    color: var(--icon-facturacion);
+}
+
+.nav-item .fas.fa-tags {
+    color: var(--icon-etiquetas);
+}
+
 .nav-item i {
     font-size: 1.5rem;
     margin-bottom: 0.25rem;
-    color: inherit; /* Hereda el color del nav-item */
 }
 
 .nav-item span {
     font-size: 0.75rem;
     text-align: center;
     line-height: 1.1;
+    color: var(--secondary-color);
 }
 
 .nav-item.active {
-    color: white; /* Color del texto cuando está activo */
-    background: none; /* Elimina el fondo verde */
+    color: var(--primary-color);
+}
+
+.nav-item.active span {
+    color: var(--primary-color);
+}
+
+/* Mantener colores de íconos incluso cuando está activo */
+.nav-item.active .fas.fa-home {
+    color: var(--primary-color);
+}
+
+.nav-item.active .fas.fa-file-invoice-dollar {
+    color: var(--icon-facturacion);
+}
+
+.nav-item.active .fas.fa-tags {
+    color: var(--icon-etiquetas);
 }
 /* Ocultar footer de IP en versión móvil (si aplica) */
 .ip-footer {
