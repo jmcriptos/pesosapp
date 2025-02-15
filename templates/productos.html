@@ -38,21 +38,21 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th class="text-center">ID</th>
                     <th>Nombre</th>
                     <th>Descripción</th>
-                    <th>Temperatura</th>
-                    <th>Acciones</th>
+                    <th class="text-center">Temperatura</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for producto in productos %}
                 <tr id="producto-{{ producto.id }}">
-                    <td>{{ producto.id }}</td>
+                    <td class="text-center">{{ producto.id }}</td>
                     <td>{{ producto.nombre }}</td>
                     <td>{{ producto.descripcion }}</td>
-                    <td>{{ producto.temperatura }}</td>
-                    <td>
+                    <td class="text-center">{{ producto.temperatura }}</td>
+                    <td class="text-center">
                         <i class="fas fa-trash-alt eliminar-producto" data-id="{{ producto.id }}" style="color: #dc3545; cursor: pointer;"></i>
                     </td>                                                          
                 </tr>
@@ -86,6 +86,9 @@
 
     .eliminar-producto i {
         margin: 0;
+    }
+    .text-center {
+    text-align: center;
     }
 
     @media (max-width: 768px) {
