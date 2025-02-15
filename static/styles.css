@@ -313,14 +313,16 @@ tr:nth-child(even) {
     z-index: 1000;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     transition: opacity 0.5s ease, transform 0.3s ease;
-    background-color: #28a745; /* Verde más oscuro para mejor contraste */
-    color: white; /* Texto blanco */
-    font-weight: 500; /* Texto semi-negrita para mejor legibilidad */
+    background-color: #28a745;
+    color: white;
+    font-weight: 500;
+    display: none; /* Oculto por defecto */
 }
 
 .flash-message.show {
     opacity: 1;
     transform: translateY(0);
+    display: block; /* Mostrar cuando tiene la clase show */
 }
 
 .flash-message.hide {
@@ -329,11 +331,13 @@ tr:nth-child(even) {
 }
 
 .flash-message.success {
-    background-color: #28a745; /* Verde para éxito */
+    background-color: #28a745;
+    display: block;
 }
 
 .flash-message.error {
-    background-color: #dc3545; /* Rojo para error */
+    background-color: #dc3545;
+    display: block;
 }
 /* Media Queries */
 @media (max-width: 480px) {
