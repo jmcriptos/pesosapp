@@ -291,7 +291,7 @@ tr:nth-child(even) {
 
 /* Mantener colores de íconos incluso cuando está activo */
 .nav-item.active .fas.fa-home {
-    color: var(--primary-color);
+    color: var(--icon-importacion);
 }
 
 .nav-item.active .fas.fa-file-invoice-dollar {
