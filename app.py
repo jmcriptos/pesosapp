@@ -42,12 +42,12 @@ app.secret_key = os.environ["SECRET_KEY"]
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Configurar la base de datos para que use la variable DATABASE_URL (Postgres en Heroku)
-uri = os.environ["DATABASE_URL"]
+uri = os.environ.get("DATABASE_URL", "sqlite:///local.db")
 if uri.startswith("postgres://"):
     uri = uri.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
 # Configuración de cookies de sesión
 app.config['SESSION_COOKIE_SECURE'] = True
