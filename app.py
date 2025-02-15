@@ -456,6 +456,18 @@ def registrar_facturacion():
         return jsonify({"message": "Peso registrado exitosamente"}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/facturacion/eliminar/<int:id>', methods=['DELETE'])
+@login_required
+def eliminar_facturacion(id):
+    try:
+        facturacion = Facturacion.query.get_or_404(id)
+        db.session.delete(facturacion)
+        db.session.commit()
+        return jsonify({"message": "Facturación eliminada exitosamente"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # Rutas para Importaciones, Reportes y Etiquetas
 @app.route('/formulario_importacion')
