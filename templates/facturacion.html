@@ -221,161 +221,184 @@
 {% block extra_css %}
 <style>
 .form-section {
-    background-color: white;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+   background-color: white;
+   border-radius: 8px;
+   padding: 1.5rem;
+   margin-bottom: 1.5rem;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+   gap: 1rem;
+   margin-bottom: 1rem;
 }
 
 .form-group {
-    margin-bottom: 1rem;
+   margin-bottom: 1rem;
 }
 
 .form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #333;
-    font-size: 1rem;
+   display: block;
+   margin-bottom: 0.5rem;
+   font-weight: 500;
+   color: #333;
+   font-size: 1rem;
 }
 
 .form-input,
 .form-select {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
+   width: 100%;
+   padding: 0.75rem;
+   border: 1px solid #ddd;
+   border-radius: 4px;
+   font-size: 1rem;
 }
 
 .form-button {
-    background-color: #FFD700;
-    color: #333;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
+   background-color: #FFD700;
+   color: #333;
+   padding: 0.75rem 1.5rem;
+   border: none;
+   border-radius: 4px;
+   cursor: pointer;
+   font-size: 1rem;
+   display: flex;
+   align-items: center;
+   gap: 0.5rem;
+   margin-top: 1rem;
 }
 
 .form-button:hover {
-    background-color: #FFC800;
+   background-color: #FFC800;
 }
 
 .table-section {
-    background-color: white;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+   background-color: white;
+   border-radius: 8px;
+   padding: 1.5rem;
+   margin-bottom: 1.5rem;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+   overflow-x: auto;
+   -webkit-overflow-scrolling: touch;
 }
 
 table {
-    width: 100%;
-    border-collapse: collapse;
+   width: 100%;
+   border-collapse: collapse;
+   margin-top: 20px;
+   background-color: white;
+   border-radius: 8px;
+   overflow: hidden;
+   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+   table-layout: auto;
 }
 
 th, td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #eee;
+   padding: 12px;
+   text-align: left;
+   border: 1px solid #ddd;
+   white-space: normal;
+   word-wrap: break-word;
+   min-width: 80px;
 }
 
+/* Encabezados de tabla */
 th {
-    background-color: #007bff;  /* Fondo más oscuro */
-    color: #ffffff;  /* Texto blanco para máximo contraste */
-    font-weight: 600;
-    padding: 12px;
-    text-align: left;
-    border: 1px solid #ddd;
+   background-color: #1a75ff;
+   color: white;
+   font-weight: 600;
+   text-align: center;
 }
 
-/* Para dar un efecto hover sutil */
-th:hover {
-    background-color: goldenrod;
+/* Anchos específicos para cada columna */
+th:nth-child(1), td:nth-child(1) { width: 5%; }  /* ID */
+th:nth-child(2), td:nth-child(2) { width: 15%; } /* Producto */
+th:nth-child(3), td:nth-child(3) { width: 8%; }  /* Peso */
+th:nth-child(4), td:nth-child(4) { width: 10%; } /* Cliente */
+th:nth-child(5), td:nth-child(5) { width: 12%; } /* Lote */
+th:nth-child(6), td:nth-child(6) { width: 12%; } /* F. Fabricación */
+th:nth-child(7), td:nth-child(7) { width: 12%; } /* F. Expiración */
+th:nth-child(8), td:nth-child(8) { width: 18%; } /* F. Registro */
+th:nth-child(9), td:nth-child(9) { width: 8%; }  /* Acciones */
+
+/* Estilo para celdas con datos */
+td {
+   text-align: center;
+   vertical-align: middle;
 }
 
-/* Estilos mejorados para el mensaje de no hay datos */
+/* Mensaje cuando no hay datos */
 tbody tr:only-child td {
-    padding: 2rem;
-    text-align: center;
-    color: #1a1a1a;  /* Color muy oscuro para máximo contraste */
-    font-weight: 500;
-    font-size: 1.1rem;
-    background-color: #f0f0f0;  /* Fondo más visible */
-    border: 2px solid #e0e0e0;  /* Borde más visible */
+   padding: 2rem;
+   text-align: center;
+   color: #1a1a1a;
+   font-weight: 500;
+   font-size: 1.1rem;
+   background-color: #e6e6e6;
+   border: 2px solid #cccccc;
 }
 
 .btn-danger {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
+   background-color: #dc3545;
+   color: white;
+   border: none;
+   padding: 0.5rem;
+   border-radius: 4px;
+   cursor: pointer;
 }
 
 .btn-danger:hover {
-    background-color: #c82333;
+   background-color: #c82333;
 }
 
+/* Estilos responsivos */
 @media (max-width: 768px) {
-    .form-section {
-        padding: 1rem;
-    }
+   .form-section {
+       padding: 1rem;
+   }
 
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
+   .form-grid {
+       grid-template-columns: 1fr;
+   }
 
-    .form-input,
-    .form-select {
-        font-size: 16px;
-    }
+   .form-input,
+   .form-select {
+       font-size: 16px;
+   }
 
-    /* Aumentar el tamaño de fuente para las etiquetas de Cliente y Producto */
-    label[for="cliente-facturacion"],
-    label[for="producto-facturacion"] {
-        font-size: 1.4rem;
-    }
+   /* Ajustes para las etiquetas de Cliente y Producto */
+   label[for="cliente-facturacion"],
+   label[for="producto-facturacion"] {
+       font-size: 1.4rem;
+   }
 
-    /* También se incrementa el tamaño de fuente en los campos de selección */
-    #cliente-facturacion,
-    #producto-facturacion {
-        font-size: 1.4rem;
-    }
+   #cliente-facturacion,
+   #producto-facturacion {
+       font-size: 1.4rem;
+   }
 
-    th, td {
-        padding: 0.5rem;
-        font-size: 0.9rem;
-    }
+   .table-container {
+       margin: 0 -1rem;
+   }
 
-    /* Ajuste del mensaje para móviles */
-    tbody tr:only-child td {
-        padding: 1.5rem;
-        font-size: 1rem;
-    }
+   table {
+       min-width: 800px;
+   }
 
-    .table-container {
-        margin: 0 -1rem;
-    }
+   th, td {
+       padding: 8px;
+       font-size: 0.9rem;
+   }
+
+   tbody tr:only-child td {
+       padding: 1.5rem;
+       font-size: 1rem;
+   }
 }
 </style>
 
