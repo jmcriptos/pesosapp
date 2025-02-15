@@ -181,8 +181,17 @@ th, td {
 }
 
 th {
-    background-color: var(--primary-color);
-    color: white;
+    background-color: #333333;  /* Fondo más oscuro */
+    color: #ffffff;  /* Texto blanco para máximo contraste */
+    font-weight: 600;
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+/* Para dar un efecto hover sutil */
+th:hover {
+    background-color: #404040;
 }
 
 tr:nth-child(even) {
