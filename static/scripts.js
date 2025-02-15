@@ -364,7 +364,7 @@ $(document).ready(function() {
                                 <td>${facturacion.fecha_expiracion}</td>
                                 <td>${facturacion.fecha_registro}</td>
                                 <td>
-                                    <button class="btn btn-danger eliminar-facturacion" data-id="${facturacion.id}">Eliminar</button>
+                                    <i class="fas fa-trash-alt eliminar-facturacion" data-id="${facturacion.id}"></i>
                                 </td>
                             </tr>`;
                         tbody.append(row);
