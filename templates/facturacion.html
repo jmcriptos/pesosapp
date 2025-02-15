@@ -220,158 +220,154 @@
 
 {% block extra_css %}
 <style>
+.form-section {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+    font-size: 1rem;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.form-button {
+    background-color: #FFD700;
+    color: #333;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.form-button:hover {
+    background-color: #FFC800;
+}
+
+.table-section {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+/* Estilos mejorados para el mensaje de no hay datos */
+tbody tr:only-child td {
+    padding: 2rem;
+    text-align: center;
+    color: #1a1a1a;  /* Color muy oscuro para máximo contraste */
+    font-weight: 500;
+    font-size: 1.1rem;
+    background-color: #f0f0f0;  /* Fondo más visible */
+    border: 2px solid #e0e0e0;  /* Borde más visible */
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+@media (max-width: 768px) {
     .form-section {
-        background-color: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
     }
 
     .form-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .form-group {
-        margin-bottom: 1rem;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: #333;
-        font-size: 1rem;
+        grid-template-columns: 1fr;
     }
 
     .form-input,
     .form-select {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
+        font-size: 16px;
     }
 
-    .form-button {
-        background-color: #FFD700;
-        color: #333;
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-    /* Estilo para el mensaje cuando no hay datos */
-    .table-container tr:only-child td {
-        color: #333;  /* Color más oscuro para mejor contraste */
-        font-weight: 500;  /* Texto semi-negrita */
-        padding: 1rem;
-        background-color: #f8f9fa;  /* Fondo claro pero visible */
-        border: 1px solid #dee2e6;  /* Borde sutil */
-        border-radius: 4px;
+    /* Aumentar el tamaño de fuente para las etiquetas de Cliente y Producto */
+    label[for="cliente-facturacion"],
+    label[for="producto-facturacion"] {
+        font-size: 1.4rem;
     }
 
-    /* Estilo específico para la tabla vacía */
-    .table-container table:empty::after {
-        content: "No hay facturaciones para este cliente hoy.";
-        display: block;
-        padding: 1rem;
-        color: #333;
-        font-weight: 500;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        text-align: center;
-    }
-
-    .form-button:hover {
-        background-color: #FFC800;
-    }
-
-    .table-section {
-        background-color: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .table-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
+    /* También se incrementa el tamaño de fuente en los campos de selección */
+    #cliente-facturacion,
+    #producto-facturacion {
+        font-size: 1.4rem;
     }
 
     th, td {
-        padding: 0.75rem;
-        text-align: left;
-        border-bottom: 1px solid #eee;
-    }
-
-    th {
-        background-color: #f8f9fa;
-        font-weight: 600;
-    }
-
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
-        border: none;
         padding: 0.5rem;
-        border-radius: 4px;
-        cursor: pointer;
+        font-size: 0.9rem;
     }
 
-    .btn-danger:hover {
-        background-color: #c82333;
+    /* Ajuste del mensaje para móviles */
+    tbody tr:only-child td {
+        padding: 1.5rem;
+        font-size: 1rem;
     }
 
-    @media (max-width: 768px) {
-        .form-section {
-            padding: 1rem;
-        }
-
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .form-input,
-        .form-select {
-            font-size: 16px;
-        }
-
-        /* Aumentar el tamaño de fuente para las etiquetas de Cliente y Producto */
-        label[for="cliente-facturacion"],
-        label[for="producto-facturacion"] {
-            font-size: 1.4rem;
-        }
-        /* También se incrementa el tamaño de fuente en los campos de selección */
-        #cliente-facturacion,
-        #producto-facturacion {
-            font-size: 1.4rem;
-        }
-
-        th, td {
-            padding: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .table-container {
-            margin: 0 -1rem;
-        }
+    .table-container {
+        margin: 0 -1rem;
     }
+}
 </style>
 
 {% endblock %}
