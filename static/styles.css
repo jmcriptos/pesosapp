@@ -181,7 +181,7 @@ th, td {
 }
 
 th {
-    background-color: #333333;  /* Fondo más oscuro */
+    background-color: #007bff;  /* Fondo más oscuro */
     color: #ffffff;  /* Texto blanco para máximo contraste */
     font-weight: 600;
     padding: 12px;
@@ -191,7 +191,7 @@ th {
 
 /* Para dar un efecto hover sutil */
 th:hover {
-    background-color: #404040;
+    background-color: goldenrod;
 }
 
 tr:nth-child(even) {
