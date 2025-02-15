@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()  # Carga variables de entorno desde un archivo .env (si existe)
+
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -6,7 +9,7 @@ import io
 import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # Asegúrate de instalar python-dateutil
+from dateutil.relativedelta import relativedelta
 import openpyxl
 from openpyxl.styles import Font, Alignment
 from reportlab.lib.pagesizes import A4, landscape
@@ -24,31 +27,37 @@ import traceback
 
 # Importar Flask-Login y funciones de seguridad
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-# from werkzeug.security import generate_password_hash, check_password_hash  # En este ejemplo se usa usuario por defecto
 
 # (Opcional) Usar Flask-Talisman para cabeceras de seguridad
 try:
     from flask_talisman import Talisman
 except ImportError:
-    Talisman = None  # Si no está instalado, no se aplicarán las cabeceras de seguridad
+    Talisman = None
 
 # Configuración de la aplicación
 app = Flask(__name__)
-# Usar variables de entorno para la configuración sensible
+
+# Clave secreta: se requiere que la variable de entorno esté definida.
 app.secret_key = os.environ["SECRET_KEY"]
+
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'productos.db')
+
+# Configurar la base de datos para que use la variable DATABASE_URL (Postgres en Heroku)
+uri = os.environ["DATABASE_URL"]
+if uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configuración de las cookies de sesión
-app.config['SESSION_COOKIE_SECURE'] = True        # Solo enviar cookies por HTTPS (en producción)
-app.config['SESSION_COOKIE_HTTPONLY'] = True        # No accesible vía JavaScript
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # Ajusta a 'Strict' o 'Lax' según necesidad
+# Configuración de cookies de sesión
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# (Opcional) Aplicar Talisman para cabeceras de seguridad
+# (Opcional) Aplicar Flask-Talisman para cabeceras de seguridad
 if Talisman:
     Talisman(app, content_security_policy={
         'default-src': ['\'self\''],
@@ -62,7 +71,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'  # Redirige a /login si no está autenticado
 
-# Definir las credenciales por defecto (se deben configurar vía variables de entorno)
+# Definir las credenciales por defecto a través de variables de entorno (sin valores por defecto)
 DEFAULT_USERNAME = os.environ["DEFAULT_USERNAME"]
 DEFAULT_PASSWORD = os.environ["DEFAULT_PASSWORD"]
 
@@ -78,7 +87,6 @@ def load_user(user_id):
     if user_id == DEFAULT_USERNAME:
         return DefaultUser(DEFAULT_USERNAME)
     return None
-
 
 ############################################
 # Rutas de autenticación usando usuario por defecto
