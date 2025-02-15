@@ -258,7 +258,7 @@ tr:nth-child(even) {
 
 /* Estilos específicos para los íconos */
 .nav-item .fas.fa-home {
-    color: var(--primary-color);
+    color: var(--icon-importacion);
 }
 
 .nav-item .fas.fa-file-invoice-dollar {
