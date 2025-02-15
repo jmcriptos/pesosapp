@@ -269,6 +269,28 @@
         gap: 0.5rem;
         margin-top: 1rem;
     }
+    /* Estilo para el mensaje cuando no hay datos */
+    .table-container tr:only-child td {
+        color: #333;  /* Color más oscuro para mejor contraste */
+        font-weight: 500;  /* Texto semi-negrita */
+        padding: 1rem;
+        background-color: #f8f9fa;  /* Fondo claro pero visible */
+        border: 1px solid #dee2e6;  /* Borde sutil */
+        border-radius: 4px;
+    }
+
+    /* Estilo específico para la tabla vacía */
+    .table-container table:empty::after {
+        content: "No hay facturaciones para este cliente hoy.";
+        display: block;
+        padding: 1rem;
+        color: #333;
+        font-weight: 500;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        text-align: center;
+    }
 
     .form-button:hover {
         background-color: #FFC800;
