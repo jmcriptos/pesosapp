@@ -3,6 +3,7 @@ altgraph==0.17.4
 blinker==1.8.2
 chardet==5.2.0
 click==8.1.7
+python-dotenv
 et-xmlfile==1.1.0
 Flask==2.2.3
 Flask-Migrate==4.0.7
