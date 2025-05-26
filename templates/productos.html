@@ -9,30 +9,42 @@
 {% block content %}
 <div class="flash-message" id="flash-message"></div>
 
-<section>
+<!-- Formulario para crear un nuevo producto -->
+<section class="form-section">
     <h2>Registrar Producto</h2>
-    <form id="form-crear-producto" method="POST" action="{{ url_for('crear_producto') }}">
+    <form id="form-crear-producto" method="POST" action="{{ url_for('productos') }}">
         <div class="form-group">
             <label for="nombre">Nombre del Producto:</label>
             <input type="text" id="nombre" name="nombre" required class="form-input">
         </div>
-        
         <div class="form-group">
             <label for="descripcion">Descripción:</label>
             <input type="text" id="descripcion" name="descripcion" class="form-input">
         </div>
-        
         <div class="form-group">
             <label for="temperatura">Temperatura:</label>
             <input type="text" id="temperatura" name="temperatura" class="form-input">
         </div>
-        
-        <button type="submit" class="form-button">Crear Producto</button>
+        <div class="form-group">
+            <label for="qbo-producto">QBO ID (opcional):</label>
+            <input type="text" id="qbo-producto" name="qbo_id" class="form-input">
+        </div>
+        <!-- 🆕 Campo TaxCode ID -->
+        <div class="form-group">
+            <label for="tax_rate">TaxCode ID:</label>
+            <select id="tax_rate" name="tax_rate" class="form-input">
+                <option value="10">OB 6%</option>
+                <option value="14">OB Non Tax Local Prod (0%)</option>
+            </select>
+        </div>
+        <button type="submit" class="form-button">
+            <i class="fas fa-plus"></i> Crear Producto
+        </button>
     </form>
 </section>
 
-<!-- Sección para mostrar productos registrados -->
-<section>
+<!-- Tabla de productos -->
+<section class="table-section">
     <h2>Productos Registrados</h2>
     <div class="table-container">
         <table>
@@ -42,6 +54,8 @@
                     <th>Nombre</th>
                     <th>Descripción</th>
                     <th class="text-center">Temperatura</th>
+                    <th class="text-center">QBO ID</th>
+                    <th class="text-center">TaxCode ID</th>
                     <th class="text-center">Acciones</th>
                 </tr>
             </thead>
@@ -52,9 +66,18 @@
                     <td>{{ producto.nombre }}</td>
                     <td>{{ producto.descripcion }}</td>
                     <td class="text-center">{{ producto.temperatura }}</td>
+                    <td class="text-center">{{ producto.qbo_id or '—' }}</td>
+                    <td class="text-center">{{ producto.tax_rate|int }}</td>
                     <td class="text-center">
-                        <i class="fas fa-trash-alt eliminar-producto" data-id="{{ producto.id }}" style="color: #dc3545; cursor: pointer;"></i>
-                    </td>                                                          
+                        <a href="{{ url_for('editar_producto', producto_id=producto.id) }}"
+                           class="btn btn-sm btn-primary" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <i class="fas fa-trash-alt eliminar-producto"
+                           data-id="{{ producto.id }}"
+                           style="color: #dc3545; cursor: pointer;"
+                           title="Eliminar"></i>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -65,45 +88,52 @@
 
 {% block extra_css %}
 <style>
-    .form-group {
-        margin-bottom: 1rem;
+    .form-section, .table-section {
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
+    .form-group { margin-bottom: 1rem; }
+    .form-input {
+        width: 100%; padding: 0.75rem; border: 1px solid #ddd;
+        border-radius: 4px; font-size: 1rem;
+    }
+    .form-button {
+        background-color: #ff6f61; color: #fff;
+        padding: 0.75rem 1.5rem; border: none; border-radius: 4px;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .form-button:hover { background-color: #e85c50; }
     .table-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        margin-top: 1rem;
+        overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 1rem;
     }
-
     table {
-        min-width: 100%;
+        width: 100%; border-collapse: collapse;
     }
-
-    .eliminar-producto {
-        padding: 0.5rem;
-        border-radius: 4px;
+    th, td {
+        padding: 0.75rem 1rem; border-bottom: 1px solid #eee;
     }
-
-    .eliminar-producto i {
-        margin: 0;
+    th {
+        background-color: #f8f9fa; font-weight: 600; color: #333;
     }
-    .text-center {
-    text-align: center;
+    .text-center { text-align: center; }
+    .btn-primary {
+        background-color: #6c63ff; color: #fff; border: none;
+        padding: 0.5rem 0.75rem; border-radius: 4px;
     }
-
+    .btn-primary:hover { background-color: #5a52d5; }
+    .badge {
+        display: inline-block; padding: 0.25rem 0.5rem;
+        font-size: 0.875rem; font-weight: 600; border-radius: 0.25rem;
+    }
+    .badge-info { background-color: #17a2b8; color: #fff; }
+    .badge-secondary { background-color: #6c757d; color: #fff; }
+    .badge-primary { background-color: #007bff; color: #fff; }
     @media (max-width: 768px) {
-        .form-input {
-            font-size: 16px; /* Previene zoom en iOS */
-        }
-
-        table th,
-        table td {
-            padding: 0.75rem 0.5rem;
-        }
-
-        .btn-danger {
-            padding: 0.5rem;
-        }
+        table th, table td { padding: 0.5rem; }
+        .form-input, .form-button { font-size: 0.95rem; }
     }
 </style>
 {% endblock %}
@@ -112,13 +142,10 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Asegurarse de que el contenido no se oculte detrás del menú inferior
-        const content = document.querySelector('.app-content');
-        const footer = document.querySelector('.app-footer');
-        if (footer) {
-            content.style.paddingBottom = `calc(${footer.offsetHeight}px + 1rem)`;
-        }
-    });
+  document.addEventListener('DOMContentLoaded', function() {
+    const content = document.querySelector('.app-content');
+    const footer  = document.querySelector('.app-footer');
+    if (footer) content.style.paddingBottom = `calc(${footer.offsetHeight}px + 1rem)`;
+  });
 </script>
 {% endblock %}

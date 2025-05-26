@@ -1,0 +1,279 @@
+{# ============ templates/detalles_pedido.html ============ #}
+{% extends "base.html" %}
+
+{% block title %}Detalles del Pedido{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Detalles del Pedido #{{ pedido.id }} – {{ pedido.cliente.nombre }}</h2>
+
+    <div class="mb-4">
+        <strong>Notas:</strong> {{ pedido.notas or "Sin notas" }}
+    </div>
+
+    {# ---------- Formulario para agregar detalle ---------- #}
+    <div class="card mb-4">
+        <div class="card-header">Agregar producto al pedido</div>
+        <div class="card-body">
+            <form id="form-detalle" method="POST">
+                <div class="row mb-2">
+
+                    {# Producto (filtro igual que en Facturación) #}
+                    <div class="col-md-3">
+                        <label>Producto</label>
+                        {% set allowed_ids = [1,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22] %}
+                        <select name="producto_id" id="producto_id"
+                                class="form-control" required>
+                            {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
+                                <option value="{{ p.id }}">{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Peso #}
+                    <div class="col-md-2">
+                        <label>Peso</label>
+                        <input type="number"
+                               step="0.01"
+                               name="peso"
+                               id="peso"
+                               class="form-control w-100"
+                               placeholder="0.00"
+                               required>
+                    </div>
+
+                    {# Lote #}
+                    <div class="col-md-2">
+                        <label>Lote</label>
+                        <input type="text"
+                               name="lote"
+                               id="lote"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    {# Fechas #}
+                    <div class="col-md-2">
+                        <label>Fecha Fab.</label>
+                        <input type="date"
+                               name="fecha_fabricacion"
+                               id="fecha_fabricacion"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label>Fecha Exp.</label>
+                        <input type="date"
+                               name="fecha_expiracion"
+                               id="fecha_expiracion"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    {# Botón agregar #}
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit"
+                                class="btn btn-success w-100">
+                            Agregar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ---------- Tabla de detalles agregados ---------- #}
+    <h4>Productos agregados:</h4>
+    <table class="table table-sm table-bordered">
+        <thead>
+            <tr>
+                <th>Producto</th><th>Peso</th><th>Lote</th>
+                <th>Fecha Fab.</th><th>Fecha Exp.</th><th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for detalle in pedido.detalles %}
+            <tr>
+                <td>{{ detalle.producto.nombre }}</td>
+                <td>{{ detalle.peso }}</td>
+                <td>{{ detalle.lote }}</td>
+                <td>{{ detalle.fecha_fabricacion }}</td>
+                <td>{{ detalle.fecha_expiracion }}</td>
+                <td>
+                    <form action="{{ url_for('eliminar_detalle_pedido',
+                                             detalle_id=detalle.id) }}"
+                          method="POST"
+                          style="display:inline;"
+                          onsubmit="return confirm('¿Eliminar este producto del pedido?');">
+                        <button type="submit"
+                                class="icon-btn"
+                                title="Eliminar">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{# ─── AÑADE ESTO al final del contenido de templates/detalles_pedido.html ─── #}
+
+<!-- Sección de etiquetas -->
+<section class="form-section">
+    <h2>Generar Etiquetas para Cajas (este pedido)</h2>
+
+    {# ——— formulario ——— #}
+    <form id="form-etiquetas-detalle"
+          method="POST"
+          action="{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}"
+          class="report-form">
+
+        <div class="form-grid">
+            {# Cliente (solo el del pedido) #}
+            <div class="form-group">
+                <label>Cliente:</label>
+                <input type="text" class="form-input"
+                       value="{{ pedido.cliente.nombre }}"
+                       readonly>
+            </div>
+
+            {# Rango de fechas (prefill => fechaFab mínima-máxima de los detalles) #}
+            {% set valid_fechas = [] %}
+            {% for detalle in pedido.detalles %}
+                {% if detalle.fecha_fabricacion %}
+                    {% set _ = valid_fechas.append(detalle.fecha_fabricacion) %}
+                {% endif %}
+            {% endfor %}
+
+            {% if valid_fechas %}
+                {% set f_inicio = valid_fechas|min %}
+                {% set f_fin = valid_fechas|max %}
+            {% else %}
+                {% set f_inicio = '' %}
+                {% set f_fin = '' %}
+            {% endif %}
+
+            <div class="form-group">
+                <label>Fecha de Inicio:</label>
+                <input type="date"
+                       name="fecha_inicio"
+                       class="form-input"
+                       value="{{ f_inicio or '' }}"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <label>Fecha de Fin:</label>
+                <input type="date"
+                       name="fecha_fin"
+                       class="form-input"
+                       value="{{ f_fin or '' }}"
+                       required>
+            </div>
+        </div>
+
+        <button type="submit" class="form-button">
+            <i class="fas fa-tags"></i> Generar Etiqueta
+        </button>
+    </form>
+</section>
+
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* ——— Botón-icono “trash” sin fondo ——— */
+.icon-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:28px; height:28px;
+    background:transparent!important;
+    border:none!important;
+    box-shadow:none!important;
+    padding:0!important;
+    margin:0;
+    cursor:pointer;
+}
+.icon-btn:focus{outline:none;}
+.icon-btn .fas{
+    font-size:1.15rem;
+    color:#dc3545;
+    transition:color .2s;
+}
+.icon-btn:hover .fas{color:#c82333;}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+/* ========= Config ========= */
+const LS_KEY  = 'lastDetalle';
+const shelfLife = { /* idProducto : díasVidaÚtil */
+    /* 17: 90, */
+};
+
+/* ========= Referencias ========= */
+const $prod = document.getElementById('producto_id');
+const $peso = document.getElementById('peso');
+const $lote = document.getElementById('lote');
+const $fab  = document.getElementById('fecha_fabricacion');
+const $exp  = document.getElementById('fecha_expiracion');
+const $form = document.getElementById('form-detalle');
+
+/* ========= Prefill (excepto Peso) ========= */
+window.addEventListener('DOMContentLoaded', () => {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (!saved) return;
+
+    if (saved.producto_id)       $prod.value = saved.producto_id;
+    if (saved.lote)              $lote.value = saved.lote;
+    if (saved.fecha_fabricacion) $fab.value  = saved.fecha_fabricacion;
+    if (saved.fecha_expiracion)  $exp.value  = saved.fecha_expiracion;
+
+    if ($fab.value) calcExp();   // sincroniza expiración
+});
+
+/* ========= Calc expiración automática ========= */
+function calcExp(){
+    if (!$fab.value) { $exp.value=''; return; }
+
+    const id   = +$prod.value;
+    const days = shelfLife.hasOwnProperty(id) ? shelfLife[id] : 365;
+    if (days === 0){
+        $exp.value = ''; $exp.disabled = true; return;
+    }
+    $exp.disabled = false;
+    const d = new Date($fab.value + 'T00:00');
+    d.setDate(d.getDate() + days);
+    $exp.value = d.toISOString().slice(0,10);
+}
+$fab .addEventListener('change', calcExp);
+$prod.addEventListener('change', calcExp);
+
+/* ========= Guardar en localStorage y limpiar Peso ========= */
+$form.addEventListener('submit', () => {
+    /* normaliza coma → punto */
+    $peso.value = $peso.value.replace(',', '.').trim();
+
+    /* guarda lo demás */
+    localStorage.setItem(LS_KEY, JSON.stringify({
+        producto_id       : $prod.value,
+        lote              : $lote.value.trim(),
+        fecha_fabricacion : $fab.value,
+        fecha_expiracion  : $exp.value,
+    }));
+
+    /* limpia peso después de que el form ha sido enviado */
+    setTimeout(() => { $peso.value = ''; }, 50);
+});
+</script>
+{% endblock %}
+
+
+
+

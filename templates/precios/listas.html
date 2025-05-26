@@ -1,0 +1,355 @@
+<!-- templates/precios/listas.html -->
+{% extends "base.html" %}
+
+{% block title %}Listas de Precios{% endblock %}
+
+{% block header_title %}
+    <i class="fas fa-list-alt" style="color: #28a745; margin-right: 10px;"></i>Listas de Precios
+{% endblock %}
+
+{% block content %}
+<div id="flash-message" class="flash-message" style="display: none;"></div>
+
+<div class="listas-container">
+    <div class="listas-header">
+        <h2>Gestión de Listas de Precios</h2>
+        <a href="{{ url_for('nueva_lista_precio') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nueva Lista
+        </a>
+    </div>
+
+    <div class="listas-grid">
+        {% for lista in listas %}
+        <div class="lista-card" data-lista-id="{{ lista.id }}">
+            <div class="lista-header">
+                <h3>{{ lista.nombre }}</h3>
+                {% if lista.es_default %}
+                    <span class="badge badge-default">Por Defecto</span>
+                {% endif %}
+                {% if not lista.activa %}
+                    <span class="badge badge-inactive">Inactiva</span>
+                {% endif %}
+            </div>
+            
+            <div class="lista-description">
+                <p>{{ lista.descripcion or 'Sin descripción' }}</p>
+                <small class="text-muted">
+                    Creada: {{ lista.fecha_creacion.strftime('%d/%m/%Y') if lista.fecha_creacion }}
+                </small>
+            </div>
+
+            <div class="lista-stats">
+                <div class="stat-item">
+                    <i class="fas fa-box"></i>
+                    <span>{{ lista.precios_productos|length }} productos</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-users"></i>
+                    <span>{{ lista.clientes|length }} clientes</span>
+                </div>
+            </div>
+
+            <div class="lista-actions">
+                <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}" 
+                   class="btn btn-sm btn-info">
+                    <i class="fas fa-edit"></i> Precios
+                </a>
+                
+                {% if not lista.es_default %}
+                <a href="{{ url_for('editar_lista_precio', lista_id=lista.id) }}" 
+                   class="btn btn-sm btn-warning">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                
+                <button class="btn btn-sm btn-danger eliminar-lista" 
+                        data-id="{{ lista.id }}">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not listas %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-list-alt"></i>
+        </div>
+        <h3>No hay listas de precios</h3>
+        <p>Crea tu primera lista de precios para comenzar</p>
+        <a href="{{ url_for('nueva_lista_precio') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Crear Lista
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.listas-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.listas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.listas-header h2 {
+    color: #333;
+    margin: 0;
+}
+
+.listas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.lista-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-left: 4px solid #28a745;
+}
+
+.lista-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+
+.lista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.lista-header h3 {
+    color: #333;
+    margin: 0;
+    font-size: 1.3rem;
+    flex: 1;
+}
+
+.badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.badge-default {
+    background-color: #ffd700;
+    color: #333;
+}
+
+.badge-inactive {
+    background-color: #6c757d;
+    color: white;
+}
+
+.lista-description {
+    margin-bottom: 20px;
+}
+
+.lista-description p {
+    color: #666;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.text-muted {
+    color: #888 !important;
+    font-size: 0.9rem;
+}
+
+.lista-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.stat-item i {
+    color: #28a745;
+}
+
+.lista-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background-color: #e0a806;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: #ccc;
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.empty-state p {
+    color: #888;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 768px) {
+    .listas-container {
+        padding: 15px;
+    }
+    
+    .listas-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .listas-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .lista-actions {
+        justify-content: center;
+    }
+    
+    .lista-stats {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Función para mostrar mensajes
+    function mostrarMensaje(mensaje, tipo) {
+        let flashMessage = $('#flash-message');
+        flashMessage.removeClass().addClass('flash-message');
+        if (tipo === 'success') {
+            flashMessage.addClass('success');
+        } else if (tipo === 'error') {
+            flashMessage.addClass('error');
+        }
+        flashMessage.html(mensaje);
+        flashMessage.fadeIn(500).delay(3000).fadeOut(500);
+    }
+
+    // Eliminar lista de precios
+    $('.eliminar-lista').on('click', function() {
+        const listaId = $(this).data('id');
+        const listaCard = $(this).closest('.lista-card');
+        
+        if (confirm('¿Estás seguro de que deseas eliminar esta lista de precios?')) {
+            $.ajax({
+                url: `/precios/listas/${listaId}/eliminar`,
+                method: 'POST',
+                success: function(response) {
+                    mostrarMensaje(response.message || 'Lista eliminada exitosamente', 'success');
+                    listaCard.fadeOut(500, function() {
+                        $(this).remove();
+                        
+                        // Si no quedan listas, mostrar estado vacío
+                        if ($('.lista-card').length === 0) {
+                            location.reload();
+                        }
+                    });
+                },
+                error: function(xhr) {
+                    const error = xhr.responseJSON ? xhr.responseJSON.error : 'Error al eliminar la lista';
+                    mostrarMensaje(error, 'error');
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

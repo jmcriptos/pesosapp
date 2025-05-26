@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-load_dotenv()  # Carga variables de entorno desde un archivo .env (si existe)
+load_dotenv()
 
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -24,20 +24,17 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import locale
 import traceback
+from decimal import Decimal
+import requests
 
-# Importar Flask-Login y funciones de seguridad
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 
-# (Opcional) Usar Flask-Talisman para cabeceras de seguridad
 try:
     from flask_talisman import Talisman
 except ImportError:
     Talisman = None
 
-# Configuración de la aplicación
 app = Flask(__name__)
-
-# Clave secreta: se requiere que la variable de entorno esté definida.
 app.secret_key = os.environ["SECRET_KEY"]
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -47,37 +44,28 @@ if uri.startswith("postgres://"):
     uri = uri.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-
-# Configuración de cookies de sesión
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# (Opcional) Aplicar Flask-Talisman para cabeceras de seguridad
-if Talisman:
+# Solo activa Talisman en producción (cuando uses HTTPS real)
+if Talisman and os.environ.get("FLASK_ENV") == "production":
     Talisman(app, content_security_policy={
         'default-src': ['\'self\''],
         'img-src': ['\'self\'', 'data:']
     })
 
-############################################
-# Configuración de Flask-Login
-############################################
+
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'  # Redirige a /login si no está autenticado
+login_manager.login_view = 'login'
 
-# Definir las credenciales por defecto a través de variables de entorno (sin valores por defecto)
 DEFAULT_USERNAME = os.environ["DEFAULT_USERNAME"]
 DEFAULT_PASSWORD = os.environ["DEFAULT_PASSWORD"]
 
-############################################
-# Usuario por defecto (sin base de datos)
-############################################
 class DefaultUser(UserMixin):
     def __init__(self, username):
         self.id = username
@@ -88,9 +76,6 @@ def load_user(user_id):
         return DefaultUser(DEFAULT_USERNAME)
     return None
 
-############################################
-# Rutas de autenticación usando usuario por defecto
-############################################
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -115,9 +100,6 @@ def logout():
     flash("Sesión cerrada", "success")
     return redirect(url_for('login'))
 
-############################################
-# Protección global de rutas (excepto login, logout y static)
-############################################
 @app.before_request
 def require_login():
     allowed_endpoints = ['login', 'logout', 'static']
@@ -126,35 +108,40 @@ def require_login():
             return redirect(url_for('login', next=request.url))
 
 ############################################
-# Modelos existentes
+# MODELOS Y BASE DE DATOS
 ############################################
+
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     descripcion = db.Column(db.String(200))
     temperatura = db.Column(db.String(50))
-    
     facturaciones = db.relationship('Facturacion', back_populates='producto', cascade="all, delete-orphan")
     recepciones = db.relationship('Recepcion', back_populates='producto', lazy=True, cascade="all, delete-orphan")
     importaciones = db.relationship('Importacion', back_populates='producto', lazy=True, cascade="all, delete-orphan")
-
+    qbo_id = db.Column(db.String(20), unique=True)
+    tax_rate = db.Column(db.Float, nullable=False, default=0.0)  # Nueva columna para tasa de impuesto
+    
     def to_dict(self):
         return {
             'id': self.id,
             'nombre': self.nombre,
             'descripcion': self.descripcion,
-            'temperatura': self.temperatura
+            'temperatura': self.temperatura,
+            'qbo_id': self.qbo_id,
+            'tax_rate': self.tax_rate  # Incluir en el diccionario
         }
 
 class Cliente(db.Model):
     __tablename__ = 'cliente'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
-    
     facturaciones = db.relationship('Facturacion', back_populates='cliente', cascade="all, delete-orphan")
+    pedidos = db.relationship('Pedido', back_populates='cliente', cascade="all, delete-orphan")
+    qbo_id = db.Column(db.String(20), unique=True)
 
     def to_dict(self):
-        return {'id': self.id, 'nombre': self.nombre}
+        return {'id': self.id, 'nombre': self.nombre, 'qbo_id': self.qbo_id} 
 
 class Facturacion(db.Model):
     __tablename__ = 'facturacion'
@@ -163,10 +150,9 @@ class Facturacion(db.Model):
     peso = db.Column(db.Float, nullable=False)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
     lote = db.Column(db.String(50), nullable=False)
-    fecha_fabricacion = db.Column(db.String(10), nullable=False)  # 'YYYY-MM-DD'
-    fecha_expiracion = db.Column(db.String(10), nullable=False)   # 'YYYY-MM-DD'
+    fecha_fabricacion = db.Column(db.String(10), nullable=False)
+    fecha_expiracion = db.Column(db.String(10), nullable=False)
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
-    
     producto = db.relationship('Producto', back_populates='facturaciones')
     cliente = db.relationship('Cliente', back_populates='facturaciones')
 
@@ -191,7 +177,6 @@ class Recepcion(db.Model):
     proveedor = db.Column(db.String(100), nullable=False)
     numero_factura = db.Column(db.String(100), nullable=False)
     recibido_en = db.Column(db.Date, nullable=False)
-    
     producto = db.relationship('Producto', back_populates='recepciones')
     
     def to_dict(self):
@@ -223,12 +208,325 @@ class Importacion(db.Model):
     fecha_importacion = db.Column(db.DateTime, default=datetime.utcnow)
     flete_local = db.Column(db.Float, nullable=True)
     costo_total_almacen = db.Column(db.Float, nullable=True)
-    
     producto = db.relationship('Producto', back_populates='importaciones')
 
+# MODELOS NUEVOS PARA PEDIDOS
+
+class Pedido(db.Model):
+    __tablename__ = 'pedido'
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    fecha_pedido = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    estado = db.Column(db.String(30), default="pendiente", nullable=False)
+    notas = db.Column(db.Text, nullable=True)
+    cliente = db.relationship('Cliente', back_populates='pedidos')
+    detalles = db.relationship('DetallePedido', back_populates='pedido', cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f'<Pedido {self.id} - Cliente {self.cliente.nombre} - Estado {self.estado}>'
+
+class DetallePedido(db.Model):
+    __tablename__ = 'detalle_pedido'
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer, db.ForeignKey('pedido.id'), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    cajas = db.Column(db.Integer, nullable=False, default=0)  # NUEVO
+    peso = db.Column(db.Float, nullable=False, default=0)
+    lote = db.Column(db.String(50), nullable=True)
+    fecha_fabricacion = db.Column(db.String(10), nullable=True)
+    fecha_expiracion = db.Column(db.String(10), nullable=True)
+    pedido = db.relationship('Pedido', back_populates='detalles')
+    producto = db.relationship('Producto')
+    precio_unitario = db.Column(db.Numeric(10,2), nullable=False, default=0)
+    subtotal        = db.Column(db.Numeric(10,2), nullable=False)
+
+
+    def __repr__(self):
+        return f'<DetallePedido {self.id} - Producto {self.producto.nombre} - Peso {self.peso}>'
+
+# Agregar estos modelos al archivo app.py, después de los modelos existentes
+
+class ListaPrecio(db.Model):
+    __tablename__ = 'lista_precio'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    descripcion = db.Column(db.String(200))
+    es_default = db.Column(db.Boolean, default=False, nullable=False)
+    activa = db.Column(db.Boolean, default=True, nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relaciones
+    precios_productos = db.relationship('PrecioProducto', back_populates='lista_precio', cascade="all, delete-orphan")
+    clientes = db.relationship('ClienteListaPrecio', back_populates='lista_precio', cascade="all, delete-orphan")
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'descripcion': self.descripcion,
+            'es_default': self.es_default,
+            'activa': self.activa,
+            'fecha_creacion': self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None
+        }
+
+
+class PrecioProducto(db.Model):
+    __tablename__ = 'precio_producto'
+    id = db.Column(db.Integer, primary_key=True)
+    lista_precio_id = db.Column(db.Integer, db.ForeignKey('lista_precio.id'), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    precio_base = db.Column(db.Float, nullable=False)
+    precio_jomar = db.Column(db.Float)
+    precio_retail = db.Column(db.Float)
+    margen_jomar = db.Column(db.Float, default=1.0)
+    margen_retail = db.Column(db.Float, default=1.2)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    lista_precio = db.relationship('ListaPrecio', back_populates='precios_productos')
+    producto = db.relationship('Producto')
+    
+    __table_args__ = (db.UniqueConstraint('lista_precio_id', 'producto_id', name='uk_lista_producto'),)
+    
+    def calcular_precios(self):
+        """Calcula precios Jomar y Retail basados en precio base y márgenes"""
+        self.precio_jomar = self.precio_base * (self.margen_jomar or 1.0)
+        self.precio_retail = self.precio_base * (self.margen_retail or 1.2)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'lista_precio_id': self.lista_precio_id,
+            'producto_id': self.producto_id,
+            'producto_nombre': self.producto.nombre if self.producto else None,
+            'precio_base': self.precio_base,
+            'precio_jomar': self.precio_jomar,
+            'precio_retail': self.precio_retail,
+            'margen_jomar': self.margen_jomar,
+            'margen_retail': self.margen_retail,
+            'activo': self.activo,
+            'fecha_actualizacion': self.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_actualizacion else None
+        }
+
+
+class ClienteListaPrecio(db.Model):
+    __tablename__ = 'cliente_lista_precio'
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    lista_precio_id = db.Column(db.Integer, db.ForeignKey('lista_precio.id'), nullable=False)
+    fecha_asignacion = db.Column(db.DateTime, default=datetime.utcnow)
+    activa = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relaciones
+    cliente = db.relationship('Cliente')
+    lista_precio = db.relationship('ListaPrecio', back_populates='clientes')
+    
+    __table_args__ = (db.UniqueConstraint('cliente_id', 'lista_precio_id', name='uk_cliente_lista'),)
+
+
+class PrecioClienteProducto(db.Model):
+    __tablename__ = 'precio_cliente_producto'
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
+    precio_base = db.Column(db.Float, nullable=False)
+    precio_jomar = db.Column(db.Float)
+    precio_retail = db.Column(db.Float)
+    margen_jomar = db.Column(db.Float, default=1.0)
+    margen_retail = db.Column(db.Float, default=1.2)
+    activo = db.Column(db.Boolean, default=True, nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    cliente = db.relationship('Cliente')
+    producto = db.relationship('Producto')
+    
+    __table_args__ = (db.UniqueConstraint('cliente_id', 'producto_id', name='uk_cliente_producto_precio'),)
+    
+    def calcular_precios(self):
+        """Calcula precios Jomar y Retail basados en precio base y márgenes"""
+        self.precio_jomar = self.precio_base * (self.margen_jomar or 1.0)
+        self.precio_retail = self.precio_base * (self.margen_retail or 1.2)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'cliente_id': self.cliente_id,
+            'cliente_nombre': self.cliente.nombre if self.cliente else None,
+            'producto_id': self.producto_id,
+            'producto_nombre': self.producto.nombre if self.producto else None,
+            'precio_base': self.precio_base,
+            'precio_jomar': self.precio_jomar,
+            'precio_retail': self.precio_retail,
+            'margen_jomar': self.margen_jomar,
+            'margen_retail': self.margen_retail,
+            'activo': self.activo,
+            'fecha_creacion': self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None,
+            'fecha_actualizacion': self.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_actualizacion else None
+        }
+
+
+# Función auxiliar para obtener el precio de un producto para un cliente específico
+def obtener_precio_producto_cliente(cliente_id, producto_id, tipo_precio='jomar'):
+    """
+    Obtiene el precio de un producto para un cliente específico.
+    Prioridad: Precio específico cliente-producto > Lista de precios del cliente > Lista default
+    
+    Args:
+        cliente_id: ID del cliente
+        producto_id: ID del producto
+        tipo_precio: 'base', 'jomar' o 'retail'
+    
+    Returns:
+        Float: Precio encontrado o None si no existe
+    """
+    print(f"DEBUG: Buscando precio para cliente_id={cliente_id}, producto_id={producto_id}, tipo={tipo_precio}")
+    
+    # 1. Verificar precio específico cliente-producto
+    precio_especifico = PrecioClienteProducto.query.filter_by(
+        cliente_id=cliente_id,
+        producto_id=producto_id,
+        activo=True
+    ).first()
+    
+    if precio_especifico:
+        print(f"DEBUG: Encontrado precio específico cliente-producto")
+        if tipo_precio == 'base':
+            precio = precio_especifico.precio_base
+        elif tipo_precio == 'jomar':
+            precio = precio_especifico.precio_jomar
+        elif tipo_precio == 'retail':
+            precio = precio_especifico.precio_retail
+        print(f"DEBUG: Precio específico: {precio}")
+        return precio
+    else:
+        print(f"DEBUG: No hay precio específico cliente-producto")
+    
+    # 2. Verificar lista de precios del cliente
+    cliente_lista = ClienteListaPrecio.query.filter_by(
+        cliente_id=cliente_id,
+        activa=True
+    ).first()
+    
+    if cliente_lista:
+        print(f"DEBUG: Cliente tiene lista asignada: {cliente_lista.lista_precio_id}")
+        precio_lista = PrecioProducto.query.filter_by(
+            lista_precio_id=cliente_lista.lista_precio_id,
+            producto_id=producto_id,
+            activo=True
+        ).first()
+        
+        if precio_lista:
+            print(f"DEBUG: Encontrado precio en lista del cliente")
+            if tipo_precio == 'base':
+                precio = precio_lista.precio_base
+            elif tipo_precio == 'jomar':
+                precio = precio_lista.precio_jomar
+            elif tipo_precio == 'retail':
+                precio = precio_lista.precio_retail
+            print(f"DEBUG: Precio de lista cliente: {precio}")
+            return precio
+        else:
+            print(f"DEBUG: Producto no encontrado en lista del cliente")
+    else:
+        print(f"DEBUG: Cliente no tiene lista asignada")
+    
+    # 3. Usar lista de precios por defecto
+    lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
+    if lista_default:
+        print(f"DEBUG: Usando lista por defecto: {lista_default.id}")
+        precio_default = PrecioProducto.query.filter_by(
+            lista_precio_id=lista_default.id,
+            producto_id=producto_id,
+            activo=True
+        ).first()
+        
+        if precio_default:
+            print(f"DEBUG: Encontrado precio en lista por defecto")
+            if tipo_precio == 'base':
+                precio = precio_default.precio_base
+            elif tipo_precio == 'jomar':
+                precio = precio_default.precio_jomar
+            elif tipo_precio == 'retail':
+                precio = precio_default.precio_retail
+            print(f"DEBUG: Precio por defecto: {precio}")
+            return precio
+        else:
+            print(f"DEBUG: Producto no encontrado en lista por defecto")
+    else:
+        print(f"DEBUG: No hay lista por defecto configurada")
+    
+    print(f"DEBUG: No se encontró precio, devolviendo None")
+    return None
+
+def obtener_precio_default_producto(producto_id, tipo_precio='jomar'):
+    """
+    Devuelve el precio de un producto tomado de la lista marcada como es_default.
+    Si no existe, devuelve None.
+    """
+    lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
+    if not lista_default:
+        return None
+
+    precio = PrecioProducto.query.filter_by(
+        lista_precio_id=lista_default.id,
+        producto_id=producto_id,
+        activo=True
+    ).first()
+
+    if not precio:
+        return None
+
+    if   tipo_precio == 'base':
+        return precio.precio_base
+    elif tipo_precio == 'jomar':
+        return precio.precio_jomar
+    elif tipo_precio == 'retail':
+        return precio.precio_retail
+    return None
+
 ############################################
-# Función auxiliar para obtener la IP del servidor
+# FUNCIONES Y RUTAS DE PEDIDOS
 ############################################
+
+# --------------------------------------------------
+# Helper: convierte un pedido y sus detalles en JSON
+# --------------------------------------------------
+# Actualizar la función pedido_a_json en app.py
+
+def pedido_a_json(pedido: Pedido) -> dict:
+    lineas = []
+    total  = 0
+
+    for d in pedido.detalles:
+        descripcion = d.producto.nombre
+        if d.lote:
+            descripcion += f" (Lote {d.lote})"
+
+        subtotal = float(d.precio_unitario) * (d.cajas or d.peso or 0)
+        total   += subtotal
+
+        lineas.append({
+            "product_qbo_id": d.producto.qbo_id,
+            "descripcion"   : descripcion,
+            "qty"           : float(d.cajas or d.peso or 0),
+            "unit_price"    : float(d.precio_unitario),
+            "amount"        : round(subtotal, 2),
+            "tax_rate"      : d.producto.tax_rate  # 🆕 Incluir la tasa de impuesto
+        })
+
+    return {
+        "order_id"        : pedido.id,
+        "order_date"      : pedido.fecha_pedido.isoformat(),
+        "customer_qbo_id" : pedido.cliente.qbo_id,
+        "notes"           : pedido.notas,
+        "lines"           : lineas,
+        "total"           : round(total, 2)
+    }
+
+
 def obtener_ip_servidor():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -240,9 +538,6 @@ def obtener_ip_servidor():
         s.close()
     return ip_servidor
 
-############################################
-# Rutas de la aplicación (todas protegidas)
-############################################
 @app.route('/')
 @login_required
 def index():
@@ -250,47 +545,894 @@ def index():
     port = 5002
     return render_template('index.html', server_ip=f"{ip_servidor}:{port}")
 
-# Rutas para Productos
-@app.route('/productos', methods=['POST'])
+@app.route('/pedidos')
 @login_required
-def crear_producto():
-    nombre = request.form['nombre']
-    descripcion = request.form['descripcion']
-    temperatura = request.form['temperatura']
-    
-    nuevo_producto = Producto(nombre=nombre, descripcion=descripcion, temperatura=temperatura)
-    db.session.add(nuevo_producto)
-    db.session.commit()
-    producto_data = nuevo_producto.to_dict()
-    return jsonify({'message': 'Producto creado exitosamente.', 'producto': producto_data}), 200
+def lista_pedidos():
+    pedidos = Pedido.query.filter(Pedido.estado != 'entregado').order_by(Pedido.fecha_pedido.desc()).all()
+    return render_template('pedidos.html', pedidos=pedidos)
 
-@app.route('/productos')
+
+@app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
-def mostrar_productos():
+def nuevo_pedido():
+    # ---------- Datos para el formulario ----------
+    clientes  = Cliente.query.all()
     productos = Producto.query.all()
-    return render_template('productos.html', productos=productos)
+
+    # Enviamos al front-end cada producto con su precio (lista default)
+    # Para nuevo pedido, usamos precios por defecto ya que no hay cliente seleccionado aún
+    productos_dicts = [{
+        'id'    : p.id,
+        'nombre': p.nombre,
+        # Para nuevo pedido, usar precio por defecto
+        'precio': float(
+            obtener_precio_default_producto(p.id, 'jomar') or 0
+        )
+    } for p in productos]
+
+    # ---------- Alta de un nuevo pedido ----------
+    if request.method == 'POST':
+        # 1) Cabecera
+        cliente_id = int(request.form['cliente_id'])
+        notas      = request.form.get('notas')
+        pedido = Pedido(cliente_id=cliente_id, notas=notas)
+        db.session.add(pedido)
+        db.session.commit()      # obtenemos pedido.id
+
+        # 2) Detalle
+        idx = 0
+        while f'productos[{idx}][id]' in request.form:
+            prod_id = int(request.form.get(f'productos[{idx}][id]'))
+            cajas   = int(request.form.get(f'productos[{idx}][cajas]', 0))
+
+            # 2.1 Precio unitario - ahora sí podemos usar el cliente del pedido
+            precio_raw = request.form.get(f'productos[{idx}][precio]')
+            if precio_raw:
+                precio_unitario = Decimal(precio_raw)
+            else:
+                # Obtener precio específico para este cliente
+                precio_cliente = obtener_precio_producto_cliente(cliente_id, prod_id, 'jomar')
+                if precio_cliente is not None:
+                    precio_unitario = Decimal(precio_cliente)
+                else:
+                    precio_def = obtener_precio_default_producto(prod_id, 'jomar')
+                    precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
+
+            # 2.2 Sub-total  (app lo calcula)
+            subtotal = precio_unitario * cajas
+
+            # 2.3 Crear detalle
+            detalle = DetallePedido(
+                pedido_id      = pedido.id,
+                producto_id    = prod_id,
+                cajas          = cajas,
+                precio_unitario= precio_unitario,
+                subtotal       = subtotal
+            )
+            db.session.add(detalle)
+            idx += 1
+
+        db.session.commit()
+
+        # 3) Total del pedido (si la columna existe en Pedido)
+        total = db.session.query(
+            func.coalesce(func.sum(DetallePedido.subtotal), 0)
+        ).filter_by(pedido_id=pedido.id).scalar()
+        
+        # Solo actualizar total si la columna existe en el modelo Pedido
+        if hasattr(pedido, 'total'):
+            pedido.total = total
+            db.session.commit()
+
+        flash('Pedido creado con precios registrados.', 'success')
+        return redirect(url_for('lista_pedidos'))
+
+    # ---------- GET: renderizar formulario ----------
+    return render_template(
+        'pedido_form.html',
+        clientes        = clientes,
+        productos       = productos_dicts,
+        pedido          = None,
+        productos_pedido= []
+    )
+
+@app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_pedido(pedido_id):
+    pedido    = Pedido.query.get_or_404(pedido_id)
+    clientes  = Cliente.query.all()
+    productos = Producto.query.all()
+
+    # Para editar, sí tenemos el cliente del pedido, así que podemos usar precios específicos
+    productos_dicts = [{
+        'id'    : p.id,
+        'nombre': p.nombre,
+        # precio mostrado = el que vería ESTE cliente específico
+        'precio': float(
+            obtener_precio_producto_cliente(
+                pedido.cliente_id,  # Ahora sí existe pedido
+                p.id, 'jomar'
+            ) or obtener_precio_default_producto(p.id, 'jomar') or 0
+        )
+    } for p in productos]
+
+    if request.method == 'POST':
+        # Actualizar cabecera
+        pedido.cliente_id = int(request.form['cliente_id'])
+        pedido.notas = request.form.get('notas')
+        
+        # Eliminar detalles existentes
+        DetallePedido.query.filter_by(pedido_id=pedido.id).delete()
+        
+        # Agregar nuevos detalles
+        idx = 0
+        while f'productos[{idx}][id]' in request.form:
+            prod_id = int(request.form.get(f'productos[{idx}][id]'))
+            cajas   = int(request.form.get(f'productos[{idx}][cajas]', 0))
+
+            # Precio unitario
+            precio_raw = request.form.get(f'productos[{idx}][precio]')
+            if precio_raw:
+                precio_unitario = Decimal(precio_raw)
+            else:
+                # Usar cliente actualizado para obtener precio
+                precio_cliente = obtener_precio_producto_cliente(pedido.cliente_id, prod_id, 'jomar')
+                if precio_cliente is not None:
+                    precio_unitario = Decimal(precio_cliente)
+                else:
+                    precio_def = obtener_precio_default_producto(prod_id, 'jomar')
+                    precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
+
+            # Sub-total
+            subtotal = precio_unitario * cajas
+
+            # Crear detalle
+            detalle = DetallePedido(
+                pedido_id      = pedido.id,
+                producto_id    = prod_id,
+                cajas          = cajas,
+                precio_unitario= precio_unitario,
+                subtotal       = subtotal
+            )
+            db.session.add(detalle)
+            idx += 1
+
+        db.session.commit()
+
+        # Actualizar total del pedido
+        total = db.session.query(
+            func.coalesce(func.sum(DetallePedido.subtotal), 0)
+        ).filter_by(pedido_id=pedido.id).scalar()
+        
+        if hasattr(pedido, 'total'):
+            pedido.total = total
+            db.session.commit()
+
+        flash('Pedido actualizado.', 'success')
+        return redirect(url_for('lista_pedidos'))
+
+    # ----------- pre-cargar detalles -----------
+    productos_pedido = [{
+        'id'     : d.producto.id,
+        'nombre' : d.producto.nombre,
+        'cajas'  : d.cajas,
+        'precio' : float(d.precio_unitario)   # ← necesario para que la tabla se pinte
+    } for d in pedido.detalles]
+
+    return render_template(
+        'pedido_form.html',
+        clientes        = clientes,
+        productos       = productos_dicts,
+        pedido          = pedido,
+        productos_pedido= productos_pedido
+    )
+
+
+
+
+@app.route('/pedidos/<int:pedido_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_pedido(pedido_id):
+    pedido = Pedido.query.get_or_404(pedido_id)
+    db.session.delete(pedido)
+    db.session.commit()
+    flash('Pedido eliminado.', 'success')
+    return redirect(url_for('lista_pedidos'))
+
+
+# ------------------------------------------------------------
+#  Detalles de un pedido (agregar / ver / eliminar líneas)
+# ------------------------------------------------------------
+@app.route('/pedidos/<int:pedido_id>/detalles', methods=['GET', 'POST'])
+@login_required
+def detalles_pedido(pedido_id):
+    # ── 1) Traer cabecera y productos ─────────────────────────
+    pedido    = Pedido.query.get_or_404(pedido_id)
+    productos = Producto.query.all()
+
+    # ── 2) Alta de un nuevo detalle ───────────────────────────
+    if request.method == 'POST':
+        producto_id       = int(request.form['producto_id'])
+        peso              = float(request.form.get('peso', 0)  or 0)
+        cajas             = int  (request.form.get('cajas', 0) or 0)   # reservado
+        lote              = request.form['lote']
+        fecha_fabricacion = request.form['fecha_fabricacion']
+        fecha_expiracion  = request.form['fecha_expiracion']
+
+        # -------- Obtener precio unitario según la jerarquía --------
+        precio_unitario = obtener_precio_producto_cliente(
+                              pedido.cliente_id,   # 1️⃣ precio específico / lista cliente
+                              producto_id,
+                              'jomar'
+                          )
+        if precio_unitario is None:
+            # 2️⃣ (fallback) lista de precios por defecto
+            precio_unitario = obtener_precio_default_producto(
+                                  producto_id, 'jomar'
+                              ) or 0
+        
+        print(f"DEBUG: Cliente {pedido.cliente_id}, Producto {producto_id}")
+        print(f"DEBUG: Precio obtenido: {precio_unitario}")
+        # ------------------------------------------------------------
+
+        cantidad = cajas if cajas else peso   # si se usan cajas en el futuro
+        subtotal = round(precio_unitario * cantidad, 2)
+
+        # -------- Crear y guardar el detalle --------
+        detalle = DetallePedido(
+            pedido_id        = pedido.id,
+            producto_id      = producto_id,
+            cajas            = cajas,
+            peso             = peso,
+            lote             = lote,
+            fecha_fabricacion= fecha_fabricacion,
+            fecha_expiracion = fecha_expiracion,
+            precio_unitario  = precio_unitario,
+            subtotal         = subtotal
+        )
+        db.session.add(detalle)
+        db.session.commit()
+
+        flash('Detalle agregado.', 'success')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    # ── 3) GET: mostrar plantilla ─────────────────────────────
+    return render_template('detalles_pedido.html',
+                           pedido   = pedido,
+                           productos= productos)
+
+
+@app.route('/detalles_pedido/<int:detalle_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_detalle_pedido(detalle_id):
+    detalle = DetallePedido.query.get_or_404(detalle_id)
+    pedido_id = detalle.pedido_id
+    db.session.delete(detalle)
+    db.session.commit()
+    flash('Detalle eliminado.', 'success')
+    return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+# ---------------------------------------------------------------------
+# Generar etiquetas a partir de los DetallePedido de un pedido concreto
+# ---------------------------------------------------------------------
+@app.route('/generar_etiqueta_detalle/<int:pedido_id>', methods=['POST'])
+@login_required
+def generar_etiqueta_detalle(pedido_id):
+    """
+    Genera un PDF con etiquetas (mismo formato que en Facturación)
+    pero usando los DetallePedido de un pedido.
+    El formulario envía:
+        - fecha_inicio  (YYYY-MM-DD)
+        - fecha_fin     (YYYY-MM-DD)
+    """
+    try:
+        pedido = Pedido.query.get_or_404(pedido_id)
+
+        # --------- parámetros del formulario ----------
+        fecha_ini = request.form.get('fecha_inicio')
+        fecha_fin = request.form.get('fecha_fin')
+        if not fecha_ini or not fecha_fin:
+            return jsonify({"error": "Debe indicar fecha de inicio y fin"}), 400
+
+        fi = datetime.strptime(fecha_ini, '%Y-%m-%d')
+        ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+
+        # --------- filtrar los detalles ----------
+        detalles = (DetallePedido.query
+                    .filter_by(pedido_id=pedido_id)
+                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
+                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
+                    .all())
+
+        if not detalles:
+            return jsonify({"error": "No hay detalles en ese rango"}), 404
+
+        # --------- PDF de etiquetas ----------
+        output = BytesIO()
+        c = canvas.Canvas(output, pagesize=A4)
+
+        etiqueta_ancho = 100.16 / 25.4 * inch   # 4″ × 2″ (igual que facturación)
+        etiqueta_alto  =  50.80 / 25.4 * inch
+        page_w, page_h = A4
+        x_offset       = (page_w - etiqueta_ancho) / 2
+        y_top          = page_h - etiqueta_alto + 3
+        y_bottom       = y_top - etiqueta_alto - 3
+        por_pagina     = 2
+        contador       = 0
+
+        logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
+
+        for d in detalles:
+            # posición vertical alterna (arriba/abajo)
+            y = y_top if contador % por_pagina == 0 else y_bottom
+
+            # -------- datos --------
+            cli = pedido.cliente.nombre
+            prod = d.producto.nombre if d.producto else "N/A"
+            temp = d.producto.temperatura or "N/A"
+            peso = d.peso or d.cajas or 0
+
+            # -------- dibujo --------
+            # LOGO
+            if os.path.exists(logo_path):
+                c.drawImage(logo_path, x_offset + 10, y + 30,
+                            width=1.2 * inch, height=1.2 * inch)
+
+            c.setFont("Helvetica-Bold", 10)
+            lbl_x = x_offset + 2.8 * inch
+            val_x = lbl_x + 0.2 * inch
+
+            c.drawRightString(lbl_x, y + 1.70 * inch, "Client:")
+            c.drawRightString(lbl_x, y + 1.50 * inch, "Lot:")
+            c.drawRightString(lbl_x, y + 1.30 * inch, "Manufactured:")
+            c.drawRightString(lbl_x, y + 1.10 * inch, "Expiration:")
+            c.drawRightString(lbl_x, y + 0.90 * inch, "When Kept at:")
+
+            c.drawString(val_x, y + 1.70 * inch, cli)
+            c.drawString(val_x, y + 1.50 * inch, d.lote or "")
+            c.drawString(val_x, y + 1.30 * inch, d.fecha_fabricacion or "")
+            c.drawString(val_x, y + 1.10 * inch, d.fecha_expiracion  or "")
+            c.drawString(val_x, y + 0.90 * inch, temp)
+
+            c.setFont("Helvetica-Bold", 14)
+            c.drawRightString(lbl_x, y + 0.50 * inch, "Net Weight:")
+            c.drawString(val_x,  y + 0.50 * inch, f"{peso:.2f}")
+
+            c.setFont("Helvetica-Bold", 18)
+            c.drawCentredString(x_offset + etiqueta_ancho / 2,
+                                y + 0.15 * inch, prod)
+
+            contador += 1
+            if contador % por_pagina == 0:
+                c.showPage()
+
+        if contador % por_pagina != 0:
+            c.showPage()
+
+        c.save()
+        output.seek(0)
+
+        nombre_cliente = pedido.cliente.nombre.replace(" ", "_").replace("/", "-")
+        filename = f"etiquetas_pedido_{pedido_id}_{nombre_cliente}.pdf"
+        return send_file(output,
+                         as_attachment=True,
+                         download_name=filename,
+                         mimetype="application/pdf")
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
+@login_required
+def preparar_pedido(pedido_id):
+    pedido = Pedido.query.get_or_404(pedido_id)
+    if request.method == 'POST':
+        for detalle in pedido.detalles:
+            entregadas = request.form.get(f'entregadas_{detalle.id}', type=int)
+            peso_real = request.form.get(f'peso_{detalle.id}', type=float)
+            lote = request.form.get(f'lote_{detalle.id}', '')
+            fab = request.form.get(f'fab_{detalle.id}', '')
+            exp = request.form.get(f'exp_{detalle.id}', '')
+            detalle.cantidad_cajas = entregadas
+            if detalle.producto.se_pesa:
+                detalle.peso = peso_real
+            detalle.lote = lote
+            detalle.fecha_fabricacion = fab
+            detalle.fecha_expiracion = exp
+        pedido.estado = 'listo'
+        db.session.commit()
+        flash('Pedido preparado correctamente', 'success')
+        return redirect(url_for('lista_pedidos'))
+    return render_template('preparar_pedido.html', pedido=pedido)
+
+N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL")  # ponlo en tu .env
+
+@app.route('/pedidos/<int:pedido_id>/facturar', methods=['POST'])
+@login_required
+def facturar_pedido(pedido_id):
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    # Sólo facturar si aún no fue facturado
+    if pedido.estado == 'facturado':
+        flash('El pedido ya está facturado.', 'info')
+        return redirect(url_for('lista_pedidos'))
+
+    payload = pedido_a_json(pedido)
+
+    try:
+        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        flash(f'Error al enviar a n8n: {e}', 'danger')
+        return redirect(url_for('lista_pedidos'))
+
+    # Marcar como facturado si todo fue bien
+    pedido.estado = 'facturado'
+    db.session.commit()
+    flash('Factura generada correctamente en QuickBooks.', 'success')
+    return redirect(url_for('lista_pedidos'))
+############################################
+# RUTAS PARA SISTEMA DE PRECIOS
+############################################
+
+@app.route('/precios')
+@login_required
+def mostrar_precios():
+    """Página principal del sistema de precios"""
+    listas_precio = ListaPrecio.query.filter_by(activa=True).all()
+    return render_template('precios/index.html', listas_precio=listas_precio)
+
+# ---- LISTAS DE PRECIOS ----
+
+@app.route('/precios/listas')
+@login_required
+def listas_precios():
+    """Mostrar todas las listas de precios"""
+    listas = ListaPrecio.query.order_by(ListaPrecio.es_default.desc(), ListaPrecio.nombre).all()
+    return render_template('precios/listas.html', listas=listas)
+
+@app.route('/precios/listas/nueva', methods=['GET', 'POST'])
+@login_required
+def nueva_lista_precio():
+    """Crear nueva lista de precios"""
+    if request.method == 'POST':
+        try:
+            nombre = request.form['nombre']
+            descripcion = request.form.get('descripcion', '')
+            
+            nueva_lista = ListaPrecio(
+                nombre=nombre,
+                descripcion=descripcion
+            )
+            
+            db.session.add(nueva_lista)
+            db.session.commit()
+            
+            flash('Lista de precios creada exitosamente', 'success')
+            return redirect(url_for('listas_precios'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al crear la lista de precios: {str(e)}', 'error')
+    
+    return render_template('precios/lista_form.html')
+
+@app.route('/precios/listas/<int:lista_id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_lista_precio(lista_id):
+    """Editar lista de precios"""
+    lista = ListaPrecio.query.get_or_404(lista_id)
+    
+    if request.method == 'POST':
+        try:
+            lista.nombre = request.form['nombre']
+            lista.descripcion = request.form.get('descripcion', '')
+            
+            db.session.commit()
+            flash('Lista de precios actualizada exitosamente', 'success')
+            return redirect(url_for('listas_precios'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al actualizar la lista de precios: {str(e)}', 'error')
+    
+    return render_template('precios/lista_form.html', lista=lista)
+
+@app.route('/precios/listas/<int:lista_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_lista_precio(lista_id):
+    """Eliminar lista de precios"""
+    lista = ListaPrecio.query.get_or_404(lista_id)
+    
+    if lista.es_default:
+        return jsonify({'error': 'No se puede eliminar la lista de precios por defecto'}), 400
+    
+    try:
+        db.session.delete(lista)
+        db.session.commit()
+        return jsonify({'message': 'Lista de precios eliminada exitosamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar la lista: {str(e)}'}), 500
+
+# ---- PRECIOS POR PRODUCTO EN LISTAS ----
+
+@app.route('/precios/listas/<int:lista_id>/productos')
+@login_required
+def precios_lista_productos(lista_id):
+    """Gestionar precios de productos en una lista específica"""
+    lista = ListaPrecio.query.get_or_404(lista_id)
+    productos = Producto.query.all()
+    
+    # Obtener precios existentes
+    precios_existentes = db.session.query(PrecioProducto, Producto).join(
+        Producto, PrecioProducto.producto_id == Producto.id
+    ).filter(PrecioProducto.lista_precio_id == lista_id).all()
+    
+    return render_template('precios/lista_productos.html', 
+                         lista=lista, 
+                         productos=productos,
+                         precios_existentes=precios_existentes)
+
+@app.route('/precios/listas/<int:lista_id>/productos', methods=['POST'])
+@login_required
+def crear_precio_producto(lista_id):
+    """Crear o actualizar precio de un producto en una lista"""
+    try:
+        producto_id = request.form['producto_id']
+        precio_base = float(request.form['precio_base'])
+        margen_jomar = float(request.form.get('margen_jomar', 1.0))
+        margen_retail = float(request.form.get('margen_retail', 1.2))
+        
+        # Verificar si ya existe
+        precio_existente = PrecioProducto.query.filter_by(
+            lista_precio_id=lista_id,
+            producto_id=producto_id
+        ).first()
+        
+        if precio_existente:
+            # Actualizar
+            precio_existente.precio_base = precio_base
+            precio_existente.margen_jomar = margen_jomar
+            precio_existente.margen_retail = margen_retail
+            precio_existente.calcular_precios()
+            precio_existente.fecha_actualizacion = datetime.utcnow()
+        else:
+            # Crear nuevo
+            nuevo_precio = PrecioProducto(
+                lista_precio_id=lista_id,
+                producto_id=producto_id,
+                precio_base=precio_base,
+                margen_jomar=margen_jomar,
+                margen_retail=margen_retail
+            )
+            nuevo_precio.calcular_precios()
+            db.session.add(nuevo_precio)
+        
+        db.session.commit()
+        return jsonify({'message': 'Precio actualizado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al actualizar precio: {str(e)}'}), 500
+
+@app.route('/precios/productos/<int:precio_id>/eliminar', methods=['DELETE'])
+@login_required
+def eliminar_precio_producto(precio_id):
+    """Eliminar precio de producto"""
+    try:
+        precio = PrecioProducto.query.get_or_404(precio_id)
+        db.session.delete(precio)
+        db.session.commit()
+        return jsonify({'message': 'Precio eliminado exitosamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar precio: {str(e)}'}), 500
+
+# ---- ASIGNACIÓN DE LISTAS A CLIENTES ----
+
+@app.route('/precios/clientes')
+@login_required
+def precios_clientes():
+    """Gestionar listas de precios por cliente"""
+    clientes = Cliente.query.all()
+    listas = ListaPrecio.query.filter_by(activa=True).all()
+    
+    # Obtener asignaciones existentes
+    asignaciones = db.session.query(ClienteListaPrecio, Cliente, ListaPrecio).join(
+        Cliente, ClienteListaPrecio.cliente_id == Cliente.id
+    ).join(
+        ListaPrecio, ClienteListaPrecio.lista_precio_id == ListaPrecio.id
+    ).filter(ClienteListaPrecio.activa == True).all()
+    
+    return render_template('precios/clientes.html', 
+                         clientes=clientes, 
+                         listas=listas,
+                         asignaciones=asignaciones)
+
+@app.route('/precios/clientes/asignar', methods=['POST'])
+@login_required
+def asignar_lista_cliente():
+    """Asignar lista de precios a cliente"""
+    try:
+        cliente_id = request.form['cliente_id']
+        lista_precio_id = request.form['lista_precio_id']
+        
+        # Verificar si ya existe una asignación activa
+        asignacion_existente = ClienteListaPrecio.query.filter_by(
+            cliente_id=cliente_id,
+            activa=True
+        ).first()
+        
+        if asignacion_existente:
+            # Desactivar la asignación anterior
+            asignacion_existente.activa = False
+        
+        # Crear nueva asignación
+        nueva_asignacion = ClienteListaPrecio(
+            cliente_id=cliente_id,
+            lista_precio_id=lista_precio_id
+        )
+        
+        db.session.add(nueva_asignacion)
+        db.session.commit()
+        
+        return jsonify({'message': 'Lista de precios asignada exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al asignar lista: {str(e)}'}), 500
+
+@app.route('/precios/clientes/<int:asignacion_id>/eliminar', methods=['DELETE'])
+@login_required
+def eliminar_asignacion_cliente(asignacion_id):
+    """Eliminar asignación de lista de precios a cliente"""
+    try:
+        asignacion = ClienteListaPrecio.query.get_or_404(asignacion_id)
+        db.session.delete(asignacion)
+        db.session.commit()
+        return jsonify({'message': 'Asignación eliminada exitosamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar asignación: {str(e)}'}), 500
+
+# ---- PRECIOS ESPECÍFICOS CLIENTE-PRODUCTO ----
+
+@app.route('/precios/cliente-producto')
+@login_required
+def precios_cliente_producto():
+    """Gestionar precios específicos por cliente-producto"""
+    clientes = Cliente.query.all()
+    productos = Producto.query.all()
+    
+    # Obtener precios específicos existentes
+    precios_especificos = db.session.query(PrecioClienteProducto, Cliente, Producto).join(
+        Cliente, PrecioClienteProducto.cliente_id == Cliente.id
+    ).join(
+        Producto, PrecioClienteProducto.producto_id == Producto.id
+    ).filter(PrecioClienteProducto.activo == True).all()
+    
+    return render_template('precios/cliente_producto.html',
+                         clientes=clientes,
+                         productos=productos,
+                         precios_especificos=precios_especificos)
+
+@app.route('/precios/cliente-producto', methods=['POST'])
+@login_required
+def crear_precio_cliente_producto():
+    """Crear precio específico cliente-producto"""
+    try:
+        cliente_id = request.form['cliente_id']
+        producto_id = request.form['producto_id']
+        precio_base = float(request.form['precio_base'])
+        margen_jomar = float(request.form.get('margen_jomar', 1.0))
+        margen_retail = float(request.form.get('margen_retail', 1.2))
+        
+        # Verificar si ya existe
+        precio_existente = PrecioClienteProducto.query.filter_by(
+            cliente_id=cliente_id,
+            producto_id=producto_id
+        ).first()
+        
+        if precio_existente:
+            # Actualizar
+            precio_existente.precio_base = precio_base
+            precio_existente.margen_jomar = margen_jomar
+            precio_existente.margen_retail = margen_retail
+            precio_existente.calcular_precios()
+            precio_existente.fecha_actualizacion = datetime.utcnow()
+        else:
+            # Crear nuevo
+            nuevo_precio = PrecioClienteProducto(
+                cliente_id=cliente_id,
+                producto_id=producto_id,
+                precio_base=precio_base,
+                margen_jomar=margen_jomar,
+                margen_retail=margen_retail
+            )
+            nuevo_precio.calcular_precios()
+            db.session.add(nuevo_precio)
+        
+        db.session.commit()
+        return jsonify({'message': 'Precio específico actualizado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al actualizar precio específico: {str(e)}'}), 500
+
+@app.route('/precios/cliente-producto/<int:precio_id>/eliminar', methods=['DELETE'])
+@login_required
+def eliminar_precio_cliente_producto(precio_id):
+    """Eliminar precio específico cliente-producto"""
+    try:
+        precio = PrecioClienteProducto.query.get_or_404(precio_id)
+        db.session.delete(precio)
+        db.session.commit()
+        return jsonify({'message': 'Precio específico eliminado exitosamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar precio específico: {str(e)}'}), 500
+
+# ---- API PARA OBTENER PRECIOS ----
+
+# 1. Agregar esta nueva ruta API para obtener precios por cliente
+@app.route('/api/precios/cliente/<int:cliente_id>/productos')
+@login_required
+def api_precios_cliente_productos(cliente_id):
+    """API para obtener precios de todos los productos para un cliente específico"""
+    productos = Producto.query.all()
+    resultado = []
+    
+    for producto in productos:
+        precio_jomar = obtener_precio_producto_cliente(cliente_id, producto.id, 'jomar')
+        if precio_jomar is None:
+            precio_jomar = obtener_precio_default_producto(producto.id, 'jomar') or 0
+        
+        resultado.append({
+            'id': producto.id,
+            'nombre': producto.nombre,
+            'precio': float(precio_jomar)
+        })
+    
+    return jsonify(resultado)
+
+@app.route('/api/precios/lista/<int:lista_id>')
+@login_required
+def api_precios_lista(lista_id):
+    """API para obtener todos los precios de una lista"""
+    precios = db.session.query(PrecioProducto, Producto).join(
+        Producto, PrecioProducto.producto_id == Producto.id
+    ).filter(
+        PrecioProducto.lista_precio_id == lista_id,
+        PrecioProducto.activo == True
+    ).all()
+    
+    resultado = []
+    for precio, producto in precios:
+        resultado.append({
+            'producto_id': producto.id,
+            'producto_nombre': producto.nombre,
+            'precio_base': precio.precio_base,
+            'precio_jomar': precio.precio_jomar,
+            'precio_retail': precio.precio_retail,
+            'margen_jomar': precio.margen_jomar,
+            'margen_retail': precio.margen_retail
+        })
+    
+    return jsonify(resultado)
+
+@app.route('/api/precios/cliente/<int:cliente_id>')
+@login_required
+def api_precios_cliente(cliente_id):
+    """API para obtener todos los precios disponibles para un cliente"""
+    productos = Producto.query.all()
+    resultado = []
+    
+    for producto in productos:
+        precio_base = obtener_precio_producto_cliente(cliente_id, producto.id, 'base')
+        precio_jomar = obtener_precio_producto_cliente(cliente_id, producto.id, 'jomar')
+        precio_retail = obtener_precio_producto_cliente(cliente_id, producto.id, 'retail')
+        
+        if precio_base is not None:
+            resultado.append({
+                'producto_id': producto.id,
+                'producto_nombre': producto.nombre,
+                'precio_base': precio_base,
+                'precio_jomar': precio_jomar,
+                'precio_retail': precio_retail
+            })
+    
+    return jsonify(resultado)
+
+############################################
+# Rutas de Productos
+############################################
+
+
+@app.route('/productos', methods=['GET', 'POST'])
+@login_required
+def productos():
+    if request.method == 'POST':
+        # Crear o actualizar producto
+        nombre      = request.form['nombre']
+        descripcion = request.form.get('descripcion', '')
+        temperatura = request.form.get('temperatura', '')
+        qbo_id      = request.form.get('qbo_id')
+        tax_rate    = float(request.form.get('tax_rate', 0.0))
+
+        nuevo = Producto(
+            nombre=nombre,
+            descripcion=descripcion,
+            temperatura=temperatura,
+            qbo_id=qbo_id,
+            tax_rate=tax_rate
+        )
+        db.session.add(nuevo)
+        db.session.commit()
+        flash('Producto creado exitosamente.', 'success')
+        return redirect(url_for('productos'))
+
+    # GET → listamos todos los productos ordenados
+    todos = Producto.query.order_by(Producto.id.asc()).all()
+    return render_template('productos.html', productos=todos)
+
+
+
+
+
+@app.route('/productos/<int:producto_id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_producto(producto_id):
+    producto = Producto.query.get_or_404(producto_id)
+    if request.method == 'POST':
+        producto.nombre      = request.form['nombre']
+        producto.descripcion = request.form.get('descripcion', '')
+        producto.temperatura = request.form.get('temperatura', '')
+        producto.qbo_id      = request.form.get('qbo_id')
+        producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
+        db.session.commit()
+        flash('Producto actualizado correctamente.', 'success')
+        return redirect(url_for('productos'))
+
+    return render_template('editar_producto.html', producto=producto)
+
+
+
+
+@app.route('/api/productos', methods=['GET'])
+@login_required
+def obtener_productos_api():
+    productos = Producto.query.order_by(Producto.id).all()
+    productos_data = []
+    for p in productos:
+        precio = obtener_precio_default_producto(p.id, 'jomar')
+        productos_data.append({
+            "id"         : p.id,
+            "nombre"     : p.nombre,
+            "descripcion": p.descripcion,
+            "temperatura": p.temperatura,
+            "qbo_id"     : p.qbo_id,
+            "tax_rate"   : p.tax_rate,  # Nueva línea
+            "precio"     : float(precio or 0)
+        })
+    return jsonify(productos_data)
+
 
 @app.route('/productos/<int:producto_id>/eliminar', methods=['POST'])
 @login_required
 def eliminar_producto(producto_id):
     try:
-        producto = Producto.query.get(producto_id)
-        if producto:
-            db.session.delete(producto)
-            db.session.commit()
-            return jsonify({'message': 'Producto eliminado correctamente.'}), 200
-        else:
-            return jsonify({'error': 'Producto no encontrado.'}), 404
+        producto = Producto.query.get_or_404(producto_id)
+        db.session.delete(producto)
+        db.session.commit()
+        return jsonify({'message': 'Producto eliminado correctamente.'}), 200
     except Exception as e:
-        print(f"Error al eliminar el producto: {e}")
+        app.logger.error(f"Error al eliminar el producto: {e}")
         return jsonify({'error': 'Error al eliminar el producto.'}), 500
 
-@app.route('/api/productos', methods=['GET'])
-@login_required
-def obtener_productos_api():
-    productos = Producto.query.all()
-    productos_data = [{"id": p.id, "nombre": p.nombre} for p in productos]
-    return jsonify(productos_data)
+
 
 @app.before_request
 def override_method():
@@ -298,6 +1440,7 @@ def override_method():
         method = request.form['_method'].upper()
         if method in ['PUT', 'DELETE']:
             request.environ['REQUEST_METHOD'] = method
+
 
 # Rutas para Recepciones
 @app.route('/recepciones')
@@ -810,29 +1953,68 @@ def reporte_factura(numero_factura):
         mimetype='application/pdf'
     )
 
+# app.py
 @app.route('/clientes', methods=['GET'])
 @login_required
 def mostrar_clientes():
-    clientes = Cliente.query.all()
+    # ↓↓↓  ahora vienen ordenados de menor a mayor ID
+    clientes = (Cliente
+                .query
+                .order_by(Cliente.id.asc())   # o .desc() si los quieres al revés
+                .all())
+
     return render_template('clientes.html', clientes=clientes)
+
 
 @app.route('/clientes/nuevo', methods=['POST'])
 @login_required
 def nuevo_cliente():
     try:
-        nombre = request.form['nombre']
-        nuevo_cliente = Cliente(nombre=nombre)
+        nombre  = request.form['nombre']
+        qbo_id  = request.form.get('qbo_id') or None          # ← 🆕
+        
+        # Evitar duplicados
+        if qbo_id and Cliente.query.filter_by(qbo_id=qbo_id).first():
+            return jsonify({"error": "Ya existe un cliente con ese QBO ID"}), 400
+        
+        nuevo_cliente = Cliente(nombre=nombre, qbo_id=qbo_id) # ← 🆕
         db.session.add(nuevo_cliente)
         db.session.commit()
         return jsonify({
             "message": "Cliente registrado exitosamente",
-            "cliente": {
-                "id": nuevo_cliente.id,
-                "nombre": nuevo_cliente.nombre
-            }
+            "cliente": nuevo_cliente.to_dict()
         }), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/clientes/<int:cliente_id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_cliente(cliente_id):
+    cliente = Cliente.query.get_or_404(cliente_id)
+
+    if request.method == 'POST':
+        try:
+            cliente.nombre = request.form['nombre']
+            qbo_id         = request.form.get('qbo_id') or None
+
+            # Verificar unicidad si cambió
+            if qbo_id != cliente.qbo_id and qbo_id \
+                    and Cliente.query.filter_by(qbo_id=qbo_id).first():
+                flash('Ya existe otro cliente con ese QBO ID', 'danger')
+                return redirect(url_for('editar_cliente', cliente_id=cliente.id))
+            
+            cliente.qbo_id = qbo_id
+            db.session.commit()
+            flash('Cliente actualizado', 'success')
+            return redirect(url_for('mostrar_clientes'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error: {e}', 'danger')
+            return redirect(url_for('mostrar_clientes'))
+
+    # GET
+    return render_template('cliente_form.html', cliente=cliente)
 
 @app.route('/clientes/<int:cliente_id>', methods=['DELETE'])
 @login_required
@@ -1149,12 +2331,13 @@ def dibujar_etiqueta(c, x_offset, y_offset, etiqueta_ancho, etiqueta_alto, datos
     c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + 3 * line_height), "When Kept at:")
     c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + 3 * line_height), datos['temperatura'])
 
-############################################
-# Ejecución de la aplicación
-############################################
+
+try:
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+except locale.Error:
+    print("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
+
 if __name__ == '__main__':  
     ip_servidor = obtener_ip_servidor()
     print(f"La aplicación está disponible en la IP: {ip_servidor}:{5002}")
-    app.run(debug=False, host='0.0.0.0', port=5002)
-
-
+    app.run(debug=True, host='0.0.0.0', port=5002)

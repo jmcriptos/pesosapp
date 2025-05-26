@@ -1,27 +1,127 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Producto</title>
-</head>
-<body>
-    <h1>Editar Producto</h1>
-    
-    <form method="POST">
-        <label for="nombre">Nombre del Producto:</label>
-        <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" required><br>
+{% extends "base.html" %}
 
-        <label for="descripcion">Descripción:</label>
-        <input type="text" id="descripcion" name="descripcion" value="{{ producto.descripcion }}"><br>
+{% block title %}Editar Producto{% endblock %}
 
-        <label for="temperatura">Temperatura de Almacenamiento:</label>
-        <input type="text" id="temperatura" name="temperatura" value="{{ producto.temperatura }}"><br>
+{% block header_title %}
+  <i class="fas fa-box-open" style="color: #ff6f61; margin-right: 8px;"></i>
+  Editar Producto
+{% endblock %}
 
-        <button type="submit">Guardar Cambios</button>
-    </form>
-    <footer class="ip-footer">
-        <p>© 2024 Jomar Foods, BV. Todos los derechos reservados.</p>
-    </footer>
-</body>
-</html>
+{% block content %}
+<div class="form-section">
+  <h2 style="margin-bottom:1rem;">Editar Producto</h2>
+  <form method="POST" action="{{ url_for('editar_producto', producto_id=producto.id) }}">
+    <div class="form-group">
+      <label for="nombre" class="form-label">Nombre del Producto:</label>
+      <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" required class="form-input">
+    </div>
+    <div class="form-group">
+      <label for="descripcion" class="form-label">Descripción:</label>
+      <input type="text" id="descripcion" name="descripcion" value="{{ producto.descripcion }}" class="form-input">
+    </div>
+    <div class="form-group">
+      <label for="temperatura" class="form-label">Temperatura:</label>
+      <input type="text" id="temperatura" name="temperatura" value="{{ producto.temperatura }}" class="form-input">
+    </div>
+    <div class="form-group">
+      <label for="qbo_id" class="form-label">QBO ID (opcional):</label>
+      <input type="text" id="qbo_id" name="qbo_id" value="{{ producto.qbo_id or '' }}" class="form-input">
+    </div>
+    <!-- 🆕 Campo TaxCode ID -->
+    <div class="form-group">
+      <label for="tax_rate" class="form-label">TaxCode ID:</label>
+      <select id="tax_rate" name="tax_rate" class="form-input">
+        <option value="10" {% if producto.tax_rate|int == 10 %}selected{% endif %}>OB 6%</option>
+        <option value="14" {% if producto.tax_rate|int == 14 %}selected{% endif %}>OB Non Tax Local Prod (0%)</option>
+      </select>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.5rem;">
+      <a href="{{ url_for('productos') }}" class="btn btn-secondary">
+        <i class="fas fa-times"></i> Cancelar
+      </a>
+      <button type="submit" class="form-button">
+        <i class="fas fa-save"></i> Guardar Cambios
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .form-section {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      max-width: 600px;
+      margin: 2rem auto;
+  }
+  .form-section h2 {
+      font-size: 1.5rem;
+      color: #333;
+  }
+  .form-group {
+      margin-bottom: 1.25rem;
+  }
+  .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #555;
+  }
+  .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+      transition: border-color .2s;
+  }
+  .form-input:focus {
+      border-color: #6c63ff;
+      outline: none;
+  }
+  .form-button {
+      background-color: #6c63ff;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background .2s;
+  }
+  .form-button:hover {
+      background-color: #5a52d5;
+  }
+  .btn-secondary {
+      background-color: #ccc;
+      color: #333;
+      padding: 0.75rem 1.2rem;
+      border-radius: 4px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background .2s;
+  }
+  .btn-secondary:hover {
+      background-color: #bbb;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const content = document.querySelector('.app-content');
+    const footer  = document.querySelector('.app-footer');
+    if (footer) content.style.paddingBottom = `calc(${footer.offsetHeight}px + 1rem)`;
+  });
+</script>
+{% endblock %}

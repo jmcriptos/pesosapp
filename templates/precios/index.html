@@ -1,0 +1,339 @@
+<!-- templates/precios/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Sistema de Precios{% endblock %}
+
+{% block header_title %}
+    <i class="fas fa-dollar-sign" style="color: #28a745; margin-right: 10px;"></i>Sistema de Precios
+{% endblock %}
+
+{% block content %}
+<div class="precios-container">
+    <div class="precios-grid">
+        <!-- Listas de Precios -->
+        <a href="{{ url_for('listas_precios') }}" class="precio-card">
+            <div class="precio-icon">
+                <i class="fas fa-list-alt"></i>
+            </div>
+            <h3>Listas de Precios</h3>
+            <p>Gestionar listas de precios por defecto y personalizadas</p>
+            <span class="precio-count">{{ listas_precio|length }} listas</span>
+        </a>
+
+        <!-- Precios por Cliente -->
+        <a href="{{ url_for('precios_clientes') }}" class="precio-card">
+            <div class="precio-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3>Precios por Cliente</h3>
+            <p>Asignar listas de precios específicas a clientes</p>
+        </a>
+
+        <!-- Precios Específicos -->
+        <a href="{{ url_for('precios_cliente_producto') }}" class="precio-card">
+            <div class="precio-icon">
+                <i class="fas fa-tags"></i>
+            </div>
+            <h3>Precios Específicos</h3>
+            <p>Definir precios individuales por cliente-producto</p>
+        </a>
+
+        <!-- Consultar Precios -->
+        <div class="precio-card" onclick="mostrarConsultorPrecios()">
+            <div class="precio-icon">
+                <i class="fas fa-search"></i>
+            </div>
+            <h3>Consultar Precios</h3>
+            <p>Buscar precio de un producto para un cliente</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para consulta de precios -->
+<div id="modalConsultaPrecios" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Consultar Precio</h2>
+            <span class="close" onclick="cerrarConsultorPrecios()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="form-consulta-precio">
+                <div class="form-group">
+                    <label>Cliente:</label>
+                    <select id="consulta-cliente" class="form-control" required>
+                        <option value="">Seleccionar cliente...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Producto:</label>
+                    <select id="consulta-producto" class="form-control" required>
+                        <option value="">Seleccionar producto...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de precio:</label>
+                    <select id="consulta-tipo" class="form-control">
+                        <option value="jomar">Precio Jomar</option>
+                        <option value="retail">Precio Retail</option>
+                        <option value="base">Precio Base</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Consultar</button>
+            </form>
+            <div id="resultado-consulta" style="display: none; margin-top: 20px;">
+                <div class="alert alert-info">
+                    <strong>Resultado:</strong>
+                    <div id="precio-resultado"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.precios-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.precios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.precio-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.precio-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+    text-decoration: none;
+    color: inherit;
+}
+
+.precio-icon {
+    font-size: 3rem;
+    color: #28a745;
+    margin-bottom: 20px;
+}
+
+.precio-card h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.precio-card p {
+    color: #666;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.precio-count {
+    background: #28a745;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    padding: 20px 30px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 15px;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+@media (max-width: 768px) {
+    .precios-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .precio-card {
+        padding: 20px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+function mostrarConsultorPrecios() {
+    // Cargar clientes y productos
+    cargarClientes();
+    cargarProductos();
+    document.getElementById('modalConsultaPrecios').style.display = 'block';
+}
+
+function cerrarConsultorPrecios() {
+    document.getElementById('modalConsultaPrecios').style.display = 'none';
+    document.getElementById('resultado-consulta').style.display = 'none';
+}
+
+function cargarClientes() {
+    // Implementar carga de clientes desde API
+    // Por ahora usamos datos dummy
+}
+
+function cargarProductos() {
+    // Implementar carga de productos desde API
+    // Por ahora usamos datos dummy
+}
+
+$('#form-consulta-precio').on('submit', function(e) {
+    e.preventDefault();
+    
+    const clienteId = $('#consulta-cliente').val();
+    const productoId = $('#consulta-producto').val();
+    const tipoPrecio = $('#consulta-tipo').val();
+    
+    if (!clienteId || !productoId) {
+        alert('Por favor seleccione cliente y producto');
+        return;
+    }
+    
+    // Consultar precio via API
+    $.ajax({
+        url: `/api/precios/cliente/${clienteId}/producto/${productoId}?tipo=${tipoPrecio}`,
+        method: 'GET',
+        success: function(data) {
+            $('#precio-resultado').html(`
+                <strong>Cliente:</strong> ${$('#consulta-cliente option:selected').text()}<br>
+                <strong>Producto:</strong> ${$('#consulta-producto option:selected').text()}<br>
+                <strong>Precio ${tipoPrecio}:</strong> $${data.precio.toFixed(2)}
+            `);
+            $('#resultado-consulta').show();
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON ? xhr.responseJSON.error : 'Error al consultar precio';
+            $('#precio-resultado').html(`<span style="color: red;">Error: ${error}</span>`);
+            $('#resultado-consulta').show();
+        }
+    });
+});
+
+// Cerrar modal al hacer clic fuera
+window.onclick = function(event) {
+    const modal = document.getElementById('modalConsultaPrecios');
+    if (event.target == modal) {
+        cerrarConsultorPrecios();
+    }
+}
+</script>
+{% endblock %}

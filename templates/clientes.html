@@ -3,181 +3,163 @@
 {% block title %}Clientes{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-users" style="color: #6c63ff; margin-right: 10px;"></i>Clientes
+  <i class="fas fa-users" style="color:#6c63ff;margin-right:8px;"></i>Clientes
 {% endblock %}
 
 {% block content %}
-<!-- Contenedor para mensajes flash -->
-<div id="flash-message" class="flash-message" style="display: none;"></div>
+<!-- Flash -->
+<div id="flash-message" class="flash-message" style="display:none;"></div>
 
-<!-- Sección para registrar un nuevo cliente -->
+<!-- 🔹 REGISTRAR NUEVO CLIENTE -->
 <section class="form-section">
-    <h2>Registrar Nuevo Cliente</h2>
-    <form id="form-cliente" method="POST" action="{{ url_for('nuevo_cliente') }}">
-        <div class="form-group">
-            <label for="nombre-cliente" class="form-label">Nombre del Cliente:</label>
-            <input type="text" id="nombre-cliente" name="nombre" required class="form-input">
-        </div>
-        <button type="submit" class="form-button">
-            <i class="fas fa-plus"></i> Registrar Cliente
-        </button>
-    </form>
+  <h2>Registrar Nuevo Cliente</h2>
+  <form id="form-cliente" method="POST" action="{{ url_for('nuevo_cliente') }}">
+    <div class="form-group">
+      <label for="nombre-cliente" class="form-label">Nombre:</label>
+      <input id="nombre-cliente" name="nombre" class="form-input" required>
+    </div>
+
+    <div class="form-group">
+      <label for="qbo-cliente" class="form-label">QBO ID <small>(opcional)</small>:</label>
+      <input id="qbo-cliente" name="qbo_id" class="form-input">
+    </div>
+
+    <button class="form-button">
+      <i class="fas fa-plus"></i> Registrar
+    </button>
+  </form>
 </section>
 
-<!-- Sección para mostrar los clientes registrados -->
+<!-- 🔹 LISTADO -->
 <section class="table-section">
-    <h2>Clientes Registrados</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for cliente in clientes %}
-                <tr id="cliente-{{ cliente.id }}">
-                    <td>{{ cliente.id }}</td>
-                    <td>{{ cliente.nombre }}</td>
-                    <td>
-                        <button class="btn btn-danger eliminar-cliente" data-id="{{ cliente.id }}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+  <h2>Clientes Registrados</h2>
+  <div class="table-container">
+    <table class="tabla-clientes">
+      <thead>
+        <tr>
+          <th style="width:70px;text-align:center;">ID</th>
+          <th>Nombre</th>
+          <th style="width:160px;text-align:center;">QBO ID</th>
+          <th style="width:120px;text-align:center;">Acciones</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for c in clientes %}
+        <tr id="cliente-{{ c.id }}">
+          <td class="col-id">{{ c.id }}</td>
+          <td>{{ c.nombre }}</td>
+          <td class="col-qbo">
+            {% if c.qbo_id %}
+              <span class="badge badge-ok" title="Integrado a QuickBooks">{{ c.qbo_id }}</span>
+            {% else %}
+              <span class="badge badge-na" title="Sin QBO ID">—</span>
+            {% endif %}
+          </td>
+          <td class="col-actions">
+            <!-- Editar -->
+            <a href="{{ url_for('editar_cliente', cliente_id=c.id) }}"
+               class="icon-btn btn-edit" title="Editar">
+              <i class="fas fa-pen"></i>
+            </a>
+
+            <!-- Eliminar -->
+            <button type="button" title="Eliminar"
+                    class="icon-btn btn-delete eliminar-cliente"
+                    data-id="{{ c.id }}">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 {% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <style>
-    .form-section {
-        background-color: #ffffff;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+/* ---------- cards ---------- */
+.form-section,.table-section{
+  background:#fff;border-radius:14px;padding:1.4rem;margin-bottom:1.6rem;
+  box-shadow:0 4px 14px rgba(0,0,0,.06);
+}
+.form-group{margin-bottom:1.2rem}
 
-    .table-section {
-        background-color: #ffffff;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+/* ---------- inputs ---------- */
+.form-label{display:block;margin-bottom:.4rem;font-weight:600;color:#333}
+.form-input{
+  width:100%;border:1px solid #ddd;border-radius:6px;padding:.7rem;font-size:1rem
+}
+.form-button{
+  background:#6c63ff;color:#fff;border:none;border-radius:6px;padding:.7rem 1.6rem;
+  font-weight:700;display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;
+  transition:background .18s
+}
+.form-button:hover{background:#584fe0}
 
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
+/* ---------- tabla ---------- */
+.table-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabla-clientes{width:100%;border-collapse:collapse;font-size:1rem}
+/* cabecera de tabla con mayor contraste */
+.tabla-clientes thead th{
+  background:#e8ecf6;          /* azul grisáceo claro  */
+  color:#333;                  /* gris oscuro          */
+  text-shadow:0 1px 0 #fff;    /* sutil relieve        */
+}
+.tabla-clientes td{padding:.85rem;border-bottom:1px solid #f1f2f7}
+.tabla-clientes tbody tr:nth-child(odd){background:#fafbfe}
 
-    .form-label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: #333;
-    }
+/* columnas compactas */
+.col-id,.col-qbo,.col-actions{text-align:center}
 
-    .form-input {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
-    }
+/* ---------- badges ---------- */
+.badge{
+  display:inline-block;border-radius:12px;padding:.25rem .55rem;font-size:.78rem;
+  font-weight:600;line-height:1
+}
+.badge-ok{background:#e6fcec;color:#19a354}
+.badge-na{background:#f1f2f7;color:#999}
 
-    .form-button {
-        background-color: #6c63ff;
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
+/* ---------- action buttons ---------- */
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:8px;border:none;cursor:pointer;
+  transition:background .15s,color .15s;font-size:.9rem
+}
+.btn-edit{background:#eef4ff;color:#2b7cff}
+.btn-edit:hover{background:#d9e8ff}
+.btn-delete{background:#ffecec;color:#dc3545}
+.btn-delete:hover{background:#ffd3d3}
+.icon-btn i{pointer-events:none}
 
-    .form-button:hover {
-        background-color: #5a52d5;
-    }
-
-    .table-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-    }
-
-    th, td {
-        padding: 1rem;
-        text-align: left;
-        border-bottom: 1px solid #eee;
-    }
-
-    th {
-        background-color: #f8f9fa;
-        font-weight: 600;
-    }
-
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-
-    .btn-danger:hover {
-        background-color: #c82333;
-    }
-
-    @media (max-width: 768px) {
-        .form-section, .table-section {
-            padding: 1rem;
-        }
-
-        .form-input {
-            font-size: 16px; /* Previene zoom en iOS */
-        }
-
-        th, td {
-            padding: 0.75rem;
-        }
-
-        .btn-danger {
-            padding: 0.5rem;
-        }
-    }
+/* ---------- responsive ---------- */
+@media(max-width:680px){
+  .col-qbo{display:none}
+  .tabla-clientes thead th:nth-child(3),
+  .tabla-clientes td:nth-child(3){display:none}
+  .form-section,.table-section{padding:1rem}
+  .form-input{font-size:15px}
+  .tabla-clientes td,.tabla-clientes th{padding:.7rem}
+  .icon-btn{width:30px;height:30px}
+}
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="{{ url_for('static', filename='scripts.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Asegurarse de que el contenido no se oculte detrás del menú inferior
-        const content = document.querySelector('.app-content');
-        const footer = document.querySelector('.app-footer');
-        if (footer) {
-            content.style.paddingBottom = `calc(${footer.offsetHeight}px + 1rem)`;
-        }
+// ----- eliminar cliente (AJAX) -----
+$(document).on('click','.eliminar-cliente',function(){
+  const id = $(this).data('id');
+  if(!confirm('¿Eliminar este cliente?')) return;
+  fetch(`/clientes/${id}`,{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r=>r.json()).then(res=>{
+      if(res.message){ $(`#cliente-${id}`).remove(); alert(res.message); }
+      else{ alert(res.error||'Error'); }
     });
+});
 </script>
 {% endblock %}

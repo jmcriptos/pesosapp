@@ -1,0 +1,37 @@
+<!-- templates/preparar_pedido.html -->
+<h2>Preparar Pedido #{{ pedido.id }}</h2>
+<form method="POST">
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cajas Solicitadas</th>
+                <th>Cajas Entregadas</th>
+                <th>Peso Real (kg)</th>
+                <th>Lote</th>
+                <th>Fecha Fab.</th>
+                <th>Fecha Exp.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detalle in pedido.detalles %}
+            <tr>
+                <td>{{ detalle.producto.nombre }}</td>
+                <td>{{ detalle.cantidad_cajas }}</td>
+                <td><input type="number" name="entregadas_{{detalle.id}}" min="0" value="{{ detalle.cantidad_cajas }}"></td>
+                <td>
+                    {% if detalle.producto.se_pesa %}
+                    <input type="number" step="0.01" name="peso_{{detalle.id}}" min="0">
+                    {% else %}
+                    <input type="number" step="0.01" disabled placeholder="N/A">
+                    {% endif %}
+                </td>
+                <td><input type="text" name="lote_{{detalle.id}}"></td>
+                <td><input type="date" name="fab_{{detalle.id}}"></td>
+                <td><input type="date" name="exp_{{detalle.id}}"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit">Finalizar Preparación</button>
+</form>
