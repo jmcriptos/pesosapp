@@ -2337,7 +2337,13 @@ try:
 except locale.Error:
     print("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
 
-if __name__ == '__main__':  
-    ip_servidor = obtener_ip_servidor()
-    print(f"La aplicación está disponible en la IP: {ip_servidor}:{5002}")
-    app.run(debug=True, host='0.0.0.0', port=5002)
+if __name__ == '__main__':
+    # Configuración para desarrollo local
+    if os.environ.get('FLASK_ENV') == 'development':
+        ip_servidor = obtener_ip_servidor()
+        print(f"La aplicación está disponible en la IP: {ip_servidor}:{5002}")
+        app.run(debug=True, host='0.0.0.0', port=5002)
+    else:
+        # Configuración para producción (Heroku)
+        port = int(os.environ.get('PORT', 5000))
+        app.run(host='0.0.0.0', port=port, debug=False)
