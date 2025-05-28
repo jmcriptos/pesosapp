@@ -1573,28 +1573,51 @@ def api_precios_cliente(cliente_id):
 @login_required
 def productos():
     if request.method == 'POST':
-        # Crear o actualizar producto
-        nombre      = request.form['nombre']
-        descripcion = request.form.get('descripcion', '')
-        temperatura = request.form.get('temperatura', '')
-        qbo_id      = request.form.get('qbo_id')
-        tax_rate    = float(request.form.get('tax_rate', 0.0))
+        try:
+            nombre      = request.form['nombre']
+            descripcion = request.form.get('descripcion', '')
+            temperatura = request.form.get('temperatura', '')
+            qbo_id      = request.form.get('qbo_id')
+            tax_rate    = float(request.form.get('tax_rate', 0.0))
 
-        nuevo = Producto(
-            nombre=nombre,
-            descripcion=descripcion,
-            temperatura=temperatura,
-            qbo_id=qbo_id,
-            tax_rate=tax_rate
-        )
-        db.session.add(nuevo)
-        db.session.commit()
-        flash('Producto creado exitosamente.', 'success')
-        return redirect(url_for('productos'))
+            nuevo = Producto(
+                nombre=nombre,
+                descripcion=descripcion,
+                temperatura=temperatura,
+                qbo_id=qbo_id,
+                tax_rate=tax_rate
+            )
+            db.session.add(nuevo)
+            db.session.commit()
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({
+                    'message': 'Producto creado correctamente',
+                    'producto': {
+                        'id': nuevo.id,
+                        'nombre': nuevo.nombre,
+                        'descripcion': nuevo.descripcion,
+                        'temperatura': nuevo.temperatura,
+                        'qbo_id': nuevo.qbo_id,
+                        'tax_rate': nuevo.tax_rate
+                    }
+                })
+            else:
+                flash('Producto creado exitosamente.', 'success')
+                return redirect(url_for('productos'))
+
+        except Exception as e:
+            db.session.rollback()
+            print("Error al crear producto:", e)
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({'error': 'Error al crear el producto'}), 400
+            flash('Error al crear el producto', 'danger')
+            return redirect(url_for('productos'))
 
     # GET → listamos todos los productos ordenados
     todos = Producto.query.order_by(Producto.id.asc()).all()
     return render_template('productos.html', productos=todos)
+
 
 
 

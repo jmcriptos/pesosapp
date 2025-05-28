@@ -183,47 +183,38 @@ $(document).ready(function() {
     /*** Manejo de Productos ***/
 
     // Manejar el envío del formulario para crear un producto
-    $('#form-crear-producto').submit(function(event) {
-        event.preventDefault();
+    document.getElementById('form-crear-producto').addEventListener('submit', function(e) {
+        e.preventDefault();
 
-        var formData = $(this).serialize();
+        const form = e.target;
+        const data = new FormData(form);
 
-        $.ajax({
-            type: 'POST',
-            url: '/productos',
-            data: formData,
-            dataType: 'json',
-            success: function(response) {
-                console.log("Respuesta del servidor:", response);
-
-                if (response.message) {
-                    mostrarMensaje(response.message, 'success');
-                }
-
-                // Limpiar el formulario
-                $('#form-crear-producto')[0].reset();
-
-                // Agregar el nuevo producto a la tabla
-                let producto = response.producto;
-                let nuevaFila = `
-                    <tr id="producto-${producto.id}">
-                        <td>${producto.id}</td>
-                        <td>${producto.nombre}</td>
-                        <td>${producto.descripcion}</td>
-                        <td>${producto.temperatura}</td>
-                        <td>
-                            <i class="fas fa-trash-alt eliminar-producto" data-id="{{ producto.id }}" style="color: #dc3545; cursor: pointer;"></i>
-                        </td>
-                    </tr>
-                `;
-                $('table tbody').append(nuevaFila);
-            },
-            error: function(xhr, status, error) {
-                console.error('Error al crear el producto:', error);
-                mostrarMensaje('Error al crear el producto.', 'error');
+        fetch(form.action, {
+            method: 'POST',
+            body: data,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Fallo al crear producto");
+            return res.json();
+        })
+        .then(data => {
+            if (data.error) {
+                mostrarMensaje(data.error, 'danger');
+            } else {
+                agregarProductoATabla(data.producto);
+                form.reset();
+                mostrarMensaje(data.message || 'Producto creado', 'success');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            mostrarMensaje('Error al crear el producto', 'danger');
         });
     });
+
 
     // Asignar eventos de eliminar a los botones existentes y futuros
     $(document).on('click', '.eliminar-producto', function(event) {
@@ -487,39 +478,33 @@ $(document).ready(function() {
 
     /*** Manejo de Importación ***/
 
-    // Función para agregar una nueva fila de productos
-    function agregarProducto() {
-        const tbody = $('#productos-body');
-        const newRow = $(`
-            <tr>
-                <td>
-                    <select name="productos[${productIndex}][producto]" required>
-                        <option value="">Seleccionar Producto</option>
-                    </select>
+    // ✅ NUEVA FUNCIÓN para agregar productos a la tabla
+    function agregarProductoATabla(producto) {
+        const fila = `
+            <tr id="producto-${producto.id}">
+                <td class="text-center">${producto.id}</td>
+                <td>${producto.nombre}</td>
+                <td>${producto.descripcion}</td>
+                <td class="text-center">${producto.temperatura || '—'}</td>
+                <td class="text-center">${producto.qbo_id || '—'}</td>
+                <td class="text-center">${producto.tax_rate}</td>
+                <td class="text-center">
+                    <a href="/productos/${producto.id}/editar" class="btn btn-sm btn-primary" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <i class="fas fa-trash-alt eliminar-producto"
+                       data-id="${producto.id}"
+                       style="color: #dc3545; cursor: pointer;"
+                       title="Eliminar"></i>
                 </td>
-                <td><input type="number" name="productos[${productIndex}][und_caja]" required></td>
-                <td><input type="number" name="productos[${productIndex}][qty_total]" required></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][price_fob]" required></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][total_fob]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][flete_proporcional]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][total_cif]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][cif_ang]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][arancel_ang]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][ob_ang]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][ob_45]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][costo_total_almacen]" readonly></td>
-                <td><input type="number" step="0.01" name="productos[${productIndex}][costo_unidad_ang]" readonly></td>
-                <td><button type="button" class="btn btn-danger eliminar-fila">Eliminar</button></td>
             </tr>
-        `);
+        `;
+        $('table tbody').append(fila);
 
-        tbody.append(newRow);
-
-        // Cargar productos en el select recién agregado
-        const selectProducto = newRow.find('select[name="productos[' + productIndex + '][producto]"]');
-        cargarProductos(selectProducto);
-
-        productIndex++;
+        // Reasignar evento al nuevo botón de eliminar
+        $(`#producto-${producto.id} .eliminar-producto`).click(function() {
+            eliminarProducto(producto.id, $(`#producto-${producto.id}`));
+        });
     }
 
     // Función para eliminar una fila de productos
