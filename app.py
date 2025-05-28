@@ -551,7 +551,7 @@ def index():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard con métricas de ventas y KPIs"""
+    """Dashboard con KPIs de ventas y nivel de servicio"""
     try:
         # Fechas para análisis
         hoy = datetime.now().date()
@@ -559,137 +559,172 @@ def dashboard():
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
         
-        # === MÉTRICAS PRINCIPALES ===
+        # === MÉTRICAS DE VENTAS ===
+        pedidos_mes_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
+        pedidos_semana_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_semana).all()
+        pedidos_30_dias = Pedido.query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
         
-        # Total de pedidos y ventas del mes actual
-        pedidos_mes = db.session.query(
-            func.count(Pedido.id).label('cantidad'),
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).select_from(Pedido).outerjoin(
-            DetallePedido, Pedido.id == DetallePedido.pedido_id
-        ).filter(
-            Pedido.fecha_pedido >= inicio_mes
-        ).first()
+        # Calcular ventas
+        ventas_mes = sum(sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_mes_list)
+        ventas_semana = sum(sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_list)
         
-        # Pedidos pendientes (urgentes)
         pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
         
-        # Pedidos de esta semana
-        pedidos_semana = db.session.query(
-            func.count(Pedido.id).label('cantidad'),
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).select_from(Pedido).outerjoin(
-            DetallePedido, Pedido.id == DetallePedido.pedido_id
-        ).filter(
-            Pedido.fecha_pedido >= inicio_semana
-        ).first()
+        # === KPIs DE NIVEL DE SERVICIO ===
         
-        # Comparación con período anterior
-        pedidos_mes_anterior = db.session.query(
-            func.coalesce(func.sum(DetallePedido.subtotal), 0)
-        ).select_from(Pedido).outerjoin(
-            DetallePedido, Pedido.id == DetallePedido.pedido_id
-        ).filter(
-            Pedido.fecha_pedido >= (inicio_mes - timedelta(days=30)),
-            Pedido.fecha_pedido < inicio_mes
-        ).scalar()
+        # 1. LEAD TIME PROMEDIO (días desde creación hasta facturación)
+        pedidos_facturados = [p for p in pedidos_30_dias if p.estado == 'facturado']
+        lead_times = []
         
-        # === TOP CLIENTES ===
-        top_clientes = db.session.query(
-            Cliente.nombre,
-            func.count(Pedido.id).label('pedidos'),
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).select_from(Cliente).join(
-            Pedido, Cliente.id == Pedido.cliente_id
-        ).outerjoin(
-            DetallePedido, Pedido.id == DetallePedido.pedido_id
-        ).filter(
-            Pedido.fecha_pedido >= hace_30_dias
-        ).group_by(Cliente.id, Cliente.nombre).order_by(
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).desc()
-        ).limit(5).all()
+        for pedido in pedidos_facturados:
+            # Asumimos que la fecha de facturación es cuando cambió a estado 'facturado'
+            # En una implementación más robusta, tendrías un campo fecha_facturacion
+            dias_lead_time = (hoy - pedido.fecha_pedido.date()).days
+            if dias_lead_time >= 0:  # Solo considerar lead times positivos
+                lead_times.append(dias_lead_time)
         
-        # === PRODUCTOS MÁS VENDIDOS ===
-        top_productos = db.session.query(
-            Producto.nombre,
-            func.sum(DetallePedido.cajas).label('cajas_vendidas'),
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('ingresos')
-        ).select_from(Producto).join(
-            DetallePedido, Producto.id == DetallePedido.producto_id
-        ).join(
-            Pedido, DetallePedido.pedido_id == Pedido.id
-        ).filter(
-            Pedido.fecha_pedido >= hace_30_dias
-        ).group_by(Producto.id, Producto.nombre).order_by(
-            func.sum(DetallePedido.cajas).desc()
-        ).limit(5).all()
+        lead_time_promedio = sum(lead_times) / len(lead_times) if lead_times else 0
         
-        # === ESTADOS DE PEDIDOS ===
-        estados_pedidos = db.session.query(
-            Pedido.estado,
-            func.count(Pedido.id).label('cantidad')
-        ).filter(
-            Pedido.fecha_pedido >= hace_30_dias
-        ).group_by(Pedido.estado).all()
+        # 2. FILL RATE (% de pedidos completamente entregados vs parciales)
+        pedidos_completos = 0
+        pedidos_incompletos = 0
         
-        # === TENDENCIA SEMANAL (últimas 8 semanas) ===
+        for pedido in pedidos_30_dias:
+            if pedido.estado == 'facturado':  # Consideramos facturado = entregado completo
+                pedidos_completos += 1
+            elif pedido.estado in ['pendiente', 'listo']:  # Parciales o no entregados
+                pedidos_incompletos += 1
+        
+        total_pedidos_evaluados = pedidos_completos + pedidos_incompletos
+        fill_rate = (pedidos_completos / total_pedidos_evaluados * 100) if total_pedidos_evaluados > 0 else 0
+        
+        # 3. ON-TIME DELIVERY RATE (% de pedidos entregados a tiempo)
+        # Asumimos que pedidos facturados en ≤ 2 días son "a tiempo"
+        pedidos_a_tiempo = len([lt for lt in lead_times if lt <= 2])
+        otd_rate = (pedidos_a_tiempo / len(lead_times) * 100) if lead_times else 0
+        
+        # 4. ORDER ACCURACY (% de pedidos sin errores)
+        # Simplificado: pedidos que no tienen notas de corrección
+        pedidos_con_notas_error = len([p for p in pedidos_30_dias 
+                                     if p.notas and ('error' in p.notas.lower() or 
+                                                    'corrección' in p.notas.lower() or
+                                                    'corregir' in p.notas.lower())])
+        order_accuracy = ((len(pedidos_30_dias) - pedidos_con_notas_error) / len(pedidos_30_dias) * 100) if pedidos_30_dias else 100
+        
+        # 5. PERFECT ORDER RATE (pedidos perfectos: a tiempo, completos, sin errores)
+        perfect_orders = 0
+        for pedido in pedidos_facturados:
+            dias_lead = (hoy - pedido.fecha_pedido.date()).days
+            tiene_errores = pedido.notas and any(palabra in pedido.notas.lower() 
+                                               for palabra in ['error', 'corrección', 'corregir'])
+            
+            if dias_lead <= 2 and not tiene_errores:  # A tiempo y sin errores
+                perfect_orders += 1
+        
+        perfect_order_rate = (perfect_orders / len(pedidos_facturados) * 100) if pedidos_facturados else 0
+        
+        # 6. CUSTOMER SATISFACTION PROXY (diversidad de clientes activos)
+        clientes_activos_mes = len(set(p.cliente_id for p in pedidos_mes_list))
+        total_clientes = Cliente.query.count()
+        customer_engagement = (clientes_activos_mes / total_clientes * 100) if total_clientes > 0 else 0
+        
+        # === ANÁLISIS DE PRODUCTOS ===
+        # Productos con mayor rotación
+        productos_ventas = {}
+        for pedido in pedidos_30_dias:
+            for detalle in pedido.detalles:
+                prod_nombre = detalle.producto.nombre
+                if prod_nombre not in productos_ventas:
+                    productos_ventas[prod_nombre] = {'cajas': 0, 'ingresos': 0, 'pedidos': set()}
+                
+                productos_ventas[prod_nombre]['cajas'] += detalle.cajas or 0
+                productos_ventas[prod_nombre]['ingresos'] += float(detalle.subtotal or 0)
+                productos_ventas[prod_nombre]['pedidos'].add(pedido.id)
+        
+        # Convertir sets a counts
+        for prod in productos_ventas.values():
+            prod['pedidos'] = len(prod['pedidos'])
+        
+        top_productos = sorted(productos_ventas.items(), 
+                              key=lambda x: x[1]['cajas'], reverse=True)[:5]
+        
+        # === ANÁLISIS DE CLIENTES ===
+        clientes_ventas = {}
+        for pedido in pedidos_30_dias:
+            cliente_nombre = pedido.cliente.nombre
+            if cliente_nombre not in clientes_ventas:
+                clientes_ventas[cliente_nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
+            
+            clientes_ventas[cliente_nombre]['pedidos'] += 1
+            clientes_ventas[cliente_nombre]['total'] += sum(float(d.subtotal or 0) for d in pedido.detalles)
+            
+            if not clientes_ventas[cliente_nombre]['ultimo_pedido'] or pedido.fecha_pedido > clientes_ventas[cliente_nombre]['ultimo_pedido']:
+                clientes_ventas[cliente_nombre]['ultimo_pedido'] = pedido.fecha_pedido
+        
+        top_clientes = sorted(clientes_ventas.items(), 
+                             key=lambda x: x[1]['total'], reverse=True)[:5]
+        
+        # === TENDENCIA SEMANAL ===
         tendencia_semanal = []
         for i in range(8):
             inicio_semana_i = hoy - timedelta(days=hoy.weekday() + (7 * i))
             fin_semana_i = inicio_semana_i + timedelta(days=6)
             
-            ventas_semana = db.session.query(
-                func.coalesce(func.sum(DetallePedido.subtotal), 0)
-            ).select_from(DetallePedido).join(
-                Pedido, DetallePedido.pedido_id == Pedido.id
-            ).filter(
+            pedidos_semana_i = Pedido.query.filter(
                 Pedido.fecha_pedido >= inicio_semana_i,
                 Pedido.fecha_pedido <= fin_semana_i
-            ).scalar()
+            ).all()
+            
+            ventas_semana_i = sum(sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_i)
+            pedidos_count = len(pedidos_semana_i)
             
             tendencia_semanal.append({
                 'semana': inicio_semana_i.strftime('%d/%m'),
-                'ventas': float(ventas_semana or 0)
+                'ventas': ventas_semana_i,
+                'pedidos': pedidos_count
             })
         
-        tendencia_semanal.reverse()  # Mostrar de más antigua a más reciente
+        tendencia_semanal.reverse()
+        
+        # === ESTADOS DE PEDIDOS ===
+        estados_count = {}
+        for pedido in pedidos_30_dias:
+            estado = pedido.estado
+            estados_count[estado] = estados_count.get(estado, 0) + 1
+        
+        estados_pedidos = [{'estado': k, 'cantidad': v} for k, v in estados_count.items()]
         
         # === PEDIDOS RECIENTES ===
-        pedidos_recientes = db.session.query(
-            Pedido,
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).select_from(Pedido).outerjoin(
-            DetallePedido, Pedido.id == DetallePedido.pedido_id
-        ).group_by(Pedido.id).order_by(
-            Pedido.fecha_pedido.desc()
-        ).limit(8).all()
-        
-        # === CALCULAR PORCENTAJES DE CRECIMIENTO ===
-        crecimiento_mes = 0
-        if pedidos_mes_anterior and pedidos_mes_anterior > 0:
-            crecimiento_mes = ((float(pedidos_mes.total) - float(pedidos_mes_anterior)) / float(pedidos_mes_anterior)) * 100
+        pedidos_recientes_data = []
+        pedidos_recientes = Pedido.query.order_by(Pedido.fecha_pedido.desc()).limit(8).all()
+        for pedido in pedidos_recientes:
+            total_pedido = sum(float(d.subtotal or 0) for d in pedido.detalles)
+            pedidos_recientes_data.append((pedido, total_pedido))
         
         return render_template('dashboard.html',
-            # Métricas principales
-            ventas_mes=float(pedidos_mes.total or 0),
-            pedidos_mes=pedidos_mes.cantidad or 0,
-            ventas_semana=float(pedidos_semana.total or 0),
-            pedidos_semana=pedidos_semana.cantidad or 0,
+            # Métricas de ventas
+            ventas_mes=ventas_mes,
+            pedidos_mes=len(pedidos_mes_list),
+            ventas_semana=ventas_semana,
+            pedidos_semana=len(pedidos_semana_list),
             pedidos_pendientes=pedidos_pendientes,
-            crecimiento_mes=round(crecimiento_mes, 1),
+            
+            # KPIs de nivel de servicio
+            lead_time_promedio=round(lead_time_promedio, 1),
+            fill_rate=round(fill_rate, 1),
+            otd_rate=round(otd_rate, 1),
+            order_accuracy=round(order_accuracy, 1),
+            perfect_order_rate=round(perfect_order_rate, 1),
+            customer_engagement=round(customer_engagement, 1),
             
             # Rankings
-            top_clientes=top_clientes,
-            top_productos=top_productos,
+            top_clientes=[(nombre, datos) for nombre, datos in top_clientes],
+            top_productos=[(nombre, datos) for nombre, datos in top_productos],
             
-            # Distribución
+            # Distribución y tendencias
             estados_pedidos=estados_pedidos,
-            
-            # Tendencias
             tendencia_semanal=tendencia_semanal,
-            
-            # Actividad reciente
-            pedidos_recientes=pedidos_recientes,
+            pedidos_recientes=pedidos_recientes_data,
             
             # Fechas para referencia
             fecha_actual=hoy

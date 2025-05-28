@@ -160,7 +160,149 @@
         </div>
 
     </div>
+    <!-- Agregar esta sección después de las métricas principales en dashboard.html -->
 
+    <!-- === KPIs DE NIVEL DE SERVICIO === -->
+    <div class="service-metrics-section">
+        <h2 class="section-title">
+            <i class="fas fa-shipping-fast"></i> 
+            KPIs de Nivel de Servicio
+        </h2>
+        
+        <div class="service-metrics-grid">
+            <!-- Lead Time -->
+            <div class="service-metric-card">
+                <div class="service-metric-icon lead-time">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="service-metric-content">
+                    <h3>{{ lead_time_promedio }} <span class="unit">días</span></h3>
+                    <p>Lead Time Promedio</p>
+                    <div class="metric-status {{ 'excellent' if lead_time_promedio <= 1 else 'good' if lead_time_promedio <= 2 else 'warning' if lead_time_promedio <= 3 else 'poor' }}">
+                        {% if lead_time_promedio <= 1 %}
+                            <i class="fas fa-rocket"></i> Excelente
+                        {% elif lead_time_promedio <= 2 %}
+                            <i class="fas fa-thumbs-up"></i> Bueno
+                        {% elif lead_time_promedio <= 3 %}
+                            <i class="fas fa-exclamation-triangle"></i> Mejorable
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Crítico
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fill Rate -->
+            <div class="service-metric-card">
+                <div class="service-metric-icon fill-rate">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="service-metric-content">
+                    <h3>{{ fill_rate }}<span class="unit">%</span></h3>
+                    <p>Fill Rate</p>
+                    <div class="metric-status {{ 'excellent' if fill_rate >= 95 else 'good' if fill_rate >= 90 else 'warning' if fill_rate >= 80 else 'poor' }}">
+                        {% if fill_rate >= 95 %}
+                            <i class="fas fa-star"></i> Excelente
+                        {% elif fill_rate >= 90 %}
+                            <i class="fas fa-thumbs-up"></i> Bueno
+                        {% elif fill_rate >= 80 %}
+                            <i class="fas fa-exclamation-triangle"></i> Mejorable
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Crítico
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- On-Time Delivery -->
+            <div class="service-metric-card">
+                <div class="service-metric-icon otd-rate">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <div class="service-metric-content">
+                    <h3>{{ otd_rate }}<span class="unit">%</span></h3>
+                    <p>On-Time Delivery</p>
+                    <div class="metric-status {{ 'excellent' if otd_rate >= 95 else 'good' if otd_rate >= 90 else 'warning' if otd_rate >= 80 else 'poor' }}">
+                        {% if otd_rate >= 95 %}
+                            <i class="fas fa-rocket"></i> Excelente
+                        {% elif otd_rate >= 90 %}
+                            <i class="fas fa-thumbs-up"></i> Bueno
+                        {% elif otd_rate >= 80 %}
+                            <i class="fas fa-exclamation-triangle"></i> Mejorable
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Crítico
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Accuracy -->
+            <div class="service-metric-card">
+                <div class="service-metric-icon accuracy">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div class="service-metric-content">
+                    <h3>{{ order_accuracy }}<span class="unit">%</span></h3>
+                    <p>Order Accuracy</p>
+                    <div class="metric-status {{ 'excellent' if order_accuracy >= 98 else 'good' if order_accuracy >= 95 else 'warning' if order_accuracy >= 90 else 'poor' }}">
+                        {% if order_accuracy >= 98 %}
+                            <i class="fas fa-star"></i> Excelente
+                        {% elif order_accuracy >= 95 %}
+                            <i class="fas fa-thumbs-up"></i> Bueno
+                        {% elif order_accuracy >= 90 %}
+                            <i class="fas fa-exclamation-triangle"></i> Mejorable
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Crítico
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Perfect Order Rate -->
+            <div class="service-metric-card">
+                <div class="service-metric-icon perfect-order">
+                    <i class="fas fa-medal"></i>
+                </div>
+                <div class="service-metric-content">
+                    <h3>{{ perfect_order_rate }}<span class="unit">%</span></h3>
+                    <p>Perfect Order Rate</p>
+                    <div class="metric-status {{ 'excellent' if perfect_order_rate >= 90 else 'good' if perfect_order_rate >= 80 else 'warning' if perfect_order_rate >= 70 else 'poor' }}">
+                        {% if perfect_order_rate >= 90 %}
+                            <i class="fas fa-trophy"></i> Excelente
+                        {% elif perfect_order_rate >= 80 %}
+                            <i class="fas fa-thumbs-up"></i> Bueno
+                        {% elif perfect_order_rate >= 70 %}
+                            <i class="fas fa-exclamation-triangle"></i> Mejorable
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Crítico
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Engagement -->
+            <div class="service-metric-card">
+                <div class="service-metric-icon engagement">
+                    <i class="fas fa-heart"></i>
+                </div>
+                <div class="service-metric-content">
+                    <h3>{{ customer_engagement }}<span class="unit">%</span></h3>
+                    <p>Customer Engagement</p>
+                    <div class="metric-status {{ 'excellent' if customer_engagement >= 80 else 'good' if customer_engagement >= 60 else 'warning' if customer_engagement >= 40 else 'poor' }}">
+                        {% if customer_engagement >= 80 %}
+                            <i class="fas fa-fire"></i> Excelente
+                        {% elif customer_engagement >= 60 %}
+                            <i class="fas fa-thumbs-up"></i> Bueno
+                        {% elif customer_engagement >= 40 %}
+                            <i class="fas fa-exclamation-triangle"></i> Mejorable
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Crítico
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- === ACCIONES RÁPIDAS === -->
     <div class="quick-actions">
         <h3><i class="fas fa-bolt"></i> Acciones Rápidas</h3>
@@ -552,6 +694,172 @@
     .metric-content h3 {
         font-size: 22px;
     }
+}
+/* Agregar al bloque {% block extra_css %} en dashboard.html */
+
+/* === SECCIÓN DE NIVEL DE SERVICIO === */
+.service-metrics-section {
+    margin: 40px 0;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.service-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.service-metric-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid var(--primary-color);
+}
+
+.service-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.service-metric-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+/* Colores específicos por métrica */
+.service-metric-icon.lead-time { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.service-metric-icon.fill-rate { background: linear-gradient(135deg, #10b981, #059669); }
+.service-metric-icon.otd-rate { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.service-metric-icon.accuracy { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.service-metric-icon.perfect-order { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.service-metric-icon.engagement { background: linear-gradient(135deg, #ec4899, #db2777); }
+
+.service-metric-content {
+    flex: 1;
+}
+
+.service-metric-content h3 {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--text-dark);
+    font-family: 'Courier New', monospace;
+}
+
+.service-metric-content .unit {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.service-metric-content p {
+    font-size: 14px;
+    color: var(--text-light);
+    margin: 0 0 12px 0;
+    font-weight: 600;
+}
+
+/* Estados de métricas */
+.metric-status {
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    display: inline-flex;
+}
+
+.metric-status.excellent {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #4ade80;
+}
+
+.metric-status.good {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #60a5fa;
+}
+
+.metric-status.warning {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fbbf24;
+}
+
+.metric-status.poor {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #f87171;
+}
+
+/* === RESPONSIVE PARA MÉTRICAS DE SERVICIO === */
+@media (max-width: 768px) {
+    .service-metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .service-metric-card {
+        padding: 20px;
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .service-metric-content h3 {
+        font-size: 28px;
+    }
+    
+    .service-metric-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 20px;
+    }
+}
+
+/* === DEFINICIONES DE MÉTRICAS (TOOLTIP INFO) === */
+.metric-info {
+    position: relative;
+    cursor: help;
+}
+
+.metric-info:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
 }
 </style>
 {% endblock %}

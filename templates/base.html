@@ -44,21 +44,24 @@
         <footer class="app-footer">
             {% block footer %}
             <nav class="mobile-nav">
-                <!-- Corregimos la etiqueta <a> para "Home" -->
-                <a href="/" class="nav-item {{ 'active' if request.endpoint == 'index' }}">
+                <a href="{{ url_for('index') }}" class="nav-item {{ 'active' if request.endpoint == 'index' else '' }}">
                     <i class="fas fa-home"></i>
                     <span>Home</span>
                 </a>
-                <a href="/facturacion" class="nav-item {{ 'active' if request.endpoint == 'facturacion' }}">
-                    <i class="fas fa-file-invoice-dollar"></i>
+                
+                <a href="{{ url_for('facturacion') }}" class="nav-item {{ 'active' if 'facturacion' in request.endpoint else '' }}">
+                    <i class="fas fa-dollar-sign"></i>
                     <span>Facturación</span>
                 </a>
-                <a href="/etiquetas_vencimiento" class="nav-item {{ 'active' if request.endpoint == 'etiquetas_vencimiento' }}">
+                
+                <a href="{{ url_for('etiquetas_vencimiento') }}" class="nav-item {{ 'active' if 'etiquetas' in request.endpoint else '' }}">
                     <i class="fas fa-tags"></i>
                     <span>Etiquetas</span>
                 </a>
-                <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
-                    <i class="fas fa-chart-line"></i> Dashboard
+                
+                <a href="{{ url_for('dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Dashboard</span>
                 </a>
             </nav>
             {% endblock %}
