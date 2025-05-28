@@ -37,7 +37,7 @@
         <h3><i class="fas fa-tachometer-alt"></i> Lead Time Performance</h3>
         <div class="gauge-container">
             <div class="gauge-chart">
-                <div class="gauge-needle" style="transform: rotate({{ ((lead_time_promedio|float / 5) * 180 - 90) }}deg);"></div>
+                <div class="gauge-needle" style="transform: rotate({{ ((lead_time_promedio / 5) * 180) - 90 }}deg);"></div>
                 <div class="gauge-labels">
                     <span class="gauge-min">0d</span>
                     <span class="gauge-target">2d</span>
