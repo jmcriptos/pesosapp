@@ -545,6 +545,141 @@ def index():
     port = 5002
     return render_template('index.html', server_ip=f"{ip_servidor}:{port}")
 
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard con métricas de ventas y KPIs"""
+    try:
+        # Fechas para análisis
+        hoy = datetime.now().date()
+        inicio_mes = hoy.replace(day=1)
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        hace_30_dias = hoy - timedelta(days=30)
+        
+        # === MÉTRICAS PRINCIPALES ===
+        
+        # Total de pedidos y ventas del mes actual
+        pedidos_mes = db.session.query(
+            func.count(Pedido.id).label('cantidad'),
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
+        ).outerjoin(DetallePedido).filter(
+            Pedido.fecha_pedido >= inicio_mes
+        ).first()
+        
+        # Pedidos pendientes (urgentes)
+        pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
+        
+        # Pedidos de esta semana
+        pedidos_semana = db.session.query(
+            func.count(Pedido.id).label('cantidad'),
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
+        ).outerjoin(DetallePedido).filter(
+            Pedido.fecha_pedido >= inicio_semana
+        ).first()
+        
+        # Comparación con período anterior
+        pedidos_mes_anterior = db.session.query(
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
+        ).outerjoin(DetallePedido).filter(
+            Pedido.fecha_pedido >= (inicio_mes - timedelta(days=30)),
+            Pedido.fecha_pedido < inicio_mes
+        ).scalar()
+        
+        # === TOP CLIENTES ===
+        top_clientes = db.session.query(
+            Cliente.nombre,
+            func.count(Pedido.id).label('pedidos'),
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
+        ).join(Pedido).outerjoin(DetallePedido).filter(
+            Pedido.fecha_pedido >= hace_30_dias
+        ).group_by(Cliente.id, Cliente.nombre).order_by(
+            func.sum(DetallePedido.subtotal).desc()
+        ).limit(5).all()
+        
+        # === PRODUCTOS MÁS VENDIDOS ===
+        top_productos = db.session.query(
+            Producto.nombre,
+            func.sum(DetallePedido.cajas).label('cajas_vendidas'),
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('ingresos')
+        ).join(DetallePedido).join(Pedido).filter(
+            Pedido.fecha_pedido >= hace_30_dias
+        ).group_by(Producto.id, Producto.nombre).order_by(
+            func.sum(DetallePedido.cajas).desc()
+        ).limit(5).all()
+        
+        # === ESTADOS DE PEDIDOS ===
+        estados_pedidos = db.session.query(
+            Pedido.estado,
+            func.count(Pedido.id).label('cantidad')
+        ).filter(
+            Pedido.fecha_pedido >= hace_30_dias
+        ).group_by(Pedido.estado).all()
+        
+        # === TENDENCIA SEMANAL (últimas 8 semanas) ===
+        tendencia_semanal = []
+        for i in range(8):
+            inicio_semana_i = hoy - timedelta(days=hoy.weekday() + (7 * i))
+            fin_semana_i = inicio_semana_i + timedelta(days=6)
+            
+            ventas_semana = db.session.query(
+                func.coalesce(func.sum(DetallePedido.subtotal), 0)
+            ).outerjoin(Pedido).filter(
+                Pedido.fecha_pedido >= inicio_semana_i,
+                Pedido.fecha_pedido <= fin_semana_i
+            ).scalar()
+            
+            tendencia_semanal.append({
+                'semana': inicio_semana_i.strftime('%d/%m'),
+                'ventas': float(ventas_semana or 0)
+            })
+        
+        tendencia_semanal.reverse()  # Mostrar de más antigua a más reciente
+        
+        # === PEDIDOS RECIENTES ===
+        pedidos_recientes = db.session.query(
+            Pedido,
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
+        ).outerjoin(DetallePedido).group_by(Pedido.id).order_by(
+            Pedido.fecha_pedido.desc()
+        ).limit(8).all()
+        
+        # === CALCULAR PORCENTAJES DE CRECIMIENTO ===
+        crecimiento_mes = 0
+        if pedidos_mes_anterior and pedidos_mes_anterior > 0:
+            crecimiento_mes = ((float(pedidos_mes.total) - float(pedidos_mes_anterior)) / float(pedidos_mes_anterior)) * 100
+        
+        return render_template('dashboard.html',
+            # Métricas principales
+            ventas_mes=float(pedidos_mes.total or 0),
+            pedidos_mes=pedidos_mes.cantidad or 0,
+            ventas_semana=float(pedidos_semana.total or 0),
+            pedidos_semana=pedidos_semana.cantidad or 0,
+            pedidos_pendientes=pedidos_pendientes,
+            crecimiento_mes=round(crecimiento_mes, 1),
+            
+            # Rankings
+            top_clientes=top_clientes,
+            top_productos=top_productos,
+            
+            # Distribución
+            estados_pedidos=estados_pedidos,
+            
+            # Tendencias
+            tendencia_semanal=tendencia_semanal,
+            
+            # Actividad reciente
+            pedidos_recientes=pedidos_recientes,
+            
+            # Fechas para referencia
+            fecha_actual=hoy
+        )
+        
+    except Exception as e:
+        print(f"Error en dashboard: {e}")
+        flash('Error al cargar el dashboard', 'danger')
+        return redirect(url_for('index'))
+    
 @app.route('/pedidos')
 @login_required
 def lista_pedidos():

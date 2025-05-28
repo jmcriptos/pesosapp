@@ -57,6 +57,9 @@
                     <i class="fas fa-tags"></i>
                     <span>Etiquetas</span>
                 </a>
+                <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
             </nav>
             {% endblock %}
         </footer>
