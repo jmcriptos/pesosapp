@@ -11,7 +11,43 @@
 
 {% block content %}
 <div class="dashboard-container">
+    <!-- === SECCIÓN DE GRÁFICOS EN EL DASHBOARD === -->
+
+<!-- 1. GRÁFICO DE TENDENCIA DE VENTAS (Prioridad #1) -->
+<div class="chart-section">
+    <div class="chart-card">
+        <h3><i class="fas fa-chart-line"></i> Tendencia de Ventas (8 semanas)</h3>
+        <div class="chart-container">
+            <canvas id="ventasChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- 2. DISTRIBUCIÓN DE ESTADOS (Prioridad #2) -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3><i class="fas fa-pie-chart"></i> Estados de Pedidos</h3>
+        <div class="chart-container">
+            <canvas id="estadosChart" height="200"></canvas>
+        </div>
+    </div>
     
+    <!-- 3. LEAD TIME GAUGE (Bonus) -->
+    <div class="metric-gauge">
+        <h3><i class="fas fa-tachometer-alt"></i> Lead Time Performance</h3>
+        <div class="gauge-container">
+            <div class="gauge-chart">
+                <div class="gauge-needle" style="transform: rotate({{ ((lead_time_promedio / 5) * 180) - 90 }}deg);"></div>
+                <div class="gauge-labels">
+                    <span class="gauge-min">0d</span>
+                    <span class="gauge-target">2d</span>
+                    <span class="gauge-max">5d</span>
+                </div>
+            </div>
+            <div class="gauge-value">{{ lead_time_promedio }}d</div>
+        </div>
+    </div>
+</div>
     <!-- === MÉTRICAS PRINCIPALES === -->
     <div class="metrics-grid">
         <!-- Ventas del Mes -->
@@ -507,11 +543,322 @@
         gap: 12px;
     }
 }
+/* Agregar al CSS del dashboard */
+
+/* === SECCIÓN DE GRÁFICOS === */
+.chart-section {
+    margin-bottom: 30px;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 24px;
+    margin-bottom: 30px;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.chart-card h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-container {
+    position: relative;
+    height: 250px;
+}
+
+/* === GAUGE DE LEAD TIME === */
+.metric-gauge {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    text-align: center;
+}
+
+.metric-gauge h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.gauge-container {
+    position: relative;
+}
+
+.gauge-chart {
+    width: 180px;
+    height: 90px;
+    margin: 0 auto 20px;
+    position: relative;
+    background: linear-gradient(90deg, 
+        #10b981 0%, 
+        #f59e0b 50%, 
+        #ef4444 100%);
+    border-radius: 180px 180px 0 0;
+    overflow: hidden;
+}
+
+.gauge-chart::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: -10px;
+    background: white;
+    border-radius: 140px 140px 0 0;
+}
+
+.gauge-needle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 70px;
+    background: #1f2937;
+    transform-origin: bottom center;
+    transform: translateX(-50%) translateY(-100%) rotate(-90deg);
+    z-index: 10;
+    transition: transform 0.3s ease;
+}
+
+.gauge-needle::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -6px;
+    width: 14px;
+    height: 14px;
+    background: #1f2937;
+    border-radius: 50%;
+}
+
+.gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.gauge-target {
+    color: var(--warning-color) !important;
+    font-weight: 700;
+}
+
+.gauge-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-top: 10px;
+}
+
+/* === RESPONSIVE PARA GRÁFICOS === */
+@media (max-width: 1024px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .chart-container {
+        height: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-card {
+        padding: 16px;
+    }
+    
+    .chart-container {
+        height: 180px;
+    }
+    
+    .gauge-chart {
+        width: 140px;
+        height: 70px;
+    }
+    
+    .gauge-needle {
+        height: 50px;
+    }
+}
+
+/* === EFECTOS HOVER PARA GRÁFICOS === */
+.chart-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    transition: all 0.3s ease;
+}
+
+.metric-gauge:hover .gauge-needle {
+    transform: translateX(-50%) translateY(-100%) rotate(-85deg);
+}
 </style>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // === 1. GRÁFICO DE TENDENCIA DE VENTAS ===
+    const ventasCtx = document.getElementById('ventasChart');
+    if (ventasCtx) {
+        const tendenciaData = {{ tendencia_semanal|tojson }};
+        
+        new Chart(ventasCtx, {
+            type: 'line',
+            data: {
+                labels: tendenciaData.map(item => item.semana),
+                datasets: [{
+                    label: 'Ventas (XCG)',
+                    data: tendenciaData.map(item => item.ventas),
+                    borderColor: '#1877ff',
+                    backgroundColor: 'rgba(24, 119, 255, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#1877ff',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.parsed.y.toFixed(2)} XCG`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(0) + ' XCG';
+                            }
+                        },
+                        grid: {
+                            color: '#e2e8f0'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // === 2. GRÁFICO DE ESTADOS DE PEDIDOS ===
+    const estadosCtx = document.getElementById('estadosChart');
+    if (estadosCtx) {
+        const estadosData = {{ estados_pedidos|tojson }};
+        
+        // Preparar datos y colores
+        const labels = estadosData.map(item => item.estado.charAt(0).toUpperCase() + item.estado.slice(1));
+        const data = estadosData.map(item => item.cantidad);
+        const backgroundColors = estadosData.map(item => {
+            switch(item.estado) {
+                case 'pendiente': return '#f59e0b';
+                case 'listo': return '#06b6d4';
+                case 'facturado': return '#10b981';
+                default: return '#64748b';
+            }
+        });
+        
+        new Chart(estadosCtx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverBorderWidth: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // === 3. ANIMACIÓN DEL GAUGE (LEAD TIME) ===
+    const gaugeNeedle = document.querySelector('.gauge-needle');
+    if (gaugeNeedle) {
+        // Animación suave del medidor
+        setTimeout(() => {
+            gaugeNeedle.style.transition = 'transform 1.5s ease-out';
+        }, 500);
+    }
+});
+
+// === FUNCIÓN PARA ACTUALIZAR GRÁFICOS (opcional) ===
+function actualizarGraficos() {
+    // Esta función se puede llamar para refrescar los datos
+    // sin recargar toda la página
+    console.log('Actualizando gráficos...');
+    // Implementar lógica AJAX aquí si se requiere actualización automática
+}
+
 console.log('Dashboard cargado exitosamente');
 </script>
 {% endblock %}
