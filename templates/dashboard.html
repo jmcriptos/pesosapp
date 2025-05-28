@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard de Ventas{% endblock %}
+{% block title %}Dashboard Comercial - Mayo 2025{% endblock %}
 
 {% block header_title %}
-    <span style="font-weight:700; color:#1877ff;">Dashboard de Ventas</span>
+    <span style="font-weight:700; color:#1877ff;">Dashboard Comercial</span>
     <span style="font-size:0.9rem; color:#888; font-weight:normal; margin-left:10px;">
         Actualizado: {{ fecha_actual.strftime('%d/%m/%Y') }}
     </span>
@@ -37,7 +37,7 @@
         <h3><i class="fas fa-tachometer-alt"></i> Lead Time Performance</h3>
         <div class="gauge-container">
             <div class="gauge-chart">
-                <div class="gauge-needle" style="transform: rotate({{ ((lead_time_promedio / 5) * 180) - 90 }}deg);"></div>
+                <div class="gauge-needle" style="transform: rotate({{ ((lead_time_promedio|float / 5) * 180 - 90) }}deg);"></div>
                 <div class="gauge-labels">
                     <span class="gauge-min">0d</span>
                     <span class="gauge-target">2d</span>
