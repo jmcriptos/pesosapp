@@ -45,13 +45,9 @@
                             {% endif %}
                         </span>
                     </td>
-                    <td>
-                        {% set total_pedido = 0 %}
-                        {% for detalle in pedido.detalles %}
-                            {% set total_pedido = total_pedido + (detalle.precio_unitario * detalle.cajas) %}
-                        {% endfor %}
-                        {{ "%.2f"|format(total_pedido) }}
-                    </td>
+                        <td>
+                            {{ "%.2f"|format(pedido.total_calculado) }}
+                        </td>
                     <td>{{ pedido.notas or '' }}</td>
                     <td style="text-align:center; white-space:nowrap;">
 

@@ -548,18 +548,32 @@ def index():
 @app.route('/pedidos')
 @login_required
 def lista_pedidos():
-    # Ordenar por estado (pendientes primero) y luego por fecha (más antiguos primero)
-    pedidos = Pedido.query.filter(Pedido.estado != 'entregado').order_by(
-        # Primero por estado: pendiente=0, listo=1, facturado=2 para que pendientes salgan arriba
+    # Consulta con subconsulta para calcular totales usando los subtotales existentes
+    pedidos_query = db.session.query(
+        Pedido,
+        func.coalesce(
+            func.sum(DetallePedido.subtotal), 
+            0
+        ).label('total_calculado')
+    ).outerjoin(DetallePedido).filter(
+        Pedido.estado != 'entregado'
+    ).group_by(Pedido.id).order_by(
+        # Ordenar por estado: pendientes primero, luego listos, luego facturados
         db.case(
             (Pedido.estado == 'pendiente', 0),
             (Pedido.estado == 'listo', 1),
             (Pedido.estado == 'facturado', 2),
             else_=3
         ),
-        # Luego por fecha ascendente (más antiguos primero)
+        # Luego por fecha: más antiguos primero
         Pedido.fecha_pedido.asc()
     ).all()
+    
+    # Agregar el total calculado como atributo a cada pedido
+    pedidos = []
+    for pedido, total in pedidos_query:
+        pedido.total_calculado = float(total)
+        pedidos.append(pedido)
     
     return render_template('pedidos.html', pedidos=pedidos)
 
