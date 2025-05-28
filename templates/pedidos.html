@@ -21,7 +21,7 @@
                     <th>Cliente</th>
                     <th>Fecha</th>
                     <th>Estado</th>
-                    <th>Total&nbsp;(ANG)</th>
+                    <th>Total&nbsp;(XCG)</th>
                     <th>Notas</th>
                     <th style="text-align:center;">Acciones</th>
                 </tr>
@@ -31,22 +31,42 @@
                 <tr>
                     <td>{{ pedido.id }}</td>
                     <td>{{ pedido.cliente.nombre }}</td>
-                    <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td>{{ pedido.estado }}</td>
-                    <td>{{ pedido.total|default(0)|round(2) }}</td>
+                    <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        <span class="estado-badge estado-{{ pedido.estado }}">
+                            {% if pedido.estado == 'pendiente' %}
+                                <i class="fa fa-clock"></i> {{ pedido.estado }}
+                            {% elif pedido.estado == 'facturado' %}
+                                <i class="fa fa-check-circle"></i> {{ pedido.estado }}
+                            {% elif pedido.estado == 'listo' %}
+                                <i class="fa fa-box"></i> {{ pedido.estado }}
+                            {% else %}
+                                <i class="fa fa-info-circle"></i> {{ pedido.estado }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% set total_pedido = 0 %}
+                        {% for detalle in pedido.detalles %}
+                            {% set total_pedido = total_pedido + (detalle.precio_unitario * detalle.cajas) %}
+                        {% endfor %}
+                        {{ "%.2f"|format(total_pedido) }}
+                    </td>
                     <td>{{ pedido.notas or '' }}</td>
                     <td style="text-align:center; white-space:nowrap;">
 
                         <!-- Detalles -->
                         <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-                           class="btn-chip btn-chip-view">
-                           <i class="fa fa-eye"></i> Detalles
+                           class="btn-chip btn-chip-view"
+                           title="Ver detalles">
+                           <i class="fa fa-eye"></i>
                         </a>
 
                         <!-- Editar -->
                         <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
-                           class="btn-chip btn-chip-edit">
-                           <i class="fa fa-edit"></i> Editar
+                           class="btn-chip btn-chip-edit"
+                           title="Editar pedido">
+                           <i class="fa fa-edit"></i>
                         </a>
 
                         <!-- Facturar -->
@@ -54,9 +74,9 @@
                               method="POST" class="inline-form">
                             <button type="submit"
                                     class="btn-chip btn-chip-success"
+                                    title="{% if pedido.estado == 'facturado' %}Ya facturado{% else %}Facturar pedido{% endif %}"
                                     {% if pedido.estado == 'facturado' %}disabled{% endif %}>
                                 <i class="fa fa-file-invoice-dollar"></i>
-                                {% if pedido.estado == 'facturado' %}Facturado{% else %}Facturar{% endif %}
                             </button>
                         </form>
 
@@ -64,8 +84,10 @@
                         <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form"
                               onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
-                            <button type="submit" class="btn-chip btn-chip-danger">
-                                <i class="fa fa-trash"></i> Eliminar
+                            <button type="submit" 
+                                    class="btn-chip btn-chip-danger"
+                                    title="Eliminar pedido">
+                                <i class="fa fa-trash"></i>
                             </button>
                         </form>
                     </td>
@@ -90,23 +112,77 @@
 .tabla-pedidos td{background:#fff;padding:14px 8px;border-bottom:1px solid #eef3fa;vertical-align:middle;}
 .tabla-pedidos tr:last-child td{border-bottom:none;}
 
-/* --- botones --- */
+/* --- estados con colores semáforo --- */
+.estado-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.estado-pendiente {
+    background-color: #fef3c7;
+    color: #d97706;
+    border: 1px solid #fbbf24;
+}
+
+.estado-listo {
+    background-color: #dbeafe;
+    color: #2563eb;
+    border: 1px solid #60a5fa;
+}
+
+.estado-facturado {
+    background-color: #dcfce7;
+    color: #16a34a;
+    border: 1px solid #4ade80;
+}
+
+.estado-entregado {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+/* --- botones optimizados --- */
 .btn-nuevo{background:linear-gradient(90deg,#1877ff 0%,#67b3ff 100%);color:#fff;padding:.72em 1.7em;border-radius:18px;font-size:1.08rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(24,119,255,.09);transition:background .17s;}
 .btn-nuevo:hover{background:linear-gradient(90deg,#0056b3 0%,#2493f7 100%);}
-.btn-chip{display:inline-flex;align-items:center;gap:6px;font-size:1rem;border:none;border-radius:18px;padding:.55em 1.2em;font-weight:700;cursor:pointer;margin-right:5px;transition:background .17s,color .15s;box-shadow:0 2px 8px rgba(24,119,255,.06);text-decoration:none;outline:none;}
+
+.btn-chip{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 50%;
+    font-weight: 700;
+    cursor: pointer;
+    margin-right: 4px;
+    transition: all .2s ease;
+    box-shadow: 0 2px 8px rgba(24,119,255,.06);
+    text-decoration: none;
+    outline: none;
+}
 .btn-chip:last-child{margin-right:0;}
 
 .btn-chip-view{background:#f4f8ff;color:#1877ff;}
-.btn-chip-view:hover{background:#e1eaff;color:#0d3c85;}
+.btn-chip-view:hover{background:#e1eaff;color:#0d3c85;transform:scale(1.1);}
 
 .btn-chip-edit{background:#eef7ff;color:#409cff;}
-.btn-chip-edit:hover{background:#d6eaff;color:#1877ff;}
+.btn-chip-edit:hover{background:#d6eaff;color:#1877ff;transform:scale(1.1);}
 
 .btn-chip-success{background:#e7fbe8;color:#17a34a;}
-.btn-chip-success:hover{background:#cbf4cf;color:#0b7a36;}
+.btn-chip-success:hover{background:#cbf4cf;color:#0b7a36;transform:scale(1.1);}
+.btn-chip-success:disabled{background:#f9fafb;color:#9ca3af;cursor:not-allowed;transform:none;}
 
 .btn-chip-danger{background:#ffeaea;color:#e55353;}
-.btn-chip-danger:hover{background:#ffc1c1;color:#a60000;}
+.btn-chip-danger:hover{background:#ffc1c1;color:#a60000;transform:scale(1.1);}
 
 .inline-form{display:inline;margin:0;padding:0;background:none;border:none;}
 
@@ -114,147 +190,34 @@
 @media (max-width:900px){
   .tabla-pedidos-container,.tabla-pedidos-card{padding:3px;}
   .tabla-pedidos-card{border-radius:8px;}
-  .tabla-pedidos th,.tabla-pedidos td{padding:7px 4px;}
+  .tabla-pedidos th,.tabla-pedidos td{padding:7px 4px;font-size:0.9rem;}
   .btn-nuevo{font-size:.95rem;padding:.65em 1.2em;}
-  .btn-chip{font-size:.92rem;padding:.5em 1em;}
+  .btn-chip{width:32px;height:32px;font-size:.9rem;margin-right:2px;}
+  .estado-badge{font-size:0.8rem;padding:2px 8px;}
+}
+
+/* Tooltip para acciones */
+.btn-chip:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-top: -40px;
+    margin-left: -20px;
 }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const clienteSelect = document.getElementById('cliente_id');
-    
-    if (clienteSelect) {
-        clienteSelect.addEventListener('change', function() {
-            const clienteId = this.value;
-            
-            if (clienteId) {
-                // Actualizar precios para el cliente seleccionado
-                fetch(`/api/precios/cliente/${clienteId}/productos`)
-                    .then(response => response.json())
-                    .then(productos => {
-                        // Actualizar el array global de productos con los nuevos precios
-                        if (window.productosData) {
-                            productos.forEach(productoAPI => {
-                                const productoLocal = window.productosData.find(p => p.id === productoAPI.id);
-                                if (productoLocal) {
-                                    productoLocal.precio = productoAPI.precio;
-                                }
-                            });
-                        }
-                        
-                        // Actualizar precios en la tabla si hay productos ya agregados
-                        actualizarPreciosEnTabla(productos);
-                        
-                        // Actualizar el total
-                        calcularTotal();
-                        
-                        console.log('Precios actualizados para cliente:', clienteId);
-                    })
-                    .catch(error => {
-                        console.error('Error al obtener precios del cliente:', error);
-                    });
-            }
-        });
-    }
-});
-
-function actualizarPreciosEnTabla(productos) {
-    const tabla = document.querySelector('#productos-table tbody');
-    if (!tabla) return;
-    
-    const filas = tabla.querySelectorAll('tr');
-    
-    filas.forEach(fila => {
-        const productoId = parseInt(fila.querySelector('input[name*="[id]"]')?.value);
-        if (productoId) {
-            const productoAPI = productos.find(p => p.id === productoId);
-            if (productoAPI) {
-                // Actualizar el precio en la celda
-                const precioCell = fila.querySelector('.precio-cell');
-                if (precioCell) {
-                    precioCell.textContent = productoAPI.precio.toFixed(2);
-                }
-                
-                // Actualizar el input hidden del precio
-                const precioInput = fila.querySelector('input[name*="[precio]"]');
-                if (precioInput) {
-                    precioInput.value = productoAPI.precio;
-                }
-                
-                // Recalcular subtotal para esta fila
-                const cajasInput = fila.querySelector('input[name*="[cajas]"]');
-                const subtotalCell = fila.querySelector('.subtotal-cell');
-                
-                if (cajasInput && subtotalCell) {
-                    const cajas = parseInt(cajasInput.value) || 0;
-                    const subtotal = cajas * productoAPI.precio;
-                    subtotalCell.textContent = subtotal.toFixed(2);
-                }
-            }
-        }
-    });
-}
-
-// Función para recalcular el total general
-function calcularTotal() {
-    let total = 0;
-    const subtotalCells = document.querySelectorAll('.subtotal-cell');
-    
-    subtotalCells.forEach(cell => {
-        const valor = parseFloat(cell.textContent) || 0;
-        total += valor;
-    });
-    
-    const totalElement = document.querySelector('#total-pedido');
-    if (totalElement) {
-        totalElement.textContent = total.toFixed(2);
-    }
-}
-
-// También actualizar la función existente para agregar productos
-// para que use el precio correcto del cliente seleccionado
-function agregarProducto() {
-    const busqueda = document.getElementById('busqueda-producto');
-    const cajas = document.getElementById('input-cajas');
-    const clienteSelect = document.getElementById('cliente_id');
-    
-    const productoSeleccionado = busqueda.dataset.selectedProduct;
-    const cantidadCajas = parseInt(cajas.value) || 0;
-    const clienteId = clienteSelect?.value;
-    
-    if (!productoSeleccionado || cantidadCajas <= 0) {
-        alert('Seleccione un producto y especifique la cantidad');
-        return;
-    }
-    
-    const producto = JSON.parse(productoSeleccionado);
-    
-    // Si hay cliente seleccionado, obtener su precio específico
-    if (clienteId) {
-        fetch(`/api/precios/cliente/${clienteId}/productos`)
-            .then(response => response.json())
-            .then(productos => {
-                const productoConPrecio = productos.find(p => p.id === producto.id);
-                const precioFinal = productoConPrecio ? productoConPrecio.precio : producto.precio;
-                
-                agregarProductoATabla({
-                    ...producto,
-                    precio: precioFinal
-                }, cantidadCajas);
-            })
-            .catch(error => {
-                console.error('Error al obtener precio:', error);
-                // Usar precio por defecto en caso de error
-                agregarProductoATabla(producto, cantidadCajas);
-            });
-    } else {
-        // Sin cliente seleccionado, usar precio por defecto
-        agregarProductoATabla(producto, cantidadCajas);
-    }
-}
+// Este script ya no es necesario para esta página específica
+// Se movió a pedido_form.html donde realmente se usa
+console.log('Lista de pedidos cargada');
 </script>
 {% endblock %}
 

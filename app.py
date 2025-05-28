@@ -548,7 +548,19 @@ def index():
 @app.route('/pedidos')
 @login_required
 def lista_pedidos():
-    pedidos = Pedido.query.filter(Pedido.estado != 'entregado').order_by(Pedido.fecha_pedido.desc()).all()
+    # Ordenar por estado (pendientes primero) y luego por fecha (más antiguos primero)
+    pedidos = Pedido.query.filter(Pedido.estado != 'entregado').order_by(
+        # Primero por estado: pendiente=0, listo=1, facturado=2 para que pendientes salgan arriba
+        db.case(
+            (Pedido.estado == 'pendiente', 0),
+            (Pedido.estado == 'listo', 1),
+            (Pedido.estado == 'facturado', 2),
+            else_=3
+        ),
+        # Luego por fecha ascendente (más antiguos primero)
+        Pedido.fecha_pedido.asc()
+    ).all()
+    
     return render_template('pedidos.html', pedidos=pedidos)
 
 
