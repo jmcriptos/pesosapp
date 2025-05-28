@@ -546,6 +546,8 @@ def index():
     return render_template('index.html', server_ip=f"{ip_servidor}:{port}")
 
 
+# Reemplazar la función dashboard en app.py con esta versión corregida
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -563,7 +565,9 @@ def dashboard():
         pedidos_mes = db.session.query(
             func.count(Pedido.id).label('cantidad'),
             func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).outerjoin(DetallePedido).filter(
+        ).select_from(Pedido).outerjoin(
+            DetallePedido, Pedido.id == DetallePedido.pedido_id
+        ).filter(
             Pedido.fecha_pedido >= inicio_mes
         ).first()
         
@@ -574,14 +578,18 @@ def dashboard():
         pedidos_semana = db.session.query(
             func.count(Pedido.id).label('cantidad'),
             func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).outerjoin(DetallePedido).filter(
+        ).select_from(Pedido).outerjoin(
+            DetallePedido, Pedido.id == DetallePedido.pedido_id
+        ).filter(
             Pedido.fecha_pedido >= inicio_semana
         ).first()
         
         # Comparación con período anterior
         pedidos_mes_anterior = db.session.query(
-            func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).outerjoin(DetallePedido).filter(
+            func.coalesce(func.sum(DetallePedido.subtotal), 0)
+        ).select_from(Pedido).outerjoin(
+            DetallePedido, Pedido.id == DetallePedido.pedido_id
+        ).filter(
             Pedido.fecha_pedido >= (inicio_mes - timedelta(days=30)),
             Pedido.fecha_pedido < inicio_mes
         ).scalar()
@@ -591,10 +599,14 @@ def dashboard():
             Cliente.nombre,
             func.count(Pedido.id).label('pedidos'),
             func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).join(Pedido).outerjoin(DetallePedido).filter(
+        ).select_from(Cliente).join(
+            Pedido, Cliente.id == Pedido.cliente_id
+        ).outerjoin(
+            DetallePedido, Pedido.id == DetallePedido.pedido_id
+        ).filter(
             Pedido.fecha_pedido >= hace_30_dias
         ).group_by(Cliente.id, Cliente.nombre).order_by(
-            func.sum(DetallePedido.subtotal).desc()
+            func.coalesce(func.sum(DetallePedido.subtotal), 0).desc()
         ).limit(5).all()
         
         # === PRODUCTOS MÁS VENDIDOS ===
@@ -602,7 +614,11 @@ def dashboard():
             Producto.nombre,
             func.sum(DetallePedido.cajas).label('cajas_vendidas'),
             func.coalesce(func.sum(DetallePedido.subtotal), 0).label('ingresos')
-        ).join(DetallePedido).join(Pedido).filter(
+        ).select_from(Producto).join(
+            DetallePedido, Producto.id == DetallePedido.producto_id
+        ).join(
+            Pedido, DetallePedido.pedido_id == Pedido.id
+        ).filter(
             Pedido.fecha_pedido >= hace_30_dias
         ).group_by(Producto.id, Producto.nombre).order_by(
             func.sum(DetallePedido.cajas).desc()
@@ -624,7 +640,9 @@ def dashboard():
             
             ventas_semana = db.session.query(
                 func.coalesce(func.sum(DetallePedido.subtotal), 0)
-            ).outerjoin(Pedido).filter(
+            ).select_from(DetallePedido).join(
+                Pedido, DetallePedido.pedido_id == Pedido.id
+            ).filter(
                 Pedido.fecha_pedido >= inicio_semana_i,
                 Pedido.fecha_pedido <= fin_semana_i
             ).scalar()
@@ -640,7 +658,9 @@ def dashboard():
         pedidos_recientes = db.session.query(
             Pedido,
             func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total')
-        ).outerjoin(DetallePedido).group_by(Pedido.id).order_by(
+        ).select_from(Pedido).outerjoin(
+            DetallePedido, Pedido.id == DetallePedido.pedido_id
+        ).group_by(Pedido.id).order_by(
             Pedido.fecha_pedido.desc()
         ).limit(8).all()
         
@@ -677,6 +697,8 @@ def dashboard():
         
     except Exception as e:
         print(f"Error en dashboard: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Error al cargar el dashboard', 'danger')
         return redirect(url_for('index'))
     
