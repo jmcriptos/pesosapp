@@ -10,104 +10,80 @@
 {% endblock %}
 
 {% block content %}
+{% set currency = "XCG" %}
+{% set needle_rotation = ((lead_time_promedio|default(0)|float / 5) * 180 - 90)|round(2) %}
 <div class="dashboard-container">
     <!-- === SECCIÓN DE GRÁFICOS EN EL DASHBOARD === -->
-
-<!-- 1. GRÁFICO DE TENDENCIA DE VENTAS (Prioridad #1) -->
-<div class="chart-section">
-    <div class="chart-card">
-        <h3><i class="fas fa-chart-line"></i> Tendencia de Ventas (8 semanas)</h3>
-        <div class="chart-container">
-            <canvas id="ventasChart" height="100"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- 2. DISTRIBUCIÓN DE ESTADOS (Prioridad #2) -->
-<div class="charts-grid">
-    <div class="chart-card">
-        <h3><i class="fas fa-pie-chart"></i> Estados de Pedidos</h3>
-        <div class="chart-container">
-            <canvas id="estadosChart" height="200"></canvas>
-        </div>
-    </div>
-    
-    <!-- 3. LEAD TIME GAUGE (Bonus) -->
-    <div class="metric-gauge">
-        <h3><i class="fas fa-tachometer-alt"></i> Lead Time Performance</h3>
-        <div class="gauge-container">
-            <div class="gauge-chart">
-                <div class="gauge-needle" style="transform: rotate({{ ((lead_time_promedio / 5) * 180) - 90 }}deg);"></div>
-                <div class="gauge-labels">
-                    <span class="gauge-min">0d</span>
-                    <span class="gauge-target">2d</span>
-                    <span class="gauge-max">5d</span>
-                </div>
+    <div class="chart-section">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-line" aria-hidden="true" aria-label="Tendencia de ventas"></i> Tendencia de Ventas (8 semanas)</h3>
+            <div class="chart-container">
+                <canvas id="ventasChart" height="100"></canvas>
             </div>
-            <div class="gauge-value">{{ lead_time_promedio }}d</div>
         </div>
     </div>
-</div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3><i class="fas fa-pie-chart" aria-hidden="true" aria-label="Estados de pedidos"></i> Estados de Pedidos</h3>
+            <div class="chart-container">
+                <canvas id="estadosChart" height="200"></canvas>
+            </div>
+        </div>
+        <div class="metric-gauge">
+            <h3><i class="fas fa-tachometer-alt" aria-hidden="true" aria-label="Rendimiento de lead time"></i> Lead Time Performance</h3>
+            <div class="gauge-container">
+                <div class="gauge-chart">
+                    <div class="gauge-needle" style="transform: rotate({{ needle_rotation }}deg);"></div>
+                    <div class="gauge-labels">
+                        <span class="gauge-min">0d</span>
+                        <span class="gauge-target">2d</span>
+                        <span class="gauge-max">5d</span>
+                    </div>
+                </div>
+                <div class="gauge-value">{{ lead_time_promedio }}d</div>
+            </div>
+        </div>
+    </div>
+
     <!-- === MÉTRICAS PRINCIPALES === -->
     <div class="metrics-grid">
-        <!-- Ventas del Mes -->
         <div class="metric-card primary">
-            <div class="metric-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
+            <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
             <div class="metric-content">
-                <h3>{{ "%.2f"|format(ventas_mes) }} <span class="currency">XCG</span></h3>
+                <h3>{{ "%.2f"|format(ventas_mes) }} <span class="currency">{{ currency }}</span></h3>
                 <p>Ventas del Mes</p>
                 <div class="metric-subtitle">{{ pedidos_mes }} pedidos</div>
             </div>
         </div>
 
-        <!-- Pedidos Pendientes -->
         <div class="metric-card {{ 'warning' if pedidos_pendientes > 0 else 'success' }}">
-            <div class="metric-icon">
-                <i class="fas fa-clock"></i>
-            </div>
+            <div class="metric-icon"><i class="fas fa-clock"></i></div>
             <div class="metric-content">
                 <h3>{{ pedidos_pendientes }}</h3>
                 <p>Pedidos Pendientes</p>
                 <div class="metric-subtitle">
-                    {% if pedidos_pendientes > 0 %}
-                        Requieren atención
-                    {% else %}
-                        Todo al día
-                    {% endif %}
+                    {% if pedidos_pendientes > 0 %}Requieren atención{% else %}Todo al día{% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Ventas Semanales -->
         <div class="metric-card info">
-            <div class="metric-icon">
-                <i class="fas fa-calendar-week"></i>
-            </div>
+            <div class="metric-icon"><i class="fas fa-calendar-week"></i></div>
             <div class="metric-content">
-                <h3>{{ "%.2f"|format(ventas_semana) }} <span class="currency">XCG</span></h3>
+                <h3>{{ "%.2f"|format(ventas_semana) }} <span class="currency">{{ currency }}</span></h3>
                 <p>Ventas de la Semana</p>
                 <div class="metric-subtitle">{{ pedidos_semana }} pedidos</div>
             </div>
         </div>
 
-        <!-- Lead Time -->
         <div class="metric-card {{ 'success' if lead_time_promedio <= 2 else 'warning' }}">
-            <div class="metric-icon">
-                <i class="fas fa-shipping-fast"></i>
-            </div>
+            <div class="metric-icon"><i class="fas fa-shipping-fast"></i></div>
             <div class="metric-content">
                 <h3>{{ lead_time_promedio }} <span class="currency">días</span></h3>
                 <p>Lead Time Promedio</p>
                 <div class="metric-subtitle">
-                    {% if lead_time_promedio <= 1 %}
-                        Excelente
-                    {% elif lead_time_promedio <= 2 %}
-                        Bueno
-                    {% else %}
-                        Mejorable
-                    {% endif %}
+                    {% if lead_time_promedio <= 1 %}Excelente{% elif lead_time_promedio <= 2 %}Bueno{% else %}Mejorable{% endif %}
                 </div>
             </div>
         </div>
@@ -115,12 +91,8 @@
 
     <!-- === KPIs DE NIVEL DE SERVICIO === -->
     <div class="service-section">
-        <h2 class="section-title">
-            <i class="fas fa-truck"></i> KPIs de Nivel de Servicio
-        </h2>
-        
+        <h2 class="section-title"><i class="fas fa-truck"></i> KPIs de Nivel de Servicio</h2>
         <div class="service-grid">
-            <!-- Fill Rate -->
             <div class="service-card">
                 <div class="service-value">{{ fill_rate }}%</div>
                 <div class="service-label">Fill Rate</div>
@@ -129,7 +101,6 @@
                 </div>
             </div>
 
-            <!-- On-Time Delivery -->
             <div class="service-card">
                 <div class="service-value">{{ otd_rate }}%</div>
                 <div class="service-label">On-Time Delivery</div>
@@ -138,7 +109,6 @@
                 </div>
             </div>
 
-            <!-- Order Accuracy -->
             <div class="service-card">
                 <div class="service-value">{{ order_accuracy }}%</div>
                 <div class="service-label">Order Accuracy</div>
@@ -147,7 +117,6 @@
                 </div>
             </div>
 
-            <!-- Perfect Order Rate -->
             <div class="service-card">
                 <div class="service-value">{{ perfect_order_rate }}%</div>
                 <div class="service-label">Perfect Orders</div>
@@ -163,32 +132,40 @@
         <div class="ranking-card">
             <h3><i class="fas fa-users"></i> Top Clientes (30 días)</h3>
             <div class="ranking-list">
-                {% for cliente_nombre, datos in top_clientes %}
-                <div class="ranking-item">
-                    <div class="ranking-position">{{ loop.index }}</div>
-                    <div class="ranking-info">
-                        <div class="ranking-name">{{ cliente_nombre }}</div>
-                        <div class="ranking-details">{{ datos.pedidos }} pedidos</div>
+                {% if top_clientes %}
+                    {% for cliente_nombre, datos in top_clientes %}
+                    <div class="ranking-item">
+                        <div class="ranking-position">{{ loop.index }}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-name">{{ cliente_nombre }}</div>
+                            <div class="ranking-details">{{ datos.pedidos }} pedidos</div>
+                        </div>
+                        <div class="ranking-value">{{ "%.2f"|format(datos.total) }} {{ currency }}</div>
                     </div>
-                    <div class="ranking-value">{{ "%.2f"|format(datos.total) }} XCG</div>
-                </div>
-                {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align:center;">No hay datos disponibles</p>
+                {% endif %}
             </div>
         </div>
 
         <div class="ranking-card">
             <h3><i class="fas fa-box"></i> Top Productos</h3>
             <div class="ranking-list">
-                {% for producto_nombre, datos in top_productos %}
-                <div class="ranking-item">
-                    <div class="ranking-position">{{ loop.index }}</div>
-                    <div class="ranking-info">
-                        <div class="ranking-name">{{ producto_nombre }}</div>
-                        <div class="ranking-details">{{ datos.cajas_vendidas }} cajas</div>
+                {% if top_productos %}
+                    {% for producto_nombre, datos in top_productos %}
+                    <div class="ranking-item">
+                        <div class="ranking-position">{{ loop.index }}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-name">{{ producto_nombre }}</div>
+                            <div class="ranking-details">{{ datos.cajas_vendidas }} cajas</div>
+                        </div>
+                        <div class="ranking-value">{{ "%.2f"|format(datos.ingresos) }} {{ currency }}</div>
                     </div>
-                    <div class="ranking-value">{{ "%.2f"|format(datos.ingresos) }} XCG</div>
-                </div>
-                {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align:center;">No hay datos disponibles</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -207,12 +184,11 @@
                     <div class="activity-client">{{ pedido.cliente.nombre }}</div>
                     <div class="activity-time">{{ pedido.fecha_pedido.strftime('%d/%m %H:%M') }}</div>
                 </div>
-                <div class="activity-value">{{ "%.2f"|format(total) }} XCG</div>
+                <div class="activity-value">{{ "%.2f"|format(total) }} {{ currency }}</div>
             </div>
             {% endfor %}
         </div>
     </div>
-
 </div>
 {% endblock %}
 
@@ -724,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 1. GRÁFICO DE TENDENCIA DE VENTAS ===
     const ventasCtx = document.getElementById('ventasChart');
     if (ventasCtx) {
-        const tendenciaData = {{ tendencia_semanal|tojson }};
+        const tendenciaData = {{ tendencia_semanal|tojson|safe }};
         
         new Chart(ventasCtx, {
             type: 'line',
