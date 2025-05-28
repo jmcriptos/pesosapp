@@ -45,8 +45,8 @@
                             {% endif %}
                         </span>
                     </td>
-                        <td>
-                            {{ "%.2f"|format(pedido.total_calculado) }}
+                        <td style="text-align:right; font-family:monospace; font-weight:600;">
+                            {{ "%.2f"|format(pedido.total_calculado) }} <small style="color:#6b7280;">XCG</small>
                         </td>
                     <td>{{ pedido.notas or '' }}</td>
                     <td style="text-align:center; white-space:nowrap;">
