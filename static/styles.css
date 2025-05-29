@@ -11,8 +11,8 @@
     --icon-facturacion: #FFD700;
     --icon-etiquetas: #007bff;
     --icon-importacion: #ff4d4d;
-    --icon-precios: #28a745; /* NUEVA VARIABLE */
-    --icon-pedidos:      #1ABC9C;
+    --icon-precios: #28a745;
+    --icon-pedidos: #1ABC9C;
 }
 
 /* Reset y estilos base */
@@ -32,19 +32,6 @@ html, body {
     overflow-x: hidden;
 }
 
-/* Estilos para icono de precios - AGREGAR DESPUÉS DE LOS OTROS ICONOS */
-.icon-container.icon-precios { 
-    background-color: var(--icon-precios); 
-}
-
-/* Estilos específicos para navegación de precios - AGREGAR */
-.nav-item .fas.fa-dollar-sign {
-    color: #A9A9A9;
-}
-
-.nav-item.active .fas.fa-dollar-sign {
-    color: var(--icon-precios);
-}
 /* Contenedor principal */
 .app-container {
     min-height: 100vh;
@@ -59,7 +46,7 @@ html, body {
     padding: 1rem;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    position: relative; /* Asegura que esté por encima del contenido */
+    position: relative;
     z-index: 10;
 }
 
@@ -69,14 +56,15 @@ html, body {
     padding-bottom: 10px;
     border-bottom: 2px solid white;
 }
+
 .app-header .corner-icon {
     display: none;
 }
 
-/* Contenido principal */
+/* Contenido principal - ACTUALIZADO PARA MÓVIL */
 .app-content {
     flex: 1;
-    padding: 1rem;
+    padding: 0.5rem 0.2rem;
     padding-bottom: calc(var(--footer-height) + 110px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -112,16 +100,17 @@ html, body {
     box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
-.icon-container.icon-productos    { background-color: var(--icon-productos); }
-.icon-container.icon-clientes     { background-color: var(--icon-clientes); }
-.icon-container.icon-recepciones  { background-color: var(--icon-recepciones); }
-.icon-container.icon-facturacion  { background-color: var(--icon-facturacion); }
-.icon-container.icon-etiquetas    { background-color: var(--icon-etiquetas); }
-.icon-container.icon-importacion  { background-color: var(--icon-importacion); }
+.icon-container.icon-productos { background-color: var(--icon-productos); }
+.icon-container.icon-clientes { background-color: var(--icon-clientes); }
+.icon-container.icon-recepciones { background-color: var(--icon-recepciones); }
+.icon-container.icon-facturacion { background-color: var(--icon-facturacion); }
+.icon-container.icon-etiquetas { background-color: var(--icon-etiquetas); }
+.icon-container.icon-importacion { background-color: var(--icon-importacion); }
 .icon-container.icon-pedidos { background-color: var(--icon-pedidos); }
+.icon-container.icon-precios { background-color: var(--icon-precios); }
 
 .icon-container i {
-    font-size: 2rem; /* Ajusta según tu preferencia */
+    font-size: 2rem;
     margin-bottom: 0.5rem;
 }
 
@@ -131,10 +120,10 @@ html, body {
     color: white;
 }
 
-/* Formularios */
+/* Formularios - ACTUALIZADO PARA MÓVIL */
 form {
     background-color: #e1e1e1;
-    padding: 20px;
+    padding: 20px 10px;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     margin: 1rem auto;
@@ -184,7 +173,6 @@ button:hover {
     transform: scale(1.05);
 }
 
-
 /* Campo de comentarios (textarea) más grande y cómodo */
 textarea.form-control {
     min-height: 120px;
@@ -195,6 +183,7 @@ textarea.form-control {
     font-size: 1.06rem;
     box-sizing: border-box;
 }
+
 /* Tablas */
 table {
     width: 100%;
@@ -213,15 +202,14 @@ th, td {
 }
 
 th {
-    background-color: #007bff;  /* Fondo más oscuro */
-    color: #ffffff;  /* Texto blanco para máximo contraste */
+    background-color: #007bff;
+    color: #ffffff;
     font-weight: 600;
     padding: 12px;
     text-align: left;
     border: 1px solid #ddd;
 }
 
-/* Para dar un efecto hover sutil */
 th:hover {
     background-color: goldenrod;
 }
@@ -261,7 +249,6 @@ tr:nth-child(even) {
     z-index: 1000;
 }
 
-/* Estilos actualizados para la navegación inferior */
 .mobile-nav {
     display: flex;
     justify-content: center;
@@ -282,18 +269,11 @@ tr:nth-child(even) {
     margin: 0 1.3rem;
 }
 
-/* Estilos específicos para los íconos */
-.nav-item .fas.fa-home {
-    color: #A9A9A9;
-}
-
-.nav-item .fas.fa-file-invoice-dollar {
-    color: #A9A9A9;
-}
-
-.nav-item .fas.fa-tags {
-    color: #A9A9A9;
-}
+/* Estilos específicos para los íconos de navegación */
+.nav-item .fas.fa-home { color: #A9A9A9; }
+.nav-item .fas.fa-file-invoice-dollar { color: #A9A9A9; }
+.nav-item .fas.fa-tags { color: #A9A9A9; }
+.nav-item .fas.fa-dollar-sign { color: #A9A9A9; }
 
 .nav-item i {
     font-size: 1.5rem;
@@ -315,27 +295,11 @@ tr:nth-child(even) {
     color: var(--primary-color);
 }
 
-/* Mantener colores de íconos incluso cuando está activo */
-.nav-item.active .fas.fa-home {
-    color: var(--icon-importacion);
-}
-
-.nav-item.active .fas.fa-file-invoice-dollar {
-    color: var(--icon-facturacion);
-}
-
-.nav-item.active .fas.fa-tags {
-    color: var(--icon-etiquetas);
-}
-/* Ocultar footer de IP en versión móvil (si aplica) */
-.ip-footer {
-    display: none;
-}
-
-/* Ajustamos el contenido principal para el menú fijo */
-.app-content {
-    padding-bottom: calc(var(--footer-height) + 1rem);
-}
+/* Colores específicos para íconos activos */
+.nav-item.active .fas.fa-home { color: var(--icon-importacion); }
+.nav-item.active .fas.fa-file-invoice-dollar { color: var(--icon-facturacion); }
+.nav-item.active .fas.fa-tags { color: var(--icon-etiquetas); }
+.nav-item.active .fas.fa-dollar-sign { color: var(--icon-precios); }
 
 /* Botones de acción */
 .btn-danger {
@@ -347,19 +311,7 @@ tr:nth-child(even) {
     background-color: #ff1a1a;
 }
 
-/* Animación de aparición */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Flash Messages para el sistema de precios - MEJORAR SECCIÓN EXISTENTE */
+/* Flash Messages */
 .flash-message {
     position: fixed;
     top: 20px;
@@ -399,8 +351,7 @@ tr:nth-child(even) {
     display: block;
 }
 
-/***** Proporción mejorada para campos de producto (buscador, cajas, agregar) *****/
-
+/* Proporción mejorada para campos de producto */
 .inputs-flex {
     display: flex;
     gap: 14px;
@@ -409,20 +360,20 @@ tr:nth-child(even) {
 }
 
 .inputs-flex .search-input {
-    flex: 3 1 0px;      /* 60% aproximadamente */
+    flex: 3 1 0px;
     min-width: 120px;
     max-width: 100%;
 }
 
 .inputs-flex .qty-input {
-    flex: 1 1 0px;      /* 20% aproximadamente */
+    flex: 1 1 0px;
     min-width: 75px;
     max-width: 110px;
     text-align: right;
 }
 
 .inputs-flex .btn-primary {
-    flex: 1 1 0px;      /* 20% aproximadamente */
+    flex: 1 1 0px;
     min-width: 110px;
     padding-left: 0.6em;
     padding-right: 0.6em;
@@ -433,85 +384,10 @@ tr:nth-child(even) {
 
 .inputs-flex input,
 .inputs-flex button {
-    margin-bottom: 0; /* Corrige el margen inferior si lo hay */
+    margin-bottom: 0;
 }
 
-/* Responsive para móvil */
-@media (max-width: 600px) {
-    .inputs-flex {
-        flex-direction: column;
-        gap: 8px;
-        align-items: stretch;
-    }
-    .inputs-flex .search-input,
-    .inputs-flex .qty-input,
-    .inputs-flex .btn-primary {
-        min-width: 0;
-        max-width: 100%;
-        width: 100%;
-        flex: 1 1 100%;
-    }
-}
-
-/* Media Queries */
-@media (max-width: 480px) {
-    .icon-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-        padding: 1rem;
-    }
-
-    .icon-container {
-        height: 120px;
-    }
-
-    .icon-container i {
-        font-size: 1.8rem;
-    }
-
-    .icon-label {
-        font-size: 0.9rem;
-    }
-
-    form {
-        padding: 15px;
-    }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="date"],
-    select {
-        padding: 10px;
-        font-size: 16px;
-    }
-
-    table {
-        font-size: 14px;
-    }
-
-    th, td {
-        padding: 8px;
-    }
-
-    .mobile-nav {
-        padding: 0.5rem 0;
-    }
-}
-
-@media (min-width: 768px) {
-    .icon-grid {
-        grid-template-columns: repeat(3, 1fr);
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    form {
-        padding: 30px;
-    }
-}
-
-
-/* Estilos adicionales para componentes de precios */
+/* Estilos específicos para componentes de precios */
 .precio-input {
     text-align: right;
     font-family: 'Courier New', monospace;
@@ -528,7 +404,6 @@ tr:nth-child(even) {
     margin-right: 2px;
 }
 
-/* Tablas mejoradas para precios */
 .precio-table {
     width: 100%;
     border-collapse: collapse;
@@ -564,7 +439,6 @@ tr:nth-child(even) {
     border-bottom: none;
 }
 
-/* Badges y etiquetas */
 .precio-badge {
     padding: 4px 10px;
     border-radius: 12px;
@@ -592,7 +466,6 @@ tr:nth-child(even) {
     border: 1px solid #f5c6cb;
 }
 
-/* Formularios específicos para precios */
 .precio-form-group {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -621,26 +494,152 @@ tr:nth-child(even) {
     border-color: #28a745;
     box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
 }
-/* --- Formularios embebidos en tablas (p. ej. botón Eliminar) --- */
+
+/* Formularios embebidos en tablas */
 table form,
-.icon-btn form,      /* por si anidas más adelante */
-form.inline-form {    /* utilízala si prefieres añadir class="inline-form" */
+.icon-btn form,
+form.inline-form {
     background: transparent !important;
     padding: 0 !important;
     box-shadow: none !important;
     border-radius: 0 !important;
 }
 
-/* En tu styles.css, agrega soporte para safe areas */
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes precioUpdate {
+    0% { background-color: #fff3cd; }
+    50% { background-color: #d4edda; }
+    100% { background-color: transparent; }
+}
+
+.precio-updated {
+    animation: precioUpdate 1.5s ease-in-out;
+}
+
+/* Safe areas - ACTUALIZADO PARA MÁXIMO ANCHO */
 @supports (padding: max(0px)) {
     .app-content {
-        padding-left: max(16px, env(safe-area-inset-left));
-        padding-right: max(16px, env(safe-area-inset-right));
+        padding-left: max(2px, env(safe-area-inset-left));
+        padding-right: max(2px, env(safe-area-inset-right));
         padding-bottom: calc(100px + max(20px, env(safe-area-inset-bottom)));
     }
 }
-/* Responsive específico para precios */
-@media (max-width: 768px) {
+
+/* Media Queries - ACTUALIZADOS PARA MÁXIMO ANCHO MÓVIL */
+@media (max-width: 600px) {
+    .inputs-flex {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+    .inputs-flex .search-input,
+    .inputs-flex .qty-input,
+    .inputs-flex .btn-primary {
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+        flex: 1 1 100%;
+    }
+}
+
+/* MÓVIL - MÁXIMO ANCHO */
+@media (max-width: 480px) {
+    .app-content {
+        padding: 0.1rem 0.05rem;
+        padding-bottom: calc(var(--footer-height) + 110px);
+    }
+
+    .icon-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .icon-container {
+        height: 120px;
+    }
+
+    .icon-container i {
+        font-size: 1.8rem;
+    }
+
+    .icon-label {
+        font-size: 0.9rem;
+    }
+
+    form {
+        padding: 15px 3px !important;
+        max-width: none !important;
+        margin: 0.2rem 0 !important;
+        border-radius: 4px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+        padding: 10px 6px;
+        font-size: 16px;
+    }
+
+    table {
+        font-size: 14px;
+        margin-left: -3px;
+        margin-right: -3px;
+        width: calc(100% + 6px);
+    }
+
+    th, td {
+        padding: 8px 3px;
+    }
+
+    .mobile-nav {
+        padding: 0.5rem 0;
+    }
+}
+
+/* DESKTOP */
+@media (min-width: 768px) {
+    .icon-grid {
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    form {
+        padding: 30px;
+    }
+    
+    .precio-form-group {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+    }
+}
+
+/* TABLET */
+@media (max-width: 768px) and (min-width: 481px) {
+    .app-content {
+        padding: 0.3rem 0.1rem;
+        padding-bottom: calc(var(--footer-height) + 110px);
+    }
+    
+    form {
+        padding: 20px 8px !important;
+        max-width: none !important;
+        margin: 0.5rem 0 !important;
+    }
+    
     .precio-form-group {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -663,36 +662,13 @@ form.inline-form {    /* utilízala si prefieres añadir class="inline-form" */
     }
 }
 
-/* Animaciones para elementos de precios */
-@keyframes precioUpdate {
-    0% {
-        background-color: #fff3cd;
-    }
-    50% {
-        background-color: #d4edda;
-    }
-    100% {
-        background-color: transparent;
-    }
-}
-
-.precio-updated {
-    animation: precioUpdate 1.5s ease-in-out;
-}
-
-/* Mejoras en la grid principal para acomodar 8 elementos */
-@media (min-width: 768px) {
-    .icon-grid {
-        grid-template-columns: repeat(4, 1fr);
-        max-width: 1000px;
-        margin: 0 auto;
-    }
-}
-
-@media (max-width: 480px) {
-    .icon-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-        padding: 1rem;
+/* OVERRIDES ESPECÍFICOS PARA FORMULARIOS MÓVILES */
+@media (max-width: 768px) {
+    .mobile-form-container {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        padding: 8px 0.1vw calc(120px + 20px) 0.1vw !important;
+        margin: 0 !important;
+        box-sizing: border-box;
     }
 }
