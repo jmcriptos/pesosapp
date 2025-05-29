@@ -631,6 +631,14 @@ form.inline-form {    /* utilízala si prefieres añadir class="inline-form" */
     border-radius: 0 !important;
 }
 
+/* En tu styles.css, agrega soporte para safe areas */
+@supports (padding: max(0px)) {
+    .app-content {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-bottom: calc(100px + max(20px, env(safe-area-inset-bottom)));
+    }
+}
 /* Responsive específico para precios */
 @media (max-width: 768px) {
     .precio-form-group {

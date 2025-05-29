@@ -1,193 +1,613 @@
 {% extends "base.html" %}
 
-{% block title %}{% if pedido %}Editar Pedido{% else %}Nuevo Pedido{% endif %}{% endblock %}
-
-{% block header_title %}
-    <span style="font-weight:700; color:#1877ff;">
-        {% if pedido %}Editar Pedido{% else %}Nuevo Pedido{% endif %}
-    </span>
-    <span style="font-size:0.95rem; color:#888; font-weight:normal;">
-        (Frente al cliente)
-    </span>
+{% block title %}
+    {% if pedido %}Editar Pedido{% else %}Nuevo Pedido{% endif %}
 {% endblock %}
 
-{% block content %}
-<div class="main-form-container">
-<form method="POST" id="form-nuevo-pedido" autocomplete="off">
-    <!-- ==== CABECERA ==== -->
-    <div class="box-card">
-        <div class="form-group">
-            <label for="cliente_id">Cliente:</label>
-            <select name="cliente_id" id="cliente_id" class="form-control" required>
-                {% for cliente in clientes|sort(attribute='nombre') %}
-                    <option value="{{ cliente.id }}"
-                            {% if pedido and pedido.cliente_id == cliente.id %}selected{% endif %}>
-                        {{ cliente.nombre }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-    </div>
-
-    <!-- ==== PRODUCTOS ==== -->
-    <div class="box-card">
-        <h2><i class="fa fa-cubes" style="margin-right:6px;color:#1877ff;"></i>Productos solicitados</h2>
-
-        <!-- Tabla -->
-        <div class="table-container">
-            <table id="tabla-productos" class="data-table tabla-pedidos">
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Cajas</th>
-                        <th>Precio&nbsp;(ANG)</th>
-                        <th>Sub-total</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody id="productos-body"><!-- filas JS --></tbody>
-            </table>
-        </div>
-
-        <!-- Buscador + cantidad -->
-        <div class="inputs-flex">
-            <input type="text" id="buscador-producto" placeholder="Buscar por nombre o código"
-                   class="form-control search-input" autocomplete="off">
-            <input type="number" min="1" id="input-cajas" placeholder="Cajas"
-                   class="form-control qty-input" autocomplete="off">
-            <button type="button" id="agregar-producto"
-                    class="btn-chip btn-chip-view" style="margin-bottom:0;">
-                <i class="fa fa-plus"></i> Agregar
-            </button>
-        </div>
-        <div id="sugerencias-producto" class="suggestions-dropdown"></div>
-
-        <!-- Total -->
-        <h3 style="text-align:right; margin-top:1rem;">
-            Total:&nbsp;<span id="total-pedido">0.00</span>&nbsp;ANG
-        </h3>
-    </div>
-
-    <!-- ==== NOTAS & GUARDAR ==== -->
-    <div class="box-card">
-        <div class="form-group">
-            <label for="notas">Notas:</label>
-            <textarea name="notas" id="notas" class="form-control"
-                      placeholder="Notas adicionales para este pedido"
-                      style="min-height:60px;">{{ pedido.notas if pedido else '' }}</textarea>
-        </div>
-        <div style="text-align:right;">
-            <button type="submit" id="guardar-pedido"
-                    class="btn-chip btn-chip-save"
-                    style="font-size:1.1rem; padding:1em 2.4em; margin-top:14px;">
-                <i class="fa fa-save"></i> Guardar pedido
-            </button>
-        </div>
-    </div>
-</form>
-</div>
+{% block header_title %}
+    <span style="font-weight:700; color:white;">
+        {% if pedido %}Editar Pedido{% else %}Nuevo Pedido{% endif %}
+    </span>
+    <br>
+    <small style="font-size:0.8rem; color:rgba(255,255,255,0.8); font-weight:normal;">
+        Gestión de pedidos
+    </small>
 {% endblock %}
 
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <style>
-/* … estilos existentes … */
+/* ==== MOBILE-FIRST OPTIMIZATIONS ==== */
+:root {
+    --mobile-padding: max(16px, env(safe-area-inset-left));
+    --safe-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+/* Contenedor principal optimizado para móvil */
+.mobile-form-container {
+    width: 100%;
+    max-width: 100vw;
+    padding: 8px var(--mobile-padding) calc(120px + var(--safe-bottom)) var(--mobile-padding);
+    margin: 0;
+    box-sizing: border-box;
+}
+
+/* Cards con mejor espaciado móvil */
+.mobile-card {
+    background: white;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+}
+
+.mobile-card-header {
+    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
+    color: white;
+    padding: 16px 20px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mobile-card-body {
+    padding: 20px 18px;
+}
+
+/* Formulario optimizado para tactil */
+.mobile-form-group {
+    margin-bottom: 20px;
+}
+
+.mobile-form-label {
+    display: block;
+    font-weight: 600;
+    font-size: 15px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.mobile-form-control {
+    width: 100%;
+    padding: 16px 18px;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    font-size: 16px; /* Crítico: evita zoom en iOS */
+    background: #f8f9fa;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+}
+
+.mobile-form-control:focus {
+    outline: none;
+    border-color: #1877ff;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.1);
+}
+
+/* Select personalizado para móvil */
+.mobile-select-wrapper {
+    position: relative;
+}
+
+.mobile-select-wrapper::after {
+    content: '▼';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+/* Tabla ultra-responsive */
+.mobile-table-container {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-bottom: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-table {
+    width: 100%;
+    min-width: 480px; /* Permite scroll horizontal si es necesario */
+}
+
+.mobile-table thead {
+    background: #1877ff;
+    color: white;
+}
+
+.mobile-table th {
+    padding: 12px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    border: none;
+    white-space: nowrap;
+}
+
+.mobile-table td {
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    text-align: center;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: middle;
+}
+
+.mobile-table .product-name {
+    text-align: left;
+    font-weight: 500;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Layout de búsqueda optimizado */
+.mobile-search-layout {
+    margin-bottom: 16px;
+}
+
+.mobile-search-group {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.mobile-add-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.mobile-search-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-quantity-input {
+    width: 90px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+/* Botones optimizados para iPhone */
+.mobile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    min-height: 48px; /* Apple recommendation */
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+}
+
+.mobile-btn-primary {
+    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
+}
+
+.mobile-btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 8px rgba(24, 119, 255, 0.3);
+}
+
+.mobile-btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
+    color: white;
+    padding: 10px 14px;
+    font-size: 14px;
+    min-height: 40px;
+}
+
+.mobile-btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    width: 100%;
+    font-size: 17px;
+    padding: 18px;
+    margin-top: 12px;
+}
+
+/* Sugerencias dropdown mejorado */
+.mobile-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+}
+
+.mobile-suggestion-item {
+    padding: 16px 18px;
+    border-bottom: 1px solid #f1f3f4;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-suggestion-item:active {
+    background: #f8f9fa;
+}
+
+.mobile-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.suggestion-price {
+    font-size: 13px;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+/* Total section destacada */
+.mobile-total-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 18px;
+    border-radius: 12px;
+    text-align: center;
+    margin: 16px 0;
+    border: 2px solid #e9ecef;
+}
+
+.mobile-total-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.mobile-total-amount {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1877ff;
+}
+
+/* Textarea optimizado */
+.mobile-textarea {
+    resize: vertical;
+    min-height: 90px;
+    font-family: inherit;
+    line-height: 1.4;
+}
+
+/* Estados vacíos */
+.mobile-empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: #6c757d;
+    font-style: italic;
+    font-size: 15px;
+}
+
+/* Animaciones */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive breakpoints */
+@media screen and (max-width: 428px) {
+    .mobile-card-body {
+        padding: 16px 14px;
+    }
+    
+    .mobile-table th,
+    .mobile-table td {
+        padding: 10px 6px;
+        font-size: 0.75rem;
+    }
+    
+    .mobile-add-row {
+        flex-direction: column;
+    }
+    
+    .mobile-quantity-input {
+        width: 100%;
+    }
+    
+    .mobile-total-amount {
+        font-size: 1.6rem;
+    }
+}
+
+/* iPhone específico - Safe areas */
+@supports (padding: max(0px)) {
+    .mobile-form-container {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-bottom: calc(120px + max(20px, env(safe-area-inset-bottom)));
+    }
+}
+
+/* Modo oscuro automático */
+@media (prefers-color-scheme: dark) {
+    .mobile-card {
+        background: #2d2d2d;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .mobile-form-control {
+        background: #3a3a3a;
+        border-color: #4a4a4a;
+        color: #f8f9fa;
+    }
+    
+    .mobile-suggestions {
+        background: #2d2d2d;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    }
+    
+    .suggestion-name {
+        color: #f8f9fa;
+    }
+}
+
+/* Ocultar elementos desktop en móvil */
+@media screen and (max-width: 768px) {
+    .desktop-only {
+        display: none !important;
+    }
+}
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="mobile-form-container">
+    <form method="POST" id="form-nuevo-pedido" autocomplete="off">
+        
+        <!-- Cliente Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-user"></i>
+                Cliente
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="cliente_id">Seleccionar cliente:</label>
+                    <div class="mobile-select-wrapper">
+                        <select name="cliente_id" id="cliente_id" class="mobile-form-control" required>
+                            <option value="">-- Seleccionar cliente --</option>
+                            {% for cliente in clientes|sort(attribute='nombre') %}
+                                <option value="{{ cliente.id }}"
+                                        {% if pedido and pedido.cliente_id == cliente.id %}selected{% endif %}>
+                                    {{ cliente.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Productos Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-cubes"></i>
+                Productos solicitados
+            </div>
+            <div class="mobile-card-body">
+                
+                <!-- Tabla de productos -->
+                <div class="mobile-table-container">
+                    <table class="mobile-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cajas</th>
+                                <th>Precio (XCG)</th>
+                                <th>Total</th>
+                                <th>-</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productos-body">
+                            <tr>
+                                <td colspan="5" class="mobile-empty-state">
+                                    No hay productos agregados
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Búsqueda y agregar -->
+                <div class="mobile-search-layout">
+                    <div class="mobile-search-group">
+                        <input type="text" 
+                               id="buscador-producto" 
+                               placeholder="Buscar producto..." 
+                               class="mobile-form-control mobile-search-input" 
+                               autocomplete="off">
+                        <div id="sugerencias-producto" class="mobile-suggestions"></div>
+                    </div>
+                    
+                    <div class="mobile-add-row">
+                        <input type="number" 
+                               id="input-cajas" 
+                               placeholder="Cajas" 
+                               class="mobile-form-control mobile-quantity-input" 
+                               min="1" 
+                               autocomplete="off">
+                        <button type="button" 
+                                id="agregar-producto" 
+                                class="mobile-btn mobile-btn-primary">
+                            <i class="fas fa-plus"></i>
+                            Agregar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Total -->
+                <div class="mobile-total-section">
+                    <div class="mobile-total-label">Total del pedido</div>
+                    <div id="total-pedido" class="mobile-total-amount">0.00 XCG</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notas Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-sticky-note"></i>
+                Notas adicionales
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="notas">Instrucciones especiales:</label>
+                    <textarea name="notas" 
+                              id="notas" 
+                              class="mobile-form-control mobile-textarea" 
+                              placeholder="Notas o instrucciones especiales para este pedido...">{{ pedido.notas if pedido else '' }}</textarea>
+                </div>
+                
+                <button type="submit" class="mobile-btn mobile-btn-success">
+                    <i class="fas fa-save"></i>
+                    {% if pedido %}Actualizar pedido{% else %}Guardar pedido{% endif %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 /* === Datos del backend === */
-let productos         = {{ productos|tojson }};
-const productos_pedido  = {{ productos_pedido|default([])|tojson }}; // puede venir vacío
-let productosAgregados  = productos_pedido.length ? productos_pedido : [];
+const productos = {{ productos|tojson }};
+const productos_pedido = {{ productos_pedido|default([])|tojson }};
+let productosAgregados = productos_pedido.length ? productos_pedido : [];
 
-/* ==== Función para actualizar precios según cliente ==== */
+/* === Referencias DOM === */
+const buscador = document.getElementById('buscador-producto');
+const sugerDiv = document.getElementById('sugerencias-producto');
+const inputCajas = document.getElementById('input-cajas');
+const btnAgregar = document.getElementById('agregar-producto');
+const clienteSelect = document.getElementById('cliente_id');
+const tbody = document.getElementById('productos-body');
+const totalSpan = document.getElementById('total-pedido');
+
+/* === Funciones principales === */
 async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return;
     
     try {
         console.log('Actualizando precios para cliente:', clienteId);
         const response = await fetch(`/api/precios/cliente/${clienteId}/productos`);
-        const productosConPrecios = await response.json();
         
-        // Actualizar el array global de productos con los nuevos precios
-        productosConPrecios.forEach(productoAPI => {
-            const productoLocal = productos.find(p => p.id === productoAPI.id);
-            if (productoLocal) {
-                productoLocal.precio = productoAPI.precio;
-                console.log(`Precio actualizado: ${productoLocal.nombre} = ${productoAPI.precio}`);
-            }
-        });
-        
-        // Actualizar precios en productos ya agregados
-        productosAgregados.forEach(prodAgregado => {
-            const productoActualizado = productosConPrecios.find(p => p.id === prodAgregado.id);
-            if (productoActualizado) {
-                prodAgregado.precio = productoActualizado.precio;
-            }
-        });
-        
-        // Re-renderizar la tabla con los nuevos precios
-        actualizarTablaProductos();
-        
-        console.log('Precios actualizados correctamente');
-        
+        if (response.ok) {
+            const productosConPrecios = await response.json();
+            
+            // Actualizar precios en el array global
+            productosConPrecios.forEach(productoAPI => {
+                const productoLocal = productos.find(p => p.id === productoAPI.id);
+                if (productoLocal) {
+                    productoLocal.precio = productoAPI.precio;
+                }
+            });
+            
+            // Actualizar precios en productos ya agregados
+            productosAgregados.forEach(prodAgregado => {
+                const productoActualizado = productosConPrecios.find(p => p.id === prodAgregado.id);
+                if (productoActualizado) {
+                    prodAgregado.precio = productoActualizado.precio;
+                }
+            });
+            
+            actualizarTablaProductos();
+            console.log('Precios actualizados correctamente');
+        }
     } catch (error) {
         console.error('Error al actualizar precios:', error);
     }
 }
 
-/* ==== Renderizar tabla y total ==== */
 function actualizarTablaProductos() {
-    const tbody     = document.getElementById('productos-body');
-    const spanTotal = document.getElementById('total-pedido');
     tbody.innerHTML = '';
-
+    
     if (productosAgregados.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#777;padding:1.5rem;">
-                              No hay productos agregados
-                           </td></tr>`;
-        spanTotal.textContent = '0.00';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="mobile-empty-state">
+                    No hay productos agregados
+                </td>
+            </tr>
+        `;
+        totalSpan.textContent = '0.00 XCG';
         return;
     }
 
     let total = 0;
     productosAgregados.forEach((p, idx) => {
-        const subtotal = p.precio * p.cajas;
+        const precio = p.precio || 0;
+        const subtotal = precio * p.cajas;
         total += subtotal;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>
-                <input type="hidden" name="productos[${idx}][id]"     value="${p.id}">
+            <td class="product-name">
+                <input type="hidden" name="productos[${idx}][id]" value="${p.id}">
+                <input type="hidden" name="productos[${idx}][nombre]" value="${p.nombre}">
+                <input type="hidden" name="productos[${idx}][cajas]" value="${p.cajas}">
+                <input type="hidden" name="productos[${idx}][precio]" value="${precio}">
                 ${p.nombre}
             </td>
+            <td><strong>${p.cajas}</strong></td>
+            <td>${precio.toFixed(2)}</td>
+            <td><strong>${subtotal.toFixed(2)}</strong></td>
             <td>
-                <input type="hidden" name="productos[${idx}][cajas]"  value="${p.cajas}">
-                ${p.cajas}
-            </td>
-            <td>
-                <input type="hidden" name="productos[${idx}][precio]" value="${p.precio}">
-                ${p.precio.toFixed(2)}
-            </td>
-            <td>${subtotal.toFixed(2)}</td>
-            <td>
-                <button type="button" class="btn-chip btn-chip-danger"
+                <button type="button" 
+                        class="mobile-btn mobile-btn-danger" 
                         onclick="eliminarProducto(${idx})">
-                    <i class="fa fa-trash"></i> Eliminar
+                    <i class="fas fa-trash"></i>
                 </button>
-            </td>`;
+            </td>
+        `;
         tbody.appendChild(tr);
     });
 
-    spanTotal.textContent = total.toFixed(2);
+    totalSpan.textContent = total.toFixed(2) + ' XCG';
 }
 
-/* ==== Utilidades ==== */
-function filtrarProductos(q) {
-    const ql = q.toLowerCase();
-    return productos.filter(p => p.nombre.toLowerCase().includes(ql));
+function filtrarProductos(query) {
+    return productos.filter(p => 
+        p.nombre.toLowerCase().includes(query.toLowerCase())
+    );
 }
 
 function eliminarProducto(idx) {
@@ -195,84 +615,120 @@ function eliminarProducto(idx) {
     actualizarTablaProductos();
 }
 
-/* ==== Eventos & Autoload ==== */
+/* === Event Listeners === */
 document.addEventListener('DOMContentLoaded', () => {
-    const buscador   = document.getElementById('buscador-producto');
-    const sugerDiv   = document.getElementById('sugerencias-producto');
-    const inputCajas = document.getElementById('input-cajas');
-    const btnAgregar = document.getElementById('agregar-producto');
-    const clienteSelect = document.getElementById('cliente_id');
+    // Inicializar tabla
+    actualizarTablaProductos();
 
-    actualizarTablaProductos();   // pinta lo precargado (si existe)
-
-    /* ==== NUEVO: Evento para cambio de cliente ==== */
+    // Cambio de cliente
     if (clienteSelect) {
         clienteSelect.addEventListener('change', async function() {
             const clienteId = this.value;
-            console.log('Cliente cambiado a:', clienteId);
-            
             if (clienteId) {
                 await actualizarPreciosCliente(clienteId);
             }
         });
         
-        // Si ya hay un cliente seleccionado al cargar la página, actualizar precios
+        // Si ya hay cliente seleccionado, actualizar precios
         if (clienteSelect.value) {
             actualizarPreciosCliente(clienteSelect.value);
         }
     }
 
-    /* Autocompletar */
-    buscador.addEventListener('input', () => {
-        const q = buscador.value.trim();
+    // Búsqueda con autocompletar
+    buscador.addEventListener('input', function() {
+        const query = this.value.trim();
         sugerDiv.innerHTML = '';
-        if (q.length < 2) { sugerDiv.style.display = 'none'; return; }
+        
+        if (query.length < 2) {
+            sugerDiv.style.display = 'none';
+            return;
+        }
 
-        filtrarProductos(q).slice(0,5).forEach(prod => {
+        const resultados = filtrarProductos(query).slice(0, 5);
+        
+        resultados.forEach(prod => {
             const item = document.createElement('div');
-            item.className = 'suggestion-item';
-            item.textContent = `${prod.nombre} – ${prod.precio.toFixed(2)} ANG`;
+            item.className = 'mobile-suggestion-item';
+            item.innerHTML = `
+                <div class="suggestion-name">${prod.nombre}</div>
+                <div class="suggestion-price">${(prod.precio || 0).toFixed(2)} XCG</div>
+            `;
             item.onclick = () => {
-                buscador.value        = prod.nombre;
-                buscador.dataset.id   = prod.id;
-                buscador.dataset.precio = prod.precio;
+                buscador.value = prod.nombre;
+                buscador.dataset.id = prod.id;
+                buscador.dataset.precio = prod.precio || 0;
                 sugerDiv.style.display = 'none';
                 inputCajas.focus();
             };
             sugerDiv.appendChild(item);
         });
-        sugerDiv.style.display = 'block';
+        
+        sugerDiv.style.display = resultados.length ? 'block' : 'none';
     });
 
-    /* Ocultar sugerencias al hacer clic fuera */
-    document.addEventListener('click', e => {
+    // Ocultar sugerencias al tocar fuera
+    document.addEventListener('touchstart', function(e) {
         if (!buscador.contains(e.target) && !sugerDiv.contains(e.target)) {
             sugerDiv.style.display = 'none';
         }
     });
 
-    /* Agregar con Enter en cajas */
-    inputCajas.addEventListener('keypress', e => {
-        if (e.key === 'Enter') { e.preventDefault(); btnAgregar.click(); }
-    });
-
-    /* Botón Agregar */
-    btnAgregar.addEventListener('click', () => {
-        const idSel  = parseInt(buscador.dataset.id || 0);
+    // Agregar producto
+    btnAgregar.addEventListener('click', function() {
+        const idSel = parseInt(buscador.dataset.id || 0);
         const nombre = buscador.value.trim();
-        const cajas  = parseInt(inputCajas.value, 10);
+        const cajas = parseInt(inputCajas.value, 10);
         const precio = parseFloat(buscador.dataset.precio || 0);
 
-        if (!idSel || !nombre || !cajas || cajas <= 0 || !precio) {
+        if (!idSel || !nombre || !cajas || cajas <= 0) {
             alert('Selecciona un producto válido y cantidad mayor a cero');
             return;
         }
 
-        productosAgregados.push({ id: idSel, nombre, cajas, precio });
-        buscador.value = ''; buscador.dataset.id = ''; buscador.dataset.precio = '';
+        // Verificar si ya existe
+        const existente = productosAgregados.findIndex(p => p.id === idSel);
+        if (existente >= 0) {
+            productosAgregados[existente].cajas += cajas;
+        } else {
+            productosAgregados.push({ id: idSel, nombre, cajas, precio });
+        }
+
+        // Limpiar campos
+        buscador.value = '';
+        buscador.dataset.id = '';
+        buscador.dataset.precio = '';
         inputCajas.value = '';
+        
         actualizarTablaProductos();
         buscador.focus();
+    });
+
+    // Enter para agregar
+    inputCajas.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btnAgregar.click();
+        }
+    });
+
+    // Envío del formulario
+    document.getElementById('form-nuevo-pedido').addEventListener('submit', function(e) {
+        if (productosAgregados.length === 0) {
+            e.preventDefault();
+            alert('Agrega al menos un producto al pedido');
+            return;
+        }
+
+        if (!clienteSelect.value) {
+            e.preventDefault();
+            alert('Selecciona un cliente');
+            clienteSelect.focus();
+            return;
+        }
+
+        // El formulario se enviará normalmente con todos los campos hidden
+        console.log('Enviando pedido...');
     });
 });
 </script>
