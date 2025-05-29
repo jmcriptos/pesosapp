@@ -462,12 +462,13 @@
                 <!-- Búsqueda y agregar -->
                 <div class="mobile-search-layout">
                     <div class="mobile-search-group">
-                        <input type="text" 
-                               id="buscador-producto" 
-                               placeholder="Buscar producto..." 
-                               class="mobile-form-control mobile-search-input" 
-                               autocomplete="off">
-                        <div id="sugerencias-producto" class="mobile-suggestions"></div>
+                        <label class="mobile-form-label" for="producto-select">Seleccionar producto:</label>
+                        <div class="mobile-select-wrapper">
+                            <select id="producto-select" class="mobile-form-control">
+                                <option value="">-- Seleccionar producto --</option>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="mobile-add-row">
@@ -527,8 +528,7 @@ const productos_pedido = {{ productos_pedido|default([])|tojson }};
 let productosAgregados = productos_pedido.length ? productos_pedido : [];
 
 /* === Referencias DOM === */
-const buscador = document.getElementById('buscador-producto');
-const sugerDiv = document.getElementById('sugerencias-producto');
+const productoSelect = document.getElementById('producto-select');
 const inputCajas = document.getElementById('input-cajas');
 const btnAgregar = document.getElementById('agregar-producto');
 const clienteSelect = document.getElementById('cliente_id');
@@ -536,6 +536,18 @@ const tbody = document.getElementById('productos-body');
 const totalSpan = document.getElementById('total-pedido');
 
 /* === Funciones principales === */
+function cargarProductosEnSelect() {
+    productoSelect.innerHTML = '<option value="">-- Seleccionar producto --</option>';
+    
+    productos.forEach(producto => {
+        const option = document.createElement('option');
+        option.value = producto.id;
+        option.textContent = `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`;
+        option.dataset.precio = producto.precio || 0;
+        option.dataset.nombre = producto.nombre;
+        productoSelect.appendChild(option);
+    });
+}
 async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return;
     
@@ -564,6 +576,9 @@ async function actualizarPreciosCliente(clienteId) {
             
             actualizarTablaProductos();
             console.log('Precios actualizados correctamente');
+            
+            // Recargar el select de productos con los nuevos precios
+            cargarProductosEnSelect();
         }
     } catch (error) {
         console.error('Error al actualizar precios:', error);
@@ -617,10 +632,15 @@ function actualizarTablaProductos() {
     totalSpan.textContent = total.toFixed(2) + ' XCG';
 }
 
-function filtrarProductos(query) {
-    return productos.filter(p => 
-        p.nombre.toLowerCase().includes(query.toLowerCase())
-    );
+function obtenerProductoSeleccionado() {
+    const selectedOption = productoSelect.options[productoSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) return null;
+    
+    return {
+        id: parseInt(selectedOption.value),
+        nombre: selectedOption.dataset.nombre,
+        precio: parseFloat(selectedOption.dataset.precio || 0)
+    };
 }
 
 function eliminarProducto(idx) {
@@ -630,8 +650,9 @@ function eliminarProducto(idx) {
 
 /* === Event Listeners === */
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar tabla
+    // Inicializar
     actualizarTablaProductos();
+    cargarProductosEnSelect();
 
     // Cambio de cliente
     if (clienteSelect) {
@@ -648,73 +669,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Búsqueda con autocompletar
-    buscador.addEventListener('input', function() {
-        const query = this.value.trim();
-        sugerDiv.innerHTML = '';
-        
-        if (query.length < 2) {
-            sugerDiv.style.display = 'none';
+    // Agregar producto
+    btnAgregar.addEventListener('click', function() {
+        const productoSeleccionado = obtenerProductoSeleccionado();
+        const cajas = parseInt(inputCajas.value, 10);
+
+        if (!productoSeleccionado) {
+            alert('Selecciona un producto');
+            productoSelect.focus();
             return;
         }
 
-        const resultados = filtrarProductos(query).slice(0, 5);
-        
-        resultados.forEach(prod => {
-            const item = document.createElement('div');
-            item.className = 'mobile-suggestion-item';
-            item.innerHTML = `
-                <div class="suggestion-name">${prod.nombre}</div>
-                <div class="suggestion-price">${(prod.precio || 0).toFixed(2)} XCG</div>
-            `;
-            item.onclick = () => {
-                buscador.value = prod.nombre;
-                buscador.dataset.id = prod.id;
-                buscador.dataset.precio = prod.precio || 0;
-                sugerDiv.style.display = 'none';
-                inputCajas.focus();
-            };
-            sugerDiv.appendChild(item);
-        });
-        
-        sugerDiv.style.display = resultados.length ? 'block' : 'none';
-    });
-
-    // Ocultar sugerencias al tocar fuera
-    document.addEventListener('touchstart', function(e) {
-        if (!buscador.contains(e.target) && !sugerDiv.contains(e.target)) {
-            sugerDiv.style.display = 'none';
-        }
-    });
-
-    // Agregar producto
-    btnAgregar.addEventListener('click', function() {
-        const idSel = parseInt(buscador.dataset.id || 0);
-        const nombre = buscador.value.trim();
-        const cajas = parseInt(inputCajas.value, 10);
-        const precio = parseFloat(buscador.dataset.precio || 0);
-
-        if (!idSel || !nombre || !cajas || cajas <= 0) {
-            alert('Selecciona un producto válido y cantidad mayor a cero');
+        if (!cajas || cajas <= 0) {
+            alert('Ingresa una cantidad válida de cajas');
+            inputCajas.focus();
             return;
         }
 
         // Verificar si ya existe
-        const existente = productosAgregados.findIndex(p => p.id === idSel);
+        const existente = productosAgregados.findIndex(p => p.id === productoSeleccionado.id);
         if (existente >= 0) {
             productosAgregados[existente].cajas += cajas;
         } else {
-            productosAgregados.push({ id: idSel, nombre, cajas, precio });
+            productosAgregados.push({
+                id: productoSeleccionado.id,
+                nombre: productoSeleccionado.nombre,
+                cajas: cajas,
+                precio: productoSeleccionado.precio
+            });
         }
 
         // Limpiar campos
-        buscador.value = '';
-        buscador.dataset.id = '';
-        buscador.dataset.precio = '';
+        productoSelect.value = '';
         inputCajas.value = '';
         
         actualizarTablaProductos();
-        buscador.focus();
+        productoSelect.focus();
     });
 
     // Enter para agregar
@@ -722,6 +712,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') {
             e.preventDefault();
             btnAgregar.click();
+        }
+    });
+
+    // Enter también en el select de productos
+    productoSelect.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            inputCajas.focus();
         }
     });
 
