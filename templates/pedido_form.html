@@ -130,8 +130,8 @@
 }
 
 .mobile-table th {
-    padding: 12px 8px;
-    font-size: 0.8rem;
+    padding: 12px 4px;
+    font-size: 0.75rem;
     font-weight: 600;
     text-align: center;
     border: none;
@@ -139,8 +139,8 @@
 }
 
 .mobile-table td {
-    padding: 12px 8px;
-    font-size: 0.85rem;
+    padding: 12px 4px;
+    font-size: 0.8rem;
     text-align: center;
     border-bottom: 1px solid #f1f3f4;
     vertical-align: middle;
@@ -215,9 +215,10 @@
 .mobile-btn-danger {
     background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
     color: white;
-    padding: 10px 14px;
-    font-size: 14px;
-    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 36px;
+    border-radius: 8px;
 }
 
 .mobile-btn-success {
@@ -446,7 +447,7 @@
                                 <th>Cajas</th>
                                 <th>Precio (XCG)</th>
                                 <th>Total</th>
-                                <th>-</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="productos-body">
@@ -621,7 +622,8 @@ function actualizarTablaProductos() {
             <td>
                 <button type="button" 
                         class="mobile-btn mobile-btn-danger" 
-                        onclick="eliminarProducto(${idx})">
+                        onclick="eliminarProducto(${idx})"
+                        title="Eliminar producto">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
