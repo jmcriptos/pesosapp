@@ -238,27 +238,33 @@ tr:nth-child(even) {
     border: 1px solid #f5c6cb;
 }
 
-/* Footer y Navegación Móvil */
+/* ==== CORRECCIÓN DEL MENÚ MÓVIL INFERIOR ==== */
+
+/* Footer y Navegación Móvil - ACTUALIZADO */
 .app-footer {
     position: fixed;
     bottom: 0;
     left: 0;
+    right: 0;
     width: 100%;
     background-color: white;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     z-index: 1000;
+    padding: 0; /* Sin padding adicional */
 }
 
+/* Navegación móvil optimizada */
 .mobile-nav {
     display: flex;
-    justify-content: center;
+    justify-content: space-evenly; /* Distribución uniforme */
     align-items: center;
-    gap: 2rem;
-    padding: 0.8rem 0;
+    padding: 0.6rem 0.2rem; /* Padding reducido y controlado */
     background-color: white;
-    overflow-x: auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
+/* Items de navegación */
 .nav-item {
     display: flex;
     flex-direction: column;
@@ -266,7 +272,150 @@ tr:nth-child(even) {
     text-decoration: none;
     color: var(--secondary-color);
     transition: color 0.3s ease, transform 0.2s ease;
-    margin: 0 1.3rem;
+    flex: 1; /* Cada item ocupa espacio igual */
+    max-width: 80px; /* Ancho máximo por item */
+    min-width: 60px; /* Ancho mínimo por item */
+    padding: 0.3rem 0.1rem; /* Padding interno controlado */
+}
+
+/* Iconos de navegación */
+.nav-item i {
+    font-size: 1.3rem; /* Tamaño reducido para que quepa mejor */
+    margin-bottom: 0.2rem; /* Margen reducido */
+}
+
+/* Texto de navegación */
+.nav-item span {
+    font-size: 0.7rem; /* Texto más pequeño */
+    text-align: center;
+    line-height: 1;
+    color: var(--secondary-color);
+    white-space: nowrap; /* Evitar salto de línea */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Estados activos */
+.nav-item.active {
+    color: var(--primary-color);
+}
+
+.nav-item.active span {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Colores específicos para íconos (manteniendo los originales) */
+.nav-item .fas.fa-home { color: #A9A9A9; }
+.nav-item .fas.fa-file-invoice-dollar { color: #A9A9A9; }
+.nav-item .fas.fa-dollar-sign { color: #A9A9A9; }
+.nav-item .fas.fa-tags { color: #A9A9A9; }
+
+/* Colores para íconos activos */
+.nav-item.active .fas.fa-home { color: var(--icon-importacion); }
+.nav-item.active .fas.fa-file-invoice-dollar { color: var(--icon-facturacion); }
+.nav-item.active .fas.fa-dollar-sign { color: var(--icon-precios); }
+.nav-item.active .fas.fa-tags { color: var(--icon-etiquetas); }
+
+/* Safe areas para iPhone con notch */
+@supports (padding: max(0px)) {
+    .app-footer {
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+    
+    .mobile-nav {
+        padding-left: max(0.2rem, env(safe-area-inset-left));
+        padding-right: max(0.2rem, env(safe-area-inset-right));
+    }
+}
+
+/* Media queries específicas para diferentes tamaños */
+@media (max-width: 428px) {
+    /* iPhone 16 Pro Max y similares */
+    .mobile-nav {
+        padding: 0.5rem 0.1rem;
+    }
+    
+    .nav-item {
+        max-width: 70px;
+        min-width: 50px;
+        padding: 0.2rem 0.05rem;
+    }
+    
+    .nav-item i {
+        font-size: 1.2rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 375px) {
+    /* iPhone SE y pantallas muy pequeñas */
+    .mobile-nav {
+        padding: 0.4rem 0.05rem;
+    }
+    
+    .nav-item {
+        max-width: 60px;
+        min-width: 45px;
+        padding: 0.15rem 0.02rem;
+    }
+    
+    .nav-item i {
+        font-size: 1.1rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.6rem;
+    }
+}
+
+@media (min-width: 768px) {
+    /* Tablet y desktop */
+    .mobile-nav {
+        padding: 0.8rem 1rem;
+        justify-content: center;
+        gap: 3rem;
+    }
+    
+    .nav-item {
+        flex: none;
+        max-width: 100px;
+        min-width: 80px;
+        padding: 0.4rem 0.2rem;
+    }
+    
+    .nav-item i {
+        font-size: 1.5rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.75rem;
+    }
+}
+
+/* Efecto de toque mejorado */
+.nav-item:active {
+    transform: scale(0.95);
+    background-color: rgba(0, 123, 255, 0.1);
+    border-radius: 8px;
+}
+
+/* Animación suave para cambios */
+.nav-item {
+    transition: all 0.2s ease;
+}
+
+/* Corrección para que no se corten los iconos */
+.mobile-nav {
+    overflow: visible !important;
+}
+
+.nav-item {
+    overflow: visible !important;
 }
 
 /* Estilos específicos para los íconos de navegación */
