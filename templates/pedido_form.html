@@ -25,9 +25,9 @@
 
 /* Contenedor principal optimizado para móvil */
 .mobile-form-container {
-    width: 98%;
-    max-width: 98vw;
-    padding: 8px max(1%, env(safe-area-inset-left)) calc(120px + var(--safe-bottom)) max(1%, env(safe-area-inset-right));
+    width: 99.5%;
+    max-width: 99.5vw;
+    padding: 8px max(0.25%, env(safe-area-inset-left)) calc(120px + var(--safe-bottom)) max(0.25%, env(safe-area-inset-right));
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -35,8 +35,8 @@
 /* Cards con mejor espaciado móvil */
 .mobile-card {
     background: white;
-    border-radius: 16px;
-    margin-bottom: 16px;
+    border-radius: 12px; /* Reducido de 16px a 12px para aprovechar más espacio */
+    margin-bottom: 12px; /* Reducido de 16px a 12px */
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     overflow: hidden;
     animation: slideUp 0.3s ease-out;
@@ -46,7 +46,7 @@
 .mobile-card-header {
     background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
     color: white;
-    padding: 16px 20px;
+    padding: 14px 12px; /* Reducido padding lateral de 20px a 12px */
     font-weight: 700;
     font-size: 1.05rem;
     display: flex;
@@ -55,7 +55,7 @@
 }
 
 .mobile-card-body {
-    padding: 20px 18px;
+    padding: 18px 12px; /* Reducido padding lateral de 18px a 12px */
 }
 
 /* Formulario optimizado para tactil */
@@ -66,7 +66,7 @@
 .mobile-form-label {
     display: block;
     font-weight: 600;
-    font-size: 15px;
+    font-size: 16px; /* Incrementado de 15px a 16px */
     color: #2c3e50;
     margin-bottom: 8px;
 }
@@ -76,7 +76,7 @@
     padding: 16px 18px;
     border: 2px solid #e9ecef;
     border-radius: 12px;
-    font-size: 16px; /* Crítico: evita zoom en iOS */
+    font-size: 17px; /* Incrementado de 16px a 17px */
     background: #f8f9fa;
     transition: all 0.2s ease;
     -webkit-appearance: none;
@@ -131,7 +131,7 @@
 
 .mobile-table th {
     padding: 12px 4px;
-    font-size: 0.75rem;
+    font-size: 0.85rem; /* Incrementado de 0.75rem a 0.85rem */
     font-weight: 600;
     text-align: center;
     border: none;
@@ -140,7 +140,7 @@
 
 .mobile-table td {
     padding: 12px 4px;
-    font-size: 0.8rem;
+    font-size: 0.9rem; /* Incrementado de 0.8rem a 0.9rem */
     text-align: center;
     border-bottom: 1px solid #f1f3f4;
     vertical-align: middle;
@@ -191,7 +191,7 @@
     padding: 16px 20px;
     border: none;
     border-radius: 12px;
-    font-size: 16px;
+    font-size: 17px; /* Incrementado de 16px a 17px */
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -291,7 +291,7 @@
 }
 
 .mobile-total-amount {
-    font-size: 1.8rem;
+    font-size: 2rem; /* Incrementado de 1.8rem a 2rem */
     font-weight: 700;
     color: #1877ff;
 }
@@ -310,7 +310,7 @@
     padding: 30px 20px;
     color: #6c757d;
     font-style: italic;
-    font-size: 15px;
+    font-size: 16px; /* Incrementado de 15px a 16px */
 }
 
 /* Animaciones */
@@ -328,23 +328,27 @@
 /* Responsive breakpoints */
 @media screen and (max-width: 428px) {
     .mobile-form-container {
-        width: 98%;
-        padding-left: 1%;
-        padding-right: 1%;
+        width: 99.5%;
+        padding-left: 0.25%;
+        padding-right: 0.25%;
     }
     
     .mobile-card-body {
-        padding: 16px 12px;
+        padding: 16px 8px; /* Padding aún más reducido en pantallas pequeñas */
+    }
+    
+    .mobile-card-header {
+        padding: 12px 8px;
     }
     
     .mobile-table th,
     .mobile-table td {
-        padding: 10px 4px;
-        font-size: 0.75rem;
+        padding: 10px 3px; /* Padding reducido de 4px a 3px */
+        font-size: 0.8rem; /* Ligeramente más pequeño para aprovechar espacio */
     }
     
     .mobile-table .product-name {
-        max-width: 30%;
+        max-width: 32%; /* Aumentado de 30% a 32% */
     }
     
     .mobile-add-row {
@@ -356,16 +360,16 @@
     }
     
     .mobile-total-amount {
-        font-size: 1.6rem;
+        font-size: 1.8rem;
     }
 }
 
 /* iPhone específico - Safe areas */
 @supports (padding: max(0px)) {
     .mobile-form-container {
-        width: 98%;
-        padding-left: max(1%, env(safe-area-inset-left));
-        padding-right: max(1%, env(safe-area-inset-right));
+        width: 99.5%;
+        padding-left: max(0.25%, env(safe-area-inset-left));
+        padding-right: max(0.25%, env(safe-area-inset-right));
         padding-bottom: calc(120px + max(20px, env(safe-area-inset-bottom)));
     }
 }
@@ -706,7 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
         inputCajas.value = '';
         
         actualizarTablaProductos();
-        productoSelect.focus();
     });
 
     // Enter para agregar
