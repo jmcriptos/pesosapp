@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+from crm.routes import crm_bp
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
@@ -2577,6 +2578,105 @@ try:
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 except locale.Error:
     print("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
+
+# ===== AGREGAR ESTO AL FINAL DE app.py =====
+
+# Importar modelos CRM (solo si CRM está habilitado)
+CRM_ENABLED = os.environ.get('CRM_ENABLED', 'false').lower() == 'true'
+
+if CRM_ENABLED:
+    # Importar todos los modelos CRM
+    from models.crm_cliente import CRMCliente
+    from models.contacto import ContactoCliente
+    from models.horario import HorarioCliente
+    from models.interaccion import InteraccionCliente
+    
+    print("✅ CRM habilitado - Modelos cargados")
+    
+    # Importar y registrar rutas CRM
+    try:
+        from crm.routes import crm_bp
+        app.register_blueprint(crm_bp, url_prefix='/crm')
+        print("✅ Rutas CRM registradas")
+    except ImportError as e:
+        print(f"⚠️ No se pudieron cargar las rutas CRM: {e}")
+else:
+    print("ℹ️ CRM deshabilitado")
+
+# Comandos CLI para CRM
+@app.cli.command()
+def init_crm():
+    """Inicializar base de datos CRM"""
+    if not CRM_ENABLED:
+        print("❌ CRM no está habilitado. Activa CRM_ENABLED=true en .env")
+        return
+    
+    try:
+        # Crear todas las tablas
+        db.create_all()
+        print("✅ Tablas CRM creadas exitosamente")
+        
+        # Verificar que las tablas se crearon
+        tables = db.engine.table_names()
+        crm_tables = [t for t in tables if 'crm' in t.lower() or 'contacto' in t.lower()]
+        print(f"📋 Tablas CRM encontradas: {crm_tables}")
+        
+    except Exception as e:
+        print(f"❌ Error creando tablas CRM: {e}")
+
+@app.cli.command()
+def seed_crm():
+    """Poblar datos de ejemplo para CRM"""
+    if not CRM_ENABLED:
+        print("❌ CRM no está habilitado")
+        return
+    
+    try:
+        # Verificar que existan clientes en la tabla original
+        clientes_existentes = Cliente.query.limit(3).all()
+        
+        if not clientes_existentes:
+            print("❌ No hay clientes en la base de datos. Crea algunos clientes primero.")
+            return
+        
+        # Crear registros CRM para los primeros 3 clientes
+        for cliente in clientes_existentes:
+            # Verificar si ya existe un registro CRM para este cliente
+            crm_existente = CRMCliente.query.filter_by(cliente_original_id=cliente.id).first()
+            
+            if not crm_existente:
+                # Crear registro CRM básico
+                crm_cliente = CRMCliente(
+                    cliente_original_id=cliente.id,
+                    categoria_cliente='B',
+                    potencial_mensual=5000.00,
+                    frecuencia_compra_dias=15,
+                    zona_geografica='Centro',
+                    notas_generales=f'Cliente CRM de ejemplo creado para {cliente.nombre}'
+                )
+                db.session.add(crm_cliente)
+                
+                # Crear un contacto de ejemplo
+                contacto = ContactoCliente(
+                    crm_cliente=crm_cliente,
+                    nombre_completo=f"Gerente de {cliente.nombre}",
+                    cargo_posicion="Gerente de Compras",
+                    es_contacto_principal=True,
+                    nivel_influencia=8,
+                    mejor_horario_contacto="Mañanas"
+                )
+                db.session.add(contacto)
+                
+                print(f"✅ Registro CRM creado para: {cliente.nombre}")
+        
+        db.session.commit()
+        print("✅ Datos de ejemplo CRM creados exitosamente")
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error creando datos de ejemplo: {e}")
+
+# ===== FIN DE AGREGADOS A app.py =====
 
 if __name__ == '__main__':
     # Configuración para desarrollo local
