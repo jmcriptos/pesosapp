@@ -1,0 +1,465 @@
+<!-- templates/admin/reportes.html -->
+{% extends "base.html" %}
+
+{% block title %}Reportes Avanzados{% endblock %}
+
+{% block header_title %}📊 Reportes Avanzados{% endblock %}
+
+{% block content %}
+<div class="admin-page-container">
+    <div class="page-header">
+        <h1>📊 Reportes del Sistema</h1>
+        <p>Análisis detallado del período: {{ fecha_inicio.strftime('%d/%m/%Y') }} - {{ fecha_fin.strftime('%d/%m/%Y') }}</p>
+    </div>
+
+    <!-- Ventas por Vendedor -->
+    <div class="report-section">
+        <h2>💼 Performance por Vendedor</h2>
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Vendedor</th>
+                        <th>Username</th>
+                        <th>Pedidos</th>
+                        <th>Ventas Totales</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vendedor in ventas_por_vendedor %}
+                    <tr>
+                        <td>{{ vendedor.nombre_completo }}</td>
+                        <td>{{ vendedor.username }}</td>
+                        <td>{{ vendedor.total_pedidos }}</td>
+                        <td>${{ "{:,.2f}".format(vendedor.ventas_total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Productos Más Vendidos -->
+    <div class="report-section">
+        <h2>📦 Top Productos</h2>
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cajas Vendidas</th>
+                        <th>Ingresos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos_mas_vendidos %}
+                    <tr>
+                        <td>{{ producto.nombre }}</td>
+                        <td>{{ producto.total_cajas }}</td>
+                        <td>${{ "{:,.2f}".format(producto.ingresos_total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Clientes Más Activos -->
+    <div class="report-section">
+        <h2>👥 Clientes Destacados</h2>
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Pedidos</th>
+                        <th>Compras Totales</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cliente in clientes_mas_activos %}
+                    <tr>
+                        <td>{{ cliente.nombre }}</td>
+                        <td>{{ cliente.total_pedidos }}</td>
+                        <td>${{ "{:,.2f}".format(cliente.compras_total) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <a href="{{ url_for('dashboard_vendedor') }}" class="btn btn-secondary">← Volver al Dashboard</a>
+        <a href="{{ url_for('admin_exportar') }}" class="btn btn-primary">📥 Exportar Datos</a>
+    </div>
+</div>
+
+<style>
+.admin-page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.page-header h1 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+}
+
+.page-header p {
+    color: #7f8c8d;
+    margin: 0;
+}
+
+.report-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.report-section h2 {
+    color: #2c3e50;
+    margin: 0 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table th {
+    background: #3498db;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.report-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ecf0f1;
+}
+
+.report-table tr:hover {
+    background: #f8f9fa;
+}
+
+.action-buttons {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    margin: 0 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+</style>
+{% endblock %}
+
+<!-- ============================== -->
+
+<!-- templates/admin/configuracion.html -->
+{% extends "base.html" %}
+
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block header_title %}⚙️ Configuración{% endblock %}
+
+{% block content %}
+<div class="admin-page-container">
+    <div class="page-header">
+        <h1>⚙️ Configuración del Sistema</h1>
+        <p>Gestiona los parámetros globales de la aplicación</p>
+    </div>
+
+    <div class="config-grid">
+        <div class="config-section">
+            <h3>🏢 Información de la Empresa</h3>
+            <div class="config-item">
+                <label>Nombre de la Empresa:</label>
+                <input type="text" value="Jomar Foods BV" class="config-input">
+            </div>
+            <div class="config-item">
+                <label>Dirección:</label>
+                <input type="text" value="Curaçao" class="config-input">
+            </div>
+            <div class="config-item">
+                <label>Teléfono:</label>
+                <input type="text" value="+599 XXX-XXXX" class="config-input">
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h3>💰 Configuración de Precios</h3>
+            <div class="config-item">
+                <label>Margen Jomar por Defecto (%):</label>
+                <input type="number" value="100" class="config-input">
+            </div>
+            <div class="config-item">
+                <label>Margen Retail por Defecto (%):</label>
+                <input type="number" value="120" class="config-input">
+            </div>
+            <div class="config-item">
+                <label>Moneda del Sistema:</label>
+                <select class="config-input">
+                    <option value="ANG">Florín Antillano (ANG)</option>
+                    <option value="USD">Dólar (USD)</option>
+                    <option value="EUR">Euro (EUR)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h3>📧 Notificaciones</h3>
+            <div class="config-item">
+                <label>
+                    <input type="checkbox" checked> Notificar pedidos pendientes
+                </label>
+            </div>
+            <div class="config-item">
+                <label>
+                    <input type="checkbox" checked> Alertas de inventario bajo
+                </label>
+            </div>
+            <div class="config-item">
+                <label>
+                    <input type="checkbox"> Reportes automáticos semanales
+                </label>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h3>🔐 Seguridad</h3>
+            <div class="config-item">
+                <label>Tiempo de sesión (minutos):</label>
+                <input type="number" value="120" class="config-input">
+            </div>
+            <div class="config-item">
+                <label>
+                    <input type="checkbox" checked> Requerir cambio de contraseña cada 90 días
+                </label>
+            </div>
+            <div class="config-item">
+                <label>
+                    <input type="checkbox" checked> Log de accesos
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn btn-primary">💾 Guardar Configuración</button>
+        <a href="{{ url_for('dashboard_vendedor') }}" class="btn btn-secondary">← Volver</a>
+    </div>
+</div>
+
+<style>
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.config-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.config-section h3 {
+    color: #2c3e50;
+    margin: 0 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+}
+
+.config-item {
+    margin-bottom: 20px;
+}
+
+.config-item label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.config-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.config-input:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52,152,219,0.2);
+}
+</style>
+{% endblock %}
+
+<!-- ============================== -->
+
+<!-- templates/admin/exportar.html -->
+{% extends "base.html" %}
+
+{% block title %}Exportar Datos{% endblock %}
+
+{% block header_title %}📥 Exportar Datos{% endblock %}
+
+{% block content %}
+<div class="admin-page-container">
+    <div class="page-header">
+        <h1>📥 Exportación de Datos</h1>
+        <p>Descarga reportes y datos del sistema en diferentes formatos</p>
+    </div>
+
+    <div class="export-grid">
+        <div class="export-card">
+            <div class="export-icon">📊</div>
+            <h3>Reporte de Ventas</h3>
+            <p>Exporta datos detallados de ventas por período</p>
+            <form method="GET" action="{{ url_for('exportar_ventas') }}">
+                <div class="date-range">
+                    <input type="date" name="fecha_inicio" required>
+                    <span>hasta</span>
+                    <input type="date" name="fecha_fin" required>
+                </div>
+                <button type="submit" class="export-btn">📥 Descargar Excel</button>
+            </form>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">👥</div>
+            <h3>Lista de Clientes</h3>
+            <p>Exporta el catálogo completo de clientes</p>
+            <button class="export-btn" onclick="alert('Funcionalidad próximamente')">📥 Descargar CSV</button>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">📦</div>
+            <h3>Inventario de Productos</h3>
+            <p>Descarga el listado de productos y precios</p>
+            <button class="export-btn" onclick="alert('Funcionalidad próximamente')">📥 Descargar Excel</button>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">💼</div>
+            <h3>Performance de Vendedores</h3>
+            <p>Reporte de rendimiento del equipo de ventas</p>
+            <button class="export-btn" onclick="alert('Funcionalidad próximamente')">📥 Descargar PDF</button>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <a href="{{ url_for('dashboard_vendedor') }}" class="btn btn-secondary">← Volver al Dashboard</a>
+    </div>
+</div>
+
+<style>
+.export-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.export-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.export-card:hover {
+    transform: translateY(-5px);
+}
+
+.export-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.export-card h3 {
+    color: #2c3e50;
+    margin: 0 0 10px 0;
+}
+
+.export-card p {
+    color: #7f8c8d;
+    margin-bottom: 20px;
+}
+
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+
+.date-range input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.export-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s ease;
+}
+
+.export-btn:hover {
+    background: #2980b9;
+}
+</style>
+{% endblock %>

@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Vendedores{% endblock %}
+
+{% block header_title %}
+🛠️ Administración · Vendedores
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+
+    <!-- ────────── Alta de nuevo vendedor ────────── -->
+    <section class="form-section">
+        <h3 class="section-title">
+            <i class="fas fa-user-plus"></i> Crear nuevo vendedor
+        </h3>
+
+        <form method="POST" action="{{ url_for('crear_vendedor') }}" class="vendedor-form">
+            <div class="form-grid">
+                <!-- columna 1 -->
+                <div class="form-group">
+                    <label for="username">Usuario*</label>
+                    <input id="username" name="username" placeholder="carlos_r"
+                           class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="nombre_completo">Nombre completo*</label>
+                    <input id="nombre_completo" name="nombre_completo"
+                           placeholder="Carlos Rivera" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Contraseña*</label>
+                    <input id="password" name="password" type="password"
+                           placeholder="Password temporal" class="form-input" required>
+                </div>
+
+                <!-- columna 2 -->
+                <div class="form-group">
+                    <label for="email">Email*</label>
+                    <input id="email" name="email" type="email"
+                           placeholder="carlos@jomarfoods.com" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="telefono">Teléfono</label>
+                    <input id="telefono" name="telefono"
+                           placeholder="+599 9 123 4567" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="rol_id">Rol*</label>
+                    <select id="rol_id" name="rol_id" class="form-select" required>
+                        {% for rol in roles %}
+                            <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- columna 3 -->
+                <div class="form-group" style="grid-column:1 / -1;">
+                    <label for="territorio_id">Territorio</label>
+                    <select id="territorio_id" name="territorio_id"
+                            class="form-select">
+                        <option value="">– Sin territorio –</option>
+                        {% for t in territorios %}
+                            <option value="{{ t.id }}">{{ t.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-primary-lg">
+                <i class="fas fa-save"></i> Guardar vendedor
+            </button>
+        </form>
+    </section>
+
+    <!-- ────────── Listado de vendedores ────────── -->
+    <section class="vendedores-section">
+        <h3 class="section-title">
+            <i class="fas fa-users"></i> Vendedores registrados
+        </h3>
+
+        <div class="vendedores-grid">
+            {% for v in vendedores %}
+            <article class="vendedor-card {{ 'active' if v.activo else 'inactive' }}">
+
+                <!-- Header de la tarjeta -->
+                <header class="vendedor-header">
+                    <div class="avatar">{{ v.nombre_completo[:2].upper() }}</div>
+                    <div>
+                        <h4>{{ v.nombre_completo }}</h4>
+                        <small class="username">@{{ v.username }}</small>
+                    </div>
+                    <span class="badge-role">{{ v.rol.nombre }}</span>
+                </header>
+
+                <!-- Datos condensados -->
+                <dl class="vendedor-info">
+                    <dt>Email</dt><dd>{{ v.email }}</dd>
+                    <dt>Teléfono</dt><dd>{{ v.telefono or '—' }}</dd>
+                    <dt>Territorio</dt>
+                        <dd>{{ v.territorio.nombre if v.territorio else '—' }}</dd>
+                    <dt>Ingreso</dt><dd>{{ v.fecha_ingreso.strftime('%d/%m/%Y') }}</dd>
+                    <dt>Último login</dt>
+                        <dd>
+                            {% if v.ultimo_login %}
+                               {{ v.ultimo_login.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}Nunca{% endif %}
+                        </dd>
+                </dl>
+
+                <!-- Selector rápido de territorio -->
+                <form method="POST" action="{{ url_for('actualizar_territorio_vendedor',
+                                                       v_id=v.id) }}"
+                      class="territorio-switch">
+                    <select name="territorio_id" class="form-select-sm">
+                        <option value="">Sin territorio</option>
+                        {% for t in territorios %}
+                            <option value="{{ t.id }}"
+                                    {% if v.territorio_id == t.id %}selected{% endif %}>
+                                {{ t.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="icon-btn" title="Guardar">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </form>
+
+                <!-- Acciones -->
+                <footer class="vendedor-actions">
+                    {% if v.activo %}
+                        <button class="btn-warning-sm"
+                                onclick="toggleVendedor({{ v.id }}, false)">
+                            <i class="fas fa-pause"></i> Desactivar
+                        </button>
+                    {% else %}
+                        <button class="btn-success-sm"
+                                onclick="toggleVendedor({{ v.id }}, true)">
+                            <i class="fas fa-play"></i> Activar
+                        </button>
+                    {% endif %}
+                    <button class="btn-secondary-sm"
+                            onclick="editarVendedor({{ v.id }})">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                </footer>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* ---------- general ---------- */
+.section-title{color:#2c3e50;font-size:1.35rem;margin-bottom:18px}
+.btn-primary-lg{
+    background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+    color:#fff;border:none;padding:12px 28px;border-radius:10px;
+    font-weight:600;font-size:1rem;display:inline-flex;align-items:center;gap:8px;
+}
+.btn-primary-lg:hover{opacity:.9}
+
+/* ---------- grid contenedores ---------- */
+.vendedores-grid{
+    display:grid;gap:20px;
+    grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+}
+
+/* ---------- tarjeta de vendedor ---------- */
+.vendedor-card{
+    border:2px solid #ecf0f1;border-radius:14px;
+    background:#fff;padding:22px;display:flex;flex-direction:column;gap:14px;
+    transition:box-shadow .25s;
+}
+.vendedor-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.vendedor-card.inactive{opacity:.65}
+
+/* header */
+.vendedor-header{display:flex;align-items:center;gap:14px;position:relative}
+.avatar{
+    width:56px;height:56px;border-radius:50%;
+    background:linear-gradient(135deg,#36d1dc 0%,#5b86e5 100%);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:1.2rem}
+.username{color:#77838f;font-size:.85rem}
+.badge-role{
+    position:absolute;right:0;top:4px;
+    background:#3498db;color:#fff;font-size:.75rem;padding:3px 10px;border-radius:12px;
+}
+
+/* info */
+.vendedor-info{
+    display:grid;grid-template-columns:110px 1fr;row-gap:4px;
+    font-size:.9rem;color:#556677}
+.vendedor-info dt{font-weight:600;color:#2c3e50}
+.vendedor-info dd{margin:0}
+
+/* selector territorio */
+.territorio-switch{
+    display:flex;gap:6px;align-items:center;margin-top:4px}
+.form-select-sm{
+    flex:1;padding:6px 8px;border-radius:6px;border:1px solid #dcdfe6;font-size:.85rem}
+.icon-btn{
+    background:#27ae60;color:#fff;border:none;border-radius:6px;
+    width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{opacity:.9}
+
+/* acciones */
+.vendedor-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-warning-sm,.btn-success-sm,.btn-secondary-sm{
+    border:none;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;
+    color:#fff;display:flex;align-items:center;gap:6px}
+.btn-warning-sm{background:#f39c12}
+.btn-success-sm{background:#27ae60}
+.btn-secondary-sm{background:#3498db}
+.btn-warning-sm:hover,.btn-success-sm:hover,.btn-secondary-sm:hover{opacity:.85}
+
+/* responsive ajustes */
+@media(max-width:768px){
+    .form-grid{grid-template-columns:1fr}
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function toggleVendedor(id, activar){
+    if(!confirm(`¿Seguro que deseas ${activar?'activar':'desactivar'} este vendedor?`)) return;
+    fetch(`/admin/vendedores/${id}/toggle`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({activo:activar})
+    })
+    .then(r=>r.json())
+    .then(d=>d.success?location.reload():alert('Error: '+d.error))
+    .catch(()=>alert('Error de red'));
+}
+function editarVendedor(id){
+    alert('Función de edición en desarrollo');
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Territorios{% endblock %}
+
+{% block header_title %}
+🌎 Administración – Territorios de Ventas
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+
+    <!-- ───────────── LISTA DE TERRITORIOS ───────────── -->
+    <div class="vendedores-section">
+        <h3>🌐 Territorios Activos</h3>
+
+        <div class="vendedores-grid">
+            {% for t in territorios %}
+            <div class="territorio-card">
+
+                <!-- cabecera -->
+                <header class="territorio-header">
+                    <div class="territorio-avatar">{{ t.nombre[:2].upper() }}</div>
+                    <div>
+                        <h4>{{ t.nombre }}</h4>
+                        <span class="tipo-pill">{{ t.tipo or 'general' }}</span>
+                    </div>
+                </header>
+
+                <!-- datos -->
+                <dl class="territorio-info">
+                    <dt>Descripción</dt>
+                    <dd>{{ t.descripcion or '—' }}</dd>
+
+                    <dt>Fecha creación</dt>
+                    <dd>{{ t.fecha_creacion.strftime('%d/%m/%Y') }}</dd>
+
+                    <dt>Clientes</dt>
+                    <dd><i class="fas fa-users"></i> {{ t.clientes|length }}</dd>
+
+                    <dt>Vendedores</dt>
+                    <dd><i class="fas fa-user-tie"></i> {{ t.vendedores|length }}</dd>
+                </dl>
+
+                {# Si luego agregas acciones, pon botones aquí #}
+                {# <div class="territorio-actions">…</div> #}
+
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ───────────── NUEVO TERRITORIO ───────────── -->
+    <div class="form-section" style="margin-top:40px;">
+        <h3>➕ Nuevo Territorio</h3>
+
+        <form method="POST" action="{{ url_for('crear_territorio') }}" class="vendedor-form">
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label for="nombre">Nombre*</label>
+                    <input id="nombre" name="nombre" class="form-input"
+                           placeholder="West Willemstad" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="tipo">Tipo</label>
+                    <select id="tipo" name="tipo" class="form-select">
+                        <option value="geografico">Geográfico</option>
+                        <option value="segmento">Segmento de mercado</option>
+                        <option value="general">General</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label for="descripcion">Descripción</label>
+                    <textarea id="descripcion" name="descripcion" rows="3"
+                              class="form-input"
+                              placeholder="Zonas urbanas del oeste de Willemstad…"></textarea>
+                </div>
+
+            </div>
+
+            <button class="btn-crear">
+                <i class="fas fa-map-marker-alt"></i> Crear Territorio
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* ---------- tarjetas de territorio ---------- */
+.territorio-card{
+    border:2px solid #ecf0f1;
+    background:#fafbfc;
+    border-radius:12px;
+    padding:20px;
+    transition:box-shadow .3s;
+}
+.territorio-card:hover{
+    box-shadow:0 4px 15px rgba(0,0,0,.08);
+}
+
+/* cabecera */
+.territorio-header{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    margin-bottom:10px;
+}
+.territorio-avatar{
+    width:48px;height:48px;border-radius:50%;
+    background:linear-gradient(135deg,#36d1dc 0%,#5b86e5 100%);
+    color:#fff;font-weight:700;font-size:1.1rem;
+    display:flex;align-items:center;justify-content:center;
+}
+.tipo-pill{
+    background:#3498db;color:#fff;
+    padding:3px 8px;
+    border-radius:12px;
+    font-size:.75rem;
+    font-weight:600;
+}
+
+/* datos */
+.territorio-info{
+    display:grid;
+    grid-template-columns:130px 1fr;
+    row-gap:4px;
+    font-size:.9rem;
+    color:#5d6d7e;
+}
+.territorio-info dt{font-weight:600;color:#2c3e50;}
+.territorio-info dd{margin:0;}
+.territorio-info i{margin-right:4px;}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# No se requieren scripts adicionales por ahora #}
+{% endblock %}
+
