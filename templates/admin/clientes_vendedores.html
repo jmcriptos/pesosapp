@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Asignar Cliente a Vendedor{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg p-4 mx-auto" style="max-width:900px">
+
+  <form id="form-asignar" method="POST" action="{{ url_for('asignar_cliente') }}" class="row g-3">
+
+      <!-- ---------- Vendedor ---------- -->
+      <div class="col-md-6">
+          <label for="vendedor_id" class="form-label">Vendedor</label>
+          <select id="vendedor_id" name="vendedor_id" class="form-select" required>
+              <option value="">— Seleccione —</option>
+              {% for v in vendedores %}
+                  <option value="{{ v.id }}">{{ v.nombre_completo }}</option>
+              {% endfor %}
+          </select>
+      </div>
+
+      <!-- ---------- Cliente ---------- -->
+      <div class="col-md-6">
+          <label for="cliente_id" class="form-label">Cliente sin asignar</label>
+          <select id="cliente_id" name="cliente_id" class="form-select" required>
+              <option value="">— Seleccione —</option>
+              {% for c in clientes_sin_asignar %}
+                  <option value="{{ c.id }}">{{ c.nombre }}</option>
+              {% endfor %}
+          </select>
+      </div>
+
+      <div class="col-12">
+        <button class="btn btn-primary w-100">
+            <i class="fas fa-plus-circle"></i> Asignar
+        </button>
+      </div>
+  </form>
+
+  <!-- ===== Tabla dinámica de clientes del vendedor ===== -->
+  <hr class="my-4">
+  <h5>Clientes asignados</h5>
+  <div class="table-responsive">
+      <table id="tabla-clientes" class="table table-striped align-middle">
+          <thead>
+              <tr>
+                  <th style="width:70%">Cliente</th>
+                  <th style="width:30%">Acciones</th>
+              </tr>
+          </thead>
+          <tbody><!-- filas dinámicas --></tbody>
+      </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.getElementById('vendedor_id').addEventListener('change', cargarClientes);
+
+async function cargarClientes() {
+    const vendedorId = this.value;
+    const tbody      = document.querySelector('#tabla-clientes tbody');
+    tbody.innerHTML  = '';                          // limpia tabla
+
+    // sin selección ⇒ nada que mostrar
+    if (!vendedorId) return;
+
+    // 1. Traer los clientes del vendedor
+    const res   = await fetch(`/api/vendedores/${vendedorId}/clientes`);
+    const datos = await res.json();
+
+    if (!datos.length) {
+        tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sin clientes</td></tr>';
+        return;
+    }
+
+    // 2. Dibujar filas
+    datos.forEach(c => {
+        const tr   = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${c.nombre}</td>
+          <td>
+             <button class="btn btn-sm btn-outline-danger" data-asign="${c.asign_id}">
+                 <i class="fas fa-unlink"></i> Desasignar
+             </button>
+          </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+document.querySelector('#tabla-clientes').addEventListener('click', async e => {
+    const btn = e.target.closest('button[data-asign]');
+    if (!btn) return;
+
+    if (!confirm('¿Desasignar este cliente?')) return;
+
+    const asignId = btn.dataset.asign;
+    const resp    = await fetch(`/api/asignaciones/${asignId}`, {method:'DELETE'});
+    const json    = await resp.json();
+
+    if (json.success){
+        // remueve la fila y actualiza combo de clientes sin asignar
+        btn.closest('tr').remove();
+        // opcional: recargar select de clientes o página entera
+    }else{
+        alert('Error: ' + (json.error || 'No se pudo desasignar'));
+    }
+});
+</script>
+{% endblock %}
+
+
