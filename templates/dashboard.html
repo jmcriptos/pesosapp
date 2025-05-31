@@ -699,146 +699,172 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    } else {
+        console.error("ChartDataLabels plugin is not loaded. Ensure the script tag is correct and ChartDataLabels is globally available.");
+    }
+
     // === 1. GRÁFICO DE TENDENCIA DE VENTAS ===
     const ventasCtx = document.getElementById('ventasChart');
     if (ventasCtx) {
-        const tendenciaData = {{ tendencia_semanal|tojson|safe }};
-        
-        new Chart(ventasCtx, {
-            type: 'line',
-            data: {
-                labels: tendenciaData.map(item => item.semana),
-                datasets: [{
-                    label: 'Ventas (XCG)',
-                    data: tendenciaData.map(item => item.ventas),
-                    borderColor: '#1877ff',
-                    backgroundColor: 'rgba(24, 119, 255, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#1877ff',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.parsed.y.toFixed(2)} XCG`;
+        try {
+            const tendenciaData = {{ tendencia_semanal|tojson|safe }};
+            
+            const ventasChart = new Chart(ventasCtx, {
+                type: 'line',
+                data: {
+                    labels: tendenciaData.map(item => item.semana),
+                    datasets: [{
+                        label: 'Ventas (XCG)',
+                        data: tendenciaData.map(item => item.ventas),
+                        borderColor: '#1877ff',
+                        backgroundColor: 'rgba(24, 119, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#1877ff',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.y.toFixed(2)} XCG`;
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return value.toFixed(0) + ' XCG';
+                        // No datalabels para el gráfico de líneas por ahora
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(0) + ' XCG';
+                                }
+                            },
+                            grid: {
+                                color: '#e2e8f0'
                             }
                         },
-                        grid: {
-                            color: '#e2e8f0'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
+                        x: {
+                            grid: {
+                                display: false
+                            }
                         }
                     }
                 }
+            });
+        } catch (e) {
+            console.error("Error initializing ventasChart:", e);
+            if (ventasCtx.parentElement) {
+                ventasCtx.parentElement.innerHTML = "<p style='color:red; text-align:center;'>Error al cargar gráfico de ventas.</p>";
             }
-        });
+        }
     }
     
     // === 2. GRÁFICO DE ESTADOS DE PEDIDOS ===
     const estadosCtx = document.getElementById('estadosChart');
     if (estadosCtx) {
-        const estadosData = {{ estados_pedidos|tojson|safe }};
-        
-        // Preparar datos y colores
-        const labels = estadosData.map(item => item.estado.charAt(0).toUpperCase() + item.estado.slice(1));
-        const data = estadosData.map(item => item.cantidad);
-        const backgroundColors = estadosData.map(item => {
-            switch(item.estado) {
-                case 'pendiente': return '#f59e0b';
-                case 'listo': return '#06b6d4';
-                case 'facturado': return '#10b981';
-                default: return '#64748b';
-            }
-        });
-        
-        new Chart(estadosCtx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: backgroundColors,
-                    borderWidth: 3,
-                    borderColor: '#ffffff',
-                    hoverBorderWidth: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '60%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true,
-                            font: {
-                                size: 12,
-                                weight: '600'
+        try {
+            const estadosData = {{ estados_pedidos|tojson|safe }};
+            
+            const labels = estadosData.map(item => item.estado.charAt(0).toUpperCase() + item.estado.slice(1));
+            const data = estadosData.map(item => item.cantidad);
+            const backgroundColors = estadosData.map(item => {
+                switch(item.estado) {
+                    case 'pendiente': return '#f59e0b';
+                    case 'listo': return '#06b6d4';
+                    case 'facturado': return '#10b981';
+                    default: return '#64748b';
+                }
+            });
+            
+            new Chart(estadosCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                }
                             }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                return `${context.label}: ${context.parsed} (${percentage}%)`;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        formatter: (value, ctx) => {
-                            let sum = 0;
-                            let dataArr = ctx.chart.data.datasets[0].data;
-                            dataArr.map(data => {
-                                sum += data;
-                            });
-                            let percentage = (value*100 / sum).toFixed(1) + "%";
-                            return percentage;
                         },
-                        color: '#fff',
-                        font: {
-                            weight: 'bold',
-                            size: 12
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
+                                    const value = parseFloat(context.parsed);
+                                    const percentage = total ? ((value / total) * 100).toFixed(1) : "0.0";
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        },
+                        datalabels: { 
+                            formatter: (value, ctx) => {
+                                const dataset = ctx.chart.data.datasets[0];
+                                if (!dataset || !dataset.data || dataset.data.length === 0) {
+                                    return ''; 
+                                }
+                                const sum = dataset.data.reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
+                                if (sum === 0) {
+                                    return '0%'; 
+                                }
+                                const percentage = (parseFloat(value) * 100 / sum);
+                                if (percentage < 1 && percentage > 0) { 
+                                    return percentage.toFixed(1) + "%";
+                                }
+                                return percentage.toFixed(0) + "%";
+                            },
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 12
+                            }
                         }
                     }
                 }
+            });
+        } catch (e) {
+            console.error("Error initializing estadosChart:", e);
+            if (estadosCtx.parentElement) {
+                estadosCtx.parentElement.innerHTML = "<p style='color:red; text-align:center;'>Error al cargar gráfico de estados.</p>";
             }
-        });
+        }
     }
     
     // === 3. ANIMACIÓN DEL GAUGE (LEAD TIME) ===
     const gaugeNeedle = document.querySelector('.gauge-needle');
     if (gaugeNeedle) {
-        // Animación suave del medidor
         setTimeout(() => {
             gaugeNeedle.style.transition = 'transform 1.5s ease-out';
         }, 500);
@@ -847,8 +873,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // === FUNCIÓN PARA ACTUALIZAR GRÁFICOS (opcional) ===
 function actualizarGraficos() {
-    // Esta función se puede llamar para refrescar los datos
-    // sin recargar toda la página
     console.log('Actualizando gráficos...');
     // Implementar lógica AJAX aquí si se requiere actualización automática
 }
