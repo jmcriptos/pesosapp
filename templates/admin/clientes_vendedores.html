@@ -55,56 +55,127 @@
 {% block extra_js %}
 {{ super() }}
 <script>
-document.getElementById('vendedor_id').addEventListener('change', cargarClientes);
+// Listener para cuando cambia el vendedor seleccionado
+document.getElementById('vendedor_id').addEventListener('change', function() {
+    cargarClientesAsignados();
+    actualizarClientesDisponibles();
+});
 
-async function cargarClientes() {
-    const vendedorId = this.value;
-    const tbody      = document.querySelector('#tabla-clientes tbody');
-    tbody.innerHTML  = '';                          // limpia tabla
+// Función para cargar los clientes asignados al vendedor en la tabla
+async function cargarClientesAsignados() {
+    const vendedorId = document.getElementById('vendedor_id').value;
+    const tbody = document.querySelector('#tabla-clientes tbody');
+    tbody.innerHTML = '';
 
-    // sin selección ⇒ nada que mostrar
+    // Si no hay vendedor seleccionado, limpiar tabla
     if (!vendedorId) return;
 
-    // 1. Traer los clientes del vendedor
-    const res   = await fetch(`/api/vendedores/${vendedorId}/clientes`);
-    const datos = await res.json();
+    try {
+        // Cargar clientes asignados al vendedor
+        const res = await fetch(`/api/vendedores/${vendedorId}/clientes`);
+        const datos = await res.json();
 
-    if (!datos.length) {
-        tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sin clientes</td></tr>';
-        return;
+        if (!datos.length) {
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sin clientes asignados</td></tr>';
+            return;
+        }
+
+        // Dibujar filas de clientes asignados
+        datos.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${c.nombre}</td>
+              <td>
+                 <button class="btn btn-sm btn-outline-danger" data-asign="${c.asign_id}">
+                     <i class="fas fa-unlink"></i> Desasignar
+                 </button>
+              </td>`;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Error al cargar clientes asignados:', error);
+        tbody.innerHTML = '<tr><td colspan="2" class="text-center text-danger">Error al cargar datos</td></tr>';
     }
-
-    // 2. Dibujar filas
-    datos.forEach(c => {
-        const tr   = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${c.nombre}</td>
-          <td>
-             <button class="btn btn-sm btn-outline-danger" data-asign="${c.asign_id}">
-                 <i class="fas fa-unlink"></i> Desasignar
-             </button>
-          </td>`;
-        tbody.appendChild(tr);
-    });
 }
 
+// Función para actualizar la lista de clientes disponibles (sin asignar)
+async function actualizarClientesDisponibles() {
+    const clienteSelect = document.getElementById('cliente_id');
+    
+    try {
+        // Obtener clientes sin asignar
+        const res = await fetch('/api/clientes/sin-asignar');
+        const clientes = await res.json();
+
+        // Limpiar select
+        clienteSelect.innerHTML = '<option value="">— Seleccione —</option>';
+
+        // Agregar opciones de clientes disponibles
+        clientes.forEach(cliente => {
+            const option = document.createElement('option');
+            option.value = cliente.id;
+            option.textContent = cliente.nombre;
+            clienteSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error al cargar clientes disponibles:', error);
+        clienteSelect.innerHTML = '<option value="">Error al cargar clientes</option>';
+    }
+}
+
+// Listener para desasignar clientes
 document.querySelector('#tabla-clientes').addEventListener('click', async e => {
     const btn = e.target.closest('button[data-asign]');
     if (!btn) return;
 
     if (!confirm('¿Desasignar este cliente?')) return;
 
-    const asignId = btn.dataset.asign;
-    const resp    = await fetch(`/api/asignaciones/${asignId}`, {method:'DELETE'});
-    const json    = await resp.json();
+    try {
+        const asignId = btn.dataset.asign;
+        const resp = await fetch(`/api/asignaciones/${asignId}`, {method:'DELETE'});
+        const json = await resp.json();
 
-    if (json.success){
-        // remueve la fila y actualiza combo de clientes sin asignar
-        btn.closest('tr').remove();
-        // opcional: recargar select de clientes o página entera
-    }else{
-        alert('Error: ' + (json.error || 'No se pudo desasignar'));
+        if (json.success) {
+            // Remover la fila y actualizar clientes disponibles
+            btn.closest('tr').remove();
+            actualizarClientesDisponibles();
+            
+            // Mostrar mensaje de éxito
+            const flashDiv = document.createElement('div');
+            flashDiv.className = 'alert alert-success alert-dismissible fade show';
+            flashDiv.innerHTML = `
+                Cliente desasignado correctamente
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.card').prepend(flashDiv);
+            
+            // Auto-dismiss después de 3 segundos
+            setTimeout(() => {
+                flashDiv.remove();
+            }, 3000);
+        } else {
+            alert('Error: ' + (json.error || 'No se pudo desasignar'));
+        }
+    } catch (error) {
+        console.error('Error al desasignar:', error);
+        alert('Error de conexión al desasignar cliente');
     }
+});
+
+// Listener para el formulario de asignación
+document.getElementById('form-asignar').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const vendedorId = document.getElementById('vendedor_id').value;
+    const clienteId = document.getElementById('cliente_id').value;
+    
+    if (!vendedorId || !clienteId) {
+        alert('Debe seleccionar un vendedor y un cliente');
+        return;
+    }
+    
+    // Enviar el formulario normalmente (se recargará la página)
+    this.submit();
 });
 </script>
 {% endblock %}
