@@ -52,6 +52,8 @@
 </div>
 {% endblock %}
 
+<!-- REEMPLAZAR LA SECCIÓN {% block extra_js %} EN clientes_vendedores.html -->
+
 {% block extra_js %}
 {{ super() }}
 <script>
@@ -65,15 +67,28 @@ document.getElementById('vendedor_id').addEventListener('change', function() {
 async function cargarClientesAsignados() {
     const vendedorId = document.getElementById('vendedor_id').value;
     const tbody = document.querySelector('#tabla-clientes tbody');
-    tbody.innerHTML = '';
+    
+    // Mostrar loading
+    tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Cargando...</td></tr>';
 
     // Si no hay vendedor seleccionado, limpiar tabla
-    if (!vendedorId) return;
+    if (!vendedorId) {
+        tbody.innerHTML = '';
+        return;
+    }
 
     try {
         // Cargar clientes asignados al vendedor
         const res = await fetch(`/api/vendedores/${vendedorId}/clientes`);
+        
+        if (!res.ok) {
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+        
         const datos = await res.json();
+
+        // Limpiar tabla
+        tbody.innerHTML = '';
 
         if (!datos.length) {
             tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sin clientes asignados</td></tr>';
@@ -86,7 +101,7 @@ async function cargarClientesAsignados() {
             tr.innerHTML = `
               <td>${c.nombre}</td>
               <td>
-                 <button class="btn btn-sm btn-outline-danger" data-asign="${c.asign_id}">
+                 <button class="btn btn-sm btn-outline-danger" data-asign="${c.asign_id}" title="Desasignar cliente">
                      <i class="fas fa-unlink"></i> Desasignar
                  </button>
               </td>`;
@@ -102,9 +117,17 @@ async function cargarClientesAsignados() {
 async function actualizarClientesDisponibles() {
     const clienteSelect = document.getElementById('cliente_id');
     
+    // Mostrar loading en el select
+    clienteSelect.innerHTML = '<option value="">Cargando clientes...</option>';
+    
     try {
         // Obtener clientes sin asignar
         const res = await fetch('/api/clientes/sin-asignar');
+        
+        if (!res.ok) {
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+        
         const clientes = await res.json();
 
         // Limpiar select
@@ -128,56 +151,107 @@ document.querySelector('#tabla-clientes').addEventListener('click', async e => {
     const btn = e.target.closest('button[data-asign]');
     if (!btn) return;
 
-    if (!confirm('¿Desasignar este cliente?')) return;
+    if (!confirm('¿Estás seguro de que quieres desasignar este cliente?')) return;
+
+    // Deshabilitar botón durante la operación
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
 
     try {
         const asignId = btn.dataset.asign;
-        const resp = await fetch(`/api/asignaciones/${asignId}`, {method:'DELETE'});
+        const resp = await fetch(`/api/asignaciones/${asignId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
         const json = await resp.json();
 
         if (json.success) {
-            // Remover la fila y actualizar clientes disponibles
+            // Remover la fila
             btn.closest('tr').remove();
+            
+            // Actualizar clientes disponibles
             actualizarClientesDisponibles();
             
             // Mostrar mensaje de éxito
-            const flashDiv = document.createElement('div');
-            flashDiv.className = 'alert alert-success alert-dismissible fade show';
-            flashDiv.innerHTML = `
-                Cliente desasignado correctamente
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.querySelector('.card').prepend(flashDiv);
-            
-            // Auto-dismiss después de 3 segundos
-            setTimeout(() => {
-                flashDiv.remove();
-            }, 3000);
+            mostrarMensaje('Cliente desasignado correctamente', 'success');
         } else {
-            alert('Error: ' + (json.error || 'No se pudo desasignar'));
+            mostrarMensaje('Error: ' + (json.error || 'No se pudo desasignar'), 'error');
+            // Restaurar botón
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-unlink"></i> Desasignar';
         }
     } catch (error) {
         console.error('Error al desasignar:', error);
-        alert('Error de conexión al desasignar cliente');
+        mostrarMensaje('Error de conexión al desasignar cliente', 'error');
+        // Restaurar botón
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-unlink"></i> Desasignar';
     }
 });
 
+// Función para mostrar mensajes
+function mostrarMensaje(mensaje, tipo = 'info') {
+    // Remover mensaje anterior si existe
+    const mensajeAnterior = document.querySelector('.mensaje-temporal');
+    if (mensajeAnterior) {
+        mensajeAnterior.remove();
+    }
+    
+    const tipoClass = tipo === 'success' ? 'alert-success' : 
+                     tipo === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const flashDiv = document.createElement('div');
+    flashDiv.className = `alert ${tipoClass} alert-dismissible fade show mensaje-temporal`;
+    flashDiv.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insertar al inicio de la card
+    document.querySelector('.card').prepend(flashDiv);
+    
+    // Auto-dismiss después de 5 segundos
+    setTimeout(() => {
+        if (flashDiv.parentNode) {
+            flashDiv.remove();
+        }
+    }, 5000);
+}
+
 // Listener para el formulario de asignación
 document.getElementById('form-asignar').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
     const vendedorId = document.getElementById('vendedor_id').value;
     const clienteId = document.getElementById('cliente_id').value;
     
     if (!vendedorId || !clienteId) {
-        alert('Debe seleccionar un vendedor y un cliente');
+        e.preventDefault();
+        mostrarMensaje('Debe seleccionar un vendedor y un cliente', 'error');
         return;
     }
     
-    // Enviar el formulario normalmente (se recargará la página)
-    this.submit();
+    // El formulario se envía normalmente (se recargará la página)
+    // Opcional: mostrar loading en el botón de envío
+    const submitBtn = this.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Asignando...';
+    }
+});
+
+// Cargar datos iniciales al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    // Si hay un vendedor pre-seleccionado, cargar sus clientes
+    const vendedorSelect = document.getElementById('vendedor_id');
+    if (vendedorSelect.value) {
+        cargarClientesAsignados();
+    }
+    
+    // Cargar clientes disponibles
+    actualizarClientesDisponibles();
 });
 </script>
 {% endblock %}
-
 
