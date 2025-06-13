@@ -8,6 +8,12 @@ from models.horario import HorarioCliente
 from models.interaccion import InteraccionCliente
 from models.extensions import db
 
+"""API routes for CRM operations with multi-vendor support.
+
+All assignment endpoints use ``asign_id`` for the client-vendor
+relationship identifier.
+"""
+
 
 crm_bp = Blueprint('crm', __name__)
 
@@ -212,7 +218,7 @@ def asignar_vendedor(id):
     from app import ClienteVendedor  # importación diferida para evitar ciclos
 
     asign = ClienteVendedor.asignar(cliente.cliente_original_id, int(vendedor_id))
-    return jsonify({'mensaje': 'Cliente asignado', 'asignacion_id': asign.id}), 201
+    return jsonify({'mensaje': 'Cliente asignado', 'asign_id': asign.id}), 201
 
 
 @crm_bp.route('/asignaciones/<int:asign_id>', methods=['DELETE'])
@@ -237,7 +243,7 @@ def clientes_del_vendedor(v_id):
     from app import Cliente, ClienteVendedor
 
     asignaciones = db.session.query(
-        ClienteVendedor.id.label('asignacion_id'),
+        ClienteVendedor.id.label('asign_id'),
         Cliente.id.label('cliente_id'),
         Cliente.nombre
     ).join(Cliente)
@@ -248,7 +254,7 @@ def clientes_del_vendedor(v_id):
 
     return jsonify([
         {
-            'asignacion_id': a.asignacion_id,
+            'asign_id': a.asign_id,
             'cliente_id': a.cliente_id,
             'nombre': a.nombre,
         }

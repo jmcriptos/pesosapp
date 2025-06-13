@@ -1340,7 +1340,7 @@ def api_asignar_cliente():
             cliente_id  = int(data['cliente_id']),
             vendedor_id = int(data['vendedor_id'])
         )
-        return jsonify({'success': True, 'asignacion_id': asign.id})
+        return jsonify({'success': True, 'asign_id': asign.id})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
