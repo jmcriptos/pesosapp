@@ -8,7 +8,11 @@ from models.horario import HorarioCliente
 from models.interaccion import InteraccionCliente
 from models.extensions import db
 
-"""API routes for CRM operations with multi-vendor support."""
+"""API routes for CRM operations with multi-vendor support.
+
+All assignment endpoints use ``asign_id`` for the client-vendor
+relationship identifier.
+"""
 
 
 crm_bp = Blueprint('crm', __name__)
