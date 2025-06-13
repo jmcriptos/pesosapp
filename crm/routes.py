@@ -8,6 +8,8 @@ from models.horario import HorarioCliente
 from models.interaccion import InteraccionCliente
 from models.extensions import db
 
+"""API routes for CRM operations with multi-vendor support."""
+
 
 crm_bp = Blueprint('crm', __name__)
 
