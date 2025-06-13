@@ -1297,8 +1297,6 @@ def crear_vendedor():
         flash("Método no permitido", "error")
         return redirect(url_for('gestionar_vendedores'))
 
-# En app.py, reemplaza la función asignar_cliente() con esta versión corregida:
-
 @app.route('/admin/asignar_cliente', methods=['GET', 'POST'])
 @login_required
 @requiere_rol(['super_admin'])
@@ -1318,8 +1316,8 @@ def asignar_cliente():
             ClienteVendedor.activo == True
         )
     ).filter(
-        ClienteVendedor.id.is_(None),
-        Cliente.activo == True  # Solo clientes activos
+        ClienteVendedor.id.is_(None)
+        # Nota: El modelo Cliente no tiene campo 'activo', así que mostramos todos
     ).order_by(Cliente.nombre).all()
 
     if request.method == 'POST':
@@ -1354,8 +1352,8 @@ def api_clientes_sin_asignar():
                 ClienteVendedor.activo == True
             )
         ).filter(
-            ClienteVendedor.id.is_(None),
-            Cliente.activo == True
+            ClienteVendedor.id.is_(None)
+            # Nota: El modelo Cliente no tiene campo 'activo'
         ).order_by(Cliente.nombre).all()
         
         resultado = [{'id': c.id, 'nombre': c.nombre} for c in clientes_sin_asignar]
