@@ -237,7 +237,7 @@ def clientes_del_vendedor(v_id):
     from app import Cliente, ClienteVendedor
 
     asignaciones = db.session.query(
-        ClienteVendedor.id.label('asignacion_id'),
+        ClienteVendedor.id.label('asign_id'),
         Cliente.id.label('cliente_id'),
         Cliente.nombre
     ).join(Cliente)
@@ -248,7 +248,7 @@ def clientes_del_vendedor(v_id):
 
     return jsonify([
         {
-            'asignacion_id': a.asignacion_id,
+            'asign_id': a.asign_id,
             'cliente_id': a.cliente_id,
             'nombre': a.nombre,
         }
