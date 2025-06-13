@@ -1,6 +1,7 @@
 # crm/routes.py
 
 from flask import Blueprint, jsonify, request
+from flask_login import login_required, current_user
 from models.crm_cliente import CRMCliente
 from models.contacto import ContactoCliente
 from models.horario import HorarioCliente
@@ -16,8 +17,20 @@ def ping():
 
 # Obtener todos los clientes CRM
 @crm_bp.route('/clientes', methods=['GET'])
+@login_required
 def obtener_clientes_crm():
-    clientes = CRMCliente.query.all()
+    """Devuelve los clientes CRM visibles para el usuario actual."""
+    query = CRMCliente.query
+
+    if hasattr(current_user, 'obtener_clientes_visibles'):
+        visibles = current_user.obtener_clientes_visibles()
+        ids = [c.id for c in visibles]
+        if ids:
+            query = query.filter(CRMCliente.cliente_original_id.in_(ids))
+        else:
+            query = query.filter(db.text('0=1'))  # sin clientes
+
+    clientes = query.all()
     resultado = [{
         'id': c.id,
         'cliente_original_id': c.cliente_original_id,
@@ -31,6 +44,7 @@ def obtener_clientes_crm():
 
 # Crear un nuevo cliente CRM
 @crm_bp.route('/clientes', methods=['POST'])
+@login_required
 def crear_cliente_crm():
     data = request.json
     cliente = CRMCliente(
@@ -47,8 +61,11 @@ def crear_cliente_crm():
 
 # Actualizar cliente CRM
 @crm_bp.route('/clientes/<int:id>', methods=['PUT'])
+@login_required
 def actualizar_cliente_crm(id):
     cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.json
     cliente.categoria_cliente = data.get('categoria_cliente', cliente.categoria_cliente)
     cliente.potencial_mensual = data.get('potencial_mensual', cliente.potencial_mensual)
@@ -60,15 +77,22 @@ def actualizar_cliente_crm(id):
 
 # Eliminar cliente CRM
 @crm_bp.route('/clientes/<int:id>', methods=['DELETE'])
+@login_required
 def eliminar_cliente_crm(id):
     cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     db.session.delete(cliente)
     db.session.commit()
     return jsonify({'mensaje': 'Cliente eliminado'}), 200
 
 # Obtener contactos de un cliente CRM
 @crm_bp.route('/clientes/<int:id>/contactos', methods=['GET'])
+@login_required
 def obtener_contactos(id):
+    cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     contactos = ContactoCliente.query.filter_by(crm_cliente_id=id).all()
     resultado = [{
         'id': c.id,
@@ -82,9 +106,12 @@ def obtener_contactos(id):
 
 # Agregar contacto a cliente CRM
 @crm_bp.route('/clientes/<int:id>/contactos', methods=['POST'])
+@login_required
 def crear_contacto(id):
     data = request.json
     cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     contacto = ContactoCliente(
         crm_cliente=cliente,
         nombre_completo=data.get('nombre_completo'),
@@ -99,7 +126,11 @@ def crear_contacto(id):
 
 # Obtener interacciones de un cliente CRM
 @crm_bp.route('/clientes/<int:id>/interacciones', methods=['GET'])
+@login_required
 def obtener_interacciones(id):
+    cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     interacciones = InteraccionCliente.query.filter_by(crm_cliente_id=id).all()
     resultado = [{
         'id': i.id,
@@ -111,9 +142,12 @@ def obtener_interacciones(id):
 
 # Crear interacción para un cliente CRM
 @crm_bp.route('/clientes/<int:id>/interacciones', methods=['POST'])
+@login_required
 def crear_interaccion(id):
     data = request.json
     cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     interaccion = InteraccionCliente(
         crm_cliente=cliente,
         fecha=data.get('fecha'),
@@ -126,7 +160,11 @@ def crear_interaccion(id):
 
 # Obtener horarios preferidos de un cliente CRM
 @crm_bp.route('/clientes/<int:id>/horarios', methods=['GET'])
+@login_required
 def obtener_horarios(id):
+    cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     horarios = HorarioCliente.query.filter_by(crm_cliente_id=id).all()
     resultado = [{
         'id': h.id,
@@ -138,9 +176,12 @@ def obtener_horarios(id):
 
 # Crear horario para un cliente CRM
 @crm_bp.route('/clientes/<int:id>/horarios', methods=['POST'])
+@login_required
 def crear_horario(id):
     data = request.json
     cliente = CRMCliente.query.get_or_404(id)
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
     horario = HorarioCliente(
         crm_cliente=cliente,
         dia_semana=data.get('dia_semana'),
