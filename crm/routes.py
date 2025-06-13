@@ -191,3 +191,66 @@ def crear_horario(id):
     db.session.add(horario)
     db.session.commit()
     return jsonify({'mensaje': 'Horario agregado', 'id': horario.id}), 201
+
+
+# ======== Asignación Cliente-Vendedor ========
+
+@crm_bp.route('/clientes/<int:id>/vendedores', methods=['POST'])
+@login_required
+def asignar_vendedor(id):
+    """Asigna un cliente a un vendedor."""
+    cliente = CRMCliente.query.get_or_404(id)
+
+    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+        return jsonify({'error': 'No autorizado'}), 403
+
+    data = request.json or {}
+    vendedor_id = data.get('vendedor_id')
+    if not vendedor_id:
+        return jsonify({'error': 'vendedor_id requerido'}), 400
+
+    from app import ClienteVendedor  # importación diferida para evitar ciclos
+
+    asign = ClienteVendedor.asignar(cliente.cliente_original_id, int(vendedor_id))
+    return jsonify({'mensaje': 'Cliente asignado', 'asignacion_id': asign.id}), 201
+
+
+@crm_bp.route('/asignaciones/<int:asign_id>', methods=['DELETE'])
+@login_required
+def desasignar_cliente(asign_id):
+    """Desactiva la asignación cliente-vendedor."""
+    from app import ClienteVendedor
+
+    asign = ClienteVendedor.query.get_or_404(asign_id)
+
+    if hasattr(current_user, 'rol') and getattr(current_user.rol, 'nombre', '') != 'super_admin':
+        return jsonify({'error': 'No autorizado'}), 403
+
+    ClienteVendedor.desasignar(asign_id)
+    return jsonify({'mensaje': 'Asignación desactivada'}), 200
+
+
+@crm_bp.route('/vendedores/<int:v_id>/clientes', methods=['GET'])
+@login_required
+def clientes_del_vendedor(v_id):
+    """Obtiene los clientes asignados a un vendedor."""
+    from app import Cliente, ClienteVendedor
+
+    asignaciones = db.session.query(
+        ClienteVendedor.id.label('asignacion_id'),
+        Cliente.id.label('cliente_id'),
+        Cliente.nombre
+    ).join(Cliente)
+    asignaciones = asignaciones.filter(
+        ClienteVendedor.vendedor_id == v_id,
+        ClienteVendedor.activo == True
+    ).order_by(Cliente.nombre).all()
+
+    return jsonify([
+        {
+            'asignacion_id': a.asignacion_id,
+            'cliente_id': a.cliente_id,
+            'nombre': a.nombre,
+        }
+        for a in asignaciones
+    ])
