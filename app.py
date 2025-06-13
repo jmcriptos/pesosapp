@@ -1297,35 +1297,72 @@ def crear_vendedor():
         flash("Método no permitido", "error")
         return redirect(url_for('gestionar_vendedores'))
 
-# Reemplazar la función dashboard en app.py con esta versión corregida
+# En app.py, reemplaza la función asignar_cliente() con esta versión corregida:
 
-# app.py
 @app.route('/admin/asignar_cliente', methods=['GET', 'POST'])
 @login_required
 @requiere_rol(['super_admin'])
 def asignar_cliente():
-
-    # ▶️  TODOS los clientes, sin filtros
-    clientes = (Cliente.query
-                .order_by(Cliente.nombre)      # ordénalos como prefieras
-                .all())
-
+    
+    # Obtener vendedores activos
     vendedores = (Vendedor.query
                   .filter_by(activo=True)
                   .order_by(Vendedor.nombre_completo)
                   .all())
+    
+    # Obtener clientes SIN ASIGNAR (que no tengan asignación activa)
+    clientes_sin_asignar = db.session.query(Cliente).outerjoin(
+        ClienteVendedor,
+        db.and_(
+            Cliente.id == ClienteVendedor.cliente_id,
+            ClienteVendedor.activo == True
+        )
+    ).filter(
+        ClienteVendedor.id.is_(None),
+        Cliente.activo == True  # Solo clientes activos
+    ).order_by(Cliente.nombre).all()
 
     if request.method == 'POST':
-        ClienteVendedor.asignar(
-            cliente_id=int(request.form['cliente_id']),
-            vendedor_id=int(request.form['vendedor_id'])
-        )
-        flash('Cliente asignado correctamente', 'success')
-        return redirect(url_for('asignar_cliente'))
-    print(len(clientes))
+        try:
+            ClienteVendedor.asignar(
+                cliente_id=int(request.form['cliente_id']),
+                vendedor_id=int(request.form['vendedor_id'])
+            )
+            flash('Cliente asignado correctamente', 'success')
+            return redirect(url_for('asignar_cliente'))
+        except Exception as e:
+            flash(f'Error al asignar cliente: {str(e)}', 'error')
+    
     return render_template('admin/clientes_vendedores.html',
-                           clientes=clientes,
+                           clientes_sin_asignar=clientes_sin_asignar,
                            vendedores=vendedores)
+
+
+# Agrega también esta nueva ruta API para obtener clientes sin asignar dinámicamente:
+@app.route('/api/clientes/sin-asignar')
+@login_required
+@requiere_rol(['super_admin'])
+def api_clientes_sin_asignar():
+    """
+    Devuelve los clientes que no tienen asignación activa
+    """
+    try:
+        clientes_sin_asignar = db.session.query(Cliente).outerjoin(
+            ClienteVendedor,
+            db.and_(
+                Cliente.id == ClienteVendedor.cliente_id,
+                ClienteVendedor.activo == True
+            )
+        ).filter(
+            ClienteVendedor.id.is_(None),
+            Cliente.activo == True
+        ).order_by(Cliente.nombre).all()
+        
+        resultado = [{'id': c.id, 'nombre': c.nombre} for c in clientes_sin_asignar]
+        return jsonify(resultado)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 
