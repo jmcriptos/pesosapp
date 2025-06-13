@@ -212,7 +212,7 @@ def asignar_vendedor(id):
     from app import ClienteVendedor  # importación diferida para evitar ciclos
 
     asign = ClienteVendedor.asignar(cliente.cliente_original_id, int(vendedor_id))
-    return jsonify({'mensaje': 'Cliente asignado', 'asignacion_id': asign.id}), 201
+    return jsonify({'mensaje': 'Cliente asignado', 'asign_id': asign.id}), 201
 
 
 @crm_bp.route('/asignaciones/<int:asign_id>', methods=['DELETE'])
