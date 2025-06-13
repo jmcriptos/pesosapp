@@ -1393,8 +1393,6 @@ def api_desasignar_cliente(asign_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
 
-# Agregar estas rutas adicionales al final de app.py (antes del if __name__ == '__main__':)
-# app.py
 @app.route('/api/vendedores/<int:v_id>/clientes')
 @login_required
 @requiere_rol(['super_admin'])
@@ -1403,20 +1401,33 @@ def api_clientes_del_vendedor(v_id):
     Devuelve (JSON) los clientes activos asignados a un vendedor.
     Incluye el id de la asignación para poder desasignar luego.
     """
-    asignaciones = db.session.query(
-        ClienteVendedor.id.label('asign_id'),
-        Cliente.id.label('cliente_id'),
-        Cliente.nombre
-    ).join(Cliente)\
-     .filter(ClienteVendedor.vendedor_id == v_id,
-             ClienteVendedor.activo == True)\
-     .order_by(Cliente.nombre).all()
-
-    return jsonify([{
-        'asign_id'  : a.asign_id,
-        'cliente_id': a.cliente_id,
-        'nombre'    : a.nombre
-    } for a in asignaciones])
+    try:
+        # Consulta para obtener clientes asignados al vendedor
+        asignaciones = db.session.query(
+            ClienteVendedor.id.label('asign_id'),
+            Cliente.id.label('cliente_id'),
+            Cliente.nombre.label('nombre')
+        ).join(
+            Cliente, ClienteVendedor.cliente_id == Cliente.id
+        ).filter(
+            ClienteVendedor.vendedor_id == v_id,
+            ClienteVendedor.activo == True
+        ).order_by(Cliente.nombre).all()
+        
+        # Convertir a formato JSON
+        resultado = []
+        for asignacion in asignaciones:
+            resultado.append({
+                'asign_id': asignacion.asign_id,
+                'cliente_id': asignacion.cliente_id,
+                'nombre': asignacion.nombre
+            })
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        print(f"Error en api_clientes_del_vendedor: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # ===== RUTAS ADMINISTRATIVAS ADICIONALES =====
 
