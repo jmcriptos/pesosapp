@@ -1399,7 +1399,6 @@ def api_desasignar_cliente(asign_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
 
-        
 @app.route('/api/vendedores/<int:v_id>/clientes')
 @login_required
 @requiere_rol(['super_admin'])
@@ -1408,53 +1407,49 @@ def api_clientes_del_vendedor(v_id):
     Devuelve (JSON) los clientes activos asignados a un vendedor.
     """
     try:
-        print(f"DEBUG: Consultando clientes para vendedor ID: {v_id}")
+        print(f"DEBUG: Buscando clientes del vendedor ID: {v_id}")
         
         # Verificar que el vendedor existe
         vendedor = Vendedor.query.get(v_id)
         if not vendedor:
-            print(f"DEBUG: Vendedor {v_id} no encontrado")
-            return jsonify([]), 200  # Retornar array vacío en lugar de error
+            print(f"ERROR: Vendedor {v_id} no encontrado")
+            return jsonify({'error': 'Vendedor no encontrado'}), 404
         
         print(f"DEBUG: Vendedor encontrado: {vendedor.nombre_completo}")
         
-        # Método más simple: obtener asignaciones directamente
-        asignaciones = ClienteVendedor.query.filter_by(
-            vendedor_id=v_id,
-            activo=True
-        ).all()
+        # Obtener asignaciones activas del vendedor con información del cliente
+        asignaciones = db.session.query(
+            ClienteVendedor, Cliente
+        ).join(
+            Cliente, ClienteVendedor.cliente_id == Cliente.id
+        ).filter(
+            ClienteVendedor.vendedor_id == v_id,
+            ClienteVendedor.activo == True
+        ).order_by(Cliente.nombre).all()
         
-        print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones activas")
+        print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones")
         
+        # Formatear respuesta
         resultado = []
-        for asign in asignaciones:
-            try:
-                # Obtener el cliente para cada asignación
-                cliente = Cliente.query.get(asign.cliente_id)
-                if cliente:
-                    resultado.append({
-                        'asign_id': asign.id,
-                        'cliente_id': cliente.id,
-                        'nombre': cliente.nombre
-                    })
-                    print(f"DEBUG: Agregado cliente: {cliente.nombre}")
-                else:
-                    print(f"DEBUG: Cliente ID {asign.cliente_id} no encontrado")
-            except Exception as e:
-                print(f"DEBUG: Error procesando asignación {asign.id}: {e}")
-                continue
+        for asignacion, cliente in asignaciones:
+            resultado.append({
+                'id': cliente.id,
+                'nombre': cliente.nombre,
+                'asign_id': asignacion.id,
+                'fecha_asignacion': asignacion.fecha_asignacion.strftime('%Y-%m-%d') if asignacion.fecha_asignacion else None
+            })
+            print(f"DEBUG: Cliente {cliente.nombre} (ID: {cliente.id}, asign_id: {asignacion.id})")
         
-        print(f"DEBUG: Resultado final: {len(resultado)} clientes")
+        print(f"DEBUG: Retornando {len(resultado)} clientes")
         return jsonify(resultado)
         
     except Exception as e:
         print(f"ERROR en api_clientes_del_vendedor: {e}")
         import traceback
         traceback.print_exc()
-        # En lugar de devolver error 500, devolver array vacío
-        return jsonify([]), 200
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
-# ===== RUTAS ADMINISTRATIVAS ADICIONALES =====
+        # ===== RUTAS ADMINISTRATIVAS ADICIONALES =====
 
 @app.route('/admin/reportes')
 @login_required
