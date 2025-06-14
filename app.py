@@ -1334,13 +1334,14 @@ def asignar_cliente():
                            vendedores=vendedores)
 
 
-# Agregar esta ruta que falta:
 @app.route('/api/clientes/sin-asignar')
 @login_required
 @requiere_rol(['super_admin'])
 def api_clientes_sin_asignar():
     """Devuelve los clientes que no tienen asignación activa"""
     try:
+        print("Buscando clientes sin asignar...")  # Debug
+        
         clientes_sin_asignar = db.session.query(Cliente).outerjoin(
             ClienteVendedor,
             db.and_(
@@ -1352,10 +1353,14 @@ def api_clientes_sin_asignar():
         ).order_by(Cliente.nombre).all()
         
         resultado = [{'id': c.id, 'nombre': c.nombre} for c in clientes_sin_asignar]
+        print(f"Clientes sin asignar: {len(resultado)}")  # Debug
+        
         return jsonify(resultado)
         
     except Exception as e:
         print(f"Error en api_clientes_sin_asignar: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -1398,6 +1403,8 @@ def api_clientes_del_vendedor(v_id):
     Incluye el id de la asignación para poder desasignar luego.
     """
     try:
+        print(f"Buscando clientes para vendedor ID: {v_id}")  # Debug
+        
         # Consulta para obtener clientes asignados al vendedor
         asignaciones = db.session.query(
             ClienteVendedor.id.label('asign_id'),
@@ -1410,6 +1417,8 @@ def api_clientes_del_vendedor(v_id):
             ClienteVendedor.activo == True
         ).order_by(Cliente.nombre).all()
         
+        print(f"Encontradas {len(asignaciones)} asignaciones")  # Debug
+        
         # Convertir a formato JSON
         resultado = []
         for asignacion in asignaciones:
@@ -1419,10 +1428,13 @@ def api_clientes_del_vendedor(v_id):
                 'nombre': asignacion.nombre
             })
         
+        print(f"Resultado: {resultado}")  # Debug
         return jsonify(resultado)
         
     except Exception as e:
         print(f"Error en api_clientes_del_vendedor: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 # ===== RUTAS ADMINISTRATIVAS ADICIONALES =====
