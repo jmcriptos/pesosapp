@@ -3973,6 +3973,19 @@ def ver_contactos_cliente(cliente_id):
                          contactos=contactos,
                          horarios=horarios)
 
+@app.route('/clientes/<int:cliente_id>/contactos/nuevo')
+@login_required
+@requiere_permiso_recurso('crm', 'crear')
+def nuevo_contacto_form(cliente_id):
+    # 1) verificar que el vendedor pueda ver ese cliente
+    if isinstance(current_user, Vendedor) and not current_user.puede_ver_cliente(cliente_id):
+        flash('No tienes permisos para este cliente', 'error')
+        return redirect(url_for('mostrar_clientes'))
+
+    # 2) obtener cliente y renderizar plantilla
+    cliente = Cliente.query.get_or_404(cliente_id)
+    return render_template('clientes/contacto_form.html', cliente=cliente)
+
 @app.route('/generar_reporte', methods=['GET'])
 @login_required
 def generar_reporte():
