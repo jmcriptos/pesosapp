@@ -4,19 +4,25 @@ from extensions import db
 from models.cliente import Cliente
 
 
+# models/crm_cliente.py  (o donde lo tengas)
 class CRMCliente(db.Model):
-    """
-    Información extendida de clientes para CRM
-    NO modifica la tabla 'cliente' existente
-    """
     __tablename__ = 'crm_cliente'
-    
-    # ID único del registro CRM
-    id = db.Column(db.Integer, primary_key=True)
-    
-    # Referencia al cliente original (CRÍTICO: no modificamos tabla cliente existente)
-    cliente_original = db.relationship(Cliente, backref=db.backref('crm_data', uselist=False))
 
+    id = db.Column(db.Integer, primary_key=True)
+
+    # FK correcta ⚠️
+    cliente_original_id = db.Column(
+        db.Integer,
+        db.ForeignKey('cliente.id', ondelete='CASCADE'),
+        nullable=False,
+        unique=True
+    )
+
+    # Relación
+    cliente_original = db.relationship(
+        'Cliente',
+        backref=db.backref('registro_crm', uselist=False, cascade='all, delete-orphan')
+    )
     
     # === INFORMACIÓN DE CONTACTO ===
     direccion_completa = db.Column(db.Text, nullable=True)
