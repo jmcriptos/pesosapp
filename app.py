@@ -1420,14 +1420,12 @@ def api_clientes_del_vendedor(v_id):
         print(f"DEBUG: Vendedor encontrado: {vendedor.nombre_completo}")
         
         # Obtener asignaciones activas del vendedor con información del cliente
-        asignaciones = db.session.query(
-            ClienteVendedor, Cliente
-        ).join(
-            Cliente, ClienteVendedor.cliente_id == Cliente.id
-        ).filter(
-            ClienteVendedor.vendedor_id == v_id,
-            ClienteVendedor.activo == True
-        ).order_by(Cliente.nombre).all()
+        asignaciones = (ClienteVendedor.query
+                        .join(Cliente)
+                        .filter(ClienteVendedor.vendedor_id == v_id,
+                                ClienteVendedor.activo.is_(True))
+                        .order_by(Cliente.nombre)
+                        .all())
         
         print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones")
         
