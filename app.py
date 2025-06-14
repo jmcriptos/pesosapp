@@ -1398,6 +1398,8 @@ def api_desasignar_cliente(asign_id):
 
 # AGREGA ESTA FUNCIÓN TEMPORAL DE DEBUG EN app.py:
 
+# REEMPLAZA LA FUNCIÓN DE DEBUG CON ESTA VERSIÓN MÁS SIMPLE:
+
 @app.route('/debug/asignaciones')
 @login_required
 @requiere_rol(['super_admin'])
@@ -1423,81 +1425,97 @@ def debug_asignaciones():
         
         html = """
         <html>
-        <head><title>Debug Asignaciones</title></head>
+        <head><title>Debug Asignaciones</title>
+        <style>
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .activo { color: green; font-weight: bold; }
+        .inactivo { color: red; font-weight: bold; }
+        </style>
+        </head>
         <body>
         <h1>Debug de Asignaciones Cliente-Vendedor</h1>
-        <table border="1" style="border-collapse: collapse; width: 100%;">
-        <tr>
-            <th>ID Asignación</th>
-            <th>Vendedor ID</th>
-            <th>Vendedor Nombre</th>
-            <th>Cliente ID</th>
-            <th>Cliente Nombre</th>
-            <th>Activo</th>
-            <th>Fecha Inicio</th>
-            <th>Fecha Fin</th>
-        </tr>
         """
         
-        for a in asignaciones:
-            activo_color = "green" if a.activo else "red"
-            html += f"""
+        html += f"<p><strong>Total de asignaciones encontradas:</strong> {len(asignaciones)}</p>"
+        
+        if asignaciones:
+            html += """
+            <table>
             <tr>
-                <td>{a.id}</td>
-                <td>{a.vendedor_id}</td>
-                <td>{a.vendedor_nombre}</td>
-                <td>{a.cliente_id}</td>
-                <td>{a.cliente_nombre}</td>
-                <td style="color: {activo_color}; font-weight: bold;">{a.activo}</td>
-                <td>{a.fecha_inicio}</td>
-                <td>{a.fecha_fin or 'N/A'}</td>
+                <th>ID Asignación</th>
+                <th>Vendedor ID</th>
+                <th>Vendedor Nombre</th>
+                <th>Cliente ID</th>
+                <th>Cliente Nombre</th>
+                <th>Activo</th>
+                <th>Fecha Inicio</th>
+                <th>Fecha Fin</th>
             </tr>
             """
+            
+            for a in asignaciones:
+                activo_class = "activo" if a.activo else "inactivo"
+                activo_text = "SÍ" if a.activo else "NO"
+                html += f"""
+                <tr>
+                    <td>{a.id}</td>
+                    <td>{a.vendedor_id}</td>
+                    <td>{a.vendedor_nombre}</td>
+                    <td>{a.cliente_id}</td>
+                    <td>{a.cliente_nombre}</td>
+                    <td class="{activo_class}">{activo_text}</td>
+                    <td>{a.fecha_inicio}</td>
+                    <td>{a.fecha_fin or 'N/A'}</td>
+                </tr>
+                """
+            html += "</table>"
+        else:
+            html += "<p><strong>❌ No se encontraron asignaciones en la base de datos.</strong></p>"
         
-        html += """
-        </table>
-        <br>
-        <h2>Resumen por Vendedor:</h2>
-        """
+        # Obtener todos los vendedores
+        html += "<br><h2>Todos los Vendedores:</h2><table>"
+        html += "<tr><th>ID</th><th>Nombre</th><th>Activo</th></tr>"
         
-        # Resumen por vendedor
-        vendedores = db.session.query(
-            Vendedor.id,
-            Vendedor.nombre_completo,
-            func.count(ClienteVendedor.id).label('total_asignaciones'),
-            func.sum(
-                db.case([(ClienteVendedor.activo == True, 1)], else_=0)
-            ).label('asignaciones_activas')
-        ).outerjoin(
-            ClienteVendedor, Vendedor.id == ClienteVendedor.vendedor_id
-        ).group_by(
-            Vendedor.id, Vendedor.nombre_completo
-        ).order_by(Vendedor.nombre_completo).all()
-        
-        html += """
-        <table border="1" style="border-collapse: collapse;">
-        <tr>
-            <th>Vendedor ID</th>
-            <th>Vendedor Nombre</th>
-            <th>Total Asignaciones</th>
-            <th>Asignaciones Activas</th>
-        </tr>
-        """
-        
+        vendedores = Vendedor.query.order_by(Vendedor.nombre_completo).all()
         for v in vendedores:
+            activo_class = "activo" if v.activo else "inactivo"
+            activo_text = "SÍ" if v.activo else "NO"
             html += f"""
             <tr>
                 <td>{v.id}</td>
                 <td>{v.nombre_completo}</td>
-                <td>{v.total_asignaciones}</td>
-                <td style="font-weight: bold;">{v.asignaciones_activas}</td>
+                <td class="{activo_class}">{activo_text}</td>
             </tr>
             """
+        html += "</table>"
+        
+        # Contar asignaciones por vendedor manualmente
+        html += "<br><h2>Asignaciones por Vendedor:</h2><table>"
+        html += "<tr><th>Vendedor ID</th><th>Vendedor</th><th>Asignaciones Activas</th><th>Total Asignaciones</th></tr>"
+        
+        for v in vendedores:
+            asignaciones_activas = ClienteVendedor.query.filter_by(vendedor_id=v.id, activo=True).count()
+            total_asignaciones = ClienteVendedor.query.filter_by(vendedor_id=v.id).count()
+            
+            html += f"""
+            <tr>
+                <td>{v.id}</td>
+                <td>{v.nombre_completo}</td>
+                <td><strong>{asignaciones_activas}</strong></td>
+                <td>{total_asignaciones}</td>
+            </tr>
+            """
+        html += "</table>"
         
         html += """
-        </table>
         <br>
-        <p><a href="/admin/asignar_cliente">← Volver a Asignar Cliente</a></p>
+        <h2>Enlaces útiles:</h2>
+        <ul>
+            <li><a href="/admin/asignar_cliente">← Volver a Asignar Cliente</a></li>
+            <li><a href="/api/clientes/sin-asignar" target="_blank">Ver API Clientes Sin Asignar</a></li>
+        </ul>
         </body>
         </html>
         """
@@ -1505,7 +1523,20 @@ def debug_asignaciones():
         return html
         
     except Exception as e:
-        return f"<h1>Error en debug:</h1><pre>{str(e)}</pre>"
+        import traceback
+        error_traceback = traceback.format_exc()
+        return f"""
+        <html>
+        <head><title>Error en Debug</title></head>
+        <body>
+        <h1>Error en debug:</h1>
+        <pre>{str(e)}</pre>
+        <h2>Traceback completo:</h2>
+        <pre>{error_traceback}</pre>
+        <p><a href="/admin/asignar_cliente">← Volver a Asignar Cliente</a></p>
+        </body>
+        </html>
+        """
         
 @app.route('/api/vendedores/<int:v_id>/clientes')
 @login_required
