@@ -326,6 +326,27 @@ document.addEventListener('DOMContentLoaded', function() {
     actualizarClientesDisponibles();
 });
 </script>
+<script>
+console.log('DEBUG: Script básico funcionando');
+alert('JavaScript está cargando correctamente');
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado correctamente');
+    
+    // Test básico del selector
+    const vendedorSelect = document.getElementById('vendedor_id');
+    if (vendedorSelect) {
+        console.log('Selector de vendedor encontrado');
+        
+        vendedorSelect.addEventListener('change', function() {
+            console.log('Cambio detectado en vendedor:', this.value);
+            alert('Vendedor seleccionado: ' + this.value);
+        });
+    } else {
+        console.log('ERROR: No se encontró el selector de vendedor');
+    }
+});
+</script>
 {% endblock %}
 
 
