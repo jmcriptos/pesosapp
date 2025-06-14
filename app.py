@@ -1301,6 +1301,7 @@ def crear_vendedor():
 @login_required
 @requiere_rol(['super_admin'])
 def asignar_cliente():
+    
     # Obtener vendedores activos
     vendedores = (Vendedor.query
                   .filter_by(activo=True)
@@ -1330,7 +1331,7 @@ def asignar_cliente():
             flash(f'Error al asignar cliente: {str(e)}', 'error')
     
     return render_template('admin/clientes_vendedores.html',
-                           clientes_sin_asignar=clientes_sin_asignar,
+                           clientes_sin_asignar=clientes_sin_asignar,  # ← Variable correcta
                            vendedores=vendedores)
 
 
