@@ -55,6 +55,10 @@
 {% block extra_js %}
 {{ super() }}
 <script>
+// DEBUGGING: Verificar que el script se carga
+console.log('🚀 SCRIPT INICIADO - Version 1.0');
+alert('JavaScript cargado correctamente'); // Esto debería aparecer al cargar la página
+
 // Listener para cuando cambia el vendedor seleccionado
 document.getElementById('vendedor_id').addEventListener('change', async function() {
     const vendedorId = this.value;
