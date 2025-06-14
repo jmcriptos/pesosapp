@@ -1335,6 +1335,7 @@ def asignar_cliente():
                            vendedores=vendedores)
 
 
+
 @app.route('/api/clientes/sin-asignar')
 @login_required
 @requiere_rol(['super_admin'])
@@ -1395,6 +1396,117 @@ def api_desasignar_cliente(asign_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
 
+# AGREGA ESTA FUNCIÓN TEMPORAL DE DEBUG EN app.py:
+
+@app.route('/debug/asignaciones')
+@login_required
+@requiere_rol(['super_admin'])
+def debug_asignaciones():
+    """Función temporal para debugging de asignaciones"""
+    
+    try:
+        # Obtener todas las asignaciones
+        asignaciones = db.session.query(
+            ClienteVendedor.id,
+            ClienteVendedor.vendedor_id,
+            ClienteVendedor.cliente_id,
+            ClienteVendedor.activo,
+            ClienteVendedor.fecha_inicio,
+            ClienteVendedor.fecha_fin,
+            Vendedor.nombre_completo.label('vendedor_nombre'),
+            Cliente.nombre.label('cliente_nombre')
+        ).join(
+            Vendedor, ClienteVendedor.vendedor_id == Vendedor.id
+        ).join(
+            Cliente, ClienteVendedor.cliente_id == Cliente.id
+        ).order_by(ClienteVendedor.id.desc()).all()
+        
+        html = """
+        <html>
+        <head><title>Debug Asignaciones</title></head>
+        <body>
+        <h1>Debug de Asignaciones Cliente-Vendedor</h1>
+        <table border="1" style="border-collapse: collapse; width: 100%;">
+        <tr>
+            <th>ID Asignación</th>
+            <th>Vendedor ID</th>
+            <th>Vendedor Nombre</th>
+            <th>Cliente ID</th>
+            <th>Cliente Nombre</th>
+            <th>Activo</th>
+            <th>Fecha Inicio</th>
+            <th>Fecha Fin</th>
+        </tr>
+        """
+        
+        for a in asignaciones:
+            activo_color = "green" if a.activo else "red"
+            html += f"""
+            <tr>
+                <td>{a.id}</td>
+                <td>{a.vendedor_id}</td>
+                <td>{a.vendedor_nombre}</td>
+                <td>{a.cliente_id}</td>
+                <td>{a.cliente_nombre}</td>
+                <td style="color: {activo_color}; font-weight: bold;">{a.activo}</td>
+                <td>{a.fecha_inicio}</td>
+                <td>{a.fecha_fin or 'N/A'}</td>
+            </tr>
+            """
+        
+        html += """
+        </table>
+        <br>
+        <h2>Resumen por Vendedor:</h2>
+        """
+        
+        # Resumen por vendedor
+        vendedores = db.session.query(
+            Vendedor.id,
+            Vendedor.nombre_completo,
+            func.count(ClienteVendedor.id).label('total_asignaciones'),
+            func.sum(
+                db.case([(ClienteVendedor.activo == True, 1)], else_=0)
+            ).label('asignaciones_activas')
+        ).outerjoin(
+            ClienteVendedor, Vendedor.id == ClienteVendedor.vendedor_id
+        ).group_by(
+            Vendedor.id, Vendedor.nombre_completo
+        ).order_by(Vendedor.nombre_completo).all()
+        
+        html += """
+        <table border="1" style="border-collapse: collapse;">
+        <tr>
+            <th>Vendedor ID</th>
+            <th>Vendedor Nombre</th>
+            <th>Total Asignaciones</th>
+            <th>Asignaciones Activas</th>
+        </tr>
+        """
+        
+        for v in vendedores:
+            html += f"""
+            <tr>
+                <td>{v.id}</td>
+                <td>{v.nombre_completo}</td>
+                <td>{v.total_asignaciones}</td>
+                <td style="font-weight: bold;">{v.asignaciones_activas}</td>
+            </tr>
+            """
+        
+        html += """
+        </table>
+        <br>
+        <p><a href="/admin/asignar_cliente">← Volver a Asignar Cliente</a></p>
+        </body>
+        </html>
+        """
+        
+        return html
+        
+    except Exception as e:
+        return f"<h1>Error en debug:</h1><pre>{str(e)}</pre>"
+        
 @app.route('/api/vendedores/<int:v_id>/clientes')
 @login_required
 @requiere_rol(['super_admin'])
