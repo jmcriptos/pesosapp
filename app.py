@@ -55,10 +55,12 @@ migrate = Migrate(app, db)
 
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
-    Talisman(app, content_security_policy={
-        'default-src': ['\'self\''],
-        'img-src': ['\'self\'', 'data:']
-    })
+    talisman_policy = {
+        'default-src': ["'self'"],      # Todo lo demás hereda de aquí
+        'script-src' : ["'self'", "'unsafe-inline'"],
+        'img-src'    : ["'self'", 'data:']
+    }
+    Talisman(app, content_security_policy=talisman_policy)
 
 
 login_manager = LoginManager()
