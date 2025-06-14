@@ -26,6 +26,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import locale
 import traceback
 from decimal import Decimal
+from models.extensions import db
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -36,42 +37,51 @@ try:
 except ImportError:
     Talisman = None
 
-app = Flask(__name__)
-app.secret_key = os.environ["SECRET_KEY"]
-
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-uri = os.environ.get("DATABASE_URL", "sqlite:///local.db")
-if uri.startswith("postgres://"):
-    uri = uri.replace("postgres://", "postgresql://", 1)
-app.config['SQLALCHEMY_DATABASE_URI'] = uri
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_COOKIE_SECURE'] = False
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-# Solo activa Talisman en producción (cuando uses HTTPS real)
-if Talisman and os.environ.get("FLASK_ENV") == "production":
-    talisman_policy = {
-        'default-src': ["'self'"],      # Todo lo demás hereda de aquí
-        'script-src' : ["'self'", "'unsafe-inline'"],
-        'img-src'    : ["'self'", 'data:']
-    }
-    Talisman(app, content_security_policy=talisman_policy)
-
-
+# Login manager global (una sola vez)
 login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
 
-DEFAULT_USERNAME = os.environ["DEFAULT_USERNAME"]
-DEFAULT_PASSWORD = os.environ["DEFAULT_PASSWORD"]
+
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = os.environ["SECRET_KEY"]
+
+    # ─── Configuración base de datos ────────────────────────────────
+    uri = os.environ.get("DATABASE_URL", "sqlite:///local.db")
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = uri
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # ─── Inicializar extensiones ────────────────────────────────────
+    db.init_app(app)
+    Migrate(app, db)
+
+    login_manager.init_app(app)
+    login_manager.login_view = "login"
+
+    # ─── Cabeceras CSP (solo producción HTTPS) ─────────────────────
+    if Talisman and os.environ.get("FLASK_ENV") == "production":
+        csp = {
+            "default-src": ["'self'"],
+            "script-src":  ["'self'", "'unsafe-inline'"],
+            "img-src":     ["'self'", "data:"],
+        }
+        Talisman(app, content_security_policy=csp)
+
+    # ─── Blueprints ────────────────────────────────────────────────
+    from crm.routes import crm_bp
+    app.register_blueprint(crm_bp, url_prefix="/crm")
+
+    return app
+
+
+# ─── Usuario por defecto (ejemplo sencillo) ─────────────────────────
+DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME", "admin")
+DEFAULT_PASSWORD = os.environ.get("DEFAULT_PASSWORD", "changeme")
+
 
 class DefaultUser(UserMixin):
-    def __init__(self, username):
+    def __init__(self, username: str):
         self.id = username
 
 @login_manager.user_loader
