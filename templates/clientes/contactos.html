@@ -1,0 +1,400 @@
+<!-- templates/clientes/contactos.html -->
+{% extends "base.html" %}
+
+{% block title %}Contactos y Horarios - {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header con información del cliente -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-1">{{ cliente.nombre }}</h2>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-id-card"></i> ID: {{ cliente.id }}
+                                {% if cliente.territorio %}
+                                | <i class="fas fa-map-marker-alt"></i> {{ cliente.territorio.nombre }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('mostrar_clientes') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Sección de Contactos -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-users"></i> Contactos</h4>
+                    {% if puede_crear('crm') %}
+                    <a href="{{ url_for('nuevo_contacto_cliente', cliente_id=cliente.id) }}" 
+                       class="btn btn-light btn-sm">
+                        <i class="fas fa-plus"></i> Nuevo Contacto
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if contactos %}
+                        <div class="list-group list-group-flush">
+                            {% for contacto in contactos %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            {{ contacto.nombre_completo }}
+                                            {% if contacto.es_contacto_principal %}
+                                            <span class="badge bg-success ms-2">Principal</span>
+                                            {% endif %}
+                                        </h6>
+                                        {% if contacto.cargo_posicion %}
+                                        <p class="mb-1 text-muted">
+                                            <i class="fas fa-briefcase"></i> {{ contacto.cargo_posicion }}
+                                        </p>
+                                        {% endif %}
+                                        <div class="contact-details small">
+                                            {% if contacto.email %}
+                                            <div><i class="fas fa-envelope"></i> {{ contacto.email }}</div>
+                                            {% endif %}
+                                            {% if contacto.telefono %}
+                                            <div>
+                                                <i class="fas fa-phone"></i> {{ contacto.telefono }}
+                                                {% if contacto.extension %}(ext. {{ contacto.extension }}){% endif %}
+                                            </div>
+                                            {% endif %}
+                                            {% if contacto.celular %}
+                                            <div><i class="fas fa-mobile-alt"></i> {{ contacto.celular }}</div>
+                                            {% endif %}
+                                            {% if contacto.mejor_horario_contacto %}
+                                            <div class="mt-1">
+                                                <i class="fas fa-clock"></i> 
+                                                <span class="text-info">Mejor horario: {{ contacto.mejor_horario_contacto }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% if contacto.notas %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">{{ contacto.notas }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if puede_editar('crm') %}
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if puede_eliminar('crm') %}
+                                        <button class="btn btn-outline-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-user-slash fa-3x mb-3"></i>
+                            <p>No hay contactos registrados</p>
+                            {% if puede_crear('crm') %}
+                            <a href="{{ url_for('nuevo_contacto_cliente', cliente_id=cliente.id) }}" 
+                               class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> Agregar primer contacto
+                            </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Horarios -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-clock"></i> Horarios de Atención</h4>
+                    {% if puede_crear('crm') %}
+                    <a href="{{ url_for('nuevo_horario_cliente', cliente_id=cliente.id) }}" 
+                       class="btn btn-light btn-sm">
+                        <i class="fas fa-plus"></i> Nuevo Horario
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if horarios %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Día</th>
+                                        <th>Apertura</th>
+                                        <th>Cierre</th>
+                                        <th>Almuerzo</th>
+                                        {% if puede_editar('crm') %}<th></th>{% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for horario in horarios %}
+                                    <tr {% if horario.es_horario_especial %}class="table-warning"{% endif %}>
+                                        <td>
+                                            {{ horario.get_dia_semana_display() }}
+                                            {% if horario.es_horario_especial %}
+                                            <span class="badge bg-warning text-dark">Especial</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ horario.hora_apertura }}</td>
+                                        <td>{{ horario.hora_cierre }}</td>
+                                        <td>
+                                            {% if horario.hora_inicio_almuerzo %}
+                                                {{ horario.hora_inicio_almuerzo }} - {{ horario.hora_fin_almuerzo }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        {% if puede_editar('crm') %}
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                {% if puede_eliminar('crm') %}
+                                                <button class="btn btn-outline-danger" title="Eliminar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% if horario.notas %}
+                                    <tr>
+                                        <td colspan="5" class="small text-muted ps-3">
+                                            <i class="fas fa-info-circle"></i> {{ horario.notas }}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                            <p>No hay horarios registrados</p>
+                            {% if puede_crear('crm') %}
+                            <a href="{{ url_for('nuevo_horario_cliente', cliente_id=cliente.id) }}" 
+                               class="btn btn-info btn-sm text-white">
+                                <i class="fas fa-plus"></i> Agregar horario
+                            </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Notas Rápidas (opcional) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Notas del Cliente</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="#">
+                        <div class="mb-3">
+                            <textarea class="form-control" rows="3" 
+                                      placeholder="Agregar una nota rápida sobre este cliente..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-save"></i> Guardar Nota
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.contact-details div {
+    margin-bottom: 0.25rem;
+}
+
+.contact-details i {
+    width: 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+<!-- templates/clientes/contacto_form.html -->
+{% extends "base.html" %}
+
+{% block title %}Nuevo Contacto - {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-plus"></i> 
+                        Nuevo Contacto para {{ cliente.nombre }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="contactoForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nombre_completo" class="form-label">
+                                    Nombre Completo <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="nombre_completo" 
+                                       name="nombre_completo" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cargo_posicion" class="form-label">Cargo/Posición</label>
+                                <input type="text" class="form-control" id="cargo_posicion" 
+                                       name="cargo_posicion" placeholder="Ej: Gerente de Compras">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono">
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label for="extension" class="form-label">Ext.</label>
+                                <input type="text" class="form-control" id="extension" 
+                                       name="extension" maxlength="10">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="celular" class="form-label">Celular</label>
+                                <input type="tel" class="form-control" id="celular" name="celular">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="mejor_horario_contacto" class="form-label">
+                                    Mejor Horario de Contacto
+                                </label>
+                                <select class="form-select" id="mejor_horario_contacto" 
+                                        name="mejor_horario_contacto">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Mañanas (8-12)">Mañanas (8-12)</option>
+                                    <option value="Mediodía (12-14)">Mediodía (12-14)</option>
+                                    <option value="Tardes (14-18)">Tardes (14-18)</option>
+                                    <option value="Noches (18-20)">Noches (18-20)</option>
+                                    <option value="Cualquier hora">Cualquier hora</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nivel_influencia" class="form-label">
+                                    Nivel de Influencia en Decisiones
+                                </label>
+                                <input type="range" class="form-range" id="nivel_influencia" 
+                                       name="nivel_influencia" min="1" max="10" value="5"
+                                       oninput="updateInfluenceValue(this.value)">
+                                <small class="text-muted">
+                                    Nivel: <span id="influenceValue">5</span>/10
+                                </small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check form-switch pt-4">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="es_contacto_principal" name="es_contacto_principal">
+                                    <label class="form-check-label" for="es_contacto_principal">
+                                        <strong>Contacto Principal</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            Marcar si es el contacto principal para este cliente
+                                        </small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notas" class="form-label">Notas Adicionales</label>
+                            <textarea class="form-control" id="notas" name="notas" rows="3"
+                                      placeholder="Información adicional sobre este contacto..."></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('ver_contactos_cliente', cliente_id=cliente.id) }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Contacto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateInfluenceValue(value) {
+    document.getElementById('influenceValue').textContent = value;
+}
+
+// Validación del formulario
+document.getElementById('contactoForm').addEventListener('submit', function(e) {
+    const nombre = document.getElementById('nombre_completo').value.trim();
+    if (!nombre) {
+        e.preventDefault();
+        alert('El nombre completo es obligatorio');
+        return false;
+    }
+    
+    // Validar que al menos un método de contacto esté proporcionado
+    const email = document.getElementById('email').value.trim();
+    const telefono = document.getElementById('telefono').value.trim();
+    const celular = document.getElementById('celular').value.trim();
+    
+    if (!email && !telefono && !celular) {
+        e.preventDefault();
+        alert('Debe proporcionar al menos un método de contacto (email, teléfono o celular)');
+        return false;
+    }
+});
+</script>
+{% endblock %}
+
