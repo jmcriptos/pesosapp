@@ -2231,26 +2231,73 @@ def dashboard():
 @app.route('/pedidos')
 @login_required
 def lista_pedidos():
-    # Consulta con subconsulta para calcular totales usando los subtotales existentes
-    pedidos_query = db.session.query(
-        Pedido,
-        func.coalesce(
-            func.sum(DetallePedido.subtotal), 
-            0
-        ).label('total_calculado')
-    ).outerjoin(DetallePedido).filter(
-        Pedido.estado != 'entregado'
-    ).group_by(Pedido.id).order_by(
-        # Ordenar por estado: pendientes primero, luego listos, luego facturados
-        db.case(
-            (Pedido.estado == 'pendiente', 0),
-            (Pedido.estado == 'listo', 1),
-            (Pedido.estado == 'facturado', 2),
-            else_=3
-        ),
-        # Luego por fecha: más antiguos primero
-        Pedido.fecha_pedido.asc()
-    ).all()
+    # Verificar si es vendedor del nuevo sistema
+    if not isinstance(current_user, Vendedor):
+        # Usuario del sistema anterior - mostrar todos
+        pedidos_query = db.session.query(
+            Pedido,
+            func.coalesce(
+                func.sum(DetallePedido.subtotal), 
+                0
+            ).label('total_calculado')
+        ).outerjoin(DetallePedido).filter(
+            Pedido.estado != 'entregado'
+        ).group_by(Pedido.id).order_by(
+            db.case(
+                (Pedido.estado == 'pendiente', 0),
+                (Pedido.estado == 'listo', 1),
+                (Pedido.estado == 'facturado', 2),
+                else_=3
+            ),
+            Pedido.fecha_pedido.asc()
+        ).all()
+    else:
+        # NUEVO: Filtrar por vendedor según su rol
+        if current_user.rol.nombre == 'super_admin':
+            # Super admin ve todos los pedidos
+            pedidos_query = db.session.query(
+                Pedido,
+                func.coalesce(
+                    func.sum(DetallePedido.subtotal), 
+                    0
+                ).label('total_calculado')
+            ).outerjoin(DetallePedido).filter(
+                Pedido.estado != 'entregado'
+            ).group_by(Pedido.id).order_by(
+                db.case(
+                    (Pedido.estado == 'pendiente', 0),
+                    (Pedido.estado == 'listo', 1),
+                    (Pedido.estado == 'facturado', 2),
+                    else_=3
+                ),
+                Pedido.fecha_pedido.asc()
+            ).all()
+        else:
+            # Vendedor regular: solo ve pedidos de SUS clientes
+            clientes_vendedor = current_user.obtener_clientes_visibles()
+            clientes_ids = [c.id for c in clientes_vendedor]
+            
+            if not clientes_ids:
+                pedidos_query = []
+            else:
+                pedidos_query = db.session.query(
+                    Pedido,
+                    func.coalesce(
+                        func.sum(DetallePedido.subtotal), 
+                        0
+                    ).label('total_calculado')
+                ).outerjoin(DetallePedido).filter(
+                    Pedido.estado != 'entregado',
+                    Pedido.cliente_id.in_(clientes_ids)  # FILTRO POR CLIENTES DEL VENDEDOR
+                ).group_by(Pedido.id).order_by(
+                    db.case(
+                        (Pedido.estado == 'pendiente', 0),
+                        (Pedido.estado == 'listo', 1),
+                        (Pedido.estado == 'facturado', 2),
+                        else_=3
+                    ),
+                    Pedido.fecha_pedido.asc()
+                ).all()
     
     # Agregar el total calculado como atributo a cada pedido
     pedidos = []
@@ -2264,42 +2311,55 @@ def lista_pedidos():
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 def nuevo_pedido():
-    # ---------- Datos para el formulario ----------
-    clientes  = Cliente.query.all()
+    # Obtener clientes según el vendedor
+    if not isinstance(current_user, Vendedor):
+        # Usuario del sistema anterior - todos los clientes
+        clientes = Cliente.query.all()
+    else:
+        if current_user.rol.nombre == 'super_admin':
+            # Super admin ve todos los clientes
+            clientes = Cliente.query.all()
+        else:
+            # Vendedor regular: solo sus clientes asignados
+            clientes = current_user.obtener_clientes_visibles()
+
     productos = Producto.query.all()
 
     # Enviamos al front-end cada producto con su precio (lista default)
-    # Para nuevo pedido, usamos precios por defecto ya que no hay cliente seleccionado aún
     productos_dicts = [{
         'id'    : p.id,
         'nombre': p.nombre,
-        # Para nuevo pedido, usar precio por defecto
         'precio': float(
             obtener_precio_default_producto(p.id, 'jomar') or 0
         )
     } for p in productos]
 
-    # ---------- Alta de un nuevo pedido ----------
     if request.method == 'POST':
         # 1) Cabecera
         cliente_id = int(request.form['cliente_id'])
-        notas      = request.form.get('notas')
+        
+        # VERIFICAR QUE EL VENDEDOR PUEDE CREAR PEDIDOS PARA ESTE CLIENTE
+        if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+            clientes_permitidos_ids = [c.id for c in current_user.obtener_clientes_visibles()]
+            if cliente_id not in clientes_permitidos_ids:
+                flash('No tienes permisos para crear pedidos para este cliente', 'error')
+                return redirect(url_for('nuevo_pedido'))
+        
+        notas = request.form.get('notas')
         pedido = Pedido(cliente_id=cliente_id, notas=notas)
         db.session.add(pedido)
-        db.session.commit()      # obtenemos pedido.id
+        db.session.commit()
 
-        # 2) Detalle
+        # 2) Detalle (resto del código igual)
         idx = 0
         while f'productos[{idx}][id]' in request.form:
             prod_id = int(request.form.get(f'productos[{idx}][id]'))
-            cajas   = int(request.form.get(f'productos[{idx}][cajas]', 0))
+            cajas = int(request.form.get(f'productos[{idx}][cajas]', 0))
 
-            # 2.1 Precio unitario - ahora sí podemos usar el cliente del pedido
             precio_raw = request.form.get(f'productos[{idx}][precio]')
             if precio_raw:
                 precio_unitario = Decimal(precio_raw)
             else:
-                # Obtener precio específico para este cliente
                 precio_cliente = obtener_precio_producto_cliente(cliente_id, prod_id, 'jomar')
                 if precio_cliente is not None:
                     precio_unitario = Decimal(precio_cliente)
@@ -2307,28 +2367,25 @@ def nuevo_pedido():
                     precio_def = obtener_precio_default_producto(prod_id, 'jomar')
                     precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
 
-            # 2.2 Sub-total  (app lo calcula)
             subtotal = precio_unitario * cajas
 
-            # 2.3 Crear detalle
             detalle = DetallePedido(
-                pedido_id      = pedido.id,
-                producto_id    = prod_id,
-                cajas          = cajas,
-                precio_unitario= precio_unitario,
-                subtotal       = subtotal
+                pedido_id=pedido.id,
+                producto_id=prod_id,
+                cajas=cajas,
+                precio_unitario=precio_unitario,
+                subtotal=subtotal
             )
             db.session.add(detalle)
             idx += 1
 
         db.session.commit()
 
-        # 3) Total del pedido (si la columna existe en Pedido)
+        # 3) Total del pedido
         total = db.session.query(
             func.coalesce(func.sum(DetallePedido.subtotal), 0)
         ).filter_by(pedido_id=pedido.id).scalar()
         
-        # Solo actualizar total si la columna existe en el modelo Pedido
         if hasattr(pedido, 'total'):
             pedido.total = total
             db.session.commit()
@@ -2336,13 +2393,12 @@ def nuevo_pedido():
         flash('Pedido creado con precios registrados.', 'success')
         return redirect(url_for('lista_pedidos'))
 
-    # ---------- GET: renderizar formulario ----------
     return render_template(
         'pedido_form.html',
-        clientes        = clientes,
-        productos       = productos_dicts,
-        pedido          = None,
-        productos_pedido= []
+        clientes=clientes,
+        productos=productos_dicts,
+        pedido=None,
+        productos_pedido=[]
     )
 
 @app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
@@ -3685,31 +3741,51 @@ def reporte_factura(numero_factura):
         mimetype='application/pdf'
     )
 
-# app.py
 @app.route('/clientes', methods=['GET'])
 @login_required
 def mostrar_clientes():
-    # ↓↓↓  ahora vienen ordenados de menor a mayor ID
-    clientes = (Cliente
-                .query
-                .order_by(Cliente.id.asc())   # o .desc() si los quieres al revés
-                .all())
+    # Verificar si es vendedor del nuevo sistema
+    if not isinstance(current_user, Vendedor):
+        # Usuario del sistema anterior - mostrar todos
+        clientes = (Cliente
+                    .query
+                    .order_by(Cliente.id.asc())
+                    .all())
+    else:
+        # NUEVO: Filtrar por vendedor según su rol
+        if current_user.rol.nombre == 'super_admin':
+            # Super admin ve todos los clientes
+            clientes = (Cliente
+                        .query
+                        .order_by(Cliente.id.asc())
+                        .all())
+        else:
+            # Vendedor regular: solo ve SUS clientes asignados
+            clientes = current_user.obtener_clientes_visibles()
+            # Ordenar por ID para mantener consistencia
+            clientes = sorted(clientes, key=lambda c: c.id)
 
     return render_template('clientes.html', clientes=clientes)
 
 
+# TAMBIÉN modifica estas rutas si existen:
+
 @app.route('/clientes/nuevo', methods=['POST'])
 @login_required
 def nuevo_cliente():
+    # VERIFICAR PERMISOS: Solo super_admin puede crear clientes
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        return jsonify({"error": "No tienes permisos para crear clientes"}), 403
+    
     try:
-        nombre  = request.form['nombre']
-        qbo_id  = request.form.get('qbo_id') or None          # ← 🆕
+        nombre = request.form['nombre']
+        qbo_id = request.form.get('qbo_id') or None
         
         # Evitar duplicados
         if qbo_id and Cliente.query.filter_by(qbo_id=qbo_id).first():
             return jsonify({"error": "Ya existe un cliente con ese QBO ID"}), 400
         
-        nuevo_cliente = Cliente(nombre=nombre, qbo_id=qbo_id) # ← 🆕
+        nuevo_cliente = Cliente(nombre=nombre, qbo_id=qbo_id)
         db.session.add(nuevo_cliente)
         db.session.commit()
         return jsonify({
@@ -3719,16 +3795,23 @@ def nuevo_cliente():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-    
+
 @app.route('/clientes/<int:cliente_id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_cliente(cliente_id):
+    # VERIFICAR PERMISOS
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        # Vendedor regular: solo puede editar SUS clientes
+        if not current_user.puede_ver_cliente(cliente_id):
+            flash('No tienes permisos para editar este cliente', 'error')
+            return redirect(url_for('mostrar_clientes'))
+    
     cliente = Cliente.query.get_or_404(cliente_id)
 
     if request.method == 'POST':
         try:
             cliente.nombre = request.form['nombre']
-            qbo_id         = request.form.get('qbo_id') or None
+            qbo_id = request.form.get('qbo_id') or None
 
             # Verificar unicidad si cambió
             if qbo_id != cliente.qbo_id and qbo_id \
@@ -3745,12 +3828,15 @@ def editar_cliente(cliente_id):
             flash(f'Error: {e}', 'danger')
             return redirect(url_for('mostrar_clientes'))
 
-    # GET
     return render_template('cliente_form.html', cliente=cliente)
 
 @app.route('/clientes/<int:cliente_id>', methods=['DELETE'])
 @login_required
 def eliminar_cliente(cliente_id):
+    # VERIFICAR PERMISOS: Solo super_admin puede eliminar clientes
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        return jsonify({"error": "No tienes permisos para eliminar clientes"}), 403
+    
     try:
         cliente = Cliente.query.get(cliente_id)
         if not cliente:

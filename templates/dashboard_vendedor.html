@@ -224,6 +224,19 @@
                 </div>
             </a>
 
+            <a href="/admin/asignar_cliente" class="action-card">
+                <div class="action-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="action-content">
+                    <div class="action-title">Asignar Clientes</div>
+                    <div class="action-description">Gestionar asignaciones cliente-vendedor</div>
+                </div>
+                <div class="action-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+
             <a href="/precios" class="action-card">
                 <div class="action-icon">
                     <i class="fas fa-tags"></i>
@@ -231,19 +244,6 @@
                 <div class="action-content">
                     <div class="action-title">Gestión de Precios</div>
                     <div class="action-description">Configurar precios de productos</div>
-                </div>
-                <div class="action-arrow">
-                    <i class="fas fa-chevron-right"></i>
-                </div>
-            </a>
-
-            <a href="/admin/reportes" class="action-card">
-                <div class="action-icon">
-                    <i class="fas fa-chart-bar"></i>
-                </div>
-                <div class="action-content">
-                    <div class="action-title">Reportes Avanzados</div>
-                    <div class="action-description">Análisis y estadísticas</div>
                 </div>
                 <div class="action-arrow">
                     <i class="fas fa-chevron-right"></i>
@@ -258,7 +258,7 @@
                 </div>
                 <div class="action-content">
                     <div class="action-title">Nuevo Pedido</div>
-                    <div class="action-description">Crear pedido de cliente</div>
+                    <div class="action-description">Crear pedido para mis clientes</div>
                 </div>
                 <div class="action-arrow">
                     <i class="fas fa-chevron-right"></i>
@@ -271,7 +271,7 @@
                 </div>
                 <div class="action-content">
                     <div class="action-title">Mis Pedidos</div>
-                    <div class="action-description">{{ pedidos_pendientes or 0 }} pendientes</div>
+                    <div class="action-description">{{ pedidos_pendientes or 0 }} pedidos pendientes</div>
                 </div>
                 <div class="action-arrow">
                     <i class="fas fa-chevron-right"></i>
@@ -284,7 +284,7 @@
                 </div>
                 <div class="action-content">
                     <div class="action-title">Mis Clientes</div>
-                    <div class="action-description">{{ clientes_asignados or 0 }} asignados</div>
+                    <div class="action-description">{{ clientes_asignados or 0 }} clientes asignados</div>
                 </div>
                 <div class="action-arrow">
                     <i class="fas fa-chevron-right"></i>
@@ -321,14 +321,14 @@
 
             <div class="management-card">
                 <div class="card-header">
-                    <i class="fas fa-shield-alt"></i>
-                    <h3>Roles</h3>
+                    <i class="fas fa-user-friends"></i>
+                    <h3>Asignaciones</h3>
                 </div>
                 <div class="card-content">
-                    <p>Configurar permisos y niveles de acceso</p>
+                    <p>Gestionar asignaciones cliente-vendedor</p>
                     <div class="card-actions">
-                        <a href="/admin/roles" class="btn-action primary">Gestionar</a>
-                        <a href="/admin/configuracion" class="btn-action secondary">Config</a>
+                        <a href="/admin/asignar_cliente" class="btn-action primary">Gestionar</a>
+                        <a href="/clientes" class="btn-action secondary">Ver clientes</a>
                     </div>
                 </div>
             </div>
@@ -341,8 +341,8 @@
                 <div class="card-content">
                     <p>Análisis avanzado y estadísticas del sistema</p>
                     <div class="card-actions">
-                        <a href="/admin/reportes" class="btn-action primary">Ver reportes</a>
-                        <a href="/admin/reportes/nuevo" class="btn-action secondary">Generar</a>
+                        <a href="/dashboard" class="btn-action primary">Ver reportes</a>
+                        <a href="/productos" class="btn-action secondary">Productos</a>
                     </div>
                 </div>
             </div>
@@ -355,10 +355,10 @@
                     <h3>Productos</h3>
                 </div>
                 <div class="card-content">
-                    <p>Consultar catálogo y precios</p>
+                    <p>Consultar catálogo y precios disponibles</p>
                     <div class="card-actions">
                         <a href="/productos" class="btn-action primary">Ver catálogo</a>
-                        <a href="/precios" class="btn-action secondary">Precios</a>
+                        <a href="/precios" class="btn-action secondary">Consultar precios</a>
                     </div>
                 </div>
             </div>
@@ -369,10 +369,10 @@
                     <h3>Mis Clientes</h3>
                 </div>
                 <div class="card-content">
-                    <p>Gestionar clientes asignados</p>
+                    <p>Gestionar mis clientes asignados</p>
                     <div class="card-actions">
-                        <a href="/clientes" class="btn-action primary">Ver clientes</a>
-                        <a href="/clientes/nuevo" class="btn-action secondary">Nuevo</a>
+                        <a href="/clientes" class="btn-action primary">Ver mis clientes</a>
+                        <a href="/pedidos" class="btn-action secondary">Ver pedidos</a>
                     </div>
                 </div>
             </div>
@@ -385,8 +385,8 @@
                 <div class="card-content">
                     <p>Estadísticas personales de ventas</p>
                     <div class="card-actions">
-                        <a href="/reportes/personal" class="btn-action primary">Ver reportes</a>
-                        <a href="/metas" class="btn-action secondary">Metas</a>
+                        <a href="/pedidos" class="btn-action primary">Mis pedidos</a>
+                        <a href="/dashboard" class="btn-action secondary">Ver métricas</a>
                     </div>
                 </div>
             </div>
@@ -432,8 +432,8 @@
                     <i class="fas fa-info-circle"></i>
                 </div>
                 <div class="notification-content">
-                    <h4>Respaldo automático</h4>
-                    <p>Último respaldo realizado exitosamente</p>
+                    <h4>{% if vendedor.rol.nombre == 'super_admin' %}Respaldo automático{% else %}Datos sincronizados{% endif %}</h4>
+                    <p>{% if vendedor.rol.nombre == 'super_admin' %}Último respaldo realizado exitosamente{% else %}Tus datos están actualizados y seguros{% endif %}</p>
                     <span class="notification-time">Hace 1 hora</span>
                 </div>
             </div>
