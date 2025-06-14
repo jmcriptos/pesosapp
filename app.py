@@ -1403,7 +1403,10 @@ def api_clientes_del_vendedor(v_id):
     Incluye el id de la asignación para poder desasignar luego.
     """
     try:
-        print(f"Buscando clientes para vendedor ID: {v_id}")  # Debug
+        # Verificar que el vendedor existe
+        vendedor = Vendedor.query.get(v_id)
+        if not vendedor:
+            return jsonify({'error': 'Vendedor no encontrado'}), 404
         
         # Consulta para obtener clientes asignados al vendedor
         asignaciones = db.session.query(
@@ -1417,8 +1420,6 @@ def api_clientes_del_vendedor(v_id):
             ClienteVendedor.activo == True
         ).order_by(Cliente.nombre).all()
         
-        print(f"Encontradas {len(asignaciones)} asignaciones")  # Debug
-        
         # Convertir a formato JSON
         resultado = []
         for asignacion in asignaciones:
@@ -1428,7 +1429,6 @@ def api_clientes_del_vendedor(v_id):
                 'nombre': asignacion.nombre
             })
         
-        print(f"Resultado: {resultado}")  # Debug
         return jsonify(resultado)
         
     except Exception as e:
