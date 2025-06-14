@@ -1301,14 +1301,13 @@ def crear_vendedor():
 @login_required
 @requiere_rol(['super_admin'])
 def asignar_cliente():
-    
     # Obtener vendedores activos
     vendedores = (Vendedor.query
                   .filter_by(activo=True)
                   .order_by(Vendedor.nombre_completo)
                   .all())
     
-    # Obtener clientes SIN ASIGNAR (que no tengan asignación activa)
+    # Obtener clientes SIN ASIGNAR
     clientes_sin_asignar = db.session.query(Cliente).outerjoin(
         ClienteVendedor,
         db.and_(
@@ -1317,7 +1316,6 @@ def asignar_cliente():
         )
     ).filter(
         ClienteVendedor.id.is_(None)
-        # Nota: El modelo Cliente no tiene campo 'activo', así que mostramos todos
     ).order_by(Cliente.nombre).all()
 
     if request.method == 'POST':
@@ -1336,14 +1334,12 @@ def asignar_cliente():
                            vendedores=vendedores)
 
 
-# Agrega también esta nueva ruta API para obtener clientes sin asignar dinámicamente:
+# Agregar esta ruta que falta:
 @app.route('/api/clientes/sin-asignar')
 @login_required
 @requiere_rol(['super_admin'])
 def api_clientes_sin_asignar():
-    """
-    Devuelve los clientes que no tienen asignación activa
-    """
+    """Devuelve los clientes que no tienen asignación activa"""
     try:
         clientes_sin_asignar = db.session.query(Cliente).outerjoin(
             ClienteVendedor,
@@ -1353,13 +1349,13 @@ def api_clientes_sin_asignar():
             )
         ).filter(
             ClienteVendedor.id.is_(None)
-            # Nota: El modelo Cliente no tiene campo 'activo'
         ).order_by(Cliente.nombre).all()
         
         resultado = [{'id': c.id, 'nombre': c.nombre} for c in clientes_sin_asignar]
         return jsonify(resultado)
         
     except Exception as e:
+        print(f"Error en api_clientes_sin_asignar: {e}")
         return jsonify({'error': str(e)}), 500
 
 
