@@ -114,21 +114,41 @@ def obtener_contactos(id):
 @crm_bp.route('/clientes/<int:id>/contactos', methods=['POST'])
 @login_required
 def crear_contacto(id):
-    data = request.json
-    cliente = CRMCliente.query.get_or_404(id)
-    if hasattr(current_user, 'puede_ver_cliente') and not current_user.puede_ver_cliente(cliente.cliente_original_id):
+    # 1) JSON del cuerpo
+    data = request.get_json(force=True)
+
+    # 2) Buscar registro CRM
+    crm_cliente = (CRMCliente
+                   .query
+                   .filter_by(cliente_original_id=id)
+                   .first_or_404())
+
+    # 3) Verificar permisos (solo si el usuario es vendedor)
+    if isinstance(current_user, Vendedor) and not current_user.puede_ver_cliente(id):
         return jsonify({'error': 'No autorizado'}), 403
+
+    # 4) Crear contacto
     contacto = ContactoCliente(
-        crm_cliente=cliente,
-        nombre_completo=data.get('nombre_completo'),
-        cargo_posicion=data.get('cargo_posicion'),
-        es_contacto_principal=data.get('es_contacto_principal', False),
-        nivel_influencia=data.get('nivel_influencia'),
-        mejor_horario_contacto=data.get('mejor_horario_contacto')
+        crm_cliente      = crm_cliente,          # ← nombre correcto
+        nombre_completo  = data.get('nombre_completo'),
+        cargo_posicion   = data.get('cargo_posicion'),
+        email            = data.get('email'),
+        telefono         = data.get('telefono'),
+        extension        = data.get('extension'),
+        celular          = data.get('celular'),
+        es_contacto_principal = data.get('principal', False),
+        nivel_influencia = data.get('nivel_influencia', 5),
+        mejor_horario_contacto = data.get('mejor_horario_contacto'),
+        notas            = data.get('notas')
     )
     db.session.add(contacto)
     db.session.commit()
-    return jsonify({'mensaje': 'Contacto creado', 'id': contacto.id}), 201
+
+    return jsonify({
+        'mensaje': 'Contacto creado',
+        'contacto': contacto.to_dict()  # asumiendo que tienes un método to_dict()
+    }), 201
+
 
 # Obtener interacciones de un cliente CRM
 @crm_bp.route('/clientes/<int:id>/interacciones', methods=['GET'])
