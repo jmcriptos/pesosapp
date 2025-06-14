@@ -1401,6 +1401,7 @@ def api_desasignar_cliente(asign_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
 
+# Agrega este endpoint en tu app.py si no existe o está incompleto
 @app.route('/api/vendedores/<int:v_id>/clientes')
 @login_required
 @requiere_rol(['super_admin'])
@@ -1426,7 +1427,7 @@ def api_clientes_del_vendedor(v_id):
             Cliente, ClienteVendedor.cliente_id == Cliente.id
         ).filter(
             ClienteVendedor.vendedor_id == v_id,
-            ClienteVendedor.activo.is_(True)
+            ClienteVendedor.activo == True
         ).order_by(Cliente.nombre).all()
         
         print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones")
@@ -1438,8 +1439,7 @@ def api_clientes_del_vendedor(v_id):
                 'id': cliente.id,
                 'nombre': cliente.nombre,
                 'asign_id': asignacion.id,
-                # La columna correcta es fecha_inicio en ClienteVendedor
-                'fecha_asignacion': asignacion.fecha_inicio.strftime('%Y-%m-%d') if asignacion.fecha_inicio else None
+                'fecha_asignacion': asignacion.fecha_asignacion.strftime('%Y-%m-%d') if asignacion.fecha_asignacion else None
             })
             print(f"DEBUG: Cliente {cliente.nombre} (ID: {cliente.id}, asign_id: {asignacion.id})")
         
