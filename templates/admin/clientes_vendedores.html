@@ -55,46 +55,74 @@
 {% block extra_js %}
 {{ super() }}
 <script>
-// Listener para cuando cambia el vendedor seleccionado
-document.getElementById('vendedor_id').addEventListener('change', function() {
-    cargarClientesAsignados();
-    actualizarClientesDisponibles();
+// REEMPLAZA TEMPORALMENTE EL JAVASCRIPT EN TU TEMPLATE CON ESTE PARA DEBUG:
+
+document.getElementById('vendedor_id').addEventListener('change', async function() {
+    const vendedorId = this.value;
+    const vendedorNombre = this.options[this.selectedIndex].text;
+    
+    console.log('=== DEBUGGING VENDEDOR ===');
+    console.log('Vendedor seleccionado:', vendedorNombre);
+    console.log('ID del vendedor:', vendedorId);
+    console.log('Tipo del ID:', typeof vendedorId);
+    
+    if (!vendedorId) {
+        console.log('No hay vendedor seleccionado');
+        return;
+    }
+    
+    // Cargar clientes del vendedor con debugging detallado
+    await cargarClientesConDebug(vendedorId);
 });
 
-// Función para cargar los clientes asignados al vendedor en la tabla
-async function cargarClientesAsignados() {
-    const vendedorId = document.getElementById('vendedor_id').value;
+async function cargarClientesConDebug(vendedorId) {
     const tbody = document.querySelector('#tabla-clientes tbody');
+    
+    console.log('=== INICIANDO CARGA DE CLIENTES ===');
+    console.log('Vendedor ID para consulta:', vendedorId);
     
     // Mostrar loading
     tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Cargando...</td></tr>';
 
-    // Si no hay vendedor seleccionado, limpiar tabla
-    if (!vendedorId) {
-        tbody.innerHTML = '';
-        return;
-    }
-
     try {
-        // Cargar clientes asignados al vendedor
-        const res = await fetch(`/api/vendedores/${vendedorId}/clientes`);
+        const url = `/api/vendedores/${vendedorId}/clientes`;
+        console.log('URL de consulta:', url);
+        
+        // Hacer la consulta
+        const res = await fetch(url);
+        
+        console.log('Response status:', res.status);
+        console.log('Response headers:', res.headers);
         
         if (!res.ok) {
-            throw new Error(`Error HTTP: ${res.status}`);
+            const errorText = await res.text();
+            console.error('Error response:', errorText);
+            throw new Error(`Error HTTP: ${res.status} - ${errorText}`);
         }
         
         const datos = await res.json();
+        console.log('Datos recibidos:', datos);
+        console.log('Tipo de datos:', typeof datos);
+        console.log('Es array?', Array.isArray(datos));
+        console.log('Cantidad de elementos:', datos.length);
 
         // Limpiar tabla
         tbody.innerHTML = '';
 
         if (!datos.length) {
+            console.log('❌ No hay clientes asignados a este vendedor');
             tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">Sin clientes asignados</td></tr>';
+            
+            // DEBUGGING ADICIONAL: Verificar todas las asignaciones
+            await verificarTodasLasAsignaciones();
             return;
         }
 
+        console.log(`✅ Encontrados ${datos.length} clientes asignados`);
+        
         // Dibujar filas de clientes asignados
-        datos.forEach(c => {
+        datos.forEach((c, index) => {
+            console.log(`Cliente ${index}:`, c);
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>${c.nombre}</td>
@@ -105,151 +133,51 @@ async function cargarClientesAsignados() {
               </td>`;
             tbody.appendChild(tr);
         });
+        
+        console.log('=== CARGA COMPLETADA ===');
+        
     } catch (error) {
-        console.error('Error al cargar clientes asignados:', error);
+        console.error('❌ Error al cargar clientes asignados:', error);
         tbody.innerHTML = '<tr><td colspan="2" class="text-center text-danger">Error al cargar datos</td></tr>';
     }
 }
 
-// Función para actualizar la lista de clientes disponibles (sin asignar)
-async function actualizarClientesDisponibles() {
-    const clienteSelect = document.getElementById('cliente_id');
-    
-    // Mostrar loading en el select
-    clienteSelect.innerHTML = '<option value="">Cargando clientes...</option>';
+// Función adicional para debugging - verificar todas las asignaciones
+async function verificarTodasLasAsignaciones() {
+    console.log('=== VERIFICANDO TODAS LAS ASIGNACIONES ===');
     
     try {
-        // Obtener clientes sin asignar
-        const res = await fetch('/api/clientes/sin-asignar');
+        // Consultar todos los vendedores para ver cuáles tienen clientes
+        const vendedorSelect = document.getElementById('vendedor_id');
+        const vendedores = Array.from(vendedorSelect.options).slice(1); // Excluir el primer option vacío
         
-        if (!res.ok) {
-            throw new Error(`Error HTTP: ${res.status}`);
-        }
-        
-        const clientes = await res.json();
-
-        // Limpiar select
-        clienteSelect.innerHTML = '<option value="">— Seleccione —</option>';
-
-        // Agregar opciones de clientes disponibles
-        clientes.forEach(cliente => {
-            const option = document.createElement('option');
-            option.value = cliente.id;
-            option.textContent = cliente.nombre;
-            clienteSelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Error al cargar clientes disponibles:', error);
-        clienteSelect.innerHTML = '<option value="">Error al cargar clientes</option>';
-    }
-}
-
-// Listener para desasignar clientes
-document.querySelector('#tabla-clientes').addEventListener('click', async e => {
-    const btn = e.target.closest('button[data-asign]');
-    if (!btn) return;
-
-    if (!confirm('¿Estás seguro de que quieres desasignar este cliente?')) return;
-
-    // Deshabilitar botón durante la operación
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-
-    try {
-        const asignId = btn.dataset.asign;
-        const resp = await fetch(`/api/asignaciones/${asignId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
+        for (let option of vendedores) {
+            if (option.value) {
+                const url = `/api/vendedores/${option.value}/clientes`;
+                const res = await fetch(url);
+                const clientes = await res.json();
+                console.log(`Vendedor ${option.text} (ID: ${option.value}): ${clientes.length} clientes`);
             }
-        });
-        
-        const json = await resp.json();
-
-        if (json.success) {
-            // Remover la fila
-            btn.closest('tr').remove();
-            
-            // Actualizar clientes disponibles
-            actualizarClientesDisponibles();
-            
-            // Mostrar mensaje de éxito
-            mostrarMensaje('Cliente desasignado correctamente', 'success');
-        } else {
-            mostrarMensaje('Error: ' + (json.error || 'No se pudo desasignar'), 'error');
-            // Restaurar botón
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-unlink"></i> Desasignar';
         }
     } catch (error) {
-        console.error('Error al desasignar:', error);
-        mostrarMensaje('Error de conexión al desasignar cliente', 'error');
-        // Restaurar botón
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-unlink"></i> Desasignar';
+        console.error('Error verificando asignaciones:', error);
     }
-});
-
-// Función para mostrar mensajes
-function mostrarMensaje(mensaje, tipo = 'info') {
-    // Remover mensaje anterior si existe
-    const mensajeAnterior = document.querySelector('.mensaje-temporal');
-    if (mensajeAnterior) {
-        mensajeAnterior.remove();
-    }
-    
-    const tipoClass = tipo === 'success' ? 'alert-success' : 
-                     tipo === 'error' ? 'alert-danger' : 'alert-info';
-    
-    const flashDiv = document.createElement('div');
-    flashDiv.className = `alert ${tipoClass} alert-dismissible fade show mensaje-temporal`;
-    flashDiv.innerHTML = `
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    // Insertar al inicio de la card
-    document.querySelector('.card').prepend(flashDiv);
-    
-    // Auto-dismiss después de 5 segundos
-    setTimeout(() => {
-        if (flashDiv.parentNode) {
-            flashDiv.remove();
-        }
-    }, 5000);
 }
 
-// Listener para el formulario de asignación
-document.getElementById('form-asignar').addEventListener('submit', function(e) {
-    const vendedorId = document.getElementById('vendedor_id').value;
-    const clienteId = document.getElementById('cliente_id').value;
-    
-    if (!vendedorId || !clienteId) {
-        e.preventDefault();
-        mostrarMensaje('Debe seleccionar un vendedor y un cliente', 'error');
-        return;
-    }
-    
-    // El formulario se envía normalmente (se recargará la página)
-    // Opcional: mostrar loading en el botón de envío
-    const submitBtn = this.querySelector('button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Asignando...';
-    }
-});
-
-// Cargar datos iniciales al cargar la página
+// Auto-ejecutar al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
-    // Si hay un vendedor pre-seleccionado, cargar sus clientes
-    const vendedorSelect = document.getElementById('vendedor_id');
-    if (vendedorSelect.value) {
-        cargarClientesAsignados();
-    }
+    console.log('=== PÁGINA CARGADA - DEBUGGING ACTIVADO ===');
     
-    // Cargar clientes disponibles
-    actualizarClientesDisponibles();
-});
+    // Mostrar todos los vendedores disponibles
+    const vendedorSelect = document.getElementById('vendedor_id');
+    console.log('Vendedores disponibles:');
+    Array.from(vendedorSelect.options).forEach((option, index) => {
+        if (option.value) {
+            console.log(`${index}: ${option.text} (ID: ${option.value})`);
+        }
+    });
+});// Listener para cuando cambia el vendedor seleccionado
+
 </script>
 {% endblock %}
 
