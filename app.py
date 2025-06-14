@@ -140,10 +140,46 @@ def require_login():
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
-        
+def log_vendedor_action():
+    """Registra las acciones de los vendedores para auditoría"""
+    if request.method in ['POST', 'PUT', 'DELETE'] and current_user.is_authenticated:
+        if isinstance(current_user, Vendedor):
+            # Log básico - en producción usar un sistema de logging más robusto
+            print(f"[AUDIT] {datetime.now()} - Vendedor: {current_user.username} - "
+                  f"Acción: {request.method} - URL: {request.url}")
+
+
 # En lugar de @app.route('/dashboard')
 # Reemplazar la función dashboard_vendedor en app.py con esta versión optimizada
-
+@app.context_processor
+def inject_permissions():
+    """Inyecta funciones de verificación de permisos en los templates"""
+    def puede_crear(recurso):
+        if not current_user.is_authenticated:
+            return False
+        if not isinstance(current_user, Vendedor):
+            return True  # Usuario legacy tiene todos los permisos
+        return current_user.tiene_permiso(recurso, 'crear')
+    
+    def puede_editar(recurso):
+        if not current_user.is_authenticated:
+            return False
+        if not isinstance(current_user, Vendedor):
+            return True
+        return current_user.tiene_permiso(recurso, 'editar')
+    
+    def puede_eliminar(recurso):
+        if not current_user.is_authenticated:
+            return False
+        if not isinstance(current_user, Vendedor):
+            return True
+        return current_user.tiene_permiso(recurso, 'eliminar')
+    
+    return dict(
+        puede_crear=puede_crear,
+        puede_editar=puede_editar,
+        puede_eliminar=puede_eliminar
+    )
 @app.route('/dashboard_vendedor')
 @login_required
 def dashboard_vendedor():
@@ -702,18 +738,65 @@ class Vendedor(db.Model, UserMixin):
         """Verifica si el vendedor tiene un permiso específico"""
         if not self.activo:
             return False
-            
-        for rol_permiso in self.rol.permisos:
-            if rol_permiso.permiso.nombre == permiso_nombre:
-                if tipo_acceso == 'leer':
-                    return rol_permiso.puede_leer
-                elif tipo_acceso == 'crear':
-                    return rol_permiso.puede_crear
-                elif tipo_acceso == 'editar':
-                    return rol_permiso.puede_editar
-                elif tipo_acceso == 'eliminar':
-                    return rol_permiso.puede_eliminar
-        return False
+        
+        # Definir permisos específicos por rol
+        permisos_por_rol = {
+            'super_admin': {
+                # El super admin tiene todos los permisos
+                'productos': ['leer', 'crear', 'editar', 'eliminar'],
+                'clientes': ['leer', 'crear', 'editar', 'eliminar'],
+                'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
+                'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
+                'precios': ['leer', 'crear', 'editar', 'eliminar'],
+                'reportes': ['leer', 'crear', 'editar', 'eliminar'],
+                'crm': ['leer', 'crear', 'editar', 'eliminar'],
+                'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
+                'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
+            },
+            'supervisor': {
+                'productos': ['leer'],
+                'clientes': ['leer', 'editar'],  # Solo editar sus clientes
+                'pedidos': ['leer', 'crear', 'editar'],
+                'vendedores': ['leer'],
+                'precios': ['leer'],
+                'reportes': ['leer'],
+                'crm': ['leer', 'crear', 'editar'],
+                'importaciones': [],
+                'facturacion': ['leer'],
+            },
+            'vendedor': {
+                'productos': ['leer'],
+                'clientes': ['leer', 'editar'],  # Solo editar datos de contacto/horarios de SUS clientes
+                'pedidos': ['leer', 'crear', 'editar'],  # Solo sus pedidos
+                'vendedores': [],
+                'precios': ['leer'],
+                'reportes': [],
+                'crm': ['leer', 'crear', 'editar'],  # Solo para sus clientes
+                'importaciones': [],
+                'facturacion': [],
+            }
+        }
+        
+        permisos_rol = permisos_por_rol.get(self.rol.nombre, {})
+        permisos_recurso = permisos_rol.get(permiso_nombre, [])
+        
+        return tipo_acceso in permisos_recurso
+    
+    def puede_editar_pedido(self, pedido):
+        """Verifica si el vendedor puede editar un pedido específico"""
+        if self.rol.nombre == 'super_admin':
+            return True
+        
+        # Verificar si el pedido es de un cliente asignado al vendedor
+        return self.puede_ver_cliente(pedido.cliente_id)
+    
+    def puede_crear_pedido_para_cliente(self, cliente_id):
+        """Verifica si el vendedor puede crear pedidos para un cliente específico"""
+        if self.rol.nombre == 'super_admin':
+            return True
+        
+        return self.puede_ver_cliente(cliente_id)
+
     
     def puede_ver_cliente(self, cliente_id):
         """Verifica si el vendedor puede ver un cliente específico"""
@@ -811,22 +894,25 @@ class ClienteVendedor(db.Model):
 # DECORADORES Y FUNCIONES DE SEGURIDAD
 ############################################
 
-def requiere_permiso(permiso_nombre, tipo_acceso='leer'):
-    """Decorador para verificar permisos específicos"""
+# 2. DECORADOR MEJORADO PARA VERIFICAR PERMISOS
+def requiere_permiso_recurso(recurso, tipo_acceso='leer'):
+    """Decorador mejorado para verificar permisos sobre recursos específicos"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
+                flash('Debes iniciar sesión para acceder a esta página', 'warning')
                 return redirect(url_for('login'))
-            
+                
+            # Si es el usuario legacy, permitir acceso
             if not isinstance(current_user, Vendedor):
-                # Si es el usuario por defecto del sistema anterior
                 return f(*args, **kwargs)
-            
-            if not current_user.tiene_permiso(permiso_nombre, tipo_acceso):
-                flash(f"No tienes permisos para {tipo_acceso} {permiso_nombre}", "error")
-                return redirect(url_for('index'))
-            
+                
+            # Verificar permiso sobre el recurso
+            if not current_user.tiene_permiso(recurso, tipo_acceso):
+                flash(f'No tienes permisos para {tipo_acceso} {recurso}', 'error')
+                return redirect(url_for('dashboard_vendedor'))
+                
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -2230,6 +2316,7 @@ def dashboard():
     
 @app.route('/pedidos')
 @login_required
+@requiere_permiso_recurso('pedidos', 'leer')
 def lista_pedidos():
     # Verificar si es vendedor del nuevo sistema
     if not isinstance(current_user, Vendedor):
@@ -2310,6 +2397,7 @@ def lista_pedidos():
 
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'crear')
 def nuevo_pedido():
     # Obtener clientes según el vendedor
     if not isinstance(current_user, Vendedor):
@@ -2403,6 +2491,7 @@ def nuevo_pedido():
 
 @app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'editar')
 def editar_pedido(pedido_id):
     pedido    = Pedido.query.get_or_404(pedido_id)
     clientes  = Cliente.query.all()
@@ -2421,7 +2510,11 @@ def editar_pedido(pedido_id):
         )
     } for p in productos]
 
+    
     if request.method == 'POST':
+        if isinstance(current_user, Vendedor) and not current_user.puede_editar_pedido(pedido):
+            flash('No tienes permisos para editar este pedido', 'error')
+            return redirect(url_for('lista_pedidos'))
         # Actualizar cabecera
         pedido.cliente_id = int(request.form['cliente_id'])
         pedido.notas = request.form.get('notas')
@@ -2497,6 +2590,7 @@ def editar_pedido(pedido_id):
 
 @app.route('/pedidos/<int:pedido_id>/eliminar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'eliminar')
 def eliminar_pedido(pedido_id):
     pedido = Pedido.query.get_or_404(pedido_id)
     db.session.delete(pedido)
@@ -2744,6 +2838,7 @@ def facturar_pedido(pedido_id):
 
 @app.route('/precios')
 @login_required
+@requiere_permiso_recurso('precios', 'leer')
 def mostrar_precios():
     """Página principal del sistema de precios"""
     listas_precio = ListaPrecio.query.filter_by(activa=True).all()
@@ -3120,6 +3215,8 @@ def api_precios_cliente(cliente_id):
 @login_required
 def productos():
     if request.method == 'POST':
+        if isinstance(current_user, Vendedor) and not current_user.tiene_permiso('productos', 'crear'):
+            return jsonify({'error': 'No tienes permisos para crear productos'}), 403
         try:
             nombre      = request.form['nombre']
             descripcion = request.form.get('descripcion', '')
@@ -3772,6 +3869,7 @@ def mostrar_clientes():
 
 @app.route('/clientes/nuevo', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('clientes', 'crear')
 def nuevo_cliente():
     # VERIFICAR PERMISOS: Solo super_admin puede crear clientes
     if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
@@ -3832,6 +3930,7 @@ def editar_cliente(cliente_id):
 
 @app.route('/clientes/<int:cliente_id>', methods=['DELETE'])
 @login_required
+@requiere_permiso_recurso('clientes', 'eliminar')
 def eliminar_cliente(cliente_id):
     # VERIFICAR PERMISOS: Solo super_admin puede eliminar clientes
     if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
@@ -3847,6 +3946,32 @@ def eliminar_cliente(cliente_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@app.route('/clientes/<int:cliente_id>/contactos')
+@login_required
+@requiere_permiso_recurso('crm', 'leer')
+def ver_contactos_cliente(cliente_id):
+    """Ver contactos y horarios de un cliente"""
+    cliente = Cliente.query.get_or_404(cliente_id)
+    
+    # Verificar permisos
+    if isinstance(current_user, Vendedor) and not current_user.puede_ver_cliente(cliente_id):
+        flash('No tienes permisos para ver este cliente', 'error')
+        return redirect(url_for('mostrar_clientes'))
+    
+    # Obtener contactos y horarios
+    if CRM_ENABLED:
+        crm_cliente = CRMCliente.query.filter_by(cliente_original_id=cliente_id).first()
+        contactos = crm_cliente.contactos if crm_cliente else []
+        horarios = crm_cliente.horarios if crm_cliente else []
+    else:
+        contactos = []
+        horarios = []
+    
+    return render_template('clientes/contactos.html', 
+                         cliente=cliente, 
+                         contactos=contactos,
+                         horarios=horarios)
 
 @app.route('/generar_reporte', methods=['GET'])
 @login_required
