@@ -1426,7 +1426,7 @@ def api_clientes_del_vendedor(v_id):
             Cliente, ClienteVendedor.cliente_id == Cliente.id
         ).filter(
             ClienteVendedor.vendedor_id == v_id,
-            ClienteVendedor.activo == True
+            ClienteVendedor.activo.is_(True)
         ).order_by(Cliente.nombre).all()
         
         print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones")
