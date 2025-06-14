@@ -1426,7 +1426,7 @@ def api_clientes_del_vendedor(v_id):
             Cliente, ClienteVendedor.cliente_id == Cliente.id
         ).filter(
             ClienteVendedor.vendedor_id == v_id,
-            ClienteVendedor.activo == True
+            ClienteVendedor.activo.is_(True)
         ).order_by(Cliente.nombre).all()
         
         print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones")
@@ -1438,7 +1438,8 @@ def api_clientes_del_vendedor(v_id):
                 'id': cliente.id,
                 'nombre': cliente.nombre,
                 'asign_id': asignacion.id,
-                'fecha_asignacion': asignacion.fecha_asignacion.strftime('%Y-%m-%d') if asignacion.fecha_asignacion else None
+                # La columna correcta es fecha_inicio en ClienteVendedor
+                'fecha_asignacion': asignacion.fecha_inicio.strftime('%Y-%m-%d') if asignacion.fecha_inicio else None
             })
             print(f"DEBUG: Cliente {cliente.nombre} (ID: {cliente.id}, asign_id: {asignacion.id})")
         
