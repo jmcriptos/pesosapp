@@ -4800,8 +4800,17 @@ def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
                 resultados['detalles'].append(f'Fila {fila_num}: Código producto y precio base son obligatorios')
                 continue
             
-            # Buscar producto
-            producto = Producto.query.filter_by(codigo=codigo_producto).first()
+            # CORRECCIÓN: Buscar producto por ID (ya que los valores en CSV son IDs)
+            try:
+                producto_id = int(codigo_producto)
+                producto = Producto.query.get(producto_id)
+            except ValueError:
+                # Si no es un número, intentar buscar por qbo_id o nombre
+                producto = Producto.query.filter(
+                    (Producto.qbo_id == codigo_producto) | 
+                    (Producto.nombre.ilike(f'%{codigo_producto}%'))
+                ).first()
+            
             if not producto:
                 resultados['errores'] += 1
                 resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')
@@ -4849,7 +4858,7 @@ def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
                 accion = 'creado'
             
             resultados['procesados'] += 1
-            resultados['detalles'].append(f'Fila {fila_num}: Precio para {codigo_producto} {accion} exitosamente')
+            resultados['detalles'].append(f'Fila {fila_num}: Precio para producto {producto.nombre} (ID: {producto.id}) {accion} exitosamente')
             
         except Exception as e:
             resultados['errores'] += 1
@@ -4923,15 +4932,28 @@ def procesar_precios_especificos(csv_input, resultados):
                 resultados['detalles'].append(f'Fila {fila_num}: Cliente, producto y precio base son obligatorios')
                 continue
             
-            # Buscar cliente
-            cliente = Cliente.query.filter_by(codigo=codigo_cliente).first()
+            # Buscar cliente por ID o nombre
+            try:
+                cliente_id = int(codigo_cliente)
+                cliente = Cliente.query.get(cliente_id)
+            except ValueError:
+                cliente = Cliente.query.filter(Cliente.nombre.ilike(f'%{codigo_cliente}%')).first()
+            
             if not cliente:
                 resultados['errores'] += 1
                 resultados['detalles'].append(f'Fila {fila_num}: Cliente {codigo_cliente} no encontrado')
                 continue
             
-            # Buscar producto
-            producto = Producto.query.filter_by(codigo=codigo_producto).first()
+            # CORRECCIÓN: Buscar producto por ID (igual que arriba)
+            try:
+                producto_id = int(codigo_producto)
+                producto = Producto.query.get(producto_id)
+            except ValueError:
+                producto = Producto.query.filter(
+                    (Producto.qbo_id == codigo_producto) | 
+                    (Producto.nombre.ilike(f'%{codigo_producto}%'))
+                ).first()
+            
             if not producto:
                 resultados['errores'] += 1
                 resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')
@@ -4980,7 +5002,7 @@ def procesar_precios_especificos(csv_input, resultados):
                 accion = 'creado'
             
             resultados['procesados'] += 1
-            resultados['detalles'].append(f'Fila {fila_num}: Precio específico {codigo_cliente}-{codigo_producto} {accion}')
+            resultados['detalles'].append(f'Fila {fila_num}: Precio específico {cliente.nombre}-{producto.nombre} {accion}')
             
         except Exception as e:
             resultados['errores'] += 1
@@ -4998,21 +5020,39 @@ def descargar_plantilla_csv(tipo):
         fieldnames = ['codigo_producto', 'precio_base', 'margen_jomar', 'margen_retail']
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerow({
-            'codigo_producto': 'PROD001',
-            'precio_base': '25.50',
-            'margen_jomar': '1.0',
-            'margen_retail': '1.2'
-        })
+        
+        # Obtener algunos productos reales para el ejemplo
+        productos_ejemplo = Producto.query.limit(3).all()
+        if productos_ejemplo:
+            for producto in productos_ejemplo:
+                writer.writerow({
+                    'codigo_producto': str(producto.id),  # Usar ID real
+                    'precio_base': '25.50',
+                    'margen_jomar': '1.0',
+                    'margen_retail': '1.2'
+                })
+        else:
+            # Fallback si no hay productos
+            writer.writerow({
+                'codigo_producto': '1',
+                'precio_base': '25.50',
+                'margen_jomar': '1.0',
+                'margen_retail': '1.2'
+            })
         filename = 'plantilla_precios_lista.csv'
         
     elif tipo == 'asignacion_clientes':
         fieldnames = ['codigo_cliente', 'nombre_lista_precio']
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
+        
+        # Obtener ejemplos reales
+        cliente_ejemplo = Cliente.query.first()
+        lista_ejemplo = ListaPrecio.query.first()
+        
         writer.writerow({
-            'codigo_cliente': 'CLI001',
-            'nombre_lista_precio': 'Lista Mayorista'
+            'codigo_cliente': str(cliente_ejemplo.id) if cliente_ejemplo else '1',
+            'nombre_lista_precio': lista_ejemplo.nombre if lista_ejemplo else 'Lista Mayorista'
         })
         filename = 'plantilla_asignacion_clientes.csv'
         
@@ -5020,9 +5060,13 @@ def descargar_plantilla_csv(tipo):
         fieldnames = ['codigo_cliente', 'codigo_producto', 'precio_base', 'margen_jomar', 'margen_retail']
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
+        
+        cliente_ejemplo = Cliente.query.first()
+        producto_ejemplo = Producto.query.first()
+        
         writer.writerow({
-            'codigo_cliente': 'CLI001',
-            'codigo_producto': 'PROD001',
+            'codigo_cliente': str(cliente_ejemplo.id) if cliente_ejemplo else '1',
+            'codigo_producto': str(producto_ejemplo.id) if producto_ejemplo else '1',
             'precio_base': '23.75',
             'margen_jomar': '1.0',
             'margen_retail': '1.15'

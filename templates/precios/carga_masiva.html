@@ -1,4 +1,4 @@
-<!-- Crear archivo: templates/precios/carga_masiva.html -->
+<!-- Archivo completo: templates/precios/carga_masiva.html -->
 {% extends "base.html" %}
 
 {% block title %}Carga Masiva de Precios{% endblock %}
@@ -53,7 +53,10 @@
                         <div class="form-group">
                             <label for="archivo_csv_lista">Archivo CSV <span class="required">*</span></label>
                             <input type="file" id="archivo_csv_lista" name="archivo_csv" accept=".csv" required>
-                            <small class="form-help">Formato: codigo_producto, precio_base, margen_jomar, margen_retail</small>
+                            <small class="form-help">
+                                <strong>Formato:</strong> codigo_producto (ID numérico), precio_base, margen_jomar, margen_retail<br>
+                                <strong>Ejemplo:</strong> 43,48.85,1.2,1.3
+                            </small>
                         </div>
                     </div>
                     
@@ -85,7 +88,7 @@
                     <div class="form-group">
                         <label for="archivo_csv_asignacion">Archivo CSV <span class="required">*</span></label>
                         <input type="file" id="archivo_csv_asignacion" name="archivo_csv" accept=".csv" required>
-                        <small class="form-help">Formato: codigo_cliente, nombre_lista_precio</small>
+                        <small class="form-help">Formato: codigo_cliente (ID numérico), nombre_lista_precio</small>
                     </div>
                     
                     <div class="form-actions">
@@ -116,7 +119,7 @@
                     <div class="form-group">
                         <label for="archivo_csv_especificos">Archivo CSV <span class="required">*</span></label>
                         <input type="file" id="archivo_csv_especificos" name="archivo_csv" accept=".csv" required>
-                        <small class="form-help">Formato: codigo_cliente, codigo_producto, precio_base, margen_jomar, margen_retail</small>
+                        <small class="form-help">Formato: codigo_cliente (ID), codigo_producto (ID), precio_base, margen_jomar, margen_retail</small>
                     </div>
                     
                     <div class="form-actions">
@@ -146,6 +149,7 @@
                         <li>Primera fila debe contener los encabezados</li>
                         <li>Codifique el archivo en UTF-8</li>
                         <li>Los precios usan punto (.) como decimal</li>
+                        <li><strong>Importante:</strong> Use IDs numéricos para productos y clientes</li>
                     </ul>
                 </div>
             </div>
@@ -171,11 +175,100 @@
                 <div class="info-content">
                     <h4>Consideraciones</h4>
                     <ul>
-                        <li>Los códigos deben existir en el sistema</li>
+                        <li>Los IDs deben existir en el sistema</li>
                         <li>Se actualizarán registros existentes</li>
                         <li>Respalde antes de cargas masivas</li>
                         <li>Revise los resultados cuidadosamente</li>
                     </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de productos disponibles -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>📦 Productos Disponibles</h4>
+                </div>
+                <div class="card-body">
+                    <p>Para tu referencia, estos son algunos productos disponibles en el sistema:</p>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th>Temperatura</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for producto in productos[:20] %}
+                                <tr>
+                                    <td><strong>{{ producto.id }}</strong></td>
+                                    <td>{{ producto.nombre }}</td>
+                                    <td>{{ producto.descripcion or '-' }}</td>
+                                    <td>{{ producto.temperatura or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if productos|length > 20 %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        <em>... y {{ productos|length - 20 }} productos más</em>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Usa la columna <strong>ID</strong> en tu archivo CSV como <code>codigo_producto</code>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de clientes disponibles -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>👥 Clientes Disponibles</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cliente in clientes[:20] %}
+                                <tr>
+                                    <td><strong>{{ cliente.id }}</strong></td>
+                                    <td>{{ cliente.nombre }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if clientes|length > 20 %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted">
+                                        <em>... y {{ clientes|length - 20 }} clientes más</em>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Usa la columna <strong>ID</strong> en tu archivo CSV como <code>codigo_cliente</code>
+                    </small>
                 </div>
             </div>
         </div>
@@ -435,6 +528,32 @@
 .info-card li {
     margin-bottom: 8px;
     color: #555;
+}
+
+/* Tables */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    border-top: none;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(52,152,219,0.05);
+}
+
+.card {
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
 }
 
 /* Resultados */
@@ -758,4 +877,4 @@ $(document).on('change', 'input[type="file"]', function() {
     }
 });
 </script>
-{% endblock %}
+{% endblock %>
