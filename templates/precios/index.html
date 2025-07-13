@@ -37,7 +37,9 @@
             <h3>Precios Específicos</h3>
             <p>Definir precios individuales por cliente-producto</p>
         </a>
-
+        <a href="{{ url_for('carga_masiva_precios') }}" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Carga Masiva CSV
+        </a>
         <!-- Consultar Precios -->
         <div class="precio-card" onclick="mostrarConsultorPrecios()">
             <div class="precio-icon">
