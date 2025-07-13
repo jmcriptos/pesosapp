@@ -1,4 +1,4 @@
-<!-- Archivo completo: templates/precios/carga_masiva.html -->
+<!-- Archivo corregido: templates/precios/carga_masiva.html -->
 {% extends "base.html" %}
 
 {% block title %}Carga Masiva de Precios{% endblock %}
@@ -45,7 +45,7 @@
                             <select id="lista_precio_id" name="lista_precio_id" required>
                                 <option value="">Seleccionar lista...</option>
                                 {% for lista in listas %}
-                                <option value="{{ lista.id }}">{{ lista.nombre }} {% if lista.es_default %}(Por defecto){% endif %}</option>
+                                <option value="{{ lista.id }}">{{ lista.nombre }}{% if lista.es_default %} (Por defecto){% endif %}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -205,13 +205,17 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for producto in productos[:20] %}
-                                <tr>
-                                    <td><strong>{{ producto.id }}</strong></td>
-                                    <td>{{ producto.nombre }}</td>
-                                    <td>{{ producto.descripcion or '-' }}</td>
-                                    <td>{{ producto.temperatura or '-' }}</td>
-                                </tr>
+                                {% set count = 0 %}
+                                {% for producto in productos %}
+                                    {% if count < 20 %}
+                                        <tr>
+                                            <td><strong>{{ producto.id }}</strong></td>
+                                            <td>{{ producto.nombre }}</td>
+                                            <td>{{ producto.descripcion or '-' }}</td>
+                                            <td>{{ producto.temperatura or '-' }}</td>
+                                        </tr>
+                                        {% set count = count + 1 %}
+                                    {% endif %}
                                 {% endfor %}
                                 {% if productos|length > 20 %}
                                 <tr>
@@ -249,11 +253,15 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for cliente in clientes[:20] %}
-                                <tr>
-                                    <td><strong>{{ cliente.id }}</strong></td>
-                                    <td>{{ cliente.nombre }}</td>
-                                </tr>
+                                {% set count = 0 %}
+                                {% for cliente in clientes %}
+                                    {% if count < 20 %}
+                                        <tr>
+                                            <td><strong>{{ cliente.id }}</strong></td>
+                                            <td>{{ cliente.nombre }}</td>
+                                        </tr>
+                                        {% set count = count + 1 %}
+                                    {% endif %}
                                 {% endfor %}
                                 {% if clientes|length > 20 %}
                                 <tr>
@@ -556,6 +564,30 @@
     font-weight: 600;
 }
 
+.card-body {
+    padding: 20px;
+}
+
+.row {
+    margin: 0 -15px;
+}
+
+.col-12 {
+    padding: 0 15px;
+}
+
+.mt-4 {
+    margin-top: 1.5rem;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #6c757d;
+}
+
 /* Resultados */
 .resultados-container {
     background: white;
@@ -745,7 +777,7 @@ function mostrarTab(tabId) {
     });
     
     // Mostrar tab seleccionado
-    document.getElementById(`tab-${tabId}`).classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
     
     // Activar botón correspondiente
     event.target.classList.add('active');
@@ -753,10 +785,10 @@ function mostrarTab(tabId) {
 
 // Descargar plantillas
 function descargarPlantilla(tipo) {
-    const url = `/precios/descargar-plantilla/${tipo}`;
+    const url = '/precios/descargar-plantilla/' + tipo;
     const a = document.createElement('a');
     a.href = url;
-    a.download = `plantilla_${tipo}.csv`;
+    a.download = 'plantilla_' + tipo + '.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -764,7 +796,7 @@ function descargarPlantilla(tipo) {
 
 // Procesamiento de formularios
 function configurarFormulario(formId) {
-    $(`#${formId}`).on('submit', function(e) {
+    $('#' + formId).on('submit', function(e) {
         e.preventDefault();
         
         const formData = new FormData(this);
@@ -809,28 +841,30 @@ function mostrarResultados(response) {
     let html = '';
     
     if (response.success) {
-        html += `<div class="resultado-resumen">
-            <h4><i class="fas fa-check-circle" style="color: #27ae60;"></i> Procesamiento Completado</h4>
-            <p><strong>Registros procesados:</strong> ${response.resultados.procesados}</p>
-            <p><strong>Errores:</strong> ${response.resultados.errores}</p>
-            ${response.resultados.warnings.length > 0 ? `<p><strong>Advertencias:</strong> ${response.resultados.warnings.length}</p>` : ''}
-        </div>`;
+        html += '<div class="resultado-resumen">';
+        html += '<h4><i class="fas fa-check-circle" style="color: #27ae60;"></i> Procesamiento Completado</h4>';
+        html += '<p><strong>Registros procesados:</strong> ' + response.resultados.procesados + '</p>';
+        html += '<p><strong>Errores:</strong> ' + response.resultados.errores + '</p>';
+        if (response.resultados.warnings.length > 0) {
+            html += '<p><strong>Advertencias:</strong> ' + response.resultados.warnings.length + '</p>';
+        }
+        html += '</div>';
     } else {
-        html += `<div class="resultado-error">
-            <h4><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Error en el Procesamiento</h4>
-            <p>${response.error || 'Error desconocido'}</p>
-        </div>`;
+        html += '<div class="resultado-error">';
+        html += '<h4><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Error en el Procesamiento</h4>';
+        html += '<p>' + (response.error || 'Error desconocido') + '</p>';
+        html += '</div>';
     }
     
     if (response.resultados && response.resultados.detalles.length > 0) {
         html += '<div class="resultado-detalles"><h5>Detalles del procesamiento:</h5>';
         
-        response.resultados.detalles.forEach(detalle => {
+        response.resultados.detalles.forEach(function(detalle) {
             let clase = 'success';
             if (detalle.includes('Error')) clase = 'error';
             if (detalle.includes('desactivada')) clase = 'warning';
             
-            html += `<div class="resultado-item ${clase}">${detalle}</div>`;
+            html += '<div class="resultado-item ' + clase + '">' + detalle + '</div>';
         });
         
         html += '</div>';
@@ -877,4 +911,4 @@ $(document).on('change', 'input[type="file"]', function() {
     }
 });
 </script>
-{% endblock %>
+{% endblock %}
