@@ -4706,6 +4706,340 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+# ====================================================================
+# AGREGAR ESTAS RUTAS AL FINAL DE TU app.py (ANTES DE if __name__ == '__main__')
+# ====================================================================
+
+# Agregar estas importaciones al inicio del archivo si no están ya:
+import csv
+import io
+from flask import make_response
+
+# ---- CARGA MASIVA DE PRECIOS ----
+
+@app.route('/precios/carga-masiva')
+@login_required
+def carga_masiva_precios():
+    """Interfaz para carga masiva de precios mediante CSV"""
+    listas = ListaPrecio.query.filter_by(activa=True).all()
+    clientes = Cliente.query.all()
+    productos = Producto.query.all()
+    
+    return render_template('precios/carga_masiva.html', 
+                         listas=listas,
+                         clientes=clientes,
+                         productos=productos)
+
+@app.route('/precios/procesar-csv', methods=['POST'])
+@login_required
+def procesar_csv_precios():
+    """Procesar archivo CSV con precios"""
+    try:
+        if 'archivo_csv' not in request.files:
+            return jsonify({'error': 'No se encontró archivo CSV'}), 400
+        
+        archivo = request.files['archivo_csv']
+        if archivo.filename == '':
+            return jsonify({'error': 'No se seleccionó archivo'}), 400
+        
+        if not archivo.filename.lower().endswith('.csv'):
+            return jsonify({'error': 'El archivo debe ser CSV'}), 400
+        
+        tipo_carga = request.form.get('tipo_carga')
+        lista_precio_id = request.form.get('lista_precio_id')
+        
+        # Leer archivo CSV
+        stream = io.StringIO(archivo.stream.read().decode("UTF8"), newline=None)
+        csv_input = csv.DictReader(stream)
+        
+        resultados = {
+            'procesados': 0,
+            'errores': 0,
+            'warnings': [],
+            'detalles': []
+        }
+        
+        if tipo_carga == 'lista_precios':
+            resultados = procesar_precios_por_lista(csv_input, lista_precio_id, resultados)
+        elif tipo_carga == 'asignacion_clientes':
+            resultados = procesar_asignacion_clientes(csv_input, resultados)
+        elif tipo_carga == 'precios_especificos':
+            resultados = procesar_precios_especificos(csv_input, resultados)
+        else:
+            return jsonify({'error': 'Tipo de carga no válido'}), 400
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'mensaje': f'Procesamiento completado. {resultados["procesados"]} registros procesados, {resultados["errores"]} errores.',
+            'resultados': resultados
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error procesando archivo: {str(e)}'}), 500
+
+def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
+    """Procesar CSV para actualizar precios en una lista específica"""
+    if not lista_precio_id:
+        raise ValueError("Se requiere seleccionar una lista de precios")
+    
+    lista = ListaPrecio.query.get(lista_precio_id)
+    if not lista:
+        raise ValueError("Lista de precios no encontrada")
+    
+    for fila_num, fila in enumerate(csv_input, start=2):
+        try:
+            # Validar campos requeridos
+            codigo_producto = fila.get('codigo_producto', '').strip()
+            precio_base = fila.get('precio_base', '').strip()
+            
+            if not codigo_producto or not precio_base:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Código producto y precio base son obligatorios')
+                continue
+            
+            # Buscar producto
+            producto = Producto.query.filter_by(codigo=codigo_producto).first()
+            if not producto:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')
+                continue
+            
+            # Validar precio base
+            try:
+                precio_base = float(precio_base)
+                if precio_base < 0:
+                    raise ValueError("Precio no puede ser negativo")
+            except ValueError:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Precio base inválido')
+                continue
+            
+            # Obtener márgenes (opcionales, usar defaults si no se especifican)
+            margen_jomar = float(fila.get('margen_jomar', 1.0) or 1.0)
+            margen_retail = float(fila.get('margen_retail', 1.2) or 1.2)
+            
+            # Buscar precio existente o crear nuevo
+            precio_existente = PrecioProducto.query.filter_by(
+                lista_precio_id=lista_precio_id,
+                producto_id=producto.id
+            ).first()
+            
+            if precio_existente:
+                # Actualizar existente
+                precio_existente.precio_base = precio_base
+                precio_existente.margen_jomar = margen_jomar
+                precio_existente.margen_retail = margen_retail
+                precio_existente.calcular_precios()
+                precio_existente.fecha_actualizacion = datetime.utcnow()
+                accion = 'actualizado'
+            else:
+                # Crear nuevo
+                nuevo_precio = PrecioProducto(
+                    lista_precio_id=lista_precio_id,
+                    producto_id=producto.id,
+                    precio_base=precio_base,
+                    margen_jomar=margen_jomar,
+                    margen_retail=margen_retail
+                )
+                nuevo_precio.calcular_precios()
+                db.session.add(nuevo_precio)
+                accion = 'creado'
+            
+            resultados['procesados'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Precio para {codigo_producto} {accion} exitosamente')
+            
+        except Exception as e:
+            resultados['errores'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Error - {str(e)}')
+    
+    return resultados
+
+def procesar_asignacion_clientes(csv_input, resultados):
+    """Procesar CSV para asignar listas de precios a clientes"""
+    for fila_num, fila in enumerate(csv_input, start=2):
+        try:
+            codigo_cliente = fila.get('codigo_cliente', '').strip()
+            nombre_lista = fila.get('nombre_lista_precio', '').strip()
+            
+            if not codigo_cliente or not nombre_lista:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Código cliente y nombre lista son obligatorios')
+                continue
+            
+            # Buscar cliente
+            cliente = Cliente.query.filter_by(codigo=codigo_cliente).first()
+            if not cliente:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Cliente {codigo_cliente} no encontrado')
+                continue
+            
+            # Buscar lista de precios
+            lista = ListaPrecio.query.filter_by(nombre=nombre_lista, activa=True).first()
+            if not lista:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Lista {nombre_lista} no encontrada')
+                continue
+            
+            # Verificar si ya existe asignación activa
+            asignacion_existente = ClienteListaPrecio.query.filter_by(
+                cliente_id=cliente.id,
+                activa=True
+            ).first()
+            
+            if asignacion_existente:
+                # Desactivar asignación anterior
+                asignacion_existente.activa = False
+                resultados['warnings'].append(f'Cliente {codigo_cliente}: Lista anterior desactivada')
+            
+            # Crear nueva asignación
+            nueva_asignacion = ClienteListaPrecio(
+                cliente_id=cliente.id,
+                lista_precio_id=lista.id
+            )
+            db.session.add(nueva_asignacion)
+            
+            resultados['procesados'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Lista {nombre_lista} asignada a cliente {codigo_cliente}')
+            
+        except Exception as e:
+            resultados['errores'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Error - {str(e)}')
+    
+    return resultados
+
+def procesar_precios_especificos(csv_input, resultados):
+    """Procesar CSV para precios específicos cliente-producto"""
+    for fila_num, fila in enumerate(csv_input, start=2):
+        try:
+            codigo_cliente = fila.get('codigo_cliente', '').strip()
+            codigo_producto = fila.get('codigo_producto', '').strip()
+            precio_base = fila.get('precio_base', '').strip()
+            
+            if not codigo_cliente or not codigo_producto or not precio_base:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Cliente, producto y precio base son obligatorios')
+                continue
+            
+            # Buscar cliente
+            cliente = Cliente.query.filter_by(codigo=codigo_cliente).first()
+            if not cliente:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Cliente {codigo_cliente} no encontrado')
+                continue
+            
+            # Buscar producto
+            producto = Producto.query.filter_by(codigo=codigo_producto).first()
+            if not producto:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')
+                continue
+            
+            # Validar precio
+            try:
+                precio_base = float(precio_base)
+                if precio_base < 0:
+                    raise ValueError("Precio no puede ser negativo")
+            except ValueError:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Precio base inválido')
+                continue
+            
+            # Obtener márgenes
+            margen_jomar = float(fila.get('margen_jomar', 1.0) or 1.0)
+            margen_retail = float(fila.get('margen_retail', 1.2) or 1.2)
+            
+            # Buscar precio específico existente o crear nuevo
+            precio_existente = PrecioClienteProducto.query.filter_by(
+                cliente_id=cliente.id,
+                producto_id=producto.id,
+                activo=True
+            ).first()
+            
+            if precio_existente:
+                # Actualizar existente
+                precio_existente.precio_base = precio_base
+                precio_existente.margen_jomar = margen_jomar
+                precio_existente.margen_retail = margen_retail
+                precio_existente.calcular_precios()
+                precio_existente.fecha_actualizacion = datetime.utcnow()
+                accion = 'actualizado'
+            else:
+                # Crear nuevo
+                nuevo_precio = PrecioClienteProducto(
+                    cliente_id=cliente.id,
+                    producto_id=producto.id,
+                    precio_base=precio_base,
+                    margen_jomar=margen_jomar,
+                    margen_retail=margen_retail
+                )
+                nuevo_precio.calcular_precios()
+                db.session.add(nuevo_precio)
+                accion = 'creado'
+            
+            resultados['procesados'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Precio específico {codigo_cliente}-{codigo_producto} {accion}')
+            
+        except Exception as e:
+            resultados['errores'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Error - {str(e)}')
+    
+    return resultados
+
+@app.route('/precios/descargar-plantilla/<tipo>')
+@login_required
+def descargar_plantilla_csv(tipo):
+    """Descargar plantillas CSV para diferentes tipos de carga"""
+    output = io.StringIO()
+    
+    if tipo == 'lista_precios':
+        fieldnames = ['codigo_producto', 'precio_base', 'margen_jomar', 'margen_retail']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            'codigo_producto': 'PROD001',
+            'precio_base': '25.50',
+            'margen_jomar': '1.0',
+            'margen_retail': '1.2'
+        })
+        filename = 'plantilla_precios_lista.csv'
+        
+    elif tipo == 'asignacion_clientes':
+        fieldnames = ['codigo_cliente', 'nombre_lista_precio']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            'codigo_cliente': 'CLI001',
+            'nombre_lista_precio': 'Lista Mayorista'
+        })
+        filename = 'plantilla_asignacion_clientes.csv'
+        
+    elif tipo == 'precios_especificos':
+        fieldnames = ['codigo_cliente', 'codigo_producto', 'precio_base', 'margen_jomar', 'margen_retail']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            'codigo_cliente': 'CLI001',
+            'codigo_producto': 'PROD001',
+            'precio_base': '23.75',
+            'margen_jomar': '1.0',
+            'margen_retail': '1.15'
+        })
+        filename = 'plantilla_precios_especificos.csv'
+    else:
+        return jsonify({'error': 'Tipo de plantilla no válido'}), 400
+    
+    # Crear respuesta con archivo CSV
+    csv_data = output.getvalue()
+    output.close()
+    
+    response = make_response(csv_data)
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    
+    return response
 
 if __name__ == '__main__':
     # Configuración para desarrollo local
