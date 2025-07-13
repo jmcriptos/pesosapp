@@ -7,6 +7,11 @@ from flask import Flask, render_template, request, redirect, send_file, jsonify,
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_
 import io
+from flask import make_response
+import csv
+import io
+import tempfile
+import logging
 import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta
@@ -29,6 +34,7 @@ from decimal import Decimal
 from models.extensions import db
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from datetime import datetime, date  # Asegúrate de que 'date' esté importado
@@ -4390,6 +4396,316 @@ def seed_crm():
     except Exception as e:
         db.session.rollback()
         print(f"❌ Error creando datos de ejemplo: {e}")
+
+def validar_estructura_csv(csv_input, campos_requeridos):
+    """Valida que el CSV tenga los campos requeridos"""
+    try:
+        primera_fila = next(csv_input)
+        campos_csv = set(primera_fila.keys())
+        campos_faltantes = set(campos_requeridos) - campos_csv
+        
+        if campos_faltantes:
+            raise ValueError(f"Campos faltantes en CSV: {', '.join(campos_faltantes)}")
+        
+        # Resetear el iterator (necesario para pandas o re-leer el archivo)
+        return True
+    except StopIteration:
+        raise ValueError("El archivo CSV está vacío")
+
+def limpiar_codigo(codigo):
+    """Limpia y normaliza códigos de productos/clientes"""
+    if not codigo:
+        return None
+    return str(codigo).strip().upper()
+
+def validar_precio(precio_str):
+    """Valida y convierte precio a float"""
+    try:
+        precio = float(precio_str)
+        if precio < 0:
+            raise ValueError("El precio no puede ser negativo")
+        return precio
+    except (ValueError, TypeError):
+        raise ValueError(f"Precio inválido: {precio_str}")
+
+def validar_margen(margen_str, default=1.0):
+    """Valida y convierte margen a float"""
+    if not margen_str or margen_str.strip() == '':
+        return default
+    try:
+        margen = float(margen_str)
+        if margen <= 0:
+            raise ValueError("El margen debe ser mayor a 0")
+        return margen
+    except (ValueError, TypeError):
+        raise ValueError(f"Margen inválido: {margen_str}")
+
+# Función mejorada para procesar precios por lista
+def procesar_precios_por_lista_mejorado(csv_input, lista_precio_id, resultados):
+    """
+    Versión mejorada del procesamiento de precios por lista con más validaciones
+    """
+    if not lista_precio_id:
+        raise ValueError("Se requiere seleccionar una lista de precios")
+    
+    lista = ListaPrecio.query.get(lista_precio_id)
+    if not lista:
+        raise ValueError("Lista de precios no encontrada")
+    
+    # Validar estructura del CSV
+    campos_requeridos = ['codigo_producto', 'precio_base']
+    
+    # Contar total de filas para progress tracking
+    filas_procesadas = 0
+    batch_size = 100  # Procesar en lotes para mejor rendimiento
+    
+    for fila_num, fila in enumerate(csv_input, start=2):
+        try:
+            # Limpiar y validar código de producto
+            codigo_producto = limpiar_codigo(fila.get('codigo_producto'))
+            if not codigo_producto:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Código de producto es obligatorio')
+                continue
+            
+            # Buscar producto
+            producto = Producto.query.filter_by(codigo=codigo_producto).first()
+            if not producto:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')
+                continue
+            
+            # Validar y convertir precio base
+            try:
+                precio_base = validar_precio(fila.get('precio_base', ''))
+            except ValueError as e:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: {str(e)}')
+                continue
+            
+            # Obtener y validar márgenes
+            try:
+                margen_jomar = validar_margen(fila.get('margen_jomar', ''), 1.0)
+                margen_retail = validar_margen(fila.get('margen_retail', ''), 1.2)
+            except ValueError as e:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: {str(e)}')
+                continue
+            
+            # Verificar límites razonables para márgenes
+            if margen_jomar > 10 or margen_retail > 10:
+                resultados['warnings'].append(f'Fila {fila_num}: Márgenes muy altos para producto {codigo_producto}')
+            
+            # Buscar precio existente o crear nuevo
+            precio_existente = PrecioProducto.query.filter_by(
+                lista_precio_id=lista_precio_id,
+                producto_id=producto.id
+            ).first()
+            
+            if precio_existente:
+                # Actualizar existente
+                precio_existente.precio_base = precio_base
+                precio_existente.margen_jomar = margen_jomar
+                precio_existente.margen_retail = margen_retail
+                precio_existente.calcular_precios()
+                precio_existente.fecha_actualizacion = datetime.utcnow()
+                accion = 'actualizado'
+            else:
+                # Crear nuevo
+                nuevo_precio = PrecioProducto(
+                    lista_precio_id=lista_precio_id,
+                    producto_id=producto.id,
+                    precio_base=precio_base,
+                    margen_jomar=margen_jomar,
+                    margen_retail=margen_retail
+                )
+                nuevo_precio.calcular_precios()
+                db.session.add(nuevo_precio)
+                accion = 'creado'
+            
+            resultados['procesados'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Precio para {codigo_producto} {accion} exitosamente')
+            
+            filas_procesadas += 1
+            
+            # Commit en lotes para mejor rendimiento
+            if filas_procesadas % batch_size == 0:
+                db.session.flush()
+                
+        except Exception as e:
+            resultados['errores'] += 1
+            resultados['detalles'].append(f'Fila {fila_num}: Error inesperado - {str(e)}')
+    
+    return resultados
+
+# Función para generar reporte de carga
+@app.route('/precios/generar-reporte-carga', methods=['POST'])
+@login_required
+def generar_reporte_carga():
+    """Genera un reporte detallado de la carga de precios"""
+    try:
+        datos = request.get_json()
+        tipo_reporte = datos.get('tipo', 'lista_precios')
+        lista_id = datos.get('lista_id')
+        
+        if tipo_reporte == 'lista_precios' and lista_id:
+            lista = ListaPrecio.query.get(lista_id)
+            if not lista:
+                return jsonify({'error': 'Lista no encontrada'}), 404
+            
+            # Obtener precios de la lista
+            precios = db.session.query(PrecioProducto, Producto).join(
+                Producto, PrecioProducto.producto_id == Producto.id
+            ).filter(PrecioProducto.lista_precio_id == lista_id).all()
+            
+            output = io.StringIO()
+            fieldnames = ['codigo_producto', 'nombre_producto', 'precio_base', 
+                         'precio_jomar', 'precio_retail', 'margen_jomar', 'margen_retail', 
+                         'fecha_actualizacion']
+            
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for precio, producto in precios:
+                writer.writerow({
+                    'codigo_producto': producto.codigo,
+                    'nombre_producto': producto.nombre,
+                    'precio_base': precio.precio_base,
+                    'precio_jomar': precio.precio_jomar,
+                    'precio_retail': precio.precio_retail,
+                    'margen_jomar': precio.margen_jomar,
+                    'margen_retail': precio.margen_retail,
+                    'fecha_actualizacion': precio.fecha_actualizacion.strftime('%Y-%m-%d %H:%M:%S') if precio.fecha_actualizacion else ''
+                })
+            
+            csv_data = output.getvalue()
+            output.close()
+            
+            response = make_response(csv_data)
+            response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=reporte_precios_{lista.nombre.replace(" ", "_")}.csv'
+            
+            return response
+        
+        return jsonify({'error': 'Tipo de reporte no soportado'}), 400
+        
+    except Exception as e:
+        return jsonify({'error': f'Error generando reporte: {str(e)}'}), 500
+
+# Función para validar CSV antes de procesarlo
+@app.route('/precios/validar-csv', methods=['POST'])
+@login_required
+def validar_csv_precios():
+    """Valida un CSV antes de procesarlo completamente"""
+    try:
+        if 'archivo_csv' not in request.files:
+            return jsonify({'error': 'No se encontró archivo CSV'}), 400
+        
+        archivo = request.files['archivo_csv']
+        tipo_carga = request.form.get('tipo_carga')
+        
+        # Leer primeras 10 filas para validación
+        stream = io.StringIO(archivo.stream.read().decode("UTF8"), newline=None)
+        csv_input = csv.DictReader(stream)
+        
+        validacion = {
+            'valido': True,
+            'errores': [],
+            'warnings': [],
+            'preview': [],
+            'total_filas': 0
+        }
+        
+        # Definir campos requeridos según tipo
+        campos_requeridos = {
+            'lista_precios': ['codigo_producto', 'precio_base'],
+            'asignacion_clientes': ['codigo_cliente', 'nombre_lista_precio'],
+            'precios_especificos': ['codigo_cliente', 'codigo_producto', 'precio_base']
+        }
+        
+        if tipo_carga not in campos_requeridos:
+            validacion['valido'] = False
+            validacion['errores'].append('Tipo de carga no válido')
+            return jsonify(validacion), 400
+        
+        # Validar encabezados
+        try:
+            primera_fila = next(csv_input)
+            campos_csv = set(primera_fila.keys())
+            campos_faltantes = set(campos_requeridos[tipo_carga]) - campos_csv
+            
+            if campos_faltantes:
+                validacion['valido'] = False
+                validacion['errores'].append(f'Campos faltantes: {", ".join(campos_faltantes)}')
+            
+            # Agregar primera fila al preview
+            validacion['preview'].append(primera_fila)
+            validacion['total_filas'] = 1
+            
+        except StopIteration:
+            validacion['valido'] = False
+            validacion['errores'].append('El archivo CSV está vacío')
+            return jsonify(validacion), 400
+        
+        # Validar siguientes filas (máximo 9 más para preview)
+        for i, fila in enumerate(csv_input):
+            if i >= 9:  # Solo revisar 10 filas total
+                break
+                
+            validacion['preview'].append(fila)
+            validacion['total_filas'] += 1
+            
+            # Validaciones básicas según tipo
+            if tipo_carga == 'lista_precios':
+                if not fila.get('codigo_producto', '').strip():
+                    validacion['warnings'].append(f'Fila {i+2}: Código producto vacío')
+                
+                try:
+                    precio = float(fila.get('precio_base', 0))
+                    if precio <= 0:
+                        validacion['warnings'].append(f'Fila {i+2}: Precio base debe ser mayor a 0')
+                except ValueError:
+                    validacion['warnings'].append(f'Fila {i+2}: Precio base no es un número válido')
+        
+        # Contar filas totales (reset stream)
+        archivo.stream.seek(0)
+        stream = io.StringIO(archivo.stream.read().decode("UTF8"), newline=None)
+        csv_input = csv.DictReader(stream)
+        validacion['total_filas'] = sum(1 for _ in csv_input)
+        
+        return jsonify(validacion), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Error validando archivo: {str(e)}'}), 500
+
+# Agregar logging para mejor debugging
+@app.route('/precios/log-carga', methods=['POST'])
+@login_required  
+def log_carga_precios():
+    """Registra actividades de carga masiva para auditoría"""
+    try:
+        datos = request.get_json()
+        
+        # Aquí podrías agregar a una tabla de auditoría
+        logging.info(f"Carga masiva ejecutada por usuario {current_user.username}: "
+                    f"Tipo: {datos.get('tipo')}, "
+                    f"Registros: {datos.get('procesados', 0)}, "
+                    f"Errores: {datos.get('errores', 0)}")
+        
+        return jsonify({'status': 'logged'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('carga_masiva.log'),
+        logging.StreamHandler()
+    ]
+)
 
 if __name__ == '__main__':
     # Configuración para desarrollo local

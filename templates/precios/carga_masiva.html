@@ -1,0 +1,761 @@
+<!-- Crear archivo: templates/precios/carga_masiva.html -->
+{% extends "base.html" %}
+
+{% block title %}Carga Masiva de Precios{% endblock %}
+
+{% block header_title %}📥 Carga Masiva de Precios{% endblock %}
+
+{% block content %}
+<div class="carga-masiva-container">
+    <div class="page-header">
+        <h1>📥 Carga Masiva de Precios mediante CSV</h1>
+        <p>Carga y actualiza precios de forma masiva utilizando archivos CSV</p>
+    </div>
+
+    <!-- Tabs de tipos de carga -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-button active" onclick="mostrarTab('lista_precios')">
+                <i class="fas fa-list"></i> Precios por Lista
+            </button>
+            <button class="tab-button" onclick="mostrarTab('asignacion_clientes')">
+                <i class="fas fa-users"></i> Asignar Listas a Clientes
+            </button>
+            <button class="tab-button" onclick="mostrarTab('precios_especificos')">
+                <i class="fas fa-user-tag"></i> Precios Específicos
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab: Precios por Lista -->
+    <div id="tab-lista_precios" class="tab-content active">
+        <div class="upload-section">
+            <div class="upload-header">
+                <h3><i class="fas fa-list"></i> Actualizar Precios en Lista Específica</h3>
+                <p>Actualiza los precios de productos en una lista de precios existente</p>
+            </div>
+            
+            <div class="upload-form">
+                <form id="form-lista-precios" enctype="multipart/form-data">
+                    <input type="hidden" name="tipo_carga" value="lista_precios">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="lista_precio_id">Lista de Precios <span class="required">*</span></label>
+                            <select id="lista_precio_id" name="lista_precio_id" required>
+                                <option value="">Seleccionar lista...</option>
+                                {% for lista in listas %}
+                                <option value="{{ lista.id }}">{{ lista.nombre }} {% if lista.es_default %}(Por defecto){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="archivo_csv_lista">Archivo CSV <span class="required">*</span></label>
+                            <input type="file" id="archivo_csv_lista" name="archivo_csv" accept=".csv" required>
+                            <small class="form-help">Formato: codigo_producto, precio_base, margen_jomar, margen_retail</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" onclick="descargarPlantilla('lista_precios')" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> Descargar Plantilla
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Procesar Archivo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Asignación de Clientes -->
+    <div id="tab-asignacion_clientes" class="tab-content">
+        <div class="upload-section">
+            <div class="upload-header">
+                <h3><i class="fas fa-users"></i> Asignar Listas de Precios a Clientes</h3>
+                <p>Asigna listas de precios específicas a múltiples clientes de forma masiva</p>
+            </div>
+            
+            <div class="upload-form">
+                <form id="form-asignacion-clientes" enctype="multipart/form-data">
+                    <input type="hidden" name="tipo_carga" value="asignacion_clientes">
+                    
+                    <div class="form-group">
+                        <label for="archivo_csv_asignacion">Archivo CSV <span class="required">*</span></label>
+                        <input type="file" id="archivo_csv_asignacion" name="archivo_csv" accept=".csv" required>
+                        <small class="form-help">Formato: codigo_cliente, nombre_lista_precio</small>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" onclick="descargarPlantilla('asignacion_clientes')" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> Descargar Plantilla
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Procesar Archivo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Precios Específicos -->
+    <div id="tab-precios_especificos" class="tab-content">
+        <div class="upload-section">
+            <div class="upload-header">
+                <h3><i class="fas fa-user-tag"></i> Precios Específicos Cliente-Producto</h3>
+                <p>Establece precios específicos para combinaciones cliente-producto</p>
+            </div>
+            
+            <div class="upload-form">
+                <form id="form-precios-especificos" enctype="multipart/form-data">
+                    <input type="hidden" name="tipo_carga" value="precios_especificos">
+                    
+                    <div class="form-group">
+                        <label for="archivo_csv_especificos">Archivo CSV <span class="required">*</span></label>
+                        <input type="file" id="archivo_csv_especificos" name="archivo_csv" accept=".csv" required>
+                        <small class="form-help">Formato: codigo_cliente, codigo_producto, precio_base, margen_jomar, margen_retail</small>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" onclick="descargarPlantilla('precios_especificos')" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> Descargar Plantilla
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Procesar Archivo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información y guías -->
+    <div class="info-section">
+        <div class="info-cards">
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="info-content">
+                    <h4>Formato CSV</h4>
+                    <ul>
+                        <li>Use comas (,) como separador</li>
+                        <li>Primera fila debe contener los encabezados</li>
+                        <li>Codifique el archivo en UTF-8</li>
+                        <li>Los precios usan punto (.) como decimal</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="info-content">
+                    <h4>Jerarquía de Precios</h4>
+                    <ul>
+                        <li><strong>1º:</strong> Precios específicos cliente-producto</li>
+                        <li><strong>2º:</strong> Lista asignada al cliente</li>
+                        <li><strong>3º:</strong> Lista por defecto</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="info-content">
+                    <h4>Consideraciones</h4>
+                    <ul>
+                        <li>Los códigos deben existir en el sistema</li>
+                        <li>Se actualizarán registros existentes</li>
+                        <li>Respalde antes de cargas masivas</li>
+                        <li>Revise los resultados cuidadosamente</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área de resultados -->
+    <div id="resultados-container" class="resultados-container" style="display: none;">
+        <div class="resultados-header">
+            <h3 id="resultados-titulo">Resultados del Procesamiento</h3>
+            <button onclick="cerrarResultados()" class="btn-close">&times;</button>
+        </div>
+        <div id="resultados-contenido" class="resultados-contenido">
+            <!-- Los resultados se cargarán dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Botones de navegación -->
+    <div class="action-buttons">
+        <a href="{{ url_for('precios_clientes') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Gestión de Precios
+        </a>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <p>Procesando archivo CSV...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.carga-masiva-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.page-header h1 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.page-header p {
+    color: #7f8c8d;
+    font-size: 16px;
+}
+
+/* Tabs */
+.tabs-container {
+    margin-bottom: 30px;
+}
+
+.tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.tab-button {
+    flex: 1;
+    padding: 15px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.tab-button:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.tab-button.active {
+    background: #3498db;
+    color: white;
+    box-shadow: 0 2px 8px rgba(52,152,219,0.3);
+}
+
+.tab-button i {
+    margin-right: 8px;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Upload Section */
+.upload-section {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.upload-header {
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.upload-header h3 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.upload-header p {
+    color: #7f8c8d;
+}
+
+/* Form Styles */
+.upload-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.required {
+    color: #e74c3c;
+}
+
+.form-group select,
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.form-group select:focus,
+.form-group input[type="file"]:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+}
+
+.form-help {
+    display: block;
+    margin-top: 5px;
+    color: #6c757d;
+    font-size: 12px;
+    font-style: italic;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+/* Info Section */
+.info-section {
+    margin-top: 40px;
+}
+
+.info-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-left: 4px solid #3498db;
+}
+
+.info-card .info-icon {
+    font-size: 24px;
+    color: #3498db;
+    margin-bottom: 15px;
+}
+
+.info-card h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.info-card ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.info-card li {
+    margin-bottom: 8px;
+    color: #555;
+}
+
+/* Resultados */
+.resultados-container {
+    background: white;
+    border-radius: 12px;
+    margin-top: 30px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    border: 2px solid #e9ecef;
+}
+
+.resultados-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: #f8f9fa;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.resultados-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 5px;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.resultados-contenido {
+    padding: 25px;
+}
+
+.resultado-resumen {
+    background: #e8f6f3;
+    border: 1px solid #a3d5c7;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.resultado-error {
+    background: #fdeaea;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.resultado-detalles {
+    max-height: 300px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.resultado-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.resultado-item:last-child {
+    border-bottom: none;
+}
+
+.resultado-item.success {
+    color: #155724;
+}
+
+.resultado-item.error {
+    color: #721c24;
+}
+
+.resultado-item.warning {
+    color: #856404;
+}
+
+/* Loading */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Action Buttons */
+.action-buttons {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .carga-masiva-container {
+        padding: 15px;
+    }
+    
+    .tabs {
+        flex-direction: column;
+    }
+    
+    .tab-button {
+        margin-bottom: 5px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .info-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .resultados-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+// Gestión de tabs
+function mostrarTab(tabId) {
+    // Ocultar todos los tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remover clase active de todos los botones
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Mostrar tab seleccionado
+    document.getElementById(`tab-${tabId}`).classList.add('active');
+    
+    // Activar botón correspondiente
+    event.target.classList.add('active');
+}
+
+// Descargar plantillas
+function descargarPlantilla(tipo) {
+    const url = `/precios/descargar-plantilla/${tipo}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `plantilla_${tipo}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// Procesamiento de formularios
+function configurarFormulario(formId) {
+    $(`#${formId}`).on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        mostrarLoading(true);
+        
+        $.ajax({
+            url: '/precios/procesar-csv',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                mostrarLoading(false);
+                mostrarResultados(response);
+            },
+            error: function(xhr) {
+                mostrarLoading(false);
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Error procesando archivo';
+                mostrarError(error);
+            }
+        });
+    });
+}
+
+// Configurar todos los formularios
+$(document).ready(function() {
+    configurarFormulario('form-lista-precios');
+    configurarFormulario('form-asignacion-clientes');
+    configurarFormulario('form-precios-especificos');
+});
+
+// Mostrar/ocultar loading
+function mostrarLoading(mostrar) {
+    $('#loading-overlay').toggle(mostrar);
+}
+
+// Mostrar resultados
+function mostrarResultados(response) {
+    const container = $('#resultados-container');
+    const contenido = $('#resultados-contenido');
+    
+    let html = '';
+    
+    if (response.success) {
+        html += `<div class="resultado-resumen">
+            <h4><i class="fas fa-check-circle" style="color: #27ae60;"></i> Procesamiento Completado</h4>
+            <p><strong>Registros procesados:</strong> ${response.resultados.procesados}</p>
+            <p><strong>Errores:</strong> ${response.resultados.errores}</p>
+            ${response.resultados.warnings.length > 0 ? `<p><strong>Advertencias:</strong> ${response.resultados.warnings.length}</p>` : ''}
+        </div>`;
+    } else {
+        html += `<div class="resultado-error">
+            <h4><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Error en el Procesamiento</h4>
+            <p>${response.error || 'Error desconocido'}</p>
+        </div>`;
+    }
+    
+    if (response.resultados && response.resultados.detalles.length > 0) {
+        html += '<div class="resultado-detalles"><h5>Detalles del procesamiento:</h5>';
+        
+        response.resultados.detalles.forEach(detalle => {
+            let clase = 'success';
+            if (detalle.includes('Error')) clase = 'error';
+            if (detalle.includes('desactivada')) clase = 'warning';
+            
+            html += `<div class="resultado-item ${clase}">${detalle}</div>`;
+        });
+        
+        html += '</div>';
+    }
+    
+    contenido.html(html);
+    container.show();
+    
+    // Scroll to results
+    container[0].scrollIntoView({ behavior: 'smooth' });
+}
+
+// Mostrar error
+function mostrarError(mensaje) {
+    const response = {
+        success: false,
+        error: mensaje,
+        resultados: { detalles: [] }
+    };
+    mostrarResultados(response);
+}
+
+// Cerrar resultados
+function cerrarResultados() {
+    $('#resultados-container').hide();
+}
+
+// Validación de archivos
+$(document).on('change', 'input[type="file"]', function() {
+    const file = this.files[0];
+    if (file) {
+        const fileName = file.name.toLowerCase();
+        if (!fileName.endsWith('.csv')) {
+            alert('Por favor seleccione un archivo CSV válido');
+            this.value = '';
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            alert('El archivo es demasiado grande. Máximo 5MB');
+            this.value = '';
+            return;
+        }
+    }
+});
+</script>
+{% endblock %}
