@@ -3144,26 +3144,150 @@ def eliminar_precio_cliente_producto(precio_id):
 
 # ---- API PARA OBTENER PRECIOS ----
 
-# 1. Agregar esta nueva ruta API para obtener precios por cliente
 @app.route('/api/precios/cliente/<int:cliente_id>/productos')
 @login_required
 def api_precios_cliente_productos(cliente_id):
     """API para obtener precios de todos los productos para un cliente específico"""
-    productos = Producto.query.all()
     resultado = []
     
-    for producto in productos:
-        precio_jomar = obtener_precio_producto_cliente(cliente_id, producto.id, 'jomar')
-        if precio_jomar is None:
-            precio_jomar = obtener_precio_default_producto(producto.id, 'jomar') or 0
-        
+    # 1. Primero buscar precios específicos cliente-producto
+    precios_especificos = db.session.query(PrecioClienteProducto, Producto).join(
+        Producto, PrecioClienteProducto.producto_id == Producto.id
+    ).filter(
+        PrecioClienteProducto.cliente_id == cliente_id,
+        PrecioClienteProducto.activo == True
+    ).all()
+    
+    productos_con_precio_especifico = set()
+    
+    for precio_esp, producto in precios_especificos:
         resultado.append({
             'id': producto.id,
             'nombre': producto.nombre,
-            'precio': float(precio_jomar)
+            'precio': float(precio_esp.precio_jomar),
+            'tipo_precio': 'específico',
+            'precio_base': precio_esp.precio_base,
+            'margen_jomar': precio_esp.margen_jomar,
+            'margen_retail': precio_esp.margen_retail
         })
+        productos_con_precio_especifico.add(producto.id)
+    
+    # 2. Buscar si el cliente tiene una lista asignada
+    cliente_lista = ClienteListaPrecio.query.filter_by(
+        cliente_id=cliente_id,
+        activa=True
+    ).first()
+    
+    if cliente_lista:
+        # Solo obtener productos que están en la lista asignada al cliente
+        precios_lista = db.session.query(PrecioProducto, Producto).join(
+            Producto, PrecioProducto.producto_id == Producto.id
+        ).filter(
+            PrecioProducto.lista_precio_id == cliente_lista.lista_precio_id,
+            PrecioProducto.activo == True,
+            ~Producto.id.in_(productos_con_precio_especifico)  # Excluir los que ya tienen precio específico
+        ).all()
+        
+        for precio_lista, producto in precios_lista:
+            resultado.append({
+                'id': producto.id,
+                'nombre': producto.nombre,
+                'precio': float(precio_lista.precio_jomar),
+                'tipo_precio': 'lista_asignada',
+                'precio_base': precio_lista.precio_base,
+                'margen_jomar': precio_lista.margen_jomar,
+                'margen_retail': precio_lista.margen_retail,
+                'lista_nombre': cliente_lista.lista_precio.nombre
+            })
+    else:
+        # Si no tiene lista asignada, usar lista por defecto
+        lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
+        if lista_default:
+            precios_default = db.session.query(PrecioProducto, Producto).join(
+                Producto, PrecioProducto.producto_id == Producto.id
+            ).filter(
+                PrecioProducto.lista_precio_id == lista_default.id,
+                PrecioProducto.activo == True,
+                ~Producto.id.in_(productos_con_precio_especifico)  # Excluir los que ya tienen precio específico
+            ).all()
+            
+            for precio_def, producto in precios_default:
+                resultado.append({
+                    'id': producto.id,
+                    'nombre': producto.nombre,
+                    'precio': float(precio_def.precio_jomar),
+                    'tipo_precio': 'lista_default',
+                    'precio_base': precio_def.precio_base,
+                    'margen_jomar': precio_def.margen_jomar,
+                    'margen_retail': precio_def.margen_retail,
+                    'lista_nombre': lista_default.nombre
+                })
+    
+    # Ordenar por nombre de producto
+    resultado.sort(key=lambda x: x['nombre'])
     
     return jsonify(resultado)
+
+# TAMBIÉN agregar esta nueva función para debugging:
+
+@app.route('/api/precios/cliente/<int:cliente_id>/debug')
+@login_required
+def debug_precios_cliente(cliente_id):
+    """API para debug - mostrar información detallada de precios de un cliente"""
+    
+    # Información del cliente
+    cliente = Cliente.query.get_or_404(cliente_id)
+    
+    # Lista asignada al cliente
+    cliente_lista = ClienteListaPrecio.query.filter_by(
+        cliente_id=cliente_id,
+        activa=True
+    ).first()
+    
+    # Precios específicos
+    precios_especificos_count = PrecioClienteProducto.query.filter_by(
+        cliente_id=cliente_id,
+        activo=True
+    ).count()
+    
+    debug_info = {
+        'cliente': {
+            'id': cliente.id,
+            'nombre': cliente.nombre
+        },
+        'lista_asignada': None,
+        'precios_especificos_count': precios_especificos_count
+    }
+    
+    if cliente_lista:
+        # Contar productos en la lista asignada
+        productos_en_lista = PrecioProducto.query.filter_by(
+            lista_precio_id=cliente_lista.lista_precio_id,
+            activo=True
+        ).count()
+        
+        debug_info['lista_asignada'] = {
+            'id': cliente_lista.lista_precio_id,
+            'nombre': cliente_lista.lista_precio.nombre,
+            'productos_count': productos_en_lista,
+            'es_default': cliente_lista.lista_precio.es_default
+        }
+    
+    # Lista por defecto
+    lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
+    if lista_default:
+        productos_en_default = PrecioProducto.query.filter_by(
+            lista_precio_id=lista_default.id,
+            activo=True
+        ).count()
+        
+        debug_info['lista_default'] = {
+            'id': lista_default.id,
+            'nombre': lista_default.nombre,
+            'productos_count': productos_en_default
+        }
+    
+    return jsonify(debug_info)
 
 @app.route('/api/precios/lista/<int:lista_id>')
 @login_required
@@ -3194,21 +3318,57 @@ def api_precios_lista(lista_id):
 @login_required
 def api_precios_cliente(cliente_id):
     """API para obtener todos los precios disponibles para un cliente"""
-    productos = Producto.query.all()
     resultado = []
     
-    for producto in productos:
-        precio_base = obtener_precio_producto_cliente(cliente_id, producto.id, 'base')
-        precio_jomar = obtener_precio_producto_cliente(cliente_id, producto.id, 'jomar')
-        precio_retail = obtener_precio_producto_cliente(cliente_id, producto.id, 'retail')
+    # 1. Precios específicos cliente-producto
+    precios_especificos = db.session.query(PrecioClienteProducto, Producto).join(
+        Producto, PrecioClienteProducto.producto_id == Producto.id
+    ).filter(
+        PrecioClienteProducto.cliente_id == cliente_id,
+        PrecioClienteProducto.activo == True
+    ).all()
+    
+    productos_procesados = set()
+    
+    for precio_esp, producto in precios_especificos:
+        resultado.append({
+            'producto_id': producto.id,
+            'producto_nombre': producto.nombre,
+            'precio_base': precio_esp.precio_base,
+            'precio_jomar': precio_esp.precio_jomar,
+            'precio_retail': precio_esp.precio_retail,
+            'tipo_precio': 'específico',
+            'margen_jomar': precio_esp.margen_jomar,
+            'margen_retail': precio_esp.margen_retail
+        })
+        productos_procesados.add(producto.id)
+    
+    # 2. Productos de la lista asignada al cliente
+    cliente_lista = ClienteListaPrecio.query.filter_by(
+        cliente_id=cliente_id,
+        activa=True
+    ).first()
+    
+    if cliente_lista:
+        precios_lista = db.session.query(PrecioProducto, Producto).join(
+            Producto, PrecioProducto.producto_id == Producto.id
+        ).filter(
+            PrecioProducto.lista_precio_id == cliente_lista.lista_precio_id,
+            PrecioProducto.activo == True,
+            ~Producto.id.in_(productos_procesados)
+        ).all()
         
-        if precio_base is not None:
+        for precio_lista, producto in precios_lista:
             resultado.append({
                 'producto_id': producto.id,
                 'producto_nombre': producto.nombre,
-                'precio_base': precio_base,
-                'precio_jomar': precio_jomar,
-                'precio_retail': precio_retail
+                'precio_base': precio_lista.precio_base,
+                'precio_jomar': precio_lista.precio_jomar,
+                'precio_retail': precio_lista.precio_retail,
+                'tipo_precio': 'lista_asignada',
+                'margen_jomar': precio_lista.margen_jomar,
+                'margen_retail': precio_lista.margen_retail,
+                'lista_nombre': cliente_lista.lista_precio.nombre
             })
     
     return jsonify(resultado)
@@ -4706,16 +4866,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-# ====================================================================
-# AGREGAR ESTAS RUTAS AL FINAL DE TU app.py (ANTES DE if __name__ == '__main__')
-# ====================================================================
-
-# Agregar estas importaciones al inicio del archivo si no están ya:
-import csv
-import io
-from flask import make_response
-
-# ---- CARGA MASIVA DE PRECIOS ----
 
 @app.route('/precios/carga-masiva')
 @login_required
