@@ -3164,7 +3164,7 @@ def api_precios_cliente_productos(cliente_id):
         resultado.append({
             'id': producto.id,
             'nombre': producto.nombre,
-            'precio': float(precio_esp.precio_jomar),
+            'precio': float(precio_esp.precio_base),
             'tipo_precio': 'específico',
             'precio_base': precio_esp.precio_base,
             'margen_jomar': precio_esp.margen_jomar,
@@ -3192,7 +3192,7 @@ def api_precios_cliente_productos(cliente_id):
             resultado.append({
                 'id': producto.id,
                 'nombre': producto.nombre,
-                'precio': float(precio_lista.precio_jomar),
+                'precio': float(precio_lista.precio_base),
                 'tipo_precio': 'lista_asignada',
                 'precio_base': precio_lista.precio_base,
                 'margen_jomar': precio_lista.margen_jomar,
@@ -3215,7 +3215,7 @@ def api_precios_cliente_productos(cliente_id):
                 resultado.append({
                     'id': producto.id,
                     'nombre': producto.nombre,
-                    'precio': float(precio_def.precio_jomar),
+                    'precio': float(precio_def.precio_base),
                     'tipo_precio': 'lista_default',
                     'precio_base': precio_def.precio_base,
                     'margen_jomar': precio_def.margen_jomar,
