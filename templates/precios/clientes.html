@@ -110,11 +110,11 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="btn-view" onclick="verPreciosCliente({{ cliente.id }}, '{{ cliente.nombre|replace("'", "\\'") }}')">
+                            <button class="btn-view" data-cliente-id="{{ cliente.id }}" data-cliente-nombre="{{ cliente.nombre }}">
                                 <i class="fas fa-eye"></i>
                             </button>
                             {% if not lista.es_default %}
-                            <button class="btn-delete" onclick="eliminarAsignacion({{ asignacion.id }})">
+                            <button class="btn-delete" data-asignacion-id="{{ asignacion.id }}">
                                 <i class="fas fa-unlink"></i>
                             </button>
                             {% endif %}
@@ -172,7 +172,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modal-cliente-nombre">Precios del Cliente</h3>
-            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+            <button class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
             <div id="precios-cliente-contenido">
@@ -496,7 +496,7 @@
     background: #dc3545;
 }
 
-/* Nuevos estilos para información de debug y precios */
+/* Estilos para precios mejorados */
 .cliente-info {
     margin-bottom: 20px;
 }
@@ -614,145 +614,145 @@
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-// Funciones utilitarias
-function mostrarMensaje(mensaje, tipo) {
-    const flashDiv = document.getElementById('flash-message');
-    flashDiv.className = 'flash-message ' + tipo;
-    flashDiv.textContent = mensaje;
-    flashDiv.style.display = 'block';
-    
-    setTimeout(function() {
-        flashDiv.style.display = 'none';
-    }, 3000);
-}
-
-function eliminarAsignacion(asignacionId) {
-    if (!confirm('¿Desasignar esta lista de precios del cliente?')) return;
-    
-    fetch('/precios/clientes/' + asignacionId + '/eliminar', {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message) {
-            mostrarMensaje(data.message, 'success');
-            // Remover fila
-            const row = document.querySelector('[data-asignacion-id="' + asignacionId + '"]');
-            if (row) row.remove();
-        } else {
-            mostrarMensaje(data.error || 'Error al eliminar asignación', 'error');
-        }
-    })
-    .catch(error => {
-        mostrarMensaje('Error de conexión', 'error');
-    });
-}
-
-// FUNCIÓN CORREGIDA: verPreciosCliente
-function verPreciosCliente(clienteId, clienteNombre) {
-    document.getElementById('modal-cliente-nombre').textContent = 'Precios de ' + clienteNombre;
-    document.getElementById('modal-precios-cliente').style.display = 'flex';
-    
-    // Mostrar loading
-    document.getElementById('precios-cliente-contenido').innerHTML = '<p>Cargando información del cliente...</p>';
-    
-    // Primero obtener información de debug
-    fetch('/api/precios/cliente/' + clienteId + '/debug')
-    .then(response => response.json())
-    .then(debugInfo => {
-        console.log('Debug info:', debugInfo);
+$(document).ready(function() {
+    // Funciones utilitarias
+    function mostrarMensaje(mensaje, tipo) {
+        const flashDiv = document.getElementById('flash-message');
+        flashDiv.className = 'flash-message ' + tipo;
+        flashDiv.textContent = mensaje;
+        flashDiv.style.display = 'block';
         
-        // Mostrar información del cliente
-        let infoHtml = '<div class="cliente-info">';
+        setTimeout(function() {
+            flashDiv.style.display = 'none';
+        }, 3000);
+    }
+
+    // Event listeners con jQuery para evitar conflictos
+    $('.btn-delete').click(function() {
+        const asignacionId = $(this).data('asignacion-id');
         
-        if (debugInfo.lista_asignada) {
-            infoHtml += '<div class="alert alert-info">';
-            infoHtml += '<strong><i class="fas fa-list"></i> Lista Asignada:</strong> ' + debugInfo.lista_asignada.nombre + ' ';
-            infoHtml += '<strong>(' + debugInfo.lista_asignada.productos_count + ' productos)</strong>';
-            infoHtml += '</div>';
-        } else {
-            infoHtml += '<div class="alert alert-warning">';
-            infoHtml += '<strong><i class="fas fa-exclamation-triangle"></i> Sin lista asignada</strong> - Usando lista por defecto';
-            if (debugInfo.lista_default) {
-                infoHtml += ' <strong>(' + debugInfo.lista_default.productos_count + ' productos)</strong>';
+        if (!confirm('¿Desasignar esta lista de precios del cliente?')) return;
+        
+        fetch('/precios/clientes/' + asignacionId + '/eliminar', {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                mostrarMensaje(data.message, 'success');
+                // Remover fila
+                $('[data-asignacion-id="' + asignacionId + '"]').remove();
+            } else {
+                mostrarMensaje(data.error || 'Error al eliminar asignación', 'error');
             }
-            infoHtml += '</div>';
-        }
-        
-        if (debugInfo.precios_especificos_count > 0) {
-            infoHtml += '<div class="alert alert-success">';
-            infoHtml += '<strong><i class="fas fa-star"></i> ' + debugInfo.precios_especificos_count + ' precios específicos</strong> configurados para este cliente';
-            infoHtml += '</div>';
-        }
-        
-        infoHtml += '</div>';
-        
-        // Mostrar la información de debug primero
-        document.getElementById('precios-cliente-contenido').innerHTML = infoHtml + '<p>Cargando precios...</p>';
-        
-        // Cargar precios del cliente
-        return fetch('/api/precios/cliente/' + clienteId);
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Mantener la información de debug y agregar los precios
-        const infoExistente = document.querySelector('.cliente-info').outerHTML;
-        
-        let html = infoExistente;
-        
-        if (data.length > 0) {
-            html += '<div class="precios-resumen">';
-            html += '<p><i class="fas fa-chart-bar"></i> <strong>Total de productos con precio:</strong> ' + data.length + '</p>';
-            html += '</div>';
-            
-            html += '<div class="table-responsive">';
-            html += '<table class="table table-striped"><thead><tr>';
-            html += '<th>Producto</th><th>Precio Base</th><th>Precio Jomar</th><th>Precio Retail</th><th>Tipo de Precio</th>';
-            html += '</tr></thead><tbody>';
-            
-            data.forEach(precio => {
-                let tipoBadge = '';
-                if (precio.tipo_precio === 'específico') {
-                    tipoBadge = '<span class="badge-tipo badge-primary"><i class="fas fa-star"></i> Específico</span>';
-                } else if (precio.tipo_precio === 'lista_asignada') {
-                    tipoBadge = '<span class="badge-tipo badge-success"><i class="fas fa-list"></i> Lista Asignada</span>';
-                } else {
-                    tipoBadge = '<span class="badge-tipo badge-secondary"><i class="fas fa-cog"></i> Por Defecto</span>';
-                }
-                    
-                html += '<tr>';
-                html += '<td><strong>' + precio.producto_nombre + '</strong></td>';
-                html += '<td class="precio-valor">$' + precio.precio_base.toFixed(2) + '</td>';
-                html += '<td class="precio-valor">$' + precio.precio_jomar.toFixed(2) + '</td>';
-                html += '<td class="precio-valor">$' + precio.precio_retail.toFixed(2) + '</td>';
-                html += '<td>' + tipoBadge + '</td>';
-                html += '</tr>';
-            });
-            html += '</tbody></table></div>';
-        } else {
-            html += '<div class="alert alert-warning">';
-            html += '<i class="fas fa-exclamation-triangle"></i> ';
-            html += 'Este cliente no tiene productos con precios configurados.';
-            html += '</div>';
-        }
-        
-        document.getElementById('precios-cliente-contenido').innerHTML = html;
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('precios-cliente-contenido').innerHTML = 
-            '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar los precios del cliente.</div>';
+        })
+        .catch(error => {
+            mostrarMensaje('Error de conexión', 'error');
+        });
     });
-}
 
-function cerrarModal() {
-    document.getElementById('modal-precios-cliente').style.display = 'none';
-}
+    // Ver precios de cliente
+    $('.btn-view').click(function() {
+        const clienteId = $(this).data('cliente-id');
+        const clienteNombre = $(this).data('cliente-nombre');
+        
+        $('#modal-cliente-nombre').text('Precios de ' + clienteNombre);
+        $('#modal-precios-cliente').show();
+        
+        // Mostrar loading
+        $('#precios-cliente-contenido').html('<p>Cargando información del cliente...</p>');
+        
+        // Debug info primero
+        fetch('/api/precios/cliente/' + clienteId + '/debug')
+        .then(response => response.json())
+        .then(debugInfo => {
+            console.log('Debug info:', debugInfo);
+            
+            let infoHtml = '<div class="cliente-info">';
+            
+            if (debugInfo.lista_asignada) {
+                infoHtml += '<div class="alert alert-info">';
+                infoHtml += '<strong>Lista Asignada:</strong> ' + debugInfo.lista_asignada.nombre + ' ';
+                infoHtml += '<strong>(' + debugInfo.lista_asignada.productos_count + ' productos)</strong>';
+                infoHtml += '</div>';
+            } else {
+                infoHtml += '<div class="alert alert-warning">';
+                infoHtml += '<strong>Sin lista asignada</strong> - Usando lista por defecto';
+                if (debugInfo.lista_default) {
+                    infoHtml += ' <strong>(' + debugInfo.lista_default.productos_count + ' productos)</strong>';
+                }
+                infoHtml += '</div>';
+            }
+            
+            if (debugInfo.precios_especificos_count > 0) {
+                infoHtml += '<div class="alert alert-success">';
+                infoHtml += '<strong>' + debugInfo.precios_especificos_count + ' precios específicos</strong> configurados';
+                infoHtml += '</div>';
+            }
+            
+            infoHtml += '</div>';
+            
+            $('#precios-cliente-contenido').html(infoHtml + '<p>Cargando precios...</p>');
+            
+            return fetch('/api/precios/cliente/' + clienteId);
+        })
+        .then(response => response.json())
+        .then(data => {
+            const infoExistente = $('.cliente-info')[0].outerHTML;
+            let html = infoExistente;
+            
+            if (data.length > 0) {
+                html += '<div class="precios-resumen">';
+                html += '<p><strong>Total de productos con precio:</strong> ' + data.length + '</p>';
+                html += '</div>';
+                
+                html += '<div class="table-responsive">';
+                html += '<table class="table table-striped"><thead><tr>';
+                html += '<th>Producto</th><th>Precio Base</th><th>Precio Jomar</th><th>Precio Retail</th><th>Tipo</th>';
+                html += '</tr></thead><tbody>';
+                
+                data.forEach(function(precio) {
+                    let tipoBadge = '';
+                    if (precio.tipo_precio === 'específico') {
+                        tipoBadge = '<span class="badge-tipo badge-primary">Específico</span>';
+                    } else if (precio.tipo_precio === 'lista_asignada') {
+                        tipoBadge = '<span class="badge-tipo badge-success">Lista</span>';
+                    } else {
+                        tipoBadge = '<span class="badge-tipo badge-secondary">Default</span>';
+                    }
+                        
+                    html += '<tr>';
+                    html += '<td><strong>' + precio.producto_nombre + '</strong></td>';
+                    html += '<td class="precio-valor">$' + precio.precio_base.toFixed(2) + '</td>';
+                    html += '<td class="precio-valor">$' + precio.precio_jomar.toFixed(2) + '</td>';
+                    html += '<td class="precio-valor">$' + precio.precio_retail.toFixed(2) + '</td>';
+                    html += '<td>' + tipoBadge + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<div class="alert alert-warning">';
+                html += 'Este cliente no tiene productos con precios configurados.';
+                html += '</div>';
+            }
+            
+            $('#precios-cliente-contenido').html(html);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            $('#precios-cliente-contenido').html('<div class="alert alert-danger">Error al cargar los precios.</div>');
+        });
+    });
 
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // Enviar formulario de asignación
-    document.getElementById('form-asignar-lista').addEventListener('submit', function(e) {
+    // Cerrar modal
+    $('.modal-close, #modal-precios-cliente').click(function(e) {
+        if (e.target === this) {
+            $('#modal-precios-cliente').hide();
+        }
+    });
+
+    // Formulario de asignación
+    $('#form-asignar-lista').submit(function(e) {
         e.preventDefault();
         
         const formData = new FormData(this);
@@ -766,7 +766,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.message) {
                 mostrarMensaje(data.message, 'success');
                 this.reset();
-                // Recargar página después de 1.5 segundos
                 setTimeout(() => location.reload(), 1500);
             } else {
                 mostrarMensaje(data.error || 'Error al asignar lista', 'error');
@@ -776,13 +775,6 @@ document.addEventListener('DOMContentLoaded', function() {
             mostrarMensaje('Error de conexión', 'error');
         });
     });
-    
-    // Cerrar modal al hacer click fuera
-    document.getElementById('modal-precios-cliente').addEventListener('click', function(e) {
-        if (e.target === this) {
-            cerrarModal();
-        }
-    });
 });
 </script>
-{% endblock %>
+{% endblock %}
