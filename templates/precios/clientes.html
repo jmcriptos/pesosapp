@@ -445,7 +445,7 @@
     background: white;
     border-radius: 12px;
     width: 90%;
-    max-width: 800px;
+    max-width: 900px;
     max-height: 80vh;
     overflow: hidden;
 }
@@ -496,6 +496,93 @@
     background: #dc3545;
 }
 
+/* Nuevos estilos para información de debug y precios */
+.cliente-info {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.alert-info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+.alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.badge-tipo {
+    display: inline-block;
+    min-width: 10px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.badge-primary {
+    background-color: #007bff;
+}
+
+.badge-success {
+    background-color: #28a745;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+}
+
+.precios-resumen {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    border-left: 4px solid #28a745;
+}
+
+.precios-resumen p {
+    margin: 0;
+    font-weight: 500;
+    color: #333;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0,0,0,.05);
+}
+
+.precio-valor {
+    font-weight: 600;
+    color: #28a745;
+}
+
 @media (max-width: 768px) {
     .page-header {
         flex-direction: column;
@@ -514,6 +601,11 @@
     .info-card {
         flex-direction: column;
         text-align: center;
+    }
+    
+    .modal-content {
+        width: 95%;
+        max-width: none;
     }
 }
 </style>
@@ -556,33 +648,100 @@ function eliminarAsignacion(asignacionId) {
     });
 }
 
+// FUNCIÓN CORREGIDA: verPreciosCliente
 function verPreciosCliente(clienteId, clienteNombre) {
     document.getElementById('modal-cliente-nombre').textContent = 'Precios de ' + clienteNombre;
     document.getElementById('modal-precios-cliente').style.display = 'flex';
     
-    // Cargar precios del cliente
-    fetch('/api/precios/cliente/' + clienteId)
+    // Mostrar loading
+    document.getElementById('precios-cliente-contenido').innerHTML = '<p>Cargando información del cliente...</p>';
+    
+    // Primero obtener información de debug
+    fetch('/api/precios/cliente/' + clienteId + '/debug')
+    .then(response => response.json())
+    .then(debugInfo => {
+        console.log('Debug info:', debugInfo);
+        
+        // Mostrar información del cliente
+        let infoHtml = '<div class="cliente-info">';
+        
+        if (debugInfo.lista_asignada) {
+            infoHtml += `<div class="alert alert-info">
+                <strong><i class="fas fa-list"></i> Lista Asignada:</strong> ${debugInfo.lista_asignada.nombre} 
+                <strong>(${debugInfo.lista_asignada.productos_count} productos)</strong>
+            </div>`;
+        } else {
+            infoHtml += `<div class="alert alert-warning">
+                <strong><i class="fas fa-exclamation-triangle"></i> Sin lista asignada</strong> - Usando lista por defecto`;
+            if (debugInfo.lista_default) {
+                infoHtml += ` <strong>(${debugInfo.lista_default.productos_count} productos)</strong>`;
+            }
+            infoHtml += '</div>';
+        }
+        
+        if (debugInfo.precios_especificos_count > 0) {
+            infoHtml += `<div class="alert alert-success">
+                <strong><i class="fas fa-star"></i> ${debugInfo.precios_especificos_count} precios específicos</strong> configurados para este cliente
+            </div>`;
+        }
+        
+        infoHtml += '</div>';
+        
+        // Mostrar la información de debug primero
+        document.getElementById('precios-cliente-contenido').innerHTML = infoHtml + '<p>Cargando precios...</p>';
+        
+        // Cargar precios del cliente
+        return fetch('/api/precios/cliente/' + clienteId);
+    })
     .then(response => response.json())
     .then(data => {
-        let html = '';
+        // Mantener la información de debug y agregar los precios
+        const infoExistente = document.querySelector('.cliente-info').outerHTML;
+        
+        let html = infoExistente;
+        
         if (data.length > 0) {
-            html = '<table class="table"><thead><tr><th>Producto</th><th>Base</th><th>Jomar</th><th>Retail</th></tr></thead><tbody>';
+            html += '<div class="precios-resumen">';
+            html += `<p><i class="fas fa-chart-bar"></i> <strong>Total de productos con precio:</strong> ${data.length}</p>`;
+            html += '</div>';
+            
+            html += '<div class="table-responsive">';
+            html += '<table class="table table-striped"><thead><tr>';
+            html += '<th>Producto</th><th>Precio Base</th><th>Precio Jomar</th><th>Precio Retail</th><th>Tipo de Precio</th>';
+            html += '</tr></thead><tbody>';
+            
             data.forEach(precio => {
+                let tipoBadge = '';
+                if (precio.tipo_precio === 'específico') {
+                    tipoBadge = '<span class="badge-tipo badge-primary"><i class="fas fa-star"></i> Específico</span>';
+                } else if (precio.tipo_precio === 'lista_asignada') {
+                    tipoBadge = '<span class="badge-tipo badge-success"><i class="fas fa-list"></i> Lista Asignada</span>';
+                } else {
+                    tipoBadge = '<span class="badge-tipo badge-secondary"><i class="fas fa-cog"></i> Por Defecto</span>';
+                }
+                    
                 html += `<tr>
                     <td><strong>${precio.producto_nombre}</strong></td>
                     <td class="precio-valor">$${precio.precio_base.toFixed(2)}</td>
                     <td class="precio-valor">$${precio.precio_jomar.toFixed(2)}</td>
                     <td class="precio-valor">$${precio.precio_retail.toFixed(2)}</td>
+                    <td>${tipoBadge}</td>
                 </tr>`;
             });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
         } else {
-            html = '<p>Este cliente no tiene precios configurados.</p>';
+            html += '<div class="alert alert-warning">';
+            html += '<i class="fas fa-exclamation-triangle"></i> ';
+            html += 'Este cliente no tiene productos con precios configurados.';
+            html += '</div>';
         }
+        
         document.getElementById('precios-cliente-contenido').innerHTML = html;
     })
     .catch(error => {
-        document.getElementById('precios-cliente-contenido').innerHTML = '<p>Error al cargar los precios.</p>';
+        console.error('Error:', error);
+        document.getElementById('precios-cliente-contenido').innerHTML = 
+            '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar los precios del cliente.</div>';
     });
 }
 
@@ -626,4 +785,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-{% endblock %}
+{% endblock %>
