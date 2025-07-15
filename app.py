@@ -2425,7 +2425,7 @@ def nuevo_pedido():
         'id'    : p.id,
         'nombre': p.nombre,
         'precio': float(
-            obtener_precio_default_producto(p.id, 'jomar') or 0
+            obtener_precio_default_producto(p.id, 'base') or 0
         )
     } for p in productos]
 
@@ -2455,11 +2455,11 @@ def nuevo_pedido():
             if precio_raw:
                 precio_unitario = Decimal(precio_raw)
             else:
-                precio_cliente = obtener_precio_producto_cliente(cliente_id, prod_id, 'jomar')
+                precio_cliente = obtener_precio_producto_cliente(cliente_id, prod_id, 'base')
                 if precio_cliente is not None:
                     precio_unitario = Decimal(precio_cliente)
                 else:
-                    precio_def = obtener_precio_default_producto(prod_id, 'jomar')
+                    precio_def = obtener_precio_default_producto(prod_id, 'base')
                     precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
 
             subtotal = precio_unitario * cajas
@@ -2512,8 +2512,8 @@ def editar_pedido(pedido_id):
         'precio': float(
             obtener_precio_producto_cliente(
                 pedido.cliente_id,  # Ahora sí existe pedido
-                p.id, 'jomar'
-            ) or obtener_precio_default_producto(p.id, 'jomar') or 0
+                p.id, 'base'
+            ) or obtener_precio_default_producto(p.id, 'base') or 0
         )
     } for p in productos]
 
@@ -2541,11 +2541,11 @@ def editar_pedido(pedido_id):
                 precio_unitario = Decimal(precio_raw)
             else:
                 # Usar cliente actualizado para obtener precio
-                precio_cliente = obtener_precio_producto_cliente(pedido.cliente_id, prod_id, 'jomar')
+                precio_cliente = obtener_precio_producto_cliente(pedido.cliente_id, prod_id, 'base')
                 if precio_cliente is not None:
                     precio_unitario = Decimal(precio_cliente)
                 else:
-                    precio_def = obtener_precio_default_producto(prod_id, 'jomar')
+                    precio_def = obtener_precio_default_producto(prod_id, 'base')
                     precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
 
             # Sub-total
@@ -2629,12 +2629,12 @@ def detalles_pedido(pedido_id):
         precio_unitario = obtener_precio_producto_cliente(
                               pedido.cliente_id,   # 1️⃣ precio específico / lista cliente
                               producto_id,
-                              'jomar'
+                              'base'
                           )
         if precio_unitario is None:
             # 2️⃣ (fallback) lista de precios por defecto
             precio_unitario = obtener_precio_default_producto(
-                                  producto_id, 'jomar'
+                                  producto_id, 'base'
                               ) or 0
         
         print(f"DEBUG: Cliente {pedido.cliente_id}, Producto {producto_id}")
