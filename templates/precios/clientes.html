@@ -110,7 +110,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="btn-view" onclick="verPreciosCliente({{ cliente.id }}, '{{ cliente.nombre }}')">
+                            <button class="btn-view" onclick="verPreciosCliente({{ cliente.id }}, '{{ cliente.nombre|replace("'", "\\'") }}')">
                                 <i class="fas fa-eye"></i>
                             </button>
                             {% if not lista.es_default %}
@@ -666,23 +666,23 @@ function verPreciosCliente(clienteId, clienteNombre) {
         let infoHtml = '<div class="cliente-info">';
         
         if (debugInfo.lista_asignada) {
-            infoHtml += `<div class="alert alert-info">
-                <strong><i class="fas fa-list"></i> Lista Asignada:</strong> ${debugInfo.lista_asignada.nombre} 
-                <strong>(${debugInfo.lista_asignada.productos_count} productos)</strong>
-            </div>`;
+            infoHtml += '<div class="alert alert-info">';
+            infoHtml += '<strong><i class="fas fa-list"></i> Lista Asignada:</strong> ' + debugInfo.lista_asignada.nombre + ' ';
+            infoHtml += '<strong>(' + debugInfo.lista_asignada.productos_count + ' productos)</strong>';
+            infoHtml += '</div>';
         } else {
-            infoHtml += `<div class="alert alert-warning">
-                <strong><i class="fas fa-exclamation-triangle"></i> Sin lista asignada</strong> - Usando lista por defecto`;
+            infoHtml += '<div class="alert alert-warning">';
+            infoHtml += '<strong><i class="fas fa-exclamation-triangle"></i> Sin lista asignada</strong> - Usando lista por defecto';
             if (debugInfo.lista_default) {
-                infoHtml += ` <strong>(${debugInfo.lista_default.productos_count} productos)</strong>`;
+                infoHtml += ' <strong>(' + debugInfo.lista_default.productos_count + ' productos)</strong>';
             }
             infoHtml += '</div>';
         }
         
         if (debugInfo.precios_especificos_count > 0) {
-            infoHtml += `<div class="alert alert-success">
-                <strong><i class="fas fa-star"></i> ${debugInfo.precios_especificos_count} precios específicos</strong> configurados para este cliente
-            </div>`;
+            infoHtml += '<div class="alert alert-success">';
+            infoHtml += '<strong><i class="fas fa-star"></i> ' + debugInfo.precios_especificos_count + ' precios específicos</strong> configurados para este cliente';
+            infoHtml += '</div>';
         }
         
         infoHtml += '</div>';
@@ -702,7 +702,7 @@ function verPreciosCliente(clienteId, clienteNombre) {
         
         if (data.length > 0) {
             html += '<div class="precios-resumen">';
-            html += `<p><i class="fas fa-chart-bar"></i> <strong>Total de productos con precio:</strong> ${data.length}</p>`;
+            html += '<p><i class="fas fa-chart-bar"></i> <strong>Total de productos con precio:</strong> ' + data.length + '</p>';
             html += '</div>';
             
             html += '<div class="table-responsive">';
@@ -720,13 +720,13 @@ function verPreciosCliente(clienteId, clienteNombre) {
                     tipoBadge = '<span class="badge-tipo badge-secondary"><i class="fas fa-cog"></i> Por Defecto</span>';
                 }
                     
-                html += `<tr>
-                    <td><strong>${precio.producto_nombre}</strong></td>
-                    <td class="precio-valor">$${precio.precio_base.toFixed(2)}</td>
-                    <td class="precio-valor">$${precio.precio_jomar.toFixed(2)}</td>
-                    <td class="precio-valor">$${precio.precio_retail.toFixed(2)}</td>
-                    <td>${tipoBadge}</td>
-                </tr>`;
+                html += '<tr>';
+                html += '<td><strong>' + precio.producto_nombre + '</strong></td>';
+                html += '<td class="precio-valor">$' + precio.precio_base.toFixed(2) + '</td>';
+                html += '<td class="precio-valor">$' + precio.precio_jomar.toFixed(2) + '</td>';
+                html += '<td class="precio-valor">$' + precio.precio_retail.toFixed(2) + '</td>';
+                html += '<td>' + tipoBadge + '</td>';
+                html += '</tr>';
             });
             html += '</tbody></table></div>';
         } else {
