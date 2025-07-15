@@ -3459,7 +3459,7 @@ def obtener_productos_api():
     productos = Producto.query.order_by(Producto.id).all()
     productos_data = []
     for p in productos:
-        precio = obtener_precio_default_producto(p.id, 'jomar')
+        precio = obtener_precio_default_producto(p.id, 'base')
         productos_data.append({
             "id"         : p.id,
             "nombre"     : p.nombre,
