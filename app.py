@@ -1166,7 +1166,7 @@ def obtener_precio_producto_cliente(cliente_id, producto_id, tipo_precio='jomar'
     print(f"DEBUG: No se encontró precio, devolviendo None")
     return None
 
-def obtener_precio_default_producto(producto_id, tipo_precio='jomar'):
+def obtener_precio_default_producto(producto_id, tipo_precio='base'):
     """
     Devuelve el precio de un producto tomado de la lista marcada como es_default.
     Si no existe, devuelve None.
