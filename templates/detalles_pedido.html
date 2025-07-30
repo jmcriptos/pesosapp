@@ -122,8 +122,9 @@
 /* En desktop: múltiples columnas */
 @media screen and (min-width: 769px) {
     .mobile-form-grid {
-        grid-template-columns: 3fr 1.2fr 1.5fr 1.3fr 1.3fr auto;
+        grid-template-columns: 3fr 1.2fr 1.5fr 1.3fr 1.3fr auto;  /* ✅ LÍNEA OPTIMIZADA */
         align-items: end;
+        gap: 8px;  /* También reduce el gap para aprovechar mejor el espacio */
     }
 }
 
