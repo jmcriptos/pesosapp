@@ -119,12 +119,12 @@
     }
 }
 
-/* En desktop: múltiples columnas */
+/* En desktop: múltiples columnas FORZADAS */
 @media screen and (min-width: 769px) {
     .mobile-form-grid {
-        grid-template-columns: 5fr 1.5fr 1.5fr 1.3fr 1.3fr auto;  /* ✅ LÍNEA OPTIMIZADA */
-        align-items: end;
-        gap: 8px;  /* También reduce el gap para aprovechar mejor el espacio */
+        grid-template-columns: 3fr 1.2fr 1.5fr 1.3fr 1.3fr auto !important;
+        align-items: end !important;
+        gap: 8px !important;
     }
 }
 
