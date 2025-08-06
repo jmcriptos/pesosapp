@@ -14,7 +14,7 @@ import tempfile
 import logging
 import pandas as pd
 from io import BytesIO
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
 import openpyxl
 from openpyxl.styles import Font, Alignment
@@ -621,6 +621,7 @@ class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
     fecha_pedido = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    fecha_facturacion = db.Column(db.DateTime, nullable=True)
     estado = db.Column(db.String(30), default="pendiente", nullable=False)
     notas = db.Column(db.Text, nullable=True)
     cliente = db.relationship('Cliente', back_populates='pedidos')
@@ -2157,16 +2158,16 @@ def dashboard():
         # === KPIs DE NIVEL DE SERVICIO ===
         
         # 1. LEAD TIME PROMEDIO (días desde creación hasta facturación)
-        pedidos_facturados = [p for p in pedidos_30_dias if p.estado == 'facturado']
+        pedidos_facturados = [p for p in pedidos_30_dias if p.estado == 'facturado' and p.fecha_facturacion]
         lead_times = []
-        
+
         for pedido in pedidos_facturados:
-            # Asumimos que la fecha de facturación es cuando cambió a estado 'facturado'
-            # En una implementación más robusta, tendrías un campo fecha_facturacion
-            dias_lead_time = (hoy - pedido.fecha_pedido.date()).days
-            if dias_lead_time >= 0:  # Solo considerar lead times positivos
-                lead_times.append(dias_lead_time)
-        
+            # USAR fecha_facturacion EN LUGAR DE hoy
+            if pedido.fecha_facturacion:
+                dias_lead_time = (pedido.fecha_facturacion.date() - pedido.fecha_pedido.date()).days
+                if dias_lead_time >= 0:
+                    lead_times.append(dias_lead_time)
+
         lead_time_promedio = sum(lead_times) / len(lead_times) if lead_times else 0
         
         # 2. FILL RATE (% de pedidos completamente entregados vs parciales)
@@ -2198,14 +2199,13 @@ def dashboard():
         # 5. PERFECT ORDER RATE (pedidos perfectos: a tiempo, completos, sin errores)
         perfect_orders = 0
         for pedido in pedidos_facturados:
-            dias_lead = (hoy - pedido.fecha_pedido.date()).days
-            tiene_errores = pedido.notas and any(palabra in pedido.notas.lower() 
-                                               for palabra in ['error', 'corrección', 'corregir'])
-            
-            if dias_lead <= 2 and not tiene_errores:  # A tiempo y sin errores
-                perfect_orders += 1
-        
-        perfect_order_rate = (perfect_orders / len(pedidos_facturados) * 100) if pedidos_facturados else 0
+            if pedido.fecha_facturacion:  # ← AGREGAR ESTA VERIFICACIÓN
+                dias_lead = (pedido.fecha_facturacion.date() - pedido.fecha_pedido.date()).days
+                tiene_errores = pedido.notas and any(palabra in pedido.notas.lower() 
+                                                for palabra in ['error', 'corrección', 'corregir'])
+                
+                if dias_lead <= 2 and not tiene_errores:
+                    perfect_orders += 1
         
         # 6. CUSTOMER SATISFACTION PROXY (diversidad de clientes activos)
         clientes_activos_mes = len(set(p.cliente_id for p in pedidos_mes_list))
@@ -2836,6 +2836,7 @@ def facturar_pedido(pedido_id):
 
     # Marcar como facturado si todo fue bien
     pedido.estado = 'facturado'
+    pedido.fecha_facturacion = datetime.now(timezone.utc)
     db.session.commit()
     flash('Factura generada correctamente en QuickBooks.', 'success')
     return redirect(url_for('lista_pedidos'))
