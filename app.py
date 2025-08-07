@@ -103,7 +103,11 @@ def load_user(user_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))  # Redirigir al dashboard
+        # Redirigir según el tipo de usuario autenticado
+        if isinstance(current_user, Vendedor):
+            return redirect(url_for('dashboard_vendedor'))
+        else:
+            return redirect(url_for('index'))
     
     if request.method == 'POST':
         username = request.form.get('username')
