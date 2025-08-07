@@ -37,7 +37,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-from datetime import datetime, date  # Asegúrate de que 'date' esté importado
+from datetime import datetime, date, timedelta, timezone
 try:
     from flask_talisman import Talisman
 except ImportError:
