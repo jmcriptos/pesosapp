@@ -133,10 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ---------- VARIABLES DE DATOS (inyectadas desde Jinja) ---------- */
-  const currency   = "{{ currency }}";
-  const ventasData = {{ tendencia_semanal | tojson | safe }};
-  const estados    = {{ estados_pedidos   | tojson | safe }};
-  const kpiSeries  = {{ kpi_weekly        | tojson | safe }};
+  const currency   = "{{ currency|default('XCG') }}";
+  const ventasData = {{ tendencia_semanal|default([])|tojson|safe }};
+  const estados    = {{ estados_pedidos|default([])|tojson|safe }};
+  const kpiSeries  = {{ kpi_weekly|default([])|tojson|safe }};
 
   /* ---------- 1. Tendencia de Ventas ---------- */
   new Chart(document.getElementById('ventasChart'), {
