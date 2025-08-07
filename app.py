@@ -215,7 +215,11 @@ def dashboard_vendedor():
         context = {
             'vendedor': current_user,
             'fecha_actual': hoy,
-            'fecha_sistema': 'Enero 2025'
+            'fecha_sistema': 'Enero 2025',
+            # Valores por defecto para evitar Undefined en templates
+            'tendencia_semanal': [],
+            'estados_pedidos': [],
+            'kpi_weekly': []
         }
         
         # ===== MÉTRICAS ESPECÍFICAS PARA ADMINISTRADOR =====
