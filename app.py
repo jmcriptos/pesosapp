@@ -2138,188 +2138,190 @@ def webhook_actualizacion_precios():
 def dashboard():
     """Dashboard con KPIs de ventas y nivel de servicio"""
     try:
-        # Fechas para análisis
+        # === FECHAS DE REFERENCIA ===
         hoy = datetime.now().date()
         inicio_mes = hoy.replace(day=1)
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
-        
+
         # === MÉTRICAS DE VENTAS ===
         pedidos_mes_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
         pedidos_semana_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_semana).all()
         pedidos_30_dias = Pedido.query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
-        
-        # Calcular ventas
-        ventas_mes = sum(sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_mes_list)
-        ventas_semana = sum(sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_list)
-        
+
+        ventas_mes = sum(
+            sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_mes_list
+        )
+        ventas_semana = sum(
+            sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_list
+        )
         pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
-        
+
         # === KPIs DE NIVEL DE SERVICIO ===
-        
-        # 1. LEAD TIME PROMEDIO (días desde creación hasta facturación)
-        pedidos_facturados = [p for p in pedidos_30_dias if p.estado == 'facturado' and p.fecha_facturacion]
-        lead_times = []
 
-        for pedido in pedidos_facturados:
-            # USAR fecha_facturacion EN LUGAR DE hoy
-            if pedido.fecha_facturacion:
-                dias_lead_time = (pedido.fecha_facturacion.date() - pedido.fecha_pedido.date()).days
-                if dias_lead_time >= 0:
-                    lead_times.append(dias_lead_time)
-
+        # 1. Lead time promedio
+        pedidos_facturados = [
+            p for p in pedidos_30_dias if p.estado == 'facturado' and p.fecha_facturacion
+        ]
+        lead_times = [
+            (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+            for p in pedidos_facturados
+            if (p.fecha_facturacion.date() - p.fecha_pedido.date()).days >= 0
+        ]
         lead_time_promedio = sum(lead_times) / len(lead_times) if lead_times else 0
-        
-        # 2. FILL RATE (% de pedidos completamente entregados vs parciales)
-        pedidos_completos = 0
-        pedidos_incompletos = 0
-        
-        for pedido in pedidos_30_dias:
-            if pedido.estado == 'facturado':  # Consideramos facturado = entregado completo
-                pedidos_completos += 1
-            elif pedido.estado in ['pendiente', 'listo']:  # Parciales o no entregados
-                pedidos_incompletos += 1
-        
+
+        # 2. Fill rate
+        pedidos_completos = sum(1 for p in pedidos_30_dias if p.estado == 'facturado')
+        pedidos_incompletos = sum(
+            1 for p in pedidos_30_dias if p.estado in ['pendiente', 'listo']
+        )
         total_pedidos_evaluados = pedidos_completos + pedidos_incompletos
-        fill_rate = (pedidos_completos / total_pedidos_evaluados * 100) if total_pedidos_evaluados > 0 else 0
-        
-        # 3. ON-TIME DELIVERY RATE (% de pedidos entregados a tiempo)
-        # Asumimos que pedidos facturados en ≤ 2 días son "a tiempo"
-        pedidos_a_tiempo = len([lt for lt in lead_times if lt <= 2])
-        otd_rate = (pedidos_a_tiempo / len(lead_times) * 100) if lead_times else 0
-        
-        # 4. ORDER ACCURACY (% de pedidos sin errores)
-        # Simplificado: pedidos que no tienen notas de corrección
-        pedidos_con_notas_error = len([p for p in pedidos_30_dias 
-                                     if p.notas and ('error' in p.notas.lower() or 
-                                                    'corrección' in p.notas.lower() or
-                                                    'corregir' in p.notas.lower())])
-        order_accuracy = ((len(pedidos_30_dias) - pedidos_con_notas_error) / len(pedidos_30_dias) * 100) if pedidos_30_dias else 100
-        
-        # 5. PERFECT ORDER RATE (pedidos perfectos: a tiempo, completos, sin errores)
+        fill_rate = (
+            pedidos_completos / total_pedidos_evaluados * 100
+            if total_pedidos_evaluados
+            else 0
+        )
+
+        # 3. On-time delivery rate
+        pedidos_a_tiempo = sum(1 for lt in lead_times if lt <= 2)
+        otd_rate = pedidos_a_tiempo / len(lead_times) * 100 if lead_times else 0
+
+        # 4. Order accuracy
+        pedidos_con_notas_error = sum(
+            1
+            for p in pedidos_30_dias
+            if p.notas
+            and any(
+                palabra in p.notas.lower() for palabra in ['error', 'corrección', 'corregir']
+            )
+        )
+        order_accuracy = (
+            (len(pedidos_30_dias) - pedidos_con_notas_error)
+            / len(pedidos_30_dias)
+            * 100
+            if pedidos_30_dias
+            else 100
+        )
+
+        # 5. Perfect order rate  ← CORREGIDO
         perfect_orders = 0
-        for pedido in pedidos_facturados:
-            if pedido.fecha_facturacion:  # ← AGREGAR ESTA VERIFICACIÓN
-                dias_lead = (pedido.fecha_facturacion.date() - pedido.fecha_pedido.date()).days
-                tiene_errores = pedido.notas and any(palabra in pedido.notas.lower() 
-                                                for palabra in ['error', 'corrección', 'corregir'])
-                
-                if dias_lead <= 2 and not tiene_errores:
-                    perfect_orders += 1
-        
-        # 6. CUSTOMER SATISFACTION PROXY (diversidad de clientes activos)
-        clientes_activos_mes = len(set(p.cliente_id for p in pedidos_mes_list))
+        for p in pedidos_facturados:
+            dias_lead = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+            tiene_errores = p.notas and any(
+                palabra in p.notas.lower() for palabra in ['error', 'corrección', 'corregir']
+            )
+            if dias_lead <= 2 and not tiene_errores:
+                perfect_orders += 1
+
+        total_perfect_eval = len(pedidos_facturados)  # se evalúan solo los facturados
+        perfect_order_rate = (
+            perfect_orders / total_perfect_eval * 100 if total_perfect_eval else 0
+        )
+
+        # 6. Customer engagement
+        clientes_activos_mes = len({p.cliente_id for p in pedidos_mes_list})
         total_clientes = Cliente.query.count()
-        customer_engagement = (clientes_activos_mes / total_clientes * 100) if total_clientes > 0 else 0
-        
+        customer_engagement = (
+            clientes_activos_mes / total_clientes * 100 if total_clientes else 0
+        )
+
         # === ANÁLISIS DE PRODUCTOS ===
-        # Productos con mayor rotación
         productos_ventas = {}
-        for pedido in pedidos_30_dias:
-            for detalle in pedido.detalles:
-                prod_nombre = detalle.producto.nombre
-                if prod_nombre not in productos_ventas:
-                    productos_ventas[prod_nombre] = {'cajas': 0, 'ingresos': 0, 'pedidos': set()}
-                
-                productos_ventas[prod_nombre]['cajas'] += detalle.cajas or 0
-                productos_ventas[prod_nombre]['ingresos'] += float(detalle.subtotal or 0)
-                productos_ventas[prod_nombre]['pedidos'].add(pedido.id)
-        
-        # Convertir sets a counts
-        for prod in productos_ventas.values():
-            prod['pedidos'] = len(prod['pedidos'])
-        
-        top_productos = sorted(productos_ventas.items(), 
-                              key=lambda x: x[1]['cajas'], reverse=True)[:5]
-        
+        for p in pedidos_30_dias:
+            for d in p.detalles:
+                nombre = d.producto.nombre
+                if nombre not in productos_ventas:
+                    productos_ventas[nombre] = {'cajas': 0, 'ingresos': 0, 'pedidos': set()}
+                productos_ventas[nombre]['cajas'] += d.cajas or 0
+                productos_ventas[nombre]['ingresos'] += float(d.subtotal or 0)
+                productos_ventas[nombre]['pedidos'].add(p.id)
+
+        for datos in productos_ventas.values():
+            datos['pedidos'] = len(datos['pedidos'])
+
+        top_productos = sorted(
+            productos_ventas.items(), key=lambda x: x[1]['cajas'], reverse=True
+        )[:5]
+
         # === ANÁLISIS DE CLIENTES ===
         clientes_ventas = {}
-        for pedido in pedidos_30_dias:
-            cliente_nombre = pedido.cliente.nombre
-            if cliente_nombre not in clientes_ventas:
-                clientes_ventas[cliente_nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
-            
-            clientes_ventas[cliente_nombre]['pedidos'] += 1
-            clientes_ventas[cliente_nombre]['total'] += sum(float(d.subtotal or 0) for d in pedido.detalles)
-            
-            if not clientes_ventas[cliente_nombre]['ultimo_pedido'] or pedido.fecha_pedido > clientes_ventas[cliente_nombre]['ultimo_pedido']:
-                clientes_ventas[cliente_nombre]['ultimo_pedido'] = pedido.fecha_pedido
-        
-        top_clientes = sorted(clientes_ventas.items(), 
-                             key=lambda x: x[1]['total'], reverse=True)[:5]
-        
+        for p in pedidos_30_dias:
+            nombre = p.cliente.nombre
+            if nombre not in clientes_ventas:
+                clientes_ventas[nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
+            clientes_ventas[nombre]['pedidos'] += 1
+            clientes_ventas[nombre]['total'] += sum(
+                float(d.subtotal or 0) for d in p.detalles
+            )
+            if (
+                not clientes_ventas[nombre]['ultimo_pedido']
+                or p.fecha_pedido > clientes_ventas[nombre]['ultimo_pedido']
+            ):
+                clientes_ventas[nombre]['ultimo_pedido'] = p.fecha_pedido
+
+        top_clientes = sorted(
+            clientes_ventas.items(), key=lambda x: x[1]['total'], reverse=True
+        )[:5]
+
         # === TENDENCIA SEMANAL ===
         tendencia_semanal = []
         for i in range(8):
-            inicio_semana_i = hoy - timedelta(days=hoy.weekday() + (7 * i))
-            fin_semana_i = inicio_semana_i + timedelta(days=6)
-            
+            inicio_i = hoy - timedelta(days=hoy.weekday() + 7 * i)
+            fin_i = inicio_i + timedelta(days=6)
             pedidos_semana_i = Pedido.query.filter(
-                Pedido.fecha_pedido >= inicio_semana_i,
-                Pedido.fecha_pedido <= fin_semana_i
+                Pedido.fecha_pedido >= inicio_i, Pedido.fecha_pedido <= fin_i
             ).all()
-            
-            ventas_semana_i = sum(sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_i)
-            pedidos_count = len(pedidos_semana_i)
-            
-            tendencia_semanal.append({
-                'semana': inicio_semana_i.strftime('%d/%m'),
-                'ventas': ventas_semana_i,
-                'pedidos': pedidos_count
-            })
-        
+            ventas_semana_i = sum(
+                sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_i
+            )
+            tendencia_semanal.append(
+                {
+                    'semana': inicio_i.strftime('%d/%m'),
+                    'ventas': ventas_semana_i,
+                    'pedidos': len(pedidos_semana_i),
+                }
+            )
         tendencia_semanal.reverse()
-        
+
         # === ESTADOS DE PEDIDOS ===
         estados_count = {}
-        for pedido in pedidos_30_dias:
-            estado = pedido.estado
-            estados_count[estado] = estados_count.get(estado, 0) + 1
-        
+        for p in pedidos_30_dias:
+            estados_count[p.estado] = estados_count.get(p.estado, 0) + 1
         estados_pedidos = [{'estado': k, 'cantidad': v} for k, v in estados_count.items()]
-        
+
         # === PEDIDOS RECIENTES ===
-        pedidos_recientes_data = []
         pedidos_recientes = Pedido.query.order_by(Pedido.fecha_pedido.desc()).limit(8).all()
-        for pedido in pedidos_recientes:
-            total_pedido = sum(float(d.subtotal or 0) for d in pedido.detalles)
-            pedidos_recientes_data.append((pedido, total_pedido))
-        
-        return render_template('dashboard.html',
-            # Métricas de ventas
+        pedidos_recientes_data = [
+            (p, sum(float(d.subtotal or 0) for d in p.detalles)) for p in pedidos_recientes
+        ]
+
+        # === RENDER ===
+        return render_template(
+            'dashboard.html',
             ventas_mes=ventas_mes,
             pedidos_mes=len(pedidos_mes_list),
             ventas_semana=ventas_semana,
             pedidos_semana=len(pedidos_semana_list),
             pedidos_pendientes=pedidos_pendientes,
-            
-            # KPIs de nivel de servicio
             lead_time_promedio=round(lead_time_promedio, 1),
             fill_rate=round(fill_rate, 1),
             otd_rate=round(otd_rate, 1),
             order_accuracy=round(order_accuracy, 1),
-            perfect_order_rate=round(perfect_order_rate, 1),
+            perfect_order_rate=round(perfect_order_rate, 1),  # ← ya existe
             customer_engagement=round(customer_engagement, 1),
-            
-            # Rankings
-            top_clientes=[(nombre, datos) for nombre, datos in top_clientes],
-            top_productos=[(nombre, datos) for nombre, datos in top_productos],
-            
-            # Distribución y tendencias
+            top_clientes=top_clientes,
+            top_productos=top_productos,
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
-            
-            # Fechas para referencia
-            fecha_actual=hoy
+            fecha_actual=hoy,
         )
-        
+
     except Exception as e:
-        print(f"Error en dashboard: {e}")
-        import traceback
-        traceback.print_exc()
+        app.logger.exception(f'Error en dashboard: {e}')
         flash('Error al cargar el dashboard', 'danger')
         return redirect(url_for('index'))
+
     
 @app.route('/pedidos')
 @login_required
