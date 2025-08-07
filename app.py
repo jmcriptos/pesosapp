@@ -81,6 +81,9 @@ class DefaultUser(UserMixin):
     def __init__(self, username):
         self.id = username
 
+from utils.filters import kpi_tag
+app.jinja_env.filters['kpi_tag'] = kpi_tag
+
 @login_manager.user_loader
 def load_user(user_id):
     # Primero intentar cargar como vendedor
@@ -2294,6 +2297,48 @@ def dashboard():
         pedidos_recientes_data = [
             (p, sum(float(d.subtotal or 0) for d in p.detalles)) for p in pedidos_recientes
         ]
+        # ---------- HISTÓRICO DE KPIs (8 semanas) ----------
+        kpi_weekly = []
+        for i in range(8):
+            sem_ini = hoy - timedelta(days=hoy.weekday() + 7*i)
+            sem_fin = sem_ini + timedelta(days=6)
+
+            ped_sem = Pedido.query.filter(
+                Pedido.fecha_pedido.between(sem_ini, sem_fin)
+            ).all()
+
+            fact_sem = [p for p in ped_sem if p.estado == 'facturado' and p.fecha_facturacion]
+            lead_sem = [
+                (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                for p in fact_sem if p.fecha_facturacion
+            ]
+
+            completos   = sum(1 for p in ped_sem if p.estado == 'facturado')
+            incompletos = sum(1 for p in ped_sem if p.estado in ['pendiente', 'listo'])
+            total_eval  = completos + incompletos
+
+            perfectos = sum(
+                1 for p in fact_sem
+                if (p.fecha_facturacion.date() - p.fecha_pedido.date()).days <= 2
+                and not (p.notas and any(w in p.notas.lower()
+                                        for w in ['error', 'corrección', 'corregir']))
+            )
+
+            errores = sum(
+                1 for p in ped_sem
+                if p.notas and any(w in p.notas.lower()
+                                for w in ['error', 'corrección', 'corregir'])
+            )
+
+            kpi_weekly.append({
+                'semana': sem_ini.strftime('%d/%m'),
+                'fill'  : completos/total_eval*100 if total_eval else 0,
+                'otd'   : sum(1 for lt in lead_sem if lt<=2)/len(lead_sem)*100 if lead_sem else 0,
+                'acc'   : (len(ped_sem)-errores)/len(ped_sem)*100 if ped_sem else 100,
+                'perf'  : perfectos/len(fact_sem)*100 if fact_sem else 0
+            })
+
+        kpi_weekly.reverse()
 
         # === RENDER ===
         return render_template(
@@ -2315,6 +2360,7 @@ def dashboard():
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
             fecha_actual=hoy,
+            kpi_weekly=kpi_weekly
         )
 
     except Exception as e:
