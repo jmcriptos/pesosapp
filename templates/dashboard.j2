@@ -47,12 +47,13 @@
             <h3><i class="fas fa-tachometer-alt"></i> Lead Time Performance</h3>
             <div class="gauge-container">
                 <div class="gauge-chart">
-                    <div class="gauge-needle" style="transform:rotate({{ needle_rotation }}deg);"></div>
-                    <div class="gauge-labels">
-                        <span class="gauge-min">0d</span>
-                        <span class="gauge-target">2d</span>
-                        <span class="gauge-max">5d</span>
-                    </div>
+                    <div class="gauge-needle" style="transform: rotate({{ needle_rotation }}deg);"></div>
+                </div>
+                <div class="gauge-labels">
+                    <span class="gauge-min">0d</span>
+                    <span class="gauge-target">2d</span>
+                    <span class="gauge-max">5d</span>
+                </div>
                 </div>
                 <div class="gauge-value">{{ lead_time_promedio }}d</div>
             </div>
@@ -314,11 +315,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(typeof ChartDataLabels!=='undefined'){Chart.register(ChartDataLabels);}
 
   /* === Tendencia de Ventas === */
-  const ventasData={{ tendencia_semanal|tojson }};
-  new Chart(document.getElementById('ventasChart'),{
-      type:'line',
-      data:{
-          labels:ventasData.map(d=>d.semana),
+  const ventasData = {{ tendencia_semanal|tojson }};
+  new Chart(document.getElementById('ventasChart'), {
+      type: 'line',
+      data: {
+          labels: ventasData.map(d => d.semana),
           datasets:[{label:'Ventas ({{ currency }})',
               data:ventasData.map(d=>d.ventas),
               borderColor:'#1877ff',backgroundColor:'rgba(24,119,255,.1)',
@@ -330,11 +331,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   /* === Estados de Pedidos === */
-  const estados={{ estados_pedidos|tojson }};
-  new Chart(document.getElementById('estadosChart'),{
-      type:'doughnut',
-      data:{
-          labels:estados.map(e=>e.estado.charAt(0).toUpperCase()+e.estado.slice(1)),
+  const estados = {{ estados_pedidos|tojson }};
+  new Chart(document.getElementById('estadosChart'), {
+      type: 'doughnut',
+      data: {
+          labels: estados.map(function(e) {
+              return e.estado.charAt(0).toUpperCase() + e.estado.slice(1);
+          }),
           datasets:[{data:estados.map(e=>e.cantidad),
               backgroundColor:estados.map(e=>{
                  return{pendiente:'#f59e0b',listo:'#06b6d4',facturado:'#10b981'}[e.estado]||'#64748b';
@@ -359,11 +362,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   /* === Tendencia KPIs === */
-  const kpiSeries={{ kpi_weekly|tojson }};
-  const cols=['#10b981','#1877ff','#06b6d4','#f59e0b'];
-  const m=['fill','otd','acc','perf'];
-  new Chart(document.getElementById('kpiTrend'),{
-      type:'line',
+  const kpiSeries = {{ kpi_weekly|tojson }};
+  const cols = ['#10b981', '#1877ff', '#06b6d4', '#f59e0b'];
+  const m = ['fill', 'otd', 'acc', 'perf'];
+  new Chart(document.getElementById('kpiTrend'), {
+      type: 'line',
       data:{
         labels:kpiSeries.map(d=>d.semana),
         datasets:m.map((k,i)=>({label:k.toUpperCase(),data:kpiSeries.map(d=>d[k]),
