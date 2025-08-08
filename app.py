@@ -105,7 +105,7 @@ def login():
     if current_user.is_authenticated:
         # Redirigir según el tipo de usuario autenticado
         if isinstance(current_user, Vendedor):
-            return redirect(url_for('home'))
+            return redirect(url_for('index'))
         else:
             return redirect(url_for('index'))
     
@@ -126,7 +126,7 @@ def login():
             flash(f"Bienvenido {vendedor.nombre_completo}", "success")
             
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('home'))
+            return redirect(next_page or url_for('index'))
         
         # Fallback al sistema anterior (para compatibilidad temporal)
         elif username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
@@ -930,7 +930,7 @@ def requiere_permiso_recurso(recurso, tipo_acceso='leer'):
             # Verificar permiso sobre el recurso
             if not current_user.tiene_permiso(recurso, tipo_acceso):
                 flash(f'No tienes permisos para {tipo_acceso} {recurso}', 'error')
-                return redirect(url_for('home'))
+                return redirect(url_for('index'))
                 
             return f(*args, **kwargs)
         return decorated_function
@@ -1267,10 +1267,8 @@ def index():
 @login_required
 def home():
     """Ruta de inicio unificada tras login.
-    Redirige al dashboard de vendedor si corresponde, o al index legacy.
+    Ahora redirige a '/'.
     """
-    if isinstance(current_user, Vendedor):
-        return redirect(url_for('home'))
     return redirect(url_for('index'))
 
 
@@ -1645,7 +1643,7 @@ def admin_reportes():
     except Exception as e:
         print(f"Error en admin_reportes: {e}")
         flash('Error al cargar los reportes', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('index'))
 
 @app.route('/admin/analytics')
 @login_required
@@ -1710,7 +1708,7 @@ def admin_analytics():
     except Exception as e:
         print(f"Error en admin_analytics: {e}")
         flash('Error al cargar analytics', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('index'))
 
 @app.route('/admin/configuracion')
 @login_required
@@ -1760,7 +1758,7 @@ def admin_clientes_vendedores():
     except Exception as e:
         print(f"Error en admin_clientes_vendedores: {e}")
         flash('Error al cargar asignaciones', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('index'))
 
 @app.route('/admin/exportar')
 @login_required
@@ -1906,7 +1904,7 @@ def admin_logs():
     except Exception as e:
         print(f"Error en admin_logs: {e}")
         flash('Error al cargar logs', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('index'))
 
 @app.route('/admin/roles')
 @login_required
@@ -1922,7 +1920,7 @@ def admin_roles():
     except Exception as e:
         print(f"Error en admin_roles: {e}")
         flash('Error al cargar roles', 'error')
-        return redirect(url_for('home'))
+        return redirect(url_for('index'))
 
 @app.route('/admin/roles/nuevo', methods=['GET', 'POST'])
 @login_required
