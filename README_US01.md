@@ -4,10 +4,10 @@ Esta entrega endurece seguridad sin romper endpoints existentes.
 
 ## Cambios clave
 
-- CSRF global:
-  - Utilidades añadidas en `app.py`: generación de token por sesión, helper `csrf_token()` para `<input hidden>` y `csrf_token_value()` para meta.
-  - Verificación en `before_request` para métodos no seguros (POST/PUT/DELETE), aceptando token vía campo `csrf_token` o cabeceras `X-CSRFToken`/`X-CSRF-Token`.
-  - Inyección `<meta name="csrf-token">` en `templates/base.html` y `static/js/base.js` intercepta `fetch()` para enviar el header automáticamente.
+- CSRF (Flask-WTF):
+  - Habilitado `CSRFProtect(app)` en `app.py`.
+  - Templates con `<form method="POST">` incluyen `{{ csrf_token() }}`.
+  - `<meta name="csrf-token" content="...">` en `base.html` + `static/js/base.js` añade `X-CSRFToken` a `fetch()`/jQuery automáticamente.
 
 - Formularios protegidos:
   - Insertado `{{ csrf_token() }}` en formularios POST de: `login.html`, `pedido_form.html`, `detalles_pedido.html`, `preparar_pedido.html`, `productos.html`, `editar_producto.html`, `clientes.html`, `cliente_form.html`, `form_generar_etiquetas.html`, `facturacion.html` (dos formularios), `pedidos.html` (acciones inline), `admin/vendedores.html` (crear y actualizar territorio rápido), `admin/territorios.html`, `admin/clientes_vendedores.html`, `formulario_importacion.html`.
@@ -15,8 +15,8 @@ Esta entrega endurece seguridad sin romper endpoints existentes.
 - Cookies seguras (solo producción):
   - `SESSION_COOKIE_SECURE/HTTPONLY/SAMESITE` y equivalentes de remember-cookie ajustados en `app.py` cuando `FLASK_ENV=production`.
 
-- CSP (solo producción):
-  - Política Talisman compatible con los CDNs usados (jsDelivr, code.jquery.com, cdnjs) y `unsafe-inline` temporal para no romper scripts actuales.
+- CSP (solo producción, sin `'unsafe-inline'` en scripts):
+  - Configurado con Flask‑Talisman sin `'unsafe-inline'` en `script-src`; se permiten CDNs usados (jsDelivr, code.jquery.com, cdnjs) y nonce automático para scripts si fuese necesario.
 
 - JS inline movido:
   - Script general de `templates/base.html` movido a `static/js/base.js` y referenciado desde el template.
@@ -24,6 +24,17 @@ Esta entrega endurece seguridad sin romper endpoints existentes.
 ## Migraciones
 
 No se requieren migraciones de base de datos para US01.
+
+## Cómo probar
+
+- Pruebas automáticas (requiere pytest):
+```
+pip install -r requirements.txt
+pytest -q
+```
+- Cubre:
+  - POST sin `csrf_token` → 400
+  - POST con `X-CSRFToken` procedente del meta → 200
 
 ## Comandos útiles
 

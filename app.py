@@ -37,6 +37,10 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from datetime import datetime, date, timedelta, timezone
 from markupsafe import Markup
 try:
+    from flask_wtf import CSRFProtect
+except ImportError:  # fallback if not installed; user should install Flask-WTF
+    CSRFProtect = None
+try:
     from flask_talisman import Talisman
 except ImportError:
     Talisman = None
@@ -66,6 +70,10 @@ app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# CSRF (Flask-WTF)
+if CSRFProtect:
+    csrf = CSRFProtect(app)
+
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
     # Mantener política compatible (no romper CDNs ni inline actuales)
@@ -73,14 +81,13 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
-            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
         ],
         'style-src': [
             "'self'",
-            "'unsafe-inline'",
+            "'unsafe-inline'",  # styles inline permitidos por ahora
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'
         ],
@@ -88,7 +95,11 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
         'connect-src': ["'self'"]
     }
-    Talisman(app, content_security_policy=talisman_policy)
+    Talisman(
+        app,
+        content_security_policy=talisman_policy,
+        content_security_policy_nonce_in=['script-src']
+    )
 
 
 login_manager = LoginManager()
@@ -121,45 +132,10 @@ def load_user(user_id):
     
     return None
 
-# === CSRF utilities ===
-def _ensure_csrf_token() -> str:
-    token = session.get('csrf_token')
-    if not token:
-        token = secrets.token_hex(32)
-        session['csrf_token'] = token
-    return token
-
-@app.context_processor
-def csrf_context_processor():
-    def csrf_token():
-        token = _ensure_csrf_token()
-        return Markup(f'<input type="hidden" name="csrf_token" value="{token}">')
-    def csrf_token_value():
-        return _ensure_csrf_token()
-    return dict(csrf_token=csrf_token, csrf_token_value=csrf_token_value)
-
-@app.before_request
-def verify_csrf_token():
-    # Métodos seguros no requieren CSRF
-    if request.method in ('GET', 'HEAD', 'OPTIONS'):
-        return
-    # Endpoints permitidos sin CSRF
-    if request.endpoint in ('static',):
-        return
-    # Siempre asegurar que el token exista en sesión
-    expected = session.get('csrf_token')
-    if not expected:
-        _ensure_csrf_token()
-        expected = session.get('csrf_token')
-    # Obtener token de formulario o cabecera
-    provided = (
-        request.form.get('csrf_token')
-        or request.headers.get('X-CSRFToken')
-        or request.headers.get('X-CSRF-Token')
-    )
-    if not provided or provided != expected:
-        # Evitar romper APIs públicas GET; para POST/DELETE exigir token
-        return (jsonify({'error': 'CSRF token inválido o ausente'}), 400)
+# Ruta simple para pruebas de CSRF
+@app.route('/_csrf_ping', methods=['POST'])
+def _csrf_ping():
+    return jsonify({'ok': True})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
