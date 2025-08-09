@@ -12,6 +12,7 @@
     <section class="form-section">
         <div class="form-container">
             <form id="importacionForm" method="POST" action="/registrar_importacion">
+                {{ csrf_token() }}
                 <label for="numero_factura">Número de Factura:</label>
                 <input type="text" id="numero_factura" name="numero_factura" required>
         

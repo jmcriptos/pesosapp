@@ -9,6 +9,7 @@
 {% block content %}
 <section class="form-section">
     <form method="POST" action="{{ url_for('etiquetas_vencimiento') }}" class="etiquetas-form">
+        {{ csrf_token() }}
         <div class="form-grid">
             <div class="form-group">
                 <label for="producto_id" class="form-label">Producto:</label>

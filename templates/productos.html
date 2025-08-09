@@ -13,6 +13,7 @@
 <section class="form-section">
     <h2>Registrar Producto</h2>
     <form id="form-crear-producto" method="POST" action="{{ url_for('productos') }}">
+        {{ csrf_token() }}
         <div class="form-group">
             <label for="nombre">Nombre del Producto:</label>
             <input type="text" id="nombre" name="nombre" required class="form-input">

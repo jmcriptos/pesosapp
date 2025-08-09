@@ -11,6 +11,7 @@
 <div class="form-section">
   <h2 style="margin-bottom:1rem;">Editar Producto</h2>
   <form method="POST" action="{{ url_for('editar_producto', producto_id=producto.id) }}">
+    {{ csrf_token() }}
     <div class="form-group">
       <label for="nombre" class="form-label">Nombre del Producto:</label>
       <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" required class="form-input">

@@ -54,6 +54,7 @@
         <h3>➕ Nuevo Territorio</h3>
 
         <form method="POST" action="{{ url_for('crear_territorio') }}" class="vendedor-form">
+            {{ csrf_token() }}
             <div class="form-grid">
 
                 <div class="form-group">

@@ -24,6 +24,7 @@
         </div>
 
         <form method="POST" class="lista-form">
+            {{ csrf_token() }}
             <div class="form-group">
                 <label for="nombre" class="form-label">
                     <i class="fas fa-tag"></i>

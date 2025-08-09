@@ -411,6 +411,7 @@
 {% block content %}
 <div class="mobile-form-container">
     <form method="POST" id="form-nuevo-pedido" autocomplete="off">
+        {{ csrf_token() }}
         
         <!-- Cliente Card -->
         <div class="mobile-card">

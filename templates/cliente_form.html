@@ -5,6 +5,7 @@
 <div class="form-section">
     <h2>Editar Cliente</h2>
     <form method="POST">
+        {{ csrf_token() }}
         <div class="form-group">
             <label class="form-label">Nombre:</label>
             <input type="text" name="nombre" value="{{ cliente.nombre }}" required class="form-input">

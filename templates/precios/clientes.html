@@ -29,6 +29,7 @@
         <h3><i class="fas fa-link"></i> Asignar Lista de Precios</h3>
         
         <form id="form-asignar-lista">
+            {{ csrf_token() }}
             <div class="asignar-form-row">
                 <div class="form-group">
                     <label for="cliente_id">Cliente:</label>

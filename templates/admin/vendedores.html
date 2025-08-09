@@ -16,6 +16,7 @@
         </h3>
 
         <form method="POST" action="{{ url_for('crear_vendedor') }}" class="vendedor-form">
+            {{ csrf_token() }}
             <div class="form-grid">
                 <!-- columna 1 -->
                 <div class="form-group">
@@ -116,6 +117,7 @@
                 <form method="POST" action="{{ url_for('actualizar_territorio_vendedor',
                                                        v_id=v.id) }}"
                       class="territorio-switch">
+                    {{ csrf_token() }}
                     <select name="territorio_id" class="form-select-sm">
                         <option value="">Sin territorio</option>
                         {% for t in territorios %}

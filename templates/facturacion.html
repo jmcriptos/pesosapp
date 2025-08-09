@@ -12,6 +12,7 @@
 <!-- Sección para registrar pesos para facturar -->
 <section class="form-section">
     <form id="form-facturacion" method="POST" action="{{ url_for('registrar_facturacion') }}">
+        {{ csrf_token() }}
         <div class="form-grid">
             <!-- Cliente (todos, ordenados alfabéticamente) -->
             <div class="form-group">
@@ -176,6 +177,7 @@
 <section class="form-section">
     <h2>Generar Etiquetas para Cajas</h2>
     <form id="form-generar-etiquetas" method="POST" action="/generar_etiqueta" class="report-form">
+        {{ csrf_token() }}
         <div class="form-grid">
             <div class="form-group">
                 <label for="cliente-generar-etiquetas">Cliente:</label>

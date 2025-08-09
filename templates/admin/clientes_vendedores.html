@@ -5,6 +5,7 @@
 <div class="card shadow-lg p-4 mx-auto" style="max-width:900px">
 
   <form id="form-asignar" method="POST" action="{{ url_for('asignar_cliente') }}" class="row g-3">
+    {{ csrf_token() }}
 
       <!-- ---------- Vendedor ---------- -->
       <div class="col-md-6">

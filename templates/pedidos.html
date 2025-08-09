@@ -68,6 +68,7 @@
                         <!-- Facturar -->
                         <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form">
+                            {{ csrf_token() }}
                             <button type="submit"
                                     class="btn-chip btn-chip-success"
                                     title="{% if pedido.estado == 'facturado' %}Ya facturado{% else %}Facturar pedido{% endif %}"
@@ -80,6 +81,7 @@
                         <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form"
                               onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
+                            {{ csrf_token() }}
                             <button type="submit" 
                                     class="btn-chip btn-chip-danger"
                                     title="Eliminar pedido">

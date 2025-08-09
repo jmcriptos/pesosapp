@@ -13,6 +13,7 @@
 <section class="form-section">
     <h2 class="form-title">Registrar Recepción</h2>
     <form id="form-recepcion">
+        {{ csrf_token() }}
         <div class="form-grid">
             <div class="form-group">
                 <label for="producto_id" class="form-label">Producto:</label>

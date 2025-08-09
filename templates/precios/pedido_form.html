@@ -17,6 +17,7 @@
 {% block content %}
 <div class="main-form-container">
 <form method="POST" id="form-nuevo-pedido" autocomplete="off">
+    {{ csrf_token() }}
     <div class="box-card">
         <div class="form-group">
             <label for="cliente_id">Cliente:</label>

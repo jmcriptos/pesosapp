@@ -81,6 +81,7 @@
         </div>
         <div class="mobile-card-body">
             <form id="form-detalle" method="POST">
+                {{ csrf_token() }}
                 <div class="mobile-form-grid">
                     
                     <!-- Producto -->
@@ -163,6 +164,7 @@
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
                                     <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Eliminar este producto del pedido?');">
+                                        {{ csrf_token() }}
                                         <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
@@ -189,6 +191,7 @@
         </div>
         <div class="mobile-card-body">
             <form id="form-etiquetas-detalle" method="POST" action="{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}">
+                {{ csrf_token() }}
                 
                 <div class="mobile-form-group">
                     <label class="mobile-form-label">Cliente:</label>

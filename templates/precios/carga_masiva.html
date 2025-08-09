@@ -37,6 +37,7 @@
             
             <div class="upload-form">
                 <form id="form-lista-precios" enctype="multipart/form-data">
+                    {{ csrf_token() }}
                     <input type="hidden" name="tipo_carga" value="lista_precios">
                     
                     <div class="form-row">
@@ -83,6 +84,7 @@
             
             <div class="upload-form">
                 <form id="form-asignacion-clientes" enctype="multipart/form-data">
+                    {{ csrf_token() }}
                     <input type="hidden" name="tipo_carga" value="asignacion_clientes">
                     
                     <div class="form-group">
@@ -114,6 +116,7 @@
             
             <div class="upload-form">
                 <form id="form-precios-especificos" enctype="multipart/form-data">
+                    {{ csrf_token() }}
                     <input type="hidden" name="tipo_carga" value="precios_especificos">
                     
                     <div class="form-group">

@@ -31,6 +31,7 @@
         
         <!-- Formulario -->
         <form method="post" action="{{ url_for('login') }}">
+            {{ csrf_token() }}
             <div class="mb-3">
                 <label for="username" class="form-label">Usuario</label>
                 <input 
