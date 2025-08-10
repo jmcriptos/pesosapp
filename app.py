@@ -2223,13 +2223,6 @@ def webhook_actualizacion_precios():
         print(f"Error en webhook precios: {e}")
         return jsonify({'error': 'Error interno'}), 500
 
-@app.route('/whoami')
-def whoami():
-    return jsonify({
-        "authenticated": bool(getattr(current_user, "is_authenticated", False)),
-        "type": current_user.__class__.__name__ if getattr(current_user, "is_authenticated", False) else None,
-        "user_id": getattr(current_user, "id", None),
-    })
 
 @app.route('/dashboard')
 @login_required
@@ -2561,86 +2554,55 @@ def dashboard():
         abort(500)
 
 
-    
 @app.route('/pedidos')
 @login_required
 @requiere_permiso_recurso('pedidos', 'leer')
 def lista_pedidos():
-    # Verificar si es vendedor del nuevo sistema
+    # Query base común
+    base_query = db.session.query(
+        Pedido,
+        func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
+    ).outerjoin(DetallePedido).filter(
+        Pedido.estado != 'entregado'
+    )
+
+    # Orden: más recientes primero; sin fecha al final y, como desempate, id DESC
+    orden_fecha_desc = [
+        db.case((Pedido.fecha_pedido.is_(None), 1), else_=0),
+        Pedido.fecha_pedido.desc(),
+        Pedido.id.desc(),
+    ]
+
     if not isinstance(current_user, Vendedor):
         # Usuario del sistema anterior - mostrar todos
-        pedidos_query = db.session.query(
-            Pedido,
-            func.coalesce(
-                func.sum(DetallePedido.subtotal), 
-                0
-            ).label('total_calculado')
-        ).outerjoin(DetallePedido).filter(
-            Pedido.estado != 'entregado'
-        ).group_by(Pedido.id).order_by(
-            db.case(
-                (Pedido.estado == 'pendiente', 0),
-                (Pedido.estado == 'listo', 1),
-                (Pedido.estado == 'facturado', 2),
-                else_=3
-            ),
-            Pedido.fecha_pedido.asc()
-        ).all()
+        pedidos_query = base_query.group_by(Pedido.id)\
+                                  .order_by(*orden_fecha_desc)\
+                                  .all()
     else:
-        # NUEVO: Filtrar por vendedor según su rol
         if current_user.rol.nombre == 'super_admin':
             # Super admin ve todos los pedidos
-            pedidos_query = db.session.query(
-                Pedido,
-                func.coalesce(
-                    func.sum(DetallePedido.subtotal), 
-                    0
-                ).label('total_calculado')
-            ).outerjoin(DetallePedido).filter(
-                Pedido.estado != 'entregado'
-            ).group_by(Pedido.id).order_by(
-                db.case(
-                    (Pedido.estado == 'pendiente', 0),
-                    (Pedido.estado == 'listo', 1),
-                    (Pedido.estado == 'facturado', 2),
-                    else_=3
-                ),
-                Pedido.fecha_pedido.asc()
-            ).all()
+            pedidos_query = base_query.group_by(Pedido.id)\
+                                      .order_by(*orden_fecha_desc)\
+                                      .all()
         else:
             # Vendedor regular: solo ve pedidos de SUS clientes
-            clientes_vendedor = current_user.obtener_clientes_visibles()
-            clientes_ids = [c.id for c in clientes_vendedor]
-            
+            clientes_ids = [c.id for c in current_user.obtener_clientes_visibles()]
             if not clientes_ids:
                 pedidos_query = []
             else:
-                pedidos_query = db.session.query(
-                    Pedido,
-                    func.coalesce(
-                        func.sum(DetallePedido.subtotal), 
-                        0
-                    ).label('total_calculado')
-                ).outerjoin(DetallePedido).filter(
-                    Pedido.estado != 'entregado',
-                    Pedido.cliente_id.in_(clientes_ids)  # FILTRO POR CLIENTES DEL VENDEDOR
-                ).group_by(Pedido.id).order_by(
-                    db.case(
-                        (Pedido.estado == 'pendiente', 0),
-                        (Pedido.estado == 'listo', 1),
-                        (Pedido.estado == 'facturado', 2),
-                        else_=3
-                    ),
-                    Pedido.fecha_pedido.asc()
-                ).all()
-    
+                pedidos_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))\
+                                          .group_by(Pedido.id)\
+                                          .order_by(*orden_fecha_desc)\
+                                          .all()
+
     # Agregar el total calculado como atributo a cada pedido
     pedidos = []
     for pedido, total in pedidos_query:
         pedido.total_calculado = float(total)
         pedidos.append(pedido)
-    
+
     return render_template('pedidos.html', pedidos=pedidos)
+
 
 
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])

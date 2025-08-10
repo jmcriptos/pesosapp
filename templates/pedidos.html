@@ -28,11 +28,16 @@
                 </tr>
             </thead>
             <tbody>
-            {% for pedido in pedidos %}
+            {# --- ORDEN: más recientes arriba --- #}
+            {% set pedidos_ordenados =
+                 (pedidos|selectattr('fecha_pedido')|sort(attribute='fecha_pedido', reverse=true)|list)
+                 + (pedidos|rejectattr('fecha_pedido')|list)
+            %}
+            {% for pedido in pedidos_ordenados %}
                 <tr>
                     <td>{{ pedido.id }}</td>
                     <td>{{ pedido.cliente.nombre }}</td>
-                    <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
                     <td>
                         <span class="estado-badge estado-{{ pedido.estado }}">
                             {% if pedido.estado == 'pendiente' %}
@@ -46,9 +51,9 @@
                             {% endif %}
                         </span>
                     </td>
-                        <td class="text-right font-mono fw-600">
-                            {{ "%.2f"|format(pedido.total_calculado) }}
-                        </td>
+                    <td class="text-right font-mono fw-600">
+                        {{ "%.2f"|format(pedido.total_calculado) }}
+                    </td>
                     <td>{{ pedido.notas or '' }}</td>
                     <td class="text-center nowrap">
 
@@ -69,7 +74,6 @@
                         <!-- Facturar -->
                         <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form">
-                            <!-- US01: hidden CSRF field -->
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit"
                                     class="btn-chip btn-chip-success"
@@ -83,7 +87,6 @@
                         <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form"
                               onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
-                            <!-- US01: hidden CSRF field -->
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" 
                                     class="btn-chip btn-chip-danger"
@@ -216,9 +219,6 @@
 
 {% block scripts %}
 <script>
-// Este script ya no es necesario para esta página específica
-// Se movió a pedido_form.html donde realmente se usa
-console.log('Lista de pedidos cargada');
+console.log('Lista de pedidos cargada (orden: más recientes primero)');
 </script>
 {% endblock %}
-
