@@ -27,7 +27,7 @@
             </div>
             <div class="alert-content">
                 <h4>Meta Mensual: {{ "%.1f"|format(porcentaje_meta) }}%</h4>
-                <p>XCG {{ "{:,.2f}"|format(ventas_mes) }} de XCG {{ "{:,.2f}"|format(meta_mensual) }}</p>
+                <p>XCG {{ '{:,.2f}'.format(ventas_mes or 0) }} de XCG {{ '{:,.2f}'.format(meta_mensual or 0) }}</p>
             </div>
         </div>
         <div class="alert-card info">
@@ -55,15 +55,15 @@
             </div>
             <div class="kpi-content">
                 <h3>Ventas del Mes</h3>
-                <div class="kpi-value">XCG {{ "{:,.0f}"|format(ventas_mes) }}</div>
+                <div class="kpi-value">XCG {{ '{:,.0f}'.format(ventas_mes or 0) }}</div>
                 <div class="kpi-subtitle">{{ pedidos_mes }} pedidos</div>
             </div>
             <div class="kpi-progress">
                 <div class="progress-bar">
-                    {# clamp: 0–100 #}
+                    <!-- clamp 0-100 -->
                     <div class="progress-fill" style="width: {{ 100 if porcentaje_meta > 100 else (0 if porcentaje_meta < 0 else porcentaje_meta) }}%"></div>
                 </div>
-                <small>Meta: XCG {{ "{:,.2f}"|format(meta_mensual) }}</small>
+                <small>Meta: XCG {{ '{:,.2f}'.format(meta_mensual or 0) }}</small>
             </div>
         </div>
 
@@ -203,7 +203,7 @@
                         <p>{{ producto.total_vendido }} cajas vendidas</p>
                     </div>
                     <div class="product-revenue">
-                        XCG {{ "{:,.0f}"|format(producto.ingresos) }}
+                        XCG {{ '{:,.0f}'.format(producto.ingresos or 0) }}
                     </div>
                     <div class="product-indicator">
                         <div class="indicator-bar">
@@ -274,7 +274,7 @@
                     </div>
                     <div class="order-amount">
                         {% set total_pedido = pedido.detalles|sum(attribute='subtotal')|float if pedido.detalles else 0 %}
-                        XCG {{ "{:,.0f}"|format(total_pedido) }}
+                        XCG {{ '{:,.0f}'.format(total_pedido or 0) }}
                     </div>
                 </div>
                 {% endfor %}
@@ -314,7 +314,7 @@
                     <div class="client-stats">
                         <div class="stat">
                             <span class="stat-label">Total</span>
-                            <span class="stat-value">XCG {{ "{:,.0f}"|format(datos.total) }}</span>
+                            <span class="stat-value">XCG {{ '{:,.0f}'.format(datos.total or 0) }}</span>
                         </div>
                         <div class="stat">
                             <span class="stat-label">Último pedido</span>
@@ -331,7 +331,7 @@
 
 {% block extra_css %}
 <style>
-/* === (igual que tu versión; sin cambios de estilos) === */
+/* (estilos iguales a tu versión anterior) */
 .professional-dashboard{max-width:1600px;margin:0 auto;padding:24px;background:#f8fafc;min-height:100vh}
 .alerts-section{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:32px}
 .alert-card{background:white;border-radius:16px;padding:20px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);border-left:4px solid;transition:transform .2s,box-shadow .2s}
@@ -556,3 +556,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
