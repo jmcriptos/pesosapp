@@ -5,29 +5,48 @@
 
 {% block header_title %}
 <span class="dashboard-title">Dashboard Comercial</span>
-<span class="dashboard-subtitle">{{ fecha_actual.strftime('%B %Y') }}</span>
+<span class="dashboard-subtitle">{{ fecha_actual.strftime('%B %Y') if fecha_actual else '' }}</span>
 {% endblock %}
 
 {% block content %}
+
+{# ===== Normalización y defaults seguros ===== #}
+{% set ventas_mes_v = (ventas_mes or 0)|float %}
+{% set ventas_semana_v = (ventas_semana or 0)|float %}
+{% set pedidos_mes_v = (pedidos_mes or 0)|int %}
+{% set pedidos_semana_v = (pedidos_semana or 0)|int %}
+{% set otd_rate_v = (otd_rate or 0)|float %}
+{% set fill_rate_v = (fill_rate or 0)|float %}
+{% set order_accuracy_v = (order_accuracy or 0)|float %}
+{% set meta_mensual_v = (meta_mensual or 0)|float %}
+{% set porcentaje_meta_v = (porcentaje_meta or 0)|float %}
+{% set pedidos_pendientes_v = (pedidos_pendientes or 0)|int %}
+{% set lead_time_promedio_v = (lead_time_promedio or 0)|float %}
+{% set max_ventas_v = (max_ventas or 0)|float %}
+{% set day_count = (fecha_actual.day if fecha_actual else 30)|int %}
+
+{# helpers de progreso 0..100 #}
+{% set progreso_meta = 0 if porcentaje_meta_v < 0 else (100 if porcentaje_meta_v > 100 else porcentaje_meta_v) %}
+
 <div class="professional-dashboard">
     <!-- Alertas y Notificaciones -->
     <div class="alerts-section">
-        <div class="alert-card {% if pedidos_pendientes > 0 %}urgent{% else %}success{% endif %}">
+        <div class="alert-card {% if pedidos_pendientes_v > 0 %}urgent{% else %}success{% endif %}">
             <div class="alert-icon">
-                <i class="fas fa-{% if pedidos_pendientes > 0 %}exclamation-triangle{% else %}check-circle{% endif %}"></i>
+                <i class="fas fa-{% if pedidos_pendientes_v > 0 %}exclamation-triangle{% else %}check-circle{% endif %}"></i>
             </div>
             <div class="alert-content">
-                <h4>{{ pedidos_pendientes }} Pedidos Pendientes</h4>
-                <p>{% if pedidos_pendientes > 0 %}Requieren atención inmediata{% else %}Todo al día{% endif %}</p>
+                <h4>{{ pedidos_pendientes_v }} Pedidos Pendientes</h4>
+                <p>{% if pedidos_pendientes_v > 0 %}Requieren atención inmediata{% else %}Todo al día{% endif %}</p>
             </div>
         </div>
-        <div class="alert-card {% if porcentaje_meta >= 80 %}success{% elif porcentaje_meta >= 50 %}info{% else %}urgent{% endif %}">
+        <div class="alert-card {% if porcentaje_meta_v >= 80 %}success{% elif porcentaje_meta_v >= 50 %}info{% else %}urgent{% endif %}">
             <div class="alert-icon">
                 <i class="fas fa-chart-line"></i>
             </div>
             <div class="alert-content">
-                <h4>Meta Mensual: {{ "%.1f"|format(porcentaje_meta) }}%</h4>
-                <p>XCG {{ '{:,.2f}'.format(ventas_mes or 0) }} de XCG {{ '{:,.2f}'.format(meta_mensual or 0) }}</p>
+                <h4>Meta Mensual: {{ '%.1f' % porcentaje_meta_v }}%</h4>
+                <p>XCG {{ '{:,.2f}'.format(ventas_mes_v) }} de XCG {{ '{:,.2f}'.format(meta_mensual_v) }}</p>
             </div>
         </div>
         <div class="alert-card info">
@@ -36,7 +55,7 @@
             </div>
             <div class="alert-content">
                 <h4>Tiempo de Respuesta</h4>
-                <p>{{ lead_time_promedio }} días promedio</p>
+                <p>{{ lead_time_promedio_v|round(1) }} días promedio</p>
             </div>
         </div>
     </div>
@@ -48,24 +67,23 @@
                 <div class="kpi-icon">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="kpi-trend {% if ventas_mes > ventas_semana * 4 %}up{% else %}down{% endif %}">
-                    <i class="fas fa-arrow-{% if ventas_mes > ventas_semana * 4 %}up{% else %}down{% endif %}"></i>
-                    {% set ref = ventas_semana * 4 %}
-                    {% set pct = ((ventas_mes - ref) / ref * 100) if ref > 0 else 0 %}
-                    <span>{{ '+' if pct >= 0 else '-' }}{{ '%.1f' % (pct|abs) }}%</span>
+                {% set ref = ventas_semana_v * 4 %}
+                {% set pct_revenue = ((ventas_mes_v - ref) / ref * 100) if ref > 0 else 0 %}
+                <div class="kpi-trend {% if pct_revenue >= 0 %}up{% else %}down{% endif %}">
+                    <i class="fas fa-arrow-{% if pct_revenue >= 0 %}up{% else %}down{% endif %}"></i>
+                    <span>{{ '+' if pct_revenue >= 0 else '-' }}{{ '%.1f' % (pct_revenue|abs) }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
                 <h3>Ventas del Mes</h3>
-                <div class="kpi-value">XCG {{ '{:,.0f}'.format(ventas_mes or 0) }}</div>
-                <div class="kpi-subtitle">{{ pedidos_mes }} pedidos</div>
+                <div class="kpi-value">XCG {{ '{:,.0f}'.format(ventas_mes_v) }}</div>
+                <div class="kpi-subtitle">{{ pedidos_mes_v }} pedidos</div>
             </div>
             <div class="kpi-progress">
                 <div class="progress-bar">
-                    <!-- clamp 0-100 -->
-                    <div class="progress-fill" style="width: {{ 100 if porcentaje_meta > 100 else (0 if porcentaje_meta < 0 else porcentaje_meta) }}%"></div>
+                    <div class="progress-fill" style="width: {{ progreso_meta }}%"></div>
                 </div>
-                <small>Meta: XCG {{ '{:,.2f}'.format(meta_mensual or 0) }}</small>
+                <small>Meta: XCG {{ '{:,.2f}'.format(meta_mensual_v) }}</small>
             </div>
         </div>
 
@@ -74,20 +92,24 @@
                 <div class="kpi-icon">
                     <i class="fas fa-shopping-cart"></i>
                 </div>
-                <div class="kpi-trend up">
-                    <i class="fas fa-arrow-up"></i>
-                    <span>+{{ "%.1f"|format((pedidos_mes / max(pedidos_semana * 4, 1) - 1) * 100) }}%</span>
+                {% set denom_orders_raw = pedidos_semana_v * 4 %}
+                {% set denom_orders = denom_orders_raw if denom_orders_raw > 0 else 1 %}
+                {% set pct_orders = ((pedidos_mes_v / denom_orders) - 1) * 100 %}
+                <div class="kpi-trend {% if pct_orders >= 0 %}up{% else %}down{% endif %}">
+                    <i class="fas fa-arrow-{% if pct_orders >= 0 %}up{% else %}down{% endif %}"></i>
+                    <span>{{ '+' if pct_orders >= 0 else '-' }}{{ '%.1f' % (pct_orders|abs) }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
                 <h3>Pedidos Procesados</h3>
-                <div class="kpi-value">{{ pedidos_mes }}</div>
+                <div class="kpi-value">{{ pedidos_mes_v }}</div>
                 <div class="kpi-subtitle">este mes</div>
             </div>
             <div class="kpi-metrics">
                 <div class="metric">
                     <span class="metric-label">Promedio/día</span>
-                    <span class="metric-value">{{ "%.1f"|format(pedidos_mes / fecha_actual.day) }}</span>
+                    {% set prom_dia = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
+                    <span class="metric-value">{{ '%.1f' % prom_dia }}</span>
                 </div>
             </div>
         </div>
@@ -97,23 +119,23 @@
                 <div class="kpi-icon">
                     <i class="fas fa-truck"></i>
                 </div>
-                <div class="kpi-trend {% if otd_rate >= 95 %}up{% elif otd_rate >= 85 %}neutral{% else %}down{% endif %}">
-                    <i class="fas fa-{% if otd_rate >= 95 %}arrow-up{% elif otd_rate >= 85 %}minus{% else %}arrow-down{% endif %}"></i>
-                    <span>{{ "%.1f"|format(otd_rate) }}%</span>
+                <div class="kpi-trend {% if otd_rate_v >= 95 %}up{% elif otd_rate_v >= 85 %}neutral{% else %}down{% endif %}">
+                    <i class="fas fa-{% if otd_rate_v >= 95 %}arrow-up{% elif otd_rate_v >= 85 %}minus{% else %}arrow-down{% endif %}"></i>
+                    <span>{{ '%.1f' % otd_rate_v }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
                 <h3>On Time Delivery</h3>
-                <div class="kpi-value">{{ "%.1f"|format(otd_rate) }}%</div>
+                <div class="kpi-value">{{ '%.1f' % otd_rate_v }}%</div>
                 <div class="kpi-subtitle">entregas a tiempo (≤2 días)</div>
             </div>
             <div class="performance-bars">
                 <div class="bar-item">
                     <span>OTD Rate</span>
                     <div class="mini-bar">
-                        <div class="mini-fill {% if otd_rate >= 95 %}excellent{% elif otd_rate >= 85 %}good{% else %}poor{% endif %}" style="width: {{ otd_rate }}%"></div>
+                        <div class="mini-fill {% if otd_rate_v >= 95 %}excellent{% elif otd_rate_v >= 85 %}good{% else %}poor{% endif %}" style="width: {{ 0 if otd_rate_v < 0 else (100 if otd_rate_v > 100 else otd_rate_v) }}%"></div>
                     </div>
-                    <span>{{ "%.1f"|format(otd_rate) }}%</span>
+                    <span>{{ '%.1f' % otd_rate_v }}%</span>
                 </div>
             </div>
         </div>
@@ -121,33 +143,32 @@
         <div class="kpi-card fillrate">
             <div class="kpi-header">
                 <div class="kpi-icon">
-                    <!-- Icono válido -->
                     <i class="fas fa-clipboard-check"></i>
                 </div>
-                <div class="kpi-trend {% if fill_rate >= 95 %}up{% elif fill_rate >= 85 %}neutral{% else %}down{% endif %}">
-                    <i class="fas fa-{% if fill_rate >= 95 %}arrow-up{% elif fill_rate >= 85 %}minus{% else %}arrow-down{% endif %}"></i>
-                    <span>{{ "%.1f"|format(fill_rate) }}%</span>
+                <div class="kpi-trend {% if fill_rate_v >= 95 %}up{% elif fill_rate_v >= 85 %}neutral{% else %}down{% endif %}">
+                    <i class="fas fa-{% if fill_rate_v >= 95 %}arrow-up{% elif fill_rate_v >= 85 %}minus{% else %}arrow-down{% endif %}"></i>
+                    <span>{{ '%.1f' % fill_rate_v }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
                 <h3>Order Fill Rate</h3>
-                <div class="kpi-value">{{ "%.1f"|format(fill_rate) }}%</div>
+                <div class="kpi-value">{{ '%.1f' % fill_rate_v }}%</div>
                 <div class="kpi-subtitle">pedidos completados</div>
             </div>
             <div class="performance-bars">
                 <div class="bar-item">
                     <span>Fill Rate</span>
                     <div class="mini-bar">
-                        <div class="mini-fill {% if fill_rate >= 95 %}excellent{% elif fill_rate >= 85 %}good{% else %}poor{% endif %}" style="width: {{ fill_rate }}%"></div>
+                        <div class="mini-fill {% if fill_rate_v >= 95 %}excellent{% elif fill_rate_v >= 85 %}good{% else %}poor{% endif %}" style="width: {{ 0 if fill_rate_v < 0 else (100 if fill_rate_v > 100 else fill_rate_v) }}%"></div>
                     </div>
-                    <span>{{ "%.1f"|format(fill_rate) }}%</span>
+                    <span>{{ '%.1f' % fill_rate_v }}%</span>
                 </div>
                 <div class="bar-item">
                     <span>Accuracy</span>
                     <div class="mini-bar">
-                        <div class="mini-fill {% if order_accuracy >= 95 %}excellent{% elif order_accuracy >= 85 %}good{% else %}poor{% endif %}" style="width: {{ order_accuracy }}%"></div>
+                        <div class="mini-fill {% if order_accuracy_v >= 95 %}excellent{% elif order_accuracy_v >= 85 %}good{% else %}poor{% endif %}" style="width: {{ 0 if order_accuracy_v < 0 else (100 if order_accuracy_v > 100 else order_accuracy_v) }}%"></div>
                     </div>
-                    <span>{{ "%.1f"|format(order_accuracy) }}%</span>
+                    <span>{{ '%.1f' % order_accuracy_v }}%</span>
                 </div>
             </div>
         </div>
@@ -172,19 +193,20 @@
         <div class="chart-card secondary-chart">
             <h3>Tiempo de Respuesta por Cliente</h3>
             <div class="response-time-list">
-                {% for item in tiempo_respuesta_data[:8] %}
+                {% for item in (tiempo_respuesta_data or [])[:8] %}
+                {% set prom = (item.promedio or 0)|float %}
+                {% set ancho = (prom / 7 * 100) %}
                 <div class="response-time-item">
-                    <div class="client-name">{{ item.cliente[:25] }}{% if item.cliente|length > 25 %}...{% endif %}</div>
+                    <div class="client-name">{{ item.cliente[:25] }}{% if item.cliente and (item.cliente|length > 25) %}...{% endif %}</div>
                     <div class="response-metrics">
-                        <span class="response-value {% if item.promedio <= 2 %}excellent{% elif item.promedio <= 4 %}good{% else %}poor{% endif %}">
-                            {{ item.promedio }} días
+                        <span class="response-value {% if prom <= 2 %}excellent{% elif prom <= 4 %}good{% else %}poor{% endif %}">
+                            {{ prom|round(1) }} días
                         </span>
-                        {% set ancho = (item.promedio / 7 * 100) %}
                         <div class="response-bar">
-                            <div class="response-fill {% if item.promedio <= 2 %}excellent{% elif item.promedio <= 4 %}good{% else %}poor{% endif %}" 
+                            <div class="response-fill {% if prom <= 2 %}excellent{% elif prom <= 4 %}good{% else %}poor{% endif %}" 
                                  style="width: {{ 100 if ancho > 100 else (0 if ancho < 0 else ancho) }}%"></div>
                         </div>
-                        <small>{{ item.pedidos }} pedidos</small>
+                        <small>{{ item.pedidos or 0 }} pedidos</small>
                     </div>
                 </div>
                 {% endfor %}
@@ -197,19 +219,21 @@
         <div class="top-products-card">
             <h3>Top 5 Productos del Mes</h3>
             <div class="products-list">
-                {% for producto in top_productos %}
+                {% for producto in (top_productos or []) %}
+                {% set vendidos = (producto.total_vendido or 0)|float %}
+                {% set maxv = max_ventas_v if max_ventas_v > 0 else 1 %}
                 <div class="product-item">
                     <div class="product-rank">{{ loop.index }}</div>
                     <div class="product-info">
                         <h4>{{ producto.nombre }}</h4>
-                        <p>{{ producto.total_vendido }} cajas vendidas</p>
+                        <p>{{ vendidos|round(0)|int }} cajas vendidas</p>
                     </div>
                     <div class="product-revenue">
-                        XCG {{ '{:,.0f}'.format(producto.ingresos or 0) }}
+                        XCG {{ '{:,.0f}'.format((producto.ingresos or 0)|float) }}
                     </div>
                     <div class="product-indicator">
                         <div class="indicator-bar">
-                            <div class="indicator-fill" style="width: {{ (producto.total_vendido / max_ventas * 100) if max_ventas > 0 else 0 }}%"></div>
+                            <div class="indicator-fill" style="width: {{ (vendidos / maxv * 100) }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -221,8 +245,8 @@
             <h3>Métricas de Servicio</h3>
             <div class="service-metrics">
                 <div class="metric-item">
-                    <div class="metric-circle {% if fill_rate >= 95 %}excellent{% elif fill_rate >= 85 %}good{% else %}warning{% endif %}">
-                        <span>{{ "%.0f"|format(fill_rate) }}%</span>
+                    <div class="metric-circle {% if fill_rate_v >= 95 %}excellent{% elif fill_rate_v >= 85 %}good{% else %}warning{% endif %}">
+                        <span>{{ '%.0f' % fill_rate_v }}%</span>
                     </div>
                     <div class="metric-info">
                         <h4>Fill Rate</h4>
@@ -230,8 +254,8 @@
                     </div>
                 </div>
                 <div class="metric-item">
-                    <div class="metric-circle {% if lead_time_promedio <= 2 %}excellent{% elif lead_time_promedio <= 4 %}good{% else %}warning{% endif %}">
-                        <span>{{ lead_time_promedio }}d</span>
+                    <div class="metric-circle {% if lead_time_promedio_v <= 2 %}excellent{% elif lead_time_promedio_v <= 4 %}good{% else %}warning{% endif %}">
+                        <span>{{ lead_time_promedio_v|round(1) }}d</span>
                     </div>
                     <div class="metric-info">
                         <h4>Tiempo de Respuesta</h4>
@@ -239,8 +263,8 @@
                     </div>
                 </div>
                 <div class="metric-item">
-                    <div class="metric-circle {% if pedidos_pendientes == 0 %}excellent{% elif pedidos_pendientes <= 5 %}warning{% else %}urgent{% endif %}">
-                        <span>{{ pedidos_pendientes }}</span>
+                    <div class="metric-circle {% if pedidos_pendientes_v == 0 %}excellent{% elif pedidos_pendientes_v <= 5 %}warning{% else %}urgent{% endif %}">
+                        <span>{{ pedidos_pendientes_v }}</span>
                     </div>
                     <div class="metric-info">
                         <h4>Pendientes</h4>
@@ -256,7 +280,7 @@
         <div class="recent-orders-card">
             <h3>Pedidos Recientes</h3>
             <div class="orders-list">
-                {% for pedido in pedidos_recientes %}
+                {% for pedido in (pedidos_recientes or []) %}
                 <div class="order-item">
                     <div class="order-status {{ pedido.estado }}">
                         {% if pedido.estado == 'pendiente' %}
@@ -275,8 +299,8 @@
                         <small>{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'Fecha N/A' }}</small>
                     </div>
                     <div class="order-amount">
-                        {% set total_pedido = pedido.detalles|sum(attribute='subtotal')|float if pedido.detalles else 0 %}
-                        XCG {{ '{:,.0f}'.format(total_pedido or 0) }}
+                        {% set total_pedido = (pedido.detalles|sum(attribute='subtotal')|float) if pedido.detalles else 0 %}
+                        XCG {{ '{:,.0f}'.format(total_pedido) }}
                     </div>
                 </div>
                 {% endfor %}
@@ -289,7 +313,7 @@
                 <canvas id="statusChart"></canvas>
             </div>
             <div class="status-legend">
-                {% for estado, cantidad in estados_pedidos.items() %}
+                {% for estado, cantidad in (estados_pedidos or {}).items() %}
                 <div class="legend-item">
                     <div class="legend-color {{ estado }}"></div>
                     <span>{{ estado.replace('_', ' ').title() }}: {{ cantidad }}</span>
@@ -304,19 +328,19 @@
         <div class="top-clients-card">
             <h3>Top 5 Clientes del Mes</h3>
             <div class="clients-grid">
-                {% for nombre, datos in top_clientes %}
+                {% for nombre, datos in (top_clientes or []) %}
                 <div class="client-card">
                     <div class="client-header">
-                        <div class="client-avatar">{{ nombre[:2].upper() }}</div>
+                        <div class="client-avatar">{{ (nombre or '')[:2].upper() }}</div>
                         <div class="client-info">
                             <h4>{{ nombre }}</h4>
-                            <p>{{ datos.pedidos }} pedidos</p>
+                            <p>{{ (datos.pedidos or 0) }} pedidos</p>
                         </div>
                     </div>
                     <div class="client-stats">
                         <div class="stat">
                             <span class="stat-label">Total</span>
-                            <span class="stat-value">XCG {{ '{:,.0f}'.format(datos.total or 0) }}</span>
+                            <span class="stat-value">XCG {{ '{:,.0f}'.format((datos.total or 0)|float) }}</span>
                         </div>
                         <div class="stat">
                             <span class="stat-label">Último pedido</span>
@@ -330,6 +354,7 @@
     </div>
 </div>
 {% endblock %}
+
 
 {% block extra_css %}
 <style>
