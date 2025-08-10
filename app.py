@@ -2451,20 +2451,49 @@ def dashboard():
             })
         ventas_dias.reverse()
 
+        # === CALCULAR PORCENTAJE DE META ===
+        meta_mensual = 120000.00  # Meta en XCG
+        porcentaje_meta = (ventas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
+
+        # === TIEMPO DE RESPUESTA POR CLIENTE ===
+        tiempos_respuesta_cliente = {}
+        for p in pedidos_30_dias:
+            if p.cliente and p.fecha_facturacion:
+                nombre_cliente = p.cliente.nombre
+                tiempo = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                if nombre_cliente not in tiempos_respuesta_cliente:
+                    tiempos_respuesta_cliente[nombre_cliente] = []
+                tiempos_respuesta_cliente[nombre_cliente].append(tiempo)
+        
+        # Calcular promedios
+        tiempo_respuesta_data = []
+        for cliente, tiempos in tiempos_respuesta_cliente.items():
+            tiempo_respuesta_data.append({
+                'cliente': cliente,
+                'promedio': round(sum(tiempos) / len(tiempos), 1),
+                'pedidos': len(tiempos)
+            })
+        tiempo_respuesta_data = sorted(tiempo_respuesta_data, key=lambda x: x['promedio'])[:10]
+
         # === RENDER ===
         return render_template(
             'dashboard.html',
+            # Métricas principales
             ventas_mes=ventas_mes,
             pedidos_mes=len(pedidos_mes_list),
             ventas_semana=ventas_semana,
             pedidos_semana=len(pedidos_semana_list),
             pedidos_pendientes=pedidos_pendientes,
+            meta_mensual=meta_mensual,
+            porcentaje_meta=porcentaje_meta,
+            
+            # KPIs de servicio (actualizados)
             lead_time_promedio=round(lead_time_promedio, 1),
             fill_rate=round(fill_rate, 1),
             otd_rate=round(otd_rate, 1),
             order_accuracy=round(order_accuracy, 1),
-            perfect_order_rate=round(perfect_order_rate, 1),
-            customer_engagement=round(customer_engagement, 1),
+            
+            # Datos para gráficos
             top_clientes=top_clientes,
             top_productos=top_productos,
             max_ventas=max_ventas,
@@ -2473,7 +2502,11 @@ def dashboard():
             pedidos_recientes=pedidos_recientes_data,
             fecha_actual=hoy,
             kpi_weekly=kpi_weekly,
-            ventas_dias=ventas_dias
+            ventas_dias=ventas_dias,
+            tiempo_respuesta_data=tiempo_respuesta_data,
+            
+            # Configuración
+            moneda='XCG'
         )
 
     except Exception as e:

@@ -12,22 +12,22 @@
 <div class="professional-dashboard">
     <!-- Alertas y Notificaciones -->
     <div class="alerts-section">
-        <div class="alert-card urgent">
+        <div class="alert-card {% if pedidos_pendientes > 0 %}urgent{% else %}success{% endif %}">
             <div class="alert-icon">
-                <i class="fas fa-exclamation-triangle"></i>
+                <i class="fas fa-{% if pedidos_pendientes > 0 %}exclamation-triangle{% else %}check-circle{% endif %}"></i>
             </div>
             <div class="alert-content">
                 <h4>{{ pedidos_pendientes }} Pedidos Pendientes</h4>
-                <p>Requieren atención inmediata</p>
+                <p>{% if pedidos_pendientes > 0 %}Requieren atención inmediata{% else %}Todo al día{% endif %}</p>
             </div>
         </div>
-        <div class="alert-card success">
+        <div class="alert-card {% if porcentaje_meta >= 80 %}success{% elif porcentaje_meta >= 50 %}info{% else %}urgent{% endif %}">
             <div class="alert-icon">
                 <i class="fas fa-chart-line"></i>
             </div>
             <div class="alert-content">
-                <h4>Meta Mensual: {{ (ventas_mes / 50000 * 100)|round(1) }}%</h4>
-                <p>${{ "%.0f"|format(ventas_mes) }} de $50,000</p>
+                <h4>Meta Mensual: {{ "%.1f"|format(porcentaje_meta) }}%</h4>
+                <p>XCG {{ "{:,.2f}"|format(ventas_mes) }} de XCG {{ "{:,.2f}"|format(meta_mensual) }}</p>
             </div>
         </div>
         <div class="alert-card info">
@@ -36,7 +36,7 @@
             </div>
             <div class="alert-content">
                 <h4>Tiempo de Respuesta</h4>
-                <p>{{ lead_time_promedio }}h promedio</p>
+                <p>{{ lead_time_promedio }} días promedio</p>
             </div>
         </div>
     </div>
@@ -48,21 +48,21 @@
                 <div class="kpi-icon">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="kpi-trend up">
-                    <i class="fas fa-arrow-up"></i>
-                    <span>+12.5%</span>
+                <div class="kpi-trend {% if ventas_mes > ventas_semana * 4 %}up{% else %}down{% endif %}">
+                    <i class="fas fa-arrow-{% if ventas_mes > ventas_semana * 4 %}up{% else %}down{% endif %}"></i>
+                    <span>{% if ventas_mes > ventas_semana * 4 %}+{% else %}-{% endif %}{{ "%.1f"|format(((ventas_mes - ventas_semana * 4) / (ventas_semana * 4) * 100) if ventas_semana > 0 else 0)|abs }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
                 <h3>Ventas del Mes</h3>
-                <div class="kpi-value">${{ "%.0f"|format(ventas_mes) }}</div>
-                <div class="kpi-subtitle">vs. mes anterior</div>
+                <div class="kpi-value">XCG {{ "{:,.0f}"|format(ventas_mes) }}</div>
+                <div class="kpi-subtitle">{{ pedidos_mes }} pedidos</div>
             </div>
             <div class="kpi-progress">
                 <div class="progress-bar">
-                    <div class="progress-fill" style="width: {{ (ventas_mes / 50000 * 100)|round(1) }}%"></div>
+                    <div class="progress-fill" style="width: {{ (porcentaje_meta)|min(100) }}%"></div>
                 </div>
-                <small>Meta: $50,000</small>
+                <small>Meta: XCG {{ "{:,.2f}"|format(meta_mensual) }}</small>
             </div>
         </div>
 
@@ -73,7 +73,7 @@
                 </div>
                 <div class="kpi-trend up">
                     <i class="fas fa-arrow-up"></i>
-                    <span>+8.3%</span>
+                    <span>+{{ "%.1f"|format((pedidos_mes / max(pedidos_semana * 4, 1) - 1) * 100) }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
@@ -84,64 +84,66 @@
             <div class="kpi-metrics">
                 <div class="metric">
                     <span class="metric-label">Promedio/día</span>
-                    <span class="metric-value">{{ (pedidos_mes / 30)|round(1) }}</span>
+                    <span class="metric-value">{{ "%.1f"|format(pedidos_mes / fecha_actual.day) }}</span>
                 </div>
             </div>
         </div>
 
-        <div class="kpi-card satisfaction">
+        <div class="kpi-card otd">
             <div class="kpi-header">
                 <div class="kpi-icon">
-                    <i class="fas fa-smile"></i>
+                    <i class="fas fa-truck"></i>
                 </div>
-                <div class="kpi-trend up">
-                    <i class="fas fa-arrow-up"></i>
-                    <span>+2.1%</span>
+                <div class="kpi-trend {% if otd_rate >= 95 %}up{% elif otd_rate >= 85 %}neutral{% else %}down{% endif %}">
+                    <i class="fas fa-{% if otd_rate >= 95 %}arrow-up{% elif otd_rate >= 85 %}minus{% else %}arrow-down{% endif %}"></i>
+                    <span>{{ "%.1f"|format(otd_rate) }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
-                <h3>Satisfacción Cliente</h3>
-                <div class="kpi-value">{{ customer_engagement }}%</div>
-                <div class="kpi-subtitle">promedio general</div>
+                <h3>On Time Delivery</h3>
+                <div class="kpi-value">{{ "%.1f"|format(otd_rate) }}%</div>
+                <div class="kpi-subtitle">entregas a tiempo (≤2 días)</div>
             </div>
-            <div class="satisfaction-gauge">
-                <div class="gauge-circle">
-                    <div class="gauge-inner">
-                        <span>{{ customer_engagement }}%</span>
+            <div class="performance-bars">
+                <div class="bar-item">
+                    <span>OTD Rate</span>
+                    <div class="mini-bar">
+                        <div class="mini-fill {% if otd_rate >= 95 %}excellent{% elif otd_rate >= 85 %}good{% else %}poor{% endif %}" style="width: {{ otd_rate }}%"></div>
                     </div>
+                    <span>{{ "%.1f"|format(otd_rate) }}%</span>
                 </div>
             </div>
         </div>
 
-        <div class="kpi-card performance">
+        <div class="kpi-card fillrate">
             <div class="kpi-header">
                 <div class="kpi-icon">
-                    <i class="fas fa-target"></i>
+                    <i class="fas fa-box-check"></i>
                 </div>
-                <div class="kpi-trend up">
-                    <i class="fas fa-arrow-up"></i>
-                    <span>+5.7%</span>
+                <div class="kpi-trend {% if fill_rate >= 95 %}up{% elif fill_rate >= 85 %}neutral{% else %}down{% endif %}">
+                    <i class="fas fa-{% if fill_rate >= 95 %}arrow-up{% elif fill_rate >= 85 %}minus{% else %}arrow-down{% endif %}"></i>
+                    <span>{{ "%.1f"|format(fill_rate) }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
-                <h3>Tasa de Conversión</h3>
-                <div class="kpi-value">{{ order_accuracy }}%</div>
+                <h3>Order Fill Rate</h3>
+                <div class="kpi-value">{{ "%.1f"|format(fill_rate) }}%</div>
                 <div class="kpi-subtitle">pedidos completados</div>
             </div>
             <div class="performance-bars">
                 <div class="bar-item">
                     <span>Fill Rate</span>
                     <div class="mini-bar">
-                        <div class="mini-fill" style="width: {{ fill_rate }}%"></div>
+                        <div class="mini-fill {% if fill_rate >= 95 %}excellent{% elif fill_rate >= 85 %}good{% else %}poor{% endif %}" style="width: {{ fill_rate }}%"></div>
                     </div>
-                    <span>{{ fill_rate }}%</span>
+                    <span>{{ "%.1f"|format(fill_rate) }}%</span>
                 </div>
                 <div class="bar-item">
-                    <span>OTD Rate</span>
+                    <span>Accuracy</span>
                     <div class="mini-bar">
-                        <div class="mini-fill" style="width: {{ otd_rate }}%"></div>
+                        <div class="mini-fill {% if order_accuracy >= 95 %}excellent{% elif order_accuracy >= 85 %}good{% else %}poor{% endif %}" style="width: {{ order_accuracy }}%"></div>
                     </div>
-                    <span>{{ otd_rate }}%</span>
+                    <span>{{ "%.1f"|format(order_accuracy) }}%</span>
                 </div>
             </div>
         </div>
@@ -151,11 +153,11 @@
     <div class="charts-section">
         <div class="chart-card main-chart">
             <div class="chart-header">
-                <h3>Tendencia de Ventas - Últimos 30 Días</h3>
+                <h3>Tendencia de Ventas - Últimas 8 Semanas</h3>
                 <div class="chart-controls">
-                    <button class="chart-btn active" data-period="30">30D</button>
-                    <button class="chart-btn" data-period="90">90D</button>
-                    <button class="chart-btn" data-period="365">1Y</button>
+                    <button class="chart-btn active" data-period="8w">8 Semanas</button>
+                    <button class="chart-btn" data-period="30d">30 Días</button>
+                    <button class="chart-btn" data-period="7d">7 Días</button>
                 </div>
             </div>
             <div class="chart-container">
@@ -164,9 +166,23 @@
         </div>
 
         <div class="chart-card secondary-chart">
-            <h3>Performance por Categoría</h3>
-            <div class="chart-container">
-                <canvas id="categoryChart"></canvas>
+            <h3>Tiempo de Respuesta por Cliente</h3>
+            <div class="response-time-list">
+                {% for item in tiempo_respuesta_data[:8] %}
+                <div class="response-time-item">
+                    <div class="client-name">{{ item.cliente[:25] }}{% if item.cliente|length > 25 %}...{% endif %}</div>
+                    <div class="response-metrics">
+                        <span class="response-value {% if item.promedio <= 2 %}excellent{% elif item.promedio <= 4 %}good{% else %}poor{% endif %}">
+                            {{ item.promedio }} días
+                        </span>
+                        <div class="response-bar">
+                            <div class="response-fill {% if item.promedio <= 2 %}excellent{% elif item.promedio <= 4 %}good{% else %}poor{% endif %}" 
+                                 style="width: {{ (item.promedio / 7 * 100)|min(100) }}%"></div>
+                        </div>
+                        <small>{{ item.pedidos }} pedidos</small>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -181,10 +197,10 @@
                     <div class="product-rank">{{ loop.index }}</div>
                     <div class="product-info">
                         <h4>{{ producto.nombre }}</h4>
-                        <p>{{ producto.total_vendido }} unidades vendidas</p>
+                        <p>{{ producto.total_vendido }} cajas vendidas</p>
                     </div>
                     <div class="product-revenue">
-                        ${{ "%.0f"|format(producto.ingresos) }}
+                        XCG {{ "{:,.0f}"|format(producto.ingresos) }}
                     </div>
                     <div class="product-indicator">
                         <div class="indicator-bar">
@@ -200,17 +216,17 @@
             <h3>Métricas de Servicio</h3>
             <div class="service-metrics">
                 <div class="metric-item">
-                    <div class="metric-circle excellent">
-                        <span>{{ perfect_order_rate }}%</span>
+                    <div class="metric-circle {% if fill_rate >= 95 %}excellent{% elif fill_rate >= 85 %}good{% else %}warning{% endif %}">
+                        <span>{{ "%.0f"|format(fill_rate) }}%</span>
                     </div>
                     <div class="metric-info">
-                        <h4>Pedidos Perfectos</h4>
-                        <p>Sin errores ni retrasos</p>
+                        <h4>Fill Rate</h4>
+                        <p>Pedidos completados</p>
                     </div>
                 </div>
                 <div class="metric-item">
-                    <div class="metric-circle good">
-                        <span>{{ lead_time_promedio }}h</span>
+                    <div class="metric-circle {% if lead_time_promedio <= 2 %}excellent{% elif lead_time_promedio <= 4 %}good{% else %}warning{% endif %}">
+                        <span>{{ lead_time_promedio }}d</span>
                     </div>
                     <div class="metric-info">
                         <h4>Tiempo de Respuesta</h4>
@@ -218,7 +234,7 @@
                     </div>
                 </div>
                 <div class="metric-item">
-                    <div class="metric-circle warning">
+                    <div class="metric-circle {% if pedidos_pendientes == 0 %}excellent{% elif pedidos_pendientes <= 5 %}warning{% else %}urgent{% endif %}">
                         <span>{{ pedidos_pendientes }}</span>
                     </div>
                     <div class="metric-info">
@@ -244,15 +260,18 @@
                             <i class="fas fa-check-circle"></i>
                         {% elif pedido.estado == 'facturado' %}
                             <i class="fas fa-file-invoice-dollar"></i>
+                        {% else %}
+                            <i class="fas fa-question-circle"></i>
                         {% endif %}
                     </div>
                     <div class="order-info">
                         <h4>Pedido #{{ pedido.id }}</h4>
-                        <p>{{ pedido.cliente_nombre if pedido.cliente_nombre else 'Cliente N/A' }}</p>
+                        <p>{{ pedido.cliente.nombre if pedido.cliente else 'Cliente N/A' }}</p>
                         <small>{{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'Fecha N/A' }}</small>
                     </div>
                     <div class="order-amount">
-                        ${{ "%.0f"|format(pedido.total if pedido.total else 0) }}
+                        {% set total_pedido = pedido.detalles|sum(attribute='subtotal')|float if pedido.detalles else 0 %}
+                        XCG {{ "{:,.0f}"|format(total_pedido) }}
                     </div>
                 </div>
                 {% endfor %}
@@ -268,7 +287,37 @@
                 {% for estado, cantidad in estados_pedidos.items() %}
                 <div class="legend-item">
                     <div class="legend-color {{ estado }}"></div>
-                    <span>{{ estado.title() }}: {{ cantidad }}</span>
+                    <span>{{ estado.replace('_', ' ').title() }}: {{ cantidad }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Clientes -->
+    <div class="clients-section">
+        <div class="top-clients-card">
+            <h3>Top 5 Clientes del Mes</h3>
+            <div class="clients-grid">
+                {% for nombre, datos in top_clientes %}
+                <div class="client-card">
+                    <div class="client-header">
+                        <div class="client-avatar">{{ nombre[:2].upper() }}</div>
+                        <div class="client-info">
+                            <h4>{{ nombre }}</h4>
+                            <p>{{ datos.pedidos }} pedidos</p>
+                        </div>
+                    </div>
+                    <div class="client-stats">
+                        <div class="stat">
+                            <span class="stat-label">Total</span>
+                            <span class="stat-value">XCG {{ "{:,.0f}"|format(datos.total) }}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Último pedido</span>
+                            <span class="stat-value">{{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -401,12 +450,12 @@
     --gradient-end: #2563eb;
 }
 
-.kpi-card.satisfaction {
+.kpi-card.otd {
     --gradient-start: #f59e0b;
     --gradient-end: #d97706;
 }
 
-.kpi-card.performance {
+.kpi-card.fillrate {
     --gradient-start: #8b5cf6;
     --gradient-end: #7c3aed;
 }
@@ -450,6 +499,16 @@
     color: #166534;
 }
 
+.kpi-trend.down {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.kpi-trend.neutral {
+    background: #fef3c7;
+    color: #92400e;
+}
+
 .kpi-content h3 {
     margin: 0 0 8px 0;
     font-size: 0.95rem;
@@ -488,6 +547,45 @@
     background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
     border-radius: 4px;
     transition: width 0.8s ease;
+}
+
+.performance-bars {
+    margin-top: 16px;
+}
+
+.bar-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+}
+
+.mini-bar {
+    flex: 1;
+    height: 6px;
+    background: #f3f4f6;
+    border-radius: 3px;
+    margin: 0 8px;
+    overflow: hidden;
+}
+
+.mini-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.mini-fill.excellent {
+    background: #10b981;
+}
+
+.mini-fill.good {
+    background: #f59e0b;
+}
+
+.mini-fill.poor {
+    background: #ef4444;
 }
 
 /* Gráficos */
@@ -543,6 +641,78 @@
 .chart-container {
     height: 300px;
     position: relative;
+}
+
+/* Tiempo de Respuesta */
+.response-time-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.response-time-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.response-time-item:last-child {
+    border-bottom: none;
+}
+
+.client-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.response-metrics {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.response-value {
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 60px;
+}
+
+.response-value.excellent {
+    color: #10b981;
+}
+
+.response-value.good {
+    color: #f59e0b;
+}
+
+.response-value.poor {
+    color: #ef4444;
+}
+
+.response-bar {
+    flex: 1;
+    height: 6px;
+    background: #f3f4f6;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.response-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.response-fill.excellent {
+    background: #10b981;
+}
+
+.response-fill.good {
+    background: #f59e0b;
+}
+
+.response-fill.poor {
+    background: #ef4444;
 }
 
 /* Performance Section */
@@ -632,11 +802,66 @@
     transition: width 0.8s ease;
 }
 
+/* Service Metrics */
+.service-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.metric-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.metric-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: white;
+}
+
+.metric-circle.excellent {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.metric-circle.good {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.metric-circle.warning {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.metric-circle.urgent {
+    background: linear-gradient(135deg, #991b1b, #7f1d1d);
+}
+
+.metric-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.metric-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
 /* Activity Section */
 .activity-section {
     display: grid;
     grid-template-columns: 1.5fr 1fr;
     gap: 24px;
+    margin-bottom: 32px;
 }
 
 .recent-orders-card, .status-overview-card {
@@ -720,6 +945,133 @@
     color: #059669;
 }
 
+/* Status Chart */
+.status-chart-container {
+    height: 200px;
+    margin-bottom: 20px;
+}
+
+.status-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.legend-color.pendiente {
+    background: #f59e0b;
+}
+
+.legend-color.listo {
+    background: #10b981;
+}
+
+.legend-color.facturado {
+    background: #3b82f6;
+}
+
+.legend-color.sin_estado {
+    background: #6b7280;
+}
+
+/* Clients Section */
+.clients-section {
+    margin-bottom: 32px;
+}
+
+.top-clients-card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.clients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.client-card {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 20px;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.client-card:hover {
+    transform: translateY(-4px);
+    background: #f3f4f6;
+}
+
+.client-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.client-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.client-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.client-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.client-stats {
+    display: flex;
+    justify-content: space-between;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #111827;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .charts-section {
@@ -755,6 +1107,10 @@
     .kpi-value {
         font-size: 2rem;
     }
+    
+    .clients-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 {% endblock %}
@@ -763,17 +1119,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Gráfico principal de tendencia de ventas
+    // Gráfico principal de tendencia de ventas (semanal)
     const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
-    const ventasData = {{ ventas_dias|tojson if ventas_dias else '[]'|safe }};
+    const tendenciaData = {{ tendencia_semanal|tojson if tendencia_semanal else '[]'|safe }};
     
     new Chart(salesCtx, {
         type: 'line',
         data: {
-            labels: ventasData.map(d => new Date(d.dia).toLocaleDateString('es-ES', {month: 'short', day: 'numeric'})),
+            labels: tendenciaData.map(d => d.semana),
             datasets: [{
-                label: 'Ventas Diarias',
-                data: ventasData.map(d => d.ventas),
+                label: 'Ventas Semanales',
+                data: tendenciaData.map(d => d.ventas),
                 borderColor: '#3b82f6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 borderWidth: 3,
@@ -792,6 +1148,21 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleColor: 'white',
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyColor: 'white',
+                    callbacks: {
+                        label: function(context) {
+                            return 'XCG ' + context.parsed.y.toLocaleString('es');
+                        }
+                    }
                 }
             },
             scales: {
@@ -802,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toLocaleString();
+                            return 'XCG ' + value.toLocaleString();
                         },
                         color: '#6b7280'
                     }
@@ -823,20 +1194,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Gráfico de categorías (dona)
-    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    new Chart(categoryCtx, {
+    // Gráfico de estados (dona)
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const estadosData = {{ estados_pedidos|tojson if estados_pedidos else '{}'|safe }};
+    
+    new Chart(statusCtx, {
         type: 'doughnut',
         data: {
-            labels: {{ top_productos|map(attribute='nombre')|list|tojson if top_productos else '[]'|safe }},
+            labels: Object.keys(estadosData).map(s => s.replace('_', ' ').charAt(0).toUpperCase() + s.slice(1)),
             datasets: [{
-                data: {{ top_productos|map(attribute='total_vendido')|list|tojson if top_productos else '[]'|safe }},
+                data: Object.values(estadosData),
                 backgroundColor: [
-                    '#3b82f6',
-                    '#10b981',
-                    '#f59e0b',
-                    '#ef4444',
-                    '#8b5cf6'
+                    '#f59e0b', // pendiente
+                    '#10b981', // listo
+                    '#3b82f6', // facturado
+                    '#6b7280'  // otros/sin_estado
                 ],
                 borderWidth: 0,
                 cutout: '60%'
@@ -847,43 +1219,16 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20,
-                        color: '#6b7280'
-                    }
-                }
-            }
-        }
-    });
-
-    // Gráfico de estados (dona pequeña)
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const estadosData = {{ estados_pedidos|tojson if estados_pedidos else '{}'|safe }};
-    
-    new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(estadosData).map(s => s.charAt(0).toUpperCase() + s.slice(1)),
-            datasets: [{
-                data: Object.values(estadosData),
-                backgroundColor: [
-                    '#f59e0b', // pendiente
-                    '#10b981', // listo
-                    '#3b82f6', // facturado
-                    '#ef4444'  // otro
-                ],
-                borderWidth: 0,
-                cutout: '50%'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
                     display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': ' + context.parsed;
+                        }
+                    }
                 }
             }
         }
@@ -894,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            // Aquí puedes agregar la lógica para cambiar los datos del gráfico
+            // Aquí podrías agregar lógica para cambiar entre diferentes vistas de datos
         });
     });
 });
