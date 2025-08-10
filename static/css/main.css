@@ -36,35 +36,38 @@
     position: relative;
     display: flex !important;
     align-items: center;
-    background-color: green;
 }
 
-/* BOTÓN toggle - SIEMPRE VISIBLE */
+/* BOTÓN toggle - SIEMPRE VISIBLE CON FONDO VERDE */
 .user-menu-toggle {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    background-color: green;
+    background-color: #28a745 !important; /* Verde con !important */
     border: none;
-    color: rgba(255,255,255,0.9);
+    color: white !important;
     font-size: 1.8rem;
     cursor: pointer;
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: 50%; /* Hacer circular */
     transition: all 0.2s ease;
-    width: auto;
-    height: auto;
+    width: 44px;
+    height: 44px;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
 }
 
 .user-menu-toggle:hover {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
+    background-color: #218838 !important; /* Verde más oscuro al hover */
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
 }
 
 .user-menu-toggle:active,
 .user-menu-toggle.clicked {
     transform: scale(0.95);
-    background-color: green;
+    background-color: #1e7e34 !important; /* Verde aún más oscuro al click */
+    color: white !important;
 }
 
 /* DROPDOWN - Este SÍ se oculta/muestra */
