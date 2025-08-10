@@ -2417,6 +2417,11 @@ def dashboard():
 
         kpi_weekly.reverse()
 
+        # === PEDIDOS RECIENTES === (NUEVA SECCIÓN)
+        pedidos_recientes_data = Pedido.query.order_by(
+            Pedido.fecha_pedido.desc()
+        ).limit(10).all()
+
         # === RENDER ===
         return render_template(
             'dashboard.html',
@@ -2429,14 +2434,14 @@ def dashboard():
             fill_rate=round(fill_rate, 1),
             otd_rate=round(otd_rate, 1),
             order_accuracy=round(order_accuracy, 1),
-            perfect_order_rate=round(perfect_order_rate, 1),  # ← ya existe
+            perfect_order_rate=round(perfect_order_rate, 1),
             customer_engagement=round(customer_engagement, 1),
             top_clientes=top_clientes,
             top_productos=top_productos,
             max_ventas=max_ventas,
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
-            pedidos_recientes=pedidos_recientes_data,
+            pedidos_recientes=pedidos_recientes_data,  # Ahora sí está definida
             fecha_actual=hoy,
             kpi_weekly=kpi_weekly,
             ventas_dias=[]
