@@ -1,42 +1,95 @@
 /* US01: Estilos movidos de templates/base.html */
-/* Header mejorado con menú de usuario */
+/* Header mejorado con menú de usuario - CORREGIDO */
 .app-header {
     background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
     color: white;
-    padding: 1rem;
+    padding: 0;
     box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    position: relative;
-    z-index: 20;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.app-header h1 {
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header-left h1 {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
+    color: white;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+/* CONTENEDOR PRINCIPAL del menú - SIEMPRE VISIBLE */
 .user-menu {
+    position: relative;
+    display: flex !important;
+    align-items: center;
+}
+
+/* BOTÓN toggle - SIEMPRE VISIBLE */
+.user-menu-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.9);
+    font-size: 1.8rem;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    width: auto;
+    height: auto;
+}
+
+.user-menu-toggle:hover {
+    background-color: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.user-menu-toggle:active,
+.user-menu-toggle.clicked {
+    transform: scale(0.95);
+}
+
+/* DROPDOWN - Este SÍ se oculta/muestra */
+.user-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     right: 0;
     background: white;
+    border: 1px solid #e1e5e9;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    min-width: 200px;
-    z-index: 30;
+    min-width: 220px;
+    z-index: 1000;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
     transition: all 0.3s ease;
 }
 
-.user-menu.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+.user-dropdown.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
 }
 
-.user-menu::before {
+/* Flecha del dropdown */
+.user-dropdown::before {
     content: '';
     position: absolute;
     top: -8px;
@@ -48,52 +101,128 @@
     border-bottom: 8px solid white;
 }
 
-.user-menu a {
-    display: block;
-    padding: 12px 20px;
-    color: #333;
-    text-decoration: none;
-    border-bottom: 1px solid #eee;
-    transition: background-color 0.2s ease;
-}
-
-.user-menu a:last-child {
-    border-bottom: none;
-}
-
-.user-menu a:hover {
-    background-color: #f8f9fa;
-}
-
-.user-menu a i {
-    margin-right: 8px;
-    width: 16px;
-    text-align: center;
-}
-
-.user-dropdown {
-    position: relative;
-    cursor: pointer;
-    padding: 8px 12px;
-    border-radius: 6px;
-    transition: background-color 0.2s ease;
+/* Información del usuario */
+.user-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    padding: 16px;
+    border-bottom: 1px solid #f0f0f0;
 }
 
-.user-dropdown:hover {
-    background-color: rgba(255,255,255,0.1);
-}
-
-.user-dropdown i {
+.user-avatar-small {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
     font-size: 0.9rem;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.user-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+/* Divider */
+.dropdown-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 0;
+}
+
+/* Items del menú dropdown */
+.dropdown-menu {
+    padding: 8px 0;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    color: #555;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    font-size: 0.9rem;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #333;
+    text-decoration: none;
+}
+
+.dropdown-item i {
+    width: 16px;
+    margin-right: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.dropdown-item span {
+    flex: 1;
+}
+
+.logout-item {
+    color: #dc3545;
+}
+
+.logout-item:hover {
+    background-color: #fff5f5;
+    color: #dc3545;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .user-dropdown { min-width: calc(100vw - 32px); right: -16px; left: auto; }
-    .user-dropdown::before { right: 24px; }
+    .header-content {
+        padding: 0.75rem 1rem;
+    }
+    
+    .header-left h1 {
+        font-size: 1.25rem;
+    }
+    
+    .user-dropdown {
+        min-width: 200px;
+        right: -8px;
+    }
+    
+    .user-dropdown::before {
+        right: 20px;
+    }
+}
+
+/* Asegurar visibilidad del contenedor y botón */
+.user-menu,
+.user-menu-toggle,
+#userMenuToggle {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+/* Prevent layout shifts */
+.user-menu * {
+    box-sizing: border-box;
 }
 
 /* US01 utilities y estilos migrados de templates para eliminar inline styles */
@@ -270,5 +399,3 @@
 
 /* US01: Additional color utilities */
 .color-red-error { color: red !important; }
-
-
