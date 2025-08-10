@@ -5,11 +5,11 @@
 {% endblock %}
 
 {% block header_title %}
-    <span style="font-weight:700; color:white;">
+    <span class="fw-700 color-white">
         {% if pedido %}Editar Pedido{% else %}Nuevo Pedido{% endif %}
     </span>
     <br>
-    <small style="font-size:0.8rem; color:rgba(255,255,255,0.8); font-weight:normal;">
+    <small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
         Gestión de pedidos
     </small>
 {% endblock %}
@@ -411,7 +411,8 @@
 {% block content %}
 <div class="mobile-form-container">
     <form method="POST" id="form-nuevo-pedido" autocomplete="off">
-        {{ csrf_token() }}
+        <!-- US01: hidden CSRF field -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
         <!-- Cliente Card -->
         <div class="mobile-card">
@@ -630,7 +631,8 @@ function actualizarTablaProductos() {
             <td>
                 <button type="button" 
                         class="mobile-btn mobile-btn-danger" 
-                        onclick="eliminarProducto(${idx})"
+                        data-action="eliminar-producto" 
+                        data-idx="${idx}"
                         title="Eliminar producto">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -674,7 +676,7 @@ new TomSelect('#producto-select', {
         option: (data, escape) => `
             <div>
                 <span class="suggestion-name">${escape(data.text)}</span>
-                <span style="float:right;" class="suggestion-price">
+                <span class="float-right suggestion-price">
                     ${(parseFloat(data.$option.dataset.precio || 0)).toFixed(2)} XCG
                 </span>
             </div>`

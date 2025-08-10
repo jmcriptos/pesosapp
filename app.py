@@ -77,6 +77,7 @@ if CSRFProtect:
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
     # Mantener política compatible (no romper CDNs ni inline actuales)
+    # US01: CSP endurecida: se elimina 'unsafe-inline' de style-src
     talisman_policy = {
         'default-src': ["'self'"],
         'script-src': [
@@ -87,18 +88,20 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         ],
         'style-src': [
             "'self'",
-            "'unsafe-inline'",  # styles inline permitidos por ahora
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'
         ],
         'img-src': ["'self'", 'data:'],
         'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'connect-src': ["'self'"]
+        'connect-src': ["'self'"],
+        # US01: permitir temporalmente atributos de estilo mientras migramos inline styles
+        'style-src-attr': ["'unsafe-inline'"]
     }
     Talisman(
         app,
         content_security_policy=talisman_policy,
-        content_security_policy_nonce_in=['script-src']
+        # US01: habilita nonces para scripts y estilos inline controlados
+        content_security_policy_nonce_in=['script-src', 'style-src']
     )
 
 
@@ -132,10 +135,10 @@ def load_user(user_id):
     
     return None
 
-# Ruta simple para pruebas de CSRF
 @app.route('/_csrf_ping', methods=['POST'])
-def _csrf_ping():
-    return jsonify({'ok': True})
+def csrf_ping():
+    return jsonify({'ok': True}), 200  # ← Cambiar a esto
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -188,9 +191,14 @@ def logout():
 @app.before_request
 def require_login():
     allowed_endpoints = ['login', 'logout', 'static']
+    # Permitir específicamente el endpoint de CSRF
+    if request.endpoint == 'csrf_ping':
+        return
+        
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
+        
 def log_vendedor_action():
     """Registra las acciones de los vendedores para auditoría"""
     if request.method in ['POST', 'PUT', 'DELETE'] and current_user.is_authenticated:
@@ -2278,7 +2286,7 @@ def dashboard():
             clientes_activos_mes / total_clientes * 100 if total_clientes else 0
         )
 
-        # === ANÁLISIS DE PRODUCTOS ===
+# === ANÁLISIS DE PRODUCTOS ===
         productos_ventas = {}
         for p in pedidos_30_dias:
             for d in p.detalles:
@@ -2292,9 +2300,26 @@ def dashboard():
         for datos in productos_ventas.values():
             datos['pedidos'] = len(datos['pedidos'])
 
-        top_productos = sorted(
+        # Obtener top productos como tuplas primero
+        top_productos_raw = sorted(
             productos_ventas.items(), key=lambda x: x[1]['cajas'], reverse=True
         )[:5]
+
+        # Convertir a formato esperado por el template
+        top_productos = []
+        for nombre, datos in top_productos_raw:
+            top_productos.append({
+                'nombre': nombre,
+                'total_vendido': datos['cajas'],
+                'ingresos': datos['ingresos'],
+                'pedidos': datos['pedidos']
+            })
+
+        # Calcular max_ventas para el template
+        if top_productos:
+            max_ventas = max(producto['total_vendido'] for producto in top_productos)
+        else:
+            max_ventas = 1  # Evitar división por cero
 
         # === ANÁLISIS DE CLIENTES ===
         clientes_ventas = {}
@@ -2406,11 +2431,13 @@ def dashboard():
             customer_engagement=round(customer_engagement, 1),
             top_clientes=top_clientes,
             top_productos=top_productos,
+            max_ventas=max_ventas,
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
             fecha_actual=hoy,
-            kpi_weekly=kpi_weekly
+            kpi_weekly=kpi_weekly,
+            ventas_dias=[]
         )
 
     except Exception as e:

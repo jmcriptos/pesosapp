@@ -3,7 +3,7 @@
 {% block title %}Productos{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-box" style="color: #ff6f61; margin-right: 10px;"></i>Productos
+<i class="fas fa-box color-salmon mr-10"></i>Productos
 {% endblock %}
 
 {% block content %}
@@ -13,7 +13,8 @@
 <section class="form-section">
     <h2>Registrar Producto</h2>
     <form id="form-crear-producto" method="POST" action="{{ url_for('productos') }}">
-        {{ csrf_token() }}
+        <!-- US01: hidden CSRF field -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label for="nombre">Nombre del Producto:</label>
             <input type="text" id="nombre" name="nombre" required class="form-input">
@@ -74,9 +75,8 @@
                            class="btn btn-sm btn-primary" title="Editar">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <i class="fas fa-trash-alt eliminar-producto"
+                        <i class="fas fa-trash-alt eliminar-producto color-red cursor-pointer"
                            data-id="{{ producto.id }}"
-                           style="color: #dc3545; cursor: pointer;"
                            title="Eliminar"></i>
                     </td>
                 </tr>

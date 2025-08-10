@@ -6,8 +6,9 @@
 
 {% block content %}
 <div class="tabla-pedidos-container">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2 style="font-weight:700;">Pedidos Pendientes</h2>
+    <!-- US01: estilos inline migrados a clases utilitarias -->
+    <div class="flex-between-center">
+        <h2 class="fw-700">Pedidos Pendientes</h2>
         <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo">
             <i class="fa fa-plus"></i> Nuevo Pedido
         </a>
@@ -23,7 +24,7 @@
                     <th>Estado</th>
                     <th>Total&nbsp;(XCG)</th>
                     <th>Notas</th>
-                    <th style="text-align:center;">Acciones</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -45,11 +46,11 @@
                             {% endif %}
                         </span>
                     </td>
-                        <td style="text-align:right; font-family:monospace; font-weight:600;">
+                        <td class="text-right font-mono fw-600">
                             {{ "%.2f"|format(pedido.total_calculado) }}
                         </td>
                     <td>{{ pedido.notas or '' }}</td>
-                    <td style="text-align:center; white-space:nowrap;">
+                    <td class="text-center nowrap">
 
                         <!-- Detalles -->
                         <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
@@ -68,7 +69,8 @@
                         <!-- Facturar -->
                         <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form">
-                            {{ csrf_token() }}
+                            <!-- US01: hidden CSRF field -->
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit"
                                     class="btn-chip btn-chip-success"
                                     title="{% if pedido.estado == 'facturado' %}Ya facturado{% else %}Facturar pedido{% endif %}"
@@ -81,7 +83,8 @@
                         <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}"
                               method="POST" class="inline-form"
                               onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
-                            {{ csrf_token() }}
+                            <!-- US01: hidden CSRF field -->
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" 
                                     class="btn-chip btn-chip-danger"
                                     title="Eliminar pedido">

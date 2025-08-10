@@ -3,7 +3,8 @@
 {% block title %}Recepciones{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-truck" style="color: #88B04B; margin-right: 10px;"></i>Recepciones
+<!-- US01: estilos inline migrados a clases utilitarias -->
+<i class="fas fa-truck mr-10" style="color: #88B04B;"></i>Recepciones
 {% endblock %}
 
 {% block content %}
@@ -13,7 +14,8 @@
 <section class="form-section">
     <h2 class="form-title">Registrar Recepción</h2>
     <form id="form-recepcion">
-        {{ csrf_token() }}
+        <!-- US01: hidden CSRF field -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
             <div class="form-group">
                 <label for="producto_id" class="form-label">Producto:</label>

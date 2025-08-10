@@ -3,18 +3,19 @@
 {% block title %}Clientes{% endblock %}
 
 {% block header_title %}
-  <i class="fas fa-users" style="color:#6c63ff;margin-right:8px;"></i>Clientes
+  <i class="fas fa-users color-purple mr-8"></i>Clientes
 {% endblock %}
 
 {% block content %}
 <!-- Flash -->
-<div id="flash-message" class="flash-message" style="display:none;"></div>
+<div id="flash-message" class="flash-message hidden"></div>
 
 <!-- 🔹 REGISTRAR NUEVO CLIENTE -->
 <section class="form-section">
   <h2>Registrar Nuevo Cliente</h2>
   <form id="form-cliente" method="POST" action="{{ url_for('nuevo_cliente') }}">
-    {{ csrf_token() }}
+    <!-- US01: hidden CSRF field -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label for="nombre-cliente" class="form-label">Nombre:</label>
       <input id="nombre-cliente" name="nombre" class="form-input" required>
@@ -38,10 +39,10 @@
     <table class="tabla-clientes">
       <thead>
         <tr>
-          <th style="width:70px;text-align:center;">ID</th>
+                      <th class="table-width-70px text-center">ID</th>
           <th>Nombre</th>
-          <th style="width:160px;text-align:center;">QBO ID</th>
-          <th style="width:120px;text-align:center;">Acciones</th>
+                      <th class="table-width-160px text-center">QBO ID</th>
+                      <th class="table-width-120px text-center">Acciones</th>
         </tr>
       </thead>
 

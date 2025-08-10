@@ -3,15 +3,16 @@
 {% block title %}Editar Producto{% endblock %}
 
 {% block header_title %}
-  <i class="fas fa-box-open" style="color: #ff6f61; margin-right: 8px;"></i>
+  <i class="fas fa-box-open color-salmon mr-8"></i>
   Editar Producto
 {% endblock %}
 
 {% block content %}
 <div class="form-section">
-  <h2 style="margin-bottom:1rem;">Editar Producto</h2>
+  <h2 class="mb-1">Editar Producto</h2>
   <form method="POST" action="{{ url_for('editar_producto', producto_id=producto.id) }}">
-    {{ csrf_token() }}
+    <!-- US01: hidden CSRF field -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label for="nombre" class="form-label">Nombre del Producto:</label>
       <input type="text" id="nombre" name="nombre" value="{{ producto.nombre }}" required class="form-input">
@@ -37,7 +38,7 @@
       </select>
     </div>
 
-    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.5rem;">
+    <div class="flex justify-end gap-2 mt-6">
       <a href="{{ url_for('productos') }}" class="btn btn-secondary">
         <i class="fas fa-times"></i> Cancelar
       </a>
