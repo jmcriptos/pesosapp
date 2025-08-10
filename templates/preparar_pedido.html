@@ -1,6 +1,8 @@
 <!-- templates/preparar_pedido.html -->
 <h2>Preparar Pedido #{{ pedido.id }}</h2>
 <form method="POST">
+    <!-- US01: hidden CSRF field -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <table>
         <thead>
             <tr>

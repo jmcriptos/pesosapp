@@ -6,3 +6,6 @@ instance/
 .env
 .DS_Store
 *.log
+context/*.xml
+.bmad-core/web-bundles/*
+context/*.xml

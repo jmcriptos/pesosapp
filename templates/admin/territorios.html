@@ -50,10 +50,12 @@
     </div>
 
     <!-- ───────────── NUEVO TERRITORIO ───────────── -->
-    <div class="form-section" style="margin-top:40px;">
+    <div class="form-section mt-40">
         <h3>➕ Nuevo Territorio</h3>
 
         <form method="POST" action="{{ url_for('crear_territorio') }}" class="vendedor-form">
+            <!-- US01: hidden CSRF field -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-grid">
 
                 <div class="form-group">
@@ -71,7 +73,7 @@
                     </select>
                 </div>
 
-                <div class="form-group" style="grid-column:1/-1;">
+                <div class="form-group grid-col-1-1">
                     <label for="descripcion">Descripción</label>
                     <textarea id="descripcion" name="descripcion" rows="3"
                               class="form-input"

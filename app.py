@@ -1,8 +1,7 @@
 import os
+import secrets
 from dotenv import load_dotenv
 load_dotenv()
-
-from crm.routes import crm_bp
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_
@@ -16,8 +15,6 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta, date, timezone
 from dateutil.relativedelta import relativedelta
-import openpyxl
-from openpyxl.styles import Font, Alignment
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
@@ -38,6 +35,11 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from datetime import datetime, date, timedelta, timezone
+from markupsafe import Markup
+try:
+    from flask_wtf import CSRFProtect
+except ImportError:  # fallback if not installed; user should install Flask-WTF
+    CSRFProtect = None
 try:
     from flask_talisman import Talisman
 except ImportError:
@@ -53,21 +55,54 @@ if uri.startswith("postgres://"):
     uri = uri.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Cookies seguras en producción
+if os.environ.get("FLASK_ENV") == "production":
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['REMEMBER_COOKIE_SECURE'] = True
+else:
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['REMEMBER_COOKIE_SECURE'] = False
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# CSRF (Flask-WTF)
+if CSRFProtect:
+    csrf = CSRFProtect(app)
+
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
+    # Mantener política compatible (no romper CDNs ni inline actuales)
+    # US01: CSP endurecida: se elimina 'unsafe-inline' de style-src
     talisman_policy = {
-        'default-src': ["'self'"],      # Todo lo demás hereda de aquí
-        'script-src' : ["'self'", "'unsafe-inline'"],
-        'img-src'    : ["'self'", 'data:']
+        'default-src': ["'self'"],
+        'script-src': [
+            "'self'",
+            'https://cdn.jsdelivr.net',
+            'https://code.jquery.com',
+            'https://cdnjs.cloudflare.com'
+        ],
+        'style-src': [
+            "'self'",
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com'
+        ],
+        'img-src': ["'self'", 'data:'],
+        'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
+        'connect-src': ["'self'"],
+        # US01: permitir temporalmente atributos de estilo mientras migramos inline styles
+        'style-src-attr': ["'unsafe-inline'"]
     }
-    Talisman(app, content_security_policy=talisman_policy)
+    Talisman(
+        app,
+        content_security_policy=talisman_policy,
+        # US01: habilita nonces para scripts y estilos inline controlados
+        content_security_policy_nonce_in=['script-src', 'style-src']
+    )
 
 
 login_manager = LoginManager()
@@ -99,6 +134,11 @@ def load_user(user_id):
         return DefaultUser(DEFAULT_USERNAME)
     
     return None
+
+@app.route('/_csrf_ping', methods=['POST'])
+def csrf_ping():
+    return jsonify({'ok': True}), 200  # ← Cambiar a esto
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -151,9 +191,14 @@ def logout():
 @app.before_request
 def require_login():
     allowed_endpoints = ['login', 'logout', 'static']
+    # Permitir específicamente el endpoint de CSRF
+    if request.endpoint == 'csrf_ping':
+        return
+        
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
+        
 def log_vendedor_action():
     """Registra las acciones de los vendedores para auditoría"""
     if request.method in ['POST', 'PUT', 'DELETE'] and current_user.is_authenticated:
@@ -760,41 +805,37 @@ class Vendedor(db.Model, UserMixin):
         
         # Definir permisos específicos por rol
         permisos_por_rol = {
-            'super_admin': {
-                # El super admin tiene todos los permisos
-                'productos': ['leer', 'crear', 'editar', 'eliminar'],
-                'clientes': ['leer', 'crear', 'editar', 'eliminar'],
-                'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
-                'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
-                'precios': ['leer', 'crear', 'editar', 'eliminar'],
-                'reportes': ['leer', 'crear', 'editar', 'eliminar'],
-                'crm': ['leer', 'crear', 'editar', 'eliminar'],
-                'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
-                'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
-            },
-            'supervisor': {
-                'productos': ['leer'],
-                'clientes': ['leer', 'editar'],  # Solo editar sus clientes
-                'pedidos': ['leer', 'crear', 'editar'],
-                'vendedores': ['leer'],
-                'precios': ['leer'],
-                'reportes': ['leer'],
-                'crm': ['leer', 'crear', 'editar'],
-                'importaciones': [],
-                'facturacion': ['leer'],
-            },
-            'vendedor': {
-                'productos': ['leer'],
-                'clientes': ['leer', 'editar'],  # Solo editar datos de contacto/horarios de SUS clientes
-                'pedidos': ['leer', 'crear', 'editar'],  # Solo sus pedidos
-                'vendedores': [],
-                'precios': ['leer'],
-                'reportes': [],
-                'crm': ['leer', 'crear', 'editar'],  # Solo para sus clientes
-                'importaciones': [],
-                'facturacion': [],
+                'super_admin': {
+                    'productos': ['leer', 'crear', 'editar', 'eliminar'],
+                    'clientes': ['leer', 'crear', 'editar', 'eliminar'],
+                    'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
+                    'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
+                    'precios': ['leer', 'crear', 'editar', 'eliminar'],
+                    'reportes': ['leer', 'crear', 'editar', 'eliminar'],
+                    'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
+                    'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
+                },
+                'supervisor': {
+                    'productos': ['leer'],
+                    'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'],
+                    'vendedores': ['leer'],
+                    'precios': ['leer'],
+                    'reportes': ['leer'],
+                    'importaciones': [],
+                    'facturacion': ['leer'],
+                },
+                'vendedor': {
+                    'productos': ['leer'],
+                    'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'],
+                    'vendedores': [],
+                    'precios': ['leer'],
+                    'reportes': [],
+                    'importaciones': [],
+                    'facturacion': [],
+                }
             }
-        }
         
         permisos_rol = permisos_por_rol.get(self.rol.nombre, {})
         permisos_recurso = permisos_rol.get(permiso_nombre, [])
@@ -2245,7 +2286,7 @@ def dashboard():
             clientes_activos_mes / total_clientes * 100 if total_clientes else 0
         )
 
-        # === ANÁLISIS DE PRODUCTOS ===
+# === ANÁLISIS DE PRODUCTOS ===
         productos_ventas = {}
         for p in pedidos_30_dias:
             for d in p.detalles:
@@ -2259,9 +2300,26 @@ def dashboard():
         for datos in productos_ventas.values():
             datos['pedidos'] = len(datos['pedidos'])
 
-        top_productos = sorted(
+        # Obtener top productos como tuplas primero
+        top_productos_raw = sorted(
             productos_ventas.items(), key=lambda x: x[1]['cajas'], reverse=True
         )[:5]
+
+        # Convertir a formato esperado por el template
+        top_productos = []
+        for nombre, datos in top_productos_raw:
+            top_productos.append({
+                'nombre': nombre,
+                'total_vendido': datos['cajas'],
+                'ingresos': datos['ingresos'],
+                'pedidos': datos['pedidos']
+            })
+
+        # Calcular max_ventas para el template
+        if top_productos:
+            max_ventas = max(producto['total_vendido'] for producto in top_productos)
+        else:
+            max_ventas = 1  # Evitar división por cero
 
         # === ANÁLISIS DE CLIENTES ===
         clientes_ventas = {}
@@ -2373,11 +2431,13 @@ def dashboard():
             customer_engagement=round(customer_engagement, 1),
             top_clientes=top_clientes,
             top_productos=top_productos,
+            max_ventas=max_ventas,
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
             fecha_actual=hoy,
-            kpi_weekly=kpi_weekly
+            kpi_weekly=kpi_weekly,
+            ventas_dias=[]
         )
 
     except Exception as e:
@@ -4062,10 +4122,10 @@ def reporte_factura(numero_factura):
     elements.append(table)
     elements.append(Spacer(1, 12))
     doc.build(elements)
-    output.seek(0)
+    buffer.seek(0)
     nombre_archivo = f"reporte_factura_{numero_factura}.pdf"
     return send_file(
-        output,
+        buffer,
         as_attachment=True,
         download_name=nombre_archivo,
         mimetype='application/pdf'
@@ -4180,44 +4240,7 @@ def eliminar_cliente(cliente_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-@app.route('/clientes/<int:cliente_id>/contactos')
-@login_required
-@requiere_permiso_recurso('crm', 'leer')
-def ver_contactos_cliente(cliente_id):
-    """Ver contactos y horarios de un cliente"""
-    cliente = Cliente.query.get_or_404(cliente_id)
-    
-    # Verificar permisos
-    if isinstance(current_user, Vendedor) and not current_user.puede_ver_cliente(cliente_id):
-        flash('No tienes permisos para ver este cliente', 'error')
-        return redirect(url_for('mostrar_clientes'))
-    
-    # Obtener contactos y horarios
-    if CRM_ENABLED:
-        crm_cliente = CRMCliente.query.filter_by(cliente_original_id=cliente_id).first()
-        contactos = crm_cliente.contactos if crm_cliente else []
-        horarios = crm_cliente.horarios if crm_cliente else []
-    else:
-        contactos = []
-        horarios = []
-    
-    return render_template('clientes/contactos.html', 
-                         cliente=cliente, 
-                         contactos=contactos,
-                         horarios=horarios)
-
-@app.route('/clientes/<int:cliente_id>/contactos/nuevo')
-@login_required
-@requiere_permiso_recurso('crm', 'crear')
-def nuevo_contacto_form(cliente_id):
-    # 1) verificar que el vendedor pueda ver ese cliente
-    if isinstance(current_user, Vendedor) and not current_user.puede_ver_cliente(cliente_id):
-        flash('No tienes permisos para este cliente', 'error')
-        return redirect(url_for('mostrar_clientes'))
-
-    # 2) obtener cliente y renderizar plantilla
-    cliente = Cliente.query.get_or_404(cliente_id)
-    return render_template('clientes/contacto_form.html', cliente=cliente)
+# Rutas de CRM eliminadas
 
 @app.route('/generar_reporte', methods=['GET'])
 @login_required
@@ -4304,6 +4327,8 @@ except locale.Error:
 @app.route('/generar_reporte_pesos', methods=['GET'])
 @login_required
 def generar_reporte_pesos():
+    import openpyxl
+    from openpyxl.styles import Font, Alignment
     cliente_nombre = request.args.get('cliente')
     fecha_inicio = request.args.get('fecha_inicio')
     fecha_fin = request.args.get('fecha_fin')
@@ -4526,102 +4551,7 @@ try:
 except locale.Error:
     print("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
 
-# ===== AGREGAR ESTO AL FINAL DE app.py =====
-
-# Importar modelos CRM (solo si CRM está habilitado)
-CRM_ENABLED = os.environ.get('CRM_ENABLED', 'false').lower() == 'true'
-
-if CRM_ENABLED:
-    # Importar todos los modelos CRM
-    from models.crm_cliente import CRMCliente
-    from models.contacto import ContactoCliente
-    from models.horario import HorarioCliente
-    from models.interaccion import InteraccionCliente
-    
-    print("✅ CRM habilitado - Modelos cargados")
-    
-    # Importar y registrar rutas CRM
-    try:
-        from crm.routes import crm_bp
-        app.register_blueprint(crm_bp, url_prefix='/crm')
-        print("✅ Rutas CRM registradas")
-    except ImportError as e:
-        print(f"⚠️ No se pudieron cargar las rutas CRM: {e}")
-else:
-    print("ℹ️ CRM deshabilitado")
-
-# Comandos CLI para CRM
-@app.cli.command()
-def init_crm():
-    """Inicializar base de datos CRM"""
-    if not CRM_ENABLED:
-        print("❌ CRM no está habilitado. Activa CRM_ENABLED=true en .env")
-        return
-    
-    try:
-        # Crear todas las tablas
-        db.create_all()
-        print("✅ Tablas CRM creadas exitosamente")
-        
-        # Verificar que las tablas se crearon
-        tables = db.engine.table_names()
-        crm_tables = [t for t in tables if 'crm' in t.lower() or 'contacto' in t.lower()]
-        print(f"📋 Tablas CRM encontradas: {crm_tables}")
-        
-    except Exception as e:
-        print(f"❌ Error creando tablas CRM: {e}")
-
-@app.cli.command()
-def seed_crm():
-    """Poblar datos de ejemplo para CRM"""
-    if not CRM_ENABLED:
-        print("❌ CRM no está habilitado")
-        return
-    
-    try:
-        # Verificar que existan clientes en la tabla original
-        clientes_existentes = Cliente.query.limit(3).all()
-        
-        if not clientes_existentes:
-            print("❌ No hay clientes en la base de datos. Crea algunos clientes primero.")
-            return
-        
-        # Crear registros CRM para los primeros 3 clientes
-        for cliente in clientes_existentes:
-            # Verificar si ya existe un registro CRM para este cliente
-            crm_existente = CRMCliente.query.filter_by(cliente_original_id=cliente.id).first()
-            
-            if not crm_existente:
-                # Crear registro CRM básico
-                crm_cliente = CRMCliente(
-                    cliente_original_id=cliente.id,
-                    categoria_cliente='B',
-                    potencial_mensual=5000.00,
-                    frecuencia_compra_dias=15,
-                    zona_geografica='Centro',
-                    notas_generales=f'Cliente CRM de ejemplo creado para {cliente.nombre}'
-                )
-                db.session.add(crm_cliente)
-                
-                # Crear un contacto de ejemplo
-                contacto = ContactoCliente(
-                    crm_cliente=crm_cliente,
-                    nombre_completo=f"Gerente de {cliente.nombre}",
-                    cargo_posicion="Gerente de Compras",
-                    es_contacto_principal=True,
-                    nivel_influencia=8,
-                    mejor_horario_contacto="Mañanas"
-                )
-                db.session.add(contacto)
-                
-                print(f"✅ Registro CRM creado para: {cliente.nombre}")
-        
-        db.session.commit()
-        print("✅ Datos de ejemplo CRM creados exitosamente")
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error creando datos de ejemplo: {e}")
+ 
 
 def validar_estructura_csv(csv_input, campos_requeridos):
     """Valida que el CSV tenga los campos requeridos"""

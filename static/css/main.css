@@ -1,0 +1,274 @@
+/* US01: Estilos movidos de templates/base.html */
+/* Header mejorado con menú de usuario */
+.app-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+    color: white;
+    padding: 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 20;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.user-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    min-width: 200px;
+    z-index: 30;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.user-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.user-menu::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 24px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid white;
+}
+
+.user-menu a {
+    display: block;
+    padding: 12px 20px;
+    color: #333;
+    text-decoration: none;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s ease;
+}
+
+.user-menu a:last-child {
+    border-bottom: none;
+}
+
+.user-menu a:hover {
+    background-color: #f8f9fa;
+}
+
+.user-menu a i {
+    margin-right: 8px;
+    width: 16px;
+    text-align: center;
+}
+
+.user-dropdown {
+    position: relative;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-dropdown:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+
+.user-dropdown i {
+    font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .user-dropdown { min-width: calc(100vw - 32px); right: -16px; left: auto; }
+    .user-dropdown::before { right: 24px; }
+}
+
+/* US01 utilities y estilos migrados de templates para eliminar inline styles */
+.hidden { display: none !important; }
+.text-right { text-align: right !important; }
+.text-center { text-align: center !important; }
+.nowrap { white-space: nowrap !important; }
+.font-mono { font-family: monospace !important; }
+.fw-600 { font-weight: 600 !important; }
+.fw-700 { font-weight: 700 !important; }
+.mr-6 { margin-right: 6px !important; }
+.mr-8 { margin-right: 8px !important; }
+.mr-10 { margin-right: 10px !important; }
+.mt-14 { margin-top: 14px !important; }
+.mt-20 { margin-top: 20px !important; }
+.mt-24 { margin-top: 24px !important; }
+.mt-40 { margin-top: 40px !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.mb-1 { margin-bottom: 1rem !important; }
+.w-100 { width: 100% !important; }
+.maxw-400 { max-width: 400px !important; }
+.maxw-900 { max-width: 900px !important; }
+.float-right { float: right !important; }
+.min-h-60 { min-height: 60px !important; }
+.fs-08 { font-size: 0.8rem !important; }
+.fs-09 { font-size: 0.9rem !important; }
+.fs-11 { font-size: 1.1rem !important; }
+.color-primary { color: #1877ff !important; }
+.color-green { color: #28a745 !important; }
+.color-red { color: #dc3545 !important; }
+.color-gold { color: #FFD700 !important; }
+.color-white { color: #ffffff !important; }
+.color-gray-777 { color: #777 !important; }
+.color-gray-888 { color: #888 !important; }
+.color-salmon { color: #ff6f61 !important; }
+.color-blue { color: #007bff !important; }
+.color-purple { color: #6c63ff !important; }
+.color-greenyellow { color: greenyellow !important; }
+.color-truck { color: #88B04B !important; }
+.color-success { color: #27ae60 !important; }
+.color-warning { color: #e74c3c !important; }
+
+/* Cards y componentes específicos */
+.login-card { max-width: 400px; width: 100%; }
+.flex-between-center { display: flex; justify-content: space-between; align-items: center; }
+.flex-end-gap { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.inline-form { display: inline; margin: 0; padding: 0; background: none; border: none; }
+.td-empty { text-align: center; color: #777; padding: 1.5rem; }
+.cursor-pointer { cursor: pointer !important; }
+
+/* Componente específico de pedido_form */
+#precio-info.precio-info { display: none; }
+.btn-save-large { font-size: 1.1rem; padding: 1em 2.4em; }
+
+/* Grid y layout utilities */
+.grid-col-1-1 { grid-column: 1 / -1 !important; }
+.grid-template-cols { grid-template-columns: 3fr 1.2fr 1.5fr 1.3fr 1.3fr auto !important; }
+.gap-8 { gap: 8px !important; }
+
+/* Table utilities */
+.table-width-70 { width: 70% !important; }
+.table-width-30 { width: 30% !important; }
+.table-width-70px { width: 70px !important; }
+.table-width-160px { width: 160px !important; }
+.table-width-120px { width: 120px !important; }
+
+/* Modal y overlay utilities */
+.modal-hidden { display: none !important; }
+.overlay-hidden { display: none !important; }
+
+/* Position utilities */
+.pos-absolute { position: absolute !important; }
+.pos-top-20 { top: 20px !important; }
+.pos-left-20 { left: 20px !important; }
+
+/* Transform utilities */
+.transform-rotate { transform: rotate(var(--rotation, 0deg)) !important; }
+
+/* Flash message utilities */
+.flash-hidden { display: none !important; }
+
+/* Dashboard specific */
+.dashboard-title { font-weight: 700; color: #fff; }
+.dashboard-subtitle { font-size: 0.9rem; color: greenyellow; font-weight: normal; margin-left: 10px; }
+.chart-card-mt { margin-top: 24px; }
+.gauge-needle-rotate { transform: rotate(var(--needle-rotation, 0deg)); }
+.no-data-center { text-align: center; }
+
+/* Table responsive utilities */
+.table-responsive-300 { max-height: 300px; overflow-y: auto; }
+
+/* Form utilities */
+.form-inline { display: inline; }
+.form-mb-1 { margin-bottom: 1rem; }
+
+/* Button utilities */
+.btn-full-width { width: 100%; }
+
+/* US01: Width percentage utilities for gauges and progress bars */
+.w-pct-0 { width: 0% !important; }
+.w-pct-5 { width: 5% !important; }
+.w-pct-10 { width: 10% !important; }
+.w-pct-15 { width: 15% !important; }
+.w-pct-20 { width: 20% !important; }
+.w-pct-25 { width: 25% !important; }
+.w-pct-30 { width: 30% !important; }
+.w-pct-35 { width: 35% !important; }
+.w-pct-40 { width: 40% !important; }
+.w-pct-45 { width: 45% !important; }
+.w-pct-50 { width: 50% !important; }
+.w-pct-55 { width: 55% !important; }
+.w-pct-60 { width: 60% !important; }
+.w-pct-65 { width: 65% !important; }
+.w-pct-70 { width: 70% !important; }
+.w-pct-75 { width: 75% !important; }
+.w-pct-80 { width: 80% !important; }
+.w-pct-85 { width: 85% !important; }
+.w-pct-90 { width: 90% !important; }
+.w-pct-95 { width: 95% !important; }
+.w-pct-100 { width: 100% !important; }
+
+/* US01: Needle rotation utilities for gauges */
+.needle-0 { --deg: 0deg; transform: rotate(var(--deg)) !important; }
+.needle-5 { --deg: 5deg; transform: rotate(var(--deg)) !important; }
+.needle-10 { --deg: 10deg; transform: rotate(var(--deg)) !important; }
+.needle-15 { --deg: 15deg; transform: rotate(var(--deg)) !important; }
+.needle-20 { --deg: 20deg; transform: rotate(var(--deg)) !important; }
+.needle-25 { --deg: 25deg; transform: rotate(var(--deg)) !important; }
+.needle-30 { --deg: 30deg; transform: rotate(var(--deg)) !important; }
+.needle-35 { --deg: 35deg; transform: rotate(var(--deg)) !important; }
+.needle-40 { --deg: 40deg; transform: rotate(var(--deg)) !important; }
+.needle-45 { --deg: 45deg; transform: rotate(var(--deg)) !important; }
+.needle-50 { --deg: 50deg; transform: rotate(var(--deg)) !important; }
+.needle-55 { --deg: 55deg; transform: rotate(var(--deg)) !important; }
+.needle-60 { --deg: 60deg; transform: rotate(var(--deg)) !important; }
+.needle-65 { --deg: 65deg; transform: rotate(var(--deg)) !important; }
+.needle-70 { --deg: 70deg; transform: rotate(var(--deg)) !important; }
+.needle-75 { --deg: 75deg; transform: rotate(var(--deg)) !important; }
+.needle-80 { --deg: 80deg; transform: rotate(var(--deg)) !important; }
+.needle-85 { --deg: 85deg; transform: rotate(var(--deg)) !important; }
+.needle-90 { --deg: 90deg; transform: rotate(var(--deg)) !important; }
+.needle-95 { --deg: 95deg; transform: rotate(var(--deg)) !important; }
+.needle-100 { --deg: 100deg; transform: rotate(var(--deg)) !important; }
+.needle-105 { --deg: 105deg; transform: rotate(var(--deg)) !important; }
+.needle-110 { --deg: 110deg; transform: rotate(var(--deg)) !important; }
+.needle-115 { --deg: 115deg; transform: rotate(var(--deg)) !important; }
+.needle-120 { --deg: 120deg; transform: rotate(var(--deg)) !important; }
+.needle-125 { --deg: 125deg; transform: rotate(var(--deg)) !important; }
+.needle-130 { --deg: 130deg; transform: rotate(var(--deg)) !important; }
+.needle-135 { --deg: 135deg; transform: rotate(var(--deg)) !important; }
+.needle-140 { --deg: 140deg; transform: rotate(var(--deg)) !important; }
+.needle-145 { --deg: 145deg; transform: rotate(var(--deg)) !important; }
+.needle-150 { --deg: 150deg; transform: rotate(var(--deg)) !important; }
+.needle-155 { --deg: 155deg; transform: rotate(var(--deg)) !important; }
+.needle-160 { --deg: 160deg; transform: rotate(var(--deg)) !important; }
+.needle-165 { --deg: 165deg; transform: rotate(var(--deg)) !important; }
+.needle-170 { --deg: 170deg; transform: rotate(var(--deg)) !important; }
+.needle-175 { --deg: 175deg; transform: rotate(var(--deg)) !important; }
+.needle-180 { --deg: 180deg; transform: rotate(var(--deg)) !important; }
+
+/* US01: Additional flex utilities */
+.flex { display: flex !important; }
+.justify-end { justify-content: flex-end !important; }
+.gap-2 { gap: 0.5rem !important; }
+.mt-6 { margin-top: 1.5rem !important; }
+
+/* US01: Additional width utilities */
+.w-120 { width: 120px !important; }
+.w-70p { width: 70% !important; }
+.w-30p { width: 30% !important; }
+
+/* US01: Font weight utilities */
+.fw-normal { font-weight: normal !important; }
+
+/* US01: Additional color utilities */
+.color-red-error { color: red !important; }
+
+

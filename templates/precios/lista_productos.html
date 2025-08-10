@@ -32,6 +32,8 @@
         <h3><i class="fas fa-plus-circle"></i> Agregar Precio</h3>
         
         <form id="form-precio-producto">
+            <!-- US01: hidden CSRF field -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="precio-form-row">
                 <div class="form-group">
                     <label for="producto_id">Producto:</label>

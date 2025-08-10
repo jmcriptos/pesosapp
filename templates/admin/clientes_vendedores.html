@@ -2,9 +2,11 @@
 {% block title %}Asignar Cliente a Vendedor{% endblock %}
 
 {% block content %}
-<div class="card shadow-lg p-4 mx-auto" style="max-width:900px">
+<div class="card shadow-lg p-4 mx-auto maxw-900">
 
   <form id="form-asignar" method="POST" action="{{ url_for('asignar_cliente') }}" class="row g-3">
+    <!-- US01: hidden CSRF field -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <!-- ---------- Vendedor ---------- -->
       <div class="col-md-6">
@@ -42,8 +44,8 @@
       <table id="tabla-clientes" class="table table-striped align-middle">
           <thead>
               <tr>
-                  <th style="width:70%">Cliente</th>
-                  <th style="width:30%">Acciones</th>
+                              <th class="w-70p">Cliente</th>
+            <th class="w-30p">Acciones</th>
               </tr>
           </thead>
           <tbody><!-- filas dinámicas --></tbody>
@@ -162,7 +164,7 @@ async function cargarClientes(vendedorId) {
             tr.innerHTML = `
                 <td>${cliente.nombre}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-danger" onclick="desasignar(${cliente.asign_id})" title="Desasignar cliente">
+                    <button class="btn btn-sm btn-outline-danger" data-action="desasignar" data-id="${cliente.asign_id}" title="Desasignar cliente">
                         <i class="fas fa-unlink"></i> Desasignar
                     </button>
                 </td>`;

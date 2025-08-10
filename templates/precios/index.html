@@ -4,7 +4,8 @@
 {% block title %}Sistema de Precios{% endblock %}
 
 {% block header_title %}
-    <i class="fas fa-dollar-sign" style="color: #28a745; margin-right: 10px;"></i>Sistema de Precios
+    <!-- US01: estilos inline migrados a clases utilitarias -->
+    <i class="fas fa-dollar-sign color-green mr-10"></i>Sistema de Precios
 {% endblock %}
 
 {% block content %}
@@ -52,7 +53,7 @@
 </div>
 
 <!-- Modal para consulta de precios -->
-<div id="modalConsultaPrecios" class="modal" style="display: none;">
+<div id="modalConsultaPrecios" class="modal hidden">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Consultar Precio</h2>
@@ -60,6 +61,8 @@
         </div>
         <div class="modal-body">
             <form id="form-consulta-precio">
+                <!-- US01: hidden CSRF field -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label>Cliente:</label>
                     <select id="consulta-cliente" class="form-control" required>
@@ -82,7 +85,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Consultar</button>
             </form>
-            <div id="resultado-consulta" style="display: none; margin-top: 20px;">
+            <div id="resultado-consulta" class="hidden mt-20">
                 <div class="alert alert-info">
                     <strong>Resultado:</strong>
                     <div id="precio-resultado"></div>
