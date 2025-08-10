@@ -2222,7 +2222,15 @@ def webhook_actualizacion_precios():
         db.session.rollback()
         print(f"Error en webhook precios: {e}")
         return jsonify({'error': 'Error interno'}), 500
-        
+
+@app.route('/whoami')
+def whoami():
+    return jsonify({
+        "authenticated": bool(getattr(current_user, "is_authenticated", False)),
+        "type": current_user.__class__.__name__ if getattr(current_user, "is_authenticated", False) else None,
+        "user_id": getattr(current_user, "id", None),
+    })
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
