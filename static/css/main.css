@@ -36,7 +36,7 @@
     position: relative;
     display: flex !important;
     align-items: center;
-    background: green;
+    background-color: green;
 }
 
 /* BOTÓN toggle - SIEMPRE VISIBLE */
@@ -44,7 +44,7 @@
     display: flex !important;
     align-items: center;
     justify-content: center;
-    background: green;
+    background-color: green;
     border: none;
     color: rgba(255,255,255,0.9);
     font-size: 1.8rem;
@@ -64,7 +64,7 @@
 .user-menu-toggle:active,
 .user-menu-toggle.clicked {
     transform: scale(0.95);
-    background: green;
+    background-color: green;
 }
 
 /* DROPDOWN - Este SÍ se oculta/muestra */
