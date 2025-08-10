@@ -2364,14 +2364,16 @@ def dashboard():
         # === ESTADOS DE PEDIDOS ===
         estados_count = {}
         for p in pedidos_30_dias:
-            estados_count[p.estado] = estados_count.get(p.estado, 0) + 1
-        estados_pedidos = [{'estado': k, 'cantidad': v} for k, v in estados_count.items()]
+            estado = p.estado or 'sin_estado'  # Manejar estados nulos
+            estados_count[estado] = estados_count.get(estado, 0) + 1
 
-        # === PEDIDOS RECIENTES ===
-        pedidos_recientes = Pedido.query.order_by(Pedido.fecha_pedido.desc()).limit(8).all()
-        pedidos_recientes_data = [
-            (p, sum(float(d.subtotal or 0) for d in p.detalles)) for p in pedidos_recientes
-        ]
+        # Asegurar que siempre tengamos datos básicos
+        estados_pedidos = {
+            'pendiente': estados_count.get('pendiente', 0),
+            'listo': estados_count.get('listo', 0),
+            'facturado': estados_count.get('facturado', 0),
+            **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'listo', 'facturado']}
+        }
         # ---------- HISTÓRICO DE KPIs (8 semanas) ----------
         kpi_weekly = []
         for i in range(8):
