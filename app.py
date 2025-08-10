@@ -2264,7 +2264,7 @@ def dashboard():
             else 100
         )
 
-        # 5. Perfect order rate  ← CORREGIDO
+        # 5. Perfect order rate
         perfect_orders = 0
         for p in pedidos_facturados:
             dias_lead = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
@@ -2274,22 +2274,27 @@ def dashboard():
             if dias_lead <= 2 and not tiene_errores:
                 perfect_orders += 1
 
-        total_perfect_eval = len(pedidos_facturados)  # se evalúan solo los facturados
+        total_perfect_eval = len(pedidos_facturados)
         perfect_order_rate = (
             perfect_orders / total_perfect_eval * 100 if total_perfect_eval else 0
         )
 
         # 6. Customer engagement
-        clientes_activos_mes = len({p.cliente_id for p in pedidos_mes_list})
+        clientes_activos_mes = len({p.cliente_id for p in pedidos_mes_list if p.cliente_id})
         total_clientes = Cliente.query.count()
         customer_engagement = (
             clientes_activos_mes / total_clientes * 100 if total_clientes else 0
         )
 
-# === ANÁLISIS DE PRODUCTOS ===
+        # === ANÁLISIS DE PRODUCTOS (CORREGIDO) ===
         productos_ventas = {}
         for p in pedidos_30_dias:
             for d in p.detalles:
+                # Verificar que existe el producto
+                if not d.producto:
+                    app.logger.warning(f'Detalle sin producto en pedido {p.id}')
+                    continue
+                
                 nombre = d.producto.nombre
                 if nombre not in productos_ventas:
                     productos_ventas[nombre] = {'cajas': 0, 'ingresos': 0, 'pedidos': set()}
@@ -2321,9 +2326,14 @@ def dashboard():
         else:
             max_ventas = 1  # Evitar división por cero
 
-        # === ANÁLISIS DE CLIENTES ===
+        # === ANÁLISIS DE CLIENTES (CORREGIDO) ===
         clientes_ventas = {}
         for p in pedidos_30_dias:
+            # Verificar que existe el cliente
+            if not p.cliente:
+                app.logger.warning(f'Pedido sin cliente: {p.id}')
+                continue
+            
             nombre = p.cliente.nombre
             if nombre not in clientes_ventas:
                 clientes_ventas[nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
@@ -2374,7 +2384,8 @@ def dashboard():
             'facturado': estados_count.get('facturado', 0),
             **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'listo', 'facturado']}
         }
-        # ---------- HISTÓRICO DE KPIs (8 semanas) ----------
+
+        # === HISTÓRICO DE KPIs (8 semanas) ===
         kpi_weekly = []
         for i in range(8):
             sem_ini = hoy - timedelta(days=hoy.weekday() + 7*i)
@@ -2417,10 +2428,28 @@ def dashboard():
 
         kpi_weekly.reverse()
 
-        # === PEDIDOS RECIENTES === (NUEVA SECCIÓN)
+        # === PEDIDOS RECIENTES (NUEVA SECCIÓN) ===
         pedidos_recientes_data = Pedido.query.order_by(
             Pedido.fecha_pedido.desc()
         ).limit(10).all()
+
+        # === VENTAS DIARIAS (NUEVA SECCIÓN) ===
+        ventas_dias = []
+        for i in range(7):
+            dia = hoy - timedelta(days=i)
+            pedidos_dia = Pedido.query.filter(
+                db.func.date(Pedido.fecha_pedido) == dia
+            ).all()
+            total_dia = sum(
+                sum(float(d.subtotal or 0) for d in p.detalles) 
+                for p in pedidos_dia
+            )
+            ventas_dias.append({
+                'fecha': dia.strftime('%d/%m'),
+                'total': total_dia,
+                'pedidos': len(pedidos_dia)
+            })
+        ventas_dias.reverse()
 
         # === RENDER ===
         return render_template(
@@ -2441,10 +2470,10 @@ def dashboard():
             max_ventas=max_ventas,
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
-            pedidos_recientes=pedidos_recientes_data,  # Ahora sí está definida
+            pedidos_recientes=pedidos_recientes_data,
             fecha_actual=hoy,
             kpi_weekly=kpi_weekly,
-            ventas_dias=[]
+            ventas_dias=ventas_dias
         )
 
     except Exception as e:
