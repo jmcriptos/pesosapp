@@ -50,7 +50,9 @@
                 </div>
                 <div class="kpi-trend {% if ventas_mes > ventas_semana * 4 %}up{% else %}down{% endif %}">
                     <i class="fas fa-arrow-{% if ventas_mes > ventas_semana * 4 %}up{% else %}down{% endif %}"></i>
-                    <span>{% if ventas_mes > ventas_semana * 4 %}+{% else %}-{% endif %}{{ "%.1f"|format(((ventas_mes - ventas_semana * 4) / (ventas_semana * 4) * 100) if ventas_semana > 0 else 0)|abs }}%</span>
+                    {% set ref = ventas_semana * 4 %}
+                    {% set pct = ((ventas_mes - ref) / ref * 100) if ref > 0 else 0 %}
+                    <span>{{ '+' if pct >= 0 else '-' }}{{ '%.1f' % (pct|abs) }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
