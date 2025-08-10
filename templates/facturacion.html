@@ -3,15 +3,17 @@
 {% block title %}Facturación{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-file-invoice-dollar" style="color: #FFD700; margin-right: 10px;"></i>Facturación
+<i class="fas fa-file-invoice-dollar color-gold mr-10"></i>Facturación
 {% endblock %}
 
 {% block content %}
-<div id="flash-message" class="flash-message" style="display: none;"></div>
+<div id="flash-message" class="flash-message hidden"></div>
 
 <!-- Sección para registrar pesos para facturar -->
 <section class="form-section">
     <form id="form-facturacion" method="POST" action="{{ url_for('registrar_facturacion') }}">
+        <!-- US01: hidden CSRF field -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
             <!-- Cliente (todos, ordenados alfabéticamente) -->
             <div class="form-group">
@@ -120,7 +122,7 @@
                     <td>{{ facturacion.fecha_expiracion }}</td>
                     <td>{{ facturacion.fecha_registro }}</td>
                     <td>
-                        <i class="fas fa-trash-alt eliminar-facturacion" data-id="{{ facturacion.id }}" style="color: #dc3545; cursor: pointer;"></i>
+                        <i class="fas fa-trash-alt eliminar-facturacion color-red cursor-pointer" data-id="{{ facturacion.id }}"></i>
                     </td>
                 </tr>
                 {% endfor %}
@@ -176,6 +178,8 @@
 <section class="form-section">
     <h2>Generar Etiquetas para Cajas</h2>
     <form id="form-generar-etiquetas" method="POST" action="/generar_etiqueta" class="report-form">
+        <!-- US01: hidden CSRF field -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-grid">
             <div class="form-group">
                 <label for="cliente-generar-etiquetas">Cliente:</label>

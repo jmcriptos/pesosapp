@@ -24,6 +24,8 @@
         </div>
 
         <form method="POST" class="lista-form">
+            <!-- US01: hidden CSRF field -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="nombre" class="form-label">
                     <i class="fas fa-tag"></i>

@@ -16,6 +16,8 @@
         </h3>
 
         <form method="POST" action="{{ url_for('crear_vendedor') }}" class="vendedor-form">
+            <!-- US01: hidden CSRF field -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-grid">
                 <!-- columna 1 -->
                 <div class="form-group">
@@ -59,7 +61,7 @@
                 </div>
 
                 <!-- columna 3 -->
-                <div class="form-group" style="grid-column:1 / -1;">
+                <div class="form-group grid-col-1-1">
                     <label for="territorio_id">Territorio</label>
                     <select id="territorio_id" name="territorio_id"
                             class="form-select">
@@ -116,6 +118,8 @@
                 <form method="POST" action="{{ url_for('actualizar_territorio_vendedor',
                                                        v_id=v.id) }}"
                       class="territorio-switch">
+                    <!-- US01: hidden CSRF field -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <select name="territorio_id" class="form-select-sm">
                         <option value="">Sin territorio</option>
                         {% for t in territorios %}
@@ -134,17 +138,17 @@
                 <footer class="vendedor-actions">
                     {% if v.activo %}
                         <button class="btn-warning-sm"
-                                onclick="toggleVendedor({{ v.id }}, false)">
+                                data-action="toggle-vendedor" data-id="{{ v.id }}" data-enabled="false">
                             <i class="fas fa-pause"></i> Desactivar
                         </button>
                     {% else %}
                         <button class="btn-success-sm"
-                                onclick="toggleVendedor({{ v.id }}, true)">
+                                data-action="toggle-vendedor" data-id="{{ v.id }}" data-enabled="true">
                             <i class="fas fa-play"></i> Activar
                         </button>
                     {% endif %}
                     <button class="btn-secondary-sm"
-                            onclick="editarVendedor({{ v.id }})">
+                            data-action="editar-vendedor" data-id="{{ v.id }}">
                         <i class="fas fa-edit"></i> Editar
                     </button>
                 </footer>

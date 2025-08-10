@@ -1,387 +1,448 @@
 {# templates/dashboard.html #}
 {% extends "base.html" %}
 
-{% block title %}Dashboard Comercial - Mayo 2025{% endblock %}
+{% block title %}Dashboard Comercial{% endblock %}
 
 {% block header_title %}
-    <span style="font-weight:700; color:#fff;">Dashboard Comercial</span>
-    <span style="font-size:.9rem; color:greenyellow; font-weight:normal; margin-left:10px;">
-        Actualizado: {{ fecha_actual.strftime('%d/%m/%Y') }}
-    </span>
+<span class="dashboard-title">Dashboard Comercial</span>
+<span class="dashboard-subtitle">Ventas del mes: ${{ "%.2f"|format(ventas_mes) }}</span>
 {% endblock %}
 
 {% block content %}
-{% set currency = "XCG" %}
-{% set needle_rotation = ((lead_time_promedio|default(0)|float / 5) * 180 - 90)|round(2) %}
-
 <div class="dashboard-container">
-
-    <!-- === GRÁFICOS SUPERIORES === -->
-    <div class="chart-section">
-
-        <div class="chart-card">
-            <h3><i class="fas fa-chart-line"></i> Tendencia de Ventas (8 semanas)</h3>
-            <div class="chart-container">
-                <canvas id="ventasChart" height="100"></canvas>
+    <!-- Resumen de ventas -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="stat-content">
+                <h3>Ventas del Mes</h3>
+                <p class="stat-value">${{ "%.2f"|format(ventas_mes) }}</p>
             </div>
         </div>
-
-        <div class="chart-card" style="margin-top:24px;">
-            <h3><i class="fas fa-heartbeat"></i> Tendencia KPIs de Servicio</h3>
-            <div class="chart-container">
-                <canvas id="kpiTrend" height="120"></canvas>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stat-content">
+                <h3>Pedidos del Mes</h3>
+                <p class="stat-value">{{ pedidos_mes }}</p>
             </div>
         </div>
-
-    </div>
-
-    <div class="charts-grid">
-        <div class="chart-card">
-            <h3><i class="fas fa-pie-chart"></i> Estados de Pedidos</h3>
-            <div class="chart-container">
-                <canvas id="estadosChart" height="200"></canvas>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3>Clientes Activos</h3>
+                <p class="stat-value">{{ clientes_activos }}</p>
             </div>
         </div>
-
-        <div class="metric-gauge">
-            <h3><i class="fas fa-tachometer-alt"></i> Lead Time Performance</h3>
-            <div class="gauge-container">
-                <div class="gauge-chart">
-                    <div class="gauge-needle" style="transform: rotate({{ needle_rotation }}deg);"></div>
-                </div>
-                <div class="gauge-labels">
-                    <span class="gauge-min">0d</span>
-                    <span class="gauge-target">2d</span>
-                    <span class="gauge-max">5d</span>
-                </div>
-                </div>
-                <div class="gauge-value">{{ lead_time_promedio }}d</div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-box"></i>
+            </div>
+            <div class="stat-content">
+                <h3>Productos</h3>
+                <p class="stat-value">{{ total_productos }}</p>
             </div>
         </div>
     </div>
 
-    <!-- === MÉTRICAS PRINCIPALES === -->
-    <div class="metrics-grid">
-
-        <div class="metric-card primary">
-            <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
-            <div class="metric-content">
-                <h3>{{ "%.2f"|format(ventas_mes) }} <span class="currency">{{ currency }}</span></h3>
-                <p>Ventas del Mes</p>
-                <div class="metric-subtitle">{{ pedidos_mes }} pedidos</div>
-            </div>
-        </div>
-
-        <div class="metric-card {{ 'warning' if pedidos_pendientes > 0 else 'success' }}">
-            <div class="metric-icon"><i class="fas fa-clock"></i></div>
-            <div class="metric-content">
-                <h3>{{ pedidos_pendientes }}</h3>
-                <p>Pedidos Pendientes</p>
-                <div class="metric-subtitle">
-                    {{ 'Requieren atención' if pedidos_pendientes > 0 else 'Todo al día' }}
-                </div>
-            </div>
-        </div>
-
-        <div class="metric-card info">
-            <div class="metric-icon"><i class="fas fa-calendar-week"></i></div>
-            <div class="metric-content">
-                <h3>{{ "%.2f"|format(ventas_semana) }} <span class="currency">{{ currency }}</span></h3>
-                <p>Ventas de la Semana</p>
-                <div class="metric-subtitle">{{ pedidos_semana }} pedidos</div>
-            </div>
-        </div>
-
-        <div class="metric-card {{ 'success' if lead_time_promedio <= 2 else 'warning' }}">
-            <div class="metric-icon"><i class="fas fa-shipping-fast"></i></div>
-            <div class="metric-content">
-                <h3>{{ lead_time_promedio }} <span class="currency">días</span></h3>
-                <p>Lead Time Promedio</p>
-                <div class="metric-subtitle">
-                    {% if lead_time_promedio <= 1 %}Excelente{% elif lead_time_promedio <= 2 %}Bueno{% else %}Mejorable{% endif %}
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- === KPIs DE NIVEL DE SERVICIO === -->
-    <div class="service-section">
-        <h2 class="section-title"><i class="fas fa-truck"></i> KPIs de Nivel de Servicio</h2>
-        <div class="service-grid">
-
-            {% set txt, cls = fill_rate|kpi_tag %}
-            <div class="service-card">
-                <div class="service-value">{{ fill_rate }}%</div>
-                <div class="service-label">Fill Rate</div>
-                <div class="service-status {{ cls }}">{{ txt }}</div>
-            </div>
-
-            {% set txt, cls = otd_rate|kpi_tag %}
-            <div class="service-card">
-                <div class="service-value">{{ otd_rate }}%</div>
-                <div class="service-label">On-Time Delivery</div>
-                <div class="service-status {{ cls }}">{{ txt }}</div>
-            </div>
-
-            {% set txt, cls = order_accuracy|kpi_tag %}
-            <div class="service-card">
-                <div class="service-value">{{ order_accuracy }}%</div>
-                <div class="service-label">Order Accuracy</div>
-                <div class="service-status {{ cls }}">{{ txt }}</div>
-            </div>
-
-            {% set txt, cls = perfect_order_rate|kpi_tag %}
-            <div class="service-card">
-                <div class="service-value">{{ perfect_order_rate }}%</div>
-                <div class="service-label">Perfect Orders</div>
-                <div class="service-status {{ cls }}">{{ txt }}</div>
-            </div>
-
+    <!-- Gráfico de ventas -->
+    <div class="chart-card chart-card-mt">
+        <h3>Ventas por Día</h3>
+        <div class="chart-container">
+            <canvas id="ventasChart"></canvas>
         </div>
     </div>
 
-    <!-- === RANKINGS === -->
-    <div class="rankings-section">
-
-        <div class="ranking-card">
-            <h3><i class="fas fa-users"></i> Top Clientes (30 días)</h3>
-            <div class="ranking-list">
-                {% if top_clientes %}
-                    {% for cliente_nombre, datos in top_clientes %}
-                    <div class="ranking-item">
-                        <div class="ranking-position">{{ loop.index }}</div>
-                        <div class="ranking-info">
-                            <div class="ranking-name">{{ cliente_nombre }}</div>
-                            <div class="ranking-details">{{ datos.pedidos }} pedidos</div>
-                        </div>
-                        <div class="ranking-value">{{ "%.2f"|format(datos.total) }} {{ currency }}</div>
+    <!-- Top productos -->
+    <div class="top-products">
+        <h3>Top 5 Productos</h3>
+        <div class="products-grid">
+            {% for producto in top_productos %}
+            <div class="product-card">
+                <div class="product-info">
+                    <h4>{{ producto.nombre }}</h4>
+                    <p>Ventas: {{ producto.total_vendido }}</p>
+                </div>
+                <div class="product-gauge">
+                    <div class="gauge-container">
+                        <div class="gauge-fill {{ 'w-pct-' + ((producto.total_vendido / max_ventas * 100) // 5 * 5)|string }}"></div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <p style="text-align:center;">No hay datos disponibles</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="ranking-card">
-            <h3><i class="fas fa-box"></i> Top Productos</h3>
-            <div class="ranking-list">
-                {% if top_productos %}
-                    {% for producto_nombre, datos in top_productos %}
-                    <div class="ranking-item">
-                        <div class="ranking-position">{{ loop.index }}</div>
-                        <div class="ranking-info">
-                            <div class="ranking-name">{{ producto_nombre }}</div>
-                            <div class="ranking-details">{{ datos.cajas }} cajas</div>
-                        </div>
-                        <div class="ranking-value">{{ "%.2f"|format(datos.ingresos) }} {{ currency }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p style="text-align:center;">No hay datos disponibles</p>
-                {% endif %}
-            </div>
-        </div>
-
-    </div>
-
-    <!-- === ACTIVIDAD RECIENTE === -->
-    <div class="recent-section">
-        <h3><i class="fas fa-history"></i> Actividad Reciente</h3>
-        <div class="activity-grid">
-            {% for pedido, total in pedidos_recientes %}
-            <div class="activity-item">
-                <div class="activity-icon status-{{ pedido.estado }}">
-                    <i class="fas fa-{{ 'clock' if pedido.estado == 'pendiente' else 'check' if pedido.estado == 'facturado' else 'box' }}"></i>
+                    <div class="gauge-needle {{ 'needle-' + ((producto.total_vendido / max_ventas * 180) // 5 * 5)|string }}"></div>
                 </div>
-                <div class="activity-info">
-                    <div class="activity-title">Pedido #{{ pedido.id }}</div>
-                    <div class="activity-client">{{ pedido.cliente.nombre }}</div>
-                    <div class="activity-time">{{ pedido.fecha_pedido.strftime('%d/%m %H:%M') }}</div>
-                </div>
-                <div class="activity-value">{{ "%.2f"|format(total) }} {{ currency }}</div>
             </div>
             {% endfor %}
         </div>
     </div>
 
+    <!-- Actividad reciente -->
+    <div class="recent-activity">
+        <h3>Actividad Reciente</h3>
+        <div class="activity-list">
+            {% if actividad_reciente %}
+                {% for actividad in actividad_reciente %}
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas fa-circle"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p>{{ actividad.descripcion }}</p>
+                        <small>{{ actividad.fecha }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-data-center">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Resumen de territorios -->
+    <div class="territories-summary">
+        <h3>Ventas por Territorio</h3>
+        <div class="territories-grid">
+            {% if ventas_territorios %}
+                {% for territorio in ventas_territorios %}
+                <div class="territory-card">
+                    <h4>{{ territorio.nombre }}</h4>
+                    <p class="territory-sales">${{ "%.2f"|format(territorio.ventas) }}</p>
+                    <div class="territory-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill {{ 'w-pct-' + ((territorio.ventas / max_territorio_ventas * 100) // 5 * 5)|string }}"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-data-center">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <style>
-:root{
-  --primary-color:#1877ff;--success-color:#10b981;--warning-color:#f59e0b;
-  --danger-color:#ef4444;--info-color:#06b6d4;--bg-light:#f8fafc;
-  --border-light:#e2e8f0;--text-dark:#1e293b;--text-light:#64748b;
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
 }
-.dashboard-container{max-width:1400px;margin:0 auto;padding:20px;background:var(--bg-light);min-height:100vh}
 
-/* === MÉTRICAS === */
-.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:30px}
-.metric-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08);display:flex;align-items:center;gap:20px;transition:.2s}
-.metric-card:hover{transform:translateY(-2px)}
-.metric-icon{width:60px;height:60px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
-.metric-card.primary .metric-icon{background:var(--primary-color)}
-.metric-card.success .metric-icon{background:var(--success-color)}
-.metric-card.warning .metric-icon{background:var(--warning-color)}
-.metric-card.info .metric-icon{background:var(--info-color)}
-.metric-content h3{font-size:28px;font-weight:700;margin:0 0 4px;color:var(--text-dark)}
-.metric-content p{font-size:14px;color:var(--text-light);margin:0 0 4px;font-weight:500}
-.currency{font-size:18px;font-weight:600;color:var(--text-light)}
-.metric-subtitle{font-size:12px;color:var(--text-light)}
-
-/* === KPIs servicio === */
-.service-section{margin-bottom:30px}
-.section-title{font-size:20px;font-weight:700;color:var(--text-dark);margin-bottom:20px;display:flex;align-items:center;gap:10px}
-.service-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:30px}
-.service-card{background:#fff;border-radius:12px;padding:20px;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,.08)}
-.service-value{font-size:32px;font-weight:700;color:var(--text-dark);margin-bottom:8px}
-.service-label{font-size:14px;color:var(--text-light);margin-bottom:8px;font-weight:500}
-.service-status{font-size:12px;font-weight:600;padding:4px 12px;border-radius:12px;display:inline-block}
-.service-status.excellent{background:#dcfce7;color:#166534}
-.service-status.good{background:#dbeafe;color:#1e40af}
-.service-status.warning{background:#fef3c7;color:#92400e}
-
-/* === RANKINGS === */
-.rankings-section{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:24px;margin-bottom:30px}
-.ranking-card{background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
-.ranking-card h3{padding:20px 24px;margin:0;font-size:16px;font-weight:600;color:var(--text-dark);border-bottom:1px solid var(--border-light);display:flex;align-items:center;gap:8px}
-.ranking-item{display:flex;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border-light)}
-.ranking-item:last-child{border-bottom:none}
-.ranking-position{width:32px;height:32px;background:var(--primary-color);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:16px}
-.ranking-info{flex:1}.ranking-name{font-weight:600;color:var(--text-dark);margin-bottom:2px}
-.ranking-details{font-size:12px;color:var(--text-light)}
-.ranking-value{font-weight:700;color:var(--text-dark);font-family:monospace}
-
-/* === ACTIVIDAD === */
-.recent-section{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
-.activity-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-.activity-item{display:flex;align-items:center;padding:16px;border:1px solid var(--border-light);border-radius:12px;gap:16px}
-.activity-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}
-.activity-icon.status-pendiente{background:var(--warning-color)}
-.activity-icon.status-facturado{background:var(--success-color)}
-.activity-icon.status-listo{background:var(--info-color)}
-.activity-title{font-weight:600;color:var(--text-dark);margin-bottom:2px}
-.activity-client{font-size:14px;color:var(--text-light);margin-bottom:2px}
-.activity-time{font-size:12px;color:var(--text-light)}
-.activity-value{font-weight:700;color:var(--text-dark);font-family:monospace}
-
-/* === CHARTS & GAUGE === */
-.chart-section{margin-bottom:30px}
-.charts-grid{display:grid;grid-template-columns:1fr 300px;gap:24px;margin-bottom:30px}
-.chart-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
-.chart-card h3{margin:0 0 20px;font-size:16px;font-weight:600;color:var(--text-dark);display:flex;align-items:center;gap:8px}
-.chart-container{position:relative;height:250px}
-.metric-gauge{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08);text-align:center}
-.metric-gauge h3{margin:0 0 20px;font-size:16px;font-weight:600;color:var(--text-dark);display:flex;align-items:center;justify-content:center;gap:8px}
-.gauge-container{position:relative}
-.gauge-chart{width:180px;height:90px;margin:0 auto 20px;background:linear-gradient(90deg,#10b981 0%,#f59e0b 50%,#ef4444 100%);border-radius:180px 180px 0 0;overflow:hidden;position:relative}
-.gauge-chart::before{content:"";position:absolute;top:20px;left:20px;right:20px;bottom:-10px;background:#fff;border-radius:140px 140px 0 0}
-.gauge-needle{position:absolute;top:50%;left:50%;width:2px;height:70px;background:#1f2937;transform-origin:bottom center;transform:translateX(-50%) translateY(-100%) rotate(-90deg);z-index:10;transition:transform .3s ease}
-.gauge-needle::after{content:"";position:absolute;top:-8px;left:-6px;width:14px;height:14px;background:#1f2937;border-radius:50%}
-.gauge-labels{display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text-light);font-weight:600}
-.gauge-target{color:var(--warning-color);font-weight:700}
-.gauge-value{font-size:24px;font-weight:700;color:var(--text-dark);margin-top:10px}
-
-/* === RESPONSIVE === */
-@media(max-width:1024px){
-  .charts-grid{grid-template-columns:1fr;gap:20px}
-  .chart-container{height:200px}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
 }
-@media(max-width:768px){
-  .dashboard-container{padding:12px}
-  .metrics-grid{grid-template-columns:1fr;gap:12px}
-  .rankings-section{grid-template-columns:1fr;gap:16px}
-  .activity-grid{grid-template-columns:1fr}
-  .service-grid{grid-template-columns:repeat(2,1fr);gap:12px}
-  .chart-card{padding:16px}.chart-container{height:180px}
-  .gauge-chart{width:140px;height:70px}.gauge-needle{height:50px}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
-/* Hover */
-.chart-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.12);transition:.3s}
-.metric-gauge:hover .gauge-needle{transform:translateX(-50%) translateY(-100%) rotate(-85deg)}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stat-content h3 {
+    margin: 0 0 8px 0;
+    color: #666;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.stat-value {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #333;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.chart-card h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+}
+
+.top-products {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.top-products h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.product-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+}
+
+.product-info h4 {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.product-info p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.product-gauge {
+    position: relative;
+    width: 60px;
+    height: 60px;
+}
+
+.gauge-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #f0f0f0;
+    position: relative;
+    overflow: hidden;
+}
+
+.gauge-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+    transition: width 0.3s ease;
+}
+
+.gauge-needle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 25px;
+    background: #333;
+    transform-origin: bottom center;
+    transition: transform 0.3s ease;
+}
+
+.recent-activity {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.recent-activity h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.activity-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 8px;
+    height: 8px;
+    background: var(--primary-color);
+    border-radius: 50%;
+}
+
+.activity-content p {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.activity-content small {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.territories-summary {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.territories-summary h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.territories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.territory-card {
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+}
+
+.territory-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.territory-sales {
+    margin: 0 0 10px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.territory-progress {
+    width: 100%;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+    transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .products-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .territories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 200px;
+    }
+}
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script>
-document.addEventListener('DOMContentLoaded',()=>{
-
-  if(typeof ChartDataLabels!=='undefined'){Chart.register(ChartDataLabels);}
-
-  /* === Tendencia de Ventas === */
-  const ventasData = {{ tendencia_semanal|tojson }};
-  new Chart(document.getElementById('ventasChart'), {
-      type: 'line',
-      data: {
-          labels: ventasData.map(d => d.semana),
-          datasets:[{label:'Ventas ({{ currency }})',
-              data:ventasData.map(d=>d.ventas),
-              borderColor:'#1877ff',backgroundColor:'rgba(24,119,255,.1)',
-              fill:true,tension:.4,borderWidth:3,pointRadius:6,pointHoverRadius:8}]
-      },
-      options:{plugins:{legend:{display:false}},
-               scales:{y:{beginAtZero:true,ticks:{callback:v=>v+' {{ currency }}'}},
-                       x:{grid:{display:false}}}}
-  });
-
-  /* === Estados de Pedidos === */
-  const estados = {{ estados_pedidos|tojson }};
-  new Chart(document.getElementById('estadosChart'), {
-      type: 'doughnut',
-      data: {
-          labels: estados.map(function(e) {
-              return e.estado.charAt(0).toUpperCase() + e.estado.slice(1);
-          }),
-          datasets:[{data:estados.map(e=>e.cantidad),
-              backgroundColor:estados.map(e=>{
-                 return{pendiente:'#f59e0b',listo:'#06b6d4',facturado:'#10b981'}[e.estado]||'#64748b';
-              }),borderWidth:3,borderColor:'#fff'}]
-      },
-      options:{
-          cutout:'60%',
-          plugins:{
-              legend:{position:'bottom',labels:{usePointStyle:true,font:{size:12,weight:'600'}}},
-              tooltip:{callbacks:{label:c=>{
-                 const total=c.dataset.data.reduce((a,b)=>+a+ +b,0);
-                 const pct=total?((+c.parsed/total)*100).toFixed(1):'0.0';
-                 return `${c.label}: ${c.parsed} (${pct}%)`;
-              }}},
-              datalabels:{formatter:(v,ctx)=>{
-                 const d=ctx.chart.data.datasets[0].data;
-                 const s=d.reduce((a,b)=>+a+ +b,0);if(!s)return'0%';
-                 const p=(+v*100/s);return p<1&&p>0?p.toFixed(1)+'%':p.toFixed(0)+'%';
-              },color:'#fff',font:{weight:'bold',size:12}}
-          }
-      }
-  });
-
-  /* === Tendencia KPIs === */
-  const kpiSeries = {{ kpi_weekly|tojson }};
-  const cols = ['#10b981', '#1877ff', '#06b6d4', '#f59e0b'];
-  const m = ['fill', 'otd', 'acc', 'perf'];
-  new Chart(document.getElementById('kpiTrend'), {
-      type: 'line',
-      data:{
-        labels:kpiSeries.map(d=>d.semana),
-        datasets:m.map((k,i)=>({label:k.toUpperCase(),data:kpiSeries.map(d=>d[k]),
-            borderColor:cols[i],backgroundColor:'transparent',tension:.3,borderWidth:2,
-            pointRadius:4,pointHoverRadius:6}))
-      },
-      options:{
-        plugins:{tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+'%'}},legend:{position:'bottom'}},
-        scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}
-      }
-  });
-
-  /* === Gauge Animation === */
-  const needle=document.querySelector('.gauge-needle');
-  if(needle){setTimeout(()=>needle.style.transition='transform 1.4s ease-out',500);}
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de ventas
+    const ctx = document.getElementById('ventasChart').getContext('2d');
+    const ventasData = {{ ventas_dias|tojson }};
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ventasData.map(d => d.fecha),
+            datasets: [{
+                label: 'Ventas ($)',
+                data: ventasData.map(d => d.ventas),
+                borderColor: '#1877ff',
+                backgroundColor: 'rgba(24, 119, 255, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
 });
 </script>
 {% endblock %}

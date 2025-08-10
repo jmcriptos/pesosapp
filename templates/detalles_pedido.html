@@ -3,11 +3,11 @@
 {% block title %}Detalles del Pedido{% endblock %}
 
 {% block header_title %}
-    <span style="font-weight:700; color:white;">
+    <span class="fw-700 color-white">
         Pedido #{{ pedido.id }}
     </span>
     <br>
-    <small style="font-size:0.8rem; color:rgba(255,255,255,0.8); font-weight:normal;">
+    <small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
         {{ pedido.cliente.nombre }}
     </small>
 {% endblock %}
@@ -81,6 +81,8 @@
         </div>
         <div class="mobile-card-body">
             <form id="form-detalle" method="POST">
+                <!-- US01: hidden CSRF field -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mobile-form-grid">
                     
                     <!-- Producto -->
@@ -162,7 +164,9 @@
                                 <td>{{ detalle.fecha_fabricacion }}</td>
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
-                                    <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('¿Eliminar este producto del pedido?');">
+                                    <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
+                                        <!-- US01: hidden CSRF field -->
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
@@ -189,6 +193,8 @@
         </div>
         <div class="mobile-card-body">
             <form id="form-etiquetas-detalle" method="POST" action="{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}">
+                <!-- US01: hidden CSRF field -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div class="mobile-form-group">
                     <label class="mobile-form-label">Cliente:</label>
@@ -211,7 +217,7 @@
                 {% endif %}
 
                 <!-- Grid corregido sin </div> huérfano -->
-                <div class="mobile-form-grid" style="grid-template-columns: 3fr 1.2fr 1.5fr 1.3fr 1.3fr auto !important; gap: 8px !important;">
+                <div class="mobile-form-grid grid-template-cols gap-8">
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="fecha_inicio">Fecha de inicio:</label>
                         <input type="date" name="fecha_inicio" id="fecha_inicio" class="mobile-form-control" value="{{ f_inicio or '' }}" required>
@@ -223,7 +229,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="mobile-btn mobile-btn-primary" style="width: 100%;">
+                <button type="submit" class="mobile-btn mobile-btn-primary btn-full-width">
                     <i class="fas fa-tags"></i>
                     Generar etiquetas
                 </button>

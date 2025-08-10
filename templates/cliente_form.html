@@ -5,6 +5,8 @@
 <div class="form-section">
     <h2>Editar Cliente</h2>
     <form method="POST">
+        <!-- US01: hidden CSRF field -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label class="form-label">Nombre:</label>
             <input type="text" name="nombre" value="{{ cliente.nombre }}" required class="form-input">
