@@ -35,6 +35,7 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from datetime import datetime, date, timedelta, timezone
+from urllib.parse import urlparse, urljoin
 from markupsafe import Markup
 try:
     from flask_wtf import CSRFProtect
@@ -46,7 +47,9 @@ except ImportError:
     Talisman = None
 
 app = Flask(__name__)
-app.secret_key = os.environ["SECRET_KEY"]
+
+# --- SECRET KEY (obligatoria en Heroku) ---
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or "dev-unsafe-change-me"
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -55,19 +58,20 @@ if uri.startswith("postgres://"):
     uri = uri.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Cookies / sesión
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# Cookies seguras en producción
-if os.environ.get("FLASK_ENV") == "production":
-    app.config['SESSION_COOKIE_SECURE'] = True
-    app.config['REMEMBER_COOKIE_SECURE'] = True
-else:
-    app.config['SESSION_COOKIE_SECURE'] = False
-    app.config['REMEMBER_COOKIE_SECURE'] = False
+# En Heroku vas por HTTPS (tls=true en logs)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['REMEMBER_COOKIE_SECURE'] = True
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
-db = SQLAlchemy(app)
+# ⚠️ Usa SIEMPRE el db de models.extensions (no crees otro)
+from models.extensions import db
+db.init_app(app)
+
 migrate = Migrate(app, db)
 
 # CSRF (Flask-WTF)
@@ -119,67 +123,224 @@ class DefaultUser(UserMixin):
 from utils.filters import kpi_tag
 app.jinja_env.filters['kpi_tag'] = kpi_tag
 
+class Vendedor(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    
+    # Información personal
+    nombre_completo = db.Column(db.String(200), nullable=False)
+    telefono = db.Column(db.String(20))
+    fecha_ingreso = db.Column(db.Date, default=datetime.utcnow)
+    
+    # Relaciones organizacionales
+    rol_id = db.Column(db.Integer, db.ForeignKey('rol.id'), nullable=False)
+    territorio_id = db.Column(db.Integer, db.ForeignKey('territorio.id'))
+    supervisor_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'))
+    
+    # Estado y actividad
+    activo = db.Column(db.Boolean, default=True)
+    ultimo_login = db.Column(db.DateTime)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relaciones
+    supervisor = db.relationship('Vendedor', remote_side=[id], backref='subordinados')
+    clientes_asignados = db.relationship('ClienteVendedor', back_populates='vendedor', 
+                                       cascade="all, delete-orphan")
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def tiene_permiso(self, permiso_nombre, tipo_acceso='leer'):
+        """Verifica si el vendedor tiene un permiso específico"""
+        if not self.activo:
+            return False
+        
+        # Definir permisos específicos por rol
+        permisos_por_rol = {
+                'super_admin': {
+                    'productos': ['leer', 'crear', 'editar', 'eliminar'],
+                    'clientes': ['leer', 'crear', 'editar', 'eliminar'],
+                    'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
+                    'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
+                    'precios': ['leer', 'crear', 'editar', 'eliminar'],
+                    'reportes': ['leer', 'crear', 'editar', 'eliminar'],
+                    'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
+                    'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
+                },
+                'supervisor': {
+                    'productos': ['leer'],
+                    'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'],
+                    'vendedores': ['leer'],
+                    'precios': ['leer'],
+                    'reportes': ['leer'],
+                    'importaciones': [],
+                    'facturacion': ['leer'],
+                },
+                'vendedor': {
+                    'productos': ['leer'],
+                    'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'],
+                    'vendedores': [],
+                    'precios': ['leer'],
+                    'reportes': [],
+                    'importaciones': [],
+                    'facturacion': [],
+                }
+            }
+        
+        permisos_rol = permisos_por_rol.get(self.rol.nombre, {})
+        permisos_recurso = permisos_rol.get(permiso_nombre, [])
+        
+        return tipo_acceso in permisos_recurso
+    
+    def puede_editar_pedido(self, pedido):
+        """Verifica si el vendedor puede editar un pedido específico"""
+        if self.rol.nombre == 'super_admin':
+            return True
+        
+        # Verificar si el pedido es de un cliente asignado al vendedor
+        return self.puede_ver_cliente(pedido.cliente_id)
+    
+    def puede_crear_pedido_para_cliente(self, cliente_id):
+        """Verifica si el vendedor puede crear pedidos para un cliente específico"""
+        if self.rol.nombre == 'super_admin':
+            return True
+        
+        return self.puede_ver_cliente(cliente_id)
+
+    
+    def puede_ver_cliente(self, cliente_id):
+        """Verifica si el vendedor puede ver un cliente específico"""
+        if self.rol.nombre == 'super_admin':
+            return True
+            
+        asignacion = ClienteVendedor.query.filter_by(
+            cliente_id=cliente_id, 
+            vendedor_id=self.id, 
+            activo=True
+        ).first()
+        
+        return asignacion is not None
+    
+    def obtener_clientes_visibles(self):
+        """Obtiene todos los clientes que el vendedor puede ver"""
+        if self.rol.nombre == 'super_admin':
+            return Cliente.query.all()
+        
+        # Clientes asignados directamente
+        clientes_directos = db.session.query(Cliente).join(ClienteVendedor).filter(
+            ClienteVendedor.vendedor_id == self.id,
+            ClienteVendedor.activo == True
+        ).all()
+        
+        return clientes_directos
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'nombre_completo': self.nombre_completo,
+            'telefono': self.telefono,
+            'rol': self.rol.nombre if self.rol else None,
+            'territorio': self.territorio.nombre if self.territorio else None,
+            'activo': self.activo,
+            'ultimo_login': self.ultimo_login.isoformat() if self.ultimo_login else None
+        }
+    
+    def __repr__(self):
+        return f'<Vendedor {self.username}>'
+    
 @login_manager.user_loader
-def load_user(user_id):
-    # Primero intentar cargar como vendedor
-    try:
-        vendedor = db.session.get(Vendedor, int(user_id))
-        if vendedor and vendedor.activo:
-            return vendedor
-    except:
-        pass
-    
-    # Fallback al usuario por defecto (para compatibilidad)
+def load_user(user_id: str):
+    """Reconstruye el usuario desde la cookie de sesión."""
+    if not user_id:
+        app.logger.warning("[login] user_loader: user_id vacío o None")
+        return None
+
+    # 1) Fallback de compatibilidad (usuario por defecto)
     if user_id == DEFAULT_USERNAME:
+        app.logger.debug(f"[login] user_loader: DefaultUser={user_id}")
         return DefaultUser(DEFAULT_USERNAME)
-    
+
+    # 2) Intento como Vendedor (id numérico)
+    try:
+        vid = int(user_id)
+    except (TypeError, ValueError):
+        app.logger.warning(f"[login] user_loader: user_id no numérico: {user_id!r}")
+        return None
+
+    vendedor = db.session.get(Vendedor, vid)
+    if vendedor and vendedor.activo:
+        app.logger.debug(f"[login] user_loader: Vendedor id={vid} OK")
+        return vendedor
+
+    app.logger.info(f"[login] user_loader: Vendedor id={vid} no encontrado o inactivo")
     return None
+
 
 @app.route('/_csrf_ping', methods=['POST'])
 def csrf_ping():
     return jsonify({'ok': True}), 200  # ← Cambiar a esto
 
 
+def _is_safe_next(target: str) -> bool:
+    """Evita open redirects; acepta solo URLs del mismo host."""
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return (test_url.scheme in ("http", "https")) and (ref_url.netloc == test_url.netloc)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Si ya está autenticado, respeta 'next' y si no, al dashboard
     if current_user.is_authenticated:
-        # Redirigir según el tipo de usuario autenticado
-        if isinstance(current_user, Vendedor):
-            return redirect(url_for('index'))
-        else:
-            return redirect(url_for('index'))
-    
+        next_url = request.args.get('next')
+        if not _is_safe_next(next_url):
+            next_url = url_for('dashboard')
+        return redirect(next_url)
+
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember_me = request.form.get('remember_me', False)
-        
-        # Intentar login como vendedor
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        remember_me = bool(request.form.get('remember_me'))  # checkbox → bool
+        # 'next' puede venir por query o por form (hidden)
+        next_url = request.form.get('next') or request.args.get('next')
+
+        # 1) Intentar login como Vendedor
         vendedor = Vendedor.query.filter_by(username=username, activo=True).first()
-        
         if vendedor and vendedor.check_password(password):
-            # Login exitoso como vendedor
             vendedor.ultimo_login = datetime.utcnow()
             db.session.commit()
-            
             login_user(vendedor, remember=remember_me)
-            flash(f"Bienvenido {vendedor.nombre_completo}", "success")
-            
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('index'))
-        
-        # Fallback al sistema anterior (para compatibilidad temporal)
-        elif username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
+            flash(f"¡Bienvenido, {vendedor.nombre_completo}!", "success")
+            if not _is_safe_next(next_url):
+                next_url = url_for('dashboard')
+            return redirect(next_url)
+
+        # 2) Fallback legacy (usuario por defecto)
+        if username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
             user = DefaultUser(username)
             login_user(user, remember=remember_me)
-            flash("Inicio de sesión exitoso (modo compatibilidad)", "warning")
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('index'))
-        
-        else:
-            flash("Credenciales inválidas", "danger")
-    
+            flash("Inicio de sesión exitoso (modo compatibilidad).", "warning")
+            if not _is_safe_next(next_url):
+                next_url = url_for('dashboard')
+            return redirect(next_url)
+
+        # 3) Credenciales inválidas
+        flash("Credenciales inválidas", "danger")
+
+    # GET o POST fallido → mostrar login
+    # Mantén 'next' en la query para que el form lo preserve
     return render_template('login.html')
+
 
 @app.route('/logout')
 @login_required
@@ -766,139 +927,7 @@ class Territorio(db.Model):
     def __repr__(self):
         return f'<Territorio {self.nombre}>'
 
-class Vendedor(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    
-    # Información personal
-    nombre_completo = db.Column(db.String(200), nullable=False)
-    telefono = db.Column(db.String(20))
-    fecha_ingreso = db.Column(db.Date, default=datetime.utcnow)
-    
-    # Relaciones organizacionales
-    rol_id = db.Column(db.Integer, db.ForeignKey('rol.id'), nullable=False)
-    territorio_id = db.Column(db.Integer, db.ForeignKey('territorio.id'))
-    supervisor_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'))
-    
-    # Estado y actividad
-    activo = db.Column(db.Boolean, default=True)
-    ultimo_login = db.Column(db.DateTime)
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relaciones
-    supervisor = db.relationship('Vendedor', remote_side=[id], backref='subordinados')
-    clientes_asignados = db.relationship('ClienteVendedor', back_populates='vendedor', 
-                                       cascade="all, delete-orphan")
-    
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-    
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-    
-    def tiene_permiso(self, permiso_nombre, tipo_acceso='leer'):
-        """Verifica si el vendedor tiene un permiso específico"""
-        if not self.activo:
-            return False
-        
-        # Definir permisos específicos por rol
-        permisos_por_rol = {
-                'super_admin': {
-                    'productos': ['leer', 'crear', 'editar', 'eliminar'],
-                    'clientes': ['leer', 'crear', 'editar', 'eliminar'],
-                    'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
-                    'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
-                    'precios': ['leer', 'crear', 'editar', 'eliminar'],
-                    'reportes': ['leer', 'crear', 'editar', 'eliminar'],
-                    'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
-                    'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
-                },
-                'supervisor': {
-                    'productos': ['leer'],
-                    'clientes': ['leer', 'editar'],
-                    'pedidos': ['leer', 'crear', 'editar'],
-                    'vendedores': ['leer'],
-                    'precios': ['leer'],
-                    'reportes': ['leer'],
-                    'importaciones': [],
-                    'facturacion': ['leer'],
-                },
-                'vendedor': {
-                    'productos': ['leer'],
-                    'clientes': ['leer', 'editar'],
-                    'pedidos': ['leer', 'crear', 'editar'],
-                    'vendedores': [],
-                    'precios': ['leer'],
-                    'reportes': [],
-                    'importaciones': [],
-                    'facturacion': [],
-                }
-            }
-        
-        permisos_rol = permisos_por_rol.get(self.rol.nombre, {})
-        permisos_recurso = permisos_rol.get(permiso_nombre, [])
-        
-        return tipo_acceso in permisos_recurso
-    
-    def puede_editar_pedido(self, pedido):
-        """Verifica si el vendedor puede editar un pedido específico"""
-        if self.rol.nombre == 'super_admin':
-            return True
-        
-        # Verificar si el pedido es de un cliente asignado al vendedor
-        return self.puede_ver_cliente(pedido.cliente_id)
-    
-    def puede_crear_pedido_para_cliente(self, cliente_id):
-        """Verifica si el vendedor puede crear pedidos para un cliente específico"""
-        if self.rol.nombre == 'super_admin':
-            return True
-        
-        return self.puede_ver_cliente(cliente_id)
 
-    
-    def puede_ver_cliente(self, cliente_id):
-        """Verifica si el vendedor puede ver un cliente específico"""
-        if self.rol.nombre == 'super_admin':
-            return True
-            
-        asignacion = ClienteVendedor.query.filter_by(
-            cliente_id=cliente_id, 
-            vendedor_id=self.id, 
-            activo=True
-        ).first()
-        
-        return asignacion is not None
-    
-    def obtener_clientes_visibles(self):
-        """Obtiene todos los clientes que el vendedor puede ver"""
-        if self.rol.nombre == 'super_admin':
-            return Cliente.query.all()
-        
-        # Clientes asignados directamente
-        clientes_directos = db.session.query(Cliente).join(ClienteVendedor).filter(
-            ClienteVendedor.vendedor_id == self.id,
-            ClienteVendedor.activo == True
-        ).all()
-        
-        return clientes_directos
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'nombre_completo': self.nombre_completo,
-            'telefono': self.telefono,
-            'rol': self.rol.nombre if self.rol else None,
-            'territorio': self.territorio.nombre if self.territorio else None,
-            'activo': self.activo,
-            'ultimo_login': self.ultimo_login.isoformat() if self.ultimo_login else None
-        }
-    
-    def __repr__(self):
-        return f'<Vendedor {self.username}>'
 
 class ClienteVendedor(db.Model):
     __tablename__ = 'cliente_vendedor'        #  ← bueno especificarlo

@@ -1,69 +1,76 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Iniciar Sesión</title>
-    <!-- Tu CSS personalizado (opcional) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-      <!-- US01: meta con token para CSRF en AJAX/tests -->
-      <meta name="csrf-token" content="{{ csrf_token() }}">
-    
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <meta charset="UTF-8">
+  <title>Iniciar Sesión</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  {% if csrf_token is defined %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% endif %}
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body class="bg-light">
 
 <div class="container d-flex justify-content-center align-items-center vh-100">
-    <!-- Tarjeta de login -->
-    <!-- US01: estilos inline migrados a main.css -->
-    <div class="card p-4 shadow login-card">
-        <h2 class="text-center mb-4">Iniciar Sesión</h2>
-        
-        <!-- Mensajes flash -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="mb-3">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category=='error' else category }}" role="alert">
-                  {{ message }}
-                </div>
-              {% endfor %}
+  <div class="card p-4 shadow login-card" style="max-width:420px;width:100%">
+    <h2 class="text-center mb-4">Iniciar Sesión</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-3">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category=='error' else category }}" role="alert">
+              {{ message }}
             </div>
-          {% endif %}
-        {% endwith %}
-        
-        <!-- Formulario -->
-        <form method="post" action="{{ url_for('login') }}">
-            <!-- US01: hidden CSRF field -->
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="mb-3">
-                <label for="username" class="form-label">Usuario</label>
-                <input 
-                  type="text" 
-                  id="username" 
-                  name="username" 
-                  class="form-control" 
-                  required
-                >
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Contraseña</label>
-                <input 
-                  type="password" 
-                  id="password" 
-                  name="password" 
-                  class="form-control" 
-                  required
-                >
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
-        </form>
-    </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('login') }}" novalidate>
+      {% if csrf_token is defined %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% endif %}
+      <!-- preservar destino seguro -->
+      <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+
+      <div class="mb-3">
+        <label for="username" class="form-label">Usuario</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          class="form-control"
+          autocomplete="username"
+          required
+        >
+      </div>
+
+      <div class="mb-3">
+        <label for="password" class="form-label">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          class="form-control"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" value="1" id="remember_me" name="remember_me">
+        <label class="form-check-label" for="remember_me">Recordarme</label>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+    </form>
+  </div>
 </div>
 
-<!-- Bootstrap Bundle con Popper.js (opcional para JS de Bootstrap) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
 
