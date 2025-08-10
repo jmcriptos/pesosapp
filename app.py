@@ -2226,6 +2226,7 @@ def webhook_actualizacion_precios():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    app.logger.info("[/dashboard] entrando")
     """Dashboard con KPIs de ventas y nivel de servicio"""
     try:
         # === FECHAS DE REFERENCIA ===
@@ -2379,7 +2380,8 @@ def dashboard():
         top_clientes = sorted(
             clientes_ventas.items(), key=lambda x: x[1]['total'], reverse=True
         )[:5]
-
+        
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
         # === TENDENCIA SEMANAL ===
         tendencia_semanal = []
         for i in range(8):
@@ -2399,6 +2401,7 @@ def dashboard():
                 }
             )
         tendencia_semanal.reverse()
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === ESTADOS DE PEDIDOS ===
         estados_count = {}
@@ -2413,6 +2416,7 @@ def dashboard():
             'facturado': estados_count.get('facturado', 0),
             **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'listo', 'facturado']}
         }
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === HISTÓRICO DE KPIs (8 semanas) ===
         kpi_weekly = []
@@ -2456,6 +2460,7 @@ def dashboard():
             })
 
         kpi_weekly.reverse()
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === PEDIDOS RECIENTES (NUEVA SECCIÓN) ===
         pedidos_recientes_data = Pedido.query.order_by(
@@ -2479,12 +2484,14 @@ def dashboard():
                 'pedidos': len(pedidos_dia)
             })
         ventas_dias.reverse()
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === CALCULAR PORCENTAJE DE META ===
         meta_mensual = 120000.00  # Meta en XCG
         porcentaje_meta = (ventas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
 
-        # === TIEMPO DE RESPUESTA POR CLIENTE ===
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
+# === TIEMPO DE RESPUESTA POR CLIENTE ===
         tiempos_respuesta_cliente = {}
         for p in pedidos_30_dias:
             if p.cliente and p.fecha_facturacion:
@@ -2503,6 +2510,7 @@ def dashboard():
                 'pedidos': len(tiempos)
             })
         tiempo_respuesta_data = sorted(tiempo_respuesta_data, key=lambda x: x['promedio'])[:10]
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === RENDER ===
         return render_template(
@@ -2537,11 +2545,13 @@ def dashboard():
             # Configuración
             moneda='XCG'
         )
+        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
-    except Exception as e:
-        app.logger.exception(f'Error en dashboard: {e}')
-        flash('Error al cargar el dashboard', 'danger')
-        return redirect(url_for('index'))
+    except Exception:
+        app.logger.exception('Error en /dashboard')
+        from flask import abort
+        abort(500)
+
 
     
 @app.route('/pedidos')
