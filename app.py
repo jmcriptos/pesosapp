@@ -28,7 +28,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import locale
 import traceback
 from decimal import Decimal
-from models.extensions import db
+# from models.extensions import db  # Comentado para evitar conflictos
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -59,6 +59,9 @@ if uri.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Inicializar SQLAlchemy directamente (sin models.extensions)
+db = SQLAlchemy(app)
+
 # Cookies / sesión
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -68,9 +71,7 @@ app.config['REMEMBER_COOKIE_SECURE'] = True
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
-# ⚠️ Usa SIEMPRE el db de models.extensions (no crees otro)
-from models.extensions import db
-db.init_app(app)
+# SQLAlchemy ya inicializado arriba
 
 migrate = Migrate(app, db)
 
@@ -436,26 +437,28 @@ def dashboard_vendedor():
             total_clientes = Cliente.query.count()
             total_productos = Producto.query.count()
             
-            # 2. MÉTRICAS DE VENTAS GLOBALES
-            pedidos_mes = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-            pedidos_hoy = Pedido.query.filter(
+            # 2. MÉTRICAS DE VENTAS GLOBALES (OPTIMIZADO)
+            # Consulta optimizada para ventas del mes usando agregación SQL
+            ventas_totales = db.session.query(
+                func.coalesce(func.sum(DetallePedido.subtotal), 0)
+            ).join(Pedido).filter(
+                Pedido.fecha_pedido >= inicio_mes
+            ).scalar()
+            
+            # Consulta optimizada para ventas del día usando agregación SQL
+            ventas_hoy = db.session.query(
+                func.coalesce(func.sum(DetallePedido.subtotal), 0)
+            ).join(Pedido).filter(
                 Pedido.fecha_pedido >= hoy,
                 Pedido.fecha_pedido < hoy + timedelta(days=1)
-            ).all()
+            ).scalar()
             
-            # Calcular ventas totales del mes (suma de subtotales)
-            ventas_totales = 0
-            for pedido in pedidos_mes:
-                for detalle in pedido.detalles:
-                    if detalle.subtotal:
-                        ventas_totales += float(detalle.subtotal)
-            
-            # Ventas del día actual
-            ventas_hoy = 0
-            for pedido in pedidos_hoy:
-                for detalle in pedido.detalles:
-                    if detalle.subtotal:
-                        ventas_hoy += float(detalle.subtotal)
+            # Conteo de pedidos optimizado
+            pedidos_mes_count = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).count()
+            pedidos_hoy_count = Pedido.query.filter(
+                Pedido.fecha_pedido >= hoy,
+                Pedido.fecha_pedido < hoy + timedelta(days=1)
+            ).count()
             
             # 3. MÉTRICAS DE EFICIENCIA
             pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
@@ -513,21 +516,18 @@ def dashboard_vendedor():
                     'accion': '/precios'
                 })
             
-            # 6. MÉTRICAS FINANCIERAS ADICIONALES
+            # 6. MÉTRICAS FINANCIERAS ADICIONALES (OPTIMIZADO)
             # Facturación del mes anterior para comparación
             inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
             fin_mes_anterior = inicio_mes - timedelta(days=1)
             
-            pedidos_mes_anterior = Pedido.query.filter(
+            # Consulta optimizada para ventas del mes anterior
+            ventas_mes_anterior = db.session.query(
+                func.coalesce(func.sum(DetallePedido.subtotal), 0)
+            ).join(Pedido).filter(
                 Pedido.fecha_pedido >= inicio_mes_anterior,
                 Pedido.fecha_pedido <= fin_mes_anterior
-            ).all()
-            
-            ventas_mes_anterior = 0
-            for pedido in pedidos_mes_anterior:
-                for detalle in pedido.detalles:
-                    if detalle.subtotal:
-                        ventas_mes_anterior += float(detalle.subtotal)
+            ).scalar()
             
             # Calcular crecimiento
             if ventas_mes_anterior > 0:
@@ -543,7 +543,7 @@ def dashboard_vendedor():
                 'ventas_totales': ventas_totales,
                 'ventas_hoy': ventas_hoy,
                 'total_pedidos': pedidos_pendientes,
-                'pedidos_hoy': len(pedidos_hoy),
+                'pedidos_hoy': pedidos_hoy_count,
                 'eficiencia_sistema': round(eficiencia_sistema, 1),
                 'crecimiento_ventas': round(crecimiento_ventas, 1),
                 'vendedores_performance': vendedores_performance,
@@ -559,34 +559,35 @@ def dashboard_vendedor():
             clientes_vendedor = current_user.obtener_clientes_visibles()
             clientes_ids = [c.id for c in clientes_vendedor]
             
-            # 2. Pedidos del vendedor (solo sus clientes)
+            # 2. Métricas del vendedor (OPTIMIZADO)
             if clientes_ids:
-                pedidos_vendedor_hoy = Pedido.query.filter(
+                # Ventas del día para el vendedor usando agregación SQL
+                ventas_vendedor_hoy = db.session.query(
+                    func.coalesce(func.sum(DetallePedido.subtotal), 0)
+                ).join(Pedido).filter(
                     Pedido.cliente_id.in_(clientes_ids),
                     Pedido.fecha_pedido >= hoy,
                     Pedido.fecha_pedido < hoy + timedelta(days=1)
-                ).all()
+                ).scalar()
                 
-                pedidos_vendedor_mes = Pedido.query.filter(
+                # Ventas del mes para el vendedor usando agregación SQL
+                ventas_vendedor_mes = db.session.query(
+                    func.coalesce(func.sum(DetallePedido.subtotal), 0)
+                ).join(Pedido).filter(
                     Pedido.cliente_id.in_(clientes_ids),
                     Pedido.fecha_pedido >= inicio_mes
-                ).all()
+                ).scalar()
+                
+                # Conteo de pedidos del día
+                pedidos_hoy_count = Pedido.query.filter(
+                    Pedido.cliente_id.in_(clientes_ids),
+                    Pedido.fecha_pedido >= hoy,
+                    Pedido.fecha_pedido < hoy + timedelta(days=1)
+                ).count()
             else:
-                pedidos_vendedor_hoy = []
-                pedidos_vendedor_mes = []
-            
-            # 3. Calcular ventas del vendedor
-            ventas_vendedor_hoy = 0
-            for pedido in pedidos_vendedor_hoy:
-                for detalle in pedido.detalles:
-                    if detalle.subtotal:
-                        ventas_vendedor_hoy += float(detalle.subtotal)
-            
-            ventas_vendedor_mes = 0
-            for pedido in pedidos_vendedor_mes:
-                for detalle in pedido.detalles:
-                    if detalle.subtotal:
-                        ventas_vendedor_mes += float(detalle.subtotal)
+                ventas_vendedor_hoy = 0
+                ventas_vendedor_mes = 0
+                pedidos_hoy_count = 0
             
             # 4. Estadísticas del vendedor
             pedidos_pendientes_vendedor = 0
@@ -599,7 +600,7 @@ def dashboard_vendedor():
             # Actualizar contexto para vendedor
             context.update({
                 'clientes_asignados': len(clientes_vendedor),
-                'pedidos_hoy': len(pedidos_vendedor_hoy),
+                'pedidos_hoy': pedidos_hoy_count,
                 'ventas_hoy': ventas_vendedor_hoy,
                 'ventas_mes': ventas_vendedor_mes,
                 'pedidos_pendientes': pedidos_pendientes_vendedor,
@@ -2566,23 +2567,27 @@ def lista_pedidos():
         Pedido.estado != 'entregado'
     )
 
-    # Orden: más recientes primero; sin fecha al final y, como desempate, id DESC
-    orden_fecha_desc = [
+    # Orden: 1) Estado (pendientes primero), 2) Fecha desc, 3) ID desc
+    orden_optimizado = [
+        # Prioridad por estado: pendientes (0), otros (1)
+        db.case((Pedido.estado == 'pendiente', 0), else_=1),
+        # Fecha más reciente primero (nulos al final)
         db.case((Pedido.fecha_pedido.is_(None), 1), else_=0),
         Pedido.fecha_pedido.desc(),
+        # ID más reciente como desempate final
         Pedido.id.desc(),
     ]
 
     if not isinstance(current_user, Vendedor):
         # Usuario del sistema anterior - mostrar todos
         pedidos_query = base_query.group_by(Pedido.id)\
-                                  .order_by(*orden_fecha_desc)\
+                                  .order_by(*orden_optimizado)\
                                   .all()
     else:
         if current_user.rol.nombre == 'super_admin':
             # Super admin ve todos los pedidos
             pedidos_query = base_query.group_by(Pedido.id)\
-                                      .order_by(*orden_fecha_desc)\
+                                      .order_by(*orden_optimizado)\
                                       .all()
         else:
             # Vendedor regular: solo ve pedidos de SUS clientes
@@ -2592,7 +2597,7 @@ def lista_pedidos():
             else:
                 pedidos_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))\
                                           .group_by(Pedido.id)\
-                                          .order_by(*orden_fecha_desc)\
+                                          .order_by(*orden_optimizado)\
                                           .all()
 
     # Agregar el total calculado como atributo a cada pedido

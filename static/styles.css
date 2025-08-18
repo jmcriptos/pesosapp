@@ -87,33 +87,70 @@ html, body {
     margin-bottom: var(--footer-height);
 }
 
-/* Grid de iconos */
+/* Grid de iconos - MEJORADO PARA MÓVIL */
 .icon-grid {
     display: grid;
-    gap: 1.5rem;
-    padding: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem 1rem;
     justify-content: center;
     align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
-/* Estilos para cada opción de la cuadrícula */
+/* Estilos para cada opción de la cuadrícula - ESTILO APP MÓVIL */
 .icon-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 150px;
-    border-radius: 10px;
+    height: 130px;
+    width: 100%;
+    min-width: 130px;
+    border-radius: 20px;
     text-decoration: none;
     color: white;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    animation: fadeIn 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
 }
 
 .icon-container:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    transform: scale(1.08) translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.icon-container:active {
+    transform: scale(0.95) translateY(-2px);
+    transition: all 0.1s ease;
+}
+
+/* Efecto de brillo en hover */
+.icon-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.icon-container:hover::before {
+    opacity: 1;
+    animation: shine 0.6s ease-in-out;
+}
+
+@keyframes shine {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
 }
 
 .icon-container.icon-productos { background-color: var(--icon-productos); }
@@ -126,14 +163,30 @@ html, body {
 .icon-container.icon-precios { background-color: var(--icon-precios); }
 
 .icon-container i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+.icon-container:hover i {
+    transform: scale(1.1);
+    text-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
 
 .icon-label {
-    font-size: 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
     text-align: center;
     color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+}
+
+.icon-container:hover .icon-label {
+    transform: translateY(-2px);
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
 }
 
 /* Formularios - ACTUALIZADO PARA MÓVIL */
@@ -256,57 +309,72 @@ tr:nth-child(even) {
 
 /* ==== CORRECCIÓN DEL MENÚ MÓVIL INFERIOR ==== */
 
-/* Footer y Navegación Móvil - ACTUALIZADO */
+/* Footer y Navegación Móvil - REDISEÑADO APP MÓVIL */
 .app-footer {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
-    background-color: white;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.08);
     z-index: 1000;
-    padding: 0; /* Sin padding adicional */
+    padding: 0;
+    border-top: 1px solid rgba(255,255,255,0.2);
 }
 
-/* Navegación móvil optimizada */
+/* Navegación móvil estilo app moderna */
 .mobile-nav {
     display: flex;
-    justify-content: space-evenly; /* Distribución uniforme */
+    justify-content: space-around;
     align-items: center;
-    padding: 0.6rem 0.2rem; /* Padding reducido y controlado */
-    background-color: white;
+    padding: 0.8rem 1rem 1.2rem 1rem;
+    background: transparent;
     width: 100%;
     box-sizing: border-box;
+    position: relative;
 }
 
-/* Items de navegación */
+/* Items de navegación estilo app móvil */
 .nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     text-decoration: none;
-    color: var(--secondary-color);
-    transition: color 0.3s ease, transform 0.2s ease;
-    flex: 1; /* Cada item ocupa espacio igual */
-    max-width: 80px; /* Ancho máximo por item */
-    min-width: 60px; /* Ancho mínimo por item */
-    padding: 0.3rem 0.1rem; /* Padding interno controlado */
+    color: #8e8e93;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    flex: 1;
+    max-width: 80px;
+    min-width: 60px;
+    padding: 0.5rem 0.3rem;
+    border-radius: 16px;
+    position: relative;
+    transform-origin: center;
 }
 
-/* Iconos de navegación */
+/* Iconos de navegación modernos */
 .nav-item i {
-    font-size: 1.3rem; /* Tamaño reducido para que quepa mejor */
-    margin-bottom: 0.2rem; /* Margen reducido */
+    font-size: 1.3rem;
+    margin-bottom: 0.3rem;
+    color: inherit;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    z-index: 2;
 }
 
-/* Texto de navegación */
+/* Texto de navegación estilo app móvil */
 .nav-item span {
-    font-size: 0.7rem; /* Texto más pequeño */
+    font-size: 0.7rem;
+    font-weight: 600;
     text-align: center;
     line-height: 1;
-    color: var(--secondary-color);
-    white-space: nowrap; /* Evitar salto de línea */
+    color: inherit;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+    position: relative;
+    z-index: 2;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
