@@ -484,13 +484,13 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // === CONFIGURACIÓN GLOBAL OPTIMIZADA ===
-    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    Chart.defaults.color = '#6b7280';
-    Chart.defaults.borderColor = 'rgba(243, 244, 246, 0.8)';
+    try {
+        // === CONFIGURACIÓN GLOBAL OPTIMIZADA ===
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        Chart.defaults.color = '#6b7280';
+        Chart.defaults.borderColor = 'rgba(243, 244, 246, 0.8)';
     
     // Datos seguros con validación mejorada
     const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
@@ -856,6 +856,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+    }
+    } catch (error) {
+        console.error('Error inicializando dashboard:', error);
+        // Mostrar mensaje de error amigable en la consola
+        console.log('Dashboard cargado en modo básico debido a errores en gráficos');
     }
 });
 </script>
