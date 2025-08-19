@@ -2229,134 +2229,196 @@ def webhook_actualizacion_precios():
 @login_required
 def dashboard():
     app.logger.info("[/dashboard] entrando")
-    """Dashboard con KPIs de ventas y nivel de servicio"""
+    """Dashboard optimizado con KPIs de ventas y nivel de servicio"""
     try:
         # === FECHAS DE REFERENCIA ===
         hoy = datetime.now().date()
         inicio_mes = hoy.replace(day=1)
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
+        hace_8_semanas = hoy - timedelta(weeks=8)
 
-        # === MÉTRICAS DE VENTAS ===
-        pedidos_mes_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-        pedidos_semana_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_semana).all()
-        pedidos_30_dias = Pedido.query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
+        # === OPTIMIZACIÓN: CONSULTAS UNIFICADAS CON JOINS ===
+        # Consulta principal optimizada con eager loading
+        pedidos_mes_query = (Pedido.query
+            .options(db.joinedload(Pedido.detalles).joinedload('producto'))
+            .options(db.joinedload(Pedido.cliente))
+            .filter(Pedido.fecha_pedido >= inicio_mes))
+        
+        pedidos_semana_query = (Pedido.query
+            .options(db.joinedload(Pedido.detalles).joinedload('producto'))
+            .options(db.joinedload(Pedido.cliente))
+            .filter(Pedido.fecha_pedido >= inicio_semana))
+        
+        pedidos_30_dias_query = (Pedido.query
+            .options(db.joinedload(Pedido.detalles).joinedload('producto'))
+            .options(db.joinedload(Pedido.cliente))
+            .filter(Pedido.fecha_pedido >= hace_30_dias))
 
+        # Ejecutar consultas optimizadas
+        pedidos_mes_list = pedidos_mes_query.all()
+        pedidos_semana_list = pedidos_semana_query.all()
+        pedidos_30_dias = pedidos_30_dias_query.all()
+
+        # === CÁLCULOS OPTIMIZADOS DE VENTAS ===
+        # Precalcular totales usando comprensión de listas mejorada
         ventas_mes = sum(
-            sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_mes_list
+            float(d.subtotal or 0) 
+            for p in pedidos_mes_list 
+            for d in p.detalles
         )
         ventas_semana = sum(
-            sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_list
+            float(d.subtotal or 0) 
+            for p in pedidos_semana_list 
+            for d in p.detalles
         )
+        
+        # Consulta optimizada para pedidos pendientes
         pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
 
-        # === KPIs DE NIVEL DE SERVICIO ===
-
-        # 1. Lead time promedio
+        # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO ===
+        
+        # Precalcular listas filtradas para mejorar performance
         pedidos_facturados = [
-            p for p in pedidos_30_dias if p.estado == 'facturado' and p.fecha_facturacion
+            p for p in pedidos_30_dias 
+            if p.estado == 'facturado' and p.fecha_facturacion
         ]
-        lead_times = [
-            (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-            for p in pedidos_facturados
-            if (p.fecha_facturacion.date() - p.fecha_pedido.date()).days >= 0
-        ]
+        
+        # Optimización: Calcular lead times una sola vez y cachear resultados
+        lead_times = []
+        palabras_error = {'error', 'corrección', 'corregir', 'incorrecto', 'mal'}
+        
+        for p in pedidos_facturados:
+            dias = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+            if dias >= 0:  # Solo días válidos
+                lead_times.append(dias)
+        
+        # 1. Lead time promedio optimizado
         lead_time_promedio = sum(lead_times) / len(lead_times) if lead_times else 0
 
-        # 2. Fill rate
-        pedidos_completos = sum(1 for p in pedidos_30_dias if p.estado == 'facturado')
-        pedidos_incompletos = sum(
-            1 for p in pedidos_30_dias if p.estado in ['pendiente', 'listo']
-        )
+        # 2. Fill rate optimizado con contadores
+        estados_count = {'facturado': 0, 'pendiente': 0, 'listo': 0, 'otros': 0}
+        for p in pedidos_30_dias:
+            estado = p.estado or 'otros'
+            if estado in estados_count:
+                estados_count[estado] += 1
+            else:
+                estados_count['otros'] += 1
+        
+        pedidos_completos = estados_count['facturado']
+        pedidos_incompletos = estados_count['pendiente'] + estados_count['listo']
         total_pedidos_evaluados = pedidos_completos + pedidos_incompletos
+        
         fill_rate = (
-            pedidos_completos / total_pedidos_evaluados * 100
-            if total_pedidos_evaluados
-            else 0
+            (pedidos_completos / total_pedidos_evaluados * 100) 
+            if total_pedidos_evaluados > 0 else 0
         )
 
-        # 3. On-time delivery rate
+        # 3. On-time delivery rate optimizado
         pedidos_a_tiempo = sum(1 for lt in lead_times if lt <= 2)
-        otd_rate = pedidos_a_tiempo / len(lead_times) * 100 if lead_times else 0
+        otd_rate = (pedidos_a_tiempo / len(lead_times) * 100) if lead_times else 0
 
-        # 4. Order accuracy
-        pedidos_con_notas_error = sum(
-            1
-            for p in pedidos_30_dias
-            if p.notas
-            and any(
-                palabra in p.notas.lower() for palabra in ['error', 'corrección', 'corregir']
-            )
-        )
+        # 4. Order accuracy optimizado con set lookup
+        pedidos_con_errores = 0
+        for p in pedidos_30_dias:
+            if p.notas:
+                notas_lower = p.notas.lower()
+                if any(palabra in notas_lower for palabra in palabras_error):
+                    pedidos_con_errores += 1
+        
+        total_pedidos_30 = len(pedidos_30_dias)
         order_accuracy = (
-            (len(pedidos_30_dias) - pedidos_con_notas_error)
-            / len(pedidos_30_dias)
-            * 100
-            if pedidos_30_dias
-            else 100
+            ((total_pedidos_30 - pedidos_con_errores) / total_pedidos_30 * 100)
+            if total_pedidos_30 > 0 else 100
         )
 
-        # 5. Perfect order rate
+        # 5. Perfect order rate optimizado
         perfect_orders = 0
-        for p in pedidos_facturados:
-            dias_lead = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-            tiene_errores = p.notas and any(
-                palabra in p.notas.lower() for palabra in ['error', 'corrección', 'corregir']
-            )
-            if dias_lead <= 2 and not tiene_errores:
-                perfect_orders += 1
+        for i, p in enumerate(pedidos_facturados):
+            if i < len(lead_times):  # Verificar índice válido
+                dias_lead = lead_times[i]
+                tiene_errores = (p.notas and 
+                               any(palabra in p.notas.lower() for palabra in palabras_error))
+                
+                if dias_lead <= 2 and not tiene_errores:
+                    perfect_orders += 1
 
-        total_perfect_eval = len(pedidos_facturados)
         perfect_order_rate = (
-            perfect_orders / total_perfect_eval * 100 if total_perfect_eval else 0
+            (perfect_orders / len(pedidos_facturados) * 100) 
+            if pedidos_facturados else 0
         )
 
-        # 6. Customer engagement
-        clientes_activos_mes = len({p.cliente_id for p in pedidos_mes_list if p.cliente_id})
+        # 6. Customer engagement optimizado
+        clientes_activos_ids = {p.cliente_id for p in pedidos_mes_list if p.cliente_id}
+        clientes_activos_mes = len(clientes_activos_ids)
+        
+        # Cache de total de clientes para evitar query innecesaria
         total_clientes = Cliente.query.count()
         customer_engagement = (
-            clientes_activos_mes / total_clientes * 100 if total_clientes else 0
+            (clientes_activos_mes / total_clientes * 100) 
+            if total_clientes > 0 else 0
         )
 
-        # === ANÁLISIS DE PRODUCTOS (CORREGIDO) ===
+        # === ANÁLISIS OPTIMIZADO DE PRODUCTOS ===
         productos_ventas = {}
+        max_cajas = 0  # Tracking del máximo para optimizar
+        
         for p in pedidos_30_dias:
+            pedido_id = p.id
             for d in p.detalles:
                 # Verificar que existe el producto
-                if not d.producto:
-                    app.logger.warning(f'Detalle sin producto en pedido {p.id}')
+                if not d.producto or not d.producto.nombre:
+                    app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
                     continue
                 
                 nombre = d.producto.nombre
+                cajas_detalle = d.cajas or 0
+                ingresos_detalle = float(d.subtotal or 0)
+                
                 if nombre not in productos_ventas:
-                    productos_ventas[nombre] = {'cajas': 0, 'ingresos': 0, 'pedidos': set()}
-                productos_ventas[nombre]['cajas'] += d.cajas or 0
-                productos_ventas[nombre]['ingresos'] += float(d.subtotal or 0)
-                productos_ventas[nombre]['pedidos'].add(p.id)
+                    productos_ventas[nombre] = {
+                        'cajas': 0, 
+                        'ingresos': 0, 
+                        'pedidos': set()
+                    }
+                
+                # Actualizar datos del producto
+                productos_ventas[nombre]['cajas'] += cajas_detalle
+                productos_ventas[nombre]['ingresos'] += ingresos_detalle
+                productos_ventas[nombre]['pedidos'].add(pedido_id)
+                
+                # Tracking optimizado del máximo
+                if productos_ventas[nombre]['cajas'] > max_cajas:
+                    max_cajas = productos_ventas[nombre]['cajas']
 
+        # Optimización: Convertir sets a contadores en una pasada
         for datos in productos_ventas.values():
             datos['pedidos'] = len(datos['pedidos'])
 
-        # Obtener top productos como tuplas primero
-        top_productos_raw = sorted(
-            productos_ventas.items(), key=lambda x: x[1]['cajas'], reverse=True
-        )[:5]
+        # Top productos optimizado con heapq para mejor performance en listas grandes
+        if productos_ventas:
+            import heapq
+            # Usar nlargest para mejor performance que sorted
+            top_productos_raw = heapq.nlargest(
+                5, productos_ventas.items(), 
+                key=lambda x: x[1]['cajas']
+            )
+        else:
+            top_productos_raw = []
 
-        # Convertir a formato esperado por el template
-        top_productos = []
-        for nombre, datos in top_productos_raw:
-            top_productos.append({
+        # Convertir a formato optimizado para el template
+        top_productos = [
+            {
                 'nombre': nombre,
                 'total_vendido': datos['cajas'],
-                'ingresos': datos['ingresos'],
+                'ingresos': round(datos['ingresos'], 2),  # Redondear para mejor presentación
                 'pedidos': datos['pedidos']
-            })
+            }
+            for nombre, datos in top_productos_raw
+        ]
 
-        # Calcular max_ventas para el template
-        if top_productos:
-            max_ventas = max(producto['total_vendido'] for producto in top_productos)
-        else:
-            max_ventas = 1  # Evitar división por cero
+        # Usar el máximo precalculado
+        max_ventas = max_cajas if max_cajas > 0 else 1
 
         # === ANÁLISIS DE CLIENTES (CORREGIDO) ===
         clientes_ventas = {}

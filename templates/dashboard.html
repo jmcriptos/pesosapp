@@ -484,102 +484,379 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Datos seguros (tojson + fallback)
-    const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
-    const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }};
-
-    new Chart(salesCtx, {
-        type: 'line',
-        data: {
-            labels: tendenciaData.map(d => d.semana),
-            datasets: [{
-                label: 'Ventas Semanales',
-                data: tendenciaData.map(d => d.ventas),
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#3b82f6',
-                pointBorderColor: '#ffffff',
-                pointBorderWidth: 2,
-                pointRadius: 6,
-                pointHoverRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 12,
-                    titleColor: 'white',
-                    titleFont: { size: 14, weight: 'bold' },
-                    bodyColor: 'white',
-                    callbacks: {
-                        label: (context) => 'XCG ' + context.parsed.y.toLocaleString('es')
+    // === CONFIGURACIÓN GLOBAL OPTIMIZADA ===
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    Chart.defaults.color = '#6b7280';
+    Chart.defaults.borderColor = 'rgba(243, 244, 246, 0.8)';
+    
+    // Datos seguros con validación mejorada
+    const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
+    const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
+    const kpiWeeklyData = {{ (kpi_weekly or [])|tojson|safe }} || [];
+    
+    // === GRÁFICO DE TENDENCIA DE VENTAS MEJORADO ===
+    const salesCtx = document.getElementById('salesTrendChart');
+    if (salesCtx && tendenciaData.length > 0) {
+        const salesChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: tendenciaData.map(d => d.semana || ''),
+                datasets: [
+                    {
+                        label: 'Ventas Semanales (XCG)',
+                        data: tendenciaData.map(d => d.ventas || 0),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: '#1d4ed8',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 3
+                    },
+                    {
+                        label: 'Número de Pedidos',
+                        data: tendenciaData.map(d => d.pedidos || 0),
+                        type: 'bar',
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderColor: '#10b981',
+                        borderWidth: 1,
+                        yAxisID: 'y1',
+                        order: 2
                     }
-                }
+                ]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: '#f3f4f6' },
-                    ticks: {
-                        callback: (value) => 'XCG ' + value.toLocaleString(),
-                        color: '#6b7280'
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { 
+                    intersect: false, 
+                    mode: 'index' 
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: { 
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { size: 12, weight: '500' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        padding: 12,
+                        titleColor: 'white',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyColor: 'white',
+                        bodyFont: { size: 13 },
+                        cornerRadius: 8,
+                        caretPadding: 10,
+                        callbacks: {
+                            title: (items) => `Semana del ${items[0].label}`,
+                            label: (context) => {
+                                if (context.datasetIndex === 0) {
+                                    return `Ventas: XCG ${context.parsed.y.toLocaleString('es-ES')}`;
+                                }
+                                return `Pedidos: ${context.parsed.y}`;
+                            }
+                        }
                     }
                 },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#6b7280' }
-                }
-            },
-            interaction: { intersect: false, mode: 'index' }
-        }
-    });
-
-    // Gráfico de estados (dona)
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const estadosData = {{ (estados_pedidos or {})|tojson|safe }};
-
-    new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(estadosData).map(s => s.replace('_', ' ').charAt(0).toUpperCase() + s.slice(1)),
-            datasets: [{
-                data: Object.values(estadosData),
-                backgroundColor: ['#f59e0b','#10b981','#3b82f6','#6b7280'],
-                borderWidth: 0,
-                cutout: '60%'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 12,
-                    callbacks: { label: (c) => `${c.label}: ${c.parsed}` }
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        grid: { 
+                            color: 'rgba(243, 244, 246, 0.8)',
+                            lineWidth: 1
+                        },
+                        ticks: {
+                            callback: (value) => 'XCG ' + value.toLocaleString('es-ES'),
+                            color: '#6b7280',
+                            font: { size: 11 }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Ventas (XCG)',
+                            color: '#374151',
+                            font: { size: 12, weight: '600' }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            color: '#6b7280',
+                            font: { size: 11 }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Pedidos',
+                            color: '#374151',
+                            font: { size: 12, weight: '600' }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { 
+                            color: '#6b7280',
+                            font: { size: 11 }
+                        }
+                    }
                 }
             }
-        }
-    });
-
-    // Controles del gráfico (placeholder)
-    document.querySelectorAll('.chart-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            // Aquí puedes alternar datasets si lo deseas
         });
-    });
+        
+        // Funcionalidad mejorada de controles de período
+        const chartButtons = document.querySelectorAll('.chart-btn');
+        chartButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                chartButtons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Aquí puedes implementar lógica para cambiar datos según el período
+                const period = this.dataset.period;
+                console.log(`Cambiando vista a: ${period}`);
+                // TODO: Implementar cambio de datos según período
+            });
+        });
+    }
+
+    // === GRÁFICO DE ESTADOS MEJORADO (DONA) ===
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx && Object.keys(estadosData).length > 0) {
+        // Preparar datos con colores mejorados y validación
+        const estadosLabels = Object.keys(estadosData).map(estado => {
+            const labelMap = {
+                'pendiente': 'Pendientes',
+                'listo': 'Listos',
+                'facturado': 'Facturados',
+                'sin_estado': 'Sin Estado'
+            };
+            return labelMap[estado] || estado.charAt(0).toUpperCase() + estado.slice(1);
+        });
+        
+        const estadosValues = Object.values(estadosData);
+        const totalPedidos = estadosValues.reduce((sum, val) => sum + val, 0);
+        
+        // Colores mejorados con gradientes
+        const backgroundColors = {
+            'pendiente': '#f59e0b',
+            'listo': '#10b981', 
+            'facturado': '#3b82f6',
+            'sin_estado': '#6b7280'
+        };
+        
+        const colorsArray = Object.keys(estadosData).map(estado => 
+            backgroundColors[estado] || '#9ca3af'
+        );
+        
+        const statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: estadosLabels,
+                datasets: [{
+                    data: estadosValues,
+                    backgroundColor: colorsArray,
+                    borderColor: '#ffffff',
+                    borderWidth: 3,
+                    cutout: '65%',
+                    hoverBorderWidth: 4,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    animateScale: true,
+                    duration: 1200,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: { 
+                        display: false  // Usamos la leyenda personalizada en el HTML
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        padding: 16,
+                        titleColor: 'white',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyColor: 'white',
+                        bodyFont: { size: 13 },
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.label;
+                                const value = context.parsed;
+                                const percentage = ((value / totalPedidos) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                onHover: (event, activeElements) => {
+                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                }
+            }
+        });
+        
+        // Agregar texto central con total
+        const statusContainer = statusCtx.parentElement;
+        if (!statusContainer.querySelector('.chart-center-text')) {
+            const centerText = document.createElement('div');
+            centerText.className = 'chart-center-text';
+            centerText.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                pointer-events: none;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            `;
+            centerText.innerHTML = `
+                <div style="font-size: 24px; font-weight: 700; color: #111827;">${totalPedidos}</div>
+                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Total Pedidos</div>
+            `;
+            statusContainer.style.position = 'relative';
+            statusContainer.appendChild(centerText);
+        }
+    }
+    
+    // === NUEVO: GRÁFICO DE KPIs HISTÓRICOS ===
+    if (kpiWeeklyData.length > 0) {
+        // Crear contenedor para gráfico de KPIs si no existe
+        let kpiChartContainer = document.getElementById('kpiTrendChart');
+        if (!kpiChartContainer) {
+            const chartsSection = document.querySelector('.charts-section');
+            if (chartsSection) {
+                const kpiCard = document.createElement('div');
+                kpiCard.className = 'chart-card';
+                kpiCard.innerHTML = `
+                    <div class="chart-header">
+                        <h3>Tendencia de KPIs - Últimas 8 Semanas</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="kpiTrendChart"></canvas>
+                    </div>
+                `;
+                chartsSection.appendChild(kpiCard);
+                kpiChartContainer = document.getElementById('kpiTrendChart');
+            }
+        }
+        
+        if (kpiChartContainer) {
+            new Chart(kpiChartContainer, {
+                type: 'line',
+                data: {
+                    labels: kpiWeeklyData.map(d => d.semana || ''),
+                    datasets: [
+                        {
+                            label: 'Fill Rate (%)',
+                            data: kpiWeeklyData.map(d => d.fill || 0),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'On-Time Delivery (%)',
+                            data: kpiWeeklyData.map(d => d.otd || 0),
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Accuracy (%)',
+                            data: kpiWeeklyData.map(d => d.acc || 0),
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Perfect Orders (%)',
+                            data: kpiWeeklyData.map(d => d.perf || 0),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    animation: { duration: 1000, easing: 'easeInOutQuart' },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: { size: 11, weight: '500' }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                            padding: 12,
+                            titleFont: { size: 13, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(243, 244, 246, 0.8)' },
+                            ticks: {
+                                callback: (value) => value + '%',
+                                color: '#6b7280',
+                                font: { size: 10 }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#6b7280',
+                                font: { size: 10 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
 });
 </script>
 {% endblock %}
