@@ -2500,50 +2500,6 @@ def dashboard():
         }
         app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
-        # === HISTÓRICO DE KPIs (8 semanas) ===
-        kpi_weekly = []
-        for i in range(8):
-            sem_ini = hoy - timedelta(days=hoy.weekday() + 7*i)
-            sem_fin = sem_ini + timedelta(days=6)
-
-            ped_sem = Pedido.query.filter(
-                Pedido.fecha_pedido.between(sem_ini, sem_fin)
-            ).all()
-
-            fact_sem = [p for p in ped_sem if p.estado == 'facturado' and p.fecha_facturacion]
-            lead_sem = [
-                (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-                for p in fact_sem if p.fecha_facturacion
-            ]
-
-            completos   = sum(1 for p in ped_sem if p.estado == 'facturado')
-            incompletos = sum(1 for p in ped_sem if p.estado in ['pendiente', 'listo'])
-            total_eval  = completos + incompletos
-
-            perfectos = sum(
-                1 for p in fact_sem
-                if (p.fecha_facturacion.date() - p.fecha_pedido.date()).days <= 2
-                and not (p.notas and any(w in p.notas.lower()
-                                        for w in ['error', 'corrección', 'corregir']))
-            )
-
-            errores = sum(
-                1 for p in ped_sem
-                if p.notas and any(w in p.notas.lower()
-                                for w in ['error', 'corrección', 'corregir'])
-            )
-
-            kpi_weekly.append({
-                'semana': sem_ini.strftime('%d/%m'),
-                'fill'  : completos/total_eval*100 if total_eval else 0,
-                'otd'   : sum(1 for lt in lead_sem if lt<=2)/len(lead_sem)*100 if lead_sem else 0,
-                'acc'   : (len(ped_sem)-errores)/len(ped_sem)*100 if ped_sem else 100,
-                'perf'  : perfectos/len(fact_sem)*100 if fact_sem else 0
-            })
-
-        kpi_weekly.reverse()
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
-
         # === PEDIDOS RECIENTES (NUEVA SECCIÓN) ===
         pedidos_recientes_data = Pedido.query.order_by(
             Pedido.fecha_pedido.desc()
@@ -2620,7 +2576,6 @@ def dashboard():
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
             fecha_actual=hoy,
-            kpi_weekly=kpi_weekly,
             ventas_dias=ventas_dias,
             tiempo_respuesta_data=tiempo_respuesta_data,
             
@@ -2652,7 +2607,6 @@ def dashboard():
             'tendencia_semanal': [],
             'pedidos_recientes': [],
             'fecha_actual': datetime.now().date(),
-            'kpi_weekly': [],
             'ventas_dias': [],
             'tiempo_respuesta_data': [],
             'moneda': 'XCG'

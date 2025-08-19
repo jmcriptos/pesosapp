@@ -495,7 +495,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Datos seguros con validación mejorada
     const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
     const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
-    const kpiWeeklyData = {{ (kpi_weekly or [])|tojson|safe }} || [];
     
     // === GRÁFICO DE TENDENCIA DE VENTAS MEJORADO ===
     const salesCtx = document.getElementById('salesTrendChart');
@@ -742,121 +741,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // === NUEVO: GRÁFICO DE KPIs HISTÓRICOS ===
-    if (kpiWeeklyData.length > 0) {
-        // Crear contenedor para gráfico de KPIs si no existe
-        let kpiChartContainer = document.getElementById('kpiTrendChart');
-        if (!kpiChartContainer) {
-            const chartsSection = document.querySelector('.charts-section');
-            if (chartsSection) {
-                const kpiCard = document.createElement('div');
-                kpiCard.className = 'chart-card';
-                kpiCard.innerHTML = `
-                    <div class="chart-header">
-                        <h3>Tendencia de KPIs - Últimas 8 Semanas</h3>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="kpiTrendChart"></canvas>
-                    </div>
-                `;
-                chartsSection.appendChild(kpiCard);
-                kpiChartContainer = document.getElementById('kpiTrendChart');
-            }
-        }
-        
-        if (kpiChartContainer) {
-            new Chart(kpiChartContainer, {
-                type: 'line',
-                data: {
-                    labels: kpiWeeklyData.map(d => d.semana || ''),
-                    datasets: [
-                        {
-                            label: 'Fill Rate (%)',
-                            data: kpiWeeklyData.map(d => d.fill || 0),
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'On-Time Delivery (%)',
-                            data: kpiWeeklyData.map(d => d.otd || 0),
-                            borderColor: '#f59e0b',
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'Accuracy (%)',
-                            data: kpiWeeklyData.map(d => d.acc || 0),
-                            borderColor: '#8b5cf6',
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'Perfect Orders (%)',
-                            data: kpiWeeklyData.map(d => d.perf || 0),
-                            borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { intersect: false, mode: 'index' },
-                    animation: { duration: 1000, easing: 'easeInOutQuart' },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: { size: 11, weight: '500' }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                            padding: 12,
-                            titleFont: { size: 13, weight: 'bold' },
-                            bodyFont: { size: 12 },
-                            cornerRadius: 8,
-                            callbacks: {
-                                label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            grid: { color: 'rgba(243, 244, 246, 0.8)' },
-                            ticks: {
-                                callback: (value) => value + '%',
-                                color: '#6b7280',
-                                font: { size: 10 }
-                            }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { 
-                                color: '#6b7280',
-                                font: { size: 10 }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    }
     } catch (error) {
         console.error('Error inicializando dashboard:', error);
         // Mostrar mensaje de error amigable en la consola
