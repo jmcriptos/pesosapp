@@ -2997,32 +2997,32 @@ def generar_etiqueta_detalle(pedido_id):
         # Margen interno
         M = 8  # ~2.8 mm
 
-        # Logo (opcional)
+        # Logo (más pequeño para dar más espacio)
         LOGO_X = M
-        LOGO_W = 1.2 * inch
-        LOGO_H = 1.2 * inch
+        LOGO_W = 1.0 * inch  # Reducido de 1.2
+        LOGO_H = 1.0 * inch  # Reducido de 1.2
         LOGO_Y = PAGE_H - M - LOGO_H
 
-        # Columna derecha
-        LBL_XR = 2.8 * inch            # fin (derecha) de los labels
-        VAL_X  = LBL_XR + 0.12 * inch  # inicio de valores
+        # Columna derecha - AJUSTADA
+        LBL_XR = 2.6 * inch            # Más a la izquierda para mejor distribución
+        VAL_X  = LBL_XR + 0.10 * inch  # inicio de valores
 
-        # Líneas Y (más separación)
-        Y_CLIENT = PAGE_H - M - 0.30 * inch
-        Y_LOT    = Y_CLIENT - 0.24 * inch
-        Y_MFG    = Y_LOT    - 0.24 * inch
-        Y_EXP    = Y_MFG    - 0.24 * inch
-        Y_KEEP   = Y_EXP    - 0.24 * inch
+        # Líneas Y - REAJUSTADAS (comenzando más arriba)
+        Y_CLIENT = PAGE_H - M - 0.18 * inch  # Más arriba
+        Y_LOT    = Y_CLIENT - 0.20 * inch    # Espaciado reducido
+        Y_MFG    = Y_LOT    - 0.20 * inch
+        Y_EXP    = Y_MFG    - 0.20 * inch
+        Y_KEEP   = Y_EXP    - 0.20 * inch
 
-        # Peso (un poco más arriba)
-        Y_NETW   = M + 1.05 * inch
+        # Net Weight - MOVIDO A ZONA SEGURA (más abajo)
+        Y_NETW   = M + 0.70 * inch  # Bajado significativamente
         Y_NETWV  = Y_NETW
 
-        # Separador horizontal (entre datos/peso y producto)
-        SEP_Y    = M + 0.62 * inch
+        # Separador horizontal
+        SEP_Y    = M + 0.48 * inch  # Ajustado
 
-        # Producto (más abajo, zona “segura”)
-        Y_PROD   = M + 0.28 * inch
+        # Producto (zona inferior)
+        Y_PROD   = M + 0.15 * inch  # Más abajo para dar espacio
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
@@ -3058,16 +3058,16 @@ def generar_etiqueta_detalle(pedido_id):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Labels
-            c.setFont("Helvetica-Bold", 9.5)
+            # Labels - Fuente ligeramente reducida
+            c.setFont("Helvetica-Bold", 9)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
             c.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
             c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
-            c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
+            c.drawRightString(LBL_XR, Y_KEEP,   "Keep at:")  # Más corto
 
             # Valores
-            c.setFont("Helvetica", 9.5)
+            c.setFont("Helvetica", 9)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
 
@@ -3082,10 +3082,10 @@ def generar_etiqueta_detalle(pedido_id):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
 
-            # ---- Net Weight ----
-            c.setFont("Helvetica-Bold", 13)
+            # ---- Net Weight - REPOSICIONADO ----
+            c.setFont("Helvetica-Bold", 11)  # Reducido de 13
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
-            c.setFont("Helvetica-Bold", 14)
+            c.setFont("Helvetica-Bold", 12)  # Reducido de 14
             c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
             # ---- Separador fino ----
@@ -3096,7 +3096,7 @@ def generar_etiqueta_detalle(pedido_id):
 
             # ---- Producto (centrado con ajuste) ----
             max_text_width = PAGE_W - (2 * M)
-            draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=16, min_font=10)
+            draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=14, min_font=9)
 
             c.showPage()  # 1 etiqueta = 1 página
 
@@ -3136,7 +3136,6 @@ def generar_etiqueta_detalle(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 
 
