@@ -2963,8 +2963,6 @@ def generar_etiqueta_detalle(pedido_id):
     Formulario:
         - fecha_inicio (YYYY-MM-DD)
         - fecha_fin    (YYYY-MM-DD)
-    Query opcional:
-        - debug=1  -> dibuja cajas guía (no para producción)
     """
     try:
         pedido = Pedido.query.get_or_404(pedido_id)
@@ -2997,52 +2995,44 @@ def generar_etiqueta_detalle(pedido_id):
         c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
 
         # ========= DISEÑO / RETÍCULA =========
-        # Margen interno
-        M = 8  # ~2.8 mm
+        M = 8  # Margen interno
 
-        # Logo (opcional)
+        # Logo
         LOGO_X = M
         LOGO_W = 1.20 * inch
         LOGO_H = 1.20 * inch
         LOGO_Y = PAGE_H - M - LOGO_H
 
         # Columna derecha (labels y valores)
-        LBL_XR = 2.80 * inch            # extremo derecho de los títulos (alineados a la derecha)
-        VAL_X  = LBL_XR + 0.12 * inch   # inicio de valores
+        LBL_XR = 2.80 * inch
+        VAL_X  = LBL_XR + 0.12 * inch
 
-        # Retícula vertical (pasos ~0.22")
+        # Información superior (ajustada para dar más espacio)
         Y_CLIENT = PAGE_H - M - 0.30 * inch
         Y_LOT    = Y_CLIENT - 0.22 * inch
         Y_MFG    = Y_LOT    - 0.22 * inch
         Y_EXP    = Y_MFG    - 0.22 * inch
         Y_KEEP   = Y_EXP    - 0.22 * inch
 
-        # Bloque de peso (subido más, para abrir aire con el producto)
-        Y_NETW   = M + 1.20 * inch   # ↑ estaba 1.05" / 1.10"
+        # Net Weight - ZONA MEDIA (bien separado de arriba y abajo)
+        Y_NETW   = M + 0.68 * inch
         Y_NETWV  = Y_NETW
 
-        # Separador (entre datos/peso y producto)
-        SEP_Y    = M + 0.72 * inch   # ↑ separador algo más arriba
+        # Separador (entre Net Weight y Producto)
+        SEP_Y    = M + 0.52 * inch
 
-        # Área del producto (zona fija, bien separada del peso)
+        # Área del producto (zona inferior con espacio para 1-2 líneas)
         PROD_Y_MIN = M + 0.16 * inch
-        PROD_Y_MAX = M + 0.36 * inch  # altura ~0.20"
+        PROD_Y_MAX = M + 0.40 * inch
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
-
-        # Opcional: repetir una etiqueta por cada "caja"
         REPETIR_POR_CAJAS = False
 
         # ========= HELPERS =========
-        debug = request.args.get("debug") == "1"
-
-        from reportlab.pdfbase import pdfmetrics
-
         def draw_center_wrap_text(canvas_obj, text, center_x, y_bottom, y_top, max_width,
                                   font_name="Helvetica-Bold", max_font=19.2, min_font=12, line_gap=2):
             """
-            Dibuja 'text' centrado, 1–2 líneas, auto-escala para caber en ancho (max_width)
-            y alto (y_top - y_bottom). Centrado vertical dentro del rectángulo.
+            Dibuja 'text' centrado, 1–2 líneas, auto-escala para caber en ancho y alto.
             """
             txt = (text or "").strip()
             if not txt:
@@ -3075,11 +3065,11 @@ def generar_etiqueta_detalle(pedido_id):
                 if lines is None:
                     font -= 0.5
                     continue
-                line_h = font  # aproximación razonable para Helvetica
+                line_h = font
                 total_h = line_h * len(lines) + (len(lines) - 1) * line_gap
                 if total_h <= avail_h:
                     # Centrado vertical
-                    top_y = y_bottom + (avail_h + total_h) / 2  # coordenada de la primera línea (arriba)
+                    top_y = y_bottom + (avail_h + total_h) / 2
                     canvas_obj.setFont(font_name, font)
                     if len(lines) == 1:
                         canvas_obj.drawCentredString(center_x, top_y - line_h + 1, lines[0])
@@ -3089,7 +3079,7 @@ def generar_etiqueta_detalle(pedido_id):
                     return
                 font -= 0.5
 
-            # Fallback: una línea mínima con elipsis
+            # Fallback: una línea con elipsis
             font = min_font
             s = txt
             ell = "…"
@@ -3101,22 +3091,12 @@ def generar_etiqueta_detalle(pedido_id):
 
         # ========= DIBUJO DE UNA ETIQUETA =========
         def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
-            # Cajas guía (debug)
-            if debug:
-                c.setLineWidth(0.3)
-                # borde de página
-                c.rect(0.5, 0.5, PAGE_W-1, PAGE_H-1)
-                # área producto
-                c.setDash(1, 2)
-                c.rect(M, PROD_Y_MIN, PAGE_W - 2*M, (PROD_Y_MAX - PROD_Y_MIN))
-                c.setDash()
-
             # LOGO
             if os.path.exists(logo_path):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Labels (derecha)
+            # Labels (derecha) - FUENTE ORIGINAL 9.5
             c.setFont("Helvetica-Bold", 9.5)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
@@ -3124,7 +3104,7 @@ def generar_etiqueta_detalle(pedido_id):
             c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
             c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
 
-            # Valores
+            # Valores - FUENTE ORIGINAL 9.5
             c.setFont("Helvetica", 9.5)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
@@ -3136,7 +3116,7 @@ def generar_etiqueta_detalle(pedido_id):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
 
-            # ---- Net Weight (↑20%) y bien separado ----
+            # ---- Net Weight - FUENTES GRANDES ORIGINALES ----
             c.setFont("Helvetica-Bold", 15.6)   # 13 * 1.2
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
             c.setFont("Helvetica-Bold", 16.8)   # 14 * 1.2
@@ -3148,7 +3128,7 @@ def generar_etiqueta_detalle(pedido_id):
             c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
             c.setDash()
 
-            # ---- Producto (área dedicada, 1–2 líneas, autoescala; ↑20%) ----
+            # ---- Producto - FUENTES GRANDES ORIGINALES (1-2 líneas) ----
             max_text_width = PAGE_W - (2 * M)
             draw_center_wrap_text(
                 c,
@@ -3161,17 +3141,17 @@ def generar_etiqueta_detalle(pedido_id):
                 min_font=12
             )
 
-            c.showPage()  # 1 etiqueta = 1 página
+            c.showPage()
 
         # --------- datos y render ----------
         cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
         for d in detalles:
             prod = d.producto.nombre if getattr(d, "producto", None) else "N/A"
-            temp = getattr(d.producto, "temperatura", None) or ""  # o temp fijo: "-18 °C"
+            temp = getattr(d.producto, "temperatura", None) or ""
             peso_val = float(d.peso or d.cajas or 0)
 
-            # Fechas como str (YYYY-MM-DD)
+            # Fechas
             f_fab = d.fecha_fabricacion
             f_exp = d.fecha_expiracion
             if hasattr(d, "fecha_fabricacion") and hasattr(d.fecha_fabricacion, "strftime"):
