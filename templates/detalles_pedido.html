@@ -242,11 +242,16 @@
 
 {% block scripts %}
 <script>
-/* ========= Config ========= */
+// ========================================================================
+// CONFIGURACIÓN Y REFERENCIAS
+// ========================================================================
 const LS_KEY = 'lastDetalle';
-const shelfLife = { /* idProducto : díasVidaÚtil */ };
+const shelfLife = { 
+    /* idProducto : díasVidaÚtil */ 
+    // Ejemplo: 1: 180, 2: 365, etc.
+};
 
-/* ========= Referencias ========= */
+// Referencias a elementos del formulario de detalles
 const $prod = document.getElementById('producto_id');
 const $peso = document.getElementById('peso');
 const $lote = document.getElementById('lote');
@@ -254,20 +259,29 @@ const $fab = document.getElementById('fecha_fabricacion');
 const $exp = document.getElementById('fecha_expiracion');
 const $form = document.getElementById('form-detalle');
 
-/* ========= Prefill (excepto Peso) ========= */
+// ========================================================================
+// PREFILL: Restaurar valores desde localStorage (excepto Peso)
+// ========================================================================
 window.addEventListener('DOMContentLoaded', () => {
     const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
     if (!saved) return;
 
+    // Restaurar valores guardados
     if (saved.producto_id) $prod.value = saved.producto_id;
     if (saved.lote) $lote.value = saved.lote;
     if (saved.fecha_fabricacion) $fab.value = saved.fecha_fabricacion;
     if (saved.fecha_expiracion) $exp.value = saved.fecha_expiracion;
 
-    if ($fab.value) calcExp(); // sincroniza expiración
+    // Sincronizar expiración si hay fecha de fabricación
+    if ($fab.value) calcExp();
+    
+    // Enfocar en peso para entrada rápida
+    $peso.focus();
 });
 
-/* ========= Calc expiración automática ========= */
+// ========================================================================
+// CÁLCULO AUTOMÁTICO DE FECHA DE EXPIRACIÓN
+// ========================================================================
 function calcExp() {
     if (!$fab.value) { 
         $exp.value = ''; 
@@ -277,6 +291,7 @@ function calcExp() {
     const id = +$prod.value;
     const days = shelfLife.hasOwnProperty(id) ? shelfLife[id] : 365;
     
+    // Si días = 0, el producto no tiene expiración
     if (days === 0) {
         $exp.value = ''; 
         $exp.disabled = true; 
@@ -289,15 +304,18 @@ function calcExp() {
     $exp.value = d.toISOString().slice(0, 10);
 }
 
+// Recalcular expiración cuando cambia la fecha de fabricación o el producto
 $fab.addEventListener('change', calcExp);
 $prod.addEventListener('change', calcExp);
 
-/* ========= Guardar en localStorage y limpiar Peso ========= */
-$form.addEventListener('submit', () => {
-    /* normaliza coma → punto */
+// ========================================================================
+// GUARDAR EN LOCALSTORAGE Y LIMPIAR PESO AL ENVIAR
+// ========================================================================
+$form.addEventListener('submit', (e) => {
+    // Normalizar coma → punto en el campo peso
     $peso.value = $peso.value.replace(',', '.').trim();
 
-    /* guarda lo demás */
+    // Guardar valores en localStorage (excepto peso)
     localStorage.setItem(LS_KEY, JSON.stringify({
         producto_id: $prod.value,
         lote: $lote.value.trim(),
@@ -305,14 +323,16 @@ $form.addEventListener('submit', () => {
         fecha_expiracion: $exp.value,
     }));
 
-    /* limpia peso después de que el form ha sido enviado */
+    // Limpiar peso después de que el form ha sido enviado
     setTimeout(() => { 
         $peso.value = ''; 
         $peso.focus(); // Mantener foco en peso para siguiente entrada
     }, 50);
 });
 
-// Navegación con Enter entre campos
+// ========================================================================
+// NAVEGACIÓN CON ENTER ENTRE CAMPOS
+// ========================================================================
 $prod.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -346,6 +366,119 @@ $exp.addEventListener('keypress', function(e) {
         e.preventDefault();
         $form.querySelector('button[type="submit"]').click();
     }
+});
+
+// ========================================================================
+// DESCARGA DE ETIQUETAS OPTIMIZADA PARA iOS
+// ========================================================================
+const formEtiquetas = document.getElementById('form-etiquetas-detalle');
+const btnGenerar = document.getElementById('btn-generar-etiquetas');
+
+if (formEtiquetas && btnGenerar) {
+    formEtiquetas.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const btnText = btnGenerar.querySelector('.btn-text');
+        const btnLoading = btnGenerar.querySelector('.btn-loading');
+        
+        // Validar campos de fecha
+        const fechaInicio = document.getElementById('fecha_inicio').value;
+        const fechaFin = document.getElementById('fecha_fin').value;
+        
+        if (!fechaInicio || !fechaFin) {
+            alert('Por favor complete las fechas de inicio y fin');
+            return;
+        }
+        
+        // UI feedback: mostrar estado de carga
+        btnGenerar.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoading) btnLoading.style.display = 'inline';
+        
+        try {
+            const formData = new FormData(this);
+            
+            // Hacer petición al servidor
+            const response = await fetch("{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Error generando etiquetas');
+            }
+            
+            // Obtener blob del PDF
+            const blob = await response.blob();
+            
+            // Extraer nombre del archivo desde Content-Disposition header
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'etiquetas.pdf';
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (match && match[1]) {
+                    filename = match[1].replace(/['"]/g, '');
+                }
+            }
+            
+            // Crear URL temporal del blob
+            const url = window.URL.createObjectURL(blob);
+            
+            // Crear enlace temporal y hacer click (mejor compatibilidad iOS)
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            
+            // iOS requiere que el enlace esté en el DOM
+            document.body.appendChild(a);
+            a.click();
+            
+            // Limpiar después de un breve delay
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 100);
+            
+            // Feedback visual de éxito
+            if (btnText) {
+                btnText.textContent = '¡Descargado!';
+                btnText.style.display = 'inline';
+            }
+            if (btnLoading) btnLoading.style.display = 'none';
+            
+            // Restaurar botón después de 2 segundos
+            setTimeout(() => {
+                if (btnText) btnText.textContent = 'Generar etiquetas';
+                btnGenerar.disabled = false;
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error generando etiquetas:', error);
+            alert('Error al generar las etiquetas: ' + error.message);
+            
+            // Restaurar estado del botón
+            if (btnText) btnText.style.display = 'inline';
+            if (btnLoading) btnLoading.style.display = 'none';
+            btnGenerar.disabled = false;
+        }
+    });
+}
+
+// ========================================================================
+// CONFIRMACIÓN AL ELIMINAR PRODUCTO DEL PEDIDO
+// ========================================================================
+document.querySelectorAll('form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const confirmMsg = this.getAttribute('data-confirm');
+        if (!confirm(confirmMsg)) {
+            e.preventDefault();
+        }
+    });
 });
 </script>
 {% endblock %}
