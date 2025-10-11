@@ -2994,42 +2994,43 @@ def generar_etiqueta_detalle(pedido_id):
         output = BytesIO()
         c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
 
-        # Margen interno pequeño (en puntos)
+        # Margen interno
         M = 8  # ~2.8 mm
 
-        # Bloque izquierdo: logo
+        # Logo (opcional)
         LOGO_X = M
         LOGO_W = 1.2 * inch
         LOGO_H = 1.2 * inch
-        LOGO_Y = PAGE_H - M - LOGO_H  # arriba
+        LOGO_Y = PAGE_H - M - LOGO_H
 
-        # Columna de etiquetas/valores (derecha)
-        LBL_XR = 2.8 * inch                   # x del extremo derecho de las etiquetas (right-aligned)
-        VAL_X  = LBL_XR + 0.12 * inch         # x de los valores
+        # Columna derecha
+        LBL_XR = 2.8 * inch            # fin (derecha) de los labels
+        VAL_X  = LBL_XR + 0.12 * inch  # inicio de valores
 
-        # Líneas Y (más separación para evitar solapes)
+        # Líneas Y (más separación)
         Y_CLIENT = PAGE_H - M - 0.30 * inch
-        Y_LOT    = Y_CLIENT - 0.22 * inch
-        Y_MFG    = Y_LOT    - 0.22 * inch
-        Y_EXP    = Y_MFG    - 0.22 * inch
-        Y_KEEP   = Y_EXP    - 0.22 * inch
+        Y_LOT    = Y_CLIENT - 0.24 * inch
+        Y_MFG    = Y_LOT    - 0.24 * inch
+        Y_EXP    = Y_MFG    - 0.24 * inch
+        Y_KEEP   = Y_EXP    - 0.24 * inch
 
-        # Peso (subimos un poco respecto a versiones previas)
-        Y_NETW   = M + 0.95 * inch
+        # Peso (un poco más arriba)
+        Y_NETW   = M + 1.05 * inch
         Y_NETWV  = Y_NETW
 
-        # Producto (más abajo, con ajuste de fuente)
-        Y_PROD   = M + 0.30 * inch
+        # Separador horizontal (entre datos/peso y producto)
+        SEP_Y    = M + 0.62 * inch
 
-        # Logo
+        # Producto (más abajo, zona “segura”)
+        Y_PROD   = M + 0.28 * inch
+
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
-        # Si quieres repetir una etiqueta por cada "caja", activa esto:
-        REPETIR_POR_CAJAS = False  # True => repite según d.cajas
+        # Opcional: repetir una etiqueta por cada "caja"
+        REPETIR_POR_CAJAS = False
 
-        # ---- helper: texto centrado con ajuste de tamaño para caber en ancho ----
+        # ---- helper: texto centrado con ajuste de tamaño ----
         def draw_center_fit_text(canvas_obj, text, center_x, y, max_width, max_font=16, min_font=10):
-            """Centra el texto y reduce tamaño si no cabe en max_width; recorta con '…' si es necesario."""
             text = (text or "").strip()
             if not text:
                 canvas_obj.setFont("Helvetica-Bold", max_font)
@@ -3043,21 +3044,21 @@ def generar_etiqueta_detalle(pedido_id):
                     canvas_obj.drawCentredString(center_x, y, text)
                     return
                 font -= 1
-            # Si ni así cabe, recorta con '…'
+            # recorte con "…"
             canvas_obj.setFont("Helvetica-Bold", min_font)
             ell = "…"
             while pdfmetrics.stringWidth(text + ell, "Helvetica-Bold", min_font) > max_width and len(text) > 1:
                 text = text[:-1]
             canvas_obj.drawCentredString(center_x, y, text + ell)
 
-        # ---- rutina para dibujar UNA etiqueta ----
+        # ---- dibuja UNA etiqueta ----
         def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
             # LOGO
             if os.path.exists(logo_path):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Etiquetas (alineadas a la derecha)
+            # Labels
             c.setFont("Helvetica-Bold", 9.5)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
@@ -3069,15 +3070,17 @@ def generar_etiqueta_detalle(pedido_id):
             c.setFont("Helvetica", 9.5)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
-            c.drawString(VAL_X, Y_MFG,    f_fab or "")
-            c.drawString(VAL_X, Y_EXP,    f_exp or "")
 
-            # Normalizamos símbolo de °C por si llega con variantes
-            if temp and isinstance(temp, str):
-                t = temp.replace(" oC", " °C").replace("° C", "°C")
-            else:
-                t = temp or ""
-            c.drawString(VAL_X, Y_KEEP,   t)
+            f_fab = f_fab or ""
+            f_exp = f_exp or ""
+            c.drawString(VAL_X, Y_MFG, f_fab)
+            c.drawString(VAL_X, Y_EXP, f_exp)
+
+            # °C normalizado
+            t = (temp or "")
+            if isinstance(t, str):
+                t = t.replace(" oC", " °C").replace("° C", "°C")
+            c.drawString(VAL_X, Y_KEEP, t)
 
             # ---- Net Weight ----
             c.setFont("Helvetica-Bold", 13)
@@ -3085,21 +3088,27 @@ def generar_etiqueta_detalle(pedido_id):
             c.setFont("Helvetica-Bold", 14)
             c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
-            # ---- Producto (centrado y con ajuste de ancho) ----
-            max_text_width = PAGE_W - (2 * M)  # ancho disponible entre márgenes
+            # ---- Separador fino ----
+            c.setLineWidth(0.5)
+            c.setDash(1, 2)  # línea punteada suave
+            c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
+            c.setDash()      # reset
+
+            # ---- Producto (centrado con ajuste) ----
+            max_text_width = PAGE_W - (2 * M)
             draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=16, min_font=10)
 
-            c.showPage()  # <-- una etiqueta = una página
+            c.showPage()  # 1 etiqueta = 1 página
 
         # --------- datos y render ----------
         cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
         for d in detalles:
             prod = d.producto.nombre if getattr(d, "producto", None) else "N/A"
-            temp = getattr(d.producto, "temperatura", None) or ""  # o usa temp = "-18 °C" si deseas fijo
+            temp = getattr(d.producto, "temperatura", None) or ""  # o temp fijo: "-18 °C"
             peso_val = float(d.peso or d.cajas or 0)
 
-            # Fechas: si son date/datetime, formatear; si ya son str, usar tal cual
+            # Fechas como str (YYYY-MM-DD)
             f_fab = d.fecha_fabricacion
             f_exp = d.fecha_expiracion
             if hasattr(d, "fecha_fabricacion") and hasattr(d.fecha_fabricacion, "strftime"):
@@ -3127,6 +3136,7 @@ def generar_etiqueta_detalle(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
 
 
 
