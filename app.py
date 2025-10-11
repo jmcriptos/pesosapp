@@ -8,7 +8,6 @@ from sqlalchemy import func, and_
 import io
 from flask import make_response
 import csv
-import io
 import tempfile
 import logging
 import pandas as pd
@@ -18,6 +17,7 @@ from dateutil.relativedelta import relativedelta
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
 from flask_migrate import Migrate
 import xlsxwriter
 import socket
