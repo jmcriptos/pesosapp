@@ -2950,9 +2950,10 @@ def eliminar_detalle_pedido(detalle_id):
     db.session.commit()
     flash('Detalle eliminado.', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
 # ---------------------------------------------------------------------
 # Generar etiquetas a partir de los DetallePedido de un pedido concreto
-# -> Ahora genera PDF en 4" x 2", 1 etiqueta por página (PDF Direct)
+# -> Genera PDF 4" x 2", una etiqueta por página (para PDF Direct)
 # ---------------------------------------------------------------------
 @app.route('/generar_etiqueta_detalle/<int:pedido_id>', methods=['POST'])
 @login_required
@@ -2987,7 +2988,6 @@ def generar_etiqueta_detalle(pedido_id):
             return jsonify({"error": "No hay detalles en ese rango"}), 404
 
         # --------- PDF 4" x 2" (una etiqueta por página) ----------
-        from reportlab.lib.units import inch
         PAGE_W = 4 * inch
         PAGE_H = 2 * inch
 
@@ -2997,42 +2997,67 @@ def generar_etiqueta_detalle(pedido_id):
         # Margen interno pequeño (en puntos)
         M = 8  # ~2.8 mm
 
-        # Posiciones base (coordenadas desde esquina inferior izquierda)
         # Bloque izquierdo: logo
         LOGO_X = M
-        LOGO_Y = PAGE_H - M - (1.2 * inch)   # arriba
         LOGO_W = 1.2 * inch
         LOGO_H = 1.2 * inch
+        LOGO_Y = PAGE_H - M - LOGO_H  # arriba
 
         # Columna de etiquetas/valores (derecha)
-        LBL_XR = 2.8 * inch     # x del extremo derecho de las etiquetas (right-aligned)
-        VAL_X  = LBL_XR + 0.12 * inch
+        LBL_XR = 2.8 * inch                   # x del extremo derecho de las etiquetas (right-aligned)
+        VAL_X  = LBL_XR + 0.12 * inch         # x de los valores
 
-        # Líneas Y para campos
+        # Líneas Y (más separación para evitar solapes)
         Y_CLIENT = PAGE_H - M - 0.30 * inch
-        Y_LOT   = Y_CLIENT - 0.22 * inch
-        Y_MFG   = Y_LOT    - 0.22 * inch
-        Y_EXP   = Y_MFG    - 0.22 * inch
-        Y_KEEP  = Y_EXP    - 0.22 * inch
+        Y_LOT    = Y_CLIENT - 0.22 * inch
+        Y_MFG    = Y_LOT    - 0.22 * inch
+        Y_EXP    = Y_MFG    - 0.22 * inch
+        Y_KEEP   = Y_EXP    - 0.22 * inch
 
-        # Peso
-        Y_NETW  = Y_KEEP   - 0.34 * inch
-        Y_NETWV = Y_NETW   # misma línea
+        # Peso (subimos un poco respecto a versiones previas)
+        Y_NETW   = M + 0.95 * inch
+        Y_NETWV  = Y_NETW
 
-        # Producto (centrado abajo)
-        Y_PROD  = M + 0.22 * inch
+        # Producto (más abajo, con ajuste de fuente)
+        Y_PROD   = M + 0.30 * inch
 
+        # Logo
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
         # Si quieres repetir una etiqueta por cada "caja", activa esto:
-        REPETIR_POR_CAJAS = False  # <- pon True si deseas una página por cada unidad en d.cajas
+        REPETIR_POR_CAJAS = False  # True => repite según d.cajas
 
+        # ---- helper: texto centrado con ajuste de tamaño para caber en ancho ----
+        def draw_center_fit_text(canvas_obj, text, center_x, y, max_width, max_font=16, min_font=10):
+            """Centra el texto y reduce tamaño si no cabe en max_width; recorta con '…' si es necesario."""
+            text = (text or "").strip()
+            if not text:
+                canvas_obj.setFont("Helvetica-Bold", max_font)
+                canvas_obj.drawCentredString(center_x, y, "")
+                return
+            font = max_font
+            while font >= min_font:
+                w = pdfmetrics.stringWidth(text, "Helvetica-Bold", font)
+                if w <= max_width:
+                    canvas_obj.setFont("Helvetica-Bold", font)
+                    canvas_obj.drawCentredString(center_x, y, text)
+                    return
+                font -= 1
+            # Si ni así cabe, recorta con '…'
+            canvas_obj.setFont("Helvetica-Bold", min_font)
+            ell = "…"
+            while pdfmetrics.stringWidth(text + ell, "Helvetica-Bold", min_font) > max_width and len(text) > 1:
+                text = text[:-1]
+            canvas_obj.drawCentredString(center_x, y, text + ell)
+
+        # ---- rutina para dibujar UNA etiqueta ----
         def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
             # LOGO
             if os.path.exists(logo_path):
-                c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H, preserveAspectRatio=True, mask='auto')
+                c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
+                            preserveAspectRatio=True, mask='auto')
 
-            # Texto
+            # Etiquetas (alineadas a la derecha)
             c.setFont("Helvetica-Bold", 9.5)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
@@ -3040,31 +3065,41 @@ def generar_etiqueta_detalle(pedido_id):
             c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
             c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
 
+            # Valores
             c.setFont("Helvetica", 9.5)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
-            c.drawString(VAL_X, Y_MFG,    (f_fab or ""))
-            c.drawString(VAL_X, Y_EXP,    (f_exp or ""))
-            c.drawString(VAL_X, Y_KEEP,   (temp or ""))  # ej.: "-18 °C"
+            c.drawString(VAL_X, Y_MFG,    f_fab or "")
+            c.drawString(VAL_X, Y_EXP,    f_exp or "")
 
+            # Normalizamos símbolo de °C por si llega con variantes
+            if temp and isinstance(temp, str):
+                t = temp.replace(" oC", " °C").replace("° C", "°C")
+            else:
+                t = temp or ""
+            c.drawString(VAL_X, Y_KEEP,   t)
+
+            # ---- Net Weight ----
             c.setFont("Helvetica-Bold", 13)
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
             c.setFont("Helvetica-Bold", 14)
             c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
-            c.setFont("Helvetica-Bold", 16)
-            c.drawCentredString(PAGE_W / 2, Y_PROD, prod or "N/A")
+            # ---- Producto (centrado y con ajuste de ancho) ----
+            max_text_width = PAGE_W - (2 * M)  # ancho disponible entre márgenes
+            draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=16, min_font=10)
 
             c.showPage()  # <-- una etiqueta = una página
 
         # --------- datos y render ----------
-        cli = pedido.cliente.nombre if pedido.cliente else ""
+        cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
+
         for d in detalles:
-            prod = d.producto.nombre if d.producto else "N/A"
-            temp = d.producto.temperatura or ""  # si quieres fijar -18 °C, pon temp = "-18 °C"
+            prod = d.producto.nombre if getattr(d, "producto", None) else "N/A"
+            temp = getattr(d.producto, "temperatura", None) or ""  # o usa temp = "-18 °C" si deseas fijo
             peso_val = float(d.peso or d.cajas or 0)
 
-            # Fechas: si vienen como string, úsalas tal cual; si son date, formatea
+            # Fechas: si son date/datetime, formatear; si ya son str, usar tal cual
             f_fab = d.fecha_fabricacion
             f_exp = d.fecha_expiracion
             if hasattr(d, "fecha_fabricacion") and hasattr(d.fecha_fabricacion, "strftime"):
@@ -3082,7 +3117,7 @@ def generar_etiqueta_detalle(pedido_id):
         c.save()
         output.seek(0)
 
-        nombre_cliente = (pedido.cliente.nombre if pedido.cliente else "cliente").replace(" ", "_").replace("/", "-")
+        nombre_cliente = (pedido.cliente.nombre if getattr(pedido, "cliente", None) else "cliente").replace(" ", "_").replace("/", "-")
         filename = f"etiquetas_4x2_pedido_{pedido_id}_{nombre_cliente}.pdf"
         return send_file(output,
                          as_attachment=True,
@@ -3092,6 +3127,7 @@ def generar_etiqueta_detalle(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
