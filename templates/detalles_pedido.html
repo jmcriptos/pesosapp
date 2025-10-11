@@ -192,22 +192,21 @@
             Generar etiquetas para cajas
         </div>
         <div class="mobile-card-body">
-            <form id="form-etiquetas-detalle" method="POST" action="{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}">
-                <!-- US01: hidden CSRF field -->
+            <form id="form-etiquetas-detalle">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div class="mobile-form-group">
                     <label class="mobile-form-label">Cliente:</label>
                     <input type="text" class="mobile-form-control" value="{{ pedido.cliente.nombre }}" readonly>
                 </div>
-
+    
                 {% set valid_fechas = [] %}
                 {% for detalle in pedido.detalles %}
                     {% if detalle.fecha_fabricacion %}
                         {% set _ = valid_fechas.append(detalle.fecha_fabricacion) %}
                     {% endif %}
                 {% endfor %}
-
+    
                 {% if valid_fechas %}
                     {% set f_inicio = valid_fechas|min %}
                     {% set f_fin = valid_fechas|max %}
@@ -215,29 +214,30 @@
                     {% set f_inicio = '' %}
                     {% set f_fin = '' %}
                 {% endif %}
-
-                <!-- Grid corregido sin </div> huérfano -->
+    
                 <div class="mobile-form-grid grid-template-cols gap-8">
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="fecha_inicio">Fecha de inicio:</label>
                         <input type="date" name="fecha_inicio" id="fecha_inicio" class="mobile-form-control" value="{{ f_inicio or '' }}" required>
                     </div>
-
+    
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="fecha_fin">Fecha de fin:</label>
                         <input type="date" name="fecha_fin" id="fecha_fin" class="mobile-form-control" value="{{ f_fin or '' }}" required>
                     </div>
                 </div>
-
-                <button type="submit" class="mobile-btn mobile-btn-primary btn-full-width">
+    
+                <button type="submit" class="mobile-btn mobile-btn-primary btn-full-width" id="btn-generar-etiquetas">
                     <i class="fas fa-tags"></i>
-                    Generar etiquetas
+                    <span class="btn-text">Generar etiquetas</span>
+                    <span class="btn-loading" style="display:none;">
+                        <i class="fas fa-spinner fa-spin"></i> Generando...
+                    </span>
                 </button>
             </form>
         </div>
     </div>
 
-</div>
 {% endblock %}
 
 {% block scripts %}
