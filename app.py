@@ -3007,23 +3007,23 @@ def generar_etiqueta_detalle(pedido_id):
         LBL_XR = 2.80 * inch
         VAL_X  = LBL_XR + 0.12 * inch
 
-        # Información superior (ajustada para dar más espacio)
-        Y_CLIENT = PAGE_H - M - 0.30 * inch
-        Y_LOT    = Y_CLIENT - 0.22 * inch
-        Y_MFG    = Y_LOT    - 0.22 * inch
-        Y_EXP    = Y_MFG    - 0.22 * inch
-        Y_KEEP   = Y_EXP    - 0.22 * inch
+        # Información superior (COMPACTADA - margen y espaciado reducidos)
+        Y_CLIENT = PAGE_H - M - 0.22 * inch  # Más arriba (antes 0.30")
+        Y_LOT    = Y_CLIENT - 0.18 * inch    # Espaciado reducido (antes 0.22")
+        Y_MFG    = Y_LOT    - 0.18 * inch
+        Y_EXP    = Y_MFG    - 0.18 * inch
+        Y_KEEP   = Y_EXP    - 0.18 * inch
 
-        # Net Weight - MUY ABAJO (zona media-baja)
-        Y_NETW   = M + 0.50 * inch  # Bajado mucho más
+        # Net Weight - MUY ABAJO (zona baja con más separación)
+        Y_NETW   = M + 0.46 * inch  # Bajado más (antes 0.50")
         Y_NETWV  = Y_NETW
 
         # Separador (entre Net Weight y Producto)
-        SEP_Y    = M + 0.36 * inch
+        SEP_Y    = M + 0.33 * inch
 
         # Área del producto (zona inferior con espacio para 1-2 líneas)
-        PROD_Y_MIN = M + 0.08 * inch
-        PROD_Y_MAX = M + 0.28 * inch
+        PROD_Y_MIN = M + 0.06 * inch
+        PROD_Y_MAX = M + 0.26 * inch
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
         REPETIR_POR_CAJAS = False
