@@ -3007,22 +3007,22 @@ def generar_etiqueta_detalle(pedido_id):
         LBL_XR = 2.6 * inch            # Más a la izquierda para mejor distribución
         VAL_X  = LBL_XR + 0.10 * inch  # inicio de valores
 
-        # Líneas Y - REAJUSTADAS (comenzando más arriba)
-        Y_CLIENT = PAGE_H - M - 0.18 * inch  # Más arriba
-        Y_LOT    = Y_CLIENT - 0.20 * inch    # Espaciado reducido
-        Y_MFG    = Y_LOT    - 0.20 * inch
-        Y_EXP    = Y_MFG    - 0.20 * inch
-        Y_KEEP   = Y_EXP    - 0.20 * inch
+        # Líneas Y - COMPACTAS EN LA PARTE SUPERIOR
+        Y_CLIENT = PAGE_H - M - 0.16 * inch  # Inicio más arriba
+        Y_LOT    = Y_CLIENT - 0.18 * inch    # Espaciado muy reducido
+        Y_MFG    = Y_LOT    - 0.18 * inch
+        Y_EXP    = Y_MFG    - 0.18 * inch
+        Y_KEEP   = Y_EXP    - 0.18 * inch
 
-        # Net Weight - MOVIDO A ZONA SEGURA (más abajo)
-        Y_NETW   = M + 0.70 * inch  # Bajado significativamente
+        # Net Weight - MUY ABAJO (zona media-inferior)
+        Y_NETW   = M + 0.52 * inch  # Bajado mucho más
         Y_NETWV  = Y_NETW
 
-        # Separador horizontal
-        SEP_Y    = M + 0.48 * inch  # Ajustado
+        # Separador horizontal (entre Net Weight y Producto)
+        SEP_Y    = M + 0.38 * inch  # Entre peso y producto
 
         # Producto (zona inferior)
-        Y_PROD   = M + 0.15 * inch  # Más abajo para dar espacio
+        Y_PROD   = M + 0.12 * inch  # Más abajo
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
@@ -3058,8 +3058,8 @@ def generar_etiqueta_detalle(pedido_id):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Labels - Fuente ligeramente reducida
-            c.setFont("Helvetica-Bold", 9)
+            # Labels - Fuente reducida para compactar
+            c.setFont("Helvetica-Bold", 8.5)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
             c.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
@@ -3067,7 +3067,7 @@ def generar_etiqueta_detalle(pedido_id):
             c.drawRightString(LBL_XR, Y_KEEP,   "Keep at:")  # Más corto
 
             # Valores
-            c.setFont("Helvetica", 9)
+            c.setFont("Helvetica", 8.5)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
 
@@ -3082,10 +3082,10 @@ def generar_etiqueta_detalle(pedido_id):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
 
-            # ---- Net Weight - REPOSICIONADO ----
-            c.setFont("Helvetica-Bold", 11)  # Reducido de 13
+            # ---- Net Weight - REPOSICIONADO Y REDUCIDO ----
+            c.setFont("Helvetica-Bold", 10)  # Reducido de 11
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
-            c.setFont("Helvetica-Bold", 12)  # Reducido de 14
+            c.setFont("Helvetica-Bold", 11)  # Reducido de 12
             c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
             # ---- Separador fino ----
@@ -3096,7 +3096,7 @@ def generar_etiqueta_detalle(pedido_id):
 
             # ---- Producto (centrado con ajuste) ----
             max_text_width = PAGE_W - (2 * M)
-            draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=14, min_font=9)
+            draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=13, min_font=9)
 
             c.showPage()  # 1 etiqueta = 1 página
 
@@ -3136,9 +3136,6 @@ def generar_etiqueta_detalle(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
-
-
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required
 def preparar_pedido(pedido_id):
