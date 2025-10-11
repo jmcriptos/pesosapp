@@ -2955,11 +2955,12 @@ def eliminar_detalle_pedido(detalle_id):
 # Generar etiquetas a partir de los DetallePedido de un pedido concreto
 # -> Genera PDF 4" x 2", una etiqueta por página (para PDF Direct)
 # ---------------------------------------------------------------------
-@app.route('/generar_etiqueta_detalle/<int:pedido_id>', methods=['POST'])
+@app.route('/generar_etiqueta_detalle/<int:pedido_id>', methods=['GET', 'POST'])
 @login_required
 def generar_etiqueta_detalle(pedido_id):
     """
     Genera un PDF con etiquetas 4x2 (una por página) para PDF Direct.
+    Soporta GET y POST para mejor compatibilidad con iOS.
     Formulario:
         - fecha_inicio (YYYY-MM-DD)
         - fecha_fin    (YYYY-MM-DD)
@@ -2967,16 +2968,32 @@ def generar_etiqueta_detalle(pedido_id):
     try:
         pedido = Pedido.query.get_or_404(pedido_id)
 
-        # --------- parámetros del formulario ----------
-        fecha_ini = request.form.get('fecha_inicio')
-        fecha_fin = request.form.get('fecha_fin')
+        # --------- Obtener parámetros desde GET o POST ----------
+        if request.method == 'GET':
+            fecha_ini = request.args.get('fecha_inicio')
+            fecha_fin = request.args.get('fecha_fin')
+        else:
+            fecha_ini = request.form.get('fecha_inicio')
+            fecha_fin = request.form.get('fecha_fin')
+
+        # Validar fechas
         if not fecha_ini or not fecha_fin:
-            return jsonify({"error": "Debe indicar fecha de inicio y fin"}), 400
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "Debe indicar fecha de inicio y fin"}), 400
+            flash("Debe indicar fecha de inicio y fin", "danger")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        fi = datetime.strptime(fecha_ini, '%Y-%m-%d')
-        ff = datetime.strptime(fecha_fin,  '%Y-%m-%d')
+        # Convertir fechas
+        try:
+            fi = datetime.strptime(fecha_ini, '%Y-%m-%d')
+            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        except ValueError:
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "Formato de fecha inválido. Use YYYY-MM-DD"}), 400
+            flash("Formato de fecha inválido", "danger")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        # --------- filtrar los detalles ----------
+        # --------- Filtrar los detalles ----------
         detalles = (DetallePedido.query
                     .filter_by(pedido_id=pedido_id)
                     .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
@@ -2985,7 +3002,10 @@ def generar_etiqueta_detalle(pedido_id):
                     .all())
 
         if not detalles:
-            return jsonify({"error": "No hay detalles en ese rango"}), 404
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "No hay detalles en ese rango de fechas"}), 404
+            flash("No hay detalles en ese rango de fechas", "warning")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
         # --------- PDF 4" x 2" (una etiqueta por página) ----------
         PAGE_W = 4 * inch
@@ -3007,21 +3027,21 @@ def generar_etiqueta_detalle(pedido_id):
         LBL_XR = 2.80 * inch
         VAL_X  = LBL_XR + 0.12 * inch
 
-        # Información superior (COMPACTADA - margen y espaciado reducidos)
-        Y_CLIENT = PAGE_H - M - 0.22 * inch  # Más arriba (antes 0.30")
-        Y_LOT    = Y_CLIENT - 0.18 * inch    # Espaciado reducido (antes 0.22")
+        # Información superior (COMPACTADA)
+        Y_CLIENT = PAGE_H - M - 0.22 * inch
+        Y_LOT    = Y_CLIENT - 0.18 * inch
         Y_MFG    = Y_LOT    - 0.18 * inch
         Y_EXP    = Y_MFG    - 0.18 * inch
         Y_KEEP   = Y_EXP    - 0.18 * inch
 
-        # Net Weight - MUY ABAJO (zona baja con más separación)
-        Y_NETW   = M + 0.46 * inch  # Bajado más (antes 0.50")
+        # Net Weight - MUY ABAJO
+        Y_NETW   = M + 0.46 * inch
         Y_NETWV  = Y_NETW
 
-        # Separador (entre Net Weight y Producto)
+        # Separador
         SEP_Y    = M + 0.33 * inch
 
-        # Área del producto (zona inferior con espacio para 1-2 líneas)
+        # Área del producto
         PROD_Y_MIN = M + 0.06 * inch
         PROD_Y_MAX = M + 0.26 * inch
 
@@ -3096,7 +3116,7 @@ def generar_etiqueta_detalle(pedido_id):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Labels (derecha) - FUENTE ORIGINAL 9.5
+            # Labels (derecha)
             c.setFont("Helvetica-Bold", 9.5)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
@@ -3104,7 +3124,7 @@ def generar_etiqueta_detalle(pedido_id):
             c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
             c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
 
-            # Valores - FUENTE ORIGINAL 9.5
+            # Valores
             c.setFont("Helvetica", 9.5)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
@@ -3116,19 +3136,19 @@ def generar_etiqueta_detalle(pedido_id):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
 
-            # ---- Net Weight - FUENTES GRANDES ORIGINALES ----
-            c.setFont("Helvetica-Bold", 15.6)   # 13 * 1.2
+            # Net Weight
+            c.setFont("Helvetica-Bold", 15.6)
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
-            c.setFont("Helvetica-Bold", 16.8)   # 14 * 1.2
+            c.setFont("Helvetica-Bold", 16.8)
             c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
-            # ---- Separador fino ----
+            # Separador fino
             c.setLineWidth(0.5)
             c.setDash(1, 2)
             c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
             c.setDash()
 
-            # ---- Producto - FUENTES GRANDES ORIGINALES (1-2 líneas) ----
+            # Producto (1-2 líneas)
             max_text_width = PAGE_W - (2 * M)
             draw_center_wrap_text(
                 c,
@@ -3137,13 +3157,13 @@ def generar_etiqueta_detalle(pedido_id):
                 y_bottom=PROD_Y_MIN,
                 y_top=PROD_Y_MAX,
                 max_width=max_text_width,
-                max_font=19.2,  # 16 * 1.2
+                max_font=19.2,
                 min_font=12
             )
 
             c.showPage()
 
-        # --------- datos y render ----------
+        # --------- Datos y render ----------
         cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
         for d in detalles:
@@ -3169,16 +3189,37 @@ def generar_etiqueta_detalle(pedido_id):
         c.save()
         output.seek(0)
 
+        # --------- Nombre del archivo ----------
         nombre_cliente = (pedido.cliente.nombre if getattr(pedido, "cliente", None) else "cliente").replace(" ", "_").replace("/", "-")
         filename = f"etiquetas_4x2_pedido_{pedido_id}_{nombre_cliente}.pdf"
-        return send_file(output,
-                         as_attachment=True,
-                         download_name=filename,
-                         mimetype="application/pdf")
+
+        # --------- Crear response con headers optimizados para iOS ----------
+        response = make_response(send_file(
+            output,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=filename
+        ))
+
+        # Headers críticos para iOS/Safari
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        return response
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Error generando etiquetas: {str(e)}")
+        
+        if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"error": str(e)}), 500
+        
+        flash(f"Error generando etiquetas: {str(e)}", "danger")
+        return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required
