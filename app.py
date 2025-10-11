@@ -3014,16 +3014,16 @@ def generar_etiqueta_detalle(pedido_id):
         Y_EXP    = Y_MFG    - 0.22 * inch
         Y_KEEP   = Y_EXP    - 0.22 * inch
 
-        # Net Weight - ZONA MEDIA (bien separado de arriba y abajo)
-        Y_NETW   = M + 0.68 * inch
+        # Net Weight - MUY ABAJO (zona media-baja)
+        Y_NETW   = M + 0.50 * inch  # Bajado mucho más
         Y_NETWV  = Y_NETW
 
         # Separador (entre Net Weight y Producto)
-        SEP_Y    = M + 0.52 * inch
+        SEP_Y    = M + 0.36 * inch
 
         # Área del producto (zona inferior con espacio para 1-2 líneas)
-        PROD_Y_MIN = M + 0.16 * inch
-        PROD_Y_MAX = M + 0.40 * inch
+        PROD_Y_MIN = M + 0.08 * inch
+        PROD_Y_MAX = M + 0.28 * inch
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
         REPETIR_POR_CAJAS = False
@@ -3179,7 +3179,6 @@ def generar_etiqueta_detalle(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required
