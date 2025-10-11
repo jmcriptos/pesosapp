@@ -2950,19 +2950,18 @@ def eliminar_detalle_pedido(detalle_id):
     db.session.commit()
     flash('Detalle eliminado.', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
-
 # ---------------------------------------------------------------------
 # Generar etiquetas a partir de los DetallePedido de un pedido concreto
+# -> Ahora genera PDF en 4" x 2", 1 etiqueta por página (PDF Direct)
 # ---------------------------------------------------------------------
 @app.route('/generar_etiqueta_detalle/<int:pedido_id>', methods=['POST'])
 @login_required
 def generar_etiqueta_detalle(pedido_id):
     """
-    Genera un PDF con etiquetas (mismo formato que en Facturación)
-    pero usando los DetallePedido de un pedido.
-    El formulario envía:
-        - fecha_inicio  (YYYY-MM-DD)
-        - fecha_fin     (YYYY-MM-DD)
+    Genera un PDF con etiquetas 4x2 (una por página) para PDF Direct.
+    Formulario:
+        - fecha_inicio (YYYY-MM-DD)
+        - fecha_fin    (YYYY-MM-DD)
     """
     try:
         pedido = Pedido.query.get_or_404(pedido_id)
@@ -2974,85 +2973,117 @@ def generar_etiqueta_detalle(pedido_id):
             return jsonify({"error": "Debe indicar fecha de inicio y fin"}), 400
 
         fi = datetime.strptime(fecha_ini, '%Y-%m-%d')
-        ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        ff = datetime.strptime(fecha_fin,  '%Y-%m-%d')
 
         # --------- filtrar los detalles ----------
         detalles = (DetallePedido.query
                     .filter_by(pedido_id=pedido_id)
                     .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
                     .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
+                    .order_by(DetallePedido.id.asc())
                     .all())
 
         if not detalles:
             return jsonify({"error": "No hay detalles en ese rango"}), 404
 
-        # --------- PDF de etiquetas ----------
-        output = BytesIO()
-        c = canvas.Canvas(output, pagesize=A4)
+        # --------- PDF 4" x 2" (una etiqueta por página) ----------
+        from reportlab.lib.units import inch
+        PAGE_W = 4 * inch
+        PAGE_H = 2 * inch
 
-        etiqueta_ancho = 100.16 / 25.4 * inch   # 4″ × 2″ (igual que facturación)
-        etiqueta_alto  =  50.80 / 25.4 * inch
-        page_w, page_h = A4
-        x_offset       = (page_w - etiqueta_ancho) / 2
-        y_top          = page_h - etiqueta_alto + 3
-        y_bottom       = y_top - etiqueta_alto - 3
-        por_pagina     = 2
-        contador       = 0
+        output = BytesIO()
+        c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
+
+        # Margen interno pequeño (en puntos)
+        M = 8  # ~2.8 mm
+
+        # Posiciones base (coordenadas desde esquina inferior izquierda)
+        # Bloque izquierdo: logo
+        LOGO_X = M
+        LOGO_Y = PAGE_H - M - (1.2 * inch)   # arriba
+        LOGO_W = 1.2 * inch
+        LOGO_H = 1.2 * inch
+
+        # Columna de etiquetas/valores (derecha)
+        LBL_XR = 2.8 * inch     # x del extremo derecho de las etiquetas (right-aligned)
+        VAL_X  = LBL_XR + 0.12 * inch
+
+        # Líneas Y para campos
+        Y_CLIENT = PAGE_H - M - 0.30 * inch
+        Y_LOT   = Y_CLIENT - 0.22 * inch
+        Y_MFG   = Y_LOT    - 0.22 * inch
+        Y_EXP   = Y_MFG    - 0.22 * inch
+        Y_KEEP  = Y_EXP    - 0.22 * inch
+
+        # Peso
+        Y_NETW  = Y_KEEP   - 0.34 * inch
+        Y_NETWV = Y_NETW   # misma línea
+
+        # Producto (centrado abajo)
+        Y_PROD  = M + 0.22 * inch
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
-        for d in detalles:
-            # posición vertical alterna (arriba/abajo)
-            y = y_top if contador % por_pagina == 0 else y_bottom
+        # Si quieres repetir una etiqueta por cada "caja", activa esto:
+        REPETIR_POR_CAJAS = False  # <- pon True si deseas una página por cada unidad en d.cajas
 
-            # -------- datos --------
-            cli = pedido.cliente.nombre
-            prod = d.producto.nombre if d.producto else "N/A"
-            temp = d.producto.temperatura or "N/A"
-            peso = d.peso or d.cajas or 0
-
-            # -------- dibujo --------
+        def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
             # LOGO
             if os.path.exists(logo_path):
-                c.drawImage(logo_path, x_offset + 10, y + 30,
-                            width=1.2 * inch, height=1.2 * inch)
+                c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H, preserveAspectRatio=True, mask='auto')
 
-            c.setFont("Helvetica-Bold", 10)
-            lbl_x = x_offset + 2.8 * inch
-            val_x = lbl_x + 0.2 * inch
+            # Texto
+            c.setFont("Helvetica-Bold", 9.5)
+            c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
+            c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
+            c.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
+            c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
+            c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
 
-            c.drawRightString(lbl_x, y + 1.70 * inch, "Client:")
-            c.drawRightString(lbl_x, y + 1.50 * inch, "Lot:")
-            c.drawRightString(lbl_x, y + 1.30 * inch, "Manufactured:")
-            c.drawRightString(lbl_x, y + 1.10 * inch, "Expiration:")
-            c.drawRightString(lbl_x, y + 0.90 * inch, "When Kept at:")
+            c.setFont("Helvetica", 9.5)
+            c.drawString(VAL_X, Y_CLIENT, cli or "")
+            c.drawString(VAL_X, Y_LOT,    lote or "")
+            c.drawString(VAL_X, Y_MFG,    (f_fab or ""))
+            c.drawString(VAL_X, Y_EXP,    (f_exp or ""))
+            c.drawString(VAL_X, Y_KEEP,   (temp or ""))  # ej.: "-18 °C"
 
-            c.drawString(val_x, y + 1.70 * inch, cli)
-            c.drawString(val_x, y + 1.50 * inch, d.lote or "")
-            c.drawString(val_x, y + 1.30 * inch, d.fecha_fabricacion or "")
-            c.drawString(val_x, y + 1.10 * inch, d.fecha_expiracion  or "")
-            c.drawString(val_x, y + 0.90 * inch, temp)
-
+            c.setFont("Helvetica-Bold", 13)
+            c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
             c.setFont("Helvetica-Bold", 14)
-            c.drawRightString(lbl_x, y + 0.50 * inch, "Net Weight:")
-            c.drawString(val_x,  y + 0.50 * inch, f"{peso:.2f}")
+            c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
-            c.setFont("Helvetica-Bold", 18)
-            c.drawCentredString(x_offset + etiqueta_ancho / 2,
-                                y + 0.15 * inch, prod)
+            c.setFont("Helvetica-Bold", 16)
+            c.drawCentredString(PAGE_W / 2, Y_PROD, prod or "N/A")
 
-            contador += 1
-            if contador % por_pagina == 0:
-                c.showPage()
+            c.showPage()  # <-- una etiqueta = una página
 
-        if contador % por_pagina != 0:
-            c.showPage()
+        # --------- datos y render ----------
+        cli = pedido.cliente.nombre if pedido.cliente else ""
+        for d in detalles:
+            prod = d.producto.nombre if d.producto else "N/A"
+            temp = d.producto.temperatura or ""  # si quieres fijar -18 °C, pon temp = "-18 °C"
+            peso_val = float(d.peso or d.cajas or 0)
+
+            # Fechas: si vienen como string, úsalas tal cual; si son date, formatea
+            f_fab = d.fecha_fabricacion
+            f_exp = d.fecha_expiracion
+            if hasattr(d, "fecha_fabricacion") and hasattr(d.fecha_fabricacion, "strftime"):
+                f_fab = d.fecha_fabricacion.strftime("%Y-%m-%d")
+            if hasattr(d, "fecha_expiracion") and hasattr(d.fecha_expiracion, "strftime"):
+                f_exp = d.fecha_expiracion.strftime("%Y-%m-%d")
+
+            if REPETIR_POR_CAJAS:
+                rep = int(d.cajas or 1)
+                for _ in range(max(1, rep)):
+                    dibujar_etiqueta(cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
+            else:
+                dibujar_etiqueta(cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
 
         c.save()
         output.seek(0)
 
-        nombre_cliente = pedido.cliente.nombre.replace(" ", "_").replace("/", "-")
-        filename = f"etiquetas_pedido_{pedido_id}_{nombre_cliente}.pdf"
+        nombre_cliente = (pedido.cliente.nombre if pedido.cliente else "cliente").replace(" ", "_").replace("/", "-")
+        filename = f"etiquetas_4x2_pedido_{pedido_id}_{nombre_cliente}.pdf"
         return send_file(output,
                          as_attachment=True,
                          download_name=filename,
