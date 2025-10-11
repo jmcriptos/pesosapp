@@ -2963,6 +2963,8 @@ def generar_etiqueta_detalle(pedido_id):
     Formulario:
         - fecha_inicio (YYYY-MM-DD)
         - fecha_fin    (YYYY-MM-DD)
+    Query opcional:
+        - debug=1  -> dibuja cajas guía (no para producción)
     """
     try:
         pedido = Pedido.query.get_or_404(pedido_id)
@@ -3000,13 +3002,13 @@ def generar_etiqueta_detalle(pedido_id):
 
         # Logo (opcional)
         LOGO_X = M
-        LOGO_W = 1.2 * inch
-        LOGO_H = 1.2 * inch
+        LOGO_W = 1.20 * inch
+        LOGO_H = 1.20 * inch
         LOGO_Y = PAGE_H - M - LOGO_H
 
         # Columna derecha (labels y valores)
-        LBL_XR = 2.80 * inch           # extremo derecho de las etiquetas (alineadas a la derecha)
-        VAL_X  = LBL_XR + 0.12 * inch  # inicio de valores
+        LBL_XR = 2.80 * inch            # extremo derecho de los títulos (alineados a la derecha)
+        VAL_X  = LBL_XR + 0.12 * inch   # inicio de valores
 
         # Retícula vertical (pasos ~0.22")
         Y_CLIENT = PAGE_H - M - 0.30 * inch
@@ -3015,16 +3017,16 @@ def generar_etiqueta_detalle(pedido_id):
         Y_EXP    = Y_MFG    - 0.22 * inch
         Y_KEEP   = Y_EXP    - 0.22 * inch
 
-        # Peso (↑ un poco para dar más área al producto)
-        Y_NETW   = M + 1.08 * inch
+        # Bloque de peso (subido más, para abrir aire con el producto)
+        Y_NETW   = M + 1.20 * inch   # ↑ estaba 1.05" / 1.10"
         Y_NETWV  = Y_NETW
 
-        # Separador (entre datos/peso y producto) — ligeramente más alto
-        SEP_Y    = M + 0.66 * inch
+        # Separador (entre datos/peso y producto)
+        SEP_Y    = M + 0.72 * inch   # ↑ separador algo más arriba
 
-        # Área del producto (rectángulo dedicado para 1–2 líneas)
-        PROD_Y_MIN = M + 0.18 * inch
-        PROD_Y_MAX = SEP_Y - 0.08 * inch
+        # Área del producto (zona fija, bien separada del peso)
+        PROD_Y_MIN = M + 0.16 * inch
+        PROD_Y_MAX = M + 0.36 * inch  # altura ~0.20"
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
@@ -3032,24 +3034,25 @@ def generar_etiqueta_detalle(pedido_id):
         REPETIR_POR_CAJAS = False
 
         # ========= HELPERS =========
+        debug = request.args.get("debug") == "1"
+
         from reportlab.pdfbase import pdfmetrics
 
         def draw_center_wrap_text(canvas_obj, text, center_x, y_bottom, y_top, max_width,
                                   font_name="Helvetica-Bold", max_font=19.2, min_font=12, line_gap=2):
             """
-            Dibuja 'text' centrado, permitiendo hasta 2 líneas, auto‐escalando para caber
-            en ancho (max_width) y alto (y_top - y_bottom). Centra verticalmente.
-            max_font=19.2 (↑20% de 16), min_font=12 (↑20% de 10).
+            Dibuja 'text' centrado, 1–2 líneas, auto-escala para caber en ancho (max_width)
+            y alto (y_top - y_bottom). Centrado vertical dentro del rectángulo.
             """
             txt = (text or "").strip()
             if not txt:
                 return
 
             def wrap_two_lines(s, font_size):
-                # intenta 1 línea
+                # 1 línea
                 if pdfmetrics.stringWidth(s, font_name, font_size) <= max_width:
                     return [s]
-                # intenta 2 líneas (corte “más equilibrado”)
+                # 2 líneas (corte equilibrado por ancho)
                 words = s.split()
                 best = None
                 for i in range(1, len(words)):
@@ -3058,41 +3061,56 @@ def generar_etiqueta_detalle(pedido_id):
                     w1 = pdfmetrics.stringWidth(l1, font_name, font_size)
                     w2 = pdfmetrics.stringWidth(l2, font_name, font_size)
                     if w1 <= max_width and w2 <= max_width:
-                        diff = abs(w1 - w2)  # balancea longitudes
+                        diff = abs(w1 - w2)
                         if best is None or diff < best[0]:
                             best = (diff, [l1, l2])
                 if best:
                     return best[1]
                 return None
 
+            avail_h = (y_top - y_bottom)
             font = max_font
             while font >= min_font:
                 lines = wrap_two_lines(txt, font)
                 if lines is None:
                     font -= 0.5
                     continue
-                line_h = font  # aprox. suficiente para Helvetica
+                line_h = font  # aproximación razonable para Helvetica
                 total_h = line_h * len(lines) + (len(lines) - 1) * line_gap
-                if total_h <= (y_top - y_bottom):
-                    start_y = y_bottom + ((y_top - y_bottom) - total_h) / 2 + (len(lines) - 1) * (line_h + line_gap)
+                if total_h <= avail_h:
+                    # Centrado vertical
+                    top_y = y_bottom + (avail_h + total_h) / 2  # coordenada de la primera línea (arriba)
                     canvas_obj.setFont(font_name, font)
-                    for idx, line in enumerate(lines[::-1]):  # dibuja de arriba a abajo
-                        canvas_obj.drawCentredString(center_x, start_y - idx * (line_h + line_gap), line)
+                    if len(lines) == 1:
+                        canvas_obj.drawCentredString(center_x, top_y - line_h + 1, lines[0])
+                    else:
+                        canvas_obj.drawCentredString(center_x, top_y - line_h + 1, lines[0])
+                        canvas_obj.drawCentredString(center_x, top_y - 2*line_h - line_gap + 1, lines[1])
                     return
                 font -= 0.5
 
-            # Fallback: una línea con elipsis
+            # Fallback: una línea mínima con elipsis
             font = min_font
-            ell = "…"
             s = txt
+            ell = "…"
             while pdfmetrics.stringWidth(s + ell, font_name, font) > max_width and len(s) > 1:
                 s = s[:-1]
-            y = y_bottom + (y_top - y_bottom - font) / 2
+            y = y_bottom + (avail_h - font) / 2
             canvas_obj.setFont(font_name, font)
             canvas_obj.drawCentredString(center_x, y, s + ell)
 
         # ========= DIBUJO DE UNA ETIQUETA =========
         def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
+            # Cajas guía (debug)
+            if debug:
+                c.setLineWidth(0.3)
+                # borde de página
+                c.rect(0.5, 0.5, PAGE_W-1, PAGE_H-1)
+                # área producto
+                c.setDash(1, 2)
+                c.rect(M, PROD_Y_MIN, PAGE_W - 2*M, (PROD_Y_MAX - PROD_Y_MIN))
+                c.setDash()
+
             # LOGO
             if os.path.exists(logo_path):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
@@ -3110,19 +3128,15 @@ def generar_etiqueta_detalle(pedido_id):
             c.setFont("Helvetica", 9.5)
             c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
+            c.drawString(VAL_X, Y_MFG,    f_fab or "")
+            c.drawString(VAL_X, Y_EXP,    f_exp or "")
 
-            f_fab = f_fab or ""
-            f_exp = f_exp or ""
-            c.drawString(VAL_X, Y_MFG, f_fab)
-            c.drawString(VAL_X, Y_EXP, f_exp)
-
-            # °C normalizado
             t = (temp or "")
             if isinstance(t, str):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
 
-            # ---- Net Weight (↑20%) ----
+            # ---- Net Weight (↑20%) y bien separado ----
             c.setFont("Helvetica-Bold", 15.6)   # 13 * 1.2
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
             c.setFont("Helvetica-Bold", 16.8)   # 14 * 1.2
@@ -3134,7 +3148,7 @@ def generar_etiqueta_detalle(pedido_id):
             c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
             c.setDash()
 
-            # ---- Producto (centrado, 1–2 líneas, autoescala; ↑20% en max/min) ----
+            # ---- Producto (área dedicada, 1–2 líneas, autoescala; ↑20%) ----
             max_text_width = PAGE_W - (2 * M)
             draw_center_wrap_text(
                 c,
@@ -3185,6 +3199,7 @@ def generar_etiqueta_detalle(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required
