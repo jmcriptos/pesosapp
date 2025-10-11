@@ -2994,6 +2994,7 @@ def generar_etiqueta_detalle(pedido_id):
         output = BytesIO()
         c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
 
+        # ========= DISEÑO / RETÍCULA =========
         # Margen interno
         M = 8  # ~2.8 mm
 
@@ -3003,67 +3004,101 @@ def generar_etiqueta_detalle(pedido_id):
         LOGO_H = 1.2 * inch
         LOGO_Y = PAGE_H - M - LOGO_H
 
-        # Columna derecha
-        LBL_XR = 2.8 * inch            # fin (derecha) de los labels
+        # Columna derecha (labels y valores)
+        LBL_XR = 2.80 * inch           # extremo derecho de las etiquetas (alineadas a la derecha)
         VAL_X  = LBL_XR + 0.12 * inch  # inicio de valores
 
-        # Líneas Y (con buen aire)
+        # Retícula vertical (pasos ~0.22")
         Y_CLIENT = PAGE_H - M - 0.30 * inch
-        Y_LOT    = Y_CLIENT - 0.24 * inch
-        Y_MFG    = Y_LOT    - 0.24 * inch
-        Y_EXP    = Y_MFG    - 0.24 * inch
-        Y_KEEP   = Y_EXP    - 0.24 * inch
+        Y_LOT    = Y_CLIENT - 0.22 * inch
+        Y_MFG    = Y_LOT    - 0.22 * inch
+        Y_EXP    = Y_MFG    - 0.22 * inch
+        Y_KEEP   = Y_EXP    - 0.22 * inch
 
-        # Peso (subido un poco para dejar más espacio al producto)
-        Y_NETW   = M + 1.10 * inch     # antes 1.05
+        # Peso (↑ un poco para dar más área al producto)
+        Y_NETW   = M + 1.08 * inch
         Y_NETWV  = Y_NETW
 
-        # Separador horizontal (entre datos/peso y producto)
-        SEP_Y    = M + 0.62 * inch
+        # Separador (entre datos/peso y producto) — ligeramente más alto
+        SEP_Y    = M + 0.66 * inch
 
-        # Producto (ligeramente más abajo, armoniza con el aumento de peso)
-        Y_PROD   = M + 0.26 * inch     # antes 0.28 (lo bajo 0.02")
+        # Área del producto (rectángulo dedicado para 1–2 líneas)
+        PROD_Y_MIN = M + 0.18 * inch
+        PROD_Y_MAX = SEP_Y - 0.08 * inch
 
         logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
         # Opcional: repetir una etiqueta por cada "caja"
         REPETIR_POR_CAJAS = False
 
-        # ---- helper: texto centrado con ajuste de tamaño (↑20% en max y min) ----
-        def draw_center_fit_text(canvas_obj, text, center_x, y, max_width, max_font=19.2, min_font=12):
+        # ========= HELPERS =========
+        from reportlab.pdfbase import pdfmetrics
+
+        def draw_center_wrap_text(canvas_obj, text, center_x, y_bottom, y_top, max_width,
+                                  font_name="Helvetica-Bold", max_font=19.2, min_font=12, line_gap=2):
             """
-            Centra el texto y reduce tamaño si no cabe en max_width; recorta con '…' si es necesario.
-            max_font 19.2 = 16 * 1.2  (↑20%)
-            min_font 12   = 10 * 1.2  (↑20%)
+            Dibuja 'text' centrado, permitiendo hasta 2 líneas, auto‐escalando para caber
+            en ancho (max_width) y alto (y_top - y_bottom). Centra verticalmente.
+            max_font=19.2 (↑20% de 16), min_font=12 (↑20% de 10).
             """
-            text = (text or "").strip()
-            if not text:
-                canvas_obj.setFont("Helvetica-Bold", max_font)
-                canvas_obj.drawCentredString(center_x, y, "")
+            txt = (text or "").strip()
+            if not txt:
                 return
+
+            def wrap_two_lines(s, font_size):
+                # intenta 1 línea
+                if pdfmetrics.stringWidth(s, font_name, font_size) <= max_width:
+                    return [s]
+                # intenta 2 líneas (corte “más equilibrado”)
+                words = s.split()
+                best = None
+                for i in range(1, len(words)):
+                    l1 = " ".join(words[:i])
+                    l2 = " ".join(words[i:])
+                    w1 = pdfmetrics.stringWidth(l1, font_name, font_size)
+                    w2 = pdfmetrics.stringWidth(l2, font_name, font_size)
+                    if w1 <= max_width and w2 <= max_width:
+                        diff = abs(w1 - w2)  # balancea longitudes
+                        if best is None or diff < best[0]:
+                            best = (diff, [l1, l2])
+                if best:
+                    return best[1]
+                return None
+
             font = max_font
             while font >= min_font:
-                w = pdfmetrics.stringWidth(text, "Helvetica-Bold", font)
-                if w <= max_width:
-                    canvas_obj.setFont("Helvetica-Bold", font)
-                    canvas_obj.drawCentredString(center_x, y, text)
+                lines = wrap_two_lines(txt, font)
+                if lines is None:
+                    font -= 0.5
+                    continue
+                line_h = font  # aprox. suficiente para Helvetica
+                total_h = line_h * len(lines) + (len(lines) - 1) * line_gap
+                if total_h <= (y_top - y_bottom):
+                    start_y = y_bottom + ((y_top - y_bottom) - total_h) / 2 + (len(lines) - 1) * (line_h + line_gap)
+                    canvas_obj.setFont(font_name, font)
+                    for idx, line in enumerate(lines[::-1]):  # dibuja de arriba a abajo
+                        canvas_obj.drawCentredString(center_x, start_y - idx * (line_h + line_gap), line)
                     return
-                font -= 0.5  # pasos finos para mejor ajuste
-            # recorte con "…"
-            canvas_obj.setFont("Helvetica-Bold", min_font)
-            ell = "…"
-            while pdfmetrics.stringWidth(text + ell, "Helvetica-Bold", min_font) > max_width and len(text) > 1:
-                text = text[:-1]
-            canvas_obj.drawCentredString(center_x, y, text + ell)
+                font -= 0.5
 
-        # ---- dibuja UNA etiqueta ----
+            # Fallback: una línea con elipsis
+            font = min_font
+            ell = "…"
+            s = txt
+            while pdfmetrics.stringWidth(s + ell, font_name, font) > max_width and len(s) > 1:
+                s = s[:-1]
+            y = y_bottom + (y_top - y_bottom - font) / 2
+            canvas_obj.setFont(font_name, font)
+            canvas_obj.drawCentredString(center_x, y, s + ell)
+
+        # ========= DIBUJO DE UNA ETIQUETA =========
         def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
             # LOGO
             if os.path.exists(logo_path):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Labels
+            # Labels (derecha)
             c.setFont("Helvetica-Bold", 9.5)
             c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
@@ -3087,7 +3122,7 @@ def generar_etiqueta_detalle(pedido_id):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
 
-            # ---- Net Weight (↑20% tamaños) ----
+            # ---- Net Weight (↑20%) ----
             c.setFont("Helvetica-Bold", 15.6)   # 13 * 1.2
             c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
             c.setFont("Helvetica-Bold", 16.8)   # 14 * 1.2
@@ -3095,13 +3130,22 @@ def generar_etiqueta_detalle(pedido_id):
 
             # ---- Separador fino ----
             c.setLineWidth(0.5)
-            c.setDash(1, 2)  # línea punteada suave
+            c.setDash(1, 2)
             c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
-            c.setDash()      # reset
+            c.setDash()
 
-            # ---- Producto (centrado con ajuste; max 19.2 pt) ----
+            # ---- Producto (centrado, 1–2 líneas, autoescala; ↑20% en max/min) ----
             max_text_width = PAGE_W - (2 * M)
-            draw_center_fit_text(c, prod or "N/A", PAGE_W / 2, Y_PROD, max_text_width, max_font=19.2, min_font=12)
+            draw_center_wrap_text(
+                c,
+                prod or "N/A",
+                center_x=PAGE_W / 2,
+                y_bottom=PROD_Y_MIN,
+                y_top=PROD_Y_MAX,
+                max_width=max_text_width,
+                max_font=19.2,  # 16 * 1.2
+                min_font=12
+            )
 
             c.showPage()  # 1 etiqueta = 1 página
 
