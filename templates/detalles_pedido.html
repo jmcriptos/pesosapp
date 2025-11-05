@@ -59,6 +59,125 @@
         max-width: 45%; /* antes 35 % */
     }
 }
+
+/* === Botón de editar === */
+.mobile-edit-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s ease;
+}
+
+.mobile-edit-btn:hover {
+    background: #0056b3;
+}
+
+/* === Modal de edición === */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.modal-overlay.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-container {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    margin-bottom: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+}
+
+.modal-btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.modal-btn-cancel:hover {
+    background: #5a6268;
+}
+
+.modal-btn-save {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.modal-btn-save:hover {
+    background: #218838;
+}
 </style>
 {% endblock %}
 
@@ -151,7 +270,7 @@
                             <th>Lote</th>
                             <th>F. Fab.</th>
                             <th>F. Exp.</th>
-                            <th>Acción</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -164,13 +283,23 @@
                                 <td>{{ detalle.fecha_fabricacion }}</td>
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
-                                    <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
-                                        <!-- US01: hidden CSRF field -->
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
-                                            <i class="fas fa-trash-alt"></i>
+                                    <div style="display: flex; gap: 8px; justify-content: center;">
+                                        <button
+                                            type="button"
+                                            class="mobile-edit-btn"
+                                            title="Editar producto"
+                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto.id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')"
+                                        >
+                                            <i class="fas fa-edit"></i>
                                         </button>
-                                    </form>
+                                        <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?" style="margin: 0;">
+                                            <!-- US01: hidden CSRF field -->
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -234,6 +363,62 @@
                         <i class="fas fa-spinner fa-spin"></i> Generando...
                     </span>
                 </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para editar detalle -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Editar Producto del Pedido</h3>
+                <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="form-edit-detalle" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="edit_detalle_id" name="detalle_id">
+
+                <div class="modal-body">
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_producto_id">Producto:</label>
+                        <div class="mobile-select-wrapper">
+                            {% set allowed_ids = [1,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22] %}
+                            <select name="producto_id" id="edit_producto_id" class="mobile-form-control" required>
+                                <option value="">-- Seleccionar --</option>
+                                {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
+                                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_peso">Peso:</label>
+                        <input type="number" step="0.01" name="peso" id="edit_peso" class="mobile-form-control" placeholder="0.00" required>
+                    </div>
+
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_lote">Lote:</label>
+                        <input type="text" name="lote" id="edit_lote" class="mobile-form-control" required>
+                    </div>
+
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_fecha_fabricacion">Fecha Fabricación:</label>
+                        <input type="date" name="fecha_fabricacion" id="edit_fecha_fabricacion" class="mobile-form-control" required>
+                    </div>
+
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_fecha_expiracion">Fecha Expiración:</label>
+                        <input type="date" name="fecha_expiracion" id="edit_fecha_expiracion" class="mobile-form-control" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="modal-btn-cancel" onclick="closeEditModal()">Cancelar</button>
+                    <button type="submit" class="modal-btn-save">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -479,6 +664,44 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
             e.preventDefault();
         }
     });
+});
+
+// ========================================================================
+// MODAL DE EDICIÓN DE DETALLE
+// ========================================================================
+function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp) {
+    // Llenar el formulario con los datos actuales
+    document.getElementById('edit_detalle_id').value = detalleId;
+    document.getElementById('edit_producto_id').value = productoId;
+    document.getElementById('edit_peso').value = peso;
+    document.getElementById('edit_lote').value = lote;
+    document.getElementById('edit_fecha_fabricacion').value = fechaFab;
+    document.getElementById('edit_fecha_expiracion').value = fechaExp;
+
+    // Configurar la acción del formulario
+    const form = document.getElementById('form-edit-detalle');
+    form.action = `/detalles_pedido/${detalleId}/editar`;
+
+    // Mostrar el modal
+    document.getElementById('editModal').classList.add('active');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+}
+
+// Cerrar modal al hacer clic fuera del contenedor
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEditModal();
+    }
+});
+
+// Cerrar modal con tecla Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEditModal();
+    }
 });
 </script>
 {% endblock %}

@@ -2951,6 +2951,61 @@ def eliminar_detalle_pedido(detalle_id):
     flash('Detalle eliminado.', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
+
+@app.route('/detalles_pedido/<int:detalle_id>/editar', methods=['POST'])
+@login_required
+def editar_detalle_pedido(detalle_id):
+    """
+    Edita un detalle de pedido existente.
+    Recibe: producto_id, peso, cajas, lote, fecha_fabricacion, fecha_expiracion
+    """
+    detalle = DetallePedido.query.get_or_404(detalle_id)
+    pedido_id = detalle.pedido_id
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    try:
+        # Obtener datos del formulario
+        producto_id       = int(request.form['producto_id'])
+        peso              = float(request.form.get('peso', 0) or 0)
+        cajas             = int(request.form.get('cajas', 0) or 0)
+        lote              = request.form['lote']
+        fecha_fabricacion = request.form['fecha_fabricacion']
+        fecha_expiracion  = request.form['fecha_expiracion']
+
+        # Recalcular precio unitario según la jerarquía
+        precio_unitario = obtener_precio_producto_cliente(
+                              pedido.cliente_id,
+                              producto_id,
+                              'base'
+                          )
+        if precio_unitario is None:
+            precio_unitario = obtener_precio_default_producto(
+                                  producto_id, 'base'
+                              ) or 0
+
+        # Recalcular subtotal
+        cantidad = cajas if cajas else peso
+        subtotal = round(precio_unitario * cantidad, 2)
+
+        # Actualizar el detalle
+        detalle.producto_id       = producto_id
+        detalle.peso              = peso
+        detalle.cajas             = cajas
+        detalle.lote              = lote
+        detalle.fecha_fabricacion = fecha_fabricacion
+        detalle.fecha_expiracion  = fecha_expiracion
+        detalle.precio_unitario   = precio_unitario
+        detalle.subtotal          = subtotal
+
+        db.session.commit()
+        flash('Detalle actualizado correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar el detalle: {str(e)}', 'danger')
+
+    return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+
 # ---------------------------------------------------------------------
 # Generar etiquetas a partir de los DetallePedido de un pedido concreto
 # -> Genera PDF 4" x 2", una etiqueta por página (para PDF Direct)
