@@ -3116,9 +3116,8 @@ def generar_etiqueta_detalle(pedido_id):
                 c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
-            # Labels (derecha)
+            # Labels (derecha) - SIN Client y Net Weight
             c.setFont("Helvetica-Bold", 9.5)
-            c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
             c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
             c.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
             c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
@@ -3126,7 +3125,6 @@ def generar_etiqueta_detalle(pedido_id):
 
             # Valores
             c.setFont("Helvetica", 9.5)
-            c.drawString(VAL_X, Y_CLIENT, cli or "")
             c.drawString(VAL_X, Y_LOT,    lote or "")
             c.drawString(VAL_X, Y_MFG,    f_fab or "")
             c.drawString(VAL_X, Y_EXP,    f_exp or "")
@@ -3135,12 +3133,6 @@ def generar_etiqueta_detalle(pedido_id):
             if isinstance(t, str):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
             c.drawString(VAL_X, Y_KEEP, t)
-
-            # Net Weight
-            c.setFont("Helvetica-Bold", 15.6)
-            c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
-            c.setFont("Helvetica-Bold", 16.8)
-            c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
             # Separador fino
             c.setLineWidth(0.5)
