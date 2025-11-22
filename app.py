@@ -4803,53 +4803,93 @@ def etiquetas_vencimiento():
     return render_template('form_generar_etiquetas.html', productos=productos)
 
 def generar_pdf_etiquetas(datos, cantidad):
+    """Genera PDF con etiquetas de 4x2 pulgadas, 2 por página, centradas arriba en A4"""
     output = BytesIO()
     c = canvas.Canvas(output, pagesize=A4)
-    etiqueta_ancho = 1.8 * inch
-    etiqueta_alto = 0.8 * inch
-    margen_horizontal = 0.2 * inch
-    margen_vertical = 0.1 * inch
-    separacion_grupos = 0.3 * inch
+
+    # Dimensiones de etiquetas: 4x2 pulgadas (tamaño exacto)
+    etiqueta_ancho = 4 * inch
+    etiqueta_alto = 2 * inch
+
+    # Espaciado entre las 2 etiquetas
+    separacion_horizontal = 0.2 * inch
+
+    # Margen desde la parte superior de la página
+    margen_superior = 0.5 * inch
+
+    # Radio de esquinas redondeadas
     radio_esquinas = 0.1 * inch
-    x_offset_start = (A4[0] - 2 * etiqueta_ancho - margen_horizontal) / 2
-    y_offset_start = A4[1] - inch
-    etiquetas_por_grupo = 4
-    etiquetas_por_pagina = 8
+
+    # Calcular posición X inicial para centrar las 2 etiquetas horizontalmente
+    ancho_total_etiquetas = (2 * etiqueta_ancho) + separacion_horizontal
+    x_offset_start = (A4[0] - ancho_total_etiquetas) / 2
+
+    # Posición Y inicial (desde arriba)
+    y_offset = A4[1] - margen_superior - etiqueta_alto
+
+    # Contador de etiquetas
     etiqueta_contador = 0
+    etiquetas_por_pagina = 2
+
     while cantidad > 0:
-        for fila in range(2):
-            y_offset = y_offset_start - fila * (2 * etiqueta_alto + margen_vertical + separacion_grupos if fila == 1 else 0)
-            for sub_fila in range(2):
-                for sub_columna in range(2):
-                    if cantidad <= 0:
-                        break
-                    etiqueta_x = x_offset_start + sub_columna * (etiqueta_ancho + margen_horizontal)
-                    etiqueta_y = y_offset - sub_fila * (etiqueta_alto + margen_vertical)
-                    c.roundRect(etiqueta_x, etiqueta_y, etiqueta_ancho, etiqueta_alto, radius=radio_esquinas)
-                    dibujar_etiqueta(c, etiqueta_x, etiqueta_y, etiqueta_ancho, etiqueta_alto, datos)
-                    etiqueta_contador += 1
-                    cantidad -= 1
+        # Dibujar hasta 2 etiquetas por página
+        for columna in range(etiquetas_por_pagina):
+            if cantidad <= 0:
+                break
+
+            # Calcular posición X de cada etiqueta
+            etiqueta_x = x_offset_start + columna * (etiqueta_ancho + separacion_horizontal)
+
+            # Dibujar borde de la etiqueta
+            c.roundRect(etiqueta_x, y_offset, etiqueta_ancho, etiqueta_alto, radius=radio_esquinas)
+
+            # Dibujar contenido de la etiqueta
+            dibujar_etiqueta(c, etiqueta_x, y_offset, etiqueta_ancho, etiqueta_alto, datos)
+
+            etiqueta_contador += 1
+            cantidad -= 1
+
+        # Si quedan más etiquetas, crear nueva página
         if cantidad > 0:
             c.showPage()
+
     c.save()
     output.seek(0)
     return send_file(output, as_attachment=True, download_name="etiquetas_vencimiento.pdf", mimetype='application/pdf')
 
 def dibujar_etiqueta(c, x_offset, y_offset, etiqueta_ancho, etiqueta_alto, datos):
-    c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(x_offset + etiqueta_ancho / 2, y_offset + etiqueta_alto - 0.15 * inch, datos["nombre_producto"])
-    c.setFont("Helvetica", 7)
-    label_x = x_offset + 0.1 * inch
-    value_x = x_offset + etiqueta_ancho - 0.1 * inch
-    line_height = 0.14 * inch
-    c.drawString(label_x, y_offset + etiqueta_alto - 0.3 * inch, "Lot:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - 0.3 * inch, datos['lote'])
-    c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + line_height), "Manufactured:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + line_height), datos['fecha_fabricacion'])
-    c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + 2 * line_height), "Expiration:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + 2 * line_height), datos['fecha_expiracion'])
-    c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + 3 * line_height), "When Kept at:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + 3 * line_height), datos['temperatura'])
+    """Dibuja el contenido de una etiqueta de 4x2 pulgadas"""
+
+    # Nombre del producto (título) - más grande
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(x_offset + etiqueta_ancho / 2, y_offset + etiqueta_alto - 0.35 * inch, datos["nombre_producto"])
+
+    # Contenido de la etiqueta - tamaño de fuente aumentado para 4x2 pulgadas
+    c.setFont("Helvetica", 12)
+
+    # Márgenes internos
+    label_x = x_offset + 0.2 * inch
+    value_x = x_offset + etiqueta_ancho - 0.2 * inch
+
+    # Altura de línea ajustada para el nuevo tamaño
+    line_height = 0.3 * inch
+    inicio_y = y_offset + etiqueta_alto - 0.7 * inch
+
+    # Lot (Lote)
+    c.drawString(label_x, inicio_y, "Lot:")
+    c.drawRightString(value_x, inicio_y, datos['lote'])
+
+    # Manufactured (Fecha de fabricación)
+    c.drawString(label_x, inicio_y - line_height, "Manufactured:")
+    c.drawRightString(value_x, inicio_y - line_height, datos['fecha_fabricacion'])
+
+    # Expiration (Fecha de expiración)
+    c.drawString(label_x, inicio_y - 2 * line_height, "Expiration:")
+    c.drawRightString(value_x, inicio_y - 2 * line_height, datos['fecha_expiracion'])
+
+    # When Kept at (Temperatura)
+    c.drawString(label_x, inicio_y - 3 * line_height, "When Kept at:")
+    c.drawRightString(value_x, inicio_y - 3 * line_height, datos['temperatura'])
 
 
 try:
