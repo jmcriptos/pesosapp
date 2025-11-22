@@ -4835,8 +4835,8 @@ def generar_pdf_etiquetas(datos, cantidad):
     LBL_XR = 2.80 * inch
     VAL_X = LBL_XR + 0.12 * inch
 
-    # Posiciones Y (sin Cliente ni Net Weight, sin margen superior)
-    Y_LOT = PAGE_H - 0.22 * inch  # Sin margen superior
+    # Posiciones Y (sin Cliente ni Net Weight, pegado al borde superior)
+    Y_LOT = PAGE_H - 0.12 * inch  # Pegado al borde superior (reducido de 0.22)
     Y_MFG = Y_LOT - 0.18 * inch
     Y_EXP = Y_MFG - 0.18 * inch
     Y_KEEP = Y_EXP - 0.18 * inch
