@@ -4901,36 +4901,36 @@ def generar_pdf_etiquetas(datos, cantidad):
         canvas_obj.setFont(font_name, font)
         canvas_obj.drawCentredString(center_x, y, s + ell)
 
-    def dibujar_etiqueta_venc(y_base):
-        """Dibuja una etiqueta de vencimiento en la posición Y especificada"""
+    def dibujar_etiqueta_venc(x_base, y_base):
+        """Dibuja una etiqueta de vencimiento en la posición X,Y especificada"""
         # LOGO
         if os.path.exists(logo_path):
-            c.drawImage(logo_path, LOGO_X, y_base + LOGO_Y,
+            c.drawImage(logo_path, x_base + LOGO_X, y_base + LOGO_Y,
                        width=LOGO_W, height=LOGO_H,
                        preserveAspectRatio=True, mask='auto')
 
         # Labels (sin Client)
         c.setFont("Helvetica-Bold", 9.5)
-        c.drawRightString(LBL_XR, y_base + Y_LOT, "Lot:")
-        c.drawRightString(LBL_XR, y_base + Y_MFG, "Manufactured:")
-        c.drawRightString(LBL_XR, y_base + Y_EXP, "Expiration:")
-        c.drawRightString(LBL_XR, y_base + Y_KEEP, "When Kept at:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_LOT, "Lot:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_MFG, "Manufactured:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_EXP, "Expiration:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_KEEP, "When Kept at:")
 
         # Valores
         c.setFont("Helvetica", 9.5)
-        c.drawString(VAL_X, y_base + Y_LOT, datos['lote'] or "")
-        c.drawString(VAL_X, y_base + Y_MFG, datos['fecha_fabricacion'] or "")
-        c.drawString(VAL_X, y_base + Y_EXP, datos['fecha_expiracion'] or "")
+        c.drawString(x_base + VAL_X, y_base + Y_LOT, datos['lote'] or "")
+        c.drawString(x_base + VAL_X, y_base + Y_MFG, datos['fecha_fabricacion'] or "")
+        c.drawString(x_base + VAL_X, y_base + Y_EXP, datos['fecha_expiracion'] or "")
 
         temp = datos.get('temperatura', '')
         if isinstance(temp, str):
             temp = temp.replace(" oC", " °C").replace("° C", "°C")
-        c.drawString(VAL_X, y_base + Y_KEEP, temp)
+        c.drawString(x_base + VAL_X, y_base + Y_KEEP, temp)
 
         # Separador (sin Net Weight)
         c.setLineWidth(0.5)
         c.setDash(1, 2)
-        c.line(M, y_base + SEP_Y, PAGE_W - M, y_base + SEP_Y)
+        c.line(x_base + M, y_base + SEP_Y, x_base + PAGE_W - M, y_base + SEP_Y)
         c.setDash()
 
         # Producto
@@ -4938,7 +4938,7 @@ def generar_pdf_etiquetas(datos, cantidad):
         draw_center_wrap_text(
             c,
             datos.get('nombre_producto', 'N/A'),
-            center_x=PAGE_W / 2,
+            center_x=x_base + PAGE_W / 2,
             y_bottom=y_base + PROD_Y_MIN,
             y_top=y_base + PROD_Y_MAX,
             max_width=max_text_width,
@@ -4948,20 +4948,25 @@ def generar_pdf_etiquetas(datos, cantidad):
             line_gap=2
         )
 
-    # Generar etiquetas: 2 por página (una arriba, otra abajo, sin margen superior)
-    page_height = letter[1]
+    # Generar etiquetas: 2 por página (centradas horizontalmente, arriba sin margen)
+    page_width = letter[0]  # 8.5"
+    page_height = letter[1]  # 11"
+
+    # Centrar horizontalmente: (8.5" - 4") / 2 = 2.25"
+    x_centrado = (page_width - PAGE_W) / 2
+
     etiqueta_num = 0
 
     while etiqueta_num < cantidad:
-        # Primera etiqueta: arriba (sin margen superior)
+        # Primera etiqueta: arriba (sin margen superior, centrada)
         y_pos_1 = page_height - PAGE_H
-        dibujar_etiqueta_venc(y_pos_1)
+        dibujar_etiqueta_venc(x_centrado, y_pos_1)
         etiqueta_num += 1
 
-        # Segunda etiqueta: abajo
+        # Segunda etiqueta: abajo (centrada)
         if etiqueta_num < cantidad:
             y_pos_2 = page_height - 2 * PAGE_H
-            dibujar_etiqueta_venc(y_pos_2)
+            dibujar_etiqueta_venc(x_centrado, y_pos_2)
             etiqueta_num += 1
 
         # Nueva página
