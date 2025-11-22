@@ -9,86 +9,40 @@
 {% block content %}
 <div class="container">
     <h2>Generar Etiquetas de Productos</h2>
-    
+
     <form method="POST" class="form-mb-1">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# US01: hidden CSRF field #}
-        
+
         <div class="form-group">
             <label for="producto_id">Producto:</label>
             <select name="producto_id" id="producto_id" required>
                 <option value="">Seleccione un producto</option>
                 {% for producto in productos %}
-                <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
+                <option value="{{ producto.id }}">{{ producto.nombre }}</option>
                 {% endfor %}
             </select>
         </div>
-        
+
         <div class="form-group">
-            <label for="cantidad">Cantidad de etiquetas:</label>
-            <input type="number" name="cantidad" id="cantidad" min="1" max="100" value="1" required>
+            <label for="lote">Lote:</label>
+            <input type="text" name="lote" id="lote" required>
         </div>
-        
+
         <div class="form-group">
-            <label for="formato">Formato de etiqueta:</label>
-            <select name="formato" id="formato" required>
-                <option value="pequena">Pequeña (40x20mm)</option>
-                <option value="mediana">Mediana (60x30mm)</option>
-                <option value="grande">Grande (80x40mm)</option>
-            </select>
+            <label for="fecha_fabricacion">Fecha de Fabricación:</label>
+            <input type="date" name="fecha_fabricacion" id="fecha_fabricacion" required>
         </div>
-        
+
         <div class="form-group">
-            <label for="incluir_codigo">Incluir código de barras:</label>
-            <input type="checkbox" name="incluir_codigo" id="incluir_codigo" checked>
+            <label for="cantidad_etiquetas">Cantidad de etiquetas:</label>
+            <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas" min="1" max="100" value="1" required>
         </div>
-        
-        <div class="form-group">
-            <label for="incluir_precio">Incluir precio:</label>
-            <input type="checkbox" name="incluir_precio" id="incluir_precio" checked>
-        </div>
-        
-        <div class="form-group">
-            <label for="incluir_fecha">Incluir fecha de impresión:</label>
-            <input type="checkbox" name="incluir_fecha" id="incluir_fecha">
-        </div>
-        
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Generar Etiquetas</button>
-            <a href="{{ url_for('productos') }}" class="btn btn-secondary">Cancelar</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
         </div>
     </form>
-    
-    {% if etiquetas_generadas %}
-    <div class="etiquetas-resultado">
-        <h3>Etiquetas Generadas</h3>
-        <div class="etiquetas-grid">
-            {% for etiqueta in etiquetas_generadas %}
-            <div class="etiqueta-item">
-                <div class="etiqueta-header">
-                    <h4>{{ etiqueta.producto.nombre }}</h4>
-                    <span class="etiqueta-codigo">{{ etiqueta.producto.codigo }}</span>
-                </div>
-                <div class="etiqueta-body">
-                    {% if etiqueta.incluir_precio %}
-                    <div class="etiqueta-precio">${{ "%.2f"|format(etiqueta.producto.precio) }}</div>
-                    {% endif %}
-                    {% if etiqueta.incluir_fecha %}
-                    <div class="etiqueta-fecha">{{ etiqueta.fecha_impresion.strftime('%d/%m/%Y') }}</div>
-                    {% endif %}
-                </div>
-                <div class="etiqueta-actions">
-                    <button class="btn btn-sm btn-primary" onclick="imprimirEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-print"></i> Imprimir
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="descargarEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-download"></i> Descargar
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
 
@@ -279,34 +233,26 @@ h2 {
 
 {% block scripts %}
 <script>
-function imprimirEtiqueta(etiquetaId) {
-    // Lógica para imprimir etiqueta
-    console.log('Imprimiendo etiqueta:', etiquetaId);
-    // Aquí se implementaría la lógica de impresión
-}
-
-function descargarEtiqueta(etiquetaId) {
-    // Lógica para descargar etiqueta
-    console.log('Descargando etiqueta:', etiquetaId);
-    // Aquí se implementaría la lógica de descarga
-}
-
 // Validación del formulario
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
-    const cantidadInput = document.getElementById('cantidad');
-    
+    const cantidadInput = document.getElementById('cantidad_etiquetas');
+    const fechaFabInput = document.getElementById('fecha_fabricacion');
+    const productoSelect = document.getElementById('producto_id');
+
+    // Validar cantidad
     form.addEventListener('submit', function(e) {
         const cantidad = parseInt(cantidadInput.value);
-        
+
         if (cantidad < 1 || cantidad > 100) {
             e.preventDefault();
             alert('La cantidad debe estar entre 1 y 100');
             cantidadInput.focus();
+            return;
         }
     });
-    
-    // Actualizar etiqueta de cantidad
+
+    // Actualizar límites de cantidad
     cantidadInput.addEventListener('input', function() {
         const valor = parseInt(this.value);
         if (valor > 100) {
@@ -315,6 +261,12 @@ document.addEventListener('DOMContentLoaded', function() {
             this.value = 1;
         }
     });
+
+    // Establecer fecha de hoy por defecto
+    if (!fechaFabInput.value) {
+        const hoy = new Date().toISOString().split('T')[0];
+        fechaFabInput.value = hoy;
+    }
 });
 </script>
 {% endblock %}
