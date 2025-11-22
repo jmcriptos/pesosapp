@@ -3007,28 +3007,33 @@ def generar_etiqueta_detalle(pedido_id):
             flash("No hay detalles en ese rango de fechas", "warning")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        # --------- PDF 4" x 2" (una etiqueta por página) ----------
-        PAGE_W = 4 * inch
-        PAGE_H = 2 * inch
+        # --------- PDF A4 con 2 etiquetas 4" x 2" apiladas verticalmente ----------
+        from reportlab.lib.pagesizes import A4
+
+        PAGE_W, PAGE_H = A4  # A4 = 8.27" x 11.69"
+
+        # Dimensiones de cada etiqueta
+        LABEL_W = 4 * inch
+        LABEL_H = 2 * inch
 
         output = BytesIO()
         c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
 
-        # ========= DISEÑO / RETÍCULA =========
-        M = 8  # Margen interno
+        # ========= DISEÑO / RETÍCULA (para cada etiqueta 4" x 2") =========
+        M = 8  # Margen interno de cada etiqueta
 
         # Logo
         LOGO_X = M
         LOGO_W = 1.20 * inch
         LOGO_H = 1.20 * inch
-        LOGO_Y = PAGE_H - M - LOGO_H
+        LOGO_Y = LABEL_H - M - LOGO_H
 
         # Columna derecha (labels y valores)
         LBL_XR = 2.80 * inch
         VAL_X  = LBL_XR + 0.12 * inch
 
         # Información superior (COMPACTADA)
-        Y_CLIENT = PAGE_H - M - 0.22 * inch
+        Y_CLIENT = LABEL_H - M - 0.22 * inch
         Y_LOT    = Y_CLIENT - 0.18 * inch
         Y_MFG    = Y_LOT    - 0.18 * inch
         Y_EXP    = Y_MFG    - 0.18 * inch
@@ -3110,61 +3115,77 @@ def generar_etiqueta_detalle(pedido_id):
             canvas_obj.drawCentredString(center_x, y, s + ell)
 
         # ========= DIBUJO DE UNA ETIQUETA =========
-        def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
+        def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso, offset_x, offset_y):
+            """
+            Dibuja una etiqueta de 4" x 2" en la posición especificada por offset_x y offset_y.
+            """
             # LOGO
             if os.path.exists(logo_path):
-                c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
-                            preserveAspectRatio=True, mask='auto')
+                c.drawImage(logo_path, offset_x + LOGO_X, offset_y + LOGO_Y,
+                           width=LOGO_W, height=LOGO_H,
+                           preserveAspectRatio=True, mask='auto')
 
             # Labels (derecha)
             c.setFont("Helvetica-Bold", 9.5)
-            c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
-            c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
-            c.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
-            c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
-            c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
+            c.drawRightString(offset_x + LBL_XR, offset_y + Y_CLIENT, "Client:")
+            c.drawRightString(offset_x + LBL_XR, offset_y + Y_LOT,    "Lot:")
+            c.drawRightString(offset_x + LBL_XR, offset_y + Y_MFG,    "Manufactured:")
+            c.drawRightString(offset_x + LBL_XR, offset_y + Y_EXP,    "Expiration:")
+            c.drawRightString(offset_x + LBL_XR, offset_y + Y_KEEP,   "When Kept at:")
 
             # Valores
             c.setFont("Helvetica", 9.5)
-            c.drawString(VAL_X, Y_CLIENT, cli or "")
-            c.drawString(VAL_X, Y_LOT,    lote or "")
-            c.drawString(VAL_X, Y_MFG,    f_fab or "")
-            c.drawString(VAL_X, Y_EXP,    f_exp or "")
+            c.drawString(offset_x + VAL_X, offset_y + Y_CLIENT, cli or "")
+            c.drawString(offset_x + VAL_X, offset_y + Y_LOT,    lote or "")
+            c.drawString(offset_x + VAL_X, offset_y + Y_MFG,    f_fab or "")
+            c.drawString(offset_x + VAL_X, offset_y + Y_EXP,    f_exp or "")
 
             t = (temp or "")
             if isinstance(t, str):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
-            c.drawString(VAL_X, Y_KEEP, t)
+            c.drawString(offset_x + VAL_X, offset_y + Y_KEEP, t)
 
             # Net Weight
             c.setFont("Helvetica-Bold", 15.6)
-            c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
+            c.drawRightString(offset_x + LBL_XR, offset_y + Y_NETW, "Net Weight:")
             c.setFont("Helvetica-Bold", 16.8)
-            c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
+            c.drawString(offset_x + VAL_X, offset_y + Y_NETWV, f"{peso:.2f}")
 
             # Separador fino
             c.setLineWidth(0.5)
             c.setDash(1, 2)
-            c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
+            c.line(offset_x + M, offset_y + SEP_Y, offset_x + LABEL_W - M, offset_y + SEP_Y)
             c.setDash()
 
             # Producto (1-2 líneas)
-            max_text_width = PAGE_W - (2 * M)
+            max_text_width = LABEL_W - (2 * M)
             draw_center_wrap_text(
                 c,
                 prod or "N/A",
-                center_x=PAGE_W / 2,
-                y_bottom=PROD_Y_MIN,
-                y_top=PROD_Y_MAX,
+                center_x=offset_x + LABEL_W / 2,
+                y_bottom=offset_y + PROD_Y_MIN,
+                y_top=offset_y + PROD_Y_MAX,
                 max_width=max_text_width,
                 max_font=19.2,
                 min_font=12
             )
 
-            c.showPage()
-
         # --------- Datos y render ----------
         cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
+
+        # Calcular posiciones para 2 etiquetas apiladas verticalmente en A4
+        # Centrar las etiquetas horizontalmente en la página A4
+        offset_x = (PAGE_W - LABEL_W) / 2
+
+        # Posiciones Y para las dos etiquetas (con espacio entre ellas)
+        spacing = 0.5 * inch  # Espacio entre etiquetas
+        total_height = 2 * LABEL_H + spacing
+        start_y = (PAGE_H - total_height) / 2
+
+        offset_y_top = start_y + LABEL_H + spacing
+        offset_y_bottom = start_y
+
+        etiquetas_a_imprimir = []
 
         for d in detalles:
             prod = d.producto.nombre if getattr(d, "producto", None) else "N/A"
@@ -3182,9 +3203,25 @@ def generar_etiqueta_detalle(pedido_id):
             if REPETIR_POR_CAJAS:
                 rep = int(d.cajas or 1)
                 for _ in range(max(1, rep)):
-                    dibujar_etiqueta(cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
+                    etiquetas_a_imprimir.append((cli, prod, temp, d.lote, f_fab, f_exp, peso_val))
             else:
-                dibujar_etiqueta(cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
+                etiquetas_a_imprimir.append((cli, prod, temp, d.lote, f_fab, f_exp, peso_val))
+
+        # Dibujar etiquetas de 2 en 2 por página
+        for i in range(0, len(etiquetas_a_imprimir), 2):
+            # Dibujar primera etiqueta (arriba)
+            etiq = etiquetas_a_imprimir[i]
+            dibujar_etiqueta(etiq[0], etiq[1], etiq[2], etiq[3], etiq[4], etiq[5], etiq[6],
+                           offset_x, offset_y_top)
+
+            # Dibujar segunda etiqueta (abajo) si existe
+            if i + 1 < len(etiquetas_a_imprimir):
+                etiq = etiquetas_a_imprimir[i + 1]
+                dibujar_etiqueta(etiq[0], etiq[1], etiq[2], etiq[3], etiq[4], etiq[5], etiq[6],
+                               offset_x, offset_y_bottom)
+
+            # Nueva página después de cada par de etiquetas
+            c.showPage()
 
         c.save()
         output.seek(0)
