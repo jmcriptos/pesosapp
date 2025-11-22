@@ -4814,25 +4814,29 @@ def generar_pdf_etiquetas(datos, cantidad):
     PAGE_H = 2 * inch
 
     output = BytesIO()
-    # Página letter para contener las etiquetas
+    # Página letter para contener las etiquetas (sin márgenes)
     c = canvas.Canvas(output, pagesize=letter)
+    c.setPageCompression(1)  # Compresión para PDF más pequeño
+
+    # Eliminar cualquier margen automático del canvas
+    c.setPageSize(letter)
 
     # Configuración
     M = 8  # Margen interno de etiqueta
     logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
-    # Logo
+    # Logo (sin margen superior)
     LOGO_X = M
     LOGO_W = 1.20 * inch
     LOGO_H = 1.20 * inch
-    LOGO_Y = PAGE_H - M - LOGO_H
+    LOGO_Y = PAGE_H - LOGO_H  # Sin margen superior
 
     # Columna derecha (labels y valores)
     LBL_XR = 2.80 * inch
     VAL_X = LBL_XR + 0.12 * inch
 
-    # Posiciones Y (sin Cliente ni Net Weight)
-    Y_LOT = PAGE_H - M - 0.22 * inch
+    # Posiciones Y (sin Cliente ni Net Weight, sin margen superior)
+    Y_LOT = PAGE_H - 0.22 * inch  # Sin margen superior
     Y_MFG = Y_LOT - 0.18 * inch
     Y_EXP = Y_MFG - 0.18 * inch
     Y_KEEP = Y_EXP - 0.18 * inch
