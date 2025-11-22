@@ -4959,21 +4959,17 @@ def generar_pdf_etiquetas(datos, cantidad):
     # Centrar horizontalmente: (8.5" - 4") / 2 = 2.25"
     x_centrado = (page_width - PAGE_W) / 2
 
-    # Offset para compensar margen de impresora (aproximadamente 2cm = 0.79")
-    # Esto mueve las etiquetas hacia arriba para que al imprimir queden en la posición correcta
-    PRINTER_MARGIN_OFFSET = 0.8 * inch
-
     etiqueta_num = 0
 
     while etiqueta_num < cantidad:
-        # Primera etiqueta: arriba (compensando margen de impresora)
-        y_pos_1 = page_height - PAGE_H + PRINTER_MARGIN_OFFSET
+        # Primera etiqueta: arriba (sin margen superior, centrada)
+        y_pos_1 = page_height - PAGE_H
         dibujar_etiqueta_venc(x_centrado, y_pos_1)
         etiqueta_num += 1
 
-        # Segunda etiqueta: abajo (compensando margen de impresora)
+        # Segunda etiqueta: abajo (centrada)
         if etiqueta_num < cantidad:
-            y_pos_2 = page_height - 2 * PAGE_H + PRINTER_MARGIN_OFFSET
+            y_pos_2 = page_height - 2 * PAGE_H
             dibujar_etiqueta_venc(x_centrado, y_pos_2)
             etiqueta_num += 1
 
