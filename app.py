@@ -4842,11 +4842,11 @@ def generar_pdf_etiquetas(datos, cantidad):
     Y_KEEP = Y_EXP - 0.18 * inch
 
     # Separador
-    SEP_Y = M + 0.33 * inch
+    SEP_Y = M + 0.55 * inch  # Movido más arriba para dar espacio al producto
 
-    # Área del producto
-    PROD_Y_MIN = M + 0.06 * inch
-    PROD_Y_MAX = M + 0.26 * inch
+    # Área del producto (más grande y separada del borde inferior)
+    PROD_Y_MIN = M + 0.15 * inch  # Separado del borde inferior
+    PROD_Y_MAX = M + 0.50 * inch  # Más espacio vertical
 
     def draw_center_wrap_text(canvas_obj, text, center_x, y_bottom, y_top, max_width,
                               font_name="Helvetica-Bold", max_font=19.2, min_font=12, line_gap=2):
@@ -4937,7 +4937,7 @@ def generar_pdf_etiquetas(datos, cantidad):
         c.line(x_base + M, y_base + SEP_Y, x_base + PAGE_W - M, y_base + SEP_Y)
         c.setDash()
 
-        # Producto
+        # Producto (fuente más grande)
         max_text_width = PAGE_W - (2 * M)
         draw_center_wrap_text(
             c,
@@ -4947,8 +4947,8 @@ def generar_pdf_etiquetas(datos, cantidad):
             y_top=y_base + PROD_Y_MAX,
             max_width=max_text_width,
             font_name="Helvetica-Bold",
-            max_font=19.2,
-            min_font=12,
+            max_font=24,  # Aumentado de 19.2 a 24
+            min_font=16,  # Aumentado de 12 a 16
             line_gap=2
         )
 
