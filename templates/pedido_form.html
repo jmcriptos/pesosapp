@@ -669,7 +669,7 @@ function cargarProductosEnSelect() {
 
         productos.forEach(producto => {
             tomSelectInstance.addOption({
-                value: producto.id,
+                value: String(producto.id),
                 text: `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`,
                 precio: producto.precio || 0,
                 nombre: producto.nombre
@@ -689,6 +689,46 @@ function cargarProductosEnSelect() {
             productoSelect.appendChild(option);
         });
     }
+    console.log('Productos cargados en select:', productos.length);
+}
+
+function inicializarTomSelect() {
+    // Preparar opciones para Tom Select
+    const opciones = productos.map(producto => ({
+        value: String(producto.id),
+        text: `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`,
+        precio: producto.precio || 0,
+        nombre: producto.nombre
+    }));
+
+    console.log('Inicializando Tom Select con', opciones.length, 'productos');
+
+    tomSelectInstance = new TomSelect('#producto-select', {
+        options: opciones,
+        items: [],
+        copyClassesToDropdown: true,
+        maxOptions: 1000,
+        closeAfterSelect: true,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' },
+        valueField: 'value',
+        labelField: 'text',
+        searchField: ['text', 'nombre'],
+        placeholder: '-- Seleccionar producto --',
+        render: {
+            option: (data, escape) => {
+                const precio = data.precio || 0;
+                return `
+                    <div style="display: flex; justify-content: space-between; padding: 8px 12px;">
+                        <span class="suggestion-name">${escape(data.text.split(' - ')[0])}</span>
+                        <span class="suggestion-price" style="color: #3182ce; font-weight: 600;">
+                            ${parseFloat(precio).toFixed(2)} XCG
+                        </span>
+                    </div>`;
+            },
+            item: (data, escape) => `<div>${escape(data.text)}</div>`
+        }
+    });
 }
 async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return;
@@ -800,33 +840,16 @@ function eliminarProducto(idx) {
 
 /* === Event Listeners === */
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar
+    // Verificar que hay productos disponibles
+    console.log('DOMContentLoaded - Productos disponibles:', productos.length);
+
+    // Inicializar tabla de productos agregados
     actualizarTablaProductos();
-    cargarProductosEnSelect();
-    /* ------------ Tom Select (búsqueda inteligente) ------------ */
-    tomSelectInstance = new TomSelect('#producto-select', {
-        copyClassesToDropdown: true,
-        maxOptions: 1000,
-        closeAfterSelect: true,
-        allowEmptyOption: true,
-        sortField: { field: 'text', direction: 'asc' },
-        valueField: 'value',
-        labelField: 'text',
-        searchField: ['text'],
-        render: {
-            option: (data, escape) => {
-                const precio = data.precio || (data.$option ? data.$option.dataset.precio : 0) || 0;
-                return `
-                    <div>
-                        <span class="suggestion-name">${escape(data.text)}</span>
-                        <span class="float-right suggestion-price">
-                            ${parseFloat(precio).toFixed(2)} XCG
-                        </span>
-                    </div>`;
-            },
-            item: (data, escape) => `<div>${escape(data.text)}</div>`
-        }
-    });
+
+    // Inicializar Tom Select con las opciones de productos
+    inicializarTomSelect();
+
+
 
 
     // Cambio de cliente
