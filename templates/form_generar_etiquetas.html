@@ -11,84 +11,45 @@
     <h2>Generar Etiquetas de Productos</h2>
     
     <form method="POST" class="form-mb-1">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# US01: hidden CSRF field #}
-        
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="form-group">
             <label for="producto_id">Producto:</label>
             <select name="producto_id" id="producto_id" required>
                 <option value="">Seleccione un producto</option>
                 {% for producto in productos %}
-                <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
+                <option value="{{ producto.id }}">{{ producto.nombre }}{% if producto.codigo %} - {{ producto.codigo }}{% endif %}</option>
                 {% endfor %}
             </select>
         </div>
-        
+
         <div class="form-group">
-            <label for="cantidad">Cantidad de etiquetas:</label>
-            <input type="number" name="cantidad" id="cantidad" min="1" max="100" value="1" required>
+            <label for="lote">Número de Lote:</label>
+            <input type="text" name="lote" id="lote" placeholder="Ej: L2024-001" required>
         </div>
-        
+
         <div class="form-group">
-            <label for="formato">Formato de etiqueta:</label>
-            <select name="formato" id="formato" required>
-                <option value="pequena">Pequeña (40x20mm)</option>
-                <option value="mediana">Mediana (60x30mm)</option>
-                <option value="grande">Grande (80x40mm)</option>
-            </select>
+            <label for="fecha_fabricacion">Fecha de Fabricación:</label>
+            <input type="date" name="fecha_fabricacion" id="fecha_fabricacion" required>
         </div>
-        
+
         <div class="form-group">
-            <label for="incluir_codigo">Incluir código de barras:</label>
-            <input type="checkbox" name="incluir_codigo" id="incluir_codigo" checked>
+            <label for="cantidad_etiquetas">Cantidad de Etiquetas:</label>
+            <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas" min="1" max="100" value="1" required>
         </div>
-        
-        <div class="form-group">
-            <label for="incluir_precio">Incluir precio:</label>
-            <input type="checkbox" name="incluir_precio" id="incluir_precio" checked>
-        </div>
-        
-        <div class="form-group">
-            <label for="incluir_fecha">Incluir fecha de impresión:</label>
-            <input type="checkbox" name="incluir_fecha" id="incluir_fecha">
-        </div>
-        
+
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Generar Etiquetas</button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-print"></i> Generar Etiquetas
+            </button>
             <a href="{{ url_for('productos') }}" class="btn btn-secondary">Cancelar</a>
         </div>
     </form>
     
-    {% if etiquetas_generadas %}
-    <div class="etiquetas-resultado">
-        <h3>Etiquetas Generadas</h3>
-        <div class="etiquetas-grid">
-            {% for etiqueta in etiquetas_generadas %}
-            <div class="etiqueta-item">
-                <div class="etiqueta-header">
-                    <h4>{{ etiqueta.producto.nombre }}</h4>
-                    <span class="etiqueta-codigo">{{ etiqueta.producto.codigo }}</span>
-                </div>
-                <div class="etiqueta-body">
-                    {% if etiqueta.incluir_precio %}
-                    <div class="etiqueta-precio">${{ "%.2f"|format(etiqueta.producto.precio) }}</div>
-                    {% endif %}
-                    {% if etiqueta.incluir_fecha %}
-                    <div class="etiqueta-fecha">{{ etiqueta.fecha_impresion.strftime('%d/%m/%Y') }}</div>
-                    {% endif %}
-                </div>
-                <div class="etiqueta-actions">
-                    <button class="btn btn-sm btn-primary" onclick="imprimirEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-print"></i> Imprimir
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="descargarEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-download"></i> Descargar
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+    <div class="info-box">
+        <i class="fas fa-info-circle"></i>
+        <p>La fecha de vencimiento se calculará automáticamente (1 año después de la fecha de fabricación).</p>
     </div>
-    {% endif %}
 </div>
 {% endblock %}
 
@@ -183,95 +144,50 @@ h2 {
     transform: translateY(-2px);
 }
 
-.btn-sm {
-    padding: 8px 16px;
-    font-size: 14px;
-}
-
-.etiquetas-resultado {
-    margin-top: 40px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 12px;
-}
-
-.etiquetas-resultado h3 {
-    color: #333;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.etiquetas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.etiqueta-item {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.etiqueta-header {
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.etiqueta-header h4 {
-    margin: 0 0 5px 0;
-    color: #333;
-    font-size: 1.1rem;
-}
-
-.etiqueta-codigo {
-    color: #666;
-    font-family: monospace;
-    font-size: 0.9rem;
-}
-
-.etiqueta-body {
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.etiqueta-precio {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: 10px;
-}
-
-.etiqueta-fecha {
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.etiqueta-actions {
+.info-box {
+    margin-top: 30px;
+    padding: 15px 20px;
+    background: #e7f3ff;
+    border: 1px solid #b8daff;
+    border-radius: 8px;
     display: flex;
-    gap: 10px;
-    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+.info-box i {
+    color: #0066cc;
+    font-size: 1.2rem;
+}
+
+.info-box p {
+    margin: 0;
+    color: #004085;
+    font-size: 0.95rem;
+}
+
+.form-group input[type="date"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
 }
 
 @media (max-width: 768px) {
     .container {
         padding: 15px;
     }
-    
+
     .form-actions {
         flex-direction: column;
         align-items: center;
     }
-    
-    .etiquetas-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .etiqueta-actions {
+
+    .info-box {
         flex-direction: column;
-        align-items: center;
+        text-align: center;
     }
 }
 </style>
@@ -279,34 +195,36 @@ h2 {
 
 {% block scripts %}
 <script>
-function imprimirEtiqueta(etiquetaId) {
-    // Lógica para imprimir etiqueta
-    console.log('Imprimiendo etiqueta:', etiquetaId);
-    // Aquí se implementaría la lógica de impresión
-}
-
-function descargarEtiqueta(etiquetaId) {
-    // Lógica para descargar etiqueta
-    console.log('Descargando etiqueta:', etiquetaId);
-    // Aquí se implementaría la lógica de descarga
-}
-
-// Validación del formulario
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
-    const cantidadInput = document.getElementById('cantidad');
-    
+    const cantidadInput = document.getElementById('cantidad_etiquetas');
+    const fechaInput = document.getElementById('fecha_fabricacion');
+
+    // Establecer fecha de hoy como valor por defecto
+    const hoy = new Date().toISOString().split('T')[0];
+    fechaInput.value = hoy;
+
+    // Validación del formulario
     form.addEventListener('submit', function(e) {
         const cantidad = parseInt(cantidadInput.value);
-        
+        const lote = document.getElementById('lote').value.trim();
+
+        if (!lote) {
+            e.preventDefault();
+            alert('Por favor ingrese el número de lote');
+            document.getElementById('lote').focus();
+            return;
+        }
+
         if (cantidad < 1 || cantidad > 100) {
             e.preventDefault();
             alert('La cantidad debe estar entre 1 y 100');
             cantidadInput.focus();
+            return;
         }
     });
-    
-    // Actualizar etiqueta de cantidad
+
+    // Limitar cantidad entre 1 y 100
     cantidadInput.addEventListener('input', function() {
         const valor = parseInt(this.value);
         if (valor > 100) {
