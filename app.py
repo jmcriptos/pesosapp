@@ -81,32 +81,35 @@ if CSRFProtect:
 
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
-    # Mantener política compatible (no romper CDNs ni inline actuales)
-    # US01: CSP endurecida: se elimina 'unsafe-inline' de style-src
     talisman_policy = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
         ],
         'style-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'
         ],
-        'img-src': ["'self'", 'data:'],
-        'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'connect-src': ["'self'"],
-        # US01: permitir temporalmente atributos de estilo mientras migramos inline styles
+        'img-src': ["'self'", 'data:', 'blob:'],
+        'font-src': ["'self'", 'data:', 'https://cdnjs.cloudflare.com'],
+        'connect-src': [
+            "'self'",
+            'https://cdn.jsdelivr.net',
+            'https://cdnjs.cloudflare.com',
+            'https://code.jquery.com'
+        ],
         'style-src-attr': ["'unsafe-inline'"]
     }
     Talisman(
         app,
         content_security_policy=talisman_policy,
-        # US01: habilita nonces para scripts y estilos inline controlados
-        content_security_policy_nonce_in=['script-src', 'style-src']
+        content_security_policy_nonce_in=[]
     )
 
 
