@@ -93,6 +93,7 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         ],
         'style-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'
         ],
