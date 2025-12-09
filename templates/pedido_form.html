@@ -659,16 +659,33 @@ const totalSpan = document.getElementById('total-pedido');
 
 /* === Funciones principales === */
 function cargarProductosEnSelect() {
-    productoSelect.innerHTML = '<option value="">-- Seleccionar producto --</option>';
-    
-    productos.forEach(producto => {
-        const option = document.createElement('option');
-        option.value = producto.id;
-        option.textContent = `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`;
-        option.dataset.precio = producto.precio || 0;
-        option.dataset.nombre = producto.nombre;
-        productoSelect.appendChild(option);
-    });
+    // Si TomSelect está inicializado, usar su API
+    if (tomSelectProducto) {
+        tomSelectProducto.clear();
+        tomSelectProducto.clearOptions();
+
+        productos.forEach(producto => {
+            tomSelectProducto.addOption({
+                value: producto.id,
+                text: `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`,
+                precio: producto.precio || 0,
+                nombre: producto.nombre
+            });
+        });
+        tomSelectProducto.refreshOptions(false);
+    } else {
+        // Fallback para select nativo (antes de TomSelect)
+        productoSelect.innerHTML = '<option value="">-- Seleccionar producto --</option>';
+
+        productos.forEach(producto => {
+            const option = document.createElement('option');
+            option.value = producto.id;
+            option.textContent = `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`;
+            option.dataset.precio = producto.precio || 0;
+            option.dataset.nombre = producto.nombre;
+            productoSelect.appendChild(option);
+        });
+    }
 }
 async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return;
@@ -757,9 +774,25 @@ function actualizarTablaProductos() {
 }
 
 function obtenerProductoSeleccionado() {
+    // Si TomSelect está inicializado, usar su API
+    if (tomSelectProducto) {
+        const value = tomSelectProducto.getValue();
+        if (!value) return null;
+
+        const optionData = tomSelectProducto.options[value];
+        if (!optionData) return null;
+
+        return {
+            id: parseInt(value),
+            nombre: optionData.nombre,
+            precio: parseFloat(optionData.precio || 0)
+        };
+    }
+
+    // Fallback para select nativo
     const selectedOption = productoSelect.options[productoSelect.selectedIndex];
     if (!selectedOption || !selectedOption.value) return null;
-    
+
     return {
         id: parseInt(selectedOption.value),
         nombre: selectedOption.dataset.nombre,
@@ -773,30 +806,35 @@ function eliminarProducto(idx) {
 }
 
 
+/* === Variable global para TomSelect === */
+let tomSelectProducto = null;
+
 /* === Event Listeners === */
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar
+    // Inicializar tabla
     actualizarTablaProductos();
+
+    /* ------------ TomSelect (busqueda inteligente) ------------ */
+    tomSelectProducto = new TomSelect('#producto-select', {
+        copyClassesToDropdown: true,
+        maxOptions: 1000,
+        closeAfterSelect: true,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' },
+        render: {
+            option: (data, escape) => `
+                <div>
+                    <span class="suggestion-name">${escape(data.text)}</span>
+                    <span class="float-right suggestion-price">
+                        ${(parseFloat(data.precio || 0)).toFixed(2)} XCG
+                    </span>
+                </div>`,
+            item: (data, escape) => `<div>${escape(data.text)}</div>`
+        }
+    });
+
+    // Cargar productos en TomSelect
     cargarProductosEnSelect();
-    /* ------------ Tom Select (búsqueda inteligente) ------------ */
-new TomSelect('#producto-select', {
-    copyClassesToDropdown: true,     // hereda clases para que se vea igual
-    maxOptions: 1000,                // muestra hasta 1 000 coincidencias
-    closeAfterSelect: true,
-    allowEmptyOption: true,
-    sortField: { field: 'text', direction: 'asc' },
-    render: {
-        option: (data, escape) => `
-            <div>
-                <span class="suggestion-name">${escape(data.text)}</span>
-                <span class="float-right suggestion-price">
-                    ${(parseFloat(data.$option.dataset.precio || 0)).toFixed(2)} XCG
-                </span>
-            </div>`
-    }
-});
-
-
     // Cambio de cliente
     if (clienteSelect) {
         clienteSelect.addEventListener('change', async function() {
@@ -843,9 +881,13 @@ new TomSelect('#producto-select', {
         }
 
         // Limpiar campos
-        productoSelect.value = '';
+        if (tomSelectProducto) {
+            tomSelectProducto.clear();
+        } else {
+            productoSelect.value = '';
+        }
         inputCajas.value = '';
-        
+
         actualizarTablaProductos();
     });
 
