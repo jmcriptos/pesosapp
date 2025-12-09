@@ -106,113 +106,417 @@
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <style>
-/* --- contenedor y card --- */
-.tabla-pedidos-container{max-width:1200px;margin:30px auto 0;padding:8px;}
-.tabla-pedidos-card{background:#fff;border-radius:22px;box-shadow:0 8px 30px rgba(24,119,255,.09);padding:16px 22px;margin-top:14px;}
+/* === CONTENEDOR PRINCIPAL === */
+.tabla-pedidos-container {
+    max-width: 1280px;
+    margin: 24px auto 0;
+    padding: 0 16px;
+}
 
-/* --- tabla --- */
-.tabla-pedidos{width:100%;border-collapse:collapse;font-size:1.08rem;}
-.tabla-pedidos th{background:#1877ff;color:#fff;text-align:left;font-weight:700;padding:16px 8px;}
-.tabla-pedidos td{background:#fff;padding:14px 8px;border-bottom:1px solid #eef3fa;vertical-align:middle;}
-.tabla-pedidos tr:last-child td{border-bottom:none;}
+/* === HEADER CON TITULO Y BOTON === */
+.tabla-pedidos-container .flex-between-center {
+    margin-bottom: 20px;
+}
 
-/* --- estados con colores semáforo --- */
+.tabla-pedidos-container .flex-between-center h2 {
+    font-size: 1.5rem;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tabla-pedidos-container .flex-between-center h2::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, #1877ff 0%, #60a5fa 100%);
+    border-radius: 2px;
+}
+
+/* === CARD CONTENEDORA === */
+.tabla-pedidos-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+/* === TABLA === */
+.tabla-pedidos {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.tabla-pedidos thead {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+}
+
+.tabla-pedidos th {
+    color: #fff;
+    text-align: left;
+    font-weight: 600;
+    padding: 16px 14px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+}
+
+.tabla-pedidos th:first-child {
+    border-radius: 0;
+}
+
+.tabla-pedidos th:last-child {
+    border-radius: 0;
+}
+
+.tabla-pedidos tbody tr {
+    transition: all 0.2s ease;
+}
+
+.tabla-pedidos tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.tabla-pedidos td {
+    padding: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    color: #334155;
+    background: transparent;
+}
+
+.tabla-pedidos tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Filas alternadas sutiles */
+.tabla-pedidos tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.tabla-pedidos tbody tr:nth-child(even):hover {
+    background-color: #f1f5f9;
+}
+
+/* === BADGES DE ESTADO === */
 .estado-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.9rem;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
     font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
 }
 
 .estado-pendiente {
-    background-color: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fbbf24;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    border: 1px solid #f59e0b;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.15);
 }
 
 .estado-listo {
-    background-color: #dbeafe;
-    color: #2563eb;
-    border: 1px solid #60a5fa;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
 }
 
 .estado-facturado {
-    background-color: #dcfce7;
-    color: #16a34a;
-    border: 1px solid #4ade80;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
+    border: 1px solid #22c55e;
+    box-shadow: 0 2px 4px rgba(34, 197, 94, 0.15);
 }
 
 .estado-entregado {
-    background-color: #f3f4f6;
-    color: #6b7280;
-    border: 1px solid #d1d5db;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #4b5563;
+    border: 1px solid #9ca3af;
+    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.1);
 }
 
-/* --- botones optimizados --- */
-.btn-nuevo{background:linear-gradient(90deg,#1877ff 0%,#67b3ff 100%);color:#fff;padding:.72em 1.7em;border-radius:18px;font-size:1.08rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(24,119,255,.09);transition:background .17s;}
-.btn-nuevo:hover{background:linear-gradient(90deg,#0056b3 0%,#2493f7 100%);}
+/* === BOTON NUEVO PEDIDO === */
+.btn-nuevo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 50%, #60a5fa 100%);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(24, 119, 255, 0.35), 0 2px 4px rgba(24, 119, 255, 0.2);
+    transition: all 0.25s ease;
+    border: none;
+}
 
-.btn-chip{
+.btn-nuevo:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #1d4ed8 50%, #3b82f6 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(24, 119, 255, 0.4), 0 3px 6px rgba(24, 119, 255, 0.25);
+}
+
+.btn-nuevo:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(24, 119, 255, 0.3);
+}
+
+.btn-nuevo i {
+    font-size: 0.9rem;
+}
+
+/* === BOTONES DE ACCION === */
+.btn-chip {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
+    width: 38px;
+    height: 38px;
+    font-size: 0.95rem;
     border: none;
-    border-radius: 50%;
-    font-weight: 700;
+    border-radius: 10px;
+    font-weight: 600;
     cursor: pointer;
-    margin-right: 4px;
-    transition: all .2s ease;
-    box-shadow: 0 2px 8px rgba(24,119,255,.06);
+    margin-right: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     text-decoration: none;
     outline: none;
-}
-.btn-chip:last-child{margin-right:0;}
-
-.btn-chip-view{background:#f4f8ff;color:#1877ff;}
-.btn-chip-view:hover{background:#e1eaff;color:#0d3c85;transform:scale(1.1);}
-
-.btn-chip-edit{background:#eef7ff;color:#409cff;}
-.btn-chip-edit:hover{background:#d6eaff;color:#1877ff;transform:scale(1.1);}
-
-.btn-chip-success{background:#e7fbe8;color:#17a34a;}
-.btn-chip-success:hover{background:#cbf4cf;color:#0b7a36;transform:scale(1.1);}
-.btn-chip-success:disabled{background:#f9fafb;color:#9ca3af;cursor:not-allowed;transform:none;}
-
-.btn-chip-danger{background:#ffeaea;color:#e55353;}
-.btn-chip-danger:hover{background:#ffc1c1;color:#a60000;transform:scale(1.1);}
-
-.inline-form{display:inline;margin:0;padding:0;background:none;border:none;}
-
-/* --- responsive --- */
-@media (max-width:900px){
-  .tabla-pedidos-container,.tabla-pedidos-card{padding:3px;}
-  .tabla-pedidos-card{border-radius:8px;}
-  .tabla-pedidos th,.tabla-pedidos td{padding:7px 4px;font-size:0.9rem;}
-  .btn-nuevo{font-size:.95rem;padding:.65em 1.2em;}
-  .btn-chip{width:32px;height:32px;font-size:.9rem;margin-right:2px;}
-  .estado-badge{font-size:0.8rem;padding:2px 8px;}
+    position: relative;
 }
 
-/* Tooltip para acciones */
-.btn-chip:hover::after {
-    content: attr(title);
-    position: absolute;
-    background: #333;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-top: -40px;
-    margin-left: -20px;
+.btn-chip:last-child {
+    margin-right: 0;
+}
+
+/* Ver detalles */
+.btn-chip-view {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+}
+
+.btn-chip-view:hover {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+/* Editar */
+.btn-chip-edit {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #b45309;
+    border: 1px solid #fbbf24;
+}
+
+.btn-chip-edit:hover {
+    background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+    color: #92400e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+/* Facturar */
+.btn-chip-success {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #15803d;
+    border: 1px solid #4ade80;
+}
+
+.btn-chip-success:hover {
+    background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+    color: #166534;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-chip-success:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border: 1px solid #e2e8f0;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Eliminar */
+.btn-chip-danger {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #dc2626;
+    border: 1px solid #f87171;
+}
+
+.btn-chip-danger:hover {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    color: #b91c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.inline-form {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+}
+
+/* === COLUMNAS ESPECIALES === */
+.tabla-pedidos td.text-right {
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/* === ANIMACION DE ENTRADA === */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tabla-pedidos-card {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.tabla-pedidos tbody tr {
+    animation: fadeInUp 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+.tabla-pedidos tbody tr:nth-child(1) { animation-delay: 0.05s; }
+.tabla-pedidos tbody tr:nth-child(2) { animation-delay: 0.1s; }
+.tabla-pedidos tbody tr:nth-child(3) { animation-delay: 0.15s; }
+.tabla-pedidos tbody tr:nth-child(4) { animation-delay: 0.2s; }
+.tabla-pedidos tbody tr:nth-child(5) { animation-delay: 0.25s; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1024px) {
+    .tabla-pedidos-container {
+        padding: 0 12px;
+        margin-top: 16px;
+    }
+
+    .tabla-pedidos th,
+    .tabla-pedidos td {
+        padding: 12px 10px;
+        font-size: 0.9rem;
+    }
+
+    .btn-nuevo {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .tabla-pedidos-container {
+        padding: 0 8px;
+    }
+
+    .tabla-pedidos-container .flex-between-center {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .tabla-pedidos-card {
+        border-radius: 12px;
+        overflow-x: auto;
+    }
+
+    .tabla-pedidos {
+        min-width: 700px;
+    }
+
+    .tabla-pedidos th,
+    .tabla-pedidos td {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+    }
+
+    .btn-nuevo {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 20px;
+    }
+
+    .btn-chip {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+        margin-right: 4px;
+        border-radius: 8px;
+    }
+
+    .estado-badge {
+        font-size: 0.7rem;
+        padding: 4px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tabla-pedidos-container .flex-between-center h2 {
+        font-size: 1.25rem;
+    }
+
+    .tabla-pedidos th {
+        font-size: 0.75rem;
+        padding: 10px 6px;
+    }
+
+    .tabla-pedidos td {
+        font-size: 0.8rem;
+        padding: 8px 6px;
+    }
+}
+
+/* === MODO OSCURO === */
+@media (prefers-color-scheme: dark) {
+    .tabla-pedidos-card {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .tabla-pedidos thead {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    }
+
+    .tabla-pedidos td {
+        color: #e2e8f0;
+        border-color: #334155;
+    }
+
+    .tabla-pedidos tbody tr:nth-child(even) {
+        background-color: #0f172a;
+    }
+
+    .tabla-pedidos tbody tr:hover {
+        background-color: #1e293b;
+    }
+
+    .tabla-pedidos-container .flex-between-center h2 {
+        color: #f1f5f9;
+    }
 }
 </style>
 {% endblock %}
