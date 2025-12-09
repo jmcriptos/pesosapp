@@ -1,287 +1,405 @@
 {% extends "base.html" %}
 
-{% block title %}Generar Etiquetas{% endblock %}
+{% block title %}Generar Etiquetas de Vencimiento{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-tags" style="color: #007bff; margin-right: 10px;"></i>Etiquetas de Vencimiento
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <h2>Generar Etiquetas de Productos</h2>
-    
-    <form method="POST" class="form-mb-1">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# US01: hidden CSRF field #}
-
-        <div class="form-group">
-            <label for="producto_id">Producto:</label>
-            <select name="producto_id" id="producto_id" required>
-                <option value="">Seleccione un producto</option>
-                {% for producto in productos %}
-                <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label for="fecha_fabricacion">Fecha de Fabricación:</label>
-            <input type="date" name="fecha_fabricacion" id="fecha_fabricacion" required>
-        </div>
-
-        <div class="form-group">
-            <label for="lote">Número de Lote:</label>
-            <input type="text" name="lote" id="lote" placeholder="Ej: LOT-2024-001" required>
-        </div>
-
-        <div class="form-group">
-            <label for="cantidad_etiquetas">Cantidad de Etiquetas:</label>
-            <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas" min="1" max="100" value="1" required>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Generar Etiquetas</button>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
-        </div>
-    </form>
-    
-    {% if etiquetas_generadas %}
-    <div class="etiquetas-resultado">
-        <h3>Etiquetas Generadas</h3>
-        <div class="etiquetas-grid">
-            {% for etiqueta in etiquetas_generadas %}
-            <div class="etiqueta-item">
-                <div class="etiqueta-header">
-                    <h4>{{ etiqueta.producto.nombre }}</h4>
-                    <span class="etiqueta-codigo">{{ etiqueta.producto.codigo }}</span>
-                </div>
-                <div class="etiqueta-body">
-                    {% if etiqueta.incluir_precio %}
-                    <div class="etiqueta-precio">${{ "%.2f"|format(etiqueta.producto.precio) }}</div>
-                    {% endif %}
-                    {% if etiqueta.incluir_fecha %}
-                    <div class="etiqueta-fecha">{{ etiqueta.fecha_impresion.strftime('%d/%m/%Y') }}</div>
-                    {% endif %}
-                </div>
-                <div class="etiqueta-actions">
-                    <button class="btn btn-sm btn-primary" onclick="imprimirEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-print"></i> Imprimir
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="descargarEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-download"></i> Descargar
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-</div>
+<span class="fw-700 color-white">
+    <i class="fas fa-tags"></i> Etiquetas de Vencimiento
+</span>
+<br>
+<small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
+    Generación de etiquetas para productos
+</small>
 {% endblock %}
 
 {% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css">
 <style>
-.container {
-    max-width: 800px;
+/* ==== MOBILE-FIRST OPTIMIZATIONS ==== */
+:root {
+    --mobile-padding: max(16px, env(safe-area-inset-left));
+    --safe-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.mobile-form-container {
+    width: 99.9%;
+    max-width: 99.9vw;
+    padding: 8px max(0.05%, env(safe-area-inset-left)) calc(120px + var(--safe-bottom)) max(0.05%, env(safe-area-inset-right));
     margin: 0 auto;
-    padding: 20px;
+    box-sizing: border-box;
 }
 
-h2 {
-    color: #333;
-    margin-bottom: 30px;
-    text-align: center;
+.mobile-card {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+    width: 100%;
 }
 
-.form-group {
+.mobile-card-header {
+    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
+    color: white;
+    padding: 14px 8px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mobile-card-body {
+    padding: 18px 8px;
+}
+
+.mobile-form-group {
     margin-bottom: 20px;
 }
 
-.form-group label {
+.mobile-form-label {
     display: block;
-    margin-bottom: 8px;
     font-weight: 600;
-    color: #555;
-}
-
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group select {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
     font-size: 16px;
-    transition: border-color 0.3s ease;
+    color: #2c3e50;
+    margin-bottom: 8px;
 }
 
-.form-group input[type="text"]:focus,
-.form-group input[type="number"]:focus,
-.form-group select:focus {
+.mobile-form-control {
+    width: 100%;
+    padding: 16px 18px;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    font-size: 17px;
+    background: #f8f9fa;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+}
+
+.mobile-form-control:focus {
     outline: none;
-    border-color: var(--primary-color);
+    border-color: #1877ff;
+    background: white;
     box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.1);
 }
 
-.form-group input[type="checkbox"] {
-    margin-right: 8px;
-    transform: scale(1.2);
+.mobile-select-wrapper {
+    position: relative;
 }
 
-.form-actions {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    margin-top: 30px;
+.mobile-select-wrapper::after {
+    content: '▼';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #6c757d;
+    font-size: 14px;
 }
 
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
+.mobile-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    transition: all 0.3s ease;
+    padding: 16px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    min-height: 48px;
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
 }
 
-.btn-primary {
-    background: var(--primary-color);
+.mobile-btn-primary {
+    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
     color: white;
-}
-
-.btn-primary:hover {
-    background: #0056b3;
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
 }
 
-.btn-secondary {
+.mobile-btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 8px rgba(24, 119, 255, 0.3);
+}
+
+.mobile-btn-secondary {
     background: #6c757d;
     color: white;
 }
 
-.btn-secondary:hover {
-    background: #545b62;
-    transform: translateY(-2px);
+.mobile-btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    width: 100%;
+    font-size: 17px;
+    padding: 18px;
+    margin-top: 12px;
 }
 
-.btn-sm {
-    padding: 8px 16px;
+.mobile-info-box {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 18px;
+    border-radius: 12px;
+    text-align: center;
+    margin: 16px 0;
+    border: 2px solid #e9ecef;
+}
+
+.mobile-info-label {
     font-size: 14px;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 5px;
 }
 
-.etiquetas-resultado {
-    margin-top: 40px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 12px;
-}
-
-.etiquetas-resultado h3 {
-    color: #333;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.etiquetas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.etiqueta-item {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.etiqueta-header {
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.etiqueta-header h4 {
-    margin: 0 0 5px 0;
-    color: #333;
-    font-size: 1.1rem;
-}
-
-.etiqueta-codigo {
-    color: #666;
-    font-family: monospace;
-    font-size: 0.9rem;
-}
-
-.etiqueta-body {
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.etiqueta-precio {
-    font-size: 1.3rem;
+.mobile-info-value {
+    font-size: 1.2rem;
     font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: 10px;
+    color: #1877ff;
 }
 
-.etiqueta-fecha {
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.etiqueta-actions {
+.form-actions-row {
     display: flex;
-    gap: 10px;
-    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
+.form-actions-row .mobile-btn {
+    flex: 1;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
     }
-    
-    .form-actions {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media screen and (max-width: 428px) {
+    .mobile-form-container {
+        width: 99.9%;
+        padding-left: 0.05%;
+        padding-right: 0.05%;
+    }
+
+    .mobile-card-body {
+        padding: 16px 4px;
+    }
+
+    .mobile-card-header {
+        padding: 12px 4px;
+    }
+
+    .form-actions-row {
         flex-direction: column;
-        align-items: center;
     }
-    
-    .etiquetas-grid {
-        grid-template-columns: 1fr;
+}
+
+@supports (padding: max(0px)) {
+    .mobile-form-container {
+        width: 99.9%;
+        padding-left: max(0.05%, env(safe-area-inset-left));
+        padding-right: max(0.05%, env(safe-area-inset-right));
+        padding-bottom: calc(120px + max(20px, env(safe-area-inset-bottom)));
     }
-    
-    .etiqueta-actions {
-        flex-direction: column;
-        align-items: center;
+}
+
+@media (prefers-color-scheme: dark) {
+    .mobile-card {
+        background: #2d2d2d;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .mobile-form-control {
+        background: #3a3a3a;
+        border-color: #4a4a4a;
+        color: #f8f9fa;
+    }
+}
+
+@media screen and (min-width: 769px) {
+    .mobile-form-container {
+        max-width: 600px;
+        padding: 20px;
+        margin: 0 auto;
+    }
+
+    .mobile-card {
+        margin-bottom: 20px;
+    }
+
+    .mobile-card-body {
+        padding: 24px;
+    }
+
+    .mobile-card-header {
+        padding: 16px 24px;
+        font-size: 1.1rem;
+    }
+
+    .mobile-form-control {
+        padding: 12px 16px;
+        font-size: 16px;
+    }
+
+    .mobile-btn-success {
+        max-width: 300px;
+        margin: 20px auto 0;
+        display: block;
     }
 }
 </style>
 {% endblock %}
 
+{% block content %}
+<div class="mobile-form-container">
+    <form method="POST" id="form-etiquetas" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Producto Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-box"></i>
+                Seleccionar Producto
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="producto_id">Producto:</label>
+                    <div class="mobile-select-wrapper">
+                        <select name="producto_id" id="producto_id" class="mobile-form-control" required>
+                            <option value="">-- Seleccionar producto --</option>
+                            {% for producto in productos %}
+                            <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos de Fabricación Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-industry"></i>
+                Datos de Fabricación
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="fecha_fabricacion">Fecha de Fabricación:</label>
+                    <input type="date"
+                           name="fecha_fabricacion"
+                           id="fecha_fabricacion"
+                           class="mobile-form-control"
+                           required>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="lote">Número de Lote:</label>
+                    <input type="text"
+                           name="lote"
+                           id="lote"
+                           class="mobile-form-control"
+                           placeholder="Ej: LOT-2024-001"
+                           required>
+                </div>
+
+                <div class="mobile-info-box">
+                    <div class="mobile-info-label">Fecha de Expiración (calculada)</div>
+                    <div class="mobile-info-value" id="fecha-expiracion-preview">--</div>
+                    <small style="color: #6c757d;">Se calcula automáticamente (fabricación + 365 días)</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cantidad Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-print"></i>
+                Cantidad de Etiquetas
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="cantidad_etiquetas">Cantidad:</label>
+                    <input type="number"
+                           name="cantidad_etiquetas"
+                           id="cantidad_etiquetas"
+                           class="mobile-form-control"
+                           min="1"
+                           max="100"
+                           value="1"
+                           required>
+                    <small style="color: #6c757d; display: block; margin-top: 8px;">Máximo 100 etiquetas por generación</small>
+                </div>
+
+                <div class="form-actions-row">
+                    <button type="submit" class="mobile-btn mobile-btn-success">
+                        <i class="fas fa-file-pdf"></i>
+                        Generar PDF
+                    </button>
+                    <a href="{{ url_for('index') }}" class="mobile-btn mobile-btn-secondary">
+                        <i class="fas fa-times"></i>
+                        Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
-function imprimirEtiqueta(etiquetaId) {
-    console.log('Imprimiendo etiqueta:', etiquetaId);
-}
-
-function descargarEtiqueta(etiquetaId) {
-    console.log('Descargando etiqueta:', etiquetaId);
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
+    const form = document.getElementById('form-etiquetas');
     const cantidadInput = document.getElementById('cantidad_etiquetas');
     const fechaInput = document.getElementById('fecha_fabricacion');
+    const fechaExpiracionPreview = document.getElementById('fecha-expiracion-preview');
+
+    // Inicializar Tom Select para el selector de productos
+    new TomSelect('#producto_id', {
+        copyClassesToDropdown: true,
+        maxOptions: 1000,
+        closeAfterSelect: true,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' }
+    });
 
     // Establecer fecha de hoy como valor por defecto
     const hoy = new Date().toISOString().split('T')[0];
     fechaInput.value = hoy;
+    actualizarFechaExpiracion(hoy);
 
+    // Actualizar preview de fecha de expiración
+    fechaInput.addEventListener('change', function() {
+        actualizarFechaExpiracion(this.value);
+    });
+
+    function actualizarFechaExpiracion(fechaFab) {
+        if (fechaFab) {
+            const fecha = new Date(fechaFab);
+            fecha.setDate(fecha.getDate() + 365);
+            const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
+            fechaExpiracionPreview.textContent = fecha.toLocaleDateString('es-ES', opciones);
+        } else {
+            fechaExpiracionPreview.textContent = '--';
+        }
+    }
+
+    // Validación del formulario
     form.addEventListener('submit', function(e) {
         const cantidad = parseInt(cantidadInput.value);
 
@@ -292,6 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Limitar cantidad
     cantidadInput.addEventListener('input', function() {
         const valor = parseInt(this.value);
         if (valor > 100) {

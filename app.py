@@ -87,19 +87,20 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
         ],
         'style-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'
         ],
         'img-src': ["'self'", 'data:'],
-        'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'connect-src': ["'self'"],
-        # US01: permitir temporalmente atributos de estilo mientras migramos inline styles
+        'font-src': ["'self'", 'https://cdnjs.cloudflare.com', 'data:'],
+        'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],
         'style-src-attr': ["'unsafe-inline'"]
     }
     Talisman(
