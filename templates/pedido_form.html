@@ -581,7 +581,13 @@
                         <div class="mobile-select-wrapper">
                             <select id="producto-select" class="mobile-form-control">
                                 <option value="">-- Seleccionar producto --</option>
-                                <!-- Opciones se cargarán dinámicamente -->
+                                {% for producto in productos %}
+                                <option value="{{ producto.id }}"
+                                        data-precio="{{ producto.precio }}"
+                                        data-nombre="{{ producto.nombre }}">
+                                    {{ producto.nombre }} - {{ "%.2f"|format(producto.precio) }} XCG
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -777,7 +783,7 @@ function eliminarProducto(idx) {
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar
     actualizarTablaProductos();
-    cargarProductosEnSelect();
+    // Productos ya cargados en HTML via Jinja2, no necesita cargarProductosEnSelect()
     /* ------------ Tom Select (búsqueda inteligente) ------------ */
 new TomSelect('#producto-select', {
     copyClassesToDropdown: true,     // hereda clases para que se vea igual
