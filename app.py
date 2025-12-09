@@ -81,32 +81,41 @@ if CSRFProtect:
 
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
-    # Mantener política compatible (no romper CDNs ni inline actuales)
-    # US01: CSP endurecida: se elimina 'unsafe-inline' de style-src
+    # CSP configurada para permitir CDNs externos y recursos inline
+    # TODO: Migrar a nonces cuando todas las plantillas estén actualizadas
     talisman_policy = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
+            "'unsafe-inline'",  # Necesario mientras las plantillas usen scripts inline
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
         ],
         'style-src': [
             "'self'",
+            "'unsafe-inline'",  # Necesario mientras las plantillas usen estilos inline
             'https://cdn.jsdelivr.net',
-            'https://cdnjs.cloudflare.com'
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.googleapis.com'
         ],
-        'img-src': ["'self'", 'data:'],
-        'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'connect-src': ["'self'"],
-        # US01: permitir temporalmente atributos de estilo mientras migramos inline styles
-        'style-src-attr': ["'unsafe-inline'"]
+        'img-src': ["'self'", 'data:', 'blob:'],
+        'font-src': [
+            "'self'",
+            'data:',  # Para fuentes embebidas en base64
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.gstatic.com'
+        ],
+        'connect-src': [
+            "'self'",
+            'https://cdn.jsdelivr.net'  # Para source maps de tom-select
+        ],
+        'style-src-attr': ["'unsafe-inline'"]  # Para atributos style="" inline
     }
     Talisman(
         app,
         content_security_policy=talisman_policy,
-        # US01: habilita nonces para scripts y estilos inline controlados
-        content_security_policy_nonce_in=['script-src', 'style-src']
+        content_security_policy_nonce_in=[]  # Deshabilitado hasta migrar plantillas a nonces
     )
 
 

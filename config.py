@@ -53,23 +53,36 @@ class Config:
     CACHE_TYPE = "simple"  # Fallback a memoria
     CACHE_DEFAULT_TIMEOUT = 300  # 5 minutos
     
-    # Talisman CSP
+    # Talisman CSP - Configuración para permitir CDNs externos y recursos inline
+    # TODO: Migrar a nonces cuando todas las plantillas estén actualizadas
     TALISMAN_CSP = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
         ],
         'style-src': [
             "'self'",
+            "'unsafe-inline'",
             'https://cdn.jsdelivr.net',
-            'https://cdnjs.cloudflare.com'
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.googleapis.com'
         ],
-        'img-src': ["'self'", 'data:'],
-        'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'connect-src': ["'self'"],
+        'img-src': ["'self'", 'data:', 'blob:'],
+        'font-src': [
+            "'self'",
+            'data:',
+            'https://cdnjs.cloudflare.com',
+            'https://fonts.gstatic.com'
+        ],
+        'connect-src': [
+            "'self'",
+            'https://cdn.jsdelivr.net'
+        ],
+        'style-src-attr': ["'unsafe-inline'"]
     }
 
 class DevelopmentConfig(Config):
