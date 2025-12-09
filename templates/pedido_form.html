@@ -657,18 +657,38 @@ const clienteSelect = document.getElementById('cliente_id');
 const tbody = document.getElementById('productos-body');
 const totalSpan = document.getElementById('total-pedido');
 
+/* === Instancia de Tom Select (se inicializa después) === */
+let tomSelectInstance = null;
+
 /* === Funciones principales === */
 function cargarProductosEnSelect() {
-    productoSelect.innerHTML = '<option value="">-- Seleccionar producto --</option>';
-    
-    productos.forEach(producto => {
-        const option = document.createElement('option');
-        option.value = producto.id;
-        option.textContent = `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`;
-        option.dataset.precio = producto.precio || 0;
-        option.dataset.nombre = producto.nombre;
-        productoSelect.appendChild(option);
-    });
+    // Si Tom Select ya está inicializado, usamos su API
+    if (tomSelectInstance) {
+        tomSelectInstance.clearOptions();
+        tomSelectInstance.addOption({ value: '', text: '-- Seleccionar producto --', precio: 0, nombre: '' });
+
+        productos.forEach(producto => {
+            tomSelectInstance.addOption({
+                value: producto.id,
+                text: `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`,
+                precio: producto.precio || 0,
+                nombre: producto.nombre
+            });
+        });
+        tomSelectInstance.refreshOptions(false);
+    } else {
+        // Cargar en el select nativo antes de inicializar Tom Select
+        productoSelect.innerHTML = '<option value="">-- Seleccionar producto --</option>';
+
+        productos.forEach(producto => {
+            const option = document.createElement('option');
+            option.value = producto.id;
+            option.textContent = `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`;
+            option.dataset.precio = producto.precio || 0;
+            option.dataset.nombre = producto.nombre;
+            productoSelect.appendChild(option);
+        });
+    }
 }
 async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return;
@@ -757,13 +777,18 @@ function actualizarTablaProductos() {
 }
 
 function obtenerProductoSeleccionado() {
-    const selectedOption = productoSelect.options[productoSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) return null;
-    
+    // Get value from Tom Select instance if available
+    const selectedValue = tomSelectInstance ? tomSelectInstance.getValue() : productoSelect.value;
+    if (!selectedValue) return null;
+
+    // Look up product in our products array
+    const producto = productos.find(p => p.id == selectedValue);
+    if (!producto) return null;
+
     return {
-        id: parseInt(selectedOption.value),
-        nombre: selectedOption.dataset.nombre,
-        precio: parseFloat(selectedOption.dataset.precio || 0)
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio || 0
     };
 }
 
@@ -779,22 +804,29 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarTablaProductos();
     cargarProductosEnSelect();
     /* ------------ Tom Select (búsqueda inteligente) ------------ */
-new TomSelect('#producto-select', {
-    copyClassesToDropdown: true,     // hereda clases para que se vea igual
-    maxOptions: 1000,                // muestra hasta 1 000 coincidencias
-    closeAfterSelect: true,
-    allowEmptyOption: true,
-    sortField: { field: 'text', direction: 'asc' },
-    render: {
-        option: (data, escape) => `
-            <div>
-                <span class="suggestion-name">${escape(data.text)}</span>
-                <span class="float-right suggestion-price">
-                    ${(parseFloat(data.$option.dataset.precio || 0)).toFixed(2)} XCG
-                </span>
-            </div>`
-    }
-});
+    tomSelectInstance = new TomSelect('#producto-select', {
+        copyClassesToDropdown: true,
+        maxOptions: 1000,
+        closeAfterSelect: true,
+        allowEmptyOption: true,
+        sortField: { field: 'text', direction: 'asc' },
+        valueField: 'value',
+        labelField: 'text',
+        searchField: ['text'],
+        render: {
+            option: (data, escape) => {
+                const precio = data.precio || (data.$option ? data.$option.dataset.precio : 0) || 0;
+                return `
+                    <div>
+                        <span class="suggestion-name">${escape(data.text)}</span>
+                        <span class="float-right suggestion-price">
+                            ${parseFloat(precio).toFixed(2)} XCG
+                        </span>
+                    </div>`;
+            },
+            item: (data, escape) => `<div>${escape(data.text)}</div>`
+        }
+    });
 
 
     // Cambio de cliente
@@ -843,9 +875,13 @@ new TomSelect('#producto-select', {
         }
 
         // Limpiar campos
-        productoSelect.value = '';
+        if (tomSelectInstance) {
+            tomSelectInstance.clear();
+        } else {
+            productoSelect.value = '';
+        }
         inputCajas.value = '';
-        
+
         actualizarTablaProductos();
     });
 

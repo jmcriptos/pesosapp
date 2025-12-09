@@ -3,275 +3,327 @@
 {% block title %}Generar Etiquetas{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-tags" style="color: #007bff; margin-right: 10px;"></i>Etiquetas de Vencimiento
+<i class="fas fa-tags color-white mr-10"></i>Etiquetas de Vencimiento
+<br>
+<small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
+    Generación de etiquetas para productos
+</small>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2>Generar Etiquetas de Productos</h2>
-    
-    <form method="POST" class="form-mb-1">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# US01: hidden CSRF field #}
-        
-        <div class="form-group">
-            <label for="producto_id">Producto:</label>
-            <select name="producto_id" id="producto_id" required>
-                <option value="">Seleccione un producto</option>
-                {% for producto in productos %}
-                <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label for="cantidad">Cantidad de etiquetas:</label>
-            <input type="number" name="cantidad" id="cantidad" min="1" max="100" value="1" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="formato">Formato de etiqueta:</label>
-            <select name="formato" id="formato" required>
-                <option value="pequena">Pequeña (40x20mm)</option>
-                <option value="mediana">Mediana (60x30mm)</option>
-                <option value="grande">Grande (80x40mm)</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label for="incluir_codigo">Incluir código de barras:</label>
-            <input type="checkbox" name="incluir_codigo" id="incluir_codigo" checked>
-        </div>
-        
-        <div class="form-group">
-            <label for="incluir_precio">Incluir precio:</label>
-            <input type="checkbox" name="incluir_precio" id="incluir_precio" checked>
-        </div>
-        
-        <div class="form-group">
-            <label for="incluir_fecha">Incluir fecha de impresión:</label>
-            <input type="checkbox" name="incluir_fecha" id="incluir_fecha">
-        </div>
-        
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Generar Etiquetas</button>
-            <a href="{{ url_for('productos') }}" class="btn btn-secondary">Cancelar</a>
-        </div>
-    </form>
-    
-    {% if etiquetas_generadas %}
-    <div class="etiquetas-resultado">
-        <h3>Etiquetas Generadas</h3>
-        <div class="etiquetas-grid">
-            {% for etiqueta in etiquetas_generadas %}
-            <div class="etiqueta-item">
-                <div class="etiqueta-header">
-                    <h4>{{ etiqueta.producto.nombre }}</h4>
-                    <span class="etiqueta-codigo">{{ etiqueta.producto.codigo }}</span>
-                </div>
-                <div class="etiqueta-body">
-                    {% if etiqueta.incluir_precio %}
-                    <div class="etiqueta-precio">${{ "%.2f"|format(etiqueta.producto.precio) }}</div>
-                    {% endif %}
-                    {% if etiqueta.incluir_fecha %}
-                    <div class="etiqueta-fecha">{{ etiqueta.fecha_impresion.strftime('%d/%m/%Y') }}</div>
-                    {% endif %}
-                </div>
-                <div class="etiqueta-actions">
-                    <button class="btn btn-sm btn-primary" onclick="imprimirEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-print"></i> Imprimir
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="descargarEtiqueta({{ etiqueta.id }})">
-                        <i class="fas fa-download"></i> Descargar
-                    </button>
+<div class="etiquetas-form-container">
+    <form method="POST" id="form-etiquetas" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Seleccionar Producto Card -->
+        <div class="etiquetas-card">
+            <div class="etiquetas-card-header">
+                <i class="fas fa-box"></i>
+                Seleccionar Producto
+            </div>
+            <div class="etiquetas-card-body">
+                <div class="etiquetas-form-group">
+                    <label class="etiquetas-label" for="producto_id">Producto:</label>
+                    <select name="producto_id" id="producto_id" class="etiquetas-select" required>
+                        <option value="">-- Seleccionar producto --</option>
+                        {% for producto in productos|sort(attribute='nombre') %}
+                        <option value="{{ producto.id }}">{{ producto.nombre }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
-            {% endfor %}
         </div>
-    </div>
-    {% endif %}
+
+        <!-- Datos de Fabricación Card -->
+        <div class="etiquetas-card">
+            <div class="etiquetas-card-header">
+                <i class="fas fa-chart-bar"></i>
+                Datos de Fabricación
+            </div>
+            <div class="etiquetas-card-body">
+                <div class="etiquetas-form-group">
+                    <label class="etiquetas-label" for="fecha_fabricacion">Fecha de Fabricación:</label>
+                    <input type="date"
+                           name="fecha_fabricacion"
+                           id="fecha_fabricacion"
+                           class="etiquetas-input"
+                           required>
+                </div>
+
+                <div class="etiquetas-form-group">
+                    <label class="etiquetas-label" for="lote">Número de Lote:</label>
+                    <input type="text"
+                           name="lote"
+                           id="lote"
+                           class="etiquetas-input"
+                           placeholder="Ej: LOT-2024-001"
+                           required>
+                </div>
+
+                <div class="etiquetas-form-group">
+                    <label class="etiquetas-label">Fecha de Expiración (calculada)</label>
+                    <div id="fecha-expiracion-display" class="etiquetas-calculated">--</div>
+                    <small class="etiquetas-hint">Se calcula automáticamente (fabricación + 365 días)</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cantidad de Etiquetas Card -->
+        <div class="etiquetas-card">
+            <div class="etiquetas-card-header">
+                <i class="fas fa-print"></i>
+                Cantidad de Etiquetas
+            </div>
+            <div class="etiquetas-card-body">
+                <div class="etiquetas-form-group">
+                    <label class="etiquetas-label" for="cantidad_etiquetas">Cantidad:</label>
+                    <input type="number"
+                           name="cantidad_etiquetas"
+                           id="cantidad_etiquetas"
+                           class="etiquetas-input"
+                           min="1"
+                           max="100"
+                           value="1"
+                           required>
+                    <small class="etiquetas-hint">Máximo 100 etiquetas por generación</small>
+                </div>
+
+                <div class="etiquetas-actions">
+                    <button type="submit" class="etiquetas-btn etiquetas-btn-primary">
+                        <i class="fas fa-file-pdf"></i>
+                        Generar PDF
+                    </button>
+                    <a href="{{ url_for('index') }}" class="etiquetas-btn etiquetas-btn-cancel">
+                        <i class="fas fa-times"></i>
+                        Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-.container {
-    max-width: 800px;
+/* Container principal */
+.etiquetas-form-container {
+    max-width: 600px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 20px 16px calc(100px + env(safe-area-inset-bottom, 20px));
 }
 
-h2 {
-    color: #333;
-    margin-bottom: 30px;
-    text-align: center;
-}
-
-.form-group {
+/* Cards */
+.etiquetas-card {
+    background: #fff;
+    border-radius: 16px;
     margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #555;
-}
-
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group select {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-}
-
-.form-group input[type="text"]:focus,
-.form-group input[type="number"]:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.1);
-}
-
-.form-group input[type="checkbox"] {
-    margin-right: 8px;
-    transform: scale(1.2);
-}
-
-.form-actions {
+.etiquetas-card-header {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    color: white;
+    padding: 16px 20px;
+    font-weight: 700;
+    font-size: 1rem;
     display: flex;
-    gap: 15px;
-    justify-content: center;
-    margin-top: 30px;
+    align-items: center;
+    gap: 12px;
 }
 
-.btn {
-    padding: 12px 24px;
+.etiquetas-card-header i {
+    font-size: 1.1rem;
+}
+
+.etiquetas-card-body {
+    padding: 24px 20px;
+}
+
+/* Form groups */
+.etiquetas-form-group {
+    margin-bottom: 24px;
+}
+
+.etiquetas-form-group:last-child {
+    margin-bottom: 0;
+}
+
+.etiquetas-label {
+    display: block;
+    font-weight: 600;
+    font-size: 15px;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+/* Inputs */
+.etiquetas-input,
+.etiquetas-select {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 16px;
+    background: #f8fafc;
+    color: #1a202c;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+}
+
+.etiquetas-input:focus,
+.etiquetas-select:focus {
+    outline: none;
+    border-color: #3182ce;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.etiquetas-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 20px;
+    padding-right: 40px;
+}
+
+/* Calculated field */
+.etiquetas-calculated {
+    padding: 14px 16px;
+    background: #edf2f7;
+    border-radius: 12px;
+    font-size: 16px;
+    color: #4a5568;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+/* Hints */
+.etiquetas-hint {
+    display: block;
+    font-size: 13px;
+    color: #718096;
+    margin-top: 8px;
+}
+
+/* Actions */
+.etiquetas-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.etiquetas-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 24px;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    min-height: 48px;
 }
 
-.btn-primary {
-    background: var(--primary-color);
+.etiquetas-btn-primary {
+    background: linear-gradient(135deg, #3182ce 0%, #4299e1 100%);
     color: white;
+    flex: 1;
+    box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
 }
 
-.btn-primary:hover {
-    background: #0056b3;
+.etiquetas-btn-primary:hover {
+    background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
+    box-shadow: 0 6px 16px rgba(49, 130, 206, 0.4);
 }
 
-.btn-secondary {
-    background: #6c757d;
-    color: white;
+.etiquetas-btn-cancel {
+    background: transparent;
+    color: #e53e3e;
+    border: none;
+    padding: 14px 20px;
 }
 
-.btn-secondary:hover {
-    background: #545b62;
-    transform: translateY(-2px);
+.etiquetas-btn-cancel:hover {
+    background: #fff5f5;
+    color: #c53030;
 }
 
-.btn-sm {
-    padding: 8px 16px;
-    font-size: 14px;
-}
-
-.etiquetas-resultado {
-    margin-top: 40px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 12px;
-}
-
-.etiquetas-resultado h3 {
-    color: #333;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.etiquetas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.etiqueta-item {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.etiqueta-header {
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.etiqueta-header h4 {
-    margin: 0 0 5px 0;
-    color: #333;
-    font-size: 1.1rem;
-}
-
-.etiqueta-codigo {
-    color: #666;
-    font-family: monospace;
-    font-size: 0.9rem;
-}
-
-.etiqueta-body {
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.etiqueta-precio {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: 10px;
-}
-
-.etiqueta-fecha {
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.etiqueta-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .etiquetas-card {
+        background: #2d2d2d;
     }
-    
-    .form-actions {
+
+    .etiquetas-card-body {
+        background: #2d2d2d;
+    }
+
+    .etiquetas-label {
+        color: #e2e8f0;
+    }
+
+    .etiquetas-input,
+    .etiquetas-select {
+        background: #3a3a3a;
+        border-color: #4a4a4a;
+        color: #f7fafc;
+    }
+
+    .etiquetas-input:focus,
+    .etiquetas-select:focus {
+        background: #3a3a3a;
+        border-color: #4299e1;
+    }
+
+    .etiquetas-calculated {
+        background: #3a3a3a;
+        color: #a0aec0;
+    }
+
+    .etiquetas-hint {
+        color: #a0aec0;
+    }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .etiquetas-form-container {
+        padding: 12px 12px calc(100px + env(safe-area-inset-bottom, 20px));
+    }
+
+    .etiquetas-card {
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+
+    .etiquetas-card-header {
+        padding: 14px 16px;
+    }
+
+    .etiquetas-card-body {
+        padding: 20px 16px;
+    }
+
+    .etiquetas-form-group {
+        margin-bottom: 20px;
+    }
+
+    .etiquetas-actions {
         flex-direction: column;
-        align-items: center;
     }
-    
-    .etiquetas-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .etiqueta-actions {
-        flex-direction: column;
-        align-items: center;
+
+    .etiquetas-btn {
+        width: 100%;
     }
 }
 </style>
@@ -279,40 +331,45 @@ h2 {
 
 {% block scripts %}
 <script>
-function imprimirEtiqueta(etiquetaId) {
-    // Lógica para imprimir etiqueta
-    console.log('Imprimiendo etiqueta:', etiquetaId);
-    // Aquí se implementaría la lógica de impresión
-}
-
-function descargarEtiqueta(etiquetaId) {
-    // Lógica para descargar etiqueta
-    console.log('Descargando etiqueta:', etiquetaId);
-    // Aquí se implementaría la lógica de descarga
-}
-
-// Validación del formulario
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const cantidadInput = document.getElementById('cantidad');
-    
-    form.addEventListener('submit', function(e) {
-        const cantidad = parseInt(cantidadInput.value);
-        
-        if (cantidad < 1 || cantidad > 100) {
-            e.preventDefault();
-            alert('La cantidad debe estar entre 1 y 100');
-            cantidadInput.focus();
+    const fechaFabricacion = document.getElementById('fecha_fabricacion');
+    const fechaExpiracionDisplay = document.getElementById('fecha-expiracion-display');
+    const cantidadInput = document.getElementById('cantidad_etiquetas');
+    const form = document.getElementById('form-etiquetas');
+
+    // Calculate expiration date (fabrication + 365 days)
+    function calcularExpiracion() {
+        if (fechaFabricacion.value) {
+            const fecha = new Date(fechaFabricacion.value);
+            fecha.setDate(fecha.getDate() + 365);
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const anio = fecha.getFullYear();
+            fechaExpiracionDisplay.textContent = `${dia}/${mes}/${anio}`;
+        } else {
+            fechaExpiracionDisplay.textContent = '--';
         }
-    });
-    
-    // Actualizar etiqueta de cantidad
+    }
+
+    fechaFabricacion.addEventListener('change', calcularExpiracion);
+
+    // Validate quantity
     cantidadInput.addEventListener('input', function() {
         const valor = parseInt(this.value);
         if (valor > 100) {
             this.value = 100;
-        } else if (valor < 1) {
+        } else if (valor < 1 && this.value !== '') {
             this.value = 1;
+        }
+    });
+
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const cantidad = parseInt(cantidadInput.value);
+        if (cantidad < 1 || cantidad > 100) {
+            e.preventDefault();
+            alert('La cantidad debe estar entre 1 y 100');
+            cantidadInput.focus();
         }
     });
 });
