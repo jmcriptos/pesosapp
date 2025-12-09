@@ -97,7 +97,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce() }}">
 .precios-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -278,7 +278,7 @@
 
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 function mostrarConsultorPrecios() {
     // Cargar clientes y productos
     cargarClientes();

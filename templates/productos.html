@@ -88,7 +88,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce() }}">
     .form-section, .table-section {
         background-color: #fff;
         border-radius: 8px;
@@ -142,7 +142,7 @@
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{ url_for('static', filename='scripts.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
   document.addEventListener('DOMContentLoaded', function() {
     const content = document.querySelector('.app-content');
     const footer  = document.querySelector('.app-footer');

@@ -93,7 +93,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce() }}">
 .container {
     max-width: 800px;
     margin: 0 auto;
@@ -278,7 +278,7 @@ h2 {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 function imprimirEtiqueta(etiquetaId) {
     // Lógica para imprimir etiqueta
     console.log('Imprimiendo etiqueta:', etiquetaId);

@@ -92,7 +92,7 @@
 
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-<style>
+<style nonce="{{ csp_nonce() }}">
 .main-form-container {
     width: 100%;
     max-width: 800px;
@@ -380,7 +380,7 @@ h2 {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 const productos = {{ productos|tojson }};
 let productosAgregados = [];
 let clienteSeleccionado = null;

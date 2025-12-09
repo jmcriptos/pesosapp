@@ -128,7 +128,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce() }}">
 .precios-productos-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -369,7 +369,7 @@
 
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Variables globales
 const LISTA_ID = {{ lista.id }};
 

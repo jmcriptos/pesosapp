@@ -115,7 +115,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
+<style nonce="{{ csp_nonce() }}">
 .form-container {
     max-width: 800px;
     margin: 0 auto;
@@ -356,7 +356,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Enfocar el primer campo del formulario
     const nombreInput = document.getElementById('nombre');

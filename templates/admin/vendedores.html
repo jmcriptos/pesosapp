@@ -161,7 +161,7 @@
 
 {% block extra_css %}
 {{ super() }}
-<style>
+<style nonce="{{ csp_nonce() }}">
 /* ---------- general ---------- */
 .section-title{color:#2c3e50;font-size:1.35rem;margin-bottom:18px}
 .btn-primary-lg{
@@ -236,7 +236,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce() }}">
 function toggleVendedor(id, activar){
     if(!confirm(`¿Seguro que deseas ${activar?'activar':'desactivar'} este vendedor?`)) return;
     fetch(`/admin/vendedores/${id}/toggle`,{

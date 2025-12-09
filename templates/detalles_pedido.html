@@ -14,7 +14,7 @@
 
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-<style>
+<style nonce="{{ csp_nonce() }}">
 /* ==== MOBILE‑FIRST OPTIMIZATIONS (original) ==== */
 :root {
     --mobile-padding: max(0.25%, env(safe-area-inset-left));
@@ -241,7 +241,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // ========================================================================
 // CONFIGURACIÓN Y REFERENCIAS
 // ========================================================================

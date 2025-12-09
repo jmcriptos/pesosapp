@@ -93,7 +93,7 @@
 
 {% block extra_css %}
 {{ super() }}
-<style>
+<style nonce="{{ csp_nonce() }}">
 /* ---------- tarjetas de territorio ---------- */
 .territorio-card{
     border:2px solid #ecf0f1;

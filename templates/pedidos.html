@@ -105,7 +105,7 @@
 
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-<style>
+<style nonce="{{ csp_nonce() }}">
 /* --- contenedor y card --- */
 .tabla-pedidos-container{max-width:1200px;margin:30px auto 0;padding:8px;}
 .tabla-pedidos-card{background:#fff;border-radius:22px;box-shadow:0 8px 30px rgba(24,119,255,.09);padding:16px 22px;margin-top:14px;}
@@ -218,7 +218,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 console.log('Lista de pedidos cargada (orden: más recientes primero)');
 </script>
 {% endblock %}

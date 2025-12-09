@@ -82,7 +82,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<style>
+<style nonce="{{ csp_nonce() }}">
 /* ---------- cards ---------- */
 .form-section,.table-section{
   background:#fff;border-radius:14px;padding:1.4rem;margin-bottom:1.6rem;
@@ -152,7 +152,7 @@
 
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 // ----- eliminar cliente (AJAX) -----
 $(document).on('click','.eliminar-cliente',function(){
   const id = $(this).data('id');

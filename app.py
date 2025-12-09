@@ -98,7 +98,7 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         ],
         'img-src': ["'self'", 'data:'],
         'font-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-        'connect-src': ["'self'"],
+        'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],
         # US01: permitir temporalmente atributos de estilo mientras migramos inline styles
         'style-src-attr': ["'unsafe-inline'"]
     }

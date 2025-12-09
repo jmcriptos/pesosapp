@@ -56,7 +56,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce() }}">
 console.log('🚀 SCRIPT INICIADO - Funcionando correctamente');
 
 document.addEventListener('DOMContentLoaded', function() {

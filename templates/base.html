@@ -130,7 +130,7 @@
     <script src="{{ url_for('static', filename='js/base.min.js') }}"></script>
     
     <!-- Script de info de optimización -->
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         console.log('🚀 PesosApp Optimizations Active:');
         console.log('✅ Minified CSS loaded: styles.min.css + main.min.css');
         console.log('✅ Minified JS loaded: base.min.js');
