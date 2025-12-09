@@ -4803,39 +4803,92 @@ def etiquetas_vencimiento():
     return render_template('form_generar_etiquetas.html', productos=productos)
 
 def generar_pdf_etiquetas(datos, cantidad):
+    """
+    Genera etiquetas de vencimiento 4x2" (una por página) con diseño:
+    - Logo Mr. Raucher a la izquierda
+    - Información (Lot, Manufactured, Expiration, When Kept at) a la derecha del logo
+    - Línea punteada separadora
+    - Nombre del producto centrado abajo
+    """
     output = BytesIO()
-    c = canvas.Canvas(output, pagesize=A4)
-    etiqueta_ancho = 1.8 * inch
-    etiqueta_alto = 0.8 * inch
-    margen_horizontal = 0.2 * inch
-    margen_vertical = 0.1 * inch
-    separacion_grupos = 0.3 * inch
-    radio_esquinas = 0.1 * inch
-    x_offset_start = (A4[0] - 2 * etiqueta_ancho - margen_horizontal) / 2
-    y_offset_start = A4[1] - inch
-    etiquetas_por_grupo = 4
-    etiquetas_por_pagina = 8
-    etiqueta_contador = 0
-    while cantidad > 0:
-        for fila in range(2):
-            y_offset = y_offset_start - fila * (2 * etiqueta_alto + margen_vertical + separacion_grupos if fila == 1 else 0)
-            for sub_fila in range(2):
-                for sub_columna in range(2):
-                    if cantidad <= 0:
-                        break
-                    etiqueta_x = x_offset_start + sub_columna * (etiqueta_ancho + margen_horizontal)
-                    etiqueta_y = y_offset - sub_fila * (etiqueta_alto + margen_vertical)
-                    c.roundRect(etiqueta_x, etiqueta_y, etiqueta_ancho, etiqueta_alto, radius=radio_esquinas)
-                    dibujar_etiqueta(c, etiqueta_x, etiqueta_y, etiqueta_ancho, etiqueta_alto, datos)
-                    etiqueta_contador += 1
-                    cantidad -= 1
-        if cantidad > 0:
-            c.showPage()
+
+    # Tamaño de página 4" x 2"
+    PAGE_W = 4 * inch
+    PAGE_H = 2 * inch
+
+    c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
+
+    # ========= DISEÑO / RETÍCULA =========
+    M = 8  # Margen interno
+
+    # Logo (lado izquierdo)
+    LOGO_W = 1.0 * inch
+    LOGO_H = 1.0 * inch
+    LOGO_X = M + 0.1 * inch
+    LOGO_Y = PAGE_H - M - LOGO_H - 0.1 * inch
+
+    # Columna derecha (labels y valores)
+    LBL_X = LOGO_X + LOGO_W + 0.3 * inch
+    VAL_X = LBL_X + 0.95 * inch
+
+    # Posiciones Y para información
+    LINE_H = 0.22 * inch
+    Y_LOT  = PAGE_H - M - 0.28 * inch
+    Y_MFG  = Y_LOT - LINE_H
+    Y_EXP  = Y_MFG - LINE_H
+    Y_KEEP = Y_EXP - LINE_H
+
+    # Separador
+    SEP_Y = M + 0.38 * inch
+
+    # Área del producto
+    PROD_Y = M + 0.12 * inch
+
+    logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
+
+    for _ in range(cantidad):
+        # Logo
+        if os.path.exists(logo_path):
+            c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
+                        preserveAspectRatio=True, mask='auto')
+
+        # Labels (a la derecha del logo)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawRightString(LBL_X + 0.9 * inch, Y_LOT, "Lot:")
+        c.drawRightString(LBL_X + 0.9 * inch, Y_MFG, "Manufactured:")
+        c.drawRightString(LBL_X + 0.9 * inch, Y_EXP, "Expiration:")
+        c.drawRightString(LBL_X + 0.9 * inch, Y_KEEP, "When Kept at:")
+
+        # Valores
+        c.setFont("Helvetica", 11)
+        c.drawString(VAL_X, Y_LOT, datos['lote'] or "")
+        c.drawString(VAL_X, Y_MFG, datos['fecha_fabricacion'] or "")
+        c.drawString(VAL_X, Y_EXP, datos['fecha_expiracion'] or "")
+
+        temp = (datos['temperatura'] or "")
+        if isinstance(temp, str):
+            temp = temp.replace(" oC", " °C").replace("° C", "°C")
+        c.drawString(VAL_X, Y_KEEP, temp)
+
+        # Línea separadora punteada
+        c.setLineWidth(0.5)
+        c.setDash(1, 2)
+        c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
+        c.setDash()
+
+        # Nombre del producto centrado abajo
+        c.setFont("Helvetica-Bold", 18)
+        c.drawCentredString(PAGE_W / 2, PROD_Y, datos['nombre_producto'] or "")
+
+        c.showPage()
+
     c.save()
     output.seek(0)
     return send_file(output, as_attachment=True, download_name="etiquetas_vencimiento.pdf", mimetype='application/pdf')
 
+
 def dibujar_etiqueta(c, x_offset, y_offset, etiqueta_ancho, etiqueta_alto, datos):
+    """Función legacy - mantenida por compatibilidad pero no se usa en el nuevo diseño"""
     c.setFont("Helvetica-Bold", 8)
     c.drawCentredString(x_offset + etiqueta_ancho / 2, y_offset + etiqueta_alto - 0.15 * inch, datos["nombre_producto"])
     c.setFont("Helvetica", 7)
