@@ -4804,105 +4804,182 @@ def etiquetas_vencimiento():
 
 def generar_pdf_etiquetas(datos, cantidad):
     """
-    Genera etiquetas de vencimiento 4x2" (una por página) con diseño:
-    - Logo Mr. Raucher a la izquierda
-    - Información (Lot, Manufactured, Expiration, When Kept at) a la derecha del logo
-    - Línea punteada separadora
-    - Nombre del producto centrado abajo
+    Genera PDF con etiquetas 4"x2" (dos por página, una arriba y otra abajo).
+    Formato similar a etiquetas de pedidos pero sin cliente ni peso.
     """
-    output = BytesIO()
+    from reportlab.lib.pagesizes import letter
 
-    # Tamaño de página 4" x 2"
+    # Dimensiones de etiqueta 4" x 2"
     PAGE_W = 4 * inch
     PAGE_H = 2 * inch
 
-    c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
+    output = BytesIO()
+    # Página letter para contener las etiquetas (sin márgenes)
+    c = canvas.Canvas(output, pagesize=letter)
+    c.setPageCompression(1)  # Compresión para PDF más pequeño
 
-    # ========= DISEÑO / RETÍCULA =========
-    M = 8  # Margen interno
+    # Eliminar cualquier margen automático del canvas
+    c.setPageSize(letter)
 
-    # Logo (lado izquierdo)
-    LOGO_W = 1.0 * inch
-    LOGO_H = 1.0 * inch
-    LOGO_X = M + 0.1 * inch
-    LOGO_Y = PAGE_H - M - LOGO_H - 0.1 * inch
-
-    # Columna derecha (labels y valores)
-    LBL_X = LOGO_X + LOGO_W + 0.3 * inch
-    VAL_X = LBL_X + 0.95 * inch
-
-    # Posiciones Y para información
-    LINE_H = 0.22 * inch
-    Y_LOT  = PAGE_H - M - 0.28 * inch
-    Y_MFG  = Y_LOT - LINE_H
-    Y_EXP  = Y_MFG - LINE_H
-    Y_KEEP = Y_EXP - LINE_H
-
-    # Separador
-    SEP_Y = M + 0.38 * inch
-
-    # Área del producto
-    PROD_Y = M + 0.12 * inch
-
+    # Configuración
+    M = 8  # Margen interno de etiqueta
     logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
-    for _ in range(cantidad):
-        # Logo
-        if os.path.exists(logo_path):
-            c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
-                        preserveAspectRatio=True, mask='auto')
+    # Logo (sin margen superior)
+    LOGO_X = M
+    LOGO_W = 1.20 * inch
+    LOGO_H = 1.20 * inch
+    LOGO_Y = PAGE_H - LOGO_H  # Sin margen superior
 
-        # Labels (a la derecha del logo)
-        c.setFont("Helvetica-Bold", 11)
-        c.drawRightString(LBL_X + 0.9 * inch, Y_LOT, "Lot:")
-        c.drawRightString(LBL_X + 0.9 * inch, Y_MFG, "Manufactured:")
-        c.drawRightString(LBL_X + 0.9 * inch, Y_EXP, "Expiration:")
-        c.drawRightString(LBL_X + 0.9 * inch, Y_KEEP, "When Kept at:")
+    # Columna derecha (labels y valores)
+    LBL_XR = 2.80 * inch
+    VAL_X = LBL_XR + 0.12 * inch
+
+    # Posiciones Y (sin Cliente ni Net Weight, pegado al borde superior)
+    Y_LOT = PAGE_H - 0.12 * inch  # Pegado al borde superior (reducido de 0.22)
+    Y_MFG = Y_LOT - 0.18 * inch
+    Y_EXP = Y_MFG - 0.18 * inch
+    Y_KEEP = Y_EXP - 0.18 * inch
+
+    # Separador
+    SEP_Y = M + 0.55 * inch  # Movido más arriba para dar espacio al producto
+
+    # Área del producto (más grande y separada del borde inferior)
+    PROD_Y_MIN = M + 0.15 * inch  # Separado del borde inferior
+    PROD_Y_MAX = M + 0.50 * inch  # Más espacio vertical
+
+    def draw_center_wrap_text(canvas_obj, text, center_x, y_bottom, y_top, max_width,
+                              font_name="Helvetica-Bold", max_font=19.2, min_font=12, line_gap=2):
+        """Dibuja texto centrado, 1-2 líneas, auto-escala."""
+        txt = (text or "").strip()
+        if not txt:
+            return
+
+        def wrap_two_lines(s, font_size):
+            # 1 línea
+            if pdfmetrics.stringWidth(s, font_name, font_size) <= max_width:
+                return [s]
+            # 2 líneas
+            words = s.split()
+            best = None
+            for i in range(1, len(words)):
+                l1 = " ".join(words[:i])
+                l2 = " ".join(words[i:])
+                w1 = pdfmetrics.stringWidth(l1, font_name, font_size)
+                w2 = pdfmetrics.stringWidth(l2, font_name, font_size)
+                if w1 <= max_width and w2 <= max_width:
+                    diff = abs(w1 - w2)
+                    if best is None or diff < best[0]:
+                        best = (diff, [l1, l2])
+            if best:
+                return best[1]
+            return None
+
+        avail_h = (y_top - y_bottom)
+        font = max_font
+        while font >= min_font:
+            lines = wrap_two_lines(txt, font)
+            if lines is None:
+                font -= 0.5
+                continue
+            line_h = font
+            total_h = line_h * len(lines) + (len(lines) - 1) * line_gap
+            if total_h <= avail_h:
+                top_y = y_bottom + (avail_h + total_h) / 2
+                canvas_obj.setFont(font_name, font)
+                if len(lines) == 1:
+                    canvas_obj.drawCentredString(center_x, top_y - line_h + 1, lines[0])
+                else:
+                    canvas_obj.drawCentredString(center_x, top_y - line_h + 1, lines[0])
+                    canvas_obj.drawCentredString(center_x, top_y - 2*line_h - line_gap + 1, lines[1])
+                return
+            font -= 0.5
+
+        # Fallback
+        font = min_font
+        s = txt
+        ell = "…"
+        while pdfmetrics.stringWidth(s + ell, font_name, font) > max_width and len(s) > 1:
+            s = s[:-1]
+        y = y_bottom + (avail_h - font) / 2
+        canvas_obj.setFont(font_name, font)
+        canvas_obj.drawCentredString(center_x, y, s + ell)
+
+    def dibujar_etiqueta_venc(x_base, y_base):
+        """Dibuja una etiqueta de vencimiento en la posición X,Y especificada"""
+        # LOGO
+        if os.path.exists(logo_path):
+            c.drawImage(logo_path, x_base + LOGO_X, y_base + LOGO_Y,
+                       width=LOGO_W, height=LOGO_H,
+                       preserveAspectRatio=True, mask='auto')
+
+        # Labels (sin Client)
+        c.setFont("Helvetica-Bold", 9.5)
+        c.drawRightString(x_base + LBL_XR, y_base + Y_LOT, "Lot:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_MFG, "Manufactured:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_EXP, "Expiration:")
+        c.drawRightString(x_base + LBL_XR, y_base + Y_KEEP, "When Kept at:")
 
         # Valores
-        c.setFont("Helvetica", 11)
-        c.drawString(VAL_X, Y_LOT, datos['lote'] or "")
-        c.drawString(VAL_X, Y_MFG, datos['fecha_fabricacion'] or "")
-        c.drawString(VAL_X, Y_EXP, datos['fecha_expiracion'] or "")
+        c.setFont("Helvetica", 9.5)
+        c.drawString(x_base + VAL_X, y_base + Y_LOT, datos['lote'] or "")
+        c.drawString(x_base + VAL_X, y_base + Y_MFG, datos['fecha_fabricacion'] or "")
+        c.drawString(x_base + VAL_X, y_base + Y_EXP, datos['fecha_expiracion'] or "")
 
-        temp = (datos['temperatura'] or "")
+        temp = datos.get('temperatura', '')
         if isinstance(temp, str):
             temp = temp.replace(" oC", " °C").replace("° C", "°C")
-        c.drawString(VAL_X, Y_KEEP, temp)
+        c.drawString(x_base + VAL_X, y_base + Y_KEEP, temp)
 
-        # Línea separadora punteada
+        # Separador (sin Net Weight)
         c.setLineWidth(0.5)
         c.setDash(1, 2)
-        c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
+        c.line(x_base + M, y_base + SEP_Y, x_base + PAGE_W - M, y_base + SEP_Y)
         c.setDash()
 
-        # Nombre del producto centrado abajo
-        c.setFont("Helvetica-Bold", 18)
-        c.drawCentredString(PAGE_W / 2, PROD_Y, datos['nombre_producto'] or "")
+        # Producto (fuente más grande)
+        max_text_width = PAGE_W - (2 * M)
+        draw_center_wrap_text(
+            c,
+            datos.get('nombre_producto', 'N/A'),
+            center_x=x_base + PAGE_W / 2,
+            y_bottom=y_base + PROD_Y_MIN,
+            y_top=y_base + PROD_Y_MAX,
+            max_width=max_text_width,
+            font_name="Helvetica-Bold",
+            max_font=24,  # Aumentado de 19.2 a 24
+            min_font=16,  # Aumentado de 12 a 16
+            line_gap=2
+        )
 
-        c.showPage()
+    # Generar etiquetas: 2 por página (centradas horizontalmente, arriba sin margen)
+    page_width = letter[0]  # 8.5"
+    page_height = letter[1]  # 11"
+
+    # Centrar horizontalmente: (8.5" - 4") / 2 = 2.25"
+    x_centrado = (page_width - PAGE_W) / 2
+
+    etiqueta_num = 0
+
+    while etiqueta_num < cantidad:
+        # Primera etiqueta: arriba (sin margen superior, centrada)
+        y_pos_1 = page_height - PAGE_H
+        dibujar_etiqueta_venc(x_centrado, y_pos_1)
+        etiqueta_num += 1
+
+        # Segunda etiqueta: abajo (centrada)
+        if etiqueta_num < cantidad:
+            y_pos_2 = page_height - 2 * PAGE_H
+            dibujar_etiqueta_venc(x_centrado, y_pos_2)
+            etiqueta_num += 1
+
+        # Nueva página
+        if etiqueta_num < cantidad:
+            c.showPage()
 
     c.save()
     output.seek(0)
     return send_file(output, as_attachment=True, download_name="etiquetas_vencimiento.pdf", mimetype='application/pdf')
-
-
-def dibujar_etiqueta(c, x_offset, y_offset, etiqueta_ancho, etiqueta_alto, datos):
-    """Función legacy - mantenida por compatibilidad pero no se usa en el nuevo diseño"""
-    c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(x_offset + etiqueta_ancho / 2, y_offset + etiqueta_alto - 0.15 * inch, datos["nombre_producto"])
-    c.setFont("Helvetica", 7)
-    label_x = x_offset + 0.1 * inch
-    value_x = x_offset + etiqueta_ancho - 0.1 * inch
-    line_height = 0.14 * inch
-    c.drawString(label_x, y_offset + etiqueta_alto - 0.3 * inch, "Lot:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - 0.3 * inch, datos['lote'])
-    c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + line_height), "Manufactured:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + line_height), datos['fecha_fabricacion'])
-    c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + 2 * line_height), "Expiration:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + 2 * line_height), datos['fecha_expiracion'])
-    c.drawString(label_x, y_offset + etiqueta_alto - (0.3 * inch + 3 * line_height), "When Kept at:")
-    c.drawRightString(value_x, y_offset + etiqueta_alto - (0.3 * inch + 3 * line_height), datos['temperatura'])
 
 
 try:
