@@ -356,7 +356,10 @@ def require_login():
     # Permitir específicamente el endpoint de CSRF
     if request.endpoint == 'csrf_ping':
         return
-        
+    # Webhooks tienen su propia autenticación (verificar_webhook_auth)
+    if request.endpoint and request.endpoint.startswith('webhook_'):
+        return
+
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
@@ -2181,13 +2184,50 @@ def actualizar_territorio_vendedor(v_id):
 
 # ===== WEBHOOKS Y INTEGRACIONES =====
 
+# Token secreto para webhooks (debe configurarse en producción)
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
+
+def verificar_webhook_auth():
+    """Verifica autenticación del webhook via Bearer token o HMAC signature"""
+    if not WEBHOOK_SECRET:
+        # Si no hay secreto configurado, rechazar en producción
+        if os.environ.get("FLASK_ENV") == "production":
+            return False, "Webhook no configurado"
+        return True, None  # Permitir en desarrollo sin autenticación
+
+    # Opción 1: Bearer token
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+        if secrets.compare_digest(token, WEBHOOK_SECRET):
+            return True, None
+
+    # Opción 2: HMAC signature en header X-Webhook-Signature
+    signature = request.headers.get('X-Webhook-Signature')
+    if signature:
+        import hmac
+        import hashlib
+        expected = hmac.new(
+            WEBHOOK_SECRET.encode(),
+            request.get_data(),
+            hashlib.sha256
+        ).hexdigest()
+        if secrets.compare_digest(signature, expected):
+            return True, None
+
+    return False, "Autenticación inválida"
+
 @app.route('/webhook/actualizacion-precios', methods=['POST'])
 def webhook_actualizacion_precios():
     """Webhook para actualizaciones automáticas de precios desde sistemas externos"""
     try:
+        # Verificar autenticación del webhook
+        auth_ok, auth_error = verificar_webhook_auth()
+        if not auth_ok:
+            return jsonify({'error': auth_error}), 401
+
         data = request.get_json()
-        
-        # Validar webhook (en producción añadir autenticación)
+
         if not data or 'productos' not in data:
             return jsonify({'error': 'Datos inválidos'}), 400
         
