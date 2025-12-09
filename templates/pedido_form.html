@@ -649,6 +649,8 @@ const productos = {{ productos|tojson }};
 const productos_pedido = {{ productos_pedido|default([])|tojson }};
 let productosAgregados = productos_pedido.length ? productos_pedido : [];
 
+console.log('DEBUG: Productos cargados del backend:', productos.length, productos);
+
 /* === Referencias DOM === */
 const productoSelect = document.getElementById('producto-select');
 const inputCajas = document.getElementById('input-cajas');
