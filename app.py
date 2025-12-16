@@ -40,7 +40,8 @@ from markupsafe import Markup
 from utils.label_utils import (
     draw_order_label, draw_expiration_label, get_logo_path,
     create_single_label_pdf, create_letter_page_pdf, get_centered_x,
-    LABEL_WIDTH, LABEL_HEIGHT
+    LABEL_WIDTH, LABEL_HEIGHT,
+    create_a4_page_pdf, get_a4_label_positions, draw_order_label_a4
 )
 try:
     from flask_wtf import CSRFProtect
@@ -3072,6 +3073,131 @@ def generar_etiqueta_detalle(pedido_id):
 
         flash(f"Error generando etiquetas: {str(e)}", "danger")
         return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+
+# ---------------------------------------------------------------------
+# Generar etiquetas A4 (2 por página) a partir de los DetallePedido
+# ---------------------------------------------------------------------
+@app.route('/generar_etiqueta_detalle_a4/<int:pedido_id>', methods=['GET', 'POST'])
+@login_required
+def generar_etiqueta_detalle_a4(pedido_id):
+    """
+    Genera un PDF con etiquetas en formato A4 (2 etiquetas por página).
+    """
+    try:
+        pedido = Pedido.query.get_or_404(pedido_id)
+
+        # Obtener parámetros desde GET o POST
+        fecha_ini = request.args.get('fecha_inicio') if request.method == 'GET' else request.form.get('fecha_inicio')
+        fecha_fin = request.args.get('fecha_fin') if request.method == 'GET' else request.form.get('fecha_fin')
+
+        # Validar fechas
+        if not fecha_ini or not fecha_fin:
+            error_msg = "Debe indicar fecha de inicio y fin"
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": error_msg}), 400
+            flash(error_msg, "danger")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+        try:
+            datetime.strptime(fecha_ini, '%Y-%m-%d')
+            datetime.strptime(fecha_fin, '%Y-%m-%d')
+        except ValueError:
+            error_msg = "Formato de fecha inválido. Use YYYY-MM-DD"
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": error_msg}), 400
+            flash("Formato de fecha inválido", "danger")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+        # Filtrar los detalles
+        detalles = (DetallePedido.query
+                    .filter_by(pedido_id=pedido_id)
+                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
+                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
+                    .order_by(DetallePedido.id.asc())
+                    .all())
+
+        if not detalles:
+            error_msg = "No hay detalles en ese rango de fechas"
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": error_msg}), 404
+            flash(error_msg, "warning")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+        # Crear PDF A4
+        output, c, page_width, page_height = create_a4_page_pdf()
+        x_offset, y_top, y_bottom = get_a4_label_positions(page_width, page_height)
+        logo_path = get_logo_path(basedir)
+        cliente_nombre = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
+
+        etiqueta_contador = 0
+
+        for d in detalles:
+            producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
+            temperatura = getattr(d.producto, "temperatura", None) or ""
+            peso_val = float(d.peso or d.cajas or 0)
+
+            # Formatear fechas
+            f_fab = d.fecha_fabricacion
+            f_exp = d.fecha_expiracion
+            if hasattr(d.fecha_fabricacion, "strftime"):
+                f_fab = d.fecha_fabricacion.strftime("%Y-%m-%d")
+            if hasattr(d.fecha_expiracion, "strftime"):
+                f_exp = d.fecha_expiracion.strftime("%Y-%m-%d")
+
+            # Determinar posición (arriba o abajo)
+            y_offset = y_top if etiqueta_contador % 2 == 0 else y_bottom
+
+            draw_order_label_a4(
+                c, logo_path, cliente_nombre, producto_nombre,
+                temperatura, d.lote, f_fab, f_exp, peso_val,
+                x_offset, y_offset
+            )
+
+            etiqueta_contador += 1
+
+            # Nueva página después de 2 etiquetas
+            if etiqueta_contador % 2 == 0:
+                c.showPage()
+
+        # Cerrar última página si quedó incompleta
+        if etiqueta_contador % 2 != 0:
+            c.showPage()
+
+        c.save()
+        output.seek(0)
+
+        # Nombre del archivo
+        nombre_cliente = (pedido.cliente.nombre if getattr(pedido, "cliente", None) else "cliente").replace(" ", "_").replace("/", "-")
+        filename = f"etiquetas_A4_pedido_{pedido_id}_{nombre_cliente}.pdf"
+
+        # Crear response
+        response = make_response(send_file(
+            output,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=filename
+        ))
+
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        return response
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generando etiquetas A4: {str(e)}")
+
+        if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"error": str(e)}), 500
+
+        flash(f"Error generando etiquetas A4: {str(e)}", "danger")
+        return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
 
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required

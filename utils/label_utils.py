@@ -5,7 +5,7 @@ Centraliza el código común para etiquetas de pedidos y etiquetas de vencimient
 import os
 from io import BytesIO
 from reportlab.lib.units import inch
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 
@@ -328,3 +328,100 @@ def create_letter_page_pdf():
 def get_centered_x(page_width):
     """Calcula la posición X centrada para una etiqueta en página letter."""
     return (page_width - LABEL_WIDTH) / 2
+
+
+# =============================================================================
+# FORMATO A4 (2 etiquetas por página)
+# =============================================================================
+
+# Tamaño de etiqueta para A4 (100.16mm x 50.8mm)
+A4_LABEL_WIDTH = 100.16 / 25.4 * inch
+A4_LABEL_HEIGHT = 50.8 / 25.4 * inch
+
+
+def create_a4_page_pdf():
+    """
+    Crea un PDF con tamaño A4 para etiquetas (2 por página).
+
+    Returns:
+        tuple: (BytesIO output, canvas object, page_width, page_height)
+    """
+    output = BytesIO()
+    c = canvas.Canvas(output, pagesize=A4)
+    c.setPageCompression(1)
+    return output, c, A4[0], A4[1]
+
+
+def get_a4_label_positions(page_width, page_height):
+    """
+    Calcula las posiciones Y para 2 etiquetas centradas en A4.
+
+    Returns:
+        tuple: (x_offset, y_top, y_bottom)
+    """
+    x_offset = (page_width - A4_LABEL_WIDTH) / 2
+    y_top = page_height - A4_LABEL_HEIGHT - 0.5 * inch
+    y_bottom = y_top - A4_LABEL_HEIGHT - 0.3 * inch
+    return x_offset, y_top, y_bottom
+
+
+def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot,
+                        mfg_date, exp_date, weight, x_offset, y_offset):
+    """
+    Dibuja una etiqueta de pedido en formato A4.
+
+    Args:
+        canvas_obj: Objeto canvas de ReportLab
+        logo_path: Ruta al logo
+        client: Nombre del cliente
+        product: Nombre del producto
+        temperature: Temperatura de conservación
+        lot: Número de lote
+        mfg_date: Fecha de fabricación
+        exp_date: Fecha de expiración
+        weight: Peso neto
+        x_offset: Posición X
+        y_offset: Posición Y
+    """
+    shift_left = 25
+    logo_shift_up = 20
+    logo_shift_right = 20
+
+    # Logo
+    if os.path.exists(logo_path):
+        canvas_obj.drawImage(
+            logo_path,
+            x_offset + 10 - shift_left + logo_shift_right,
+            y_offset + 30 + logo_shift_up,
+            width=1.2 * inch,
+            height=1.2 * inch,
+            preserveAspectRatio=True,
+            mask='auto'
+        )
+
+    # Labels y valores
+    label_x = x_offset + 2.8 * inch - shift_left
+    value_x = label_x + 0.2 * inch
+
+    canvas_obj.setFont("Helvetica-Bold", 10)
+    canvas_obj.drawRightString(label_x, y_offset + 1.7 * inch, "Client:")
+    canvas_obj.drawRightString(label_x, y_offset + 1.5 * inch, "Lot:")
+    canvas_obj.drawRightString(label_x, y_offset + 1.3 * inch, "Manufactured:")
+    canvas_obj.drawRightString(label_x, y_offset + 1.1 * inch, "Expiration:")
+    canvas_obj.drawRightString(label_x, y_offset + 0.9 * inch, "When Kept at:")
+
+    canvas_obj.setFont("Helvetica", 10)
+    canvas_obj.drawString(value_x, y_offset + 1.7 * inch, client or "")
+    canvas_obj.drawString(value_x, y_offset + 1.5 * inch, lot or "")
+    canvas_obj.drawString(value_x, y_offset + 1.3 * inch, mfg_date or "")
+    canvas_obj.drawString(value_x, y_offset + 1.1 * inch, exp_date or "")
+    canvas_obj.drawString(value_x, y_offset + 0.9 * inch, normalize_temperature(temperature))
+
+    # Net Weight
+    canvas_obj.setFont("Helvetica-Bold", 14)
+    canvas_obj.drawRightString(label_x, y_offset + 0.5 * inch, "Net Weight:")
+    canvas_obj.drawString(value_x, y_offset + 0.5 * inch, f"{weight:.2f}")
+
+    # Producto (centrado abajo)
+    canvas_obj.setFont("Helvetica-Bold", 18)
+    canvas_obj.drawCentredString(x_offset + (A4_LABEL_WIDTH / 2), y_offset + 0.15 * inch, product or "N/A")

@@ -227,13 +227,22 @@
                     </div>
                 </div>
     
-                <button type="submit" class="mobile-btn mobile-btn-primary btn-full-width" id="btn-generar-etiquetas">
-                    <i class="fas fa-tags"></i>
-                    <span class="btn-text">Generar etiquetas</span>
-                    <span class="btn-loading" style="display:none;">
-                        <i class="fas fa-spinner fa-spin"></i> Generando...
-                    </span>
-                </button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="submit" class="mobile-btn mobile-btn-primary" id="btn-generar-etiquetas" style="flex: 1; min-width: 140px;">
+                        <i class="fas fa-tags"></i>
+                        <span class="btn-text">4x2" (Térmica)</span>
+                        <span class="btn-loading" style="display:none;">
+                            <i class="fas fa-spinner fa-spin"></i> Generando...
+                        </span>
+                    </button>
+                    <button type="button" class="mobile-btn mobile-btn-success" id="btn-generar-etiquetas-a4" style="flex: 1; min-width: 140px;">
+                        <i class="fas fa-file-pdf"></i>
+                        <span class="btn-text">A4 (2 por página)</span>
+                        <span class="btn-loading" style="display:none;">
+                            <i class="fas fa-spinner fa-spin"></i> Generando...
+                        </span>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -453,18 +462,118 @@ if (formEtiquetas && btnGenerar) {
             
             // Restaurar botón después de 2 segundos
             setTimeout(() => {
-                if (btnText) btnText.textContent = 'Generar etiquetas';
+                if (btnText) btnText.textContent = '4x2" (Térmica)';
                 btnGenerar.disabled = false;
             }, 2000);
-            
+
         } catch (error) {
             console.error('Error generando etiquetas:', error);
             alert('Error al generar las etiquetas: ' + error.message);
-            
+
             // Restaurar estado del botón
             if (btnText) btnText.style.display = 'inline';
             if (btnLoading) btnLoading.style.display = 'none';
             btnGenerar.disabled = false;
+        }
+    });
+}
+
+// ========================================================================
+// DESCARGA DE ETIQUETAS A4 (2 por página)
+// ========================================================================
+const btnGenerarA4 = document.getElementById('btn-generar-etiquetas-a4');
+
+if (formEtiquetas && btnGenerarA4) {
+    btnGenerarA4.addEventListener('click', async function(e) {
+        e.preventDefault();
+
+        const btnText = btnGenerarA4.querySelector('.btn-text');
+        const btnLoading = btnGenerarA4.querySelector('.btn-loading');
+
+        // Validar campos de fecha
+        const fechaInicio = document.getElementById('fecha_inicio').value;
+        const fechaFin = document.getElementById('fecha_fin').value;
+
+        if (!fechaInicio || !fechaFin) {
+            alert('Por favor complete las fechas de inicio y fin');
+            return;
+        }
+
+        // UI feedback: mostrar estado de carga
+        btnGenerarA4.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoading) btnLoading.style.display = 'inline';
+
+        try {
+            const formData = new FormData(formEtiquetas);
+
+            // Hacer petición al servidor (ruta A4)
+            const response = await fetch("{{ url_for('generar_etiqueta_detalle_a4', pedido_id=pedido.id) }}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Error generando etiquetas A4');
+            }
+
+            // Obtener blob del PDF
+            const blob = await response.blob();
+
+            // Extraer nombre del archivo desde Content-Disposition header
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'etiquetas_a4.pdf';
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (match && match[1]) {
+                    filename = match[1].replace(/['"]/g, '');
+                }
+            }
+
+            // Crear URL temporal del blob
+            const url = window.URL.createObjectURL(blob);
+
+            // Crear enlace temporal y hacer click (mejor compatibilidad iOS)
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+
+            // iOS requiere que el enlace esté en el DOM
+            document.body.appendChild(a);
+            a.click();
+
+            // Limpiar después de un breve delay
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 100);
+
+            // Feedback visual de éxito
+            if (btnText) {
+                btnText.textContent = '¡Descargado!';
+                btnText.style.display = 'inline';
+            }
+            if (btnLoading) btnLoading.style.display = 'none';
+
+            // Restaurar botón después de 2 segundos
+            setTimeout(() => {
+                if (btnText) btnText.textContent = 'A4 (2 por página)';
+                btnGenerarA4.disabled = false;
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error generando etiquetas A4:', error);
+            alert('Error al generar las etiquetas A4: ' + error.message);
+
+            // Restaurar estado del botón
+            if (btnText) btnText.style.display = 'inline';
+            if (btnLoading) btnLoading.style.display = 'none';
+            btnGenerarA4.disabled = false;
         }
     });
 }
