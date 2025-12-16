@@ -2972,9 +2972,14 @@ def generar_etiqueta_detalle(pedido_id):
         if request.method == 'GET':
             fecha_ini = request.args.get('fecha_inicio')
             fecha_fin = request.args.get('fecha_fin')
+            formato = request.args.get('formato', '4x2').lower()
         else:
             fecha_ini = request.form.get('fecha_inicio')
             fecha_fin = request.form.get('fecha_fin')
+            formato = request.form.get('formato', '4x2').lower()
+
+        # Normalizar formato para evitar valores no soportados
+        formato = 'a4' if formato == 'a4' else '4x2'
 
         # Validar fechas
         if not fecha_ini or not fecha_fin:
@@ -2996,8 +3001,8 @@ def generar_etiqueta_detalle(pedido_id):
         # --------- Filtrar los detalles ----------
         detalles = (DetallePedido.query
                     .filter_by(pedido_id=pedido_id)
-                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
-                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
+                    .filter(DetallePedido.fecha_fabricacion >= fi)
+                    .filter(DetallePedido.fecha_fabricacion <= ff)
                     .order_by(DetallePedido.id.asc())
                     .all())
 
@@ -3008,11 +3013,12 @@ def generar_etiqueta_detalle(pedido_id):
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
         # --------- PDF 4" x 2" (una etiqueta por página) ----------
-        PAGE_W = 4 * inch
-        PAGE_H = 2 * inch
+        LABEL_W = 4 * inch
+        LABEL_H = 2 * inch
 
         output = BytesIO()
-        c = canvas.Canvas(output, pagesize=(PAGE_W, PAGE_H))
+        page_size = (LABEL_W, LABEL_H) if formato != 'a4' else A4
+        c = canvas.Canvas(output, pagesize=page_size)
 
         # ========= DISEÑO / RETÍCULA =========
         M = 8  # Margen interno
@@ -3021,14 +3027,14 @@ def generar_etiqueta_detalle(pedido_id):
         LOGO_X = M
         LOGO_W = 1.20 * inch
         LOGO_H = 1.20 * inch
-        LOGO_Y = PAGE_H - M - LOGO_H
+        LOGO_Y = LABEL_H - M - LOGO_H
 
         # Columna derecha (labels y valores)
         LBL_XR = 2.80 * inch
         VAL_X  = LBL_XR + 0.12 * inch
 
         # Información superior (COMPACTADA)
-        Y_CLIENT = PAGE_H - M - 0.22 * inch
+        Y_CLIENT = LABEL_H - M - 0.22 * inch
         Y_LOT    = Y_CLIENT - 0.18 * inch
         Y_MFG    = Y_LOT    - 0.18 * inch
         Y_EXP    = Y_MFG    - 0.18 * inch
@@ -3110,50 +3116,53 @@ def generar_etiqueta_detalle(pedido_id):
             canvas_obj.drawCentredString(center_x, y, s + ell)
 
         # ========= DIBUJO DE UNA ETIQUETA =========
-        def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso):
+        def dibujar_etiqueta(cli, prod, temp, lote, f_fab, f_exp, peso, offset_x=0, offset_y=0):
+            canvas_obj = c
+            canvas_obj.saveState()
+            canvas_obj.translate(offset_x, offset_y)
             # LOGO
             if os.path.exists(logo_path):
-                c.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
+                canvas_obj.drawImage(logo_path, LOGO_X, LOGO_Y, width=LOGO_W, height=LOGO_H,
                             preserveAspectRatio=True, mask='auto')
 
             # Labels (derecha)
-            c.setFont("Helvetica-Bold", 9.5)
-            c.drawRightString(LBL_XR, Y_CLIENT, "Client:")
-            c.drawRightString(LBL_XR, Y_LOT,    "Lot:")
-            c.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
-            c.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
-            c.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
+            canvas_obj.setFont("Helvetica-Bold", 9.5)
+            canvas_obj.drawRightString(LBL_XR, Y_CLIENT, "Client:")
+            canvas_obj.drawRightString(LBL_XR, Y_LOT,    "Lot:")
+            canvas_obj.drawRightString(LBL_XR, Y_MFG,    "Manufactured:")
+            canvas_obj.drawRightString(LBL_XR, Y_EXP,    "Expiration:")
+            canvas_obj.drawRightString(LBL_XR, Y_KEEP,   "When Kept at:")
 
             # Valores
-            c.setFont("Helvetica", 9.5)
-            c.drawString(VAL_X, Y_CLIENT, cli or "")
-            c.drawString(VAL_X, Y_LOT,    lote or "")
-            c.drawString(VAL_X, Y_MFG,    f_fab or "")
-            c.drawString(VAL_X, Y_EXP,    f_exp or "")
+            canvas_obj.setFont("Helvetica", 9.5)
+            canvas_obj.drawString(VAL_X, Y_CLIENT, cli or "")
+            canvas_obj.drawString(VAL_X, Y_LOT,    lote or "")
+            canvas_obj.drawString(VAL_X, Y_MFG,    f_fab or "")
+            canvas_obj.drawString(VAL_X, Y_EXP,    f_exp or "")
 
             t = (temp or "")
             if isinstance(t, str):
                 t = t.replace(" oC", " °C").replace("° C", "°C")
-            c.drawString(VAL_X, Y_KEEP, t)
+            canvas_obj.drawString(VAL_X, Y_KEEP, t)
 
             # Net Weight
-            c.setFont("Helvetica-Bold", 15.6)
-            c.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
-            c.setFont("Helvetica-Bold", 16.8)
-            c.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
+            canvas_obj.setFont("Helvetica-Bold", 15.6)
+            canvas_obj.drawRightString(LBL_XR, Y_NETW, "Net Weight:")
+            canvas_obj.setFont("Helvetica-Bold", 16.8)
+            canvas_obj.drawString(VAL_X, Y_NETWV, f"{peso:.2f}")
 
             # Separador fino
-            c.setLineWidth(0.5)
-            c.setDash(1, 2)
-            c.line(M, SEP_Y, PAGE_W - M, SEP_Y)
-            c.setDash()
+            canvas_obj.setLineWidth(0.5)
+            canvas_obj.setDash(1, 2)
+            canvas_obj.line(M, SEP_Y, LABEL_W - M, SEP_Y)
+            canvas_obj.setDash()
 
             # Producto (1-2 líneas)
-            max_text_width = PAGE_W - (2 * M)
+            max_text_width = LABEL_W - (2 * M)
             draw_center_wrap_text(
-                c,
+                canvas_obj,
                 prod or "N/A",
-                center_x=PAGE_W / 2,
+                center_x=LABEL_W / 2,
                 y_bottom=PROD_Y_MIN,
                 y_top=PROD_Y_MAX,
                 max_width=max_text_width,
@@ -3161,11 +3170,12 @@ def generar_etiqueta_detalle(pedido_id):
                 min_font=12
             )
 
-            c.showPage()
+            canvas_obj.restoreState()
 
         # --------- Datos y render ----------
         cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
+        etiquetas = []
         for d in detalles:
             prod = d.producto.nombre if getattr(d, "producto", None) else "N/A"
             temp = getattr(d.producto, "temperatura", None) or ""
@@ -3179,19 +3189,37 @@ def generar_etiqueta_detalle(pedido_id):
             if hasattr(d, "fecha_expiracion") and hasattr(d.fecha_expiracion, "strftime"):
                 f_exp = d.fecha_expiracion.strftime("%Y-%m-%d")
 
-            if REPETIR_POR_CAJAS:
-                rep = int(d.cajas or 1)
-                for _ in range(max(1, rep)):
-                    dibujar_etiqueta(cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
-            else:
-                dibujar_etiqueta(cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
+            repeticiones = max(1, int(d.cajas or 1)) if REPETIR_POR_CAJAS else 1
+            for _ in range(repeticiones):
+                etiquetas.append((cli, prod, temp, d.lote, f_fab, f_exp, peso_val))
+
+        if formato == 'a4':
+            # Dos etiquetas centradas por página A4
+            page_w, page_h = A4
+            x_offset = (page_w - LABEL_W) / 2
+            espacio_vertical = 0.5 * inch
+            margen_vertical = (page_h - (2 * LABEL_H + espacio_vertical)) / 2
+            posiciones_y = [margen_vertical, margen_vertical + LABEL_H + espacio_vertical]
+
+            for idx, data in enumerate(etiquetas):
+                pos = idx % 2
+                dibujar_etiqueta(*data, offset_x=x_offset, offset_y=posiciones_y[pos])
+                if pos == 1 or idx == len(etiquetas) - 1:
+                    c.showPage()
+        else:
+            # Formato directo: una etiqueta por página
+            for idx, data in enumerate(etiquetas):
+                dibujar_etiqueta(*data)
+                if idx != len(etiquetas) - 1:
+                    c.showPage()
 
         c.save()
         output.seek(0)
 
         # --------- Nombre del archivo ----------
         nombre_cliente = (pedido.cliente.nombre if getattr(pedido, "cliente", None) else "cliente").replace(" ", "_").replace("/", "-")
-        filename = f"etiquetas_4x2_pedido_{pedido_id}_{nombre_cliente}.pdf"
+        sufijo = 'a4' if formato == 'a4' else '4x2'
+        filename = f"etiquetas_{sufijo}_pedido_{pedido_id}_{nombre_cliente}.pdf"
 
         # --------- Crear response con headers optimizados para iOS ----------
         response = make_response(send_file(
