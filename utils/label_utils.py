@@ -370,48 +370,27 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
                         mfg_date, exp_date, weight, x_offset, y_offset):
     """
     Dibuja una etiqueta de pedido en formato A4.
-
-    Args:
-        canvas_obj: Objeto canvas de ReportLab
-        logo_path: Ruta al logo
-        client: Nombre del cliente
-        product: Nombre del producto
-        temperature: Temperatura de conservación
-        lot: Número de lote
-        mfg_date: Fecha de fabricación
-        exp_date: Fecha de expiración
-        weight: Peso neto
-        x_offset: Posición X
-        y_offset: Posición Y
+    Idéntico a etiquetas de vencimiento en generar_etiqueta().
     """
     shift_left = 25
     logo_shift_up = 20
     logo_shift_right = 20
 
-    # Logo
-    if os.path.exists(logo_path):
-        canvas_obj.drawImage(
-            logo_path,
-            x_offset + 10 - shift_left + logo_shift_right,
-            y_offset + 30 + logo_shift_up,
-            width=1.2 * inch,
-            height=1.2 * inch,
-            preserveAspectRatio=True,
-            mask='auto'
-        )
+    # Logo (sin preserveAspectRatio ni mask, igual que etiquetas vencimiento)
+    canvas_obj.drawImage(logo_path, x_offset + 10 - shift_left + logo_shift_right,
+                         y_offset + 30 + logo_shift_up, width=1.2 * inch, height=1.2 * inch)
 
     # Labels y valores
+    canvas_obj.setFont("Helvetica-Bold", 10)
     label_x = x_offset + 2.8 * inch - shift_left
     value_x = label_x + 0.2 * inch
 
-    canvas_obj.setFont("Helvetica-Bold", 10)
     canvas_obj.drawRightString(label_x, y_offset + 1.7 * inch, "Client:")
     canvas_obj.drawRightString(label_x, y_offset + 1.5 * inch, "Lot:")
     canvas_obj.drawRightString(label_x, y_offset + 1.3 * inch, "Manufactured:")
     canvas_obj.drawRightString(label_x, y_offset + 1.1 * inch, "Expiration:")
     canvas_obj.drawRightString(label_x, y_offset + 0.9 * inch, "When Kept at:")
 
-    canvas_obj.setFont("Helvetica", 10)
     canvas_obj.drawString(value_x, y_offset + 1.7 * inch, client or "")
     canvas_obj.drawString(value_x, y_offset + 1.5 * inch, lot or "")
     canvas_obj.drawString(value_x, y_offset + 1.3 * inch, mfg_date or "")
