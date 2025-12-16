@@ -3194,12 +3194,14 @@ def generar_etiqueta_detalle(pedido_id):
                 etiquetas.append((cli, prod, temp, d.lote, f_fab, f_exp, peso_val))
 
         if formato == 'a4':
-            # Dos etiquetas centradas por página A4
+            # Dos etiquetas por página A4, sin margen superior
             page_w, page_h = A4
             x_offset = (page_w - LABEL_W) / 2
             espacio_vertical = 0.5 * inch
-            margen_vertical = (page_h - (2 * LABEL_H + espacio_vertical)) / 2
-            posiciones_y = [margen_vertical, margen_vertical + LABEL_H + espacio_vertical]
+            # Sin margen superior: etiquetas empiezan desde arriba de la página
+            y_offset_top = page_h - LABEL_H
+            y_offset_bottom = y_offset_top - espacio_vertical - LABEL_H
+            posiciones_y = [y_offset_bottom, y_offset_top]
 
             for idx, data in enumerate(etiquetas):
                 pos = idx % 2
