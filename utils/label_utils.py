@@ -360,9 +360,10 @@ def get_a4_label_positions(page_width, page_height):
         tuple: (x_offset, y_top, y_bottom)
     """
     x_offset = (page_width - A4_LABEL_WIDTH) / 2
-    # Sin margen superior (como etiquetas de vencimiento)
-    y_top = page_height - A4_LABEL_HEIGHT + 3
-    y_bottom = y_top - A4_LABEL_HEIGHT - 3
+    # Etiqueta superior: empieza justo arriba de la página (sin margen)
+    y_top = page_height - A4_LABEL_HEIGHT
+    # Etiqueta inferior: debajo de la superior con pequeño espacio
+    y_bottom = y_top - A4_LABEL_HEIGHT - 0.2 * inch
     return x_offset, y_top, y_bottom
 
 
@@ -370,38 +371,57 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
                         mfg_date, exp_date, weight, x_offset, y_offset):
     """
     Dibuja una etiqueta de pedido en formato A4.
-    Idéntico a etiquetas de vencimiento en generar_etiqueta().
+    Usa las mismas posiciones Y que las etiquetas de vencimiento (Y_LOT_VENC style).
     """
-    shift_left = 25
-    logo_shift_up = 20
-    logo_shift_right = 20
+    # Posiciones Y igual que etiquetas de vencimiento (sin margen superior)
+    # Y_LOT_VENC = LABEL_HEIGHT - 0.12 * inch = 1.88 inch desde abajo
+    y_client = y_offset + A4_LABEL_HEIGHT - 0.12 * inch   # 1.88 inch (como Y_LOT_VENC)
+    y_lot = y_client - 0.18 * inch                         # 1.70 inch
+    y_mfg = y_lot - 0.18 * inch                            # 1.52 inch
+    y_exp = y_mfg - 0.18 * inch                            # 1.34 inch
+    y_keep = y_exp - 0.18 * inch                           # 1.16 inch
 
-    # Logo (sin preserveAspectRatio ni mask, igual que etiquetas vencimiento)
-    canvas_obj.drawImage(logo_path, x_offset + 10 - shift_left + logo_shift_right,
-                         y_offset + 30 + logo_shift_up, width=1.2 * inch, height=1.2 * inch)
+    # Logo (sin margen superior, igual que etiquetas vencimiento)
+    logo_y = y_offset + A4_LABEL_HEIGHT - LOGO_HEIGHT
+    if os.path.exists(logo_path):
+        canvas_obj.drawImage(logo_path, x_offset + LOGO_X, logo_y,
+                             width=LOGO_WIDTH, height=LOGO_HEIGHT,
+                             preserveAspectRatio=True, mask='auto')
 
-    # Labels y valores
-    canvas_obj.setFont("Helvetica-Bold", 10)
-    label_x = x_offset + 2.8 * inch - shift_left
-    value_x = label_x + 0.2 * inch
+    # Labels y valores (usando las constantes compartidas)
+    canvas_obj.setFont("Helvetica-Bold", 9.5)
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_client, "Client:")
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_lot, "Lot:")
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_mfg, "Manufactured:")
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_exp, "Expiration:")
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_keep, "When Kept at:")
 
-    canvas_obj.drawRightString(label_x, y_offset + 1.7 * inch, "Client:")
-    canvas_obj.drawRightString(label_x, y_offset + 1.5 * inch, "Lot:")
-    canvas_obj.drawRightString(label_x, y_offset + 1.3 * inch, "Manufactured:")
-    canvas_obj.drawRightString(label_x, y_offset + 1.1 * inch, "Expiration:")
-    canvas_obj.drawRightString(label_x, y_offset + 0.9 * inch, "When Kept at:")
-
-    canvas_obj.drawString(value_x, y_offset + 1.7 * inch, client or "")
-    canvas_obj.drawString(value_x, y_offset + 1.5 * inch, lot or "")
-    canvas_obj.drawString(value_x, y_offset + 1.3 * inch, mfg_date or "")
-    canvas_obj.drawString(value_x, y_offset + 1.1 * inch, exp_date or "")
-    canvas_obj.drawString(value_x, y_offset + 0.9 * inch, normalize_temperature(temperature))
+    canvas_obj.setFont("Helvetica", 9.5)
+    canvas_obj.drawString(x_offset + VALUE_X, y_client, client or "")
+    canvas_obj.drawString(x_offset + VALUE_X, y_lot, lot or "")
+    canvas_obj.drawString(x_offset + VALUE_X, y_mfg, mfg_date or "")
+    canvas_obj.drawString(x_offset + VALUE_X, y_exp, exp_date or "")
+    canvas_obj.drawString(x_offset + VALUE_X, y_keep, normalize_temperature(temperature))
 
     # Net Weight
-    canvas_obj.setFont("Helvetica-Bold", 14)
-    canvas_obj.drawRightString(label_x, y_offset + 0.5 * inch, "Net Weight:")
-    canvas_obj.drawString(value_x, y_offset + 0.5 * inch, f"{weight:.2f}")
+    y_net_weight = y_offset + MARGIN + 0.46 * inch
+    canvas_obj.setFont("Helvetica-Bold", 15.6)
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_net_weight, "Net Weight:")
+    canvas_obj.setFont("Helvetica-Bold", 16.8)
+    canvas_obj.drawString(x_offset + VALUE_X, y_net_weight, f"{weight:.2f}")
+
+    # Separador
+    draw_separator(canvas_obj, x_offset, y_offset, SEPARATOR_Y)
 
     # Producto (centrado abajo)
-    canvas_obj.setFont("Helvetica-Bold", 18)
-    canvas_obj.drawCentredString(x_offset + (A4_LABEL_WIDTH / 2), y_offset + 0.15 * inch, product or "N/A")
+    max_text_width = A4_LABEL_WIDTH - (2 * MARGIN)
+    draw_center_wrap_text(
+        canvas_obj,
+        product or "N/A",
+        center_x=x_offset + A4_LABEL_WIDTH / 2,
+        y_bottom=y_offset + PRODUCT_Y_MIN,
+        y_top=y_offset + PRODUCT_Y_MAX,
+        max_width=max_text_width,
+        max_font=19.2,
+        min_font=12
+    )
