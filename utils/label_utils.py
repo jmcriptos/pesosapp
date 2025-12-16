@@ -360,8 +360,9 @@ def get_a4_label_positions(page_width, page_height):
         tuple: (x_offset, y_top, y_bottom)
     """
     x_offset = (page_width - A4_LABEL_WIDTH) / 2
-    y_top = page_height - A4_LABEL_HEIGHT - 0.5 * inch
-    y_bottom = y_top - A4_LABEL_HEIGHT - 0.3 * inch
+    # Sin margen superior (como etiquetas de vencimiento)
+    y_top = page_height - A4_LABEL_HEIGHT + 3
+    y_bottom = y_top - A4_LABEL_HEIGHT - 3
     return x_offset, y_top, y_bottom
 
 
