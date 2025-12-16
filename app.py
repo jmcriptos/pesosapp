@@ -726,6 +726,94 @@ def api_dashboard_metricas():
         print(f"Error en API de métricas: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+
+@app.route('/api/dashboard/tendencia')
+@login_required
+def api_dashboard_tendencia():
+    """API para obtener datos de tendencia según período seleccionado (8w, 30d, 7d)"""
+
+    try:
+        periodo = request.args.get('periodo', '8w')
+        hoy = datetime.now().date()
+
+        tendencia_data = []
+
+        if periodo == '8w':
+            # 8 semanas - agrupado por semana
+            for i in range(8):
+                inicio_semana = hoy - timedelta(days=hoy.weekday() + 7 * i)
+                fin_semana = inicio_semana + timedelta(days=6)
+                pedidos_semana = Pedido.query.filter(
+                    Pedido.fecha_pedido >= inicio_semana,
+                    Pedido.fecha_pedido <= fin_semana
+                ).all()
+                ventas_semana = sum(
+                    sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana
+                )
+                tendencia_data.append({
+                    'label': inicio_semana.strftime('%d/%m'),
+                    'ventas': round(ventas_semana, 2),
+                    'pedidos': len(pedidos_semana)
+                })
+            tendencia_data.reverse()
+
+        elif periodo == '30d':
+            # 30 días - agrupado por día (mostrando cada 3 días para legibilidad)
+            for i in range(10):
+                dia_inicio = hoy - timedelta(days=(9-i)*3 + 2)
+                dia_fin = hoy - timedelta(days=(9-i)*3)
+                pedidos_periodo = Pedido.query.filter(
+                    Pedido.fecha_pedido >= dia_inicio,
+                    Pedido.fecha_pedido <= dia_fin
+                ).all()
+                ventas_periodo = sum(
+                    sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_periodo
+                )
+                tendencia_data.append({
+                    'label': f"{dia_inicio.strftime('%d')}-{dia_fin.strftime('%d/%m')}",
+                    'ventas': round(ventas_periodo, 2),
+                    'pedidos': len(pedidos_periodo)
+                })
+
+        elif periodo == '7d':
+            # 7 días - un punto por día
+            for i in range(7):
+                dia = hoy - timedelta(days=6-i)
+                pedidos_dia = Pedido.query.filter(
+                    db.func.date(Pedido.fecha_pedido) == dia
+                ).all()
+                ventas_dia = sum(
+                    sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_dia
+                )
+                # Nombres de días en español
+                dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+                tendencia_data.append({
+                    'label': f"{dias_semana[dia.weekday()]} {dia.strftime('%d')}",
+                    'ventas': round(ventas_dia, 2),
+                    'pedidos': len(pedidos_dia)
+                })
+        else:
+            return jsonify({'error': 'Período no válido. Use: 8w, 30d, o 7d'}), 400
+
+        # Calcular totales del período
+        total_ventas = sum(d['ventas'] for d in tendencia_data)
+        total_pedidos = sum(d['pedidos'] for d in tendencia_data)
+
+        return jsonify({
+            'periodo': periodo,
+            'tendencia': tendencia_data,
+            'resumen': {
+                'total_ventas': round(total_ventas, 2),
+                'total_pedidos': total_pedidos,
+                'promedio_ventas': round(total_ventas / len(tendencia_data), 2) if tendencia_data else 0
+            }
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error en API de tendencia: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
 ############################################
 # MODELOS Y BASE DE DATOS
 ############################################

@@ -690,17 +690,61 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Funcionalidad mejorada de controles de período
+        // Funcionalidad de controles de período con carga dinámica de datos
         const chartButtons = document.querySelectorAll('.chart-btn');
+        const chartHeader = document.querySelector('.chart-card.main-chart .chart-header h3');
+
+        // Mapa de títulos según período
+        const periodTitles = {
+            '8w': 'Tendencia de Ventas - Últimas 8 Semanas',
+            '30d': 'Tendencia de Ventas - Últimos 30 Días',
+            '7d': 'Tendencia de Ventas - Últimos 7 Días'
+        };
+
         chartButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', async function() {
+                const period = this.dataset.period;
+
+                // Actualizar estado visual de botones
                 chartButtons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                
-                // Aquí puedes implementar lógica para cambiar datos según el período
-                const period = this.dataset.period;
-                console.log(`Cambiando vista a: ${period}`);
-                // TODO: Implementar cambio de datos según período
+
+                // Actualizar título del gráfico
+                if (chartHeader) {
+                    chartHeader.textContent = periodTitles[period] || 'Tendencia de Ventas';
+                }
+
+                // Mostrar estado de carga
+                this.disabled = true;
+                const originalText = this.textContent;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                try {
+                    // Obtener datos del servidor
+                    const response = await fetch(`/api/dashboard/tendencia?periodo=${period}`);
+                    if (!response.ok) throw new Error('Error al cargar datos');
+
+                    const data = await response.json();
+
+                    // Actualizar datos del gráfico
+                    salesChart.data.labels = data.tendencia.map(d => d.label);
+                    salesChart.data.datasets[0].data = data.tendencia.map(d => d.ventas);
+                    salesChart.data.datasets[1].data = data.tendencia.map(d => d.pedidos);
+
+                    // Animar actualización
+                    salesChart.update('active');
+
+                    console.log(`Período ${period}: ${data.resumen.total_pedidos} pedidos, XCG ${data.resumen.total_ventas.toLocaleString('es-ES')}`);
+
+                } catch (error) {
+                    console.error('Error cargando datos de tendencia:', error);
+                    // Mostrar mensaje de error
+                    alert('No se pudieron cargar los datos. Por favor, intente de nuevo.');
+                } finally {
+                    // Restaurar botón
+                    this.disabled = false;
+                    this.textContent = originalText;
+                }
             });
         });
     }
