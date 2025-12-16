@@ -200,6 +200,7 @@
                     <input type="text" class="mobile-form-control" value="{{ pedido.cliente.nombre }}" readonly>
                 </div>
     
+                {% set formato_seleccionado = request.args.get('formato', '4x2') %}
                 {% set valid_fechas = [] %}
                 {% for detalle in pedido.detalles %}
                     {% if detalle.fecha_fabricacion %}
@@ -220,10 +221,18 @@
                         <label class="mobile-form-label" for="fecha_inicio">Fecha de inicio:</label>
                         <input type="date" name="fecha_inicio" id="fecha_inicio" class="mobile-form-control" value="{{ f_inicio or '' }}" required>
                     </div>
-    
+
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="fecha_fin">Fecha de fin:</label>
                         <input type="date" name="fecha_fin" id="fecha_fin" class="mobile-form-control" value="{{ f_fin or '' }}" required>
+                    </div>
+
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="formato_etiqueta">Formato:</label>
+                        <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
+                            <option value="4x2" {% if formato_seleccionado != 'a4' %}selected{% endif %}>4" x 2" (una por página)</option>
+                            <option value="a4" {% if formato_seleccionado == 'a4' %}selected{% endif %}>A4 (2 etiquetas centradas por página)</option>
+                        </select>
                     </div>
                 </div>
     
