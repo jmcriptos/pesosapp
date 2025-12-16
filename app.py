@@ -3221,6 +3221,188 @@ def generar_etiqueta_detalle(pedido_id):
         flash(f"Error generando etiquetas: {str(e)}", "danger")
         return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
+# ---------------------------------------------------------------------
+# Generar etiquetas A4 (2 por página) a partir de los DetallePedido
+# ---------------------------------------------------------------------
+@app.route('/generar_etiqueta_detalle_a4/<int:pedido_id>', methods=['GET', 'POST'])
+@login_required
+def generar_etiqueta_detalle_a4(pedido_id):
+    """
+    Genera un PDF con etiquetas en formato A4 (2 etiquetas por página).
+    Formulario:
+        - fecha_inicio (YYYY-MM-DD)
+        - fecha_fin    (YYYY-MM-DD)
+    """
+    try:
+        pedido = Pedido.query.get_or_404(pedido_id)
+
+        # --------- Obtener parámetros desde GET o POST ----------
+        if request.method == 'GET':
+            fecha_ini = request.args.get('fecha_inicio')
+            fecha_fin = request.args.get('fecha_fin')
+        else:
+            fecha_ini = request.form.get('fecha_inicio')
+            fecha_fin = request.form.get('fecha_fin')
+
+        # Validar fechas
+        if not fecha_ini or not fecha_fin:
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "Debe indicar fecha de inicio y fin"}), 400
+            flash("Debe indicar fecha de inicio y fin", "danger")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+        # Convertir fechas
+        try:
+            fi = datetime.strptime(fecha_ini, '%Y-%m-%d')
+            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        except ValueError:
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "Formato de fecha inválido. Use YYYY-MM-DD"}), 400
+            flash("Formato de fecha inválido", "danger")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+        # --------- Filtrar los detalles ----------
+        detalles = (DetallePedido.query
+                    .filter_by(pedido_id=pedido_id)
+                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
+                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
+                    .order_by(DetallePedido.id.asc())
+                    .all())
+
+        if not detalles:
+            if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "No hay detalles en ese rango de fechas"}), 404
+            flash("No hay detalles en ese rango de fechas", "warning")
+            return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
+        # --------- PDF A4 (2 etiquetas por página) ----------
+        output = BytesIO()
+        page_width, page_height = A4
+
+        # Tamaño de cada etiqueta (100.16mm x 50.8mm)
+        etiqueta_ancho = 100.16 / 25.4 * inch
+        etiqueta_alto = 50.8 / 25.4 * inch
+
+        # Posiciones verticales (2 etiquetas centradas en la página)
+        x_offset = (page_width - etiqueta_ancho) / 2
+        y_offset_top = page_height - etiqueta_alto - 0.5 * inch
+        y_offset_bottom = y_offset_top - etiqueta_alto - 0.3 * inch
+
+        c = canvas.Canvas(output, pagesize=A4)
+        etiquetas_por_pagina = 2
+        etiqueta_contador = 0
+
+        logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
+        cli = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
+
+        def dibujar_etiqueta_a4(y_offset, cli, prod, temp, lote, f_fab, f_exp, peso):
+            """Dibuja una etiqueta en la posición y_offset"""
+            shift_left = 25
+            logo_shift_up = 20
+            logo_shift_right = 20
+
+            # Logo
+            if os.path.exists(logo_path):
+                c.drawImage(logo_path, x_offset + 10 - shift_left + logo_shift_right,
+                           y_offset + 30 + logo_shift_up, width=1.2 * inch, height=1.2 * inch,
+                           preserveAspectRatio=True, mask='auto')
+
+            # Labels y valores
+            label_x = x_offset + 2.8 * inch - shift_left
+            value_x = label_x + 0.2 * inch
+
+            c.setFont("Helvetica-Bold", 10)
+            c.drawRightString(label_x, y_offset + 1.7 * inch, "Client:")
+            c.drawRightString(label_x, y_offset + 1.5 * inch, "Lot:")
+            c.drawRightString(label_x, y_offset + 1.3 * inch, "Manufactured:")
+            c.drawRightString(label_x, y_offset + 1.1 * inch, "Expiration:")
+            c.drawRightString(label_x, y_offset + 0.9 * inch, "When Kept at:")
+
+            c.setFont("Helvetica", 10)
+            c.drawString(value_x, y_offset + 1.7 * inch, cli or "")
+            c.drawString(value_x, y_offset + 1.5 * inch, lote or "")
+            c.drawString(value_x, y_offset + 1.3 * inch, f_fab or "")
+            c.drawString(value_x, y_offset + 1.1 * inch, f_exp or "")
+
+            t = (temp or "")
+            if isinstance(t, str):
+                t = t.replace(" oC", " °C").replace("° C", "°C")
+            c.drawString(value_x, y_offset + 0.9 * inch, t)
+
+            # Net Weight
+            c.setFont("Helvetica-Bold", 14)
+            c.drawRightString(label_x, y_offset + 0.5 * inch, "Net Weight:")
+            c.drawString(value_x, y_offset + 0.5 * inch, f"{peso:.2f}")
+
+            # Producto (centrado abajo)
+            c.setFont("Helvetica-Bold", 18)
+            c.drawCentredString(x_offset + (etiqueta_ancho / 2), y_offset + 0.15 * inch, prod or "N/A")
+
+        # --------- Generar etiquetas ----------
+        for d in detalles:
+            prod = d.producto.nombre if getattr(d, "producto", None) else "N/A"
+            temp = getattr(d.producto, "temperatura", None) or ""
+            peso_val = float(d.peso or d.cajas or 0)
+
+            # Fechas
+            f_fab = d.fecha_fabricacion
+            f_exp = d.fecha_expiracion
+            if hasattr(d, "fecha_fabricacion") and hasattr(d.fecha_fabricacion, "strftime"):
+                f_fab = d.fecha_fabricacion.strftime("%Y-%m-%d")
+            if hasattr(d, "fecha_expiracion") and hasattr(d.fecha_expiracion, "strftime"):
+                f_exp = d.fecha_expiracion.strftime("%Y-%m-%d")
+
+            # Determinar posición (arriba o abajo)
+            if etiqueta_contador % etiquetas_por_pagina == 0:
+                y_offset = y_offset_top
+            else:
+                y_offset = y_offset_bottom
+
+            dibujar_etiqueta_a4(y_offset, cli, prod, temp, d.lote, f_fab, f_exp, peso_val)
+            etiqueta_contador += 1
+
+            # Nueva página después de 2 etiquetas
+            if etiqueta_contador % etiquetas_por_pagina == 0:
+                c.showPage()
+
+        # Cerrar última página si quedó incompleta
+        if etiqueta_contador % etiquetas_por_pagina != 0:
+            c.showPage()
+
+        c.save()
+        output.seek(0)
+
+        # --------- Nombre del archivo ----------
+        nombre_cliente = (pedido.cliente.nombre if getattr(pedido, "cliente", None) else "cliente").replace(" ", "_").replace("/", "-")
+        filename = f"etiquetas_A4_pedido_{pedido_id}_{nombre_cliente}.pdf"
+
+        # --------- Crear response ----------
+        response = make_response(send_file(
+            output,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=filename
+        ))
+
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        return response
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generando etiquetas A4: {str(e)}")
+
+        if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"error": str(e)}), 500
+
+        flash(f"Error generando etiquetas A4: {str(e)}", "danger")
+        return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required
 def preparar_pedido(pedido_id):
