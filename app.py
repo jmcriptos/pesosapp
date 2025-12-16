@@ -2999,14 +2999,30 @@ def generar_etiqueta_detalle(pedido_id):
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
         # --------- Filtrar los detalles ----------
-        fi_str = fi.strftime('%Y-%m-%d')
-        ff_str = ff.strftime('%Y-%m-%d')
-        detalles = (DetallePedido.query
-                    .filter_by(pedido_id=pedido_id)
-                    .filter(DetallePedido.fecha_fabricacion >= fi_str)
-                    .filter(DetallePedido.fecha_fabricacion <= ff_str)
-                    .order_by(DetallePedido.id.asc())
-                    .all())
+        # Soportar tanto columnas de fecha tipo String (ISO) como Date/DateTime.
+        query = DetallePedido.query.filter_by(pedido_id=pedido_id)
+
+        # Detectar si la columna es un tipo de fecha (Date o DateTime)
+        is_date_col = isinstance(DetallePedido.fecha_fabricacion.type, (db.Date, db.DateTime))
+
+        if is_date_col:
+            # Comparar usando objetos date; si es DateTime se hace cast a fecha.
+            from sqlalchemy import func
+
+            detalles = (query
+                        .filter(func.date(DetallePedido.fecha_fabricacion) >= fi)
+                        .filter(func.date(DetallePedido.fecha_fabricacion) <= ff)
+                        .order_by(DetallePedido.id.asc())
+                        .all())
+        else:
+            # La columna es String (ISO YYYY-MM-DD) -> comparar como texto
+            fi_str = fi.strftime('%Y-%m-%d')
+            ff_str = ff.strftime('%Y-%m-%d')
+            detalles = (query
+                        .filter(DetallePedido.fecha_fabricacion >= fi_str)
+                        .filter(DetallePedido.fecha_fabricacion <= ff_str)
+                        .order_by(DetallePedido.id.asc())
+                        .all())
 
         if not detalles:
             if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
