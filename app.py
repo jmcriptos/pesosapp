@@ -3001,8 +3001,8 @@ def generar_etiqueta_detalle(pedido_id):
         # --------- Filtrar los detalles ----------
         detalles = (DetallePedido.query
                     .filter_by(pedido_id=pedido_id)
-                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
-                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
+                    .filter(DetallePedido.fecha_fabricacion >= fi)
+                    .filter(DetallePedido.fecha_fabricacion <= ff)
                     .order_by(DetallePedido.id.asc())
                     .all())
 
