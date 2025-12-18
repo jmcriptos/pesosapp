@@ -2464,20 +2464,23 @@ def dashboard():
                 if not d.producto or not d.producto.nombre:
                     app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
                     continue
-                
+
                 nombre = d.producto.nombre
                 cajas_detalle = d.cajas or 0
+                peso_detalle = d.peso or 0
                 ingresos_detalle = float(d.subtotal or 0)
-                
+
                 if nombre not in productos_ventas:
                     productos_ventas[nombre] = {
-                        'cajas': 0, 
-                        'ingresos': 0, 
+                        'cajas': 0,
+                        'peso': 0,
+                        'ingresos': 0,
                         'pedidos': set()
                     }
-                
+
                 # Actualizar datos del producto
                 productos_ventas[nombre]['cajas'] += cajas_detalle
+                productos_ventas[nombre]['peso'] += peso_detalle
                 productos_ventas[nombre]['ingresos'] += ingresos_detalle
                 productos_ventas[nombre]['pedidos'].add(pedido_id)
                 
@@ -2511,6 +2514,7 @@ def dashboard():
                 'nombre': nombre,
                 'total_vendido': round(datos['ingresos'], 2),  # Usar ingresos para ordenamiento visual
                 'cajas': datos['cajas'],
+                'peso': round(datos['peso'], 2),
                 'ingresos': round(datos['ingresos'], 2),
                 'pedidos': datos['pedidos']
             }

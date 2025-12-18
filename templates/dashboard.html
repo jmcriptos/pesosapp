@@ -311,35 +311,41 @@
         </div>
     </div>
 
-    <!-- Top Performers y Métricas -->
-    <div class="performance-section">
+    <!-- Top Productos -->
+    <div class="products-section">
         <div class="top-products-card">
             <h3>Top 5 Productos por Ingresos</h3>
-            <div class="products-list">
+            <div class="products-grid">
                 {% for producto in (top_productos or []) %}
                 {% set ingresos = (producto.ingresos or 0)|float %}
                 {% set cajas = (producto.cajas or 0)|int %}
-                {% set maxv = max_ventas_v if max_ventas_v > 0 else 1 %}
-                <div class="product-item">
-                    <div class="product-rank">{{ loop.index }}</div>
-                    <div class="product-info">
-                        <h4>{{ producto.nombre }}</h4>
-                        <p>{{ cajas }} cajas vendidas</p>
+                {% set peso = (producto.peso or 0)|float %}
+                <div class="product-card">
+                    <div class="product-header">
+                        <div class="product-avatar">{{ loop.index }}</div>
+                        <div class="product-info">
+                            <h4>{{ producto.nombre }}</h4>
+                            <p>{% if cajas > 0 %}{{ cajas }} cajas{% endif %}{% if cajas > 0 and peso > 0 %} · {% endif %}{% if peso > 0 %}{{ '{:,.1f}'.format(peso) }} kg{% endif %}{% if cajas == 0 and peso == 0 %}Sin cantidad{% endif %}</p>
+                        </div>
                     </div>
-                    <div class="product-revenue">
-                        XCG {{ '{:,.0f}'.format(ingresos) }}
-                    </div>
-                    <div class="product-indicator">
-                        <div class="indicator-bar">
-                            {% set indicator_width = (ingresos / maxv * 100) if maxv > 0 else 0 %}
-                            <div class="indicator-fill" style="width: {{ indicator_width }}%"></div>
+                    <div class="product-stats">
+                        <div class="stat">
+                            <span class="stat-label">Facturado</span>
+                            <span class="stat-value">XCG {{ '{:,.0f}'.format(ingresos) }}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Pedidos</span>
+                            <span class="stat-value">{{ producto.pedidos or 0 }}</span>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
+    </div>
 
+    <!-- Métricas de Servicio -->
+    <div class="performance-section">
         <div class="metrics-card">
             <h3>Métricas de Servicio</h3>
             <div class="service-metrics">
@@ -825,6 +831,16 @@
 .stat{display:flex;flex-direction:column}
 .stat-label{font-size:.75rem;color:#6b7280;margin-bottom:4px}
 .stat-value{font-size:.95rem;font-weight:600;color:#111827}
+/* Top Productos - Estilo horizontal como clientes */
+.products-section{margin-bottom:32px}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}
+.product-card{background:#f9fafb;border-radius:12px;padding:20px;transition:transform .2s,background .2s}
+.product-card:hover{transform:translateY(-4px);background:#f3f4f6}
+.product-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.product-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.2rem}
+.product-info h4{margin:0 0 4px 0;font-size:1rem;font-weight:600;color:#111827}
+.product-info p{margin:0;font-size:.85rem;color:#6b7280}
+.product-stats{display:flex;justify-content:space-between}
 @media (max-width:1200px){.charts-section{grid-template-columns:1fr}.performance-section{grid-template-columns:1fr}.activity-section{grid-template-columns:1fr}}
 
 /* ============================================
@@ -1109,6 +1125,26 @@
         font-size: 0.9rem;
     }
     .client-info h4 {
+        font-size: 0.95rem;
+    }
+
+    /* Productos */
+    .products-section {
+        margin-bottom: 20px;
+    }
+    .products-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .product-card {
+        padding: 16px;
+    }
+    .product-avatar {
+        width: 42px;
+        height: 42px;
+        font-size: 1rem;
+    }
+    .product-info h4 {
         font-size: 0.95rem;
     }
 }
@@ -1516,6 +1552,42 @@
     }
     .stat-value {
         font-size: 0.85rem;
+    }
+
+    /* Productos compactos */
+    .products-section {
+        margin-bottom: 16px;
+    }
+    .top-products-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .top-products-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .products-grid {
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .product-card {
+        padding: 12px;
+        border-radius: 10px;
+    }
+    .product-header {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .product-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
+    }
+    .product-info h4 {
+        font-size: 0.85rem;
+    }
+    .product-info p {
+        font-size: 0.75rem;
     }
 }
 
