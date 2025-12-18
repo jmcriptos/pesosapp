@@ -2253,12 +2253,25 @@ def dashboard():
         hace_30_dias = hoy - timedelta(days=30)
         hace_8_semanas = hoy - timedelta(weeks=8)
 
+        # === CLIENTE EXCLUIDO (ALMACÉN INTERNO) ===
+        # AL01 es usado para registrar pesos e imprimir etiquetas de almacén, no son pedidos reales
+        cliente_almacen = Cliente.query.filter_by(nombre='AL01').first()
+        cliente_almacen_id = cliente_almacen.id if cliente_almacen else None
+
+        # Helper para filtrar pedidos excluyendo AL01
+        def filtro_sin_almacen():
+            if cliente_almacen_id:
+                return Pedido.cliente_id != cliente_almacen_id
+            return True  # Si no existe AL01, no filtrar nada
+
         # === CONSULTAS ROBUSTAS PARA PRODUCCIÓN ===
         try:
             # Consultas simples sin eager loading para evitar problemas en Heroku
-            pedidos_mes_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-            pedidos_semana_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_semana).all()
-            pedidos_30_dias = Pedido.query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
+            # NOTA: Se excluye cliente AL01 (almacén interno) de todos los cálculos
+            base_query = Pedido.query.filter(filtro_sin_almacen())
+            pedidos_mes_list = base_query.filter(Pedido.fecha_pedido >= inicio_mes).all()
+            pedidos_semana_list = base_query.filter(Pedido.fecha_pedido >= inicio_semana).all()
+            pedidos_30_dias = base_query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
             
             app.logger.info(f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, {len(pedidos_semana_list)} semana, {len(pedidos_30_dias)} últimos 30 días")
         except Exception as e:
@@ -2290,8 +2303,11 @@ def dashboard():
                     app.logger.warning(f"Error en cálculo ventas semana, pedido {p.id}: {e}")
                     continue
             
-            # Consulta robusta para pedidos pendientes
-            pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
+            # Consulta robusta para pedidos pendientes (excluyendo AL01)
+            pendientes_query = Pedido.query.filter_by(estado='pendiente')
+            if cliente_almacen_id:
+                pendientes_query = pendientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_pendientes = pendientes_query.count()
             
         except Exception as e:
             app.logger.error(f"Error en cálculos de ventas: {e}")
@@ -2389,11 +2405,14 @@ def dashboard():
                 else:
                     mes_fin = mes_inicio.replace(month=mes_inicio.month + 1, day=1) - timedelta(days=1)
 
-            # Obtener pedidos del mes
-            pedidos_mes_hist = Pedido.query.filter(
+            # Obtener pedidos del mes (excluyendo AL01)
+            hist_query = Pedido.query.filter(
                 Pedido.fecha_pedido >= mes_inicio,
                 Pedido.fecha_pedido <= mes_fin
-            ).all()
+            )
+            if cliente_almacen_id:
+                hist_query = hist_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_mes_hist = hist_query.all()
 
             # Calcular KPIs
             kpis = calcular_kpis_periodo(pedidos_mes_hist)
@@ -2424,8 +2443,11 @@ def dashboard():
         clientes_activos_ids = {p.cliente_id for p in pedidos_mes_list if p.cliente_id}
         clientes_activos_mes = len(clientes_activos_ids)
         
-        # Cache de total de clientes para evitar query innecesaria
-        total_clientes = Cliente.query.count()
+        # Cache de total de clientes para evitar query innecesaria (excluyendo AL01)
+        clientes_query = Cliente.query
+        if cliente_almacen_id:
+            clientes_query = clientes_query.filter(Cliente.id != cliente_almacen_id)
+        total_clientes = clientes_query.count()
         customer_engagement = (
             (clientes_activos_mes / total_clientes * 100) 
             if total_clientes > 0 else 0
@@ -2522,14 +2544,17 @@ def dashboard():
         )[:5]
         
         app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
-        # === TENDENCIA SEMANAL ===
+        # === TENDENCIA SEMANAL (excluyendo AL01) ===
         tendencia_semanal = []
         for i in range(8):
             inicio_i = hoy - timedelta(days=hoy.weekday() + 7 * i)
             fin_i = inicio_i + timedelta(days=6)
-            pedidos_semana_i = Pedido.query.filter(
+            semana_query = Pedido.query.filter(
                 Pedido.fecha_pedido >= inicio_i, Pedido.fecha_pedido <= fin_i
-            ).all()
+            )
+            if cliente_almacen_id:
+                semana_query = semana_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_semana_i = semana_query.all()
             ventas_semana_i = sum(
                 sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_i
             )
@@ -2558,20 +2583,26 @@ def dashboard():
         }
         app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
-        # === PEDIDOS RECIENTES (NUEVA SECCIÓN) ===
-        pedidos_recientes_data = Pedido.query.order_by(
+        # === PEDIDOS RECIENTES (excluyendo AL01) ===
+        recientes_query = Pedido.query
+        if cliente_almacen_id:
+            recientes_query = recientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
+        pedidos_recientes_data = recientes_query.order_by(
             Pedido.fecha_pedido.desc()
         ).limit(10).all()
 
-        # === VENTAS DIARIAS (NUEVA SECCIÓN) ===
+        # === VENTAS DIARIAS (excluyendo AL01) ===
         ventas_dias = []
         for i in range(7):
             dia = hoy - timedelta(days=i)
-            pedidos_dia = Pedido.query.filter(
+            dia_query = Pedido.query.filter(
                 db.func.date(Pedido.fecha_pedido) == dia
-            ).all()
+            )
+            if cliente_almacen_id:
+                dia_query = dia_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_dia = dia_query.all()
             total_dia = sum(
-                sum(float(d.subtotal or 0) for d in p.detalles) 
+                sum(float(d.subtotal or 0) for d in p.detalles)
                 for p in pedidos_dia
             )
             ventas_dias.append({
