@@ -29,6 +29,51 @@
 {% set progreso_meta = 0 if porcentaje_meta_v < 0 else (100 if porcentaje_meta_v > 100 else porcentaje_meta_v) %}
 
 <div class="professional-dashboard">
+    <!-- Header Ejecutivo con Resumen Rápido -->
+    <div class="executive-header">
+        <div class="header-left">
+            <div class="welcome-section">
+                <h1>Bienvenido, {{ current_user.nombre if current_user else 'Usuario' }}</h1>
+                <p class="date-display">{{ fecha_actual.strftime('%A, %d de %B %Y') if fecha_actual else '' }}</p>
+            </div>
+            <div class="quick-stats">
+                <div class="quick-stat">
+                    <span class="stat-number">{{ '{:,.0f}'.format(ventas_mes_v) }}</span>
+                    <span class="stat-label">XCG este mes</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="quick-stat">
+                    <span class="stat-number">{{ pedidos_mes_v }}</span>
+                    <span class="stat-label">Pedidos</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="quick-stat">
+                    <span class="stat-number {{ 'text-success' if porcentaje_meta_v >= 80 else ('text-warning' if porcentaje_meta_v >= 50 else 'text-danger') }}">{{ '%.0f' % porcentaje_meta_v }}%</span>
+                    <span class="stat-label">Meta cumplida</span>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="last-updated">
+                <i class="fas fa-sync-alt"></i>
+                <span id="lastUpdated">Actualizado ahora</span>
+            </div>
+            <div class="quick-actions">
+                <a href="{{ url_for('nuevo_pedido') }}" class="action-btn primary">
+                    <i class="fas fa-plus"></i>
+                    <span>Nuevo Pedido</span>
+                </a>
+                <a href="{{ url_for('lista_pedidos') }}" class="action-btn secondary">
+                    <i class="fas fa-list"></i>
+                    <span>Ver Pedidos</span>
+                </a>
+                <button class="action-btn icon-only" id="refreshDashboard" title="Actualizar datos">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Alertas y Notificaciones -->
     <div class="alerts-section">
         <div class="alert-card {% if pedidos_pendientes_v > 0 %}urgent{% else %}success{% endif %}">
@@ -386,10 +431,169 @@
     max-width: 1600px;
     margin: 0 auto;
     padding: 24px;
-    background: #f8fafc;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     min-height: 100vh;
 }
 
+/* === EXECUTIVE HEADER === */
+.executive-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #3182ce 100%);
+    border-radius: 24px;
+    padding: 32px 40px;
+    margin-bottom: 32px;
+    color: white;
+    box-shadow: 0 20px 40px -10px rgba(30, 58, 95, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+.executive-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+.header-left { flex: 1; }
+.welcome-section h1 {
+    margin: 0 0 4px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+.date-display {
+    margin: 0 0 20px 0;
+    font-size: 0.95rem;
+    opacity: 0.85;
+    text-transform: capitalize;
+}
+.quick-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 16px 24px;
+    width: fit-content;
+}
+.quick-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.stat-number {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.stat-number.text-success { color: #4ade80; }
+.stat-number.text-warning { color: #fbbf24; }
+.stat-number.text-danger { color: #f87171; }
+.stat-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.3);
+}
+.header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+}
+.last-updated {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+.last-updated i {
+    font-size: 0.9rem;
+}
+.quick-actions {
+    display: flex;
+    gap: 12px;
+}
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+.action-btn.primary {
+    background: #10b981;
+    color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+.action-btn.primary:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+}
+.action-btn.secondary {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    backdrop-filter: blur(4px);
+}
+.action-btn.secondary:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+}
+.action-btn.icon-only {
+    padding: 12px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+.action-btn.icon-only:hover {
+    background: rgba(255,255,255,0.25);
+    transform: rotate(180deg);
+}
+@media (max-width: 992px) {
+    .executive-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+        padding: 24px;
+    }
+    .header-right {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .quick-stats {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: center;
+    }
+}
+@media (max-width: 576px) {
+    .welcome-section h1 { font-size: 1.4rem; }
+    .quick-actions { flex-wrap: wrap; }
+    .action-btn span { display: none; }
+    .action-btn { padding: 12px; }
+}
+
+/* === ALERTS SECTION MEJORADO === */
 .alerts-section {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -405,9 +609,17 @@
     gap: 16px;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
     border-left: 4px solid;
-    transition: transform .2s, box-shadow .2s;
+    transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeInLeft 0.5s ease-out backwards;
 }
-.alert-card:hover{transform:translateY(-2px);box-shadow:0 8px 15px -3px rgba(0,0,0,.15)}
+.alert-card:nth-child(1) { animation-delay: 0.05s; }
+.alert-card:nth-child(2) { animation-delay: 0.15s; }
+.alert-card:nth-child(3) { animation-delay: 0.25s; }
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.alert-card:hover{transform:translateY(-4px) translateX(4px);box-shadow:0 12px 20px -5px rgba(0,0,0,.15)}
 .alert-card.urgent{border-left-color:#ef4444;background:linear-gradient(135deg,#fef2f2 0%,white 100%)}
 .alert-card.success{border-left-color:#10b981;background:linear-gradient(135deg,#f0fdf4 0%,white 100%)}
 .alert-card.info{border-left-color:#3b82f6;background:linear-gradient(135deg,#eff6ff 0%,white 100%)}
@@ -417,22 +629,41 @@
 .alert-card.info .alert-icon{background:linear-gradient(135deg,#3b82f6,#2563eb)}
 .alert-content h4{margin:0 0 4px 0;font-size:1.1rem;font-weight:600;color:#111827}
 .alert-content p{margin:0;font-size:.9rem;color:#6b7280}
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-bottom:32px}
+/* === KPI GRID MEJORADO === */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-bottom:32px}
 .kpi-card {
     background: white;
     border-radius: 20px;
     padding: 28px;
     box-shadow: 0 10px 25px -5px rgba(0,0,0,.1);
-    transition: all .3s ease;
+    transition: all .4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    animation: slideInUp 0.6s ease-out backwards;
 }
-.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gradient-start),var(--gradient-end))}
+.kpi-card:nth-child(1) { animation-delay: 0.1s; }
+.kpi-card:nth-child(2) { animation-delay: 0.2s; }
+.kpi-card:nth-child(3) { animation-delay: 0.3s; }
+.kpi-card:nth-child(4) { animation-delay: 0.4s; }
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes countUp {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--gradient-start),var(--gradient-end))}
+.kpi-card::after{content:'';position:absolute;top:0;right:0;width:120px;height:120px;background:linear-gradient(135deg,var(--gradient-start) 0%,transparent 60%);opacity:0.08;border-radius:0 0 0 100%}
 .kpi-card.revenue{--gradient-start:#10b981;--gradient-end:#059669}
 .kpi-card.orders{--gradient-start:#3b82f6;--gradient-end:#2563eb}
 .kpi-card.otd{--gradient-start:#f59e0b;--gradient-end:#d97706}
 .kpi-card.fillrate{--gradient-start:#8b5cf6;--gradient-end:#7c3aed}
-.kpi-card:hover{transform:translateY(-8px);box-shadow:0 20px 40px -5px rgba(0,0,0,.15)}
+.kpi-card:hover{transform:translateY(-8px) scale(1.02);box-shadow:0 25px 50px -10px rgba(0,0,0,.2)}
 .kpi-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .kpi-icon {
     width: 56px;
@@ -542,6 +773,118 @@
 .stat-value{font-size:.95rem;font-weight:600;color:#111827}
 @media (max-width:1200px){.charts-section{grid-template-columns:1fr}.performance-section{grid-template-columns:1fr}.activity-section{grid-template-columns:1fr}}
 @media (max-width:768px){.professional-dashboard{padding:16px}.alerts-section{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr}.kpi-card{padding:20px}.kpi-value{font-size:2rem}.clients-grid{grid-template-columns:1fr}}
+
+/* === ANIMACIONES ADICIONALES === */
+@keyframes rotating {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.action-btn.rotating i {
+    animation: rotating 0.5s linear;
+}
+
+/* Mejoras visuales para gráficos */
+.chart-card {
+    animation: fadeInUp 0.6s ease-out backwards;
+    animation-delay: 0.3s;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Progress bars animadas */
+.progress-fill, .mini-fill, .indicator-fill, .response-fill {
+    animation: fillBar 1s ease-out backwards;
+    animation-delay: 0.5s;
+}
+@keyframes fillBar {
+    from { width: 0 !important; }
+}
+
+/* Mejora visual para tarjetas de clientes */
+.client-card {
+    animation: scaleIn 0.5s ease-out backwards;
+}
+.client-card:nth-child(1) { animation-delay: 0.1s; }
+.client-card:nth-child(2) { animation-delay: 0.2s; }
+.client-card:nth-child(3) { animation-delay: 0.3s; }
+.client-card:nth-child(4) { animation-delay: 0.4s; }
+.client-card:nth-child(5) { animation-delay: 0.5s; }
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Mejora visual para productos */
+.product-item {
+    animation: slideInRight 0.5s ease-out backwards;
+}
+.product-item:nth-child(1) { animation-delay: 0.1s; }
+.product-item:nth-child(2) { animation-delay: 0.2s; }
+.product-item:nth-child(3) { animation-delay: 0.3s; }
+.product-item:nth-child(4) { animation-delay: 0.4s; }
+.product-item:nth-child(5) { animation-delay: 0.5s; }
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Mejora visual para pedidos recientes */
+.order-item {
+    animation: fadeIn 0.4s ease-out backwards;
+}
+.order-item:nth-child(1) { animation-delay: 0.05s; }
+.order-item:nth-child(2) { animation-delay: 0.1s; }
+.order-item:nth-child(3) { animation-delay: 0.15s; }
+.order-item:nth-child(4) { animation-delay: 0.2s; }
+.order-item:nth-child(5) { animation-delay: 0.25s; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Hover effects mejorados */
+.chart-btn {
+    position: relative;
+    overflow: hidden;
+}
+.chart-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+.chart-btn:hover::after {
+    width: 200%;
+    height: 200%;
+}
+
+/* Smooth scrollbar para listas */
+.orders-list::-webkit-scrollbar,
+.response-time-list::-webkit-scrollbar {
+    width: 6px;
+}
+.orders-list::-webkit-scrollbar-track,
+.response-time-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+.orders-list::-webkit-scrollbar-thumb,
+.response-time-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.orders-list::-webkit-scrollbar-thumb:hover,
+.response-time-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 </style>
 {% endblock %}
 
@@ -554,10 +897,75 @@ document.addEventListener('DOMContentLoaded', function() {
         Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         Chart.defaults.color = '#6b7280';
         Chart.defaults.borderColor = 'rgba(243, 244, 246, 0.8)';
-    
+
     // Datos seguros con validación mejorada
     const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
     const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
+    const ventasDiarias = {{ (ventas_dias or [])|tojson|safe }} || [];
+
+    // === FUNCIONALIDAD DE ACTUALIZAR DASHBOARD ===
+    const refreshBtn = document.getElementById('refreshDashboard');
+    const lastUpdated = document.getElementById('lastUpdated');
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            this.classList.add('rotating');
+            lastUpdated.textContent = 'Actualizando...';
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        });
+    }
+
+    // Formatear última actualización
+    function updateTimestamp() {
+        if (lastUpdated) {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const mins = now.getMinutes().toString().padStart(2, '0');
+            lastUpdated.textContent = `Actualizado a las ${hours}:${mins}`;
+        }
+    }
+    updateTimestamp();
+
+    // === ANIMACIÓN DE NÚMEROS ===
+    function animateValue(element, start, end, duration) {
+        const startTime = performance.now();
+        const isPercent = element.textContent.includes('%');
+        const isCurrency = element.textContent.includes('XCG');
+
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = Math.floor(start + (end - start) * easeOut);
+
+            if (isCurrency) {
+                element.textContent = `XCG ${current.toLocaleString('es-ES')}`;
+            } else if (isPercent) {
+                element.textContent = `${current}%`;
+            } else {
+                element.textContent = current.toLocaleString('es-ES');
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        }
+        requestAnimationFrame(update);
+    }
+
+    // Animar valores KPI al cargar
+    document.querySelectorAll('.kpi-value').forEach(el => {
+        const text = el.textContent;
+        const match = text.match(/[\d,]+/);
+        if (match) {
+            const endValue = parseInt(match[0].replace(/,/g, ''));
+            if (endValue > 0) {
+                animateValue(el, 0, endValue, 1500);
+            }
+        }
+    });
     
     // === GRÁFICO DE TENDENCIA DE VENTAS MEJORADO ===
     const salesCtx = document.getElementById('salesTrendChart');
@@ -690,17 +1098,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Funcionalidad mejorada de controles de período
+        // === FUNCIONALIDAD DE CONTROLES DE PERÍODO ===
         const chartButtons = document.querySelectorAll('.chart-btn');
+        const chartTitle = document.querySelector('.main-chart .chart-header h3');
+
+        // Datos para diferentes períodos
+        const periodData = {
+            '8w': {
+                labels: tendenciaData.map(d => d.semana || ''),
+                sales: tendenciaData.map(d => d.ventas || 0),
+                orders: tendenciaData.map(d => d.pedidos || 0),
+                title: 'Tendencia de Ventas - Últimas 8 Semanas'
+            },
+            '30d': {
+                labels: ventasDiarias.slice(-30).map((d, i) => `Día ${i + 1}`),
+                sales: ventasDiarias.slice(-30).map(d => d.ventas || d || 0),
+                orders: ventasDiarias.slice(-30).map(d => d.pedidos || 1),
+                title: 'Tendencia de Ventas - Últimos 30 Días'
+            },
+            '7d': {
+                labels: ventasDiarias.slice(-7).map((d, i) => {
+                    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                    const fecha = new Date();
+                    fecha.setDate(fecha.getDate() - (6 - i));
+                    return dias[fecha.getDay()];
+                }),
+                sales: ventasDiarias.slice(-7).map(d => d.ventas || d || 0),
+                orders: ventasDiarias.slice(-7).map(d => d.pedidos || 1),
+                title: 'Tendencia de Ventas - Últimos 7 Días'
+            }
+        };
+
         chartButtons.forEach(btn => {
             btn.addEventListener('click', function() {
                 chartButtons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                
-                // Aquí puedes implementar lógica para cambiar datos según el período
+
                 const period = this.dataset.period;
-                console.log(`Cambiando vista a: ${period}`);
-                // TODO: Implementar cambio de datos según período
+                const data = periodData[period];
+
+                if (data && salesChart) {
+                    // Actualizar título
+                    if (chartTitle) chartTitle.textContent = data.title;
+
+                    // Actualizar datos del gráfico con animación
+                    salesChart.data.labels = data.labels;
+                    salesChart.data.datasets[0].data = data.sales;
+                    salesChart.data.datasets[1].data = data.orders;
+                    salesChart.update('active');
+                }
             });
         });
     }
