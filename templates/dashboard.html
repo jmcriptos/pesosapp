@@ -826,7 +826,812 @@
 .stat-label{font-size:.75rem;color:#6b7280;margin-bottom:4px}
 .stat-value{font-size:.95rem;font-weight:600;color:#111827}
 @media (max-width:1200px){.charts-section{grid-template-columns:1fr}.performance-section{grid-template-columns:1fr}.activity-section{grid-template-columns:1fr}}
-@media (max-width:768px){.professional-dashboard{padding:16px}.alerts-section{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr}.kpi-card{padding:20px}.kpi-value{font-size:2rem}.clients-grid{grid-template-columns:1fr}}
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Tablet Landscape (max-width: 992px) */
+@media (max-width: 992px) {
+    .professional-dashboard {
+        padding: 16px;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    .clients-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Tablet Portrait (max-width: 768px) */
+@media (max-width: 768px) {
+    .professional-dashboard {
+        padding: 12px;
+        background: #f1f5f9;
+    }
+
+    /* Header móvil optimizado */
+    .executive-header {
+        padding: 20px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+    }
+    .welcome-section h1 {
+        font-size: 1.3rem;
+    }
+    .date-display {
+        font-size: 0.85rem;
+        margin-bottom: 16px;
+    }
+    .quick-stats {
+        padding: 12px 16px;
+        gap: 16px;
+        border-radius: 12px;
+    }
+    .stat-number {
+        font-size: 1.3rem;
+    }
+    .stat-label {
+        font-size: 0.7rem;
+    }
+    .stat-divider {
+        height: 30px;
+    }
+
+    /* Alertas en móvil */
+    .alerts-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .alert-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .alert-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+    .alert-content h4 {
+        font-size: 1rem;
+    }
+    .alert-content p {
+        font-size: 0.8rem;
+    }
+
+    /* KPIs en móvil */
+    .kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .kpi-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .kpi-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+    .kpi-value {
+        font-size: 2rem;
+    }
+    .kpi-content h3 {
+        font-size: 0.9rem;
+    }
+
+    /* Gráficos en móvil */
+    .charts-section {
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .chart-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+    .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .chart-header h3 {
+        font-size: 1.1rem;
+    }
+    .chart-controls {
+        width: 100%;
+        display: flex;
+        gap: 6px;
+    }
+    .chart-btn {
+        flex: 1;
+        padding: 10px 8px;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+    .chart-container {
+        height: 250px;
+    }
+
+    /* Evolución KPIs móvil */
+    .kpi-evolution-section {
+        margin-bottom: 20px;
+    }
+    .kpi-legend {
+        justify-content: center;
+        gap: 12px;
+    }
+    .legend-item {
+        font-size: 0.75rem;
+    }
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+    }
+    .kpi-summary-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .kpi-month-card {
+        padding: 12px;
+    }
+
+    /* Tiempo de respuesta móvil */
+    .response-time-list {
+        max-height: 280px;
+    }
+    .response-time-item {
+        padding: 10px 0;
+    }
+    .client-name {
+        font-size: 0.85rem;
+    }
+    .response-metrics {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Secciones de rendimiento */
+    .performance-section {
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .top-products-card, .metrics-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .top-products-card h3, .metrics-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+    }
+    .product-item {
+        padding: 12px;
+        gap: 12px;
+    }
+    .product-rank {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+    .product-info h4 {
+        font-size: 0.85rem;
+    }
+    .product-info p {
+        font-size: 0.75rem;
+    }
+    .product-revenue {
+        font-size: 0.95rem;
+    }
+    .indicator-bar {
+        width: 50px;
+    }
+
+    /* Métricas de servicio */
+    .service-metrics {
+        gap: 16px;
+    }
+    .metric-item {
+        gap: 12px;
+    }
+    .metric-circle {
+        width: 52px;
+        height: 52px;
+        font-size: 0.9rem;
+    }
+    .metric-info h4 {
+        font-size: 0.9rem;
+    }
+    .metric-info p {
+        font-size: 0.75rem;
+    }
+
+    /* Actividad y estados */
+    .activity-section {
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .recent-orders-card, .status-overview-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .recent-orders-card h3, .status-overview-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+    }
+    .orders-list {
+        max-height: 320px;
+        gap: 10px;
+    }
+    .order-item {
+        padding: 12px;
+        gap: 12px;
+    }
+    .order-status {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    .order-info h4 {
+        font-size: 0.9rem;
+    }
+    .order-info p {
+        font-size: 0.8rem;
+    }
+    .order-amount {
+        font-size: 0.95rem;
+    }
+    .status-chart-container {
+        height: 180px;
+    }
+
+    /* Clientes */
+    .clients-section {
+        margin-bottom: 20px;
+    }
+    .top-clients-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .clients-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .client-card {
+        padding: 16px;
+    }
+    .client-avatar {
+        width: 42px;
+        height: 42px;
+        font-size: 0.9rem;
+    }
+    .client-info h4 {
+        font-size: 0.95rem;
+    }
+}
+
+/* Mobile (max-width: 576px) */
+@media (max-width: 576px) {
+    .professional-dashboard {
+        padding: 8px;
+    }
+
+    /* Header compacto */
+    .executive-header {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+    .welcome-section h1 {
+        font-size: 1.15rem;
+        line-height: 1.3;
+    }
+    .date-display {
+        font-size: 0.8rem;
+        margin-bottom: 12px;
+    }
+    .quick-stats {
+        padding: 10px 12px;
+        gap: 10px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .quick-stats::-webkit-scrollbar {
+        display: none;
+    }
+    .quick-stat {
+        flex-shrink: 0;
+        min-width: 70px;
+    }
+    .stat-number {
+        font-size: 1.1rem;
+    }
+    .stat-label {
+        font-size: 0.65rem;
+        white-space: nowrap;
+    }
+    .stat-divider {
+        height: 24px;
+        flex-shrink: 0;
+    }
+    .header-right {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .last-updated {
+        font-size: 0.75rem;
+    }
+    .quick-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .action-btn {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+        border-radius: 10px;
+    }
+    .action-btn span {
+        display: none;
+    }
+    .action-btn.primary, .action-btn.secondary {
+        padding: 10px 14px;
+    }
+
+    /* Alertas compactas */
+    .alerts-section {
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .alert-card {
+        padding: 12px;
+        gap: 12px;
+        border-radius: 10px;
+    }
+    .alert-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        border-radius: 10px;
+    }
+    .alert-content h4 {
+        font-size: 0.9rem;
+    }
+    .alert-content p {
+        font-size: 0.75rem;
+    }
+
+    /* KPIs compactos */
+    .kpi-grid {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .kpi-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .kpi-header {
+        margin-bottom: 12px;
+    }
+    .kpi-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.3rem;
+        border-radius: 12px;
+    }
+    .kpi-trend {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+    .kpi-content h3 {
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    .kpi-value {
+        font-size: 1.75rem;
+        margin-bottom: 2px;
+    }
+    .kpi-subtitle {
+        font-size: 0.75rem;
+    }
+    .kpi-progress {
+        margin-top: 12px;
+    }
+    .progress-bar {
+        height: 6px;
+        margin-bottom: 6px;
+    }
+    .kpi-progress small {
+        font-size: 0.7rem;
+    }
+    .performance-bars {
+        margin-top: 12px;
+    }
+    .bar-item {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+    }
+    .mini-bar {
+        height: 5px;
+    }
+    .kpi-metrics .metric {
+        font-size: 0.8rem;
+    }
+
+    /* Gráficos compactos */
+    .charts-section {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .chart-card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+    .chart-header h3 {
+        font-size: 1rem;
+    }
+    .chart-controls {
+        gap: 4px;
+    }
+    .chart-btn {
+        padding: 8px 6px;
+        font-size: 0.7rem;
+        border-radius: 6px;
+    }
+    .chart-container {
+        height: 220px;
+    }
+
+    /* Evolución KPIs compacto */
+    .kpi-evolution-section {
+        margin-bottom: 16px;
+    }
+    .kpi-legend {
+        gap: 8px;
+    }
+    .legend-item {
+        font-size: 0.7rem;
+        gap: 4px;
+    }
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+    }
+    .kpi-summary-row {
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 14px;
+    }
+    .kpi-month-card {
+        padding: 10px;
+    }
+    .month-label {
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+    }
+    .month-metrics {
+        gap: 8px;
+    }
+    .month-metrics .metric {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+    .month-metrics .metric i {
+        font-size: 0.65rem;
+    }
+
+    /* Lista tiempo de respuesta */
+    .response-time-list {
+        max-height: 240px;
+    }
+    .response-time-item {
+        padding: 8px 0;
+    }
+    .client-name {
+        font-size: 0.8rem;
+        margin-bottom: 6px;
+    }
+    .response-value {
+        font-size: 0.8rem;
+        min-width: 50px;
+    }
+    .response-bar {
+        height: 5px;
+    }
+    .response-metrics small {
+        font-size: 0.65rem;
+    }
+
+    /* Productos compactos */
+    .performance-section {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .top-products-card, .metrics-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .top-products-card h3, .metrics-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .products-list {
+        gap: 10px;
+    }
+    .product-item {
+        padding: 10px;
+        gap: 10px;
+        border-radius: 10px;
+    }
+    .product-rank {
+        width: 26px;
+        height: 26px;
+        font-size: 0.75rem;
+    }
+    .product-info {
+        min-width: 0;
+        flex: 1;
+    }
+    .product-info h4 {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .product-info p {
+        font-size: 0.7rem;
+    }
+    .product-revenue {
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .indicator-bar {
+        display: none;
+    }
+
+    /* Métricas de servicio compactas */
+    .service-metrics {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        gap: 12px;
+    }
+    .metric-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+        width: calc(33% - 8px);
+    }
+    .metric-circle {
+        width: 48px;
+        height: 48px;
+        font-size: 0.8rem;
+    }
+    .metric-info h4 {
+        font-size: 0.75rem;
+    }
+    .metric-info p {
+        font-size: 0.65rem;
+        display: none;
+    }
+
+    /* Actividad compacta */
+    .activity-section {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .recent-orders-card, .status-overview-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .recent-orders-card h3, .status-overview-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .orders-list {
+        max-height: 280px;
+        gap: 8px;
+    }
+    .order-item {
+        padding: 10px;
+        gap: 10px;
+        border-radius: 10px;
+    }
+    .order-status {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+    .order-info h4 {
+        font-size: 0.85rem;
+    }
+    .order-info p {
+        font-size: 0.75rem;
+    }
+    .order-info small {
+        font-size: 0.65rem;
+    }
+    .order-amount {
+        font-size: 0.85rem;
+    }
+    .status-chart-container {
+        height: 160px;
+        margin-bottom: 12px;
+    }
+    .status-legend {
+        gap: 6px;
+    }
+    .legend-color {
+        width: 12px;
+        height: 12px;
+    }
+    .status-legend .legend-item {
+        font-size: 0.8rem;
+    }
+
+    /* Clientes compactos */
+    .clients-section {
+        margin-bottom: 16px;
+    }
+    .top-clients-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .top-clients-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .clients-grid {
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .client-card {
+        padding: 12px;
+        border-radius: 10px;
+    }
+    .client-header {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .client-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 0.8rem;
+    }
+    .client-info h4 {
+        font-size: 0.85rem;
+    }
+    .client-info p {
+        font-size: 0.75rem;
+    }
+    .client-stats {
+        gap: 12px;
+    }
+    .stat-label {
+        font-size: 0.65rem;
+    }
+    .stat-value {
+        font-size: 0.85rem;
+    }
+}
+
+/* Extra Small Mobile (max-width: 375px) */
+@media (max-width: 375px) {
+    .professional-dashboard {
+        padding: 6px;
+    }
+    .executive-header {
+        padding: 12px;
+    }
+    .welcome-section h1 {
+        font-size: 1.05rem;
+    }
+    .quick-stats {
+        padding: 8px 10px;
+    }
+    .stat-number {
+        font-size: 1rem;
+    }
+    .kpi-value {
+        font-size: 1.5rem;
+    }
+    .chart-container {
+        height: 200px;
+    }
+    .service-metrics {
+        gap: 8px;
+    }
+    .metric-item {
+        width: calc(50% - 4px);
+    }
+    .metric-circle {
+        width: 44px;
+        height: 44px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .action-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    .chart-btn {
+        min-height: 40px;
+    }
+    .alert-card,
+    .kpi-card,
+    .product-item,
+    .order-item,
+    .client-card {
+        /* Remove hover transforms on touch devices to avoid stuck states */
+        transform: none !important;
+    }
+    .alert-card:active,
+    .kpi-card:active,
+    .product-item:active,
+    .order-item:active,
+    .client-card:active {
+        opacity: 0.9;
+        transform: scale(0.98) !important;
+    }
+    /* Improve scrolling */
+    .orders-list,
+    .response-time-list {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Safe area for notched phones */
+@supports (padding: max(0px)) {
+    .professional-dashboard {
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Landscape mobile optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+    .executive-header {
+        padding: 12px 16px;
+        margin-bottom: 12px;
+    }
+    .quick-stats {
+        padding: 8px 12px;
+    }
+    .alerts-section {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 4px;
+    }
+    .alert-card {
+        flex: 0 0 auto;
+        min-width: 220px;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    .kpi-card {
+        padding: 12px;
+    }
+    .kpi-value {
+        font-size: 1.5rem;
+    }
+    .chart-container {
+        height: 180px;
+    }
+}
 
 /* === ANIMACIONES ADICIONALES === */
 @keyframes rotating {
