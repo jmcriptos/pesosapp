@@ -2455,7 +2455,7 @@ def dashboard():
 
         # === ANÁLISIS OPTIMIZADO DE PRODUCTOS (MES EN CURSO) ===
         productos_ventas = {}
-        max_cajas = 0  # Tracking del máximo para optimizar
+        max_ingresos = 0  # Tracking del máximo para optimizar (por valor facturado)
 
         for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
             pedido_id = p.id
@@ -2481,9 +2481,9 @@ def dashboard():
                 productos_ventas[nombre]['ingresos'] += ingresos_detalle
                 productos_ventas[nombre]['pedidos'].add(pedido_id)
                 
-                # Tracking optimizado del máximo
-                if productos_ventas[nombre]['cajas'] > max_cajas:
-                    max_cajas = productos_ventas[nombre]['cajas']
+                # Tracking optimizado del máximo (por valor facturado)
+                if productos_ventas[nombre]['ingresos'] > max_ingresos:
+                    max_ingresos = productos_ventas[nombre]['ingresos']
 
         # Optimización: Convertir sets a contadores en una pasada
         for datos in productos_ventas.values():
@@ -2493,9 +2493,10 @@ def dashboard():
         try:
             if productos_ventas:
                 # Usar sorted (más compatible) en lugar de heapq
+                # Ordenar por valor facturado (ingresos) en lugar de cantidad de cajas
                 top_productos_raw = sorted(
-                    productos_ventas.items(), 
-                    key=lambda x: x[1]['cajas'], 
+                    productos_ventas.items(),
+                    key=lambda x: x[1]['ingresos'],
                     reverse=True
                 )[:5]
             else:
@@ -2508,15 +2509,16 @@ def dashboard():
         top_productos = [
             {
                 'nombre': nombre,
-                'total_vendido': datos['cajas'],
-                'ingresos': round(datos['ingresos'], 2),  # Redondear para mejor presentación
+                'total_vendido': round(datos['ingresos'], 2),  # Usar ingresos para ordenamiento visual
+                'cajas': datos['cajas'],
+                'ingresos': round(datos['ingresos'], 2),
                 'pedidos': datos['pedidos']
             }
             for nombre, datos in top_productos_raw
         ]
 
-        # Usar el máximo precalculado
-        max_ventas = max_cajas if max_cajas > 0 else 1
+        # Usar el máximo precalculado (por valor facturado)
+        max_ventas = max_ingresos if max_ingresos > 0 else 1
 
         # === ANÁLISIS DE CLIENTES (MES EN CURSO) ===
         clientes_ventas = {}

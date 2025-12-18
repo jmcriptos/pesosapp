@@ -314,24 +314,24 @@
     <!-- Top Performers y Métricas -->
     <div class="performance-section">
         <div class="top-products-card">
-            <h3>Top 5 Productos del Mes</h3>
+            <h3>Top 5 Productos por Ingresos</h3>
             <div class="products-list">
                 {% for producto in (top_productos or []) %}
-                {% set vendidos = (producto.total_vendido or 0)|float %}
+                {% set ingresos = (producto.ingresos or 0)|float %}
+                {% set cajas = (producto.cajas or 0)|int %}
                 {% set maxv = max_ventas_v if max_ventas_v > 0 else 1 %}
                 <div class="product-item">
                     <div class="product-rank">{{ loop.index }}</div>
                     <div class="product-info">
                         <h4>{{ producto.nombre }}</h4>
-                        <p>{{ vendidos|round(0)|int }} cajas vendidas</p>
+                        <p>{{ cajas }} cajas vendidas</p>
                     </div>
                     <div class="product-revenue">
-                        {% set producto_ingresos = (producto.ingresos or 0)|float %}
-                        XCG {{ '{:,.0f}'.format(producto_ingresos) }}
+                        XCG {{ '{:,.0f}'.format(ingresos) }}
                     </div>
                     <div class="product-indicator">
                         <div class="indicator-bar">
-                            {% set indicator_width = (vendidos / maxv * 100) if maxv > 0 else 0 %}
+                            {% set indicator_width = (ingresos / maxv * 100) if maxv > 0 else 0 %}
                             <div class="indicator-fill" style="width: {{ indicator_width }}%"></div>
                         </div>
                     </div>
