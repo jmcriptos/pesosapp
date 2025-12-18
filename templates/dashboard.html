@@ -276,6 +276,41 @@
         </div>
     </div>
 
+    <!-- Evolución de Indicadores (Nuevo) -->
+    <div class="kpi-evolution-section">
+        <div class="chart-card kpi-evolution-chart">
+            <div class="chart-header">
+                <h3>Evolución de Indicadores - Últimos 6 Meses</h3>
+                <div class="kpi-legend">
+                    <span class="legend-item"><span class="legend-dot fill-rate"></span> Fill Rate</span>
+                    <span class="legend-item"><span class="legend-dot otd"></span> OTD</span>
+                    <span class="legend-item"><span class="legend-dot accuracy"></span> Accuracy</span>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 280px;">
+                <canvas id="kpiEvolutionChart"></canvas>
+            </div>
+            <div class="kpi-summary-row">
+                {% for kpi in (kpis_historicos or [])[-3:] %}
+                <div class="kpi-month-card">
+                    <span class="month-label">{{ kpi.mes }}</span>
+                    <div class="month-metrics">
+                        <span class="metric {{ 'good' if kpi.fill_rate >= 80 else 'warning' }}">
+                            <i class="fas fa-clipboard-check"></i> {{ kpi.fill_rate }}%
+                        </span>
+                        <span class="metric {{ 'good' if kpi.otd_rate >= 90 else 'warning' }}">
+                            <i class="fas fa-truck"></i> {{ kpi.otd_rate }}%
+                        </span>
+                        <span class="metric {{ 'good' if kpi.order_accuracy >= 95 else 'warning' }}">
+                            <i class="fas fa-check-double"></i> {{ kpi.order_accuracy }}%
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
     <!-- Top Performers y Métricas -->
     <div class="performance-section">
         <div class="top-products-card">
@@ -695,12 +730,31 @@
 .mini-fill.poor{background:#ef4444}
 .charts-section{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:32px}
 .chart-card{background:white;border-radius:20px;padding:28px;box-shadow:0 10px 25px -5px rgba(0,0,0,.1)}
-.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px}
 .chart-header h3{margin:0;font-size:1.3rem;font-weight:600;color:#111827}
 .chart-controls{display:flex;gap:8px}
 .chart-btn{padding:8px 16px;border:1px solid #d1d5db;background:white;border-radius:8px;font-size:.85rem;cursor:pointer;transition:all .2s}
 .chart-btn.active{background:#3b82f6;color:white;border-color:#3b82f6}
 .chart-container{height:300px;position:relative}
+
+/* === KPI EVOLUTION SECTION === */
+.kpi-evolution-section{margin-bottom:32px}
+.kpi-evolution-chart{animation:fadeInUp 0.6s ease-out backwards;animation-delay:0.4s}
+.kpi-legend{display:flex;gap:16px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#6b7280}
+.legend-dot{width:12px;height:12px;border-radius:50%}
+.legend-dot.fill-rate{background:#8b5cf6}
+.legend-dot.otd{background:#f59e0b}
+.legend-dot.accuracy{background:#10b981}
+.kpi-summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px;padding-top:20px;border-top:1px solid #f3f4f6}
+.kpi-month-card{background:#f9fafb;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease}
+.kpi-month-card:hover{background:#f3f4f6;transform:translateY(-2px)}
+.month-label{display:block;font-size:0.9rem;font-weight:600;color:#374151;margin-bottom:10px}
+.month-metrics{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.month-metrics .metric{display:flex;align-items:center;gap:4px;font-size:0.8rem;padding:4px 8px;border-radius:6px;background:white}
+.month-metrics .metric.good{color:#059669}
+.month-metrics .metric.warning{color:#d97706}
+.month-metrics .metric i{font-size:0.75rem}
 .response-time-list{max-height:350px;overflow-y:auto}
 .response-time-item{padding:12px 0;border-bottom:1px solid #f3f4f6}
 .response-time-item:last-child{border-bottom:none}
@@ -902,6 +956,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
     const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
     const ventasDiarias = {{ (ventas_dias or [])|tojson|safe }} || [];
+    const kpisHistoricos = {{ (kpis_historicos or [])|tojson|safe }} || [];
 
     // === FUNCIONALIDAD DE ACTUALIZAR DASHBOARD ===
     const refreshBtn = document.getElementById('refreshDashboard');
@@ -1252,7 +1307,112 @@ document.addEventListener('DOMContentLoaded', function() {
             statusContainer.appendChild(centerText);
         }
     }
-    
+
+    // === GRÁFICO DE EVOLUCIÓN DE KPIs ===
+    const kpiEvolutionCtx = document.getElementById('kpiEvolutionChart');
+    if (kpiEvolutionCtx && kpisHistoricos.length > 0) {
+        new Chart(kpiEvolutionCtx, {
+            type: 'line',
+            data: {
+                labels: kpisHistoricos.map(k => k.mes),
+                datasets: [
+                    {
+                        label: 'Fill Rate (%)',
+                        data: kpisHistoricos.map(k => k.fill_rate),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#8b5cf6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'OTD (%)',
+                        data: kpisHistoricos.map(k => k.otd_rate),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#f59e0b',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'Accuracy (%)',
+                        data: kpisHistoricos.map(k => k.order_accuracy),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                animation: {
+                    duration: 1200,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        padding: 14,
+                        titleColor: 'white',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyColor: 'white',
+                        bodyFont: { size: 12 },
+                        cornerRadius: 8,
+                        callbacks: {
+                            title: (items) => items[0].label,
+                            label: (context) => {
+                                return `${context.dataset.label}: ${context.parsed.y}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(243, 244, 246, 0.8)'
+                        },
+                        ticks: {
+                            callback: (value) => value + '%',
+                            stepSize: 20
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     } catch (error) {
         console.error('Error inicializando dashboard:', error);
         // Mostrar mensaje de error amigable en la consola

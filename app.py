@@ -2299,75 +2299,124 @@ def dashboard():
             ventas_semana = 0
             pedidos_pendientes = 0
 
-        # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO ===
-        
-        # Precalcular listas filtradas para mejorar performance
-        pedidos_facturados = [
-            p for p in pedidos_30_dias 
-            if p.estado == 'facturado' and p.fecha_facturacion
-        ]
-        
-        # Optimización: Calcular lead times una sola vez y cachear resultados
-        lead_times = []
+        # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
+        # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
+
         palabras_error = {'error', 'corrección', 'corregir', 'incorrecto', 'mal'}
-        
-        for p in pedidos_facturados:
-            dias = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-            if dias >= 0:  # Solo días válidos
-                lead_times.append(dias)
-        
-        # 1. Lead time promedio optimizado
-        lead_time_promedio = sum(lead_times) / len(lead_times) if lead_times else 0
 
-        # 2. Fill rate optimizado con contadores
-        estados_count = {'facturado': 0, 'pendiente': 0, 'listo': 0, 'otros': 0}
-        for p in pedidos_30_dias:
-            estado = p.estado or 'otros'
-            if estado in estados_count:
-                estados_count[estado] += 1
+        # Función helper para calcular KPIs de un período
+        def calcular_kpis_periodo(pedidos_periodo):
+            """Calcula todos los KPIs para un período dado"""
+            if not pedidos_periodo:
+                return {
+                    'fill_rate': 0, 'otd_rate': 0, 'order_accuracy': 100,
+                    'lead_time': 0, 'total_pedidos': 0, 'ventas': 0
+                }
+
+            # Pedidos facturados del período
+            facturados = [p for p in pedidos_periodo if p.estado == 'facturado' and p.fecha_facturacion]
+
+            # Lead times
+            lead_times_p = []
+            for p in facturados:
+                dias = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                if dias >= 0:
+                    lead_times_p.append(dias)
+
+            # Fill Rate
+            estados = {'facturado': 0, 'pendiente': 0, 'listo': 0}
+            for p in pedidos_periodo:
+                estado = p.estado or 'otros'
+                if estado in estados:
+                    estados[estado] += 1
+            completos = estados['facturado']
+            total_eval = completos + estados['pendiente'] + estados['listo']
+            fill_rate_p = (completos / total_eval * 100) if total_eval > 0 else 0
+
+            # OTD Rate
+            a_tiempo = sum(1 for lt in lead_times_p if lt <= 2)
+            otd_p = (a_tiempo / len(lead_times_p) * 100) if lead_times_p else 0
+
+            # Order Accuracy
+            con_errores = sum(1 for p in pedidos_periodo
+                            if p.notas and any(e in p.notas.lower() for e in palabras_error))
+            total_p = len(pedidos_periodo)
+            accuracy_p = ((total_p - con_errores) / total_p * 100) if total_p > 0 else 100
+
+            # Ventas del período
+            ventas_p = sum(
+                sum(float(d.subtotal or 0) for d in p.detalles)
+                for p in pedidos_periodo if p.estado == 'facturado'
+            )
+
+            return {
+                'fill_rate': round(fill_rate_p, 1),
+                'otd_rate': round(otd_p, 1),
+                'order_accuracy': round(accuracy_p, 1),
+                'lead_time': round(sum(lead_times_p) / len(lead_times_p), 1) if lead_times_p else 0,
+                'total_pedidos': total_p,
+                'ventas': ventas_p
+            }
+
+        # Calcular KPIs del mes en curso
+        kpis_mes_actual = calcular_kpis_periodo(pedidos_mes_list)
+
+        # Extraer valores para compatibilidad con template existente
+        pedidos_facturados = [p for p in pedidos_mes_list if p.estado == 'facturado' and p.fecha_facturacion]
+        lead_times = [(p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                     for p in pedidos_facturados if p.fecha_facturacion]
+        lead_time_promedio = kpis_mes_actual['lead_time']
+        fill_rate = kpis_mes_actual['fill_rate']
+        otd_rate = kpis_mes_actual['otd_rate']
+        order_accuracy = kpis_mes_actual['order_accuracy']
+
+        # === HISTÓRICO DE KPIs (ÚLTIMOS 6 MESES) ===
+        kpis_historicos = []
+        for i in range(6):
+            # Calcular inicio y fin de cada mes
+            if i == 0:
+                mes_inicio = inicio_mes
+                mes_fin = hoy
             else:
-                estados_count['otros'] += 1
-        
-        pedidos_completos = estados_count['facturado']
-        pedidos_incompletos = estados_count['pendiente'] + estados_count['listo']
-        total_pedidos_evaluados = pedidos_completos + pedidos_incompletos
-        
-        fill_rate = (
-            (pedidos_completos / total_pedidos_evaluados * 100) 
-            if total_pedidos_evaluados > 0 else 0
-        )
+                # Mes anterior
+                primer_dia_mes_actual = inicio_mes
+                for _ in range(i):
+                    primer_dia_mes_actual = (primer_dia_mes_actual - timedelta(days=1)).replace(day=1)
+                mes_inicio = primer_dia_mes_actual
+                # Último día del mes
+                if mes_inicio.month == 12:
+                    mes_fin = mes_inicio.replace(year=mes_inicio.year + 1, month=1, day=1) - timedelta(days=1)
+                else:
+                    mes_fin = mes_inicio.replace(month=mes_inicio.month + 1, day=1) - timedelta(days=1)
 
-        # 3. On-time delivery rate optimizado
-        pedidos_a_tiempo = sum(1 for lt in lead_times if lt <= 2)
-        otd_rate = (pedidos_a_tiempo / len(lead_times) * 100) if lead_times else 0
+            # Obtener pedidos del mes
+            pedidos_mes_hist = Pedido.query.filter(
+                Pedido.fecha_pedido >= mes_inicio,
+                Pedido.fecha_pedido <= mes_fin
+            ).all()
 
-        # 4. Order accuracy optimizado con set lookup
-        pedidos_con_errores = 0
-        for p in pedidos_30_dias:
-            if p.notas:
-                notas_lower = p.notas.lower()
-                if any(palabra in notas_lower for palabra in palabras_error):
-                    pedidos_con_errores += 1
-        
-        total_pedidos_30 = len(pedidos_30_dias)
-        order_accuracy = (
-            ((total_pedidos_30 - pedidos_con_errores) / total_pedidos_30 * 100)
-            if total_pedidos_30 > 0 else 100
-        )
+            # Calcular KPIs
+            kpis = calcular_kpis_periodo(pedidos_mes_hist)
+            kpis['mes'] = mes_inicio.strftime('%b %Y')
+            kpis['mes_num'] = mes_inicio.month
+            kpis['año'] = mes_inicio.year
+            kpis_historicos.append(kpis)
 
-        # 5. Perfect order rate optimizado
+        # Invertir para que el más antiguo esté primero
+        kpis_historicos.reverse()
+
+        # Perfect order rate del mes actual
         perfect_orders = 0
         for i, p in enumerate(pedidos_facturados):
-            if i < len(lead_times):  # Verificar índice válido
+            if i < len(lead_times):
                 dias_lead = lead_times[i]
-                tiene_errores = (p.notas and 
+                tiene_errores = (p.notas and
                                any(palabra in p.notas.lower() for palabra in palabras_error))
-                
                 if dias_lead <= 2 and not tiene_errores:
                     perfect_orders += 1
 
         perfect_order_rate = (
-            (perfect_orders / len(pedidos_facturados) * 100) 
+            (perfect_orders / len(pedidos_facturados) * 100)
             if pedidos_facturados else 0
         )
 
@@ -2382,11 +2431,11 @@ def dashboard():
             if total_clientes > 0 else 0
         )
 
-        # === ANÁLISIS OPTIMIZADO DE PRODUCTOS ===
+        # === ANÁLISIS OPTIMIZADO DE PRODUCTOS (MES EN CURSO) ===
         productos_ventas = {}
         max_cajas = 0  # Tracking del máximo para optimizar
-        
-        for p in pedidos_30_dias:
+
+        for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
             pedido_id = p.id
             for d in p.detalles:
                 # Verificar que existe el producto
@@ -2447,9 +2496,9 @@ def dashboard():
         # Usar el máximo precalculado
         max_ventas = max_cajas if max_cajas > 0 else 1
 
-        # === ANÁLISIS DE CLIENTES (CORREGIDO) ===
+        # === ANÁLISIS DE CLIENTES (MES EN CURSO) ===
         clientes_ventas = {}
-        for p in pedidos_30_dias:
+        for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
             # Verificar que existe el cliente
             if not p.cliente:
                 app.logger.warning(f'Pedido sin cliente: {p.id}')
@@ -2587,7 +2636,10 @@ def dashboard():
             fecha_actual=hoy,
             ventas_dias=ventas_dias,
             tiempo_respuesta_data=tiempo_respuesta_data,
-            
+
+            # Histórico de KPIs (últimos 6 meses)
+            kpis_historicos=kpis_historicos,
+
             # Configuración
             moneda='XCG'
         )
@@ -2618,6 +2670,7 @@ def dashboard():
             'fecha_actual': datetime.now().date(),
             'ventas_dias': [],
             'tiempo_respuesta_data': [],
+            'kpis_historicos': [],
             'moneda': 'XCG'
         }
         
