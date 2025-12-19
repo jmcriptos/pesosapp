@@ -1,11 +1,31 @@
 import os
+import secrets
 from datetime import timedelta
+
+def _get_secret_key():
+    """Obtiene SECRET_KEY de forma segura"""
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key
+    # En producción, genera una advertencia pero no falla
+    # Esto permite que la app inicie, pero las sesiones no serán persistentes entre reinicios
+    import warnings
+    warnings.warn(
+        "SECRET_KEY not set! Using random key. Sessions will not persist across restarts. "
+        "Set SECRET_KEY with: heroku config:set SECRET_KEY=$(python -c \"import secrets; print(secrets.token_hex(32))\")",
+        RuntimeWarning
+    )
+    return secrets.token_hex(32)
 
 class Config:
     """Configuración base de Flask optimizada"""
-    
-    # Configuración básica
-    SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-unsafe-change-me"
+
+    # Configuración básica - SECRET_KEY con fallback seguro
+    SECRET_KEY = _get_secret_key()
+
+    # Credenciales del admin - deben configurarse via variables de entorno
+    DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME")
+    DEFAULT_PASSWORD = os.environ.get("DEFAULT_PASSWORD")
     
     # Base de datos
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///local.db")
