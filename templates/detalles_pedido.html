@@ -156,8 +156,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% if pedido.detalles %}
-                            {% for detalle in pedido.detalles %}
+                        {% if detalles_ordenados %}
+                            {% for detalle in detalles_ordenados %}
                             <tr>
                                 <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
                                 <td class="product-name">{{ detalle.producto.nombre }}</td>

@@ -2945,16 +2945,19 @@ def detalles_pedido(pedido_id):
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     # ── 3) GET: mostrar plantilla ─────────────────────────────
+    # Ordenar detalles por nombre de producto y luego por id
+    detalles_ordenados = sorted(pedido.detalles, key=lambda d: (d.producto.nombre, d.id))
+
     # Calcular conteo de registros por producto para mostrar "#/Total"
     conteo_por_producto = {}
-    for detalle in pedido.detalles:
+    for detalle in detalles_ordenados:
         pid = detalle.producto_id
         conteo_por_producto[pid] = conteo_por_producto.get(pid, 0) + 1
 
     # Asignar índice a cada detalle para mostrar "1/3", "2/3", etc.
     indice_detalle = {}
     contador_temp = {}
-    for detalle in pedido.detalles:
+    for detalle in detalles_ordenados:
         pid = detalle.producto_id
         contador_temp[pid] = contador_temp.get(pid, 0) + 1
         indice_detalle[detalle.id] = contador_temp[pid]
@@ -2963,7 +2966,8 @@ def detalles_pedido(pedido_id):
                            pedido   = pedido,
                            productos= productos,
                            conteo_por_producto=conteo_por_producto,
-                           indice_detalle=indice_detalle)
+                           indice_detalle=indice_detalle,
+                           detalles_ordenados=detalles_ordenados)
 
 
 @app.route('/detalles_pedido/<int:detalle_id>/eliminar', methods=['POST'])
