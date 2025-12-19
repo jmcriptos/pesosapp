@@ -18,23 +18,23 @@
         <table class="tabla-pedidos">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Cliente</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                    <th>Total&nbsp;(XCG)</th>
+                    <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="total" data-type="number">Total&nbsp;(XCG) <i class="fa fa-sort"></i></th>
                     <th>Notas</th>
                     <th class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-            {# --- ORDEN: más recientes arriba --- #}
-            {% set pedidos_ordenados =
-                 (pedidos|selectattr('fecha_pedido')|sort(attribute='fecha_pedido', reverse=true)|list)
-                 + (pedidos|rejectattr('fecha_pedido')|list)
-            %}
-            {% for pedido in pedidos_ordenados %}
-                <tr>
+            {# Ordenamiento optimizado desde backend: estado + fecha #}
+            {% for pedido in pedidos %}
+                <tr data-id="{{ pedido.id }}"
+                    data-cliente="{{ pedido.cliente.nombre }}"
+                    data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
+                    data-estado="{{ pedido.estado }}"
+                    data-total="{{ pedido.total_calculado }}">
                     <td>{{ pedido.id }}</td>
                     <td>{{ pedido.cliente.nombre }}</td>
                     <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
@@ -99,6 +99,48 @@
             {% endfor %}
             </tbody>
         </table>
+
+        {% if pagination and pagination.pages > 1 %}
+        <!-- Controles de paginación -->
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Mostrando {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }} pedidos
+            </div>
+            <div class="pagination-controls">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('lista_pedidos', page=1) }}" class="pagination-btn" title="Primera">
+                    <i class="fa fa-angles-left"></i>
+                </a>
+                <a href="{{ url_for('lista_pedidos', page=pagination.prev_num) }}" class="pagination-btn" title="Anterior">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                {% else %}
+                <span class="pagination-btn disabled"><i class="fa fa-angles-left"></i></span>
+                <span class="pagination-btn disabled"><i class="fa fa-angle-left"></i></span>
+                {% endif %}
+
+                <span class="pagination-current">
+                    Página {{ pagination.page }} de {{ pagination.pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                <a href="{{ url_for('lista_pedidos', page=pagination.next_num) }}" class="pagination-btn" title="Siguiente">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                <a href="{{ url_for('lista_pedidos', page=pagination.pages) }}" class="pagination-btn" title="Última">
+                    <i class="fa fa-angles-right"></i>
+                </a>
+                {% else %}
+                <span class="pagination-btn disabled"><i class="fa fa-angle-right"></i></span>
+                <span class="pagination-btn disabled"><i class="fa fa-angles-right"></i></span>
+                {% endif %}
+            </div>
+        </div>
+        {% elif pagination %}
+        <div class="pagination-info" style="text-align:center;padding:12px;color:#6b7280;">
+            {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }} en total
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -115,6 +157,14 @@
 .tabla-pedidos th{background:#1877ff;color:#fff;text-align:left;font-weight:700;padding:16px 8px;}
 .tabla-pedidos td{background:#fff;padding:14px 8px;border-bottom:1px solid #eef3fa;vertical-align:middle;}
 .tabla-pedidos tr:last-child td{border-bottom:none;}
+
+/* --- columnas ordenables --- */
+.tabla-pedidos th.sortable{cursor:pointer;user-select:none;transition:background .15s;white-space:nowrap;}
+.tabla-pedidos th.sortable:hover{background:#0d5bdb;}
+.tabla-pedidos th.sortable i{margin-left:6px;opacity:0.5;font-size:0.85em;vertical-align:middle;}
+.tabla-pedidos th.sortable.asc i::before{content:"\f0de";}
+.tabla-pedidos th.sortable.desc i::before{content:"\f0dd";}
+.tabla-pedidos th.sortable.asc i,.tabla-pedidos th.sortable.desc i{opacity:1;}
 
 /* --- estados con colores semáforo --- */
 .estado-badge {
@@ -190,6 +240,15 @@
 
 .inline-form{display:inline;margin:0;padding:0;background:none;border:none;}
 
+/* --- paginación --- */
+.pagination-container{display:flex;justify-content:space-between;align-items:center;padding:16px 8px;border-top:1px solid #eef3fa;margin-top:8px;flex-wrap:wrap;gap:12px;}
+.pagination-info{color:#6b7280;font-size:0.95rem;}
+.pagination-controls{display:flex;align-items:center;gap:8px;}
+.pagination-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#f4f8ff;color:#1877ff;text-decoration:none;font-size:1rem;transition:all .15s;}
+.pagination-btn:hover:not(.disabled){background:#1877ff;color:#fff;}
+.pagination-btn.disabled{background:#f3f4f6;color:#9ca3af;cursor:not-allowed;}
+.pagination-current{padding:0 12px;font-weight:600;color:#374151;}
+
 /* --- responsive --- */
 @media (max-width:900px){
   .tabla-pedidos-container,.tabla-pedidos-card{padding:3px;}
@@ -198,6 +257,9 @@
   .btn-nuevo{font-size:.95rem;padding:.65em 1.2em;}
   .btn-chip{width:32px;height:32px;font-size:.9rem;margin-right:2px;}
   .estado-badge{font-size:0.8rem;padding:2px 8px;}
+  .pagination-container{justify-content:center;text-align:center;}
+  .pagination-info{width:100%;}
+  .pagination-btn{width:32px;height:32px;}
 }
 
 /* Tooltip para acciones */
@@ -219,6 +281,64 @@
 
 {% block scripts %}
 <script>
-console.log('Lista de pedidos cargada (orden: más recientes primero)');
+(function() {
+    const table = document.querySelector('.tabla-pedidos');
+    const tbody = table.querySelector('tbody');
+    const headers = table.querySelectorAll('th.sortable');
+
+    // Prioridad de estados para ordenamiento
+    const estadoPrioridad = { 'pendiente': 0, 'listo': 1, 'facturado': 2, 'entregado': 3 };
+
+    let currentSort = { column: 'estado', direction: 'asc' }; // Default: estado + fecha
+
+    function sortTable(column, type) {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const dir = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+
+        rows.sort((a, b) => {
+            let valA = a.dataset[column] || '';
+            let valB = b.dataset[column] || '';
+
+            if (type === 'number') {
+                valA = parseFloat(valA) || 0;
+                valB = parseFloat(valB) || 0;
+            } else if (type === 'date') {
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
+            } else if (type === 'estado') {
+                valA = estadoPrioridad[valA] ?? 99;
+                valB = estadoPrioridad[valB] ?? 99;
+            } else {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+            }
+
+            if (valA < valB) return dir === 'asc' ? -1 : 1;
+            if (valA > valB) return dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Actualizar DOM
+        rows.forEach(row => tbody.appendChild(row));
+
+        // Actualizar estado visual
+        headers.forEach(h => h.classList.remove('asc', 'desc'));
+        const activeHeader = table.querySelector(`th[data-sort="${column}"]`);
+        activeHeader.classList.add(dir);
+
+        currentSort = { column, direction: dir };
+    }
+
+    // Event listeners
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.dataset.sort;
+            const type = header.dataset.type;
+            sortTable(column, type);
+        });
+    });
+
+    console.log('Ordenamiento dinámico activado. Clic en cabeceras para ordenar.');
+})();
 </script>
 {% endblock %}

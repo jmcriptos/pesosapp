@@ -5,6 +5,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_
+from sqlalchemy.orm import joinedload
 import io
 from flask import make_response
 import csv
@@ -2633,46 +2634,54 @@ def dashboard():
 @login_required
 @requiere_permiso_recurso('pedidos', 'leer')
 def lista_pedidos():
-    # Query base común
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(per_page, 100)  # Máximo 100 por página
+
+    # Subquery para calcular totales
+    totales_subq = db.session.query(
+        DetallePedido.pedido_id,
+        func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
+    ).group_by(DetallePedido.pedido_id).subquery()
+
+    # Query base con eager loading de Cliente para evitar N+1
     base_query = db.session.query(
         Pedido,
-        func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
-    ).outerjoin(DetallePedido).filter(
+        func.coalesce(totales_subq.c.total_calculado, 0).label('total_calculado')
+    ).outerjoin(
+        totales_subq, Pedido.id == totales_subq.c.pedido_id
+    ).options(
+        joinedload(Pedido.cliente)
+    ).filter(
         Pedido.estado != 'entregado'
     )
 
     # Orden: 1) Estado (pendientes primero), 2) Fecha desc, 3) ID desc
     orden_optimizado = [
-        # Prioridad por estado: pendientes (0), otros (1)
         db.case((Pedido.estado == 'pendiente', 0), else_=1),
-        # Fecha más reciente primero (nulos al final)
         db.case((Pedido.fecha_pedido.is_(None), 1), else_=0),
         Pedido.fecha_pedido.desc(),
-        # ID más reciente como desempate final
         Pedido.id.desc(),
     ]
 
-    if not isinstance(current_user, Vendedor):
-        # Usuario del sistema anterior - mostrar todos
-        pedidos_query = base_query.group_by(Pedido.id)\
-                                  .order_by(*orden_optimizado)\
-                                  .all()
-    else:
-        if current_user.rol.nombre == 'super_admin':
-            # Super admin ve todos los pedidos
-            pedidos_query = base_query.group_by(Pedido.id)\
-                                      .order_by(*orden_optimizado)\
-                                      .all()
-        else:
-            # Vendedor regular: solo ve pedidos de SUS clientes
-            clientes_ids = [c.id for c in current_user.obtener_clientes_visibles()]
-            if not clientes_ids:
-                pedidos_query = []
-            else:
-                pedidos_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))\
-                                          .group_by(Pedido.id)\
-                                          .order_by(*orden_optimizado)\
-                                          .all()
+    # Filtrar por permisos del usuario
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        clientes_ids = [c.id for c in current_user.obtener_clientes_visibles()]
+        if not clientes_ids:
+            # Sin clientes asignados - retornar vacío con paginación mock
+            return render_template('pedidos.html', pedidos=[], pagination=None)
+        base_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))
+
+    # Aplicar ordenamiento
+    base_query = base_query.order_by(*orden_optimizado)
+
+    # Contar total para paginación
+    total_count = base_query.count()
+    total_pages = (total_count + per_page - 1) // per_page
+
+    # Aplicar paginación manual (offset/limit)
+    pedidos_query = base_query.offset((page - 1) * per_page).limit(per_page).all()
 
     # Agregar el total calculado como atributo a cada pedido
     pedidos = []
@@ -2680,7 +2689,19 @@ def lista_pedidos():
         pedido.total_calculado = float(total)
         pedidos.append(pedido)
 
-    return render_template('pedidos.html', pedidos=pedidos)
+    # Info de paginación para el template
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_count,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1 if page > 1 else None,
+        'next_num': page + 1 if page < total_pages else None,
+    }
+
+    return render_template('pedidos.html', pedidos=pedidos, pagination=pagination)
 
 
 
