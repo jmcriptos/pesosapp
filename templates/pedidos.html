@@ -99,6 +99,48 @@
             {% endfor %}
             </tbody>
         </table>
+
+        {% if pagination and pagination.pages > 1 %}
+        <!-- Controles de paginación -->
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Mostrando {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }} pedidos
+            </div>
+            <div class="pagination-controls">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('lista_pedidos', page=1) }}" class="pagination-btn" title="Primera">
+                    <i class="fa fa-angles-left"></i>
+                </a>
+                <a href="{{ url_for('lista_pedidos', page=pagination.prev_num) }}" class="pagination-btn" title="Anterior">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                {% else %}
+                <span class="pagination-btn disabled"><i class="fa fa-angles-left"></i></span>
+                <span class="pagination-btn disabled"><i class="fa fa-angle-left"></i></span>
+                {% endif %}
+
+                <span class="pagination-current">
+                    Página {{ pagination.page }} de {{ pagination.pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                <a href="{{ url_for('lista_pedidos', page=pagination.next_num) }}" class="pagination-btn" title="Siguiente">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                <a href="{{ url_for('lista_pedidos', page=pagination.pages) }}" class="pagination-btn" title="Última">
+                    <i class="fa fa-angles-right"></i>
+                </a>
+                {% else %}
+                <span class="pagination-btn disabled"><i class="fa fa-angle-right"></i></span>
+                <span class="pagination-btn disabled"><i class="fa fa-angles-right"></i></span>
+                {% endif %}
+            </div>
+        </div>
+        {% elif pagination %}
+        <div class="pagination-info" style="text-align:center;padding:12px;color:#6b7280;">
+            {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }} en total
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -198,6 +240,15 @@
 
 .inline-form{display:inline;margin:0;padding:0;background:none;border:none;}
 
+/* --- paginación --- */
+.pagination-container{display:flex;justify-content:space-between;align-items:center;padding:16px 8px;border-top:1px solid #eef3fa;margin-top:8px;flex-wrap:wrap;gap:12px;}
+.pagination-info{color:#6b7280;font-size:0.95rem;}
+.pagination-controls{display:flex;align-items:center;gap:8px;}
+.pagination-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#f4f8ff;color:#1877ff;text-decoration:none;font-size:1rem;transition:all .15s;}
+.pagination-btn:hover:not(.disabled){background:#1877ff;color:#fff;}
+.pagination-btn.disabled{background:#f3f4f6;color:#9ca3af;cursor:not-allowed;}
+.pagination-current{padding:0 12px;font-weight:600;color:#374151;}
+
 /* --- responsive --- */
 @media (max-width:900px){
   .tabla-pedidos-container,.tabla-pedidos-card{padding:3px;}
@@ -206,6 +257,9 @@
   .btn-nuevo{font-size:.95rem;padding:.65em 1.2em;}
   .btn-chip{width:32px;height:32px;font-size:.9rem;margin-right:2px;}
   .estado-badge{font-size:0.8rem;padding:2px 8px;}
+  .pagination-container{justify-content:center;text-align:center;}
+  .pagination-info{width:100%;}
+  .pagination-btn{width:32px;height:32px;}
 }
 
 /* Tooltip para acciones */
