@@ -18,23 +18,23 @@
         <table class="tabla-pedidos">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Cliente</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                    <th>Total&nbsp;(XCG)</th>
+                    <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
+                    <th class="sortable" data-sort="total" data-type="number">Total&nbsp;(XCG) <i class="fa fa-sort"></i></th>
                     <th>Notas</th>
                     <th class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-            {# --- ORDEN: más recientes arriba --- #}
-            {% set pedidos_ordenados =
-                 (pedidos|selectattr('fecha_pedido')|sort(attribute='fecha_pedido', reverse=true)|list)
-                 + (pedidos|rejectattr('fecha_pedido')|list)
-            %}
-            {% for pedido in pedidos_ordenados %}
-                <tr>
+            {# Ordenamiento optimizado desde backend: estado + fecha #}
+            {% for pedido in pedidos %}
+                <tr data-id="{{ pedido.id }}"
+                    data-cliente="{{ pedido.cliente.nombre }}"
+                    data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
+                    data-estado="{{ pedido.estado }}"
+                    data-total="{{ pedido.total_calculado }}">
                     <td>{{ pedido.id }}</td>
                     <td>{{ pedido.cliente.nombre }}</td>
                     <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
@@ -115,6 +115,14 @@
 .tabla-pedidos th{background:#1877ff;color:#fff;text-align:left;font-weight:700;padding:16px 8px;}
 .tabla-pedidos td{background:#fff;padding:14px 8px;border-bottom:1px solid #eef3fa;vertical-align:middle;}
 .tabla-pedidos tr:last-child td{border-bottom:none;}
+
+/* --- columnas ordenables --- */
+.tabla-pedidos th.sortable{cursor:pointer;user-select:none;transition:background .15s;}
+.tabla-pedidos th.sortable:hover{background:#0d5bdb;}
+.tabla-pedidos th.sortable i{margin-left:6px;opacity:0.5;font-size:0.85em;}
+.tabla-pedidos th.sortable.asc i::before{content:"\f0de";}
+.tabla-pedidos th.sortable.desc i::before{content:"\f0dd";}
+.tabla-pedidos th.sortable.asc i,.tabla-pedidos th.sortable.desc i{opacity:1;}
 
 /* --- estados con colores semáforo --- */
 .estado-badge {
@@ -219,6 +227,64 @@
 
 {% block scripts %}
 <script>
-console.log('Lista de pedidos cargada (orden: más recientes primero)');
+(function() {
+    const table = document.querySelector('.tabla-pedidos');
+    const tbody = table.querySelector('tbody');
+    const headers = table.querySelectorAll('th.sortable');
+
+    // Prioridad de estados para ordenamiento
+    const estadoPrioridad = { 'pendiente': 0, 'listo': 1, 'facturado': 2, 'entregado': 3 };
+
+    let currentSort = { column: 'estado', direction: 'asc' }; // Default: estado + fecha
+
+    function sortTable(column, type) {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const dir = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+
+        rows.sort((a, b) => {
+            let valA = a.dataset[column] || '';
+            let valB = b.dataset[column] || '';
+
+            if (type === 'number') {
+                valA = parseFloat(valA) || 0;
+                valB = parseFloat(valB) || 0;
+            } else if (type === 'date') {
+                valA = valA ? new Date(valA).getTime() : 0;
+                valB = valB ? new Date(valB).getTime() : 0;
+            } else if (type === 'estado') {
+                valA = estadoPrioridad[valA] ?? 99;
+                valB = estadoPrioridad[valB] ?? 99;
+            } else {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+            }
+
+            if (valA < valB) return dir === 'asc' ? -1 : 1;
+            if (valA > valB) return dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Actualizar DOM
+        rows.forEach(row => tbody.appendChild(row));
+
+        // Actualizar estado visual
+        headers.forEach(h => h.classList.remove('asc', 'desc'));
+        const activeHeader = table.querySelector(`th[data-sort="${column}"]`);
+        activeHeader.classList.add(dir);
+
+        currentSort = { column, direction: dir };
+    }
+
+    // Event listeners
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.dataset.sort;
+            const type = header.dataset.type;
+            sortTable(column, type);
+        });
+    });
+
+    console.log('Ordenamiento dinámico activado. Clic en cabeceras para ordenar.');
+})();
 </script>
 {% endblock %}

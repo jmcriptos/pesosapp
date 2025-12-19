@@ -5,6 +5,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_
+from sqlalchemy.orm import joinedload
 import io
 from flask import make_response
 import csv
@@ -2633,11 +2634,13 @@ def dashboard():
 @login_required
 @requiere_permiso_recurso('pedidos', 'leer')
 def lista_pedidos():
-    # Query base común
+    # Query base con eager loading de Cliente para evitar N+1
     base_query = db.session.query(
         Pedido,
         func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
-    ).outerjoin(DetallePedido).filter(
+    ).outerjoin(DetallePedido).options(
+        joinedload(Pedido.cliente)
+    ).filter(
         Pedido.estado != 'entregado'
     )
 
