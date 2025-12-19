@@ -146,6 +146,7 @@
                 <table class="mobile-table">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Producto</th>
                             <th>Peso</th>
                             <th>Lote</th>
@@ -158,6 +159,7 @@
                         {% if pedido.detalles %}
                             {% for detalle in pedido.detalles %}
                             <tr>
+                                <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
                                 <td class="product-name">{{ detalle.producto.nombre }}</td>
                                 <td>{{ detalle.peso }}</td>
                                 <td>{{ detalle.lote }}</td>
@@ -176,7 +178,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="6" class="mobile-empty-state">No hay productos agregados al pedido</td>
+                                <td colspan="7" class="mobile-empty-state">No hay productos agregados al pedido</td>
                             </tr>
                         {% endif %}
                     </tbody>
