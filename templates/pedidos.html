@@ -5,276 +5,743 @@
 {% block header_title %}Gestión de Pedidos{% endblock %}
 
 {% block content %}
-<div class="tabla-pedidos-container">
-    <!-- US01: estilos inline migrados a clases utilitarias -->
-    <div class="flex-between-center">
-        <h2 class="fw-700">Pedidos Pendientes</h2>
-        <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo">
-            <i class="fa fa-plus"></i> Nuevo Pedido
+<div class="pedidos-container">
+    <!-- Header con botón nuevo -->
+    <div class="pedidos-header">
+        <h2 class="pedidos-title">Pedidos Pendientes</h2>
+        <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+            <i class="fa fa-plus"></i>
+            <span>Nuevo</span>
         </a>
     </div>
 
-    <div class="tabla-pedidos-card">
-        <table class="tabla-pedidos">
-            <thead>
-                <tr>
-                    <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
-                    <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
-                    <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
-                    <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
-                    <th class="sortable" data-sort="total" data-type="number">Total&nbsp;(XCG) <i class="fa fa-sort"></i></th>
-                    <th>Notas</th>
-                    <th class="text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-            {# Ordenamiento optimizado desde backend: estado + fecha #}
-            {% for pedido in pedidos %}
-                <tr data-id="{{ pedido.id }}"
-                    data-cliente="{{ pedido.cliente.nombre }}"
-                    data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
-                    data-estado="{{ pedido.estado }}"
-                    data-total="{{ pedido.total_calculado }}">
-                    <td>{{ pedido.id }}</td>
-                    <td>{{ pedido.cliente.nombre }}</td>
-                    <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
-                    <td>
-                        <span class="estado-badge estado-{{ pedido.estado }}">
-                            {% if pedido.estado == 'pendiente' %}
-                                <i class="fa fa-clock"></i> {{ pedido.estado }}
-                            {% elif pedido.estado == 'facturado' %}
-                                <i class="fa fa-check-circle"></i> {{ pedido.estado }}
-                            {% elif pedido.estado == 'listo' %}
-                                <i class="fa fa-box"></i> {{ pedido.estado }}
-                            {% else %}
-                                <i class="fa fa-info-circle"></i> {{ pedido.estado }}
-                            {% endif %}
-                        </span>
-                    </td>
-                    <td class="text-right font-mono fw-600">
-                        {{ "%.2f"|format(pedido.total_calculado) }}
-                    </td>
-                    <td>{{ pedido.notas or '' }}</td>
-                    <td class="text-center nowrap">
-
-                        <!-- Detalles -->
-                        <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-                           class="btn-chip btn-chip-view"
-                           title="Ver detalles">
-                           <i class="fa fa-eye"></i>
-                        </a>
-
-                        <!-- Editar -->
-                        <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
-                           class="btn-chip btn-chip-edit"
-                           title="Editar pedido">
-                           <i class="fa fa-edit"></i>
-                        </a>
-
-                        <!-- Facturar -->
-                        <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
-                              method="POST" class="inline-form">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit"
-                                    class="btn-chip btn-chip-success"
-                                    title="{% if pedido.estado == 'facturado' %}Ya facturado{% else %}Facturar pedido{% endif %}"
-                                    {% if pedido.estado == 'facturado' %}disabled{% endif %}>
-                                <i class="fa fa-file-invoice-dollar"></i>
-                            </button>
-                        </form>
-
-                        <!-- Eliminar -->
-                        <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}"
-                              method="POST" class="inline-form"
-                              onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" 
-                                    class="btn-chip btn-chip-danger"
-                                    title="Eliminar pedido">
-                                <i class="fa fa-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-
-        {% if pagination and pagination.pages > 1 %}
-        <!-- Controles de paginación -->
-        <div class="pagination-container">
-            <div class="pagination-info">
-                Mostrando {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }} pedidos
-            </div>
-            <div class="pagination-controls">
-                {% if pagination.has_prev %}
-                <a href="{{ url_for('lista_pedidos', page=1) }}" class="pagination-btn" title="Primera">
-                    <i class="fa fa-angles-left"></i>
-                </a>
-                <a href="{{ url_for('lista_pedidos', page=pagination.prev_num) }}" class="pagination-btn" title="Anterior">
-                    <i class="fa fa-angle-left"></i>
-                </a>
-                {% else %}
-                <span class="pagination-btn disabled"><i class="fa fa-angles-left"></i></span>
-                <span class="pagination-btn disabled"><i class="fa fa-angle-left"></i></span>
-                {% endif %}
-
-                <span class="pagination-current">
-                    Página {{ pagination.page }} de {{ pagination.pages }}
+    <!-- Vista móvil: Cards -->
+    <div class="pedidos-cards-mobile">
+        {% for pedido in pedidos %}
+        <div class="pedido-card" data-id="{{ pedido.id }}" data-estado="{{ pedido.estado }}">
+            <!-- Header del card -->
+            <div class="pedido-card-header">
+                <div class="pedido-card-id">#{{ pedido.id }}</div>
+                <span class="estado-badge-mobile estado-{{ pedido.estado }}">
+                    {% if pedido.estado == 'pendiente' %}
+                        <i class="fa fa-clock"></i> Pendiente
+                    {% elif pedido.estado == 'facturado' %}
+                        <i class="fa fa-check-circle"></i> Facturado
+                    {% elif pedido.estado == 'listo' %}
+                        <i class="fa fa-box"></i> Listo
+                    {% else %}
+                        <i class="fa fa-info-circle"></i> {{ pedido.estado }}
+                    {% endif %}
                 </span>
+            </div>
 
-                {% if pagination.has_next %}
-                <a href="{{ url_for('lista_pedidos', page=pagination.next_num) }}" class="pagination-btn" title="Siguiente">
-                    <i class="fa fa-angle-right"></i>
-                </a>
-                <a href="{{ url_for('lista_pedidos', page=pagination.pages) }}" class="pagination-btn" title="Última">
-                    <i class="fa fa-angles-right"></i>
-                </a>
-                {% else %}
-                <span class="pagination-btn disabled"><i class="fa fa-angle-right"></i></span>
-                <span class="pagination-btn disabled"><i class="fa fa-angles-right"></i></span>
+            <!-- Contenido principal -->
+            <div class="pedido-card-body">
+                <div class="pedido-cliente">
+                    <i class="fa fa-user"></i>
+                    <span>{{ pedido.cliente.nombre }}</span>
+                </div>
+                <div class="pedido-fecha">
+                    <i class="fa fa-calendar"></i>
+                    <span>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'Sin fecha' }}</span>
+                </div>
+                {% if pedido.notas %}
+                <div class="pedido-notas">
+                    <i class="fa fa-sticky-note"></i>
+                    <span>{{ pedido.notas|truncate(50) }}</span>
+                </div>
                 {% endif %}
             </div>
+
+            <!-- Total -->
+            <div class="pedido-card-total">
+                <span class="total-label">Total</span>
+                <span class="total-value">${{ "%.2f"|format(pedido.total_calculado) }}</span>
+            </div>
+
+            <!-- Acciones -->
+            <div class="pedido-card-actions">
+                <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-view">
+                    <i class="fa fa-eye"></i>
+                    <span>Detalles</span>
+                </a>
+                <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-edit">
+                    <i class="fa fa-edit"></i>
+                    <span>Editar</span>
+                </a>
+                <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="action-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="action-btn-mobile action-invoice"
+                            {% if pedido.estado == 'facturado' %}disabled{% endif %}>
+                        <i class="fa fa-file-invoice-dollar"></i>
+                        <span>Facturar</span>
+                    </button>
+                </form>
+                <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="action-form"
+                      onsubmit="return confirm('¿Eliminar pedido #{{ pedido.id }}?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="action-btn-mobile action-delete">
+                        <i class="fa fa-trash"></i>
+                        <span>Eliminar</span>
+                    </button>
+                </form>
+            </div>
         </div>
-        {% elif pagination %}
-        <div class="pagination-info" style="text-align:center;padding:12px;color:#6b7280;">
-            {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }} en total
+        {% else %}
+        <div class="pedidos-empty">
+            <i class="fa fa-clipboard-list"></i>
+            <p>No hay pedidos pendientes</p>
+            <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+                <i class="fa fa-plus"></i> Crear primer pedido
+            </a>
         </div>
-        {% endif %}
+        {% endfor %}
     </div>
+
+    <!-- Vista desktop: Tabla (solo visible en pantallas grandes) -->
+    <div class="pedidos-table-desktop">
+        <div class="tabla-pedidos-card">
+            <table class="tabla-pedidos">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
+                        <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
+                        <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
+                        <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
+                        <th class="sortable" data-sort="total" data-type="number">Total <i class="fa fa-sort"></i></th>
+                        <th>Notas</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for pedido in pedidos %}
+                    <tr data-id="{{ pedido.id }}"
+                        data-cliente="{{ pedido.cliente.nombre }}"
+                        data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
+                        data-estado="{{ pedido.estado }}"
+                        data-total="{{ pedido.total_calculado }}">
+                        <td>{{ pedido.id }}</td>
+                        <td>{{ pedido.cliente.nombre }}</td>
+                        <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
+                        <td>
+                            <span class="estado-badge estado-{{ pedido.estado }}">
+                                {% if pedido.estado == 'pendiente' %}
+                                    <i class="fa fa-clock"></i> {{ pedido.estado }}
+                                {% elif pedido.estado == 'facturado' %}
+                                    <i class="fa fa-check-circle"></i> {{ pedido.estado }}
+                                {% elif pedido.estado == 'listo' %}
+                                    <i class="fa fa-box"></i> {{ pedido.estado }}
+                                {% else %}
+                                    <i class="fa fa-info-circle"></i> {{ pedido.estado }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-right font-mono fw-600">${{ "%.2f"|format(pedido.total_calculado) }}</td>
+                        <td>{{ pedido.notas or '' }}</td>
+                        <td class="text-center nowrap">
+                            <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="btn-chip btn-chip-view" title="Ver detalles">
+                               <i class="fa fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="btn-chip btn-chip-edit" title="Editar pedido">
+                               <i class="fa fa-edit"></i>
+                            </a>
+                            <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-chip btn-chip-success"
+                                        title="{% if pedido.estado == 'facturado' %}Ya facturado{% else %}Facturar pedido{% endif %}"
+                                        {% if pedido.estado == 'facturado' %}disabled{% endif %}>
+                                    <i class="fa fa-file-invoice-dollar"></i>
+                                </button>
+                            </form>
+                            <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
+                                  onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-chip btn-chip-danger" title="Eliminar pedido">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginación móvil optimizada -->
+    {% if pagination and pagination.pages > 1 %}
+    <div class="pagination-mobile">
+        <div class="pagination-info-mobile">
+            {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }}
+        </div>
+        <div class="pagination-controls-mobile">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('lista_pedidos', page=pagination.prev_num) }}" class="pagination-btn-mobile">
+                <i class="fa fa-chevron-left"></i>
+            </a>
+            {% else %}
+            <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-left"></i></span>
+            {% endif %}
+
+            <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages }}</span>
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('lista_pedidos', page=pagination.next_num) }}" class="pagination-btn-mobile">
+                <i class="fa fa-chevron-right"></i>
+            </a>
+            {% else %}
+            <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-right"></i></span>
+            {% endif %}
+        </div>
+    </div>
+    {% elif pagination %}
+    <div class="pagination-info-mobile" style="text-align:center;padding:16px;">
+        {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <style>
-/* --- contenedor y card --- */
-.tabla-pedidos-container{max-width:1200px;margin:30px auto 0;padding:8px;}
-.tabla-pedidos-card{background:#fff;border-radius:22px;box-shadow:0 8px 30px rgba(24,119,255,.09);padding:16px 22px;margin-top:14px;}
+/* ============================================
+   MOBILE-FIRST EXTREME - PEDIDOS
+   ============================================ */
 
-/* --- tabla --- */
-.tabla-pedidos{width:100%;border-collapse:collapse;font-size:1.08rem;}
-.tabla-pedidos th{background:#1877ff;color:#fff;text-align:left;font-weight:700;padding:16px 8px;}
-.tabla-pedidos td{background:#fff;padding:14px 8px;border-bottom:1px solid #eef3fa;vertical-align:middle;}
-.tabla-pedidos tr:last-child td{border-bottom:none;}
+/* Container principal */
+.pedidos-container {
+    width: 100%;
+    max-width: 100vw;
+    padding: 0;
+    margin: 0;
+    padding-bottom: 100px;
+}
 
-/* --- columnas ordenables --- */
-.tabla-pedidos th.sortable{cursor:pointer;user-select:none;transition:background .15s;white-space:nowrap;}
-.tabla-pedidos th.sortable:hover{background:#0d5bdb;}
-.tabla-pedidos th.sortable i{margin-left:6px;opacity:0.5;font-size:0.85em;vertical-align:middle;}
-.tabla-pedidos th.sortable.asc i::before{content:"\f0de";}
-.tabla-pedidos th.sortable.desc i::before{content:"\f0dd";}
-.tabla-pedidos th.sortable.asc i,.tabla-pedidos th.sortable.desc i{opacity:1;}
+/* Header */
+.pedidos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
 
-/* --- estados con colores semáforo --- */
-.estado-badge {
+.pedidos-title {
+    color: white;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.btn-nuevo-pedido {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    color: #667eea;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.btn-nuevo-pedido:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   CARDS MÓVILES - Vista principal en móvil
+   ============================================ */
+.pedidos-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 8px;
+}
+
+.pedido-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.pedido-card:active {
+    transform: scale(0.98);
+}
+
+/* Card Header */
+.pedido-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #e9ecef;
+}
+
+.pedido-card-id {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #1877ff;
+}
+
+/* Estados móviles */
+.estado-badge-mobile {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .estado-pendiente {
-    background-color: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fbbf24;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #b45309;
 }
 
 .estado-listo {
-    background-color: #dbeafe;
-    color: #2563eb;
-    border: 1px solid #60a5fa;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1d4ed8;
 }
 
 .estado-facturado {
-    background-color: #dcfce7;
-    color: #16a34a;
-    border: 1px solid #4ade80;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #15803d;
 }
 
 .estado-entregado {
-    background-color: #f3f4f6;
-    color: #6b7280;
-    border: 1px solid #d1d5db;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #4b5563;
 }
 
-/* --- botones optimizados --- */
-.btn-nuevo{background:linear-gradient(90deg,#1877ff 0%,#67b3ff 100%);color:#fff;padding:.72em 1.7em;border-radius:18px;font-size:1.08rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(24,119,255,.09);transition:background .17s;}
-.btn-nuevo:hover{background:linear-gradient(90deg,#0056b3 0%,#2493f7 100%);}
+/* Card Body */
+.pedido-card-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 
-.btn-chip{
-    display: inline-flex;
+.pedido-cliente,
+.pedido-fecha,
+.pedido-notas {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1rem;
+    color: #374151;
+}
+
+.pedido-cliente i,
+.pedido-fecha i,
+.pedido-notas i {
+    width: 20px;
+    color: #6b7280;
+    font-size: 1.1rem;
+}
+
+.pedido-cliente span {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.pedido-notas {
+    font-size: 0.9rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* Card Total */
+.pedido-card-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-top: 1px solid #bbf7d0;
+}
+
+.total-label {
+    font-size: 0.9rem;
+    color: #166534;
+    font-weight: 600;
+}
+
+.total-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #15803d;
+    font-family: 'SF Mono', monospace;
+}
+
+/* Card Actions */
+.pedido-card-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+.action-form {
+    display: contents;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+}
+
+.action-btn-mobile {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
-    border: none;
-    border-radius: 50%;
-    font-weight: 700;
-    cursor: pointer;
-    margin-right: 4px;
-    transition: all .2s ease;
-    box-shadow: 0 2px 8px rgba(24,119,255,.06);
+    gap: 4px;
+    padding: 14px 8px;
     text-decoration: none;
-    outline: none;
-}
-.btn-chip:last-child{margin-right:0;}
-
-.btn-chip-view{background:#f4f8ff;color:#1877ff;}
-.btn-chip-view:hover{background:#e1eaff;color:#0d3c85;transform:scale(1.1);}
-
-.btn-chip-edit{background:#eef7ff;color:#409cff;}
-.btn-chip-edit:hover{background:#d6eaff;color:#1877ff;transform:scale(1.1);}
-
-.btn-chip-success{background:#e7fbe8;color:#17a34a;}
-.btn-chip-success:hover{background:#cbf4cf;color:#0b7a36;transform:scale(1.1);}
-.btn-chip-success:disabled{background:#f9fafb;color:#9ca3af;cursor:not-allowed;transform:none;}
-
-.btn-chip-danger{background:#ffeaea;color:#e55353;}
-.btn-chip-danger:hover{background:#ffc1c1;color:#a60000;transform:scale(1.1);}
-
-.inline-form{display:inline;margin:0;padding:0;background:none;border:none;}
-
-/* --- paginación --- */
-.pagination-container{display:flex;justify-content:space-between;align-items:center;padding:16px 8px;border-top:1px solid #eef3fa;margin-top:8px;flex-wrap:wrap;gap:12px;}
-.pagination-info{color:#6b7280;font-size:0.95rem;}
-.pagination-controls{display:flex;align-items:center;gap:8px;}
-.pagination-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#f4f8ff;color:#1877ff;text-decoration:none;font-size:1rem;transition:all .15s;}
-.pagination-btn:hover:not(.disabled){background:#1877ff;color:#fff;}
-.pagination-btn.disabled{background:#f3f4f6;color:#9ca3af;cursor:not-allowed;}
-.pagination-current{padding:0 12px;font-weight:600;color:#374151;}
-
-/* --- responsive --- */
-@media (max-width:900px){
-  .tabla-pedidos-container,.tabla-pedidos-card{padding:3px;}
-  .tabla-pedidos-card{border-radius:8px;}
-  .tabla-pedidos th,.tabla-pedidos td{padding:7px 4px;font-size:0.9rem;}
-  .btn-nuevo{font-size:.95rem;padding:.65em 1.2em;}
-  .btn-chip{width:32px;height:32px;font-size:.9rem;margin-right:2px;}
-  .estado-badge{font-size:0.8rem;padding:2px 8px;}
-  .pagination-container{justify-content:center;text-align:center;}
-  .pagination-info{width:100%;}
-  .pagination-btn{width:32px;height:32px;}
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    border: none;
+    cursor: pointer;
+    background: transparent;
 }
 
-/* Tooltip para acciones */
-.btn-chip:hover::after {
-    content: attr(title);
-    position: absolute;
-    background: #333;
+.action-btn-mobile i {
+    font-size: 1.3rem;
+}
+
+.action-btn-mobile span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.action-view {
+    background: #eff6ff;
+    color: #2563eb;
+}
+.action-view:active { background: #dbeafe; }
+
+.action-edit {
+    background: #fefce8;
+    color: #ca8a04;
+}
+.action-edit:active { background: #fef08a; }
+
+.action-invoice {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+.action-invoice:active { background: #dcfce7; }
+.action-invoice:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.action-delete {
+    background: #fef2f2;
+    color: #dc2626;
+}
+.action-delete:active { background: #fee2e2; }
+
+/* Empty state */
+.pedidos-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.pedidos-empty i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.pedidos-empty p {
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+}
+
+/* ============================================
+   PAGINACIÓN MÓVIL
+   ============================================ */
+.pagination-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 16px;
+    background: white;
+    border-radius: 16px;
+    margin: 12px 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.pagination-info-mobile {
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.pagination-controls-mobile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pagination-btn-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #f3f4f6;
+    color: #1877ff;
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: all 0.15s ease;
+}
+
+.pagination-btn-mobile:active:not(.disabled) {
+    background: #1877ff;
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-top: -40px;
-    margin-left: -20px;
+    transform: scale(0.95);
+}
+
+.pagination-btn-mobile.disabled {
+    background: #f9fafb;
+    color: #d1d5db;
+}
+
+.pagination-current-mobile {
+    font-weight: 700;
+    color: #374151;
+    font-size: 1rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* ============================================
+   TABLA DESKTOP - Oculta en móvil
+   ============================================ */
+.pedidos-table-desktop {
+    display: none;
+}
+
+/* ============================================
+   DESKTOP STYLES (>= 900px)
+   ============================================ */
+@media (min-width: 900px) {
+    .pedidos-cards-mobile {
+        display: none;
+    }
+
+    .pagination-mobile {
+        display: none;
+    }
+
+    .pedidos-table-desktop {
+        display: block;
+        padding: 20px;
+    }
+
+    .pedidos-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .pedidos-header {
+        border-radius: 16px;
+        margin-bottom: 20px;
+    }
+
+    .tabla-pedidos-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(24,119,255,.09);
+        padding: 16px 22px;
+        overflow: hidden;
+    }
+
+    .tabla-pedidos {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1rem;
+    }
+
+    .tabla-pedidos th {
+        background: #1877ff;
+        color: #fff;
+        text-align: left;
+        font-weight: 700;
+        padding: 14px 12px;
+    }
+
+    .tabla-pedidos td {
+        background: #fff;
+        padding: 12px;
+        border-bottom: 1px solid #eef3fa;
+        vertical-align: middle;
+    }
+
+    .tabla-pedidos tr:last-child td {
+        border-bottom: none;
+    }
+
+    .tabla-pedidos th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: background .15s;
+        white-space: nowrap;
+    }
+
+    .tabla-pedidos th.sortable:hover {
+        background: #0d5bdb;
+    }
+
+    .tabla-pedidos th.sortable i {
+        margin-left: 6px;
+        opacity: 0.5;
+        font-size: 0.85em;
+    }
+
+    .tabla-pedidos th.sortable.asc i,
+    .tabla-pedidos th.sortable.desc i {
+        opacity: 1;
+    }
+
+    /* Estados desktop */
+    .estado-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* Botones chip desktop */
+    .btn-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 50%;
+        font-weight: 700;
+        cursor: pointer;
+        margin-right: 4px;
+        transition: all .2s ease;
+        box-shadow: 0 2px 8px rgba(24,119,255,.06);
+        text-decoration: none;
+    }
+
+    .btn-chip:last-child { margin-right: 0; }
+    .btn-chip-view { background: #f4f8ff; color: #1877ff; }
+    .btn-chip-view:hover { background: #e1eaff; color: #0d3c85; transform: scale(1.1); }
+    .btn-chip-edit { background: #eef7ff; color: #409cff; }
+    .btn-chip-edit:hover { background: #d6eaff; color: #1877ff; transform: scale(1.1); }
+    .btn-chip-success { background: #e7fbe8; color: #17a34a; }
+    .btn-chip-success:hover { background: #cbf4cf; color: #0b7a36; transform: scale(1.1); }
+    .btn-chip-success:disabled { background: #f9fafb; color: #9ca3af; cursor: not-allowed; transform: none; }
+    .btn-chip-danger { background: #ffeaea; color: #e55353; }
+    .btn-chip-danger:hover { background: #ffc1c1; color: #a60000; transform: scale(1.1); }
+
+    .inline-form {
+        display: inline;
+        margin: 0;
+        padding: 0;
+        background: none;
+        border: none;
+    }
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+    .pedido-card {
+        background: #1f2937;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .pedido-card-header {
+        background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+        border-bottom-color: #374151;
+    }
+
+    .pedido-card-body {
+        color: #e5e7eb;
+    }
+
+    .pedido-cliente span {
+        color: #f9fafb;
+    }
+
+    .pedido-cliente i,
+    .pedido-fecha i,
+    .pedido-notas i {
+        color: #9ca3af;
+    }
+
+    .pedido-card-total {
+        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+        border-top-color: #047857;
+    }
+
+    .total-label {
+        color: #6ee7b7;
+    }
+
+    .total-value {
+        color: #34d399;
+    }
+
+    .pedido-card-actions {
+        border-top-color: #374151;
+    }
+
+    .action-view { background: #1e3a5f; color: #60a5fa; }
+    .action-edit { background: #422006; color: #fbbf24; }
+    .action-invoice { background: #064e3b; color: #34d399; }
+    .action-delete { background: #450a0a; color: #f87171; }
+
+    .pagination-mobile {
+        background: #1f2937;
+    }
+
+    .pagination-btn-mobile {
+        background: #374151;
+        color: #60a5fa;
+    }
+
+    .pagination-current-mobile {
+        color: #e5e7eb;
+    }
 }
 </style>
 {% endblock %}
