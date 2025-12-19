@@ -528,11 +528,23 @@
     .mobile-form-control {
         padding: 12px 14px;
         font-size: 16px;
+        height: 46px;
+        box-sizing: border-box;
     }
 
     .mobile-btn {
         padding: 12px 20px;
         font-size: 1rem;
+    }
+
+    /* Ocultar label del botón en desktop y alinear */
+    .mobile-form-grid > .mobile-form-group:last-child .mobile-form-label {
+        display: none;
+    }
+
+    .mobile-form-grid > .mobile-form-group:last-child .mobile-btn {
+        height: 46px;
+        box-sizing: border-box;
     }
 
     /* Mostrar tabla en desktop */
