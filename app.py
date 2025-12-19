@@ -144,13 +144,7 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         session_cookie_secure=True,
         session_cookie_http_only=True,
         # X-Frame-Options (adicional a CSP frame-ancestors)
-        frame_options='DENY',
-        # X-Content-Type-Options
-        content_type_nosniff=True,
-        # Referrer-Policy
-        referrer_policy='strict-origin-when-cross-origin',
-        # X-XSS-Protection (legacy pero útil para navegadores antiguos)
-        x_xss_protection=True
+        frame_options='DENY'
     )
 
 
