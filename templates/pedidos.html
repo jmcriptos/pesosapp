@@ -530,13 +530,30 @@
 /* ============================================
    DISTINCIÓN VISUAL ENTRE PEDIDOS
    ============================================ */
-.pedido-card-mobile:nth-child(odd) {
-    border-left: 4px solid #1877ff;
+.pedido-card:nth-child(odd) {
+    border-left: 5px solid #1877ff;
 }
 
-.pedido-card-mobile:nth-child(even) {
-    border-left: 4px solid #28a745;
-    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+.pedido-card:nth-child(odd) .pedido-card-header {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-bottom-color: #bfdbfe;
+}
+
+.pedido-card:nth-child(odd) .pedido-card-id {
+    color: #1d4ed8;
+}
+
+.pedido-card:nth-child(even) {
+    border-left: 5px solid #10b981;
+}
+
+.pedido-card:nth-child(even) .pedido-card-header {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-bottom-color: #bbf7d0;
+}
+
+.pedido-card:nth-child(even) .pedido-card-id {
+    color: #059669;
 }
 
 /* ============================================
