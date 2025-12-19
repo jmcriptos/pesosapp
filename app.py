@@ -55,8 +55,11 @@ except ImportError:
 
 app = Flask(__name__)
 
-# --- SECRET KEY (obligatoria en Heroku) ---
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or "dev-unsafe-change-me"
+# --- SECRET KEY (obligatoria) ---
+_secret_key = os.environ.get("SECRET_KEY")
+if not _secret_key:
+    raise RuntimeError("SECRET_KEY environment variable is required. Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+app.config["SECRET_KEY"] = _secret_key
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -86,20 +89,24 @@ migrate = Migrate(app, db)
 if CSRFProtect:
     csrf = CSRFProtect(app)
 
+# Configuración de seguridad con Talisman (HSTS, CSP, etc.)
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
+    # NOTA: 'unsafe-inline' en script-src y style-src es necesario para compatibilidad
+    # con librerías legacy. Se recomienda migrar gradualmente a nonces/hashes.
+    # Para usar nonces, agregar 'script-src' y 'style-src' a content_security_policy_nonce_in
     talisman_policy = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
-            "'unsafe-inline'",
+            "'unsafe-inline'",  # TODO: Migrar a nonces para mayor seguridad
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
         ],
         'style-src': [
             "'self'",
-            "'unsafe-inline'",
+            "'unsafe-inline'",  # TODO: Migrar a nonces para mayor seguridad
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'
         ],
@@ -111,12 +118,33 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
             'https://cdnjs.cloudflare.com',
             'https://code.jquery.com'
         ],
-        'style-src-attr': ["'unsafe-inline'"]
+        'style-src-attr': ["'unsafe-inline'"],  # Necesario para estilos inline en atributos
+        'frame-ancestors': ["'none'"],  # Prevenir clickjacking
+        'base-uri': ["'self'"],  # Prevenir inyección de base URI
+        'form-action': ["'self'"],  # Restringir destinos de formularios
+        'object-src': ["'none'"]  # Bloquear plugins (Flash, Java, etc.)
     }
     Talisman(
         app,
         content_security_policy=talisman_policy,
-        content_security_policy_nonce_in=[]
+        content_security_policy_nonce_in=[],
+        # Configuración HSTS - forzar HTTPS por 1 año
+        strict_transport_security=True,
+        strict_transport_security_max_age=31536000,  # 1 año
+        strict_transport_security_include_subdomains=True,
+        strict_transport_security_preload=True,
+        # Otras protecciones
+        force_https=True,
+        session_cookie_secure=True,
+        session_cookie_http_only=True,
+        # X-Frame-Options (adicional a CSP frame-ancestors)
+        frame_options='DENY',
+        # X-Content-Type-Options
+        content_type_nosniff=True,
+        # Referrer-Policy
+        referrer_policy='strict-origin-when-cross-origin',
+        # X-XSS-Protection (legacy pero útil para navegadores antiguos)
+        x_xss_protection=True
     )
 
 
@@ -124,8 +152,11 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME", "admin")
-DEFAULT_PASSWORD = os.environ.get("DEFAULT_PASSWORD", "changeme")
+# Credenciales legacy - SOLO usar si se configuran explícitamente las variables de entorno
+# Se recomienda migrar a Vendedor y deshabilitar el usuario legacy
+DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME")
+DEFAULT_PASSWORD = os.environ.get("DEFAULT_PASSWORD")
+_LEGACY_USER_ENABLED = DEFAULT_USERNAME is not None and DEFAULT_PASSWORD is not None
 
 class DefaultUser(UserMixin):
     def __init__(self, username):
@@ -336,11 +367,12 @@ def login():
                 next_url = url_for('dashboard')
             return redirect(next_url)
 
-        # 2) Fallback legacy (usuario por defecto)
-        if username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
+        # 2) Fallback legacy (usuario por defecto) - SOLO si está explícitamente habilitado
+        if _LEGACY_USER_ENABLED and username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
             user = DefaultUser(username)
             login_user(user, remember=remember_me)
-            flash("Inicio de sesión exitoso (modo compatibilidad).", "warning")
+            app.logger.warning(f"Legacy user login from IP: {request.remote_addr}")
+            flash("Inicio de sesión exitoso (modo compatibilidad). Se recomienda migrar a un usuario Vendedor.", "warning")
             if not _is_safe_next(next_url):
                 next_url = url_for('dashboard')
             return redirect(next_url)
@@ -375,9 +407,8 @@ def log_vendedor_action():
     """Registra las acciones de los vendedores para auditoría"""
     if request.method in ['POST', 'PUT', 'DELETE'] and current_user.is_authenticated:
         if isinstance(current_user, Vendedor):
-            # Log básico - en producción usar un sistema de logging más robusto
-            print(f"[AUDIT] {datetime.now()} - Vendedor: {current_user.username} - "
-                  f"Acción: {request.method} - URL: {request.url}")
+            app.logger.info(f"[AUDIT] Vendedor: {current_user.username} - "
+                           f"Acción: {request.method} - URL: {request.url}")
 
 
 # En lugar de @app.route('/dashboard')
@@ -621,9 +652,7 @@ def dashboard_vendedor():
         return render_template('dashboard_vendedor.html', **context)
         
     except Exception as e:
-        print(f"Error en dashboard_vendedor: {e}")
-        import traceback
-        traceback.print_exc()
+        app.logger.error(f"Error en dashboard_vendedor: {e}", exc_info=True)
         
         flash('Error al cargar el dashboard. Contacte al administrador.', 'error')
         
@@ -675,7 +704,7 @@ def obtener_metricas_sistema():
         return metricas
         
     except Exception as e:
-        print(f"Error obteniendo métricas del sistema: {e}")
+        app.logger.error(f"Error obteniendo métricas del sistema: {e}")
         return {
             'total_vendedores': 0,
             'total_clientes': 0,
@@ -733,7 +762,7 @@ def api_dashboard_metricas():
         return jsonify(metricas)
         
     except Exception as e:
-        print(f"Error en API de métricas: {e}")
+        app.logger.error(f"Error en API de métricas: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 ############################################
@@ -1180,83 +1209,62 @@ def obtener_precio_producto_cliente(cliente_id, producto_id, tipo_precio='jomar'
     Returns:
         Float: Precio encontrado o None si no existe
     """
-    print(f"DEBUG: Buscando precio para cliente_id={cliente_id}, producto_id={producto_id}, tipo={tipo_precio}")
-    
     # 1. Verificar precio específico cliente-producto
     precio_especifico = PrecioClienteProducto.query.filter_by(
         cliente_id=cliente_id,
         producto_id=producto_id,
         activo=True
     ).first()
-    
+
     if precio_especifico:
-        print(f"DEBUG: Encontrado precio específico cliente-producto")
         if tipo_precio == 'base':
             precio = precio_especifico.precio_base
         elif tipo_precio == 'jomar':
             precio = precio_especifico.precio_jomar
         elif tipo_precio == 'retail':
             precio = precio_especifico.precio_retail
-        print(f"DEBUG: Precio específico: {precio}")
         return precio
-    else:
-        print(f"DEBUG: No hay precio específico cliente-producto")
-    
+
     # 2. Verificar lista de precios del cliente
     cliente_lista = ClienteListaPrecio.query.filter_by(
         cliente_id=cliente_id,
         activa=True
     ).first()
-    
+
     if cliente_lista:
-        print(f"DEBUG: Cliente tiene lista asignada: {cliente_lista.lista_precio_id}")
         precio_lista = PrecioProducto.query.filter_by(
             lista_precio_id=cliente_lista.lista_precio_id,
             producto_id=producto_id,
             activo=True
         ).first()
-        
+
         if precio_lista:
-            print(f"DEBUG: Encontrado precio en lista del cliente")
             if tipo_precio == 'base':
                 precio = precio_lista.precio_base
             elif tipo_precio == 'jomar':
                 precio = precio_lista.precio_jomar
             elif tipo_precio == 'retail':
                 precio = precio_lista.precio_retail
-            print(f"DEBUG: Precio de lista cliente: {precio}")
             return precio
-        else:
-            print(f"DEBUG: Producto no encontrado en lista del cliente")
-    else:
-        print(f"DEBUG: Cliente no tiene lista asignada")
-    
+
     # 3. Usar lista de precios por defecto
     lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
     if lista_default:
-        print(f"DEBUG: Usando lista por defecto: {lista_default.id}")
         precio_default = PrecioProducto.query.filter_by(
             lista_precio_id=lista_default.id,
             producto_id=producto_id,
             activo=True
         ).first()
-        
+
         if precio_default:
-            print(f"DEBUG: Encontrado precio en lista por defecto")
             if tipo_precio == 'base':
                 precio = precio_default.precio_base
             elif tipo_precio == 'jomar':
                 precio = precio_default.precio_jomar
             elif tipo_precio == 'retail':
                 precio = precio_default.precio_retail
-            print(f"DEBUG: Precio por defecto: {precio}")
             return precio
-        else:
-            print(f"DEBUG: Producto no encontrado en lista por defecto")
-    else:
-        print(f"DEBUG: No hay lista por defecto configurada")
-    
-    print(f"DEBUG: No se encontró precio, devolviendo None")
+
     return None
 
 def obtener_precio_default_producto(producto_id, tipo_precio='base'):
@@ -1412,7 +1420,8 @@ def crear_vendedor():
             # """
             
         except Exception as e:
-            flash(f'Error al cargar el formulario: {str(e)}', 'error')
+            app.logger.error(f'Error al cargar el formulario: {e}')
+            flash('Error al cargar el formulario. Intente de nuevo.', 'error')
             return redirect(url_for('gestionar_vendedores'))
     
     # ====== MANEJAR POST REQUEST (procesar formulario) ======
@@ -1481,12 +1490,14 @@ def crear_vendedor():
             
         except ValueError as ve:
             db.session.rollback()
-            flash(f'Error en los datos proporcionados: {str(ve)}', 'error')
+            app.logger.warning(f'Error de validación al crear vendedor: {ve}')
+            flash('Error en los datos proporcionados. Verifique los campos.', 'error')
             return redirect(url_for('crear_vendedor'))
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error al crear vendedor: {str(e)}', 'error')
+            app.logger.error(f'Error al crear vendedor: {e}')
+            flash('Error al crear vendedor. Intente de nuevo.', 'error')
             return redirect(url_for('crear_vendedor'))
     
     # ====== FALLBACK (no debería llegar aquí) ======
@@ -1525,7 +1536,8 @@ def asignar_cliente():
             flash('Cliente asignado correctamente', 'success')
             return redirect(url_for('asignar_cliente'))
         except Exception as e:
-            flash(f'Error al asignar cliente: {str(e)}', 'error')
+            app.logger.error(f'Error al asignar cliente: {e}')
+            flash('Error al asignar cliente. Intente de nuevo.', 'error')
     
     return render_template('admin/clientes_vendedores.html',
                            clientes_sin_asignar=clientes_sin_asignar,  # ← Variable correcta
@@ -1541,28 +1553,21 @@ def api_clientes_sin_asignar():
     Devuelve los clientes que no tienen asignación activa
     """
     try:
-        print("DEBUG: Buscando clientes sin asignar...")
-        
         # Obtener todos los clientes
         todos_los_clientes = Cliente.query.all()
-        print(f"DEBUG: Total de clientes: {len(todos_los_clientes)}")
-        
+
         # Obtener IDs de clientes que SÍ tienen asignación activa
         clientes_asignados_ids = db.session.query(ClienteVendedor.cliente_id).filter_by(activo=True).distinct().all()
         clientes_asignados_ids = [row[0] for row in clientes_asignados_ids]
-        print(f"DEBUG: Clientes con asignación activa: {len(clientes_asignados_ids)}")
-        
+
         # Filtrar clientes que NO están en la lista de asignados
         clientes_sin_asignar = [c for c in todos_los_clientes if c.id not in clientes_asignados_ids]
-        print(f"DEBUG: Clientes sin asignar: {len(clientes_sin_asignar)}")
-        
+
         resultado = [{'id': c.id, 'nombre': c.nombre} for c in clientes_sin_asignar]
         return jsonify(resultado)
-        
+
     except Exception as e:
-        print(f"ERROR en api_clientes_sin_asignar: {e}")
-        import traceback
-        traceback.print_exc()
+        app.logger.error(f"Error en api_clientes_sin_asignar: {e}", exc_info=True)
         return jsonify([]), 200  
 
 
@@ -1581,7 +1586,8 @@ def api_asignar_cliente():
         return jsonify({'success': True, 'asign_id': asign.id})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 400
+        app.logger.error(f'Error en operación: {e}')
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 400
 
 
 # ---------- Desasignar ----------
@@ -1594,7 +1600,8 @@ def api_desasignar_cliente(asign_id):
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 400
+        app.logger.error(f'Error en operación: {e}')
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 400
 
 @app.route('/api/vendedores/<int:v_id>/clientes')
 @login_required
@@ -1604,16 +1611,11 @@ def api_clientes_del_vendedor(v_id):
     Devuelve (JSON) los clientes activos asignados a un vendedor.
     """
     try:
-        print(f"DEBUG: Buscando clientes del vendedor ID: {v_id}")
-        
         # Verificar que el vendedor existe
         vendedor = Vendedor.query.get(v_id)
         if not vendedor:
-            print(f"ERROR: Vendedor {v_id} no encontrado")
             return jsonify({'error': 'Vendedor no encontrado'}), 404
-        
-        print(f"DEBUG: Vendedor encontrado: {vendedor.nombre_completo}")
-        
+
         # Obtener asignaciones activas del vendedor con información del cliente
         asignaciones = db.session.query(
             ClienteVendedor, Cliente
@@ -1623,9 +1625,7 @@ def api_clientes_del_vendedor(v_id):
             ClienteVendedor.vendedor_id == v_id,
             ClienteVendedor.activo == True
         ).order_by(Cliente.nombre).all()
-        
-        print(f"DEBUG: Encontradas {len(asignaciones)} asignaciones")
-        
+
         # Formatear respuesta - CORREGIDO: usar fecha_inicio en lugar de fecha_asignacion
         resultado = []
         for asignacion, cliente in asignaciones:
@@ -1635,15 +1635,11 @@ def api_clientes_del_vendedor(v_id):
                 'asign_id': asignacion.id,
                 'fecha_asignacion': asignacion.fecha_inicio.strftime('%Y-%m-%d') if asignacion.fecha_inicio else None
             })
-            print(f"DEBUG: Cliente {cliente.nombre} (ID: {cliente.id}, asign_id: {asignacion.id})")
-        
-        print(f"DEBUG: Retornando {len(resultado)} clientes")
+
         return jsonify(resultado)
-        
+
     except Exception as e:
-        print(f"ERROR en api_clientes_del_vendedor: {e}")
-        import traceback
-        traceback.print_exc()
+        app.logger.error(f"Error en api_clientes_del_vendedor: {e}", exc_info=True)
         return jsonify({'error': 'Error interno del servidor'}), 500
 
         # ===== RUTAS ADMINISTRATIVAS ADICIONALES =====
@@ -1722,7 +1718,7 @@ def admin_reportes():
                              fecha_fin=hoy)
         
     except Exception as e:
-        print(f"Error en admin_reportes: {e}")
+        app.logger.error(f"Error en admin_reportes: {e}")
         flash('Error al cargar los reportes', 'error')
         return redirect(url_for('index'))
 
@@ -1787,7 +1783,7 @@ def admin_analytics():
                              eficiencia_vendedores=eficiencia_vendedores)
         
     except Exception as e:
-        print(f"Error en admin_analytics: {e}")
+        app.logger.error(f"Error en admin_analytics: {e}")
         flash('Error al cargar analytics', 'error')
         return redirect(url_for('index'))
 
@@ -1837,7 +1833,7 @@ def admin_clientes_vendedores():
                              vendedores=vendedores)
         
     except Exception as e:
-        print(f"Error en admin_clientes_vendedores: {e}")
+        app.logger.error(f"Error en admin_clientes_vendedores: {e}")
         flash('Error al cargar asignaciones', 'error')
         return redirect(url_for('index'))
 
@@ -1941,7 +1937,7 @@ def exportar_ventas():
                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         
     except Exception as e:
-        print(f"Error exportando ventas: {e}")
+        app.logger.error(f"Error exportando ventas: {e}")
         flash('Error al exportar datos de ventas', 'error')
         return redirect(url_for('admin_exportar'))
 
@@ -1983,7 +1979,7 @@ def admin_logs():
         return render_template('admin/logs.html', logs=logs_ejemplo)
         
     except Exception as e:
-        print(f"Error en admin_logs: {e}")
+        app.logger.error(f"Error en admin_logs: {e}")
         flash('Error al cargar logs', 'error')
         return redirect(url_for('index'))
 
@@ -1999,7 +1995,7 @@ def admin_roles():
         return render_template('admin/roles.html', roles=roles, permisos=permisos)
         
     except Exception as e:
-        print(f"Error en admin_roles: {e}")
+        app.logger.error(f"Error en admin_roles: {e}")
         flash('Error al cargar roles', 'error')
         return redirect(url_for('index'))
 
@@ -2028,8 +2024,9 @@ def crear_rol():
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error al crear rol: {str(e)}', 'error')
-    
+            app.logger.error(f'Error al crear rol: {e}')
+            flash('Error al crear rol. Intente de nuevo.', 'error')
+
     return render_template('admin/rol_form.html')
 
 # ===== API ENDPOINTS PARA DASHBOARD =====
@@ -2063,7 +2060,7 @@ def api_admin_stats():
         return jsonify(stats)
         
     except Exception as e:
-        print(f"Error en API admin stats: {e}")
+        app.logger.error(f"Error en API admin stats: {e}")
         return jsonify({'error': 'Error interno'}), 500
 
 @app.route('/api/admin/performance')
@@ -2106,7 +2103,7 @@ def api_admin_performance():
         return jsonify(resultado)
         
     except Exception as e:
-        print(f"Error en API performance: {e}")
+        app.logger.error(f"Error en API performance: {e}")
         return jsonify({'error': 'Error interno'}), 500
 
 # ===== RUTAS DE GESTIÓN DE TERRITORIOS =====
@@ -2144,8 +2141,9 @@ def crear_territorio():
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error al crear territorio: {str(e)}', 'error')
-    
+            app.logger.error(f'Error al crear territorio: {e}')
+            flash('Error al crear territorio. Intente de nuevo.', 'error')
+
     return render_template('admin/territorio_form.html')
 
 @app.route('/admin/territorios/asignar_cliente', methods=['POST'])
@@ -2163,7 +2161,8 @@ def asignar_cliente_territorio():
         flash('Territorio asignado al cliente', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error: {e}', 'danger')
+        app.logger.error(f'Error al asignar territorio al cliente: {e}')
+        flash('Error al asignar territorio. Intente de nuevo.', 'danger')
     return redirect(url_for('admin_clientes_vendedores'))
 
 @app.route('/admin/vendedores/<int:v_id>/territorio', methods=['POST'])
@@ -2185,7 +2184,8 @@ def actualizar_territorio_vendedor(v_id):
         flash('Territorio del vendedor actualizado', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error al actualizar territorio: {e}', 'danger')
+        app.logger.error(f'Error al actualizar territorio del vendedor: {e}')
+        flash('Error al actualizar territorio. Intente de nuevo.', 'danger')
 
     return redirect(url_for('gestionar_vendedores'))
 
@@ -2231,7 +2231,7 @@ def webhook_actualizacion_precios():
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error en webhook precios: {e}")
+        app.logger.error(f"Error en webhook precios: {e}")
         return jsonify({'error': 'Error interno'}), 500
 
 
@@ -2917,6 +2917,13 @@ def eliminar_pedido(pedido_id):
 def detalles_pedido(pedido_id):
     # ── 1) Traer cabecera y productos ─────────────────────────
     pedido    = Pedido.query.get_or_404(pedido_id)
+
+    # ── Verificación de autorización IDOR ─────────────────────
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        if not current_user.puede_ver_cliente(pedido.cliente_id):
+            flash('No tienes permisos para acceder a este pedido', 'error')
+            return redirect(url_for('lista_pedidos'))
+
     productos = Producto.query.all()
 
     # ── 2) Alta de un nuevo detalle ───────────────────────────
@@ -2940,8 +2947,6 @@ def detalles_pedido(pedido_id):
                                   producto_id, 'base'
                               ) or 0
         
-        print(f"DEBUG: Cliente {pedido.cliente_id}, Producto {producto_id}")
-        print(f"DEBUG: Precio obtenido: {precio_unitario}")
         # ------------------------------------------------------------
 
         cantidad = cajas if cajas else peso   # si se usan cajas en el futuro
@@ -2995,11 +3000,18 @@ def detalles_pedido(pedido_id):
 @login_required
 def eliminar_detalle_pedido(detalle_id):
     detalle = DetallePedido.query.get_or_404(detalle_id)
-    pedido_id = detalle.pedido_id
+    pedido = Pedido.query.get_or_404(detalle.pedido_id)
+
+    # ── Verificación de autorización IDOR ─────────────────────
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        if not current_user.puede_ver_cliente(pedido.cliente_id):
+            flash('No tienes permisos para eliminar este detalle', 'error')
+            return redirect(url_for('lista_pedidos'))
+
     db.session.delete(detalle)
     db.session.commit()
     flash('Detalle eliminado.', 'success')
-    return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
+    return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
 # ---------------------------------------------------------------------
 # Generar etiquetas a partir de los DetallePedido de un pedido concreto
@@ -3107,12 +3119,12 @@ def generar_etiqueta_detalle(pedido_id):
 
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error generando etiquetas: {str(e)}")
+        app.logger.error(f"Error generando etiquetas: {e}")
 
         if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": "Error interno del servidor"}), 500
 
-        flash(f"Error generando etiquetas: {str(e)}", "danger")
+        flash("Error generando etiquetas. Intente de nuevo.", "danger")
         return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
 
@@ -3231,12 +3243,12 @@ def generar_etiqueta_detalle_a4(pedido_id):
 
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error generando etiquetas A4: {str(e)}")
+        app.logger.error(f"Error generando etiquetas A4: {e}")
 
         if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": "Error interno del servidor"}), 500
 
-        flash(f"Error generando etiquetas A4: {str(e)}", "danger")
+        flash("Error generando etiquetas A4. Intente de nuevo.", "danger")
         return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
 
@@ -3281,7 +3293,8 @@ def facturar_pedido(pedido_id):
         resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=15)
         resp.raise_for_status()
     except Exception as e:
-        flash(f'Error al enviar a n8n: {e}', 'danger')
+        app.logger.error(f'Error al enviar a n8n: {e}')
+        flash('Error al enviar a n8n. Intente de nuevo.', 'danger')
         return redirect(url_for('lista_pedidos'))
 
     # Marcar como facturado si todo fue bien
@@ -3333,7 +3346,8 @@ def nueva_lista_precio():
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error al crear la lista de precios: {str(e)}', 'error')
+            app.logger.error(f'Error al crear la lista de precios: {e}')
+            flash('Error al crear la lista de precios. Intente de nuevo.', 'error')
     
     return render_template('precios/lista_form.html')
 
@@ -3354,7 +3368,8 @@ def editar_lista_precio(lista_id):
             
         except Exception as e:
             db.session.rollback()
-            flash(f'Error al actualizar la lista de precios: {str(e)}', 'error')
+            app.logger.error(f'Error al actualizar la lista de precios: {e}')
+            flash('Error al actualizar la lista de precios. Intente de nuevo.', 'error')
     
     return render_template('precios/lista_form.html', lista=lista)
 
@@ -3373,7 +3388,8 @@ def eliminar_lista_precio(lista_id):
         return jsonify({'message': 'Lista de precios eliminada exitosamente'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar la lista: {str(e)}'}), 500
+        app.logger.error(f'Error al eliminar la lista: {e}')
+        return jsonify({'error': 'Error al eliminar la lista'}), 500
 
 # ---- PRECIOS POR PRODUCTO EN LISTAS ----
 
@@ -3434,7 +3450,8 @@ def crear_precio_producto(lista_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al actualizar precio: {str(e)}'}), 500
+        app.logger.error(f'Error al actualizar precio: {e}')
+        return jsonify({'error': 'Error al actualizar precio'}), 500
 
 @app.route('/precios/productos/<int:precio_id>/eliminar', methods=['DELETE'])
 @login_required
@@ -3447,7 +3464,8 @@ def eliminar_precio_producto(precio_id):
         return jsonify({'message': 'Precio eliminado exitosamente'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar precio: {str(e)}'}), 500
+        app.logger.error(f'Error al eliminar precio: {e}')
+        return jsonify({'error': 'Error al eliminar precio'}), 500
 
 # ---- ASIGNACIÓN DE LISTAS A CLIENTES ----
 
@@ -3501,7 +3519,8 @@ def asignar_lista_cliente():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al asignar lista: {str(e)}'}), 500
+        app.logger.error(f'Error al asignar lista: {e}')
+        return jsonify({'error': 'Error al asignar lista'}), 500
 
 @app.route('/precios/clientes/<int:asignacion_id>/eliminar', methods=['DELETE'])
 @login_required
@@ -3514,7 +3533,8 @@ def eliminar_asignacion_cliente(asignacion_id):
         return jsonify({'message': 'Asignación eliminada exitosamente'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar asignación: {str(e)}'}), 500
+        app.logger.error(f'Error al eliminar asignación: {e}')
+        return jsonify({'error': 'Error al eliminar asignación'}), 500
 
 # ---- PRECIOS ESPECÍFICOS CLIENTE-PRODUCTO ----
 
@@ -3578,7 +3598,8 @@ def crear_precio_cliente_producto():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al actualizar precio específico: {str(e)}'}), 500
+        app.logger.error(f'Error al actualizar precio específico: {e}')
+        return jsonify({'error': 'Error al actualizar precio'}), 500
 
 @app.route('/precios/cliente-producto/<int:precio_id>/eliminar', methods=['DELETE'])
 @login_required
@@ -3591,7 +3612,8 @@ def eliminar_precio_cliente_producto(precio_id):
         return jsonify({'message': 'Precio específico eliminado exitosamente'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar precio específico: {str(e)}'}), 500
+        app.logger.error(f'Error al eliminar precio específico: {e}')
+        return jsonify({'error': 'Error al eliminar precio'}), 500
 
 # ---- API PARA OBTENER PRECIOS ----
 
@@ -3870,7 +3892,7 @@ def productos():
 
         except Exception as e:
             db.session.rollback()
-            print("Error al crear producto:", e)
+            app.logger.error(f"Error al crear producto: {e}")
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({'error': 'Error al crear el producto'}), 400
             flash('Error al crear el producto', 'danger')
@@ -3998,7 +4020,8 @@ def crear_recepcion():
         }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error al registrar la recepción: {str(e)}"}), 500
+        app.logger.error(f'Error al registrar la recepción: {e}')
+        return jsonify({"error": "Error al registrar la recepción"}), 500
 
 @app.route('/recepciones/<int:id>', methods=['DELETE'])
 @login_required
@@ -4010,7 +4033,8 @@ def eliminar_recepcion(id):
         return jsonify({"message": "Recepción eliminada con éxito"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error al eliminar la recepción: {str(e)}"}), 500
+        app.logger.error(f'Error al eliminar la recepción: {e}')
+        return jsonify({"error": "Error al eliminar la recepción"}), 500
 
 # Rutas para Facturación
 @app.route('/facturacion', methods=['GET', 'POST'])
@@ -4101,7 +4125,7 @@ def registrar_facturacion():
         db.session.commit()
         return jsonify({"message": "Peso registrado exitosamente"}), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
     
 @app.route('/facturacion/eliminar/<int:id>', methods=['DELETE'])
 @login_required
@@ -4113,7 +4137,7 @@ def eliminar_facturacion(id):
         return jsonify({"message": "Facturación eliminada exitosamente"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 # Rutas para Importaciones, Reportes y Etiquetas
 @app.route('/formulario_importacion')
@@ -4152,8 +4176,6 @@ def registrar_importacion():
         else:
             fecha_importacion = datetime.utcnow()
         productos = []
-        print("Datos recibidos del formulario:")
-        print(request.form)
         total_fob_general = 0
         total_cif_ang_general = 0
         num_productos = len([key for key in request.form.keys() if 'productos' in key and '[producto]' in key])
@@ -4208,36 +4230,17 @@ def registrar_importacion():
             )
             db.session.add(nueva_importacion)
             productos.append(nueva_importacion)
-            print(f"Procesando producto índice: {i}")
-            print(f"Producto ID: {producto_id}")
-            print(f"Cantidad Total: {qty_total}")
-            print(f"Precio FOB: {price_fob}")
-            print(f"Total FOB: {total_fob}")
-            print(f"Flete Proporcional: {flete_proporcional}")
-            print(f"Total CIF: {total_cif}")
-            print(f"CIF ANG: {cif_ang}")
-            print(f"Arancel ANG: {arancel_ang}")
-            print(f"OB ANG: {ob_ang}")
-            print(f"OB Dev 4.5%: {ob_45}")
-            print(f"Flete Local Proporcional: {flete_local_proporcional}")
-            print(f"Gastos Aduanal Proporcional: {gastos_aduanal_proporcional}")
-            print(f"Costo Total Almacén: {costo_total_almacen_producto}")
-            print(f"Costo Unidad ANG: {costo_por_unidad_ang}")
-            print(f"Precio Jomar: {precio_jomar}")
-            print(f"Precio Retail: {precio_retail}")
-            print("-------------------------------------------")
         if not productos:
             flash("No se han proporcionado productos para la importación", "danger")
             return redirect(url_for('formulario_importacion'))
         db.session.commit()
-        print(f"Importación registrada con {len(productos)} productos.")
+        app.logger.info(f"Importación registrada con {len(productos)} productos.")
         flash("Importación registrada exitosamente", "success")
         return redirect(url_for('formulario_importacion'))
     except Exception as e:
         db.session.rollback()
-        traceback.print_exc()
-        print(f"Error al registrar la importación: {e}")
-        flash(f"Error al registrar la importación: {e}", "danger")
+        app.logger.error(f"Error al registrar la importación: {e}", exc_info=True)
+        flash("Error al registrar la importación. Intente de nuevo.", "danger")
         return redirect(url_for('formulario_importacion'))
 
 @app.route('/reporte_factura/<numero_factura>', methods=['GET'])
@@ -4510,7 +4513,7 @@ def nuevo_cliente():
         }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 @app.route('/clientes/<int:cliente_id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -4541,7 +4544,8 @@ def editar_cliente(cliente_id):
             return redirect(url_for('mostrar_clientes'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error: {e}', 'danger')
+            app.logger.error(f'Error al editar cliente: {e}')
+            flash('Error al editar cliente. Intente de nuevo.', 'danger')
             return redirect(url_for('mostrar_clientes'))
 
     return render_template('cliente_form.html', cliente=cliente)
@@ -4563,7 +4567,7 @@ def eliminar_cliente(cliente_id):
         return jsonify({"message": "Cliente eliminado exitosamente"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 # Rutas de CRM eliminadas
 
@@ -4641,13 +4645,13 @@ def generar_reporte():
         nombre_archivo = f"reporte_recepciones_{numero_factura}.xlsx"
         return send_file(output, as_attachment=True, download_name=nombre_archivo, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
-        print(f"Error al generar el reporte: {e}")
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Error al generar el reporte: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 try:
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 except locale.Error:
-    print("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
+    logging.warning("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
 
 @app.route('/generar_reporte_pesos', methods=['GET'])
 @login_required
@@ -4797,7 +4801,7 @@ def generar_etiqueta():
         cliente_filename = cliente_nombre.replace(" ", "_").replace("/", "-")
         return send_file(output, as_attachment=True, download_name=f"etiquetas_{cliente_filename}.pdf", mimetype="application/pdf")
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 @app.route('/etiquetas_vencimiento', methods=['GET', 'POST'])
 @login_required
@@ -4860,9 +4864,9 @@ def generar_pdf_etiquetas(datos, cantidad):
 try:
     locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 except locale.Error:
-    print("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
+    logging.warning("No se pudo configurar el locale 'en_US.UTF-8'. Se usará el formato de números por defecto.")
 
- 
+
 
 def validar_estructura_csv(csv_input, campos_requeridos):
     """Valida que el CSV tenga los campos requeridos"""
@@ -5057,22 +5061,51 @@ def generar_reporte_carga():
         return jsonify({'error': 'Tipo de reporte no soportado'}), 400
         
     except Exception as e:
-        return jsonify({'error': f'Error generando reporte: {str(e)}'}), 500
+        app.logger.error(f'Error generando reporte: {e}')
+        return jsonify({'error': 'Error generando reporte'}), 500
 
 # Función para validar CSV antes de procesarlo
 @app.route('/precios/validar-csv', methods=['POST'])
 @login_required
 def validar_csv_precios():
     """Valida un CSV antes de procesarlo completamente"""
+    # Tipos MIME válidos para archivos CSV
+    ALLOWED_MIME_TYPES = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel']
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB máximo
+
     try:
         if 'archivo_csv' not in request.files:
             return jsonify({'error': 'No se encontró archivo CSV'}), 400
-        
+
         archivo = request.files['archivo_csv']
+        if archivo.filename == '':
+            return jsonify({'error': 'No se seleccionó archivo'}), 400
+
+        # Validar nombre de archivo con secure_filename
+        filename = secure_filename(archivo.filename)
+        if not filename.lower().endswith('.csv'):
+            return jsonify({'error': 'El archivo debe ser CSV'}), 400
+
+        # Validar tipo MIME
+        if archivo.content_type and archivo.content_type not in ALLOWED_MIME_TYPES:
+            app.logger.warning(f'Intento de validar archivo con MIME type no permitido: {archivo.content_type}')
+            return jsonify({'error': 'Tipo de archivo no permitido'}), 400
+
         tipo_carga = request.form.get('tipo_carga')
-        
+
+        # Leer contenido y validar tamaño
+        content = archivo.stream.read()
+        if len(content) > MAX_FILE_SIZE:
+            return jsonify({'error': 'El archivo excede el tamaño máximo permitido (10MB)'}), 400
+
+        # Validar que el contenido es texto UTF-8 válido
+        try:
+            decoded_content = content.decode("UTF8")
+        except UnicodeDecodeError:
+            return jsonify({'error': 'El archivo debe estar codificado en UTF-8'}), 400
+
         # Leer primeras 10 filas para validación
-        stream = io.StringIO(archivo.stream.read().decode("UTF8"), newline=None)
+        stream = io.StringIO(decoded_content, newline=None)
         csv_input = csv.DictReader(stream)
         
         validacion = {
@@ -5143,7 +5176,8 @@ def validar_csv_precios():
         return jsonify(validacion), 200
         
     except Exception as e:
-        return jsonify({'error': f'Error validando archivo: {str(e)}'}), 500
+        app.logger.error(f'Error validando archivo: {e}')
+        return jsonify({'error': 'Error validando archivo'}), 500
 
 # Agregar logging para mejor debugging
 @app.route('/precios/log-carga', methods=['POST'])
@@ -5162,7 +5196,7 @@ def log_carga_precios():
         return jsonify({'status': 'logged'}), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 # Configuración de logging
 logging.basicConfig(
@@ -5191,22 +5225,44 @@ def carga_masiva_precios():
 @login_required
 def procesar_csv_precios():
     """Procesar archivo CSV con precios"""
+    # Tipos MIME válidos para archivos CSV
+    ALLOWED_MIME_TYPES = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel']
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB máximo
+
     try:
         if 'archivo_csv' not in request.files:
             return jsonify({'error': 'No se encontró archivo CSV'}), 400
-        
+
         archivo = request.files['archivo_csv']
         if archivo.filename == '':
             return jsonify({'error': 'No se seleccionó archivo'}), 400
-        
-        if not archivo.filename.lower().endswith('.csv'):
+
+        # Validar nombre de archivo con secure_filename
+        filename = secure_filename(archivo.filename)
+        if not filename.lower().endswith('.csv'):
             return jsonify({'error': 'El archivo debe ser CSV'}), 400
-        
+
+        # Validar tipo MIME
+        if archivo.content_type and archivo.content_type not in ALLOWED_MIME_TYPES:
+            app.logger.warning(f'Intento de subir archivo con MIME type no permitido: {archivo.content_type}')
+            return jsonify({'error': 'Tipo de archivo no permitido'}), 400
+
+        # Leer contenido y validar tamaño
+        content = archivo.stream.read()
+        if len(content) > MAX_FILE_SIZE:
+            return jsonify({'error': 'El archivo excede el tamaño máximo permitido (10MB)'}), 400
+
         tipo_carga = request.form.get('tipo_carga')
         lista_precio_id = request.form.get('lista_precio_id')
-        
+
+        # Validar que el contenido es texto UTF-8 válido
+        try:
+            decoded_content = content.decode("UTF8")
+        except UnicodeDecodeError:
+            return jsonify({'error': 'El archivo debe estar codificado en UTF-8'}), 400
+
         # Leer archivo CSV
-        stream = io.StringIO(archivo.stream.read().decode("UTF8"), newline=None)
+        stream = io.StringIO(decoded_content, newline=None)
         csv_input = csv.DictReader(stream)
         
         resultados = {
@@ -5235,7 +5291,8 @@ def procesar_csv_precios():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error procesando archivo: {str(e)}'}), 500
+        app.logger.error(f'Error procesando archivo: {e}')
+        return jsonify({'error': 'Error procesando archivo'}), 500
 
 def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
     """Procesar CSV para actualizar precios en una lista específica"""
@@ -5546,7 +5603,7 @@ if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':
         ip_servidor = obtener_ip_servidor()
-        print(f"La aplicación está disponible en la IP: {ip_servidor}:{5002}")
+        app.logger.info(f"La aplicación está disponible en la IP: {ip_servidor}:{5002}")
         app.run(debug=True, host='0.0.0.0', port=5002)
     else:
         # Configuración para producción (Heroku)

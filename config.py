@@ -3,9 +3,15 @@ from datetime import timedelta
 
 class Config:
     """Configuración base de Flask optimizada"""
-    
-    # Configuración básica
-    SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-unsafe-change-me"
+
+    # Configuración básica - SECRET_KEY es obligatoria
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    if not SECRET_KEY:
+        raise RuntimeError("SECRET_KEY environment variable is required. Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+
+    # Credenciales del admin - deben configurarse via variables de entorno
+    DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME")
+    DEFAULT_PASSWORD = os.environ.get("DEFAULT_PASSWORD")
     
     # Base de datos
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///local.db")
