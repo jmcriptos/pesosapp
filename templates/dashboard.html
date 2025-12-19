@@ -29,6 +29,51 @@
 {% set progreso_meta = 0 if porcentaje_meta_v < 0 else (100 if porcentaje_meta_v > 100 else porcentaje_meta_v) %}
 
 <div class="professional-dashboard">
+    <!-- Header Ejecutivo con Resumen Rápido -->
+    <div class="executive-header">
+        <div class="header-left">
+            <div class="welcome-section">
+                <h1>Bienvenido, {{ current_user.nombre if current_user else 'Usuario' }}</h1>
+                <p class="date-display">{{ fecha_actual.strftime('%A, %d de %B %Y') if fecha_actual else '' }}</p>
+            </div>
+            <div class="quick-stats">
+                <div class="quick-stat">
+                    <span class="stat-number">{{ '{:,.0f}'.format(ventas_mes_v) }}</span>
+                    <span class="stat-label">XCG este mes</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="quick-stat">
+                    <span class="stat-number">{{ pedidos_mes_v }}</span>
+                    <span class="stat-label">Pedidos</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="quick-stat">
+                    <span class="stat-number {{ 'text-success' if porcentaje_meta_v >= 80 else ('text-warning' if porcentaje_meta_v >= 50 else 'text-danger') }}">{{ '%.0f' % porcentaje_meta_v }}%</span>
+                    <span class="stat-label">Meta cumplida</span>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="last-updated">
+                <i class="fas fa-sync-alt"></i>
+                <span id="lastUpdated">Actualizado ahora</span>
+            </div>
+            <div class="quick-actions">
+                <a href="{{ url_for('nuevo_pedido') }}" class="action-btn primary">
+                    <i class="fas fa-plus"></i>
+                    <span>Nuevo Pedido</span>
+                </a>
+                <a href="{{ url_for('lista_pedidos') }}" class="action-btn secondary">
+                    <i class="fas fa-list"></i>
+                    <span>Ver Pedidos</span>
+                </a>
+                <button class="action-btn icon-only" id="refreshDashboard" title="Actualizar datos">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Alertas y Notificaciones -->
     <div class="alerts-section">
         <div class="alert-card {% if pedidos_pendientes_v > 0 %}urgent{% else %}success{% endif %}">
@@ -231,35 +276,76 @@
         </div>
     </div>
 
-    <!-- Top Performers y Métricas -->
-    <div class="performance-section">
+    <!-- Evolución de Indicadores (Nuevo) -->
+    <div class="kpi-evolution-section">
+        <div class="chart-card kpi-evolution-chart">
+            <div class="chart-header">
+                <h3>Evolución de Indicadores - Últimos 6 Meses</h3>
+                <div class="kpi-legend">
+                    <span class="legend-item"><span class="legend-dot fill-rate"></span> Fill Rate</span>
+                    <span class="legend-item"><span class="legend-dot otd"></span> OTD</span>
+                    <span class="legend-item"><span class="legend-dot accuracy"></span> Accuracy</span>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 280px;">
+                <canvas id="kpiEvolutionChart"></canvas>
+            </div>
+            <div class="kpi-summary-row">
+                {% for kpi in (kpis_historicos or [])[-3:] %}
+                <div class="kpi-month-card">
+                    <span class="month-label">{{ kpi.mes }}</span>
+                    <div class="month-metrics">
+                        <span class="metric {{ 'good' if kpi.fill_rate >= 80 else 'warning' }}">
+                            <i class="fas fa-clipboard-check"></i> {{ kpi.fill_rate }}%
+                        </span>
+                        <span class="metric {{ 'good' if kpi.otd_rate >= 90 else 'warning' }}">
+                            <i class="fas fa-truck"></i> {{ kpi.otd_rate }}%
+                        </span>
+                        <span class="metric {{ 'good' if kpi.order_accuracy >= 95 else 'warning' }}">
+                            <i class="fas fa-check-double"></i> {{ kpi.order_accuracy }}%
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Productos -->
+    <div class="products-section">
         <div class="top-products-card">
-            <h3>Top 5 Productos del Mes</h3>
-            <div class="products-list">
+            <h3>Top 5 Productos por Ingresos</h3>
+            <div class="products-grid">
                 {% for producto in (top_productos or []) %}
-                {% set vendidos = (producto.total_vendido or 0)|float %}
-                {% set maxv = max_ventas_v if max_ventas_v > 0 else 1 %}
-                <div class="product-item">
-                    <div class="product-rank">{{ loop.index }}</div>
-                    <div class="product-info">
-                        <h4>{{ producto.nombre }}</h4>
-                        <p>{{ vendidos|round(0)|int }} cajas vendidas</p>
+                {% set ingresos = (producto.ingresos or 0)|float %}
+                {% set cajas = (producto.cajas or 0)|int %}
+                {% set peso = (producto.peso or 0)|float %}
+                <div class="product-card">
+                    <div class="product-header">
+                        <div class="product-avatar">{{ loop.index }}</div>
+                        <div class="product-info">
+                            <h4>{{ producto.nombre }}</h4>
+                            <p>{% if cajas > 0 %}{{ cajas }} cajas{% endif %}{% if cajas > 0 and peso > 0 %} · {% endif %}{% if peso > 0 %}{{ '{:,.1f}'.format(peso) }} kg{% endif %}{% if cajas == 0 and peso == 0 %}Sin cantidad{% endif %}</p>
+                        </div>
                     </div>
-                    <div class="product-revenue">
-                        {% set producto_ingresos = (producto.ingresos or 0)|float %}
-                        XCG {{ '{:,.0f}'.format(producto_ingresos) }}
-                    </div>
-                    <div class="product-indicator">
-                        <div class="indicator-bar">
-                            {% set indicator_width = (vendidos / maxv * 100) if maxv > 0 else 0 %}
-                            <div class="indicator-fill" style="width: {{ indicator_width }}%"></div>
+                    <div class="product-stats">
+                        <div class="stat">
+                            <span class="stat-label">Facturado</span>
+                            <span class="stat-value">XCG {{ '{:,.0f}'.format(ingresos) }}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Pedidos</span>
+                            <span class="stat-value">{{ producto.pedidos or 0 }}</span>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
+    </div>
 
+    <!-- Métricas de Servicio -->
+    <div class="performance-section">
         <div class="metrics-card">
             <h3>Métricas de Servicio</h3>
             <div class="service-metrics">
@@ -386,10 +472,169 @@
     max-width: 1600px;
     margin: 0 auto;
     padding: 24px;
-    background: #f8fafc;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     min-height: 100vh;
 }
 
+/* === EXECUTIVE HEADER === */
+.executive-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #3182ce 100%);
+    border-radius: 24px;
+    padding: 32px 40px;
+    margin-bottom: 32px;
+    color: white;
+    box-shadow: 0 20px 40px -10px rgba(30, 58, 95, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+.executive-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+.header-left { flex: 1; }
+.welcome-section h1 {
+    margin: 0 0 4px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+.date-display {
+    margin: 0 0 20px 0;
+    font-size: 0.95rem;
+    opacity: 0.85;
+    text-transform: capitalize;
+}
+.quick-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 16px 24px;
+    width: fit-content;
+}
+.quick-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.stat-number {
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.stat-number.text-success { color: #4ade80; }
+.stat-number.text-warning { color: #fbbf24; }
+.stat-number.text-danger { color: #f87171; }
+.stat-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.3);
+}
+.header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+}
+.last-updated {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+.last-updated i {
+    font-size: 0.9rem;
+}
+.quick-actions {
+    display: flex;
+    gap: 12px;
+}
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+.action-btn.primary {
+    background: #10b981;
+    color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+.action-btn.primary:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+}
+.action-btn.secondary {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    backdrop-filter: blur(4px);
+}
+.action-btn.secondary:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+}
+.action-btn.icon-only {
+    padding: 12px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+.action-btn.icon-only:hover {
+    background: rgba(255,255,255,0.25);
+    transform: rotate(180deg);
+}
+@media (max-width: 992px) {
+    .executive-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+        padding: 24px;
+    }
+    .header-right {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .quick-stats {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: center;
+    }
+}
+@media (max-width: 576px) {
+    .welcome-section h1 { font-size: 1.4rem; }
+    .quick-actions { flex-wrap: wrap; }
+    .action-btn span { display: none; }
+    .action-btn { padding: 12px; }
+}
+
+/* === ALERTS SECTION MEJORADO === */
 .alerts-section {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -405,9 +650,17 @@
     gap: 16px;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
     border-left: 4px solid;
-    transition: transform .2s, box-shadow .2s;
+    transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeInLeft 0.5s ease-out backwards;
 }
-.alert-card:hover{transform:translateY(-2px);box-shadow:0 8px 15px -3px rgba(0,0,0,.15)}
+.alert-card:nth-child(1) { animation-delay: 0.05s; }
+.alert-card:nth-child(2) { animation-delay: 0.15s; }
+.alert-card:nth-child(3) { animation-delay: 0.25s; }
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.alert-card:hover{transform:translateY(-4px) translateX(4px);box-shadow:0 12px 20px -5px rgba(0,0,0,.15)}
 .alert-card.urgent{border-left-color:#ef4444;background:linear-gradient(135deg,#fef2f2 0%,white 100%)}
 .alert-card.success{border-left-color:#10b981;background:linear-gradient(135deg,#f0fdf4 0%,white 100%)}
 .alert-card.info{border-left-color:#3b82f6;background:linear-gradient(135deg,#eff6ff 0%,white 100%)}
@@ -417,22 +670,41 @@
 .alert-card.info .alert-icon{background:linear-gradient(135deg,#3b82f6,#2563eb)}
 .alert-content h4{margin:0 0 4px 0;font-size:1.1rem;font-weight:600;color:#111827}
 .alert-content p{margin:0;font-size:.9rem;color:#6b7280}
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-bottom:32px}
+/* === KPI GRID MEJORADO === */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-bottom:32px}
 .kpi-card {
     background: white;
     border-radius: 20px;
     padding: 28px;
     box-shadow: 0 10px 25px -5px rgba(0,0,0,.1);
-    transition: all .3s ease;
+    transition: all .4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    animation: slideInUp 0.6s ease-out backwards;
 }
-.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--gradient-start),var(--gradient-end))}
+.kpi-card:nth-child(1) { animation-delay: 0.1s; }
+.kpi-card:nth-child(2) { animation-delay: 0.2s; }
+.kpi-card:nth-child(3) { animation-delay: 0.3s; }
+.kpi-card:nth-child(4) { animation-delay: 0.4s; }
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes countUp {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--gradient-start),var(--gradient-end))}
+.kpi-card::after{content:'';position:absolute;top:0;right:0;width:120px;height:120px;background:linear-gradient(135deg,var(--gradient-start) 0%,transparent 60%);opacity:0.08;border-radius:0 0 0 100%}
 .kpi-card.revenue{--gradient-start:#10b981;--gradient-end:#059669}
 .kpi-card.orders{--gradient-start:#3b82f6;--gradient-end:#2563eb}
 .kpi-card.otd{--gradient-start:#f59e0b;--gradient-end:#d97706}
 .kpi-card.fillrate{--gradient-start:#8b5cf6;--gradient-end:#7c3aed}
-.kpi-card:hover{transform:translateY(-8px);box-shadow:0 20px 40px -5px rgba(0,0,0,.15)}
+.kpi-card:hover{transform:translateY(-8px) scale(1.02);box-shadow:0 25px 50px -10px rgba(0,0,0,.2)}
 .kpi-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .kpi-icon {
     width: 56px;
@@ -464,12 +736,31 @@
 .mini-fill.poor{background:#ef4444}
 .charts-section{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:32px}
 .chart-card{background:white;border-radius:20px;padding:28px;box-shadow:0 10px 25px -5px rgba(0,0,0,.1)}
-.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px}
 .chart-header h3{margin:0;font-size:1.3rem;font-weight:600;color:#111827}
 .chart-controls{display:flex;gap:8px}
 .chart-btn{padding:8px 16px;border:1px solid #d1d5db;background:white;border-radius:8px;font-size:.85rem;cursor:pointer;transition:all .2s}
 .chart-btn.active{background:#3b82f6;color:white;border-color:#3b82f6}
 .chart-container{height:300px;position:relative}
+
+/* === KPI EVOLUTION SECTION === */
+.kpi-evolution-section{margin-bottom:32px}
+.kpi-evolution-chart{animation:fadeInUp 0.6s ease-out backwards;animation-delay:0.4s}
+.kpi-legend{display:flex;gap:16px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#6b7280}
+.legend-dot{width:12px;height:12px;border-radius:50%}
+.legend-dot.fill-rate{background:#8b5cf6}
+.legend-dot.otd{background:#f59e0b}
+.legend-dot.accuracy{background:#10b981}
+.kpi-summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px;padding-top:20px;border-top:1px solid #f3f4f6}
+.kpi-month-card{background:#f9fafb;border-radius:12px;padding:16px;text-align:center;transition:all 0.3s ease}
+.kpi-month-card:hover{background:#f3f4f6;transform:translateY(-2px)}
+.month-label{display:block;font-size:0.9rem;font-weight:600;color:#374151;margin-bottom:10px}
+.month-metrics{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.month-metrics .metric{display:flex;align-items:center;gap:4px;font-size:0.8rem;padding:4px 8px;border-radius:6px;background:white}
+.month-metrics .metric.good{color:#059669}
+.month-metrics .metric.warning{color:#d97706}
+.month-metrics .metric i{font-size:0.75rem}
 .response-time-list{max-height:350px;overflow-y:auto}
 .response-time-item{padding:12px 0;border-bottom:1px solid #f3f4f6}
 .response-time-item:last-child{border-bottom:none}
@@ -540,8 +831,991 @@
 .stat{display:flex;flex-direction:column}
 .stat-label{font-size:.75rem;color:#6b7280;margin-bottom:4px}
 .stat-value{font-size:.95rem;font-weight:600;color:#111827}
+/* Top Productos - Estilo horizontal como clientes */
+.products-section{margin-bottom:32px}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}
+.product-card{background:#f9fafb;border-radius:12px;padding:20px;transition:transform .2s,background .2s}
+.product-card:hover{transform:translateY(-4px);background:#f3f4f6}
+.product-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.product-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.2rem}
+.product-info h4{margin:0 0 4px 0;font-size:1rem;font-weight:600;color:#111827}
+.product-info p{margin:0;font-size:.85rem;color:#6b7280}
+.product-stats{display:flex;justify-content:space-between}
 @media (max-width:1200px){.charts-section{grid-template-columns:1fr}.performance-section{grid-template-columns:1fr}.activity-section{grid-template-columns:1fr}}
-@media (max-width:768px){.professional-dashboard{padding:16px}.alerts-section{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr}.kpi-card{padding:20px}.kpi-value{font-size:2rem}.clients-grid{grid-template-columns:1fr}}
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Tablet Landscape (max-width: 992px) */
+@media (max-width: 992px) {
+    .professional-dashboard {
+        padding: 16px;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    .clients-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Tablet Portrait (max-width: 768px) */
+@media (max-width: 768px) {
+    .professional-dashboard {
+        padding: 12px;
+        background: #f1f5f9;
+    }
+
+    /* Header móvil optimizado */
+    .executive-header {
+        padding: 20px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+    }
+    .welcome-section h1 {
+        font-size: 1.3rem;
+    }
+    .date-display {
+        font-size: 0.85rem;
+        margin-bottom: 16px;
+    }
+    .quick-stats {
+        padding: 12px 16px;
+        gap: 16px;
+        border-radius: 12px;
+    }
+    .stat-number {
+        font-size: 1.3rem;
+    }
+    .stat-label {
+        font-size: 0.7rem;
+    }
+    .stat-divider {
+        height: 30px;
+    }
+
+    /* Alertas en móvil */
+    .alerts-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .alert-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .alert-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+    .alert-content h4 {
+        font-size: 1rem;
+    }
+    .alert-content p {
+        font-size: 0.8rem;
+    }
+
+    /* KPIs en móvil */
+    .kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .kpi-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .kpi-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+    .kpi-value {
+        font-size: 2rem;
+    }
+    .kpi-content h3 {
+        font-size: 0.9rem;
+    }
+
+    /* Gráficos en móvil */
+    .charts-section {
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .chart-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+    .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .chart-header h3 {
+        font-size: 1.1rem;
+    }
+    .chart-controls {
+        width: 100%;
+        display: flex;
+        gap: 6px;
+    }
+    .chart-btn {
+        flex: 1;
+        padding: 10px 8px;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+    .chart-container {
+        height: 250px;
+    }
+
+    /* Evolución KPIs móvil */
+    .kpi-evolution-section {
+        margin-bottom: 20px;
+    }
+    .kpi-legend {
+        justify-content: center;
+        gap: 12px;
+    }
+    .legend-item {
+        font-size: 0.75rem;
+    }
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+    }
+    .kpi-summary-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .kpi-month-card {
+        padding: 12px;
+    }
+
+    /* Tiempo de respuesta móvil */
+    .response-time-list {
+        max-height: 280px;
+    }
+    .response-time-item {
+        padding: 10px 0;
+    }
+    .client-name {
+        font-size: 0.85rem;
+    }
+    .response-metrics {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Secciones de rendimiento */
+    .performance-section {
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .top-products-card, .metrics-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .top-products-card h3, .metrics-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+    }
+    .product-item {
+        padding: 12px;
+        gap: 12px;
+    }
+    .product-rank {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+    .product-info h4 {
+        font-size: 0.85rem;
+    }
+    .product-info p {
+        font-size: 0.75rem;
+    }
+    .product-revenue {
+        font-size: 0.95rem;
+    }
+    .indicator-bar {
+        width: 50px;
+    }
+
+    /* Métricas de servicio */
+    .service-metrics {
+        gap: 16px;
+    }
+    .metric-item {
+        gap: 12px;
+    }
+    .metric-circle {
+        width: 52px;
+        height: 52px;
+        font-size: 0.9rem;
+    }
+    .metric-info h4 {
+        font-size: 0.9rem;
+    }
+    .metric-info p {
+        font-size: 0.75rem;
+    }
+
+    /* Actividad y estados */
+    .activity-section {
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .recent-orders-card, .status-overview-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .recent-orders-card h3, .status-overview-card h3 {
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+    }
+    .orders-list {
+        max-height: 320px;
+        gap: 10px;
+    }
+    .order-item {
+        padding: 12px;
+        gap: 12px;
+    }
+    .order-status {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    .order-info h4 {
+        font-size: 0.9rem;
+    }
+    .order-info p {
+        font-size: 0.8rem;
+    }
+    .order-amount {
+        font-size: 0.95rem;
+    }
+    .status-chart-container {
+        height: 180px;
+    }
+
+    /* Clientes */
+    .clients-section {
+        margin-bottom: 20px;
+    }
+    .top-clients-card {
+        padding: 20px;
+        border-radius: 16px;
+    }
+    .clients-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .client-card {
+        padding: 16px;
+    }
+    .client-avatar {
+        width: 42px;
+        height: 42px;
+        font-size: 0.9rem;
+    }
+    .client-info h4 {
+        font-size: 0.95rem;
+    }
+
+    /* Productos */
+    .products-section {
+        margin-bottom: 20px;
+    }
+    .products-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .product-card {
+        padding: 16px;
+    }
+    .product-avatar {
+        width: 42px;
+        height: 42px;
+        font-size: 1rem;
+    }
+    .product-info h4 {
+        font-size: 0.95rem;
+    }
+}
+
+/* Mobile (max-width: 576px) */
+@media (max-width: 576px) {
+    .professional-dashboard {
+        padding: 8px;
+    }
+
+    /* Header compacto */
+    .executive-header {
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+    .welcome-section h1 {
+        font-size: 1.15rem;
+        line-height: 1.3;
+    }
+    .date-display {
+        font-size: 0.8rem;
+        margin-bottom: 12px;
+    }
+    .quick-stats {
+        padding: 10px 12px;
+        gap: 10px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .quick-stats::-webkit-scrollbar {
+        display: none;
+    }
+    .quick-stat {
+        flex-shrink: 0;
+        min-width: 70px;
+    }
+    .stat-number {
+        font-size: 1.1rem;
+    }
+    .stat-label {
+        font-size: 0.65rem;
+        white-space: nowrap;
+    }
+    .stat-divider {
+        height: 24px;
+        flex-shrink: 0;
+    }
+    .header-right {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .last-updated {
+        font-size: 0.75rem;
+    }
+    .quick-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .action-btn {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+        border-radius: 10px;
+    }
+    .action-btn span {
+        display: none;
+    }
+    .action-btn.primary, .action-btn.secondary {
+        padding: 10px 14px;
+    }
+
+    /* Alertas compactas */
+    .alerts-section {
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .alert-card {
+        padding: 12px;
+        gap: 12px;
+        border-radius: 10px;
+    }
+    .alert-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        border-radius: 10px;
+    }
+    .alert-content h4 {
+        font-size: 0.9rem;
+    }
+    .alert-content p {
+        font-size: 0.75rem;
+    }
+
+    /* KPIs compactos */
+    .kpi-grid {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .kpi-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .kpi-header {
+        margin-bottom: 12px;
+    }
+    .kpi-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.3rem;
+        border-radius: 12px;
+    }
+    .kpi-trend {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+    .kpi-content h3 {
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    .kpi-value {
+        font-size: 1.75rem;
+        margin-bottom: 2px;
+    }
+    .kpi-subtitle {
+        font-size: 0.75rem;
+    }
+    .kpi-progress {
+        margin-top: 12px;
+    }
+    .progress-bar {
+        height: 6px;
+        margin-bottom: 6px;
+    }
+    .kpi-progress small {
+        font-size: 0.7rem;
+    }
+    .performance-bars {
+        margin-top: 12px;
+    }
+    .bar-item {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+    }
+    .mini-bar {
+        height: 5px;
+    }
+    .kpi-metrics .metric {
+        font-size: 0.8rem;
+    }
+
+    /* Gráficos compactos */
+    .charts-section {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .chart-card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+    .chart-header h3 {
+        font-size: 1rem;
+    }
+    .chart-controls {
+        gap: 4px;
+    }
+    .chart-btn {
+        padding: 8px 6px;
+        font-size: 0.7rem;
+        border-radius: 6px;
+    }
+    .chart-container {
+        height: 220px;
+    }
+
+    /* Evolución KPIs compacto */
+    .kpi-evolution-section {
+        margin-bottom: 16px;
+    }
+    .kpi-legend {
+        gap: 8px;
+    }
+    .legend-item {
+        font-size: 0.7rem;
+        gap: 4px;
+    }
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+    }
+    .kpi-summary-row {
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 14px;
+    }
+    .kpi-month-card {
+        padding: 10px;
+    }
+    .month-label {
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+    }
+    .month-metrics {
+        gap: 8px;
+    }
+    .month-metrics .metric {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+    .month-metrics .metric i {
+        font-size: 0.65rem;
+    }
+
+    /* Lista tiempo de respuesta */
+    .response-time-list {
+        max-height: 240px;
+    }
+    .response-time-item {
+        padding: 8px 0;
+    }
+    .client-name {
+        font-size: 0.8rem;
+        margin-bottom: 6px;
+    }
+    .response-value {
+        font-size: 0.8rem;
+        min-width: 50px;
+    }
+    .response-bar {
+        height: 5px;
+    }
+    .response-metrics small {
+        font-size: 0.65rem;
+    }
+
+    /* Productos compactos */
+    .performance-section {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .top-products-card, .metrics-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .top-products-card h3, .metrics-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .products-list {
+        gap: 10px;
+    }
+    .product-item {
+        padding: 10px;
+        gap: 10px;
+        border-radius: 10px;
+    }
+    .product-rank {
+        width: 26px;
+        height: 26px;
+        font-size: 0.75rem;
+    }
+    .product-info {
+        min-width: 0;
+        flex: 1;
+    }
+    .product-info h4 {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .product-info p {
+        font-size: 0.7rem;
+    }
+    .product-revenue {
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .indicator-bar {
+        display: none;
+    }
+
+    /* Métricas de servicio compactas */
+    .service-metrics {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        gap: 12px;
+    }
+    .metric-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+        width: calc(33% - 8px);
+    }
+    .metric-circle {
+        width: 48px;
+        height: 48px;
+        font-size: 0.8rem;
+    }
+    .metric-info h4 {
+        font-size: 0.75rem;
+    }
+    .metric-info p {
+        font-size: 0.65rem;
+        display: none;
+    }
+
+    /* Actividad compacta */
+    .activity-section {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .recent-orders-card, .status-overview-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .recent-orders-card h3, .status-overview-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .orders-list {
+        max-height: 280px;
+        gap: 8px;
+    }
+    .order-item {
+        padding: 10px;
+        gap: 10px;
+        border-radius: 10px;
+    }
+    .order-status {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+    .order-info h4 {
+        font-size: 0.85rem;
+    }
+    .order-info p {
+        font-size: 0.75rem;
+    }
+    .order-info small {
+        font-size: 0.65rem;
+    }
+    .order-amount {
+        font-size: 0.85rem;
+    }
+    .status-chart-container {
+        height: 160px;
+        margin-bottom: 12px;
+    }
+    .status-legend {
+        gap: 6px;
+    }
+    .legend-color {
+        width: 12px;
+        height: 12px;
+    }
+    .status-legend .legend-item {
+        font-size: 0.8rem;
+    }
+
+    /* Clientes compactos */
+    .clients-section {
+        margin-bottom: 16px;
+    }
+    .top-clients-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .top-clients-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .clients-grid {
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .client-card {
+        padding: 12px;
+        border-radius: 10px;
+    }
+    .client-header {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .client-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 0.8rem;
+    }
+    .client-info h4 {
+        font-size: 0.85rem;
+    }
+    .client-info p {
+        font-size: 0.75rem;
+    }
+    .client-stats {
+        gap: 12px;
+    }
+    .stat-label {
+        font-size: 0.65rem;
+    }
+    .stat-value {
+        font-size: 0.85rem;
+    }
+
+    /* Productos compactos */
+    .products-section {
+        margin-bottom: 16px;
+    }
+    .top-products-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .top-products-card h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+    .products-grid {
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .product-card {
+        padding: 12px;
+        border-radius: 10px;
+    }
+    .product-header {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .product-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
+    }
+    .product-info h4 {
+        font-size: 0.85rem;
+    }
+    .product-info p {
+        font-size: 0.75rem;
+    }
+}
+
+/* Extra Small Mobile (max-width: 375px) */
+@media (max-width: 375px) {
+    .professional-dashboard {
+        padding: 6px;
+    }
+    .executive-header {
+        padding: 12px;
+    }
+    .welcome-section h1 {
+        font-size: 1.05rem;
+    }
+    .quick-stats {
+        padding: 8px 10px;
+    }
+    .stat-number {
+        font-size: 1rem;
+    }
+    .kpi-value {
+        font-size: 1.5rem;
+    }
+    .chart-container {
+        height: 200px;
+    }
+    .service-metrics {
+        gap: 8px;
+    }
+    .metric-item {
+        width: calc(50% - 4px);
+    }
+    .metric-circle {
+        width: 44px;
+        height: 44px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .action-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    .chart-btn {
+        min-height: 40px;
+    }
+    .alert-card,
+    .kpi-card,
+    .product-item,
+    .order-item,
+    .client-card {
+        /* Remove hover transforms on touch devices to avoid stuck states */
+        transform: none !important;
+    }
+    .alert-card:active,
+    .kpi-card:active,
+    .product-item:active,
+    .order-item:active,
+    .client-card:active {
+        opacity: 0.9;
+        transform: scale(0.98) !important;
+    }
+    /* Improve scrolling */
+    .orders-list,
+    .response-time-list {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Safe area for notched phones */
+@supports (padding: max(0px)) {
+    .professional-dashboard {
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Landscape mobile optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+    .executive-header {
+        padding: 12px 16px;
+        margin-bottom: 12px;
+    }
+    .quick-stats {
+        padding: 8px 12px;
+    }
+    .alerts-section {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 4px;
+    }
+    .alert-card {
+        flex: 0 0 auto;
+        min-width: 220px;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    .kpi-card {
+        padding: 12px;
+    }
+    .kpi-value {
+        font-size: 1.5rem;
+    }
+    .chart-container {
+        height: 180px;
+    }
+}
+
+/* === ANIMACIONES ADICIONALES === */
+@keyframes rotating {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.action-btn.rotating i {
+    animation: rotating 0.5s linear;
+}
+
+/* Mejoras visuales para gráficos */
+.chart-card {
+    animation: fadeInUp 0.6s ease-out backwards;
+    animation-delay: 0.3s;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Progress bars animadas */
+.progress-fill, .mini-fill, .indicator-fill, .response-fill {
+    animation: fillBar 1s ease-out backwards;
+    animation-delay: 0.5s;
+}
+@keyframes fillBar {
+    from { width: 0 !important; }
+}
+
+/* Mejora visual para tarjetas de clientes */
+.client-card {
+    animation: scaleIn 0.5s ease-out backwards;
+}
+.client-card:nth-child(1) { animation-delay: 0.1s; }
+.client-card:nth-child(2) { animation-delay: 0.2s; }
+.client-card:nth-child(3) { animation-delay: 0.3s; }
+.client-card:nth-child(4) { animation-delay: 0.4s; }
+.client-card:nth-child(5) { animation-delay: 0.5s; }
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Mejora visual para productos */
+.product-item {
+    animation: slideInRight 0.5s ease-out backwards;
+}
+.product-item:nth-child(1) { animation-delay: 0.1s; }
+.product-item:nth-child(2) { animation-delay: 0.2s; }
+.product-item:nth-child(3) { animation-delay: 0.3s; }
+.product-item:nth-child(4) { animation-delay: 0.4s; }
+.product-item:nth-child(5) { animation-delay: 0.5s; }
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Mejora visual para pedidos recientes */
+.order-item {
+    animation: fadeIn 0.4s ease-out backwards;
+}
+.order-item:nth-child(1) { animation-delay: 0.05s; }
+.order-item:nth-child(2) { animation-delay: 0.1s; }
+.order-item:nth-child(3) { animation-delay: 0.15s; }
+.order-item:nth-child(4) { animation-delay: 0.2s; }
+.order-item:nth-child(5) { animation-delay: 0.25s; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Hover effects mejorados */
+.chart-btn {
+    position: relative;
+    overflow: hidden;
+}
+.chart-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+.chart-btn:hover::after {
+    width: 200%;
+    height: 200%;
+}
+
+/* Smooth scrollbar para listas */
+.orders-list::-webkit-scrollbar,
+.response-time-list::-webkit-scrollbar {
+    width: 6px;
+}
+.orders-list::-webkit-scrollbar-track,
+.response-time-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+.orders-list::-webkit-scrollbar-thumb,
+.response-time-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.orders-list::-webkit-scrollbar-thumb:hover,
+.response-time-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 </style>
 {% endblock %}
 
@@ -554,10 +1828,76 @@ document.addEventListener('DOMContentLoaded', function() {
         Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         Chart.defaults.color = '#6b7280';
         Chart.defaults.borderColor = 'rgba(243, 244, 246, 0.8)';
-    
+
     // Datos seguros con validación mejorada
     const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
     const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
+    const ventasDiarias = {{ (ventas_dias or [])|tojson|safe }} || [];
+    const kpisHistoricos = {{ (kpis_historicos or [])|tojson|safe }} || [];
+
+    // === FUNCIONALIDAD DE ACTUALIZAR DASHBOARD ===
+    const refreshBtn = document.getElementById('refreshDashboard');
+    const lastUpdated = document.getElementById('lastUpdated');
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            this.classList.add('rotating');
+            lastUpdated.textContent = 'Actualizando...';
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        });
+    }
+
+    // Formatear última actualización
+    function updateTimestamp() {
+        if (lastUpdated) {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const mins = now.getMinutes().toString().padStart(2, '0');
+            lastUpdated.textContent = `Actualizado a las ${hours}:${mins}`;
+        }
+    }
+    updateTimestamp();
+
+    // === ANIMACIÓN DE NÚMEROS ===
+    function animateValue(element, start, end, duration) {
+        const startTime = performance.now();
+        const isPercent = element.textContent.includes('%');
+        const isCurrency = element.textContent.includes('XCG');
+
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = Math.floor(start + (end - start) * easeOut);
+
+            if (isCurrency) {
+                element.textContent = `XCG ${current.toLocaleString('es-ES')}`;
+            } else if (isPercent) {
+                element.textContent = `${current}%`;
+            } else {
+                element.textContent = current.toLocaleString('es-ES');
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        }
+        requestAnimationFrame(update);
+    }
+
+    // Animar valores KPI al cargar
+    document.querySelectorAll('.kpi-value').forEach(el => {
+        const text = el.textContent;
+        const match = text.match(/[\d,]+/);
+        if (match) {
+            const endValue = parseInt(match[0].replace(/,/g, ''));
+            if (endValue > 0) {
+                animateValue(el, 0, endValue, 1500);
+            }
+        }
+    });
     
     // === GRÁFICO DE TENDENCIA DE VENTAS MEJORADO ===
     const salesCtx = document.getElementById('salesTrendChart');
@@ -690,17 +2030,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Funcionalidad mejorada de controles de período
+        // === FUNCIONALIDAD DE CONTROLES DE PERÍODO ===
         const chartButtons = document.querySelectorAll('.chart-btn');
+        const chartTitle = document.querySelector('.main-chart .chart-header h3');
+
+        // Datos para diferentes períodos
+        const periodData = {
+            '8w': {
+                labels: tendenciaData.map(d => d.semana || ''),
+                sales: tendenciaData.map(d => d.ventas || 0),
+                orders: tendenciaData.map(d => d.pedidos || 0),
+                title: 'Tendencia de Ventas - Últimas 8 Semanas'
+            },
+            '30d': {
+                labels: ventasDiarias.slice(-30).map((d, i) => `Día ${i + 1}`),
+                sales: ventasDiarias.slice(-30).map(d => d.ventas || d || 0),
+                orders: ventasDiarias.slice(-30).map(d => d.pedidos || 1),
+                title: 'Tendencia de Ventas - Últimos 30 Días'
+            },
+            '7d': {
+                labels: ventasDiarias.slice(-7).map((d, i) => {
+                    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                    const fecha = new Date();
+                    fecha.setDate(fecha.getDate() - (6 - i));
+                    return dias[fecha.getDay()];
+                }),
+                sales: ventasDiarias.slice(-7).map(d => d.ventas || d || 0),
+                orders: ventasDiarias.slice(-7).map(d => d.pedidos || 1),
+                title: 'Tendencia de Ventas - Últimos 7 Días'
+            }
+        };
+
         chartButtons.forEach(btn => {
             btn.addEventListener('click', function() {
                 chartButtons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                
-                // Aquí puedes implementar lógica para cambiar datos según el período
+
                 const period = this.dataset.period;
-                console.log(`Cambiando vista a: ${period}`);
-                // TODO: Implementar cambio de datos según período
+                const data = periodData[period];
+
+                if (data && salesChart) {
+                    // Actualizar título
+                    if (chartTitle) chartTitle.textContent = data.title;
+
+                    // Actualizar datos del gráfico con animación
+                    salesChart.data.labels = data.labels;
+                    salesChart.data.datasets[0].data = data.sales;
+                    salesChart.data.datasets[1].data = data.orders;
+                    salesChart.update('active');
+                }
             });
         });
     }
@@ -806,7 +2184,112 @@ document.addEventListener('DOMContentLoaded', function() {
             statusContainer.appendChild(centerText);
         }
     }
-    
+
+    // === GRÁFICO DE EVOLUCIÓN DE KPIs ===
+    const kpiEvolutionCtx = document.getElementById('kpiEvolutionChart');
+    if (kpiEvolutionCtx && kpisHistoricos.length > 0) {
+        new Chart(kpiEvolutionCtx, {
+            type: 'line',
+            data: {
+                labels: kpisHistoricos.map(k => k.mes),
+                datasets: [
+                    {
+                        label: 'Fill Rate (%)',
+                        data: kpisHistoricos.map(k => k.fill_rate),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#8b5cf6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'OTD (%)',
+                        data: kpisHistoricos.map(k => k.otd_rate),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#f59e0b',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'Accuracy (%)',
+                        data: kpisHistoricos.map(k => k.order_accuracy),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                animation: {
+                    duration: 1200,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        padding: 14,
+                        titleColor: 'white',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyColor: 'white',
+                        bodyFont: { size: 12 },
+                        cornerRadius: 8,
+                        callbacks: {
+                            title: (items) => items[0].label,
+                            label: (context) => {
+                                return `${context.dataset.label}: ${context.parsed.y}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(243, 244, 246, 0.8)'
+                        },
+                        ticks: {
+                            callback: (value) => value + '%',
+                            stepSize: 20
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     } catch (error) {
         console.error('Error inicializando dashboard:', error);
         // Mostrar mensaje de error amigable en la consola

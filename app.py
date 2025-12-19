@@ -2254,12 +2254,25 @@ def dashboard():
         hace_30_dias = hoy - timedelta(days=30)
         hace_8_semanas = hoy - timedelta(weeks=8)
 
+        # === CLIENTE EXCLUIDO (ALMACÉN INTERNO) ===
+        # AL01 es usado para registrar pesos e imprimir etiquetas de almacén, no son pedidos reales
+        cliente_almacen = Cliente.query.filter_by(nombre='AL01').first()
+        cliente_almacen_id = cliente_almacen.id if cliente_almacen else None
+
+        # Helper para filtrar pedidos excluyendo AL01
+        def filtro_sin_almacen():
+            if cliente_almacen_id:
+                return Pedido.cliente_id != cliente_almacen_id
+            return True  # Si no existe AL01, no filtrar nada
+
         # === CONSULTAS ROBUSTAS PARA PRODUCCIÓN ===
         try:
             # Consultas simples sin eager loading para evitar problemas en Heroku
-            pedidos_mes_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-            pedidos_semana_list = Pedido.query.filter(Pedido.fecha_pedido >= inicio_semana).all()
-            pedidos_30_dias = Pedido.query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
+            # NOTA: Se excluye cliente AL01 (almacén interno) de todos los cálculos
+            base_query = Pedido.query.filter(filtro_sin_almacen())
+            pedidos_mes_list = base_query.filter(Pedido.fecha_pedido >= inicio_mes).all()
+            pedidos_semana_list = base_query.filter(Pedido.fecha_pedido >= inicio_semana).all()
+            pedidos_30_dias = base_query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
             
             app.logger.info(f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, {len(pedidos_semana_list)} semana, {len(pedidos_30_dias)} últimos 30 días")
         except Exception as e:
@@ -2291,8 +2304,11 @@ def dashboard():
                     app.logger.warning(f"Error en cálculo ventas semana, pedido {p.id}: {e}")
                     continue
             
-            # Consulta robusta para pedidos pendientes
-            pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
+            # Consulta robusta para pedidos pendientes (excluyendo AL01)
+            pendientes_query = Pedido.query.filter_by(estado='pendiente')
+            if cliente_almacen_id:
+                pendientes_query = pendientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_pendientes = pendientes_query.count()
             
         except Exception as e:
             app.logger.error(f"Error en cálculos de ventas: {e}")
@@ -2300,75 +2316,127 @@ def dashboard():
             ventas_semana = 0
             pedidos_pendientes = 0
 
-        # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO ===
-        
-        # Precalcular listas filtradas para mejorar performance
-        pedidos_facturados = [
-            p for p in pedidos_30_dias 
-            if p.estado == 'facturado' and p.fecha_facturacion
-        ]
-        
-        # Optimización: Calcular lead times una sola vez y cachear resultados
-        lead_times = []
+        # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
+        # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
+
         palabras_error = {'error', 'corrección', 'corregir', 'incorrecto', 'mal'}
-        
-        for p in pedidos_facturados:
-            dias = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-            if dias >= 0:  # Solo días válidos
-                lead_times.append(dias)
-        
-        # 1. Lead time promedio optimizado
-        lead_time_promedio = sum(lead_times) / len(lead_times) if lead_times else 0
 
-        # 2. Fill rate optimizado con contadores
-        estados_count = {'facturado': 0, 'pendiente': 0, 'listo': 0, 'otros': 0}
-        for p in pedidos_30_dias:
-            estado = p.estado or 'otros'
-            if estado in estados_count:
-                estados_count[estado] += 1
+        # Función helper para calcular KPIs de un período
+        def calcular_kpis_periodo(pedidos_periodo):
+            """Calcula todos los KPIs para un período dado"""
+            if not pedidos_periodo:
+                return {
+                    'fill_rate': 0, 'otd_rate': 0, 'order_accuracy': 100,
+                    'lead_time': 0, 'total_pedidos': 0, 'ventas': 0
+                }
+
+            # Pedidos facturados del período
+            facturados = [p for p in pedidos_periodo if p.estado == 'facturado' and p.fecha_facturacion]
+
+            # Lead times
+            lead_times_p = []
+            for p in facturados:
+                dias = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                if dias >= 0:
+                    lead_times_p.append(dias)
+
+            # Fill Rate
+            estados = {'facturado': 0, 'pendiente': 0, 'listo': 0}
+            for p in pedidos_periodo:
+                estado = p.estado or 'otros'
+                if estado in estados:
+                    estados[estado] += 1
+            completos = estados['facturado']
+            total_eval = completos + estados['pendiente'] + estados['listo']
+            fill_rate_p = (completos / total_eval * 100) if total_eval > 0 else 0
+
+            # OTD Rate
+            a_tiempo = sum(1 for lt in lead_times_p if lt <= 2)
+            otd_p = (a_tiempo / len(lead_times_p) * 100) if lead_times_p else 0
+
+            # Order Accuracy
+            con_errores = sum(1 for p in pedidos_periodo
+                            if p.notas and any(e in p.notas.lower() for e in palabras_error))
+            total_p = len(pedidos_periodo)
+            accuracy_p = ((total_p - con_errores) / total_p * 100) if total_p > 0 else 100
+
+            # Ventas del período
+            ventas_p = sum(
+                sum(float(d.subtotal or 0) for d in p.detalles)
+                for p in pedidos_periodo if p.estado == 'facturado'
+            )
+
+            return {
+                'fill_rate': round(fill_rate_p, 1),
+                'otd_rate': round(otd_p, 1),
+                'order_accuracy': round(accuracy_p, 1),
+                'lead_time': round(sum(lead_times_p) / len(lead_times_p), 1) if lead_times_p else 0,
+                'total_pedidos': total_p,
+                'ventas': ventas_p
+            }
+
+        # Calcular KPIs del mes en curso
+        kpis_mes_actual = calcular_kpis_periodo(pedidos_mes_list)
+
+        # Extraer valores para compatibilidad con template existente
+        pedidos_facturados = [p for p in pedidos_mes_list if p.estado == 'facturado' and p.fecha_facturacion]
+        lead_times = [(p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                     for p in pedidos_facturados if p.fecha_facturacion]
+        lead_time_promedio = kpis_mes_actual['lead_time']
+        fill_rate = kpis_mes_actual['fill_rate']
+        otd_rate = kpis_mes_actual['otd_rate']
+        order_accuracy = kpis_mes_actual['order_accuracy']
+
+        # === HISTÓRICO DE KPIs (ÚLTIMOS 6 MESES) ===
+        kpis_historicos = []
+        for i in range(6):
+            # Calcular inicio y fin de cada mes
+            if i == 0:
+                mes_inicio = inicio_mes
+                mes_fin = hoy
             else:
-                estados_count['otros'] += 1
-        
-        pedidos_completos = estados_count['facturado']
-        pedidos_incompletos = estados_count['pendiente'] + estados_count['listo']
-        total_pedidos_evaluados = pedidos_completos + pedidos_incompletos
-        
-        fill_rate = (
-            (pedidos_completos / total_pedidos_evaluados * 100) 
-            if total_pedidos_evaluados > 0 else 0
-        )
+                # Mes anterior
+                primer_dia_mes_actual = inicio_mes
+                for _ in range(i):
+                    primer_dia_mes_actual = (primer_dia_mes_actual - timedelta(days=1)).replace(day=1)
+                mes_inicio = primer_dia_mes_actual
+                # Último día del mes
+                if mes_inicio.month == 12:
+                    mes_fin = mes_inicio.replace(year=mes_inicio.year + 1, month=1, day=1) - timedelta(days=1)
+                else:
+                    mes_fin = mes_inicio.replace(month=mes_inicio.month + 1, day=1) - timedelta(days=1)
 
-        # 3. On-time delivery rate optimizado
-        pedidos_a_tiempo = sum(1 for lt in lead_times if lt <= 2)
-        otd_rate = (pedidos_a_tiempo / len(lead_times) * 100) if lead_times else 0
+            # Obtener pedidos del mes (excluyendo AL01)
+            hist_query = Pedido.query.filter(
+                Pedido.fecha_pedido >= mes_inicio,
+                Pedido.fecha_pedido <= mes_fin
+            )
+            if cliente_almacen_id:
+                hist_query = hist_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_mes_hist = hist_query.all()
 
-        # 4. Order accuracy optimizado con set lookup
-        pedidos_con_errores = 0
-        for p in pedidos_30_dias:
-            if p.notas:
-                notas_lower = p.notas.lower()
-                if any(palabra in notas_lower for palabra in palabras_error):
-                    pedidos_con_errores += 1
-        
-        total_pedidos_30 = len(pedidos_30_dias)
-        order_accuracy = (
-            ((total_pedidos_30 - pedidos_con_errores) / total_pedidos_30 * 100)
-            if total_pedidos_30 > 0 else 100
-        )
+            # Calcular KPIs
+            kpis = calcular_kpis_periodo(pedidos_mes_hist)
+            kpis['mes'] = mes_inicio.strftime('%b %Y')
+            kpis['mes_num'] = mes_inicio.month
+            kpis['año'] = mes_inicio.year
+            kpis_historicos.append(kpis)
 
-        # 5. Perfect order rate optimizado
+        # Invertir para que el más antiguo esté primero
+        kpis_historicos.reverse()
+
+        # Perfect order rate del mes actual
         perfect_orders = 0
         for i, p in enumerate(pedidos_facturados):
-            if i < len(lead_times):  # Verificar índice válido
+            if i < len(lead_times):
                 dias_lead = lead_times[i]
-                tiene_errores = (p.notas and 
+                tiene_errores = (p.notas and
                                any(palabra in p.notas.lower() for palabra in palabras_error))
-                
                 if dias_lead <= 2 and not tiene_errores:
                     perfect_orders += 1
 
         perfect_order_rate = (
-            (perfect_orders / len(pedidos_facturados) * 100) 
+            (perfect_orders / len(pedidos_facturados) * 100)
             if pedidos_facturados else 0
         )
 
@@ -2376,44 +2444,50 @@ def dashboard():
         clientes_activos_ids = {p.cliente_id for p in pedidos_mes_list if p.cliente_id}
         clientes_activos_mes = len(clientes_activos_ids)
         
-        # Cache de total de clientes para evitar query innecesaria
-        total_clientes = Cliente.query.count()
+        # Cache de total de clientes para evitar query innecesaria (excluyendo AL01)
+        clientes_query = Cliente.query
+        if cliente_almacen_id:
+            clientes_query = clientes_query.filter(Cliente.id != cliente_almacen_id)
+        total_clientes = clientes_query.count()
         customer_engagement = (
             (clientes_activos_mes / total_clientes * 100) 
             if total_clientes > 0 else 0
         )
 
-        # === ANÁLISIS OPTIMIZADO DE PRODUCTOS ===
+        # === ANÁLISIS OPTIMIZADO DE PRODUCTOS (MES EN CURSO) ===
         productos_ventas = {}
-        max_cajas = 0  # Tracking del máximo para optimizar
-        
-        for p in pedidos_30_dias:
+        max_ingresos = 0  # Tracking del máximo para optimizar (por valor facturado)
+
+        for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
             pedido_id = p.id
             for d in p.detalles:
                 # Verificar que existe el producto
                 if not d.producto or not d.producto.nombre:
                     app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
                     continue
-                
+
                 nombre = d.producto.nombre
                 cajas_detalle = d.cajas or 0
+                peso_detalle = d.peso or 0
                 ingresos_detalle = float(d.subtotal or 0)
-                
+
                 if nombre not in productos_ventas:
                     productos_ventas[nombre] = {
-                        'cajas': 0, 
-                        'ingresos': 0, 
+                        'cajas': 0,
+                        'peso': 0,
+                        'ingresos': 0,
                         'pedidos': set()
                     }
-                
+
                 # Actualizar datos del producto
                 productos_ventas[nombre]['cajas'] += cajas_detalle
+                productos_ventas[nombre]['peso'] += peso_detalle
                 productos_ventas[nombre]['ingresos'] += ingresos_detalle
                 productos_ventas[nombre]['pedidos'].add(pedido_id)
                 
-                # Tracking optimizado del máximo
-                if productos_ventas[nombre]['cajas'] > max_cajas:
-                    max_cajas = productos_ventas[nombre]['cajas']
+                # Tracking optimizado del máximo (por valor facturado)
+                if productos_ventas[nombre]['ingresos'] > max_ingresos:
+                    max_ingresos = productos_ventas[nombre]['ingresos']
 
         # Optimización: Convertir sets a contadores en una pasada
         for datos in productos_ventas.values():
@@ -2423,9 +2497,10 @@ def dashboard():
         try:
             if productos_ventas:
                 # Usar sorted (más compatible) en lugar de heapq
+                # Ordenar por valor facturado (ingresos) en lugar de cantidad de cajas
                 top_productos_raw = sorted(
-                    productos_ventas.items(), 
-                    key=lambda x: x[1]['cajas'], 
+                    productos_ventas.items(),
+                    key=lambda x: x[1]['ingresos'],
                     reverse=True
                 )[:5]
             else:
@@ -2438,19 +2513,21 @@ def dashboard():
         top_productos = [
             {
                 'nombre': nombre,
-                'total_vendido': datos['cajas'],
-                'ingresos': round(datos['ingresos'], 2),  # Redondear para mejor presentación
+                'total_vendido': round(datos['ingresos'], 2),  # Usar ingresos para ordenamiento visual
+                'cajas': datos['cajas'],
+                'peso': round(datos['peso'], 2),
+                'ingresos': round(datos['ingresos'], 2),
                 'pedidos': datos['pedidos']
             }
             for nombre, datos in top_productos_raw
         ]
 
-        # Usar el máximo precalculado
-        max_ventas = max_cajas if max_cajas > 0 else 1
+        # Usar el máximo precalculado (por valor facturado)
+        max_ventas = max_ingresos if max_ingresos > 0 else 1
 
-        # === ANÁLISIS DE CLIENTES (CORREGIDO) ===
+        # === ANÁLISIS DE CLIENTES (MES EN CURSO) ===
         clientes_ventas = {}
-        for p in pedidos_30_dias:
+        for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
             # Verificar que existe el cliente
             if not p.cliente:
                 app.logger.warning(f'Pedido sin cliente: {p.id}')
@@ -2474,14 +2551,17 @@ def dashboard():
         )[:5]
         
         app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
-        # === TENDENCIA SEMANAL ===
+        # === TENDENCIA SEMANAL (excluyendo AL01) ===
         tendencia_semanal = []
         for i in range(8):
             inicio_i = hoy - timedelta(days=hoy.weekday() + 7 * i)
             fin_i = inicio_i + timedelta(days=6)
-            pedidos_semana_i = Pedido.query.filter(
+            semana_query = Pedido.query.filter(
                 Pedido.fecha_pedido >= inicio_i, Pedido.fecha_pedido <= fin_i
-            ).all()
+            )
+            if cliente_almacen_id:
+                semana_query = semana_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_semana_i = semana_query.all()
             ventas_semana_i = sum(
                 sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_i
             )
@@ -2510,20 +2590,26 @@ def dashboard():
         }
         app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
-        # === PEDIDOS RECIENTES (NUEVA SECCIÓN) ===
-        pedidos_recientes_data = Pedido.query.order_by(
+        # === PEDIDOS RECIENTES (excluyendo AL01) ===
+        recientes_query = Pedido.query
+        if cliente_almacen_id:
+            recientes_query = recientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
+        pedidos_recientes_data = recientes_query.order_by(
             Pedido.fecha_pedido.desc()
         ).limit(10).all()
 
-        # === VENTAS DIARIAS (NUEVA SECCIÓN) ===
+        # === VENTAS DIARIAS (excluyendo AL01) ===
         ventas_dias = []
         for i in range(7):
             dia = hoy - timedelta(days=i)
-            pedidos_dia = Pedido.query.filter(
+            dia_query = Pedido.query.filter(
                 db.func.date(Pedido.fecha_pedido) == dia
-            ).all()
+            )
+            if cliente_almacen_id:
+                dia_query = dia_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_dia = dia_query.all()
             total_dia = sum(
-                sum(float(d.subtotal or 0) for d in p.detalles) 
+                sum(float(d.subtotal or 0) for d in p.detalles)
                 for p in pedidos_dia
             )
             ventas_dias.append({
@@ -2588,7 +2674,10 @@ def dashboard():
             fecha_actual=hoy,
             ventas_dias=ventas_dias,
             tiempo_respuesta_data=tiempo_respuesta_data,
-            
+
+            # Histórico de KPIs (últimos 6 meses)
+            kpis_historicos=kpis_historicos,
+
             # Configuración
             moneda='XCG'
         )
@@ -2619,6 +2708,7 @@ def dashboard():
             'fecha_actual': datetime.now().date(),
             'ventas_dias': [],
             'tiempo_respuesta_data': [],
+            'kpis_historicos': [],
             'moneda': 'XCG'
         }
         
