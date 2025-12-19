@@ -2034,4 +2034,167 @@ form.inline-form {
         border-color: #4a4a4a !important;
     }
 }
+
+/* ==================================================
+   MEJORAS DE BOTONES Y DISTINCIÓN VISUAL - PEDIDOS
+   ================================================== */
+
+/* Mejora de botones Editar en vista móvil */
+@media (max-width: 768px) {
+    /* Botones de acción más grandes y con texto en móvil */
+    .btn-chip-edit,
+    .btn-chip-danger {
+        min-width: 80px;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+
+    /* Botón Editar mejorado */
+    .btn-chip-edit {
+        background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
+    }
+
+    .btn-chip-edit:hover,
+    .btn-chip-edit:active {
+        background: linear-gradient(135deg, #0056b3 0%, #2493f7 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(24, 119, 255, 0.4);
+    }
+
+    /* Contenedor de acciones en móvil - botones en línea */
+    .text-center.nowrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        padding: 12px 8px;
+    }
+}
+
+/* Distinción visual entre pedidos/tarjetas en vista móvil */
+@media (max-width: 768px) {
+    /* Alternar colores de fondo para tarjetas móviles */
+    .mobile-card:nth-child(odd) {
+        background: #ffffff;
+        border-left: 4px solid #1877ff;
+    }
+
+    .mobile-card:nth-child(even) {
+        background: #f8fafc;
+        border-left: 4px solid #28a745;
+    }
+
+    /* Sombra más pronunciada para separación visual */
+    .mobile-card {
+        margin-bottom: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .mobile-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Filas de tabla alternadas para mejor distinción */
+    .mobile-table tbody tr:nth-child(odd) {
+        background: #ffffff;
+    }
+
+    .mobile-table tbody tr:nth-child(even) {
+        background: #f0f7ff;
+    }
+
+    /* Borde izquierdo colorido para filas de pedidos */
+    .tabla-pedidos tbody tr:nth-child(odd) {
+        border-left: 3px solid #1877ff;
+    }
+
+    .tabla-pedidos tbody tr:nth-child(even) {
+        border-left: 3px solid #28a745;
+    }
+}
+
+/* Botones de acción mejorados - estilo rectangular con icono y texto */
+.mobile-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    min-width: 100px;
+}
+
+.mobile-action-btn-edit {
+    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
+}
+
+.mobile-action-btn-edit:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #2493f7 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(24, 119, 255, 0.4);
+}
+
+.mobile-action-btn-delete {
+    background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.mobile-action-btn-delete:hover {
+    background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+}
+
+/* Contenedor de botones de acción en móvil */
+.mobile-actions-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    padding: 16px;
+    border-top: 1px solid #e9ecef;
+    margin-top: 12px;
+}
+
+/* Distintivo visual para estados de pedido en móvil */
+.estado-badge-mobile {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Mejoras de colores para estados */
+.estado-badge-mobile.pendiente {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    border: 2px solid #f59e0b;
+}
+
+.estado-badge-mobile.listo {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    border: 2px solid #3b82f6;
+}
+
+.estado-badge-mobile.facturado {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
+    border: 2px solid #22c55e;
 }

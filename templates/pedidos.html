@@ -262,6 +262,69 @@
   .pagination-btn{width:32px;height:32px;}
 }
 
+/* Distinción visual entre filas de pedidos */
+.tabla-pedidos tbody tr:nth-child(odd) {
+    background: #ffffff;
+    border-left: 4px solid #1877ff;
+}
+
+.tabla-pedidos tbody tr:nth-child(even) {
+    background: #f8fafc;
+    border-left: 4px solid #28a745;
+}
+
+.tabla-pedidos tbody tr:hover {
+    background: #e8f4ff;
+    transform: scale(1.005);
+    transition: all 0.15s ease;
+}
+
+/* Mejoras de botones de acción en móvil */
+@media (max-width: 768px) {
+    .tabla-pedidos tbody tr {
+        margin-bottom: 8px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* Botones más grandes y con mejor contraste en móvil */
+    .btn-chip {
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
+        margin: 2px;
+    }
+
+    .btn-chip-edit {
+        background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
+        color: white;
+        box-shadow: 0 3px 10px rgba(24, 119, 255, 0.3);
+    }
+
+    .btn-chip-edit:hover, .btn-chip-edit:active {
+        background: linear-gradient(135deg, #0056b3 0%, #2493f7 100%);
+    }
+
+    .btn-chip-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
+        color: white;
+        box-shadow: 0 3px 10px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-chip-danger:hover, .btn-chip-danger:active {
+        background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
+    }
+
+    /* Acciones en contenedor flex para mejor distribución */
+    .text-center.nowrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        align-items: center;
+    }
+}
+
 /* Tooltip para acciones */
 .btn-chip:hover::after {
     content: attr(title);

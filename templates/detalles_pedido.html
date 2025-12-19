@@ -138,8 +138,8 @@
     <!-- Productos agregados -->
     <div class="mobile-card">
         <div class="mobile-card-header">
-            <i class="fas fa-list"></i>
-            Productos en el pedido
+            <i class="fas fa-box"></i>
+            Productos ({{ detalles_ordenados|length if detalles_ordenados else 0 }})
         </div>
         <div class="mobile-card-body">
             <div class="mobile-table-container">
