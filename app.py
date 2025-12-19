@@ -55,10 +55,16 @@ except ImportError:
 
 app = Flask(__name__)
 
-# --- SECRET KEY (obligatoria) ---
+# --- SECRET KEY (con fallback seguro) ---
 _secret_key = os.environ.get("SECRET_KEY")
 if not _secret_key:
-    raise RuntimeError("SECRET_KEY environment variable is required. Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+    import warnings
+    warnings.warn(
+        "SECRET_KEY not set! Using random key. Sessions will not persist across restarts. "
+        "Set SECRET_KEY with: heroku config:set SECRET_KEY=$(python -c \"import secrets; print(secrets.token_hex(32))\")",
+        RuntimeWarning
+    )
+    _secret_key = secrets.token_hex(32)
 app.config["SECRET_KEY"] = _secret_key
 
 basedir = os.path.abspath(os.path.dirname(__file__))
