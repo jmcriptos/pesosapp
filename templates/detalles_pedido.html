@@ -550,11 +550,15 @@
 
     /* Botón alineado en desktop */
     .mobile-form-group-btn {
+        align-self: stretch;
         justify-content: flex-end;
     }
 
     .mobile-form-group-btn .mobile-label-hidden {
-        display: none;
+        display: block;
+        height: auto;
+        opacity: 0;
+        visibility: hidden;
     }
 
     .mobile-form-group-btn .mobile-btn {
