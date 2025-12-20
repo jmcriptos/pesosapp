@@ -534,7 +534,11 @@
         display: grid;
         grid-template-columns: minmax(240px, 6fr) minmax(90px, 2fr) minmax(120px, 2.5fr) minmax(140px, 2.5fr) minmax(140px, 2.5fr) auto;
         gap: 12px;
-        align-items: end;
+        align-items: stretch;
+    }
+
+    .mobile-form-grid .mobile-form-group {
+        justify-content: flex-end;
     }
 
     .mobile-form-control {
@@ -549,10 +553,6 @@
     }
 
     /* Botón alineado en desktop */
-    .mobile-form-group-btn {
-        justify-content: flex-end;
-    }
-
     .mobile-form-group-btn .mobile-label-hidden {
         display: none;
     }
