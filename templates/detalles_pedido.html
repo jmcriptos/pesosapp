@@ -15,48 +15,753 @@
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <style>
-/* ==== MOBILE‑FIRST OPTIMIZATIONS (original) ==== */
+/* ============================================
+   MOBILE-FIRST EXTREME - DETALLE PEDIDO
+   ============================================ */
+
 :root {
-    --mobile-padding: max(0.25%, env(safe-area-inset-left));
+    --mobile-padding: max(8px, env(safe-area-inset-left));
     --safe-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
-/* … (⬇︎ todo el bloque CSS original tal como lo tenías) … */
+/* Container principal */
+.mobile-form-container {
+    width: 100%;
+    max-width: 100vw;
+    padding: 0;
+    padding-bottom: calc(var(--safe-bottom) + 120px);
+    margin: 0;
+    background: #f3f4f6;
+    min-height: 100vh;
+}
 
-/* --------------------------------------------------------------------------------------------------
-   💡  Ajustes de ANCHO y pequeños fixes
-   -------------------------------------------------------------------------------------------------- */
+/* ============================================
+   NOTAS DEL PEDIDO
+   ============================================ */
+.mobile-notes-section {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    padding: 14px 16px;
+    margin: 0;
+    border-bottom: 1px solid #fcd34d;
+}
 
-/* === Ajuste de ancho de campos para escritorio (>= 769 px) === */
+.mobile-notes-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.mobile-notes-content {
+    font-size: 1rem;
+    color: #78350f;
+    line-height: 1.4;
+}
+
+/* ============================================
+   CARDS MÓVILES
+   ============================================ */
+.mobile-card {
+    background: white;
+    margin: 12px 8px;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.mobile-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.mobile-card-header i {
+    font-size: 1.3rem;
+}
+
+.mobile-card-body {
+    padding: 16px;
+}
+
+/* ============================================
+   FORMULARIO DE AGREGAR PRODUCTO
+   ============================================ */
+#form-detalle {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+}
+
+.mobile-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mobile-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mobile-form-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mobile-form-control {
+    width: 100%;
+    padding: 16px 14px;
+    font-size: 18px;
+    border: 2px solid #e5e7eb;
+    border-radius: 14px;
+    background: #f9fafb;
+    color: #1f2937;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+}
+
+.mobile-form-control:focus {
+    outline: none;
+    border-color: #1877ff;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(24, 119, 255, 0.15);
+}
+
+.mobile-form-control::placeholder {
+    color: #9ca3af;
+}
+
+/* Select especial */
+.mobile-select-wrapper {
+    position: relative;
+}
+
+.mobile-select-wrapper::after {
+    content: '\f078';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    pointer-events: none;
+}
+
+.mobile-select-wrapper select {
+    padding-right: 45px;
+}
+
+/* Botones */
+.mobile-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 18px 24px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.mobile-btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.mobile-btn-success:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.mobile-btn-primary {
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(24, 119, 255, 0.3);
+}
+
+.mobile-btn-primary:active {
+    transform: scale(0.98);
+}
+
+.mobile-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.mobile-btn-secondary:active {
+    background: #e5e7eb;
+}
+
+/* ============================================
+   TABLA DE PRODUCTOS - VISTA CARDS EN MÓVIL
+   ============================================ */
+.mobile-table-container {
+    overflow-x: hidden;
+}
+
+/* Ocultar tabla tradicional en móvil */
+.mobile-table {
+    display: none;
+}
+
+/* Lista de productos como cards */
+.productos-list-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.producto-item-mobile {
+    background: #f9fafb;
+    border-radius: 14px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.producto-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.producto-item-index {
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.producto-item-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f2937;
+    flex: 1;
+    margin-left: 12px;
+}
+
+.producto-item-body {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.producto-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.producto-detail-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.producto-detail-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.producto-item-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Contenedor de botones de acción */
+.producto-item-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: 100%;
+}
+
+.producto-item-actions form {
+    display: contents;
+}
+
+/* Botones con mismo tamaño en mobile */
+.producto-item-actions .mobile-edit-btn,
+.producto-item-actions .mobile-delete-btn {
+    flex: 1;
+    max-width: 160px;
+    min-width: 120px;
+}
+
+.mobile-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mobile-delete-btn:active {
+    transform: scale(0.95);
+}
+
+.mobile-edit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.mobile-edit-btn:active {
+    transform: scale(0.95);
+}
+
+.mobile-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+}
+
+.mobile-empty-state i {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+    display: block;
+}
+
+.mobile-empty-state p {
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* ============================================
+   MODAL DE EDICIÓN
+   ============================================ */
+.edit-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.edit-modal-overlay.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-modal {
+    background: white;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.edit-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+}
+
+.edit-modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.edit-modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.edit-modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.edit-modal-body {
+    padding: 20px;
+}
+
+.edit-modal-footer {
+    display: flex;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.edit-modal-footer .mobile-btn {
+    flex: 1;
+}
+
+/* ============================================
+   SECCIÓN DE ETIQUETAS
+   ============================================ */
+#form-etiquetas-detalle {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+}
+
+.etiquetas-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.etiquetas-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-text {
+    display: inline;
+}
+
+.btn-loading {
+    display: none;
+}
+
+/* ============================================
+   DESKTOP STYLES (>= 769px)
+   ============================================ */
 @media screen and (min-width: 769px) {
-    /* 1) Producto: mínimo 240 px y proporción 6fr
-       2) Peso:     mínimo  90 px y 2fr
-       3) Lote:     mínimo 120 px y 2.5fr
-       4) F. Fab.:  2.5fr
-       5) F. Exp.:  2.5fr
-       6) Botón:    auto */
+    .mobile-form-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        padding-bottom: 120px;
+    }
+
+    .mobile-card {
+        margin: 20px 0;
+    }
+
     .mobile-form-grid {
-        grid-template-columns:
-            minmax(240px, 6fr)
-            minmax(90px, 2fr)
-            minmax(120px, 2.5fr)
-            minmax(140px, 2.5fr)
-            minmax(140px, 2.5fr)
-            auto !important;
-        gap: 12px !important;          /* +espacio horizontal */
-        align-items: end !important;   /* alinea controles con labels */
+        display: grid;
+        grid-template-columns: minmax(240px, 6fr) minmax(90px, 2fr) minmax(120px, 2.5fr) minmax(140px, 2.5fr) minmax(140px, 2.5fr) auto;
+        gap: 12px;
+        align-items: end;
     }
 
-    /* Forzar los controles a llenar su celda */
-    .mobile-form-control,
-    .mobile-select-wrapper {
+    .mobile-form-control {
+        padding: 12px 14px;
+        font-size: 16px;
+        height: 46px;
+    }
+
+    .mobile-btn {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+
+    /* Ocultar label del botón en desktop */
+    .mobile-form-grid > .mobile-form-group:last-child .mobile-form-label {
+        display: none;
+    }
+
+    .mobile-form-grid > .mobile-form-group:last-child .mobile-btn {
+        height: 46px;
+    }
+
+    /* Mostrar tabla en desktop */
+    .mobile-table {
+        display: table;
         width: 100%;
-        min-width: 0; /* evita compresión min‑content */
+        border-collapse: collapse;
+        font-size: 0.95rem;
     }
 
-    /* Expande la columna “Producto” de la tabla */
-    .mobile-table .product-name {
-        max-width: 45%; /* antes 35 % */
+    .mobile-table th {
+        background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+        color: white;
+        padding: 12px 10px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .mobile-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: middle;
+    }
+
+    .mobile-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .mobile-table tr:hover td {
+        background: #f9fafb;
+    }
+
+    .product-name {
+        max-width: 200px;
+        font-weight: 600;
+    }
+
+    .mobile-delete-btn,
+    .mobile-edit-btn {
+        padding: 0;
+        font-size: 1rem;
+        gap: 0;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        border-radius: 8px;
+    }
+
+    .mobile-delete-btn span,
+    .mobile-edit-btn span {
+        display: none;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .table-actions form {
+        display: contents;
+    }
+
+    /* Ocultar cards en desktop */
+    .productos-list-mobile {
+        display: none;
+    }
+
+    /* Resetear estilos de mobile para los botones en desktop */
+    .producto-item-actions .mobile-edit-btn,
+    .producto-item-actions .mobile-delete-btn {
+        flex: none;
+        max-width: none;
+        min-width: auto;
+    }
+
+    .etiquetas-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+    }
+
+    .etiquetas-buttons {
+        flex-direction: row;
+    }
+
+    .etiquetas-buttons .mobile-btn {
+        flex: 1;
+    }
+}
+
+/* ============================================
+   ANIMACIONES
+   ============================================ */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+    .mobile-form-container {
+        background: #111827;
+    }
+
+    .mobile-card {
+        background: #1f2937;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .mobile-card-body {
+        color: #e5e7eb;
+    }
+
+    .mobile-form-label {
+        color: #d1d5db;
+    }
+
+    .mobile-form-control {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .mobile-form-control:focus {
+        background: #4b5563;
+        border-color: #1877ff;
+    }
+
+    .mobile-form-control::placeholder {
+        color: #9ca3af;
+    }
+
+    .producto-item-mobile {
+        background: #374151;
+        border-color: #4b5563;
+    }
+
+    .producto-item-name,
+    .producto-detail-value {
+        color: #f9fafb;
+    }
+
+    .producto-detail-label {
+        color: #9ca3af;
+    }
+
+    .producto-item-footer {
+        border-top-color: #4b5563;
+    }
+
+    .mobile-notes-section {
+        background: linear-gradient(135deg, #422006 0%, #78350f 100%);
+        border-bottom-color: #92400e;
+    }
+
+    .mobile-notes-label {
+        color: #fcd34d;
+    }
+
+    .mobile-notes-content {
+        color: #fef3c7;
+    }
+
+    .mobile-table td {
+        background: #1f2937;
+        color: #e5e7eb;
+        border-bottom-color: #374151;
+    }
+
+    .mobile-table tr:hover td {
+        background: #374151;
+    }
+
+    select option {
+        background: #374151;
+        color: #f9fafb;
+    }
+
+    .edit-modal {
+        background: #1f2937;
+    }
+
+    .edit-modal-body {
+        color: #e5e7eb;
+    }
+
+    .edit-modal-footer {
+        border-top-color: #374151;
+    }
+
+    .mobile-btn-secondary {
+        background: #374151;
+        color: #e5e7eb;
+    }
+
+    .mobile-btn-secondary:active {
+        background: #4b5563;
+    }
+
+    .mobile-empty-state {
+        color: #9ca3af;
+    }
+}
+
+/* ============================================
+   SAFE AREAS
+   ============================================ */
+@supports (padding: max(0px)) {
+    .mobile-form-container {
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
     }
 }
 </style>
@@ -64,11 +769,11 @@
 
 {% block content %}
 <div class="mobile-form-container">
-    
+
     <!-- Notas del pedido -->
     {% if pedido.notas %}
     <div class="mobile-notes-section">
-        <div class="mobile-notes-label">Notas del pedido:</div>
+        <div class="mobile-notes-label"><i class="fas fa-sticky-note"></i> Notas del pedido</div>
         <div class="mobile-notes-content">{{ pedido.notas }}</div>
     </div>
     {% endif %}
@@ -77,21 +782,20 @@
     <div class="mobile-card">
         <div class="mobile-card-header">
             <i class="fas fa-plus-circle"></i>
-            Agregar producto al pedido
+            Agregar producto
         </div>
         <div class="mobile-card-body">
             <form id="form-detalle" method="POST">
-                <!-- US01: hidden CSRF field -->
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mobile-form-grid">
-                    
+
                     <!-- Producto -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="producto_id">Producto:</label>
+                        <label class="mobile-form-label" for="producto_id">Producto</label>
                         <div class="mobile-select-wrapper">
                             {% set allowed_ids = [1,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22] %}
                             <select name="producto_id" id="producto_id" class="mobile-form-control" required>
-                                <option value="">-- Seleccionar --</option>
+                                <option value="">Seleccionar...</option>
                                 {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
                                     <option value="{{ p.id }}">{{ p.nombre }}</option>
                                 {% endfor %}
@@ -101,33 +805,39 @@
 
                     <!-- Peso -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="peso">Peso:</label>
-                        <input type="text" inputmode="decimal" name="peso" id="peso" class="mobile-form-control" placeholder="0.00" pattern="[0-9]*[.,]?[0-9]*" required>
+                        <label class="mobile-form-label" for="peso">Peso (kg)</label>
+                        <input type="text" inputmode="decimal" name="peso" id="peso"
+                               class="mobile-form-control" placeholder="0.00"
+                               pattern="[0-9]*[.,]?[0-9]*" required>
                     </div>
 
                     <!-- Lote -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="lote">Lote:</label>
-                        <input type="text" name="lote" id="lote" class="mobile-form-control" required>
+                        <label class="mobile-form-label" for="lote">Lote</label>
+                        <input type="text" name="lote" id="lote"
+                               class="mobile-form-control" placeholder="Ej: L001" required>
                     </div>
 
                     <!-- Fecha Fabricación -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="fecha_fabricacion">Fecha Fab.:</label>
-                        <input type="date" name="fecha_fabricacion" id="fecha_fabricacion" class="mobile-form-control" required>
+                        <label class="mobile-form-label" for="fecha_fabricacion">F. Fabricación</label>
+                        <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
+                               class="mobile-form-control" required>
                     </div>
 
                     <!-- Fecha Expiración -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="fecha_expiracion">Fecha Exp.:</label>
-                        <input type="date" name="fecha_expiracion" id="fecha_expiracion" class="mobile-form-control" required>
+                        <label class="mobile-form-label" for="fecha_expiracion">F. Expiración</label>
+                        <input type="date" name="fecha_expiracion" id="fecha_expiracion"
+                               class="mobile-form-control" required>
                     </div>
 
                     <!-- Botón Agregar -->
                     <div class="mobile-form-group">
+                        <label class="mobile-form-label" style="opacity:0;">Acción</label>
                         <button type="submit" class="mobile-btn mobile-btn-success">
                             <i class="fas fa-plus"></i>
-                            Agregar
+                            <span>Agregar</span>
                         </button>
                     </div>
                 </div>
@@ -138,11 +848,66 @@
     <!-- Productos agregados -->
     <div class="mobile-card">
         <div class="mobile-card-header">
-            <i class="fas fa-list"></i>
-            Productos en el pedido
+            <i class="fas fa-box"></i>
+            Productos ({{ detalles_ordenados|length if detalles_ordenados else 0 }})
         </div>
         <div class="mobile-card-body">
             <div class="mobile-table-container">
+
+                <!-- Vista móvil: Cards -->
+                <div class="productos-list-mobile">
+                    {% if detalles_ordenados %}
+                        {% for detalle in detalles_ordenados %}
+                        <div class="producto-item-mobile">
+                            <div class="producto-item-header">
+                                <span class="producto-item-index">{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</span>
+                                <span class="producto-item-name">{{ detalle.producto.nombre }}</span>
+                            </div>
+                            <div class="producto-item-body">
+                                <div class="producto-detail">
+                                    <span class="producto-detail-label">Peso</span>
+                                    <span class="producto-detail-value">{{ detalle.peso }} kg</span>
+                                </div>
+                                <div class="producto-detail">
+                                    <span class="producto-detail-label">Lote</span>
+                                    <span class="producto-detail-value">{{ detalle.lote }}</span>
+                                </div>
+                                <div class="producto-detail">
+                                    <span class="producto-detail-label">F. Fab.</span>
+                                    <span class="producto-detail-value">{{ detalle.fecha_fabricacion }}</span>
+                                </div>
+                                <div class="producto-detail">
+                                    <span class="producto-detail-label">F. Exp.</span>
+                                    <span class="producto-detail-value">{{ detalle.fecha_expiracion }}</span>
+                                </div>
+                            </div>
+                            <div class="producto-item-footer">
+                                <div class="producto-item-actions">
+                                    <button type="button" class="mobile-edit-btn"
+                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
+                                        <i class="fas fa-edit"></i>
+                                        <span>Editar</span>
+                                    </button>
+                                    <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto?">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="mobile-delete-btn">
+                                            <i class="fas fa-trash-alt"></i>
+                                            <span>Eliminar</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="mobile-empty-state">
+                            <i class="fas fa-box-open"></i>
+                            <p>No hay productos agregados</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Vista desktop: Tabla -->
                 <table class="mobile-table">
                     <thead>
                         <tr>
@@ -166,13 +931,18 @@
                                 <td>{{ detalle.fecha_fabricacion }}</td>
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
-                                    <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
-                                        <!-- US01: hidden CSRF field -->
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
-                                            <i class="fas fa-trash-alt"></i>
+                                    <div class="table-actions">
+                                        <button type="button" class="mobile-edit-btn" title="Editar producto"
+                                                onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
+                                            <i class="fas fa-edit"></i>
                                         </button>
-                                    </form>
+                                        <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -191,17 +961,17 @@
     <div class="mobile-card">
         <div class="mobile-card-header">
             <i class="fas fa-tags"></i>
-            Generar etiquetas para cajas
+            Generar etiquetas
         </div>
         <div class="mobile-card-body">
             <form id="form-etiquetas-detalle">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                
-                <div class="mobile-form-group">
-                    <label class="mobile-form-label">Cliente:</label>
-                    <input type="text" class="mobile-form-control" value="{{ pedido.cliente.nombre }}" readonly>
+
+                <div class="mobile-form-group" style="margin-bottom: 16px;">
+                    <label class="mobile-form-label">Cliente</label>
+                    <input type="text" class="mobile-form-control" value="{{ pedido.cliente.nombre }}" readonly style="background: #e5e7eb;">
                 </div>
-    
+
                 {% set formato_seleccionado = request.args.get('formato', '4x2') %}
                 {% set valid_fechas = [] %}
                 {% for detalle in pedido.detalles %}
@@ -209,7 +979,7 @@
                         {% set _ = valid_fechas.append(detalle.fecha_fabricacion) %}
                     {% endif %}
                 {% endfor %}
-    
+
                 {% if valid_fechas %}
                     {% set f_inicio = valid_fechas|min %}
                     {% set f_fin = valid_fechas|max %}
@@ -217,39 +987,41 @@
                     {% set f_inicio = '' %}
                     {% set f_fin = '' %}
                 {% endif %}
-    
-                <div class="mobile-form-grid grid-template-cols gap-8">
+
+                <div class="etiquetas-grid">
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="fecha_inicio">Fecha de inicio:</label>
+                        <label class="mobile-form-label" for="fecha_inicio">Fecha inicio</label>
                         <input type="date" name="fecha_inicio" id="fecha_inicio" class="mobile-form-control" value="{{ f_inicio or '' }}" required>
                     </div>
 
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="fecha_fin">Fecha de fin:</label>
+                        <label class="mobile-form-label" for="fecha_fin">Fecha fin</label>
                         <input type="date" name="fecha_fin" id="fecha_fin" class="mobile-form-control" value="{{ f_fin or '' }}" required>
                     </div>
 
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="formato_etiqueta">Formato:</label>
-                        <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
-                            <option value="4x2" {% if formato_seleccionado != 'a4' %}selected{% endif %}>4" x 2" (una por página)</option>
-                            <option value="a4" {% if formato_seleccionado == 'a4' %}selected{% endif %}>A4 (2 etiquetas centradas por página)</option>
-                        </select>
+                        <label class="mobile-form-label" for="formato_etiqueta">Formato</label>
+                        <div class="mobile-select-wrapper">
+                            <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
+                                <option value="4x2" {% if formato_seleccionado != 'a4' %}selected{% endif %}>4" x 2" (Térmica)</option>
+                                <option value="a4" {% if formato_seleccionado == 'a4' %}selected{% endif %}>A4 (2 por página)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-    
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button type="submit" class="mobile-btn mobile-btn-primary" id="btn-generar-etiquetas" style="flex: 1; min-width: 140px;">
-                        <i class="fas fa-tags"></i>
-                        <span class="btn-text">4x2" (Térmica)</span>
-                        <span class="btn-loading" style="display:none;">
+
+                <div class="etiquetas-buttons">
+                    <button type="submit" class="mobile-btn mobile-btn-primary" id="btn-generar-etiquetas">
+                        <i class="fas fa-print"></i>
+                        <span class="btn-text">4x2" Térmica</span>
+                        <span class="btn-loading">
                             <i class="fas fa-spinner fa-spin"></i> Generando...
                         </span>
                     </button>
-                    <button type="button" class="mobile-btn mobile-btn-success" id="btn-generar-etiquetas-a4" style="flex: 1; min-width: 140px;">
+                    <button type="button" class="mobile-btn mobile-btn-success" id="btn-generar-etiquetas-a4">
                         <i class="fas fa-file-pdf"></i>
                         <span class="btn-text">A4 (2 por página)</span>
-                        <span class="btn-loading" style="display:none;">
+                        <span class="btn-loading">
                             <i class="fas fa-spinner fa-spin"></i> Generando...
                         </span>
                     </button>
@@ -258,16 +1030,161 @@
         </div>
     </div>
 
+</div>
+
+<!-- Modal de edición de producto -->
+<div class="edit-modal-overlay" id="editModalOverlay">
+    <div class="edit-modal">
+        <div class="edit-modal-header">
+            <div class="edit-modal-title">
+                <i class="fas fa-edit"></i>
+                Editar producto
+            </div>
+            <button type="button" class="edit-modal-close" onclick="closeEditModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="editDetalleForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="edit-modal-body">
+                <div class="mobile-form-grid" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Producto -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_producto_id">Producto</label>
+                        <div class="mobile-select-wrapper">
+                            {% set allowed_ids = [1,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22] %}
+                            <select name="producto_id" id="edit_producto_id" class="mobile-form-control" required>
+                                <option value="">Seleccionar...</option>
+                                {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
+                                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Peso -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_peso">Peso (kg)</label>
+                        <input type="text" inputmode="decimal" name="peso" id="edit_peso"
+                               class="mobile-form-control" placeholder="0.00"
+                               pattern="[0-9]*[.,]?[0-9]*" required>
+                    </div>
+
+                    <!-- Lote -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_lote">Lote</label>
+                        <input type="text" name="lote" id="edit_lote"
+                               class="mobile-form-control" placeholder="Ej: L001" required>
+                    </div>
+
+                    <!-- Fecha Fabricación -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_fecha_fabricacion">F. Fabricación</label>
+                        <input type="date" name="fecha_fabricacion" id="edit_fecha_fabricacion"
+                               class="mobile-form-control" required>
+                    </div>
+
+                    <!-- Fecha Expiración -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_fecha_expiracion">F. Expiración</label>
+                        <input type="date" name="fecha_expiracion" id="edit_fecha_expiracion"
+                               class="mobile-form-control" required>
+                    </div>
+                </div>
+            </div>
+            <div class="edit-modal-footer">
+                <button type="button" class="mobile-btn mobile-btn-secondary" onclick="closeEditModal()">
+                    <i class="fas fa-times"></i>
+                    Cancelar
+                </button>
+                <button type="submit" class="mobile-btn mobile-btn-success">
+                    <i class="fas fa-check"></i>
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 // ========================================================================
+// MODAL DE EDICIÓN - FUNCIONES
+// ========================================================================
+const editModalOverlay = document.getElementById('editModalOverlay');
+const editForm = document.getElementById('editDetalleForm');
+const editPesoField = document.getElementById('edit_peso');
+
+function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp) {
+    // Establecer la URL de acción del formulario
+    editForm.action = `/detalles_pedido/${detalleId}/editar`;
+
+    // Poblar los campos del formulario
+    document.getElementById('edit_producto_id').value = productoId;
+    document.getElementById('edit_peso').value = peso;
+    document.getElementById('edit_lote').value = lote;
+    document.getElementById('edit_fecha_fabricacion').value = fechaFab;
+    document.getElementById('edit_fecha_expiracion').value = fechaExp;
+
+    // Mostrar el modal
+    editModalOverlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+
+    // Enfocar el primer campo
+    setTimeout(() => {
+        document.getElementById('edit_producto_id').focus();
+    }, 100);
+}
+
+function closeEditModal() {
+    editModalOverlay.classList.remove('show');
+    document.body.style.overflow = '';
+
+    // Limpiar el formulario
+    editForm.reset();
+}
+
+// Cerrar modal al hacer clic fuera
+editModalOverlay.addEventListener('click', function(e) {
+    if (e.target === editModalOverlay) {
+        closeEditModal();
+    }
+});
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && editModalOverlay.classList.contains('show')) {
+        closeEditModal();
+    }
+});
+
+// Conversión de coma a punto en el modal de edición
+editPesoField.addEventListener('input', function(e) {
+    const cursorPos = this.selectionStart;
+    const hadComma = this.value.includes(',');
+    this.value = this.value.replace(',', '.');
+    if (hadComma) {
+        this.setSelectionRange(cursorPos, cursorPos);
+    }
+    this.value = this.value.replace(/[^0-9.]/g, '');
+    const parts = this.value.split('.');
+    if (parts.length > 2) {
+        this.value = parts[0] + '.' + parts.slice(1).join('');
+    }
+});
+
+// Normalizar coma a punto antes de enviar el form de edición
+editForm.addEventListener('submit', function(e) {
+    editPesoField.value = editPesoField.value.replace(',', '.').trim();
+});
+
+// ========================================================================
 // CONFIGURACIÓN Y REFERENCIAS
 // ========================================================================
 const LS_KEY = 'lastDetalle';
-const shelfLife = { 
-    /* idProducto : díasVidaÚtil */ 
+const shelfLife = {
+    /* idProducto : díasVidaÚtil */
     // Ejemplo: 1: 180, 2: 365, etc.
 };
 
@@ -294,7 +1211,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Sincronizar expiración si hay fecha de fabricación
     if ($fab.value) calcExp();
-    
+
     // Enfocar en peso para entrada rápida
     $peso.focus();
 });
@@ -303,21 +1220,21 @@ window.addEventListener('DOMContentLoaded', () => {
 // CÁLCULO AUTOMÁTICO DE FECHA DE EXPIRACIÓN
 // ========================================================================
 function calcExp() {
-    if (!$fab.value) { 
-        $exp.value = ''; 
-        return; 
+    if (!$fab.value) {
+        $exp.value = '';
+        return;
     }
 
     const id = +$prod.value;
     const days = shelfLife.hasOwnProperty(id) ? shelfLife[id] : 365;
-    
+
     // Si días = 0, el producto no tiene expiración
     if (days === 0) {
-        $exp.value = ''; 
-        $exp.disabled = true; 
+        $exp.value = '';
+        $exp.disabled = true;
         return;
     }
-    
+
     $exp.disabled = false;
     const d = new Date($fab.value + 'T00:00');
     d.setDate(d.getDate() + days);
@@ -344,8 +1261,8 @@ $form.addEventListener('submit', (e) => {
     }));
 
     // Limpiar peso después de que el form ha sido enviado
-    setTimeout(() => { 
-        $peso.value = ''; 
+    setTimeout(() => {
+        $peso.value = '';
         $peso.focus(); // Mantener foco en peso para siguiente entrada
     }, 50);
 });
@@ -421,27 +1338,27 @@ const btnGenerar = document.getElementById('btn-generar-etiquetas');
 if (formEtiquetas && btnGenerar) {
     formEtiquetas.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const btnText = btnGenerar.querySelector('.btn-text');
         const btnLoading = btnGenerar.querySelector('.btn-loading');
-        
+
         // Validar campos de fecha
         const fechaInicio = document.getElementById('fecha_inicio').value;
         const fechaFin = document.getElementById('fecha_fin').value;
-        
+
         if (!fechaInicio || !fechaFin) {
             alert('Por favor complete las fechas de inicio y fin');
             return;
         }
-        
+
         // UI feedback: mostrar estado de carga
         btnGenerar.disabled = true;
         if (btnText) btnText.style.display = 'none';
         if (btnLoading) btnLoading.style.display = 'inline';
-        
+
         try {
             const formData = new FormData(this);
-            
+
             // Hacer petición al servidor
             const response = await fetch("{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}", {
                 method: 'POST',
@@ -450,15 +1367,15 @@ if (formEtiquetas && btnGenerar) {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || 'Error generando etiquetas');
             }
-            
+
             // Obtener blob del PDF
             const blob = await response.blob();
-            
+
             // Extraer nombre del archivo desde Content-Disposition header
             const contentDisposition = response.headers.get('Content-Disposition');
             let filename = 'etiquetas.pdf';
@@ -468,36 +1385,36 @@ if (formEtiquetas && btnGenerar) {
                     filename = match[1].replace(/['"]/g, '');
                 }
             }
-            
+
             // Crear URL temporal del blob
             const url = window.URL.createObjectURL(blob);
-            
+
             // Crear enlace temporal y hacer click (mejor compatibilidad iOS)
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
             a.download = filename;
-            
+
             // iOS requiere que el enlace esté en el DOM
             document.body.appendChild(a);
             a.click();
-            
+
             // Limpiar después de un breve delay
             setTimeout(() => {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
             }, 100);
-            
+
             // Feedback visual de éxito
             if (btnText) {
                 btnText.textContent = '¡Descargado!';
                 btnText.style.display = 'inline';
             }
             if (btnLoading) btnLoading.style.display = 'none';
-            
+
             // Restaurar botón después de 2 segundos
             setTimeout(() => {
-                if (btnText) btnText.textContent = '4x2" (Térmica)';
+                if (btnText) btnText.textContent = '4x2" Térmica';
                 btnGenerar.disabled = false;
             }, 2000);
 
@@ -626,6 +1543,3 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
 });
 </script>
 {% endblock %}
-
-
-

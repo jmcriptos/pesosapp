@@ -3103,6 +3103,44 @@ def eliminar_detalle_pedido(detalle_id):
     flash('Detalle eliminado.', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
+
+@app.route('/detalles_pedido/<int:detalle_id>/editar', methods=['POST'])
+@login_required
+def editar_detalle_pedido(detalle_id):
+    """Edita un detalle de pedido existente."""
+    detalle = DetallePedido.query.get_or_404(detalle_id)
+    pedido = Pedido.query.get_or_404(detalle.pedido_id)
+
+    # ── Verificación de autorización IDOR ─────────────────────
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        if not current_user.puede_ver_cliente(pedido.cliente_id):
+            flash('No tienes permisos para editar este detalle', 'error')
+            return redirect(url_for('lista_pedidos'))
+
+    # Obtener datos del formulario
+    producto_id = request.form.get('producto_id', type=int)
+    peso = request.form.get('peso', type=float)
+    lote = request.form.get('lote', '').strip()
+    fecha_fabricacion = request.form.get('fecha_fabricacion', '')
+    fecha_expiracion = request.form.get('fecha_expiracion', '')
+
+    # Validar datos
+    if not all([producto_id, peso, lote, fecha_fabricacion, fecha_expiracion]):
+        flash('Todos los campos son requeridos', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    # Actualizar el detalle
+    detalle.producto_id = producto_id
+    detalle.peso = peso
+    detalle.lote = lote
+    detalle.fecha_fabricacion = fecha_fabricacion
+    detalle.fecha_expiracion = fecha_expiracion
+
+    db.session.commit()
+    flash('Detalle actualizado correctamente.', 'success')
+    return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+
 # ---------------------------------------------------------------------
 # Generar etiquetas a partir de los DetallePedido de un pedido concreto
 # -> Genera PDF 4" x 2", una etiqueta por página (para PDF Direct)
