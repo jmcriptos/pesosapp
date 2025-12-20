@@ -102,7 +102,7 @@
                     <!-- Peso -->
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="peso">Peso:</label>
-                        <input type="number" step="0.01" name="peso" id="peso" class="mobile-form-control" placeholder="0.00" required>
+                        <input type="text" inputmode="decimal" name="peso" id="peso" class="mobile-form-control" placeholder="0.00" pattern="[0-9]*[.,]?[0-9]*" required>
                     </div>
 
                     <!-- Lote -->
@@ -348,6 +348,30 @@ $form.addEventListener('submit', (e) => {
         $peso.value = ''; 
         $peso.focus(); // Mantener foco en peso para siguiente entrada
     }, 50);
+});
+
+// ========================================================================
+// CONVERSIÓN EN TIEMPO REAL DE COMA A PUNTO EN PESO
+// ========================================================================
+$peso.addEventListener('input', function(e) {
+    // Convertir coma a punto mientras el usuario escribe
+    const cursorPos = this.selectionStart;
+    const hadComma = this.value.includes(',');
+    this.value = this.value.replace(',', '.');
+
+    // Mantener posición del cursor
+    if (hadComma) {
+        this.setSelectionRange(cursorPos, cursorPos);
+    }
+
+    // Validar que solo contenga números y un punto decimal
+    this.value = this.value.replace(/[^0-9.]/g, '');
+
+    // Evitar múltiples puntos decimales
+    const parts = this.value.split('.');
+    if (parts.length > 2) {
+        this.value = parts[0] + '.' + parts.slice(1).join('');
+    }
 });
 
 // ========================================================================
