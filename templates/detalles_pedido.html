@@ -113,6 +113,14 @@
     gap: 6px;
 }
 
+/* Label oculto en móvil */
+.mobile-label-hidden {
+    opacity: 0;
+    height: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
 .mobile-form-label {
     font-size: 0.85rem;
     font-weight: 700;
@@ -540,12 +548,16 @@
         font-size: 1rem;
     }
 
-    /* Ocultar label del botón en desktop */
-    .mobile-form-grid > .mobile-form-group:last-child .mobile-form-label {
+    /* Botón alineado en desktop */
+    .mobile-form-group-btn {
+        justify-content: flex-end;
+    }
+
+    .mobile-form-group-btn .mobile-label-hidden {
         display: none;
     }
 
-    .mobile-form-grid > .mobile-form-group:last-child .mobile-btn {
+    .mobile-form-group-btn .mobile-btn {
         height: 46px;
     }
 
@@ -833,8 +845,8 @@
                     </div>
 
                     <!-- Botón Agregar -->
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" style="opacity:0;">Acción</label>
+                    <div class="mobile-form-group mobile-form-group-btn">
+                        <label class="mobile-form-label mobile-label-hidden">Acción</label>
                         <button type="submit" class="mobile-btn mobile-btn-success">
                             <i class="fas fa-plus"></i>
                             <span>Agregar</span>
