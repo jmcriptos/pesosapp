@@ -898,6 +898,7 @@
                                 </div>
                             </div>
                             <div class="producto-item-footer">
+                                {% if pedido.estado != 'facturado' %}
                                 <div class="producto-item-actions">
                                     <button type="button" class="mobile-edit-btn"
                                             onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
@@ -912,6 +913,7 @@
                                         </button>
                                     </form>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -947,6 +949,7 @@
                                 <td>{{ detalle.fecha_fabricacion }}</td>
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
+                                    {% if pedido.estado != 'facturado' %}
                                     <div class="table-actions">
                                         <button type="button" class="mobile-edit-btn" title="Editar producto"
                                                 onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
@@ -959,6 +962,7 @@
                                             </button>
                                         </form>
                                     </div>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

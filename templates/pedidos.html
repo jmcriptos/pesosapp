@@ -51,6 +51,12 @@
                     <span>{{ pedido.notas|truncate(50) }}</span>
                 </div>
                 {% endif %}
+                {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                <div class="pedido-invoice-id">
+                    <i class="fa fa-file-invoice"></i>
+                    <span>QBO: {{ pedido.invoice_id_qbo }}</span>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Total -->
@@ -135,6 +141,9 @@
                                     <i class="fa fa-info-circle"></i> {{ pedido.estado }}
                                 {% endif %}
                             </span>
+                            {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                            <span class="invoice-id-badge" title="QuickBooks Invoice ID">{{ pedido.invoice_id_qbo }}</span>
+                            {% endif %}
                         </td>
                         <td class="text-right font-mono fw-600">{{ "%.2f"|format(pedido.total_calculado) }}</td>
                         <td>{{ pedido.notas or '' }}</td>
@@ -403,6 +412,21 @@
     font-size: 0.9rem;
     color: #6b7280;
     font-style: italic;
+}
+
+.pedido-invoice-id {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #15803d;
+    font-weight: 600;
+}
+
+.pedido-invoice-id i {
+    width: 20px;
+    color: #16a34a;
+    font-size: 1.1rem;
 }
 
 /* Card Total */
@@ -715,6 +739,18 @@
         font-size: 0.85rem;
         font-weight: 600;
         text-transform: uppercase;
+    }
+
+    .invoice-id-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 8px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: #dcfce7;
+        color: #15803d;
+        font-family: 'SF Mono', monospace;
     }
 
     /* Botones chip desktop */

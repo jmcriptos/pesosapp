@@ -1,0 +1,163 @@
+<!-- templates/admin/backup.html -->
+{% extends "base.html" %}
+
+{% block title %}Backup de Base de Datos{% endblock %}
+
+{% block header_title %}Backup de Base de Datos{% endblock %}
+
+{% block content %}
+<div class="admin-page-container">
+    <div class="page-header">
+        <h1><i class="fas fa-database"></i> Backup de Base de Datos</h1>
+        <p>Estado y gestion de backups de la base de datos PostgreSQL</p>
+    </div>
+
+    <!-- Estado del Backup -->
+    <div class="report-section">
+        <h2><i class="fas fa-info-circle"></i> Configuracion Actual</h2>
+        <p class="backup-status-note">
+            <i class="fas fa-terminal"></i>
+            Para ver la fecha del ultimo backup y el total disponible, ejecuta:
+            <code>heroku pg:backups --app pesosapp</code>
+        </p>
+        <div class="table-responsive">
+            <table class="report-table">
+                <tbody>
+                    <tr>
+                        <td><strong>Backup automatico</strong></td>
+                        <td>Diario a las 02:00 AM (America/Curacao)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Retencion Heroku</strong></td>
+                        <td>Ultimos 5 backups (plan Mini/Basic). Complementar con exportacion externa para 7+ dias.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Exportacion externa</strong></td>
+                        <td>Disponible via <code>scripts/backup-export.sh</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Backup pre-migracion</strong></td>
+                        <td>Obligatorio via <code>scripts/safe-migrate.sh</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Comandos CLI -->
+    <div class="report-section">
+        <h2><i class="fas fa-terminal"></i> Comandos de Backup</h2>
+        <div class="backup-commands">
+            <div class="command-item">
+                <h3>Backup Manual Inmediato</h3>
+                <code>heroku pg:backups:capture --app pesosapp</code>
+            </div>
+            <div class="command-item">
+                <h3>Listar Backups Disponibles</h3>
+                <code>heroku pg:backups --app pesosapp</code>
+            </div>
+            <div class="command-item">
+                <h3>Verificar Schedule Activo</h3>
+                <code>heroku pg:backups:schedules --app pesosapp</code>
+            </div>
+            <div class="command-item">
+                <h3>Descargar Ultimo Backup</h3>
+                <code>./scripts/backup-export.sh</code>
+            </div>
+            <div class="command-item">
+                <h3>Migracion Segura (con backup)</h3>
+                <code>./scripts/safe-migrate.sh</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Procedimiento de Restore -->
+    <div class="report-section">
+        <h2><i class="fas fa-undo"></i> Restaurar desde Backup</h2>
+        <div class="backup-commands">
+            <div class="command-item">
+                <h3>1. Listar backups</h3>
+                <code>heroku pg:backups --app pesosapp</code>
+            </div>
+            <div class="command-item">
+                <h3>2. Restaurar ultimo backup</h3>
+                <code>heroku pg:backups:restore --app pesosapp --confirm pesosapp</code>
+            </div>
+            <div class="command-item">
+                <h3>3. Restaurar backup especifico (ej: b003)</h3>
+                <code>heroku pg:backups:restore b003 DATABASE_URL --app pesosapp --confirm pesosapp</code>
+            </div>
+        </div>
+        <p class="restore-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Atencion:</strong> La restauracion causa downtime. Planificar fuera de horario laboral.
+            Ver documentacion completa en <code>docs/backup-restore.md</code>
+        </p>
+    </div>
+
+    <div class="action-buttons">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver al Dashboard</a>
+    </div>
+</div>
+
+<style>
+/* Only backup-specific styles - base admin styles loaded from styles.css */
+.backup-status-note {
+    background: #e8f4fd;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    color: #0c5460;
+}
+
+.backup-status-note code {
+    background: rgba(0,0,0,0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.backup-commands {
+    display: grid;
+    gap: 15px;
+}
+
+.command-item {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px 20px;
+    border-left: 4px solid #3498db;
+}
+
+.command-item h3 {
+    margin: 0 0 8px 0;
+    color: #2c3e50;
+    font-size: 0.95em;
+}
+
+.command-item code {
+    display: block;
+    background: #2c3e50;
+    color: #2ecc71;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    overflow-x: auto;
+}
+
+.restore-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-top: 20px;
+    color: #856404;
+}
+
+.restore-warning code {
+    background: rgba(0,0,0,0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+</style>
+{% endblock %}

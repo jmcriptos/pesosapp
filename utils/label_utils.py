@@ -234,7 +234,7 @@ def draw_order_label(canvas_obj, logo_path, client, product, temperature, lot,
     canvas_obj.setFont("Helvetica-Bold", 15.6)
     canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_NET_WEIGHT, "Net Weight:")
     canvas_obj.setFont("Helvetica-Bold", 16.8)
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_NET_WEIGHT, f"{weight:.2f}")
+    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_NET_WEIGHT, str(weight))
 
     # Separador
     draw_separator(canvas_obj, x_base, y_base, SEPARATOR_Y)
@@ -408,7 +408,7 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
     canvas_obj.setFont("Helvetica-Bold", 15.6)
     canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_net_weight, "Net Weight:")
     canvas_obj.setFont("Helvetica-Bold", 16.8)
-    canvas_obj.drawString(x_offset + VALUE_X, y_net_weight, f"{weight:.2f}")
+    canvas_obj.drawString(x_offset + VALUE_X, y_net_weight, str(weight))
 
     # Separador
     draw_separator(canvas_obj, x_offset, y_offset, SEPARATOR_Y)

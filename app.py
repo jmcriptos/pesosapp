@@ -780,7 +780,8 @@ class Producto(db.Model):
     importaciones = db.relationship('Importacion', back_populates='producto', lazy=True, cascade="all, delete-orphan")
     qbo_id = db.Column(db.String(20), unique=True)
     tax_rate = db.Column(db.Float, nullable=False, default=0.0)  # Nueva columna para tasa de impuesto
-    
+    se_pesa = db.Column(db.Boolean, default=False, nullable=False)
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -788,7 +789,8 @@ class Producto(db.Model):
             'descripcion': self.descripcion,
             'temperatura': self.temperatura,
             'qbo_id': self.qbo_id,
-            'tax_rate': self.tax_rate  # Incluir en el diccionario
+            'tax_rate': self.tax_rate,
+            'se_pesa': self.se_pesa
         }
 
 class Cliente(db.Model):
@@ -882,6 +884,7 @@ class Pedido(db.Model):
     fecha_facturacion = db.Column(db.DateTime, nullable=True)
     estado = db.Column(db.String(30), default="pendiente", nullable=False)
     notas = db.Column(db.Text, nullable=True)
+    invoice_id_qbo = db.Column(db.String(100), nullable=True)
     cliente = db.relationship('Cliente', back_populates='pedidos')
     detalles = db.relationship('DetallePedido', back_populates='pedido', cascade="all, delete-orphan")
 
@@ -3033,12 +3036,22 @@ def detalles_pedido(pedido_id):
 
     # ── 2) Alta de un nuevo detalle ───────────────────────────
     if request.method == 'POST':
+        # ── Inmutabilidad post-facturación ──────────────────────
+        if pedido.estado == 'facturado':
+            flash('No se puede agregar detalles a un pedido facturado', 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
         producto_id       = int(request.form['producto_id'])
         peso              = float(request.form.get('peso', 0)  or 0)
         cajas             = int  (request.form.get('cajas', 0) or 0)   # reservado
-        lote              = request.form['lote']
-        fecha_fabricacion = request.form['fecha_fabricacion']
-        fecha_expiracion  = request.form['fecha_expiracion']
+        lote              = request.form.get('lote', '').strip()
+        fecha_fabricacion = request.form.get('fecha_fabricacion', '').strip()
+        fecha_expiracion  = request.form.get('fecha_expiracion', '').strip()
+
+        # ── Validación de trazabilidad obligatoria ──────────────
+        if not all([lote, fecha_fabricacion, fecha_expiracion]):
+            flash('Lote, fecha fabricación y fecha expiración son obligatorios', 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
         # -------- Obtener precio unitario según la jerarquía --------
         precio_unitario = obtener_precio_producto_cliente(
@@ -3113,6 +3126,11 @@ def eliminar_detalle_pedido(detalle_id):
             flash('No tienes permisos para eliminar este detalle', 'error')
             return redirect(url_for('lista_pedidos'))
 
+    # ── Inmutabilidad post-facturación ─────────────────────────
+    if pedido.estado == 'facturado':
+        flash('No se puede eliminar un detalle de un pedido facturado', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
     db.session.delete(detalle)
     db.session.commit()
     flash('Detalle eliminado.', 'success')
@@ -3131,6 +3149,11 @@ def editar_detalle_pedido(detalle_id):
         if not current_user.puede_ver_cliente(pedido.cliente_id):
             flash('No tienes permisos para editar este detalle', 'error')
             return redirect(url_for('lista_pedidos'))
+
+    # ── Inmutabilidad post-facturación ─────────────────────────
+    if pedido.estado == 'facturado':
+        flash('No se puede editar un pedido facturado', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     # Obtener datos del formulario
     producto_id = request.form.get('producto_id', type=int)
@@ -3214,8 +3237,14 @@ def generar_etiqueta_detalle(pedido_id):
 
         for d in detalles:
             producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
-            temperatura = getattr(d.producto, "temperatura", None) or ""
-            peso_val = float(d.peso or d.cajas or 0)
+            temperatura = getattr(d.producto, "temperatura", None) or "N/A"
+
+            # Formatear peso con unidad según tipo de producto
+            se_pesa = getattr(d.producto, "se_pesa", False)
+            if se_pesa:
+                peso_val = f"{float(d.peso or 0):.2f} kg"
+            else:
+                peso_val = f"{int(d.cajas or 0)} uds"
 
             # Formatear fechas
             f_fab = d.fecha_fabricacion
@@ -3225,12 +3254,17 @@ def generar_etiqueta_detalle(pedido_id):
             if hasattr(f_exp, "strftime"):
                 f_exp = f_exp.strftime("%Y-%m-%d")
 
+            # Null safety para trazabilidad
+            lote = d.lote or "N/A"
+            f_fab = f_fab or "N/A"
+            f_exp = f_exp or "N/A"
+
             draw_order_label(
                 c, logo_path,
                 client=cliente_nombre,
                 product=producto_nombre,
                 temperature=temperatura,
-                lot=d.lote,
+                lot=lote,
                 mfg_date=f_fab,
                 exp_date=f_exp,
                 weight=peso_val
@@ -3330,8 +3364,14 @@ def generar_etiqueta_detalle_a4(pedido_id):
 
         for d in detalles:
             producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
-            temperatura = getattr(d.producto, "temperatura", None) or ""
-            peso_val = float(d.peso or d.cajas or 0)
+            temperatura = getattr(d.producto, "temperatura", None) or "N/A"
+
+            # Formatear peso con unidad según tipo de producto
+            se_pesa = getattr(d.producto, "se_pesa", False)
+            if se_pesa:
+                peso_val = f"{float(d.peso or 0):.2f} kg"
+            else:
+                peso_val = f"{int(d.cajas or 0)} uds"
 
             # Formatear fechas
             f_fab = d.fecha_fabricacion
@@ -3341,12 +3381,17 @@ def generar_etiqueta_detalle_a4(pedido_id):
             if hasattr(d.fecha_expiracion, "strftime"):
                 f_exp = d.fecha_expiracion.strftime("%Y-%m-%d")
 
+            # Null safety para trazabilidad
+            lote = d.lote or "N/A"
+            f_fab = f_fab or "N/A"
+            f_exp = f_exp or "N/A"
+
             # Determinar posición (arriba o abajo)
             y_offset = y_top if etiqueta_contador % 2 == 0 else y_bottom
 
             draw_order_label_a4(
                 c, logo_path, cliente_nombre, producto_nombre,
-                temperatura, d.lote, f_fab, f_exp, peso_val,
+                temperatura, lote, f_fab, f_exp, peso_val,
                 x_offset, y_offset
             )
 
@@ -3399,19 +3444,50 @@ def generar_etiqueta_detalle_a4(pedido_id):
 @login_required
 def preparar_pedido(pedido_id):
     pedido = Pedido.query.get_or_404(pedido_id)
+
+    # ── Inmutabilidad post-facturación ─────────────────────────
+    if pedido.estado == 'facturado':
+        flash('No se puede preparar un pedido ya facturado', 'error')
+        return redirect(url_for('lista_pedidos'))
+
     if request.method == 'POST':
+        # ── Validación de trazabilidad obligatoria ──────────────
+        errores = []
+        datos_form = {}
         for detalle in pedido.detalles:
-            entregadas = request.form.get(f'entregadas_{detalle.id}', type=int)
+            lote = request.form.get(f'lote_{detalle.id}', '').strip()
+            fab = request.form.get(f'fab_{detalle.id}', '').strip()
+            exp = request.form.get(f'exp_{detalle.id}', '').strip()
+            entregadas = request.form.get(f'entregadas_{detalle.id}', type=int) or 0
             peso_real = request.form.get(f'peso_{detalle.id}', type=float)
-            lote = request.form.get(f'lote_{detalle.id}', '')
-            fab = request.form.get(f'fab_{detalle.id}', '')
-            exp = request.form.get(f'exp_{detalle.id}', '')
-            detalle.cantidad_cajas = entregadas
-            if detalle.producto.se_pesa:
-                detalle.peso = peso_real
-            detalle.lote = lote
-            detalle.fecha_fabricacion = fab
-            detalle.fecha_expiracion = exp
+            datos_form[detalle.id] = {
+                'lote': lote, 'fab': fab, 'exp': exp,
+                'entregadas': entregadas, 'peso_real': peso_real,
+            }
+            campos_faltantes = []
+            if not lote:
+                campos_faltantes.append('lote')
+            if not fab:
+                campos_faltantes.append('fecha fabricación')
+            if not exp:
+                campos_faltantes.append('fecha expiración')
+            if campos_faltantes:
+                errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
+
+        if errores:
+            for error in errores:
+                flash(error, 'error')
+            return render_template('preparar_pedido.html', pedido=pedido)
+
+        # ── Guardar datos de preparación ────────────────────────
+        for detalle in pedido.detalles:
+            d = datos_form[detalle.id]
+            detalle.cajas = d['entregadas']
+            if detalle.producto.se_pesa and d['peso_real'] is not None:
+                detalle.peso = d['peso_real']
+            detalle.lote = d['lote']
+            detalle.fecha_fabricacion = d['fab']
+            detalle.fecha_expiracion = d['exp']
         pedido.estado = 'listo'
         db.session.commit()
         flash('Pedido preparado correctamente', 'success')
@@ -3419,6 +3495,10 @@ def preparar_pedido(pedido_id):
     return render_template('preparar_pedido.html', pedido=pedido)
 
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL")  # ponlo en tu .env
+try:
+    N8N_WEBHOOK_TIMEOUT = int(os.environ.get("N8N_WEBHOOK_TIMEOUT", 30))
+except (ValueError, TypeError):
+    N8N_WEBHOOK_TIMEOUT = 30
 
 @app.route('/pedidos/<int:pedido_id>/facturar', methods=['POST'])
 @login_required
@@ -3430,21 +3510,87 @@ def facturar_pedido(pedido_id):
         flash('El pedido ya está facturado.', 'info')
         return redirect(url_for('lista_pedidos'))
 
+    # ── Validación de trazabilidad completa antes de facturar ──
+    traz_errores = []
+    for detalle in pedido.detalles:
+        campos_faltantes = []
+        if not detalle.lote:
+            campos_faltantes.append('lote')
+        if not detalle.fecha_fabricacion:
+            campos_faltantes.append('fecha fabricación')
+        if not detalle.fecha_expiracion:
+            campos_faltantes.append('fecha expiración')
+        if campos_faltantes:
+            traz_errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
+    if traz_errores:
+        flash('No se puede facturar. Datos de trazabilidad incompletos:', 'error')
+        for err in traz_errores:
+            flash(err, 'error')
+        return redirect(url_for('lista_pedidos'))
+
     payload = pedido_a_json(pedido)
 
+    # ── Guard: verificar que N8N está configurado ──
+    if not N8N_WEBHOOK_URL:
+        app.logger.error(f'N8N_WEBHOOK_URL no configurada. No se puede facturar pedido {pedido_id}.')
+        flash('Error de configuración: N8N_WEBHOOK_URL no está definida. Contacte al administrador.', 'danger')
+        return redirect(url_for('lista_pedidos'))
+
+    # ── Llamada al webhook N8N ──
     try:
-        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=15)
+        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_WEBHOOK_TIMEOUT)
         resp.raise_for_status()
+    except requests.Timeout:
+        app.logger.error(f'Timeout al enviar pedido {pedido_id} a n8n ({N8N_WEBHOOK_TIMEOUT}s)')
+        flash(f'Timeout — N8N no respondió en {N8N_WEBHOOK_TIMEOUT}s. Reintentar o verificar conexión.', 'danger')
+        return redirect(url_for('lista_pedidos'))
+    except requests.ConnectionError as e:
+        app.logger.error(f'Error de conexión con n8n para pedido {pedido_id}: {e}')
+        flash('Error de conexión con N8N. Verificar que el servicio está activo.', 'danger')
+        return redirect(url_for('lista_pedidos'))
+    except requests.HTTPError as e:
+        err_resp = e.response
+        status_code = err_resp.status_code
+        try:
+            error_body = err_resp.json()
+            error_msg = error_body.get('message', error_body.get('error', str(error_body)))
+        except Exception:
+            error_msg = err_resp.text[:200] if err_resp.text else 'Sin detalle'
+        app.logger.error(f'HTTP {status_code} de n8n para pedido {pedido_id}: {error_msg}')
+        if 400 <= status_code < 500:
+            flash(f'Error en facturación (HTTP {status_code}): {error_msg}', 'danger')
+        else:
+            flash('Error temporal en QuickBooks. Reintentar en unos momentos.', 'danger')
+        return redirect(url_for('lista_pedidos'))
     except Exception as e:
-        app.logger.error(f'Error al enviar a n8n: {e}')
+        app.logger.error(f'Error inesperado al enviar pedido {pedido_id} a n8n: {e}')
         flash('Error al enviar a n8n. Intente de nuevo.', 'danger')
         return redirect(url_for('lista_pedidos'))
 
-    # Marcar como facturado si todo fue bien
+    # ── Extraer invoice_id de la respuesta N8N ──
+    invoice_id = None
+    try:
+        resp_data = resp.json()
+        invoice_id = resp_data.get('invoice_id')
+    except Exception:
+        app.logger.warning(f'No se pudo parsear JSON de respuesta n8n para pedido {pedido_id}')
+
+    # ── Transacción atómica: marcar como facturado ──
     pedido.estado = 'facturado'
+    pedido.invoice_id_qbo = invoice_id
     pedido.fecha_facturacion = datetime.now(timezone.utc)
-    db.session.commit()
-    flash('Factura generada correctamente en QuickBooks.', 'success')
+    try:
+        db.session.commit()
+    except Exception as e:
+        app.logger.critical(f'CRITICAL: Webhook exitoso pero commit falló para pedido {pedido_id}: {e}')
+        db.session.rollback()
+        flash('Error interno al guardar. El pedido fue enviado a QuickBooks pero no se marcó como facturado. Contacte soporte.', 'danger')
+        return redirect(url_for('lista_pedidos'))
+
+    if invoice_id:
+        flash(f'Factura generada: {invoice_id}', 'success')
+    else:
+        flash('Factura generada correctamente en QuickBooks.', 'success')
     return redirect(url_for('lista_pedidos'))
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS

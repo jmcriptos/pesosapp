@@ -1,5 +1,14 @@
 <!-- templates/preparar_pedido.html -->
 <h2>Preparar Pedido #{{ pedido.id }}</h2>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-errors">
+    {% for category, message in messages %}
+    <p class="flash-{{ category }}">{{ message }}</p>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
 <form method="POST">
     <!-- US01: hidden CSRF field -->
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -8,32 +17,64 @@
             <tr>
                 <th>Producto</th>
                 <th>Cajas Solicitadas</th>
-                <th>Cajas Entregadas</th>
+                <th>Cajas/Unidades Entregadas</th>
                 <th>Peso Real (kg)</th>
-                <th>Lote</th>
-                <th>Fecha Fab.</th>
-                <th>Fecha Exp.</th>
+                <th>Diferencia</th>
+                <th>Lote <span class="campo-obligatorio">*</span></th>
+                <th>Fecha Fab. <span class="campo-obligatorio">*</span></th>
+                <th>Fecha Exp. <span class="campo-obligatorio">*</span></th>
             </tr>
         </thead>
         <tbody>
             {% for detalle in pedido.detalles %}
             <tr>
                 <td>{{ detalle.producto.nombre }}</td>
-                <td>{{ detalle.cantidad_cajas }}</td>
-                <td><input type="number" name="entregadas_{{detalle.id}}" min="0" value="{{ detalle.cantidad_cajas }}"></td>
+                <td>{{ detalle.cajas }} cajas</td>
+                <td><input type="number" name="entregadas_{{detalle.id}}" min="0" value="{{ detalle.cajas }}"></td>
                 <td>
                     {% if detalle.producto.se_pesa %}
-                    <input type="number" step="0.01" name="peso_{{detalle.id}}" min="0">
+                    <input type="number" step="0.01" name="peso_{{detalle.id}}" min="0" value="{{ detalle.peso or '' }}">
                     {% else %}
                     <input type="number" step="0.01" disabled placeholder="N/A">
                     {% endif %}
                 </td>
-                <td><input type="text" name="lote_{{detalle.id}}"></td>
-                <td><input type="date" name="fab_{{detalle.id}}"></td>
-                <td><input type="date" name="exp_{{detalle.id}}"></td>
+                <td class="diferencia" data-pedido="{{ detalle.cajas }}" data-input="entregadas_{{detalle.id}}">0</td>
+                <td><input type="text" name="lote_{{detalle.id}}" value="{{ detalle.lote or '' }}" required></td>
+                <td><input type="date" name="fab_{{detalle.id}}" value="{{ detalle.fecha_fabricacion or '' }}" required></td>
+                <td><input type="date" name="exp_{{detalle.id}}" value="{{ detalle.fecha_expiracion or '' }}" required></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     <button type="submit">Finalizar Preparación</button>
 </form>
+<style>
+    .diferencia-faltante { color: red; font-weight: bold; }
+    .campo-obligatorio { color: red; font-weight: bold; }
+    .flash-errors { margin-bottom: 1em; }
+    .flash-error { color: red; margin: 0.25em 0; }
+    .flash-success { color: green; margin: 0.25em 0; }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.diferencia').forEach(function(cell) {
+        var pedido = parseInt(cell.dataset.pedido) || 0;
+        var inputName = cell.dataset.input;
+        var input = document.querySelector('input[name="' + inputName + '"]');
+        if (input) {
+            function updateDiff() {
+                var entregado = parseInt(input.value) || 0;
+                var diff = pedido - entregado;
+                cell.textContent = diff;
+                if (diff > 0) {
+                    cell.classList.add('diferencia-faltante');
+                } else {
+                    cell.classList.remove('diferencia-faltante');
+                }
+            }
+            input.addEventListener('input', updateDiff);
+            updateDiff();
+        }
+    });
+});
+</script>
