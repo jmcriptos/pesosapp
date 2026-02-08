@@ -16,13 +16,16 @@
 {% set pedidos_mes_v = (pedidos_mes or 0)|int %}
 {% set pedidos_semana_v = (pedidos_semana or 0)|int %}
 {% set otd_rate_v = (otd_rate or 0)|float %}
-{% set fill_rate_v = (fill_rate or 0)|float %}
-{% set order_accuracy_v = (order_accuracy or 0)|float %}
+{% set order_completion_rate_v = (order_completion_rate or 0)|float %}
+{% set perfect_order_rate_v = (perfect_order_rate or 0)|float %}
+{% set customer_engagement_v = (customer_engagement or 0)|float %}
 {% set meta_mensual_v = (meta_mensual or 0)|float %}
 {% set porcentaje_meta_v = (porcentaje_meta or 0)|float %}
 {% set pedidos_pendientes_v = (pedidos_pendientes or 0)|int %}
 {% set lead_time_promedio_v = (lead_time_promedio or 0)|float %}
 {% set max_ventas_v = (max_ventas or 0)|float %}
+{% set proyeccion_ventas_v = (proyeccion_ventas or 0)|float %}
+{% set porcentaje_proyeccion_v = (porcentaje_proyeccion or 0)|float %}
 {% set day_count = (fecha_actual.day if fecha_actual else 30)|int %}
 
 {# helpers de progreso 0..100 #}
@@ -110,60 +113,99 @@
         </div>
     </div>
 
-    <!-- KPIs Principales -->
-    <div class="kpi-grid">
-        <div class="kpi-card revenue">
-            <div class="kpi-header">
-                <div class="kpi-icon">
-                    <i class="fas fa-dollar-sign"></i>
+    <!-- ◆ OBJETIVOS DE VENTAS -->
+    <div class="dashboard-section sales-section">
+        <h2 class="section-title"><i class="fas fa-chart-bar"></i> Objetivos de Ventas</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card revenue">
+                <div class="kpi-header">
+                    <div class="kpi-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    {% set ref = ventas_semana_v * 4 %}
+                    {% set pct_revenue = ((ventas_mes_v - ref) / ref * 100) if ref > 0 else 0 %}
+                    <div class="kpi-trend {% if pct_revenue >= 0 %}up{% else %}down{% endif %}">
+                        <i class="fas fa-arrow-{% if pct_revenue >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{{ '+' if pct_revenue >= 0 else '-' }}{{ '%.1f' % (pct_revenue|abs) }}%</span>
+                    </div>
                 </div>
-                {% set ref = ventas_semana_v * 4 %}
-                {% set pct_revenue = ((ventas_mes_v - ref) / ref * 100) if ref > 0 else 0 %}
-                <div class="kpi-trend {% if pct_revenue >= 0 %}up{% else %}down{% endif %}">
-                    <i class="fas fa-arrow-{% if pct_revenue >= 0 %}up{% else %}down{% endif %}"></i>
-                    <span>{{ '+' if pct_revenue >= 0 else '-' }}{{ '%.1f' % (pct_revenue|abs) }}%</span>
+                <div class="kpi-content">
+                    <h3>Ventas del Mes</h3>
+                    <div class="kpi-value">XCG {{ '{:,.0f}'.format(ventas_mes_v) }}</div>
+                    <div class="kpi-subtitle">{{ pedidos_mes_v }} pedidos</div>
+                </div>
+                <div class="kpi-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ progreso_meta }}%"></div>
+                    </div>
+                    <small>Meta: XCG {{ '{:,.2f}'.format(meta_mensual_v) }}</small>
                 </div>
             </div>
-            <div class="kpi-content">
-                <h3>Ventas del Mes</h3>
-                <div class="kpi-value">XCG {{ '{:,.0f}'.format(ventas_mes_v) }}</div>
-                <div class="kpi-subtitle">{{ pedidos_mes_v }} pedidos</div>
-            </div>
-            <div class="kpi-progress">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: {{ progreso_meta }}%"></div>
+
+            <div class="kpi-card orders">
+                <div class="kpi-header">
+                    <div class="kpi-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    {% set denom_orders_raw = pedidos_semana_v * 4 %}
+                    {% set denom_orders = denom_orders_raw if denom_orders_raw > 0 else 1 %}
+                    {% set pct_orders = ((pedidos_mes_v / denom_orders) - 1) * 100 %}
+                    <div class="kpi-trend {% if pct_orders >= 0 %}up{% else %}down{% endif %}">
+                        <i class="fas fa-arrow-{% if pct_orders >= 0 %}up{% else %}down{% endif %}"></i>
+                        <span>{{ '+' if pct_orders >= 0 else '-' }}{{ '%.1f' % (pct_orders|abs) }}%</span>
+                    </div>
                 </div>
-                <small>Meta: XCG {{ '{:,.2f}'.format(meta_mensual_v) }}</small>
+                <div class="kpi-content">
+                    <h3>Pedidos Procesados</h3>
+                    <div class="kpi-value">{{ pedidos_mes_v }}</div>
+                    <div class="kpi-subtitle">este mes</div>
+                </div>
+                <div class="kpi-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Promedio/día</span>
+                        {% set prom_dia = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
+                        <span class="metric-value">{{ '%.1f' % prom_dia }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card projection">
+                <div class="kpi-header">
+                    <div class="kpi-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    {% set proj_trend_class = 'up' if porcentaje_proyeccion_v >= 100 else ('neutral' if porcentaje_proyeccion_v >= 80 else 'down') %}
+                    {% set proj_icon_class = 'arrow-up' if porcentaje_proyeccion_v >= 100 else ('minus' if porcentaje_proyeccion_v >= 80 else 'arrow-down') %}
+                    <div class="kpi-trend {{ proj_trend_class }}">
+                        <i class="fas fa-{{ proj_icon_class }}"></i>
+                        <span>{{ '%.0f' % porcentaje_proyeccion_v }}%</span>
+                    </div>
+                </div>
+                <div class="kpi-content">
+                    <h3>Proyección Fin de Mes</h3>
+                    {% if proyeccion_ventas_v > 0 %}
+                    <div class="kpi-value">XCG {{ '{:,.0f}'.format(proyeccion_ventas_v) }}</div>
+                    {% else %}
+                    <div class="kpi-value kpi-value-muted">Insuficiente</div>
+                    {% endif %}
+                    <div class="kpi-subtitle">estimado a {{ dias_total_mes|default(30) }} días</div>
+                </div>
+                <div class="kpi-progress">
+                    {% set progreso_proy = 0 if porcentaje_proyeccion_v < 0 else (100 if porcentaje_proyeccion_v > 100 else porcentaje_proyeccion_v) %}
+                    {% set proy_bar_class = 'excellent' if porcentaje_proyeccion_v >= 100 else ('good' if porcentaje_proyeccion_v >= 80 else 'poor') %}
+                    <div class="progress-bar">
+                        <div class="progress-fill {{ proy_bar_class }}" style="width: {{ progreso_proy }}%"></div>
+                    </div>
+                    <small>{{ '%.0f' % porcentaje_proyeccion_v }}% de meta</small>
+                </div>
             </div>
         </div>
+    </div>
 
-        <div class="kpi-card orders">
-            <div class="kpi-header">
-                <div class="kpi-icon">
-                    <i class="fas fa-shopping-cart"></i>
-                </div>
-                {% set denom_orders_raw = pedidos_semana_v * 4 %}
-                {% set denom_orders = denom_orders_raw if denom_orders_raw > 0 else 1 %}
-                {% set pct_orders = ((pedidos_mes_v / denom_orders) - 1) * 100 %}
-                <div class="kpi-trend {% if pct_orders >= 0 %}up{% else %}down{% endif %}">
-                    <i class="fas fa-arrow-{% if pct_orders >= 0 %}up{% else %}down{% endif %}"></i>
-                    <span>{{ '+' if pct_orders >= 0 else '-' }}{{ '%.1f' % (pct_orders|abs) }}%</span>
-                </div>
-            </div>
-            <div class="kpi-content">
-                <h3>Pedidos Procesados</h3>
-                <div class="kpi-value">{{ pedidos_mes_v }}</div>
-                <div class="kpi-subtitle">este mes</div>
-            </div>
-            <div class="kpi-metrics">
-                <div class="metric">
-                    <span class="metric-label">Promedio/día</span>
-                    {% set prom_dia = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
-                    <span class="metric-value">{{ '%.1f' % prom_dia }}</span>
-                </div>
-            </div>
-        </div>
-
+    <!-- ◆ NIVEL DE SERVICIO -->
+    <div class="dashboard-section service-section">
+        <h2 class="section-title"><i class="fas fa-headset"></i> Nivel de Servicio</h2>
+        <div class="kpi-grid">
         <div class="kpi-card otd">
             <div class="kpi-header">
                 <div class="kpi-icon">
@@ -199,36 +241,70 @@
                 <div class="kpi-icon">
                     <i class="fas fa-clipboard-check"></i>
                 </div>
-                {% set fill_trend_class = 'up' if fill_rate_v >= 95 else ('neutral' if fill_rate_v >= 85 else 'down') %}
-                {% set fill_icon_class = 'arrow-up' if fill_rate_v >= 95 else ('minus' if fill_rate_v >= 85 else 'arrow-down') %}
-                <div class="kpi-trend {{ fill_trend_class }}">
-                    <i class="fas fa-{{ fill_icon_class }}"></i>
-                    <span>{{ '%.1f' % fill_rate_v }}%</span>
+                {% set ocr_trend_class = 'up' if order_completion_rate_v >= 95 else ('neutral' if order_completion_rate_v >= 85 else 'down') %}
+                {% set ocr_icon_class = 'arrow-up' if order_completion_rate_v >= 95 else ('minus' if order_completion_rate_v >= 85 else 'arrow-down') %}
+                <div class="kpi-trend {{ ocr_trend_class }}">
+                    <i class="fas fa-{{ ocr_icon_class }}"></i>
+                    <span>{{ '%.1f' % order_completion_rate_v }}%</span>
                 </div>
             </div>
             <div class="kpi-content">
-                <h3>Order Fill Rate</h3>
-                <div class="kpi-value">{{ '%.1f' % fill_rate_v }}%</div>
+                <h3>Order Completion Rate</h3>
+                <div class="kpi-value">{{ '%.1f' % order_completion_rate_v }}%</div>
                 <div class="kpi-subtitle">pedidos completados</div>
             </div>
             <div class="performance-bars">
                 <div class="bar-item">
-                    <span>Fill Rate</span>
+                    <span>Completion Rate</span>
                     <div class="mini-bar">
-                        {% set fill_width = 0 if fill_rate_v < 0 else (100 if fill_rate_v > 100 else fill_rate_v) %}
-                        {% set fill_class = 'excellent' if fill_rate_v >= 95 else ('good' if fill_rate_v >= 85 else 'poor') %}
-                        <div class="mini-fill {{ fill_class }}" style="width: {{ fill_width }}%"></div>
+                        {% set ocr_width = 0 if order_completion_rate_v < 0 else (100 if order_completion_rate_v > 100 else order_completion_rate_v) %}
+                        {% set ocr_class = 'excellent' if order_completion_rate_v >= 95 else ('good' if order_completion_rate_v >= 85 else 'poor') %}
+                        <div class="mini-fill {{ ocr_class }}" style="width: {{ ocr_width }}%"></div>
                     </div>
-                    <span>{{ '%.1f' % fill_rate_v }}%</span>
+                    <span>{{ '%.1f' % order_completion_rate_v }}%</span>
                 </div>
-                <div class="bar-item">
-                    <span>Accuracy</span>
-                    <div class="mini-bar">
-                        {% set accuracy_width = 0 if order_accuracy_v < 0 else (100 if order_accuracy_v > 100 else order_accuracy_v) %}
-                        {% set accuracy_class = 'excellent' if order_accuracy_v >= 95 else ('good' if order_accuracy_v >= 85 else 'poor') %}
-                        <div class="mini-fill {{ accuracy_class }}" style="width: {{ accuracy_width }}%"></div>
-                    </div>
-                    <span>{{ '%.1f' % order_accuracy_v }}%</span>
+            </div>
+        </div>
+    </div>
+        <div class="service-metrics-inline">
+            <div class="metric-item">
+                {% set ce_metric_class = 'excellent' if customer_engagement_v >= 80 else ('good' if customer_engagement_v >= 60 else 'warning') %}
+                <div class="metric-circle {{ ce_metric_class }}">
+                    <span>{{ '%.0f' % customer_engagement_v }}%</span>
+                </div>
+                <div class="metric-info">
+                    <h4>Customer Engagement</h4>
+                    <p>Clientes activos del mes</p>
+                </div>
+            </div>
+            <div class="metric-item">
+                {% set por_metric_class = 'excellent' if perfect_order_rate_v >= 95 else ('good' if perfect_order_rate_v >= 85 else 'warning') %}
+                <div class="metric-circle {{ por_metric_class }}">
+                    <span>{{ '%.0f' % perfect_order_rate_v }}%</span>
+                </div>
+                <div class="metric-info">
+                    <h4>Perfect Order Rate</h4>
+                    <p>Entregas perfectas (a tiempo)</p>
+                </div>
+            </div>
+            <div class="metric-item">
+                {% set lead_metric_class = 'excellent' if lead_time_promedio_v <= 2 else ('good' if lead_time_promedio_v <= 4 else 'warning') %}
+                <div class="metric-circle {{ lead_metric_class }}">
+                    <span>{{ lead_time_promedio_v|round(1) }}d</span>
+                </div>
+                <div class="metric-info">
+                    <h4>Lead Time</h4>
+                    <p>Promedio de procesamiento</p>
+                </div>
+            </div>
+            <div class="metric-item">
+                {% set pending_metric_class = 'excellent' if pedidos_pendientes_v == 0 else ('warning' if pedidos_pendientes_v <= 5 else 'urgent') %}
+                <div class="metric-circle {{ pending_metric_class }}">
+                    <span>{{ pedidos_pendientes_v }}</span>
+                </div>
+                <div class="metric-info">
+                    <h4>Pendientes</h4>
+                    <p>Requieren seguimiento</p>
                 </div>
             </div>
         </div>
@@ -282,9 +358,8 @@
             <div class="chart-header">
                 <h3>Evolución de Indicadores - Últimos 6 Meses</h3>
                 <div class="kpi-legend">
-                    <span class="legend-item"><span class="legend-dot fill-rate"></span> Fill Rate</span>
+                    <span class="legend-item"><span class="legend-dot fill-rate"></span> Order Completion</span>
                     <span class="legend-item"><span class="legend-dot otd"></span> OTD</span>
-                    <span class="legend-item"><span class="legend-dot accuracy"></span> Accuracy</span>
                 </div>
             </div>
             <div class="chart-container" style="height: 280px;">
@@ -295,14 +370,11 @@
                 <div class="kpi-month-card">
                     <span class="month-label">{{ kpi.mes }}</span>
                     <div class="month-metrics">
-                        <span class="metric {{ 'good' if kpi.fill_rate >= 80 else 'warning' }}">
-                            <i class="fas fa-clipboard-check"></i> {{ kpi.fill_rate }}%
+                        <span class="metric {{ 'good' if kpi.order_completion_rate >= 80 else 'warning' }}">
+                            <i class="fas fa-clipboard-check"></i> {{ kpi.order_completion_rate }}%
                         </span>
                         <span class="metric {{ 'good' if kpi.otd_rate >= 90 else 'warning' }}">
                             <i class="fas fa-truck"></i> {{ kpi.otd_rate }}%
-                        </span>
-                        <span class="metric {{ 'good' if kpi.order_accuracy >= 95 else 'warning' }}">
-                            <i class="fas fa-check-double"></i> {{ kpi.order_accuracy }}%
                         </span>
                     </div>
                 </div>
@@ -340,45 +412,6 @@
                     </div>
                 </div>
                 {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Métricas de Servicio -->
-    <div class="performance-section">
-        <div class="metrics-card">
-            <h3>Métricas de Servicio</h3>
-            <div class="service-metrics">
-                <div class="metric-item">
-                    {% set fill_metric_class = 'excellent' if fill_rate_v >= 95 else ('good' if fill_rate_v >= 85 else 'warning') %}
-                    <div class="metric-circle {{ fill_metric_class }}">
-                        <span>{{ '%.0f' % fill_rate_v }}%</span>
-                    </div>
-                    <div class="metric-info">
-                        <h4>Fill Rate</h4>
-                        <p>Pedidos completados</p>
-                    </div>
-                </div>
-                <div class="metric-item">
-                    {% set lead_metric_class = 'excellent' if lead_time_promedio_v <= 2 else ('good' if lead_time_promedio_v <= 4 else 'warning') %}
-                    <div class="metric-circle {{ lead_metric_class }}">
-                        <span>{{ lead_time_promedio_v|round(1) }}d</span>
-                    </div>
-                    <div class="metric-info">
-                        <h4>Tiempo de Respuesta</h4>
-                        <p>Promedio de procesamiento</p>
-                    </div>
-                </div>
-                <div class="metric-item">
-                    {% set pending_metric_class = 'excellent' if pedidos_pendientes_v == 0 else ('warning' if pedidos_pendientes_v <= 5 else 'urgent') %}
-                    <div class="metric-circle {{ pending_metric_class }}">
-                        <span>{{ pedidos_pendientes_v }}</span>
-                    </div>
-                    <div class="metric-info">
-                        <h4>Pendientes</h4>
-                        <p>Requieren seguimiento</p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -956,6 +989,69 @@
 .kpi-card.orders { --gradient-start: #3b82f6; --gradient-end: #1d4ed8; --glow-color: rgba(59, 130, 246, 0.3); }
 .kpi-card.otd { --gradient-start: #f59e0b; --gradient-end: #d97706; --glow-color: rgba(245, 158, 11, 0.3); }
 .kpi-card.fillrate { --gradient-start: #8b5cf6; --gradient-end: #6d28d9; --glow-color: rgba(139, 92, 246, 0.3); }
+.kpi-card.projection { --gradient-start: #06b6d4; --gradient-end: #0891b2; --glow-color: rgba(6, 182, 212, 0.3); }
+
+/* === DASHBOARD SECTIONS === */
+.dashboard-section {
+    margin-bottom: 32px;
+    position: relative;
+    z-index: 1;
+}
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0 0 20px 0;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: 0.02em;
+}
+.section-title i {
+    font-size: 1.1rem;
+    opacity: 0.8;
+}
+
+/* Service metrics row inside Nivel de Servicio */
+.service-metrics-inline {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+    padding: 0 4px;
+}
+.service-metrics-inline .metric-item {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    animation: metricFadeIn 0.5s ease-out backwards;
+}
+.service-metrics-inline .metric-item:nth-child(1) { animation-delay: 0.1s; }
+.service-metrics-inline .metric-item:nth-child(2) { animation-delay: 0.2s; }
+.service-metrics-inline .metric-item:nth-child(3) { animation-delay: 0.3s; }
+.service-metrics-inline .metric-item:nth-child(4) { animation-delay: 0.4s; }
+.service-metrics-inline .metric-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+/* Projection card muted value */
+.kpi-value-muted {
+    color: #9ca3af;
+    font-size: 1.4rem;
+}
+
+/* Projection progress bar colors */
+.progress-fill.excellent { background: linear-gradient(90deg, #10b981, #059669); }
+.progress-fill.good { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.progress-fill.poor { background: linear-gradient(90deg, #ef4444, #dc2626); }
 
 /* Hover effects with 3D perspective */
 .kpi-card:hover {
@@ -1326,7 +1422,6 @@
 .response-fill.excellent{background:#10b981}
 .response-fill.good{background:#f59e0b}
 .response-fill.poor{background:#ef4444}
-.performance-section{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;margin-bottom:32px}
 .top-products-card,.metrics-card{background:white;border-radius:20px;padding:28px;box-shadow:0 10px 25px -5px rgba(0,0,0,.1)}
 .products-list{display:flex;flex-direction:column;gap:16px}
 .product-item{display:flex;align-items:center;gap:16px;padding:16px;background:#f9fafb;border-radius:12px;transition:transform .2s}
@@ -1892,7 +1987,7 @@
     padding-top: 16px;
     border-top: 1px solid rgba(243, 244, 246, 0.8);
 }
-@media (max-width:1200px){.charts-section{grid-template-columns:1fr}.performance-section{grid-template-columns:1fr}.activity-section{grid-template-columns:1fr}}
+@media (max-width:1200px){.charts-section{grid-template-columns:1fr}.activity-section{grid-template-columns:1fr}}
 
 /* ============================================
    MOBILE RESPONSIVE STYLES
@@ -2062,11 +2157,6 @@
         gap: 8px;
     }
 
-    /* Secciones de rendimiento */
-    .performance-section {
-        gap: 16px;
-        margin-bottom: 20px;
-    }
     .top-products-card, .metrics-card {
         padding: 20px;
         border-radius: 16px;
@@ -2434,10 +2524,6 @@
     }
 
     /* Productos compactos */
-    .performance-section {
-        gap: 12px;
-        margin-bottom: 16px;
-    }
     .top-products-card, .metrics-card {
         padding: 16px;
         border-radius: 12px;
@@ -3298,8 +3384,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: kpisHistoricos.map(k => k.mes),
                 datasets: [
                     {
-                        label: 'Fill Rate (%)',
-                        data: kpisHistoricos.map(k => k.fill_rate),
+                        label: 'Order Completion (%)',
+                        data: kpisHistoricos.map(k => k.order_completion_rate),
                         borderColor: '#8b5cf6',
                         backgroundColor: 'rgba(139, 92, 246, 0.1)',
                         borderWidth: 3,
@@ -3320,20 +3406,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         fill: true,
                         tension: 0.4,
                         pointBackgroundColor: '#f59e0b',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    },
-                    {
-                        label: 'Accuracy (%)',
-                        data: kpisHistoricos.map(k => k.order_accuracy),
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#10b981',
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
                         pointRadius: 5,

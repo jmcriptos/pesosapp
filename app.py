@@ -1,4 +1,5 @@
 import os
+import calendar
 import secrets
 from dotenv import load_dotenv
 load_dotenv()
@@ -2319,14 +2320,12 @@ def dashboard():
         # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
         # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
 
-        palabras_error = {'error', 'corrección', 'corregir', 'incorrecto', 'mal'}
-
         # Función helper para calcular KPIs de un período
         def calcular_kpis_periodo(pedidos_periodo):
             """Calcula todos los KPIs para un período dado"""
             if not pedidos_periodo:
                 return {
-                    'fill_rate': 0, 'otd_rate': 0, 'order_accuracy': 100,
+                    'order_completion_rate': 0, 'otd_rate': 0,
                     'lead_time': 0, 'total_pedidos': 0, 'ventas': 0
                 }
 
@@ -2340,7 +2339,7 @@ def dashboard():
                 if dias >= 0:
                     lead_times_p.append(dias)
 
-            # Fill Rate
+            # Order Completion Rate (antes Fill Rate — misma fórmula, nombre honesto)
             estados = {'facturado': 0, 'pendiente': 0, 'listo': 0}
             for p in pedidos_periodo:
                 estado = p.estado or 'otros'
@@ -2348,28 +2347,28 @@ def dashboard():
                     estados[estado] += 1
             completos = estados['facturado']
             total_eval = completos + estados['pendiente'] + estados['listo']
-            fill_rate_p = (completos / total_eval * 100) if total_eval > 0 else 0
+            order_completion_rate_p = (completos / total_eval * 100) if total_eval > 0 else 0
 
-            # OTD Rate
+            # OTD Rate corregido — incluye pendientes vencidos como "fuera de tiempo"
             a_tiempo = sum(1 for lt in lead_times_p if lt <= 2)
-            otd_p = (a_tiempo / len(lead_times_p) * 100) if lead_times_p else 0
-
-            # Order Accuracy
-            con_errores = sum(1 for p in pedidos_periodo
-                            if p.notas and any(e in p.notas.lower() for e in palabras_error))
-            total_p = len(pedidos_periodo)
-            accuracy_p = ((total_p - con_errores) / total_p * 100) if total_p > 0 else 100
+            pendientes_vencidos = sum(
+                1 for p in pedidos_periodo
+                if p.estado in ('pendiente', 'listo')
+                and (hoy - p.fecha_pedido.date()).days > 2
+            )
+            total_otd = len(lead_times_p) + pendientes_vencidos
+            otd_p = (a_tiempo / total_otd * 100) if total_otd > 0 else 100
 
             # Ventas del período
+            total_p = len(pedidos_periodo)
             ventas_p = sum(
                 sum(float(d.subtotal or 0) for d in p.detalles)
                 for p in pedidos_periodo if p.estado == 'facturado'
             )
 
             return {
-                'fill_rate': round(fill_rate_p, 1),
+                'order_completion_rate': round(order_completion_rate_p, 1),
                 'otd_rate': round(otd_p, 1),
-                'order_accuracy': round(accuracy_p, 1),
                 'lead_time': round(sum(lead_times_p) / len(lead_times_p), 1) if lead_times_p else 0,
                 'total_pedidos': total_p,
                 'ventas': ventas_p
@@ -2380,12 +2379,12 @@ def dashboard():
 
         # Extraer valores para compatibilidad con template existente
         pedidos_facturados = [p for p in pedidos_mes_list if p.estado == 'facturado' and p.fecha_facturacion]
-        lead_times = [(p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-                     for p in pedidos_facturados if p.fecha_facturacion]
+        lead_times = [dias for p in pedidos_facturados if p.fecha_facturacion
+                     for dias in [(p.fecha_facturacion.date() - p.fecha_pedido.date()).days]
+                     if dias >= 0]
         lead_time_promedio = kpis_mes_actual['lead_time']
-        fill_rate = kpis_mes_actual['fill_rate']
+        order_completion_rate = kpis_mes_actual['order_completion_rate']
         otd_rate = kpis_mes_actual['otd_rate']
-        order_accuracy = kpis_mes_actual['order_accuracy']
 
         # === HISTÓRICO DE KPIs (ÚLTIMOS 6 MESES) ===
         kpis_historicos = []
@@ -2425,19 +2424,17 @@ def dashboard():
         # Invertir para que el más antiguo esté primero
         kpis_historicos.reverse()
 
-        # Perfect order rate del mes actual
-        perfect_orders = 0
-        for i, p in enumerate(pedidos_facturados):
-            if i < len(lead_times):
-                dias_lead = lead_times[i]
-                tiene_errores = (p.notas and
-                               any(palabra in p.notas.lower() for palabra in palabras_error))
-                if dias_lead <= 2 and not tiene_errores:
-                    perfect_orders += 1
-
+        # Perfect order rate del mes actual (simplificado: solo OTD)
+        perfect_orders = sum(1 for lt in lead_times if lt <= 2)
+        pendientes_vencidos_mes = sum(
+            1 for p in pedidos_mes_list
+            if p.estado in ('pendiente', 'listo')
+            and (hoy - p.fecha_pedido.date()).days > 2
+        )
+        total_evaluado_por = len(pedidos_facturados) + pendientes_vencidos_mes
         perfect_order_rate = (
-            (perfect_orders / len(pedidos_facturados) * 100)
-            if pedidos_facturados else 0
+            (perfect_orders / total_evaluado_por * 100)
+            if total_evaluado_por > 0 else 0
         )
 
         # 6. Customer engagement optimizado
@@ -2549,8 +2546,7 @@ def dashboard():
         top_clientes = sorted(
             clientes_ventas.items(), key=lambda x: x[1]['total'], reverse=True
         )[:5]
-        
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
+
         # === TENDENCIA SEMANAL (excluyendo AL01) ===
         tendencia_semanal = []
         for i in range(8):
@@ -2573,7 +2569,6 @@ def dashboard():
                 }
             )
         tendencia_semanal.reverse()
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === ESTADOS DE PEDIDOS ===
         estados_count = {}
@@ -2588,7 +2583,6 @@ def dashboard():
             'facturado': estados_count.get('facturado', 0),
             **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'listo', 'facturado']}
         }
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === PEDIDOS RECIENTES (excluyendo AL01) ===
         recientes_query = Pedido.query
@@ -2618,14 +2612,24 @@ def dashboard():
                 'pedidos': len(pedidos_dia)
             })
         ventas_dias.reverse()
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === CALCULAR PORCENTAJE DE META ===
-        meta_mensual = 120000.00  # Meta en XCG
+        try:
+            meta_mensual = float(os.environ.get('MONTHLY_SALES_TARGET', '120000'))
+        except (ValueError, TypeError):
+            meta_mensual = 120000.0
         porcentaje_meta = (ventas_mes / meta_mensual * 100) if meta_mensual > 0 else 0
 
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
-# === TIEMPO DE RESPUESTA POR CLIENTE ===
+        # === PROYECCIÓN DE VENTAS A FIN DE MES ===
+        dias_transcurridos = hoy.day
+        dias_total_mes = calendar.monthrange(hoy.year, hoy.month)[1]
+        if dias_transcurridos >= 2:
+            proyeccion_ventas = ventas_mes / dias_transcurridos * dias_total_mes
+        else:
+            proyeccion_ventas = 0
+        porcentaje_proyeccion = (proyeccion_ventas / meta_mensual * 100) if meta_mensual > 0 else 0
+
+        # === TIEMPO DE RESPUESTA POR CLIENTE ===
         tiempos_respuesta_cliente = {}
         for p in pedidos_30_dias:
             if p.cliente and p.fecha_facturacion:
@@ -2644,7 +2648,6 @@ def dashboard():
                 'pedidos': len(tiempos)
             })
         tiempo_respuesta_data = sorted(tiempo_respuesta_data, key=lambda x: x['promedio'])[:10]
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
         # === RENDER ===
         return render_template(
@@ -2657,12 +2660,16 @@ def dashboard():
             pedidos_pendientes=pedidos_pendientes,
             meta_mensual=meta_mensual,
             porcentaje_meta=porcentaje_meta,
+            proyeccion_ventas=round(proyeccion_ventas, 2),
+            porcentaje_proyeccion=round(porcentaje_proyeccion, 1),
+            dias_total_mes=dias_total_mes,
             
             # KPIs de servicio (actualizados)
             lead_time_promedio=round(lead_time_promedio, 1),
-            fill_rate=round(fill_rate, 1),
+            order_completion_rate=round(order_completion_rate, 1),
             otd_rate=round(otd_rate, 1),
-            order_accuracy=round(order_accuracy, 1),
+            perfect_order_rate=round(perfect_order_rate, 1),
+            customer_engagement=round(customer_engagement, 1),
             
             # Datos para gráficos
             top_clientes=top_clientes,
@@ -2681,24 +2688,31 @@ def dashboard():
             # Configuración
             moneda='XCG'
         )
-        app.logger.info(f"pedidos_mes={len(pedidos_mes_list)} pedidos_semana={len(pedidos_semana_list)} ult30={len(pedidos_30_dias)}")
 
     except Exception as e:
         app.logger.exception(f'Error crítico en /dashboard: {e}')
         
         # Datos de fallback para evitar error 500
+        try:
+            _fallback_meta = float(os.environ.get('MONTHLY_SALES_TARGET', '120000'))
+        except (ValueError, TypeError):
+            _fallback_meta = 120000.0
         fallback_data = {
             'ventas_mes': 0,
             'pedidos_mes': 0,
             'ventas_semana': 0,
             'pedidos_semana': 0,
             'pedidos_pendientes': 0,
-            'meta_mensual': 120000.00,
+            'meta_mensual': _fallback_meta,
             'porcentaje_meta': 0,
+            'proyeccion_ventas': 0,
+            'porcentaje_proyeccion': 0,
+            'dias_total_mes': calendar.monthrange(datetime.now().year, datetime.now().month)[1],
             'lead_time_promedio': 0,
-            'fill_rate': 0,
+            'order_completion_rate': 0,
             'otd_rate': 0,
-            'order_accuracy': 100,
+            'perfect_order_rate': 0,
+            'customer_engagement': 0,
             'top_clientes': [],
             'top_productos': [],
             'max_ventas': 1,
