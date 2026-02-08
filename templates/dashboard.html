@@ -317,8 +317,8 @@
                 <h3>Tendencia de Ventas - Últimas 8 Semanas</h3>
                 <div class="chart-controls">
                     <button class="chart-btn active" data-period="8w">8 Semanas</button>
-                    <button class="chart-btn" data-period="30d">30 Días</button>
-                    <button class="chart-btn" data-period="7d">7 Días</button>
+                    <button class="chart-btn" data-period="4w">4 Semanas</button>
+                    <button class="chart-btn" data-period="1w">Esta Semana</button>
                 </div>
             </div>
             <div class="chart-container">
@@ -3236,29 +3236,42 @@ document.addEventListener('DOMContentLoaded', function() {
         const chartTitle = document.querySelector('.main-chart .chart-header h3');
 
         // Datos para diferentes períodos
+        const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+        // "Esta Semana": calcular días desde lunes hasta hoy
+        const hoyJS = new Date();
+        const diasDesdeLunes = (hoyJS.getDay() + 6) % 7; // 0=Lun, 6=Dom
+        const diasEstaSemana = diasDesdeLunes + 1;
+        const datosEstaSemana = ventasDiarias.slice(-diasEstaSemana);
+
         const periodData = {
             '8w': {
                 labels: tendenciaData.map(d => d.semana || ''),
                 sales: tendenciaData.map(d => d.ventas || 0),
                 orders: tendenciaData.map(d => d.pedidos || 0),
-                title: 'Tendencia de Ventas - Últimas 8 Semanas'
+                title: 'Tendencia de Ventas - Últimas 8 Semanas',
+                salesLabel: 'Ventas Semanales (XCG)',
+                ordersLabel: 'Número de Pedidos'
             },
-            '30d': {
-                labels: ventasDiarias.slice(-30).map((d, i) => `Día ${i + 1}`),
-                sales: ventasDiarias.slice(-30).map(d => d.ventas || d || 0),
-                orders: ventasDiarias.slice(-30).map(d => d.pedidos || 1),
-                title: 'Tendencia de Ventas - Últimos 30 Días'
+            '4w': {
+                labels: tendenciaData.slice(-4).map(d => d.semana || ''),
+                sales: tendenciaData.slice(-4).map(d => d.ventas || 0),
+                orders: tendenciaData.slice(-4).map(d => d.pedidos || 0),
+                title: 'Tendencia de Ventas - Últimas 4 Semanas',
+                salesLabel: 'Ventas Semanales (XCG)',
+                ordersLabel: 'Número de Pedidos'
             },
-            '7d': {
-                labels: ventasDiarias.slice(-7).map((d, i) => {
-                    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-                    const fecha = new Date();
-                    fecha.setDate(fecha.getDate() - (6 - i));
-                    return dias[fecha.getDay()];
+            '1w': {
+                labels: datosEstaSemana.map((d, i) => {
+                    const f = new Date();
+                    f.setDate(f.getDate() - (diasEstaSemana - 1 - i));
+                    return diasNombres[f.getDay()] + ' ' + (d.fecha || '');
                 }),
-                sales: ventasDiarias.slice(-7).map(d => d.ventas || d || 0),
-                orders: ventasDiarias.slice(-7).map(d => d.pedidos || 1),
-                title: 'Tendencia de Ventas - Últimos 7 Días'
+                sales: datosEstaSemana.map(d => d.ventas || 0),
+                orders: datosEstaSemana.map(d => d.pedidos || 0),
+                title: 'Tendencia de Ventas - Esta Semana',
+                salesLabel: 'Ventas Diarias (XCG)',
+                ordersLabel: 'Pedidos por Día'
             }
         };
 
@@ -3274,9 +3287,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Actualizar título
                     if (chartTitle) chartTitle.textContent = data.title;
 
-                    // Actualizar datos del gráfico con animación
+                    // Actualizar labels de datasets y datos del gráfico
                     salesChart.data.labels = data.labels;
+                    salesChart.data.datasets[0].label = data.salesLabel;
                     salesChart.data.datasets[0].data = data.sales;
+                    salesChart.data.datasets[1].label = data.ordersLabel;
                     salesChart.data.datasets[1].data = data.orders;
                     salesChart.update('active');
                 }
