@@ -2553,7 +2553,8 @@ def dashboard():
             inicio_i = hoy - timedelta(days=hoy.weekday() + 7 * i)
             fin_i = inicio_i + timedelta(days=6)
             semana_query = Pedido.query.filter(
-                Pedido.fecha_pedido >= inicio_i, Pedido.fecha_pedido <= fin_i
+                db.func.date(Pedido.fecha_pedido) >= inicio_i,
+                db.func.date(Pedido.fecha_pedido) <= fin_i
             )
             if cliente_almacen_id:
                 semana_query = semana_query.filter(Pedido.cliente_id != cliente_almacen_id)
@@ -2608,7 +2609,7 @@ def dashboard():
             )
             ventas_dias.append({
                 'fecha': dia.strftime('%d/%m'),
-                'total': total_dia,
+                'ventas': total_dia,
                 'pedidos': len(pedidos_dia)
             })
         ventas_dias.reverse()
