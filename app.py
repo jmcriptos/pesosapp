@@ -2547,9 +2547,9 @@ def dashboard():
             clientes_ventas.items(), key=lambda x: x[1]['total'], reverse=True
         )[:5]
 
-        # === TENDENCIA SEMANAL (excluyendo AL01) ===
+        # === TENDENCIA SEMANAL (excluyendo AL01) — 26 semanas (6 meses) ===
         tendencia_semanal = []
-        for i in range(8):
+        for i in range(26):
             inicio_i = hoy - timedelta(days=hoy.weekday() + 7 * i)
             fin_i = inicio_i + timedelta(days=6)
             semana_query = Pedido.query.filter(

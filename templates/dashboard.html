@@ -314,11 +314,11 @@
     <div class="charts-section">
         <div class="chart-card main-chart">
             <div class="chart-header">
-                <h3>Tendencia de Ventas - Últimas 8 Semanas</h3>
+                <h3>Tendencia de Ventas - Últimos 6 Meses</h3>
                 <div class="chart-controls">
-                    <button class="chart-btn active" data-period="8w">8 Semanas</button>
+                    <button class="chart-btn active" data-period="6m">6 Meses</button>
+                    <button class="chart-btn" data-period="3m">3 Meses</button>
                     <button class="chart-btn" data-period="4w">4 Semanas</button>
-                    <button class="chart-btn" data-period="1w">Esta Semana</button>
                 </div>
             </div>
             <div class="chart-container">
@@ -1299,9 +1299,12 @@
 /* === CHARTS SECTION - PREMIUM GLASS === */
 .charts-section {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 24px;
     margin-bottom: 32px;
+}
+.charts-section .main-chart {
+    grid-column: 1 / -1;
 }
 
 .chart-card {
@@ -2025,6 +2028,24 @@
     .professional-dashboard {
         padding: 12px;
         background: #f1f5f9;
+    }
+
+    /* Section titles: dark text on light mobile background */
+    .professional-dashboard .section-title {
+        color: #1e293b;
+        text-shadow: none;
+        border-left-color: #3b82f6;
+        background: rgba(30, 41, 59, 0.06);
+    }
+    .professional-dashboard .section-title i {
+        color: #3b82f6;
+    }
+
+    /* Stat labels in executive header: ensure white on dark header */
+    .executive-header .stat-label {
+        color: #ffffff;
+        opacity: 1;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     }
 
     /* Header móvil optimizado */
@@ -3237,21 +3258,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const chartButtons = document.querySelectorAll('.chart-btn');
         const chartTitle = document.querySelector('.main-chart .chart-header h3');
 
-        // Datos para diferentes períodos
-        const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
-        // "Esta Semana": calcular días desde lunes hasta hoy
-        const hoyJS = new Date();
-        const diasDesdeLunes = (hoyJS.getDay() + 6) % 7; // 0=Lun, 6=Dom
-        const diasEstaSemana = diasDesdeLunes + 1;
-        const datosEstaSemana = ventasDiarias.slice(-diasEstaSemana);
-
+        // Datos para diferentes períodos (tendenciaData tiene 26 semanas)
         const periodData = {
-            '8w': {
+            '6m': {
                 labels: tendenciaData.map(d => d.semana || ''),
                 sales: tendenciaData.map(d => d.ventas || 0),
                 orders: tendenciaData.map(d => d.pedidos || 0),
-                title: 'Tendencia de Ventas - Últimas 8 Semanas',
+                title: 'Tendencia de Ventas - Últimos 6 Meses',
+                salesLabel: 'Ventas Semanales (XCG)',
+                ordersLabel: 'Número de Pedidos'
+            },
+            '3m': {
+                labels: tendenciaData.slice(-13).map(d => d.semana || ''),
+                sales: tendenciaData.slice(-13).map(d => d.ventas || 0),
+                orders: tendenciaData.slice(-13).map(d => d.pedidos || 0),
+                title: 'Tendencia de Ventas - Últimos 3 Meses',
                 salesLabel: 'Ventas Semanales (XCG)',
                 ordersLabel: 'Número de Pedidos'
             },
@@ -3262,18 +3283,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: 'Tendencia de Ventas - Últimas 4 Semanas',
                 salesLabel: 'Ventas Semanales (XCG)',
                 ordersLabel: 'Número de Pedidos'
-            },
-            '1w': {
-                labels: datosEstaSemana.map((d, i) => {
-                    const f = new Date();
-                    f.setDate(f.getDate() - (diasEstaSemana - 1 - i));
-                    return diasNombres[f.getDay()] + ' ' + (d.fecha || '');
-                }),
-                sales: datosEstaSemana.map(d => d.ventas || 0),
-                orders: datosEstaSemana.map(d => d.pedidos || 0),
-                title: 'Tendencia de Ventas - Esta Semana',
-                salesLabel: 'Ventas Diarias (XCG)',
-                ordersLabel: 'Pedidos por Día'
             }
         };
 
