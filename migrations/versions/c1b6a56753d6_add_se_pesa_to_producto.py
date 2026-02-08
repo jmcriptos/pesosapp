@@ -17,7 +17,7 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('producto', sa.Column('se_pesa', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+    op.add_column('producto', sa.Column('se_pesa', sa.Boolean(), nullable=False, server_default=sa.text('FALSE')))
 
 
 def downgrade():
