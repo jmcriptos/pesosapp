@@ -3563,14 +3563,22 @@ def facturar_pedido(pedido_id):
         return redirect(url_for('lista_pedidos'))
 
     # ── Validación de trazabilidad completa antes de facturar ──
+    # Aplicar la misma lógica de filtrado que pedido_a_json:
+    # manufactura (se_pesa): solo líneas de preparación
+    # importación (!se_pesa): solo línea original del pedido
     traz_errores = []
     for detalle in pedido.detalles:
+        if detalle.producto.se_pesa and detalle.es_linea_pedido:
+            continue
+        if not detalle.producto.se_pesa and not detalle.es_linea_pedido:
+            continue
+
         campos_faltantes = []
         if not detalle.lote:
             campos_faltantes.append('lote')
         if not detalle.fecha_fabricacion:
             campos_faltantes.append('fecha fabricación')
-        if not detalle.fecha_expiracion:
+        if detalle.producto.se_pesa and not detalle.fecha_expiracion:
             campos_faltantes.append('fecha expiración')
         if campos_faltantes:
             traz_errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")

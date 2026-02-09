@@ -79,6 +79,7 @@ def app():
             lote='L001',
             fecha_fabricacion=datetime(2026, 1, 1),
             fecha_expiracion=datetime(2026, 6, 1),
+            es_linea_pedido=False,
         )
         _db.session.add(detalle)
         _db.session.commit()
