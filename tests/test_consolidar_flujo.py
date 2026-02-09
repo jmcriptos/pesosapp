@@ -202,30 +202,30 @@ def _add_preparation_lines(app):
     return pedido
 
 
-def test_marcar_listo_exitoso(logged_client, app):
-    """AC #5: Con trazabilidad completa, marcar_listo cambia estado a 'listo'."""
+def test_marcar_preparado_exitoso(logged_client, app):
+    """AC #5: Con trazabilidad completa, marcar_preparado cambia estado a 'preparado'."""
     with app.app_context():
         pedido = _add_preparation_lines(app)
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
 
         from app import Pedido
         pedido = Pedido.query.first()
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
 
 
-def test_marcar_listo_sin_preparacion_falla(logged_client, app):
-    """AC #5: Sin líneas de preparación para producto se_pesa, marcar_listo falla."""
+def test_marcar_preparado_sin_preparacion_falla(logged_client, app):
+    """AC #5: Sin líneas de preparación para producto se_pesa, marcar_preparado falla."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -237,7 +237,7 @@ def test_marcar_listo_sin_preparacion_falla(logged_client, app):
                'preparaci'.encode() in resp.data.lower()
 
 
-def test_marcar_listo_import_sin_fecha_exp_falla(logged_client, app):
+def test_marcar_preparado_import_sin_fecha_exp_falla(logged_client, app):
     """AC #5: Producto import sin fecha_expiracion impide marcar como listo."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
@@ -254,7 +254,7 @@ def test_marcar_listo_import_sin_fecha_exp_falla(logged_client, app):
         pedido = _add_preparation_lines(app)
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -302,20 +302,20 @@ def test_pedido_a_json_sin_prep_lines(app):
         assert 'At' in lines[0]['descripcion']
 
 
-# === AC #8: Botón "Marcar como Listo" visible solo en estado pendiente ===
+# === AC #8: Botón "Marcar como Preparado" visible solo en estado pendiente ===
 
-def test_boton_marcar_listo_visible_pendiente(logged_client, app):
-    """AC #8: Botón 'Marcar como Listo' visible cuando estado=pendiente."""
+def test_boton_marcar_preparado_visible_pendiente(logged_client, app):
+    """AC #8: Botón 'Marcar como Preparado' visible cuando estado=pendiente."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
         resp = logged_client.get(f'/pedidos/{pedido.id}/detalles')
         assert resp.status_code == 200
-        assert 'Marcar como Listo' in resp.data.decode()
+        assert 'Marcar como Preparado' in resp.data.decode()
 
 
-def test_boton_marcar_listo_oculto_facturado(logged_client, app):
-    """AC #8: Botón 'Marcar como Listo' oculto cuando estado=facturado."""
+def test_boton_marcar_preparado_oculto_facturado(logged_client, app):
+    """AC #8: Botón 'Marcar como Preparado' oculto cuando estado=facturado."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
@@ -324,8 +324,8 @@ def test_boton_marcar_listo_oculto_facturado(logged_client, app):
 
         resp = logged_client.get(f'/pedidos/{pedido.id}/detalles')
         assert resp.status_code == 200
-        # Check button is not rendered (form action to marcar_listo)
-        assert 'marcar_listo' not in resp.data.decode()
+        # Check button is not rendered (form action to marcar_preparado)
+        assert 'marcar_preparado' not in resp.data.decode()
 
 
 # === Regresiones ===

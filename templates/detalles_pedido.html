@@ -1003,15 +1003,15 @@ tr.linea-pedido-original td {
         </div>
     </div>
 
-    <!-- Botón Marcar como Listo -->
+    <!-- Botón Marcar como Preparado -->
     {% if pedido.estado == 'pendiente' %}
     <div class="mobile-card">
         <div class="mobile-card-body" style="text-align: center; padding: 16px;">
-            <form action="{{ url_for('marcar_listo', pedido_id=pedido.id) }}" method="POST" data-confirm="¿Marcar este pedido como listo? Se validará la trazabilidad de todos los productos.">
+            <form action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}" method="POST" data-confirm="¿Marcar este pedido como preparado? Se validará la trazabilidad de todos los productos.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="mobile-btn mobile-btn-success" style="width: 100%; font-size: 1.1rem; padding: 14px 20px;">
                     <i class="fas fa-check-circle"></i>
-                    Marcar como Listo
+                    Marcar como Preparado
                 </button>
             </form>
         </div>

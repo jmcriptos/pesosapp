@@ -27,8 +27,8 @@
                         <i class="fa fa-clock"></i> Pendiente
                     {% elif pedido.estado == 'facturado' %}
                         <i class="fa fa-check-circle"></i> Facturado
-                    {% elif pedido.estado == 'listo' %}
-                        <i class="fa fa-box"></i> Listo
+                    {% elif pedido.estado == 'preparado' %}
+                        <i class="fa fa-box"></i> Preparado
                     {% else %}
                         <i class="fa fa-info-circle"></i> {{ pedido.estado }}
                     {% endif %}
@@ -135,7 +135,7 @@
                                     <i class="fa fa-clock"></i> {{ pedido.estado }}
                                 {% elif pedido.estado == 'facturado' %}
                                     <i class="fa fa-check-circle"></i> {{ pedido.estado }}
-                                {% elif pedido.estado == 'listo' %}
+                                {% elif pedido.estado == 'preparado' %}
                                     <i class="fa fa-box"></i> {{ pedido.estado }}
                                 {% else %}
                                     <i class="fa fa-info-circle"></i> {{ pedido.estado }}
@@ -362,7 +362,7 @@
     color: #b45309;
 }
 
-.estado-listo {
+.estado-preparado {
     background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
     color: #1d4ed8;
 }
@@ -921,7 +921,7 @@
     const headers = table.querySelectorAll('th.sortable');
 
     // Prioridad de estados para ordenamiento
-    const estadoPrioridad = { 'pendiente': 0, 'listo': 1, 'facturado': 2, 'entregado': 3 };
+    const estadoPrioridad = { 'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3 };
 
     let currentSort = { column: 'estado', direction: 'asc' }; // Default: estado + fecha
 

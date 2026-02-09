@@ -2352,20 +2352,20 @@ def dashboard():
                     lead_times_p.append(dias)
 
             # Order Completion Rate (antes Fill Rate — misma fórmula, nombre honesto)
-            estados = {'facturado': 0, 'pendiente': 0, 'listo': 0}
+            estados = {'facturado': 0, 'pendiente': 0, 'preparado': 0}
             for p in pedidos_periodo:
                 estado = p.estado or 'otros'
                 if estado in estados:
                     estados[estado] += 1
             completos = estados['facturado']
-            total_eval = completos + estados['pendiente'] + estados['listo']
+            total_eval = completos + estados['pendiente'] + estados['preparado']
             order_completion_rate_p = (completos / total_eval * 100) if total_eval > 0 else 0
 
             # OTD Rate corregido — incluye pendientes vencidos como "fuera de tiempo"
             a_tiempo = sum(1 for lt in lead_times_p if lt <= 2)
             pendientes_vencidos = sum(
                 1 for p in pedidos_periodo
-                if p.estado in ('pendiente', 'listo')
+                if p.estado in ('pendiente', 'preparado')
                 and (hoy - p.fecha_pedido.date()).days > 2
             )
             total_otd = len(lead_times_p) + pendientes_vencidos
@@ -2440,7 +2440,7 @@ def dashboard():
         perfect_orders = sum(1 for lt in lead_times if lt <= 2)
         pendientes_vencidos_mes = sum(
             1 for p in pedidos_mes_list
-            if p.estado in ('pendiente', 'listo')
+            if p.estado in ('pendiente', 'preparado')
             and (hoy - p.fecha_pedido.date()).days > 2
         )
         total_evaluado_por = len(pedidos_facturados) + pendientes_vencidos_mes
@@ -2592,9 +2592,9 @@ def dashboard():
         # Asegurar que siempre tengamos datos básicos
         estados_pedidos = {
             'pendiente': estados_count.get('pendiente', 0),
-            'listo': estados_count.get('listo', 0),
+            'preparado': estados_count.get('preparado', 0),
             'facturado': estados_count.get('facturado', 0),
-            **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'listo', 'facturado']}
+            **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'preparado', 'facturado']}
         }
 
         # === PEDIDOS RECIENTES (excluyendo AL01) ===
@@ -2729,7 +2729,7 @@ def dashboard():
             'top_clientes': [],
             'top_productos': [],
             'max_ventas': 1,
-            'estados_pedidos': {'pendiente': 0, 'listo': 0, 'facturado': 0},
+            'estados_pedidos': {'pendiente': 0, 'preparado': 0, 'facturado': 0},
             'tendencia_semanal': [],
             'pedidos_recientes': [],
             'fecha_actual': datetime.now().date(),
@@ -3464,10 +3464,10 @@ def preparar_pedido(pedido_id):
     return redirect(url_for('detalles_pedido', pedido_id=pedido_id), code=301)
 
 
-@app.route('/pedidos/<int:pedido_id>/marcar_listo', methods=['POST'])
+@app.route('/pedidos/<int:pedido_id>/marcar_preparado', methods=['POST'])
 @login_required
-def marcar_listo(pedido_id):
-    """Valida trazabilidad y marca pedido como listo (Story 3-0)."""
+def marcar_preparado(pedido_id):
+    """Valida trazabilidad y marca pedido como preparado (Story 3-0)."""
     pedido = Pedido.query.get_or_404(pedido_id)
 
     # ── Inmutabilidad post-facturación ─────────────────────────
@@ -3475,8 +3475,8 @@ def marcar_listo(pedido_id):
         flash('No se puede modificar un pedido ya facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
-    if pedido.estado == 'listo':
-        flash('El pedido ya está marcado como listo', 'info')
+    if pedido.estado == 'preparado':
+        flash('El pedido ya está marcado como preparado', 'info')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     errores = []
@@ -3515,14 +3515,14 @@ def marcar_listo(pedido_id):
             errores.append(f"{prod.nombre}: sin líneas de preparación (peso)")
 
     if errores:
-        flash('No se puede marcar como listo. Datos incompletos:', 'error')
+        flash('No se puede marcar como preparado. Datos incompletos:', 'error')
         for err in errores:
             flash(err, 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
-    pedido.estado = 'listo'
+    pedido.estado = 'preparado'
     db.session.commit()
-    flash('Pedido marcado como listo', 'success')
+    flash('Pedido marcado como preparado', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
 

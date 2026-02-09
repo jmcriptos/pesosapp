@@ -1,6 +1,6 @@
 # tests/test_trazabilidad.py
 """Tests para Story 2.3: Reforzar trazabilidad obligatoria en preparación.
-Updated for Story 3-0: /preparar now redirects to /detalles, validation via marcar_listo."""
+Updated for Story 3-0: /preparar now redirects to /detalles, validation via marcar_preparado."""
 import os
 import pytest
 from unittest.mock import patch, MagicMock
@@ -168,16 +168,16 @@ def _add_complete_prep_lines(app):
     return pedido
 
 
-# === AC #1: Validación obligatoria via marcar_listo ===
+# === AC #1: Validación obligatoria via marcar_preparado ===
 
 def test_preparar_sin_lote_rechazado(logged_client, app):
-    """AC #1: marcar_listo with prep lines missing lote → stays pendiente."""
+    """AC #1: marcar_preparado with prep lines missing lote → stays pendiente."""
     with app.app_context():
         pedido = _add_prep_lines_no_traceability(
             app, lote='', fab=datetime(2026, 1, 1), exp=datetime(2026, 6, 1)
         )
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -187,13 +187,13 @@ def test_preparar_sin_lote_rechazado(logged_client, app):
 
 
 def test_preparar_sin_fecha_fabricacion_rechazado(logged_client, app):
-    """AC #1: marcar_listo with prep lines missing fecha_fabricacion → stays pendiente."""
+    """AC #1: marcar_preparado with prep lines missing fecha_fabricacion → stays pendiente."""
     with app.app_context():
         pedido = _add_prep_lines_no_traceability(
             app, lote='L001', fab=None, exp=datetime(2026, 6, 1)
         )
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -203,13 +203,13 @@ def test_preparar_sin_fecha_fabricacion_rechazado(logged_client, app):
 
 
 def test_preparar_sin_fecha_expiracion_rechazado(logged_client, app):
-    """AC #1: marcar_listo with prep lines missing fecha_expiracion → stays pendiente."""
+    """AC #1: marcar_preparado with prep lines missing fecha_expiracion → stays pendiente."""
     with app.app_context():
         pedido = _add_prep_lines_no_traceability(
             app, lote='L001', fab=datetime(2026, 1, 1), exp=None
         )
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -219,7 +219,7 @@ def test_preparar_sin_fecha_expiracion_rechazado(logged_client, app):
 
 
 def test_preparar_pedido_facturado_rechazado(logged_client, app):
-    """AC #4: marcar_listo on facturado pedido → rejected."""
+    """AC #4: marcar_preparado on facturado pedido → rejected."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
@@ -227,7 +227,7 @@ def test_preparar_pedido_facturado_rechazado(logged_client, app):
         _db.session.commit()
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -264,18 +264,18 @@ def test_agregar_detalle_pedido_facturado_rechazado(logged_client, app):
 
 
 def test_preparar_con_trazabilidad_completa_acepta(logged_client, app):
-    """AC #1: marcar_listo with full traceability → estado 'listo'."""
+    """AC #1: marcar_preparado with full traceability → estado 'preparado'."""
     with app.app_context():
         pedido = _add_complete_prep_lines(app)
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
         from app import Pedido
         pedido_updated = Pedido.query.first()
-        assert pedido_updated.estado == 'listo'
+        assert pedido_updated.estado == 'preparado'
 
 
 # === AC #2: Validación obligatoria en agregar detalle ===
@@ -312,7 +312,7 @@ def test_facturar_sin_trazabilidad_bloqueado(logged_client, app):
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
-        pedido.estado = 'listo'
+        pedido.estado = 'preparado'
         _db.session.commit()
 
         resp = logged_client.post(
@@ -321,7 +321,7 @@ def test_facturar_sin_trazabilidad_bloqueado(logged_client, app):
         )
         assert resp.status_code == 200
         pedido_updated = Pedido.query.first()
-        assert pedido_updated.estado == 'listo'
+        assert pedido_updated.estado == 'preparado'
 
 
 def test_facturar_con_trazabilidad_completa_procede(logged_client, app):
@@ -329,7 +329,7 @@ def test_facturar_con_trazabilidad_completa_procede(logged_client, app):
     with app.app_context():
         from app import Pedido, DetallePedido
         pedido = Pedido.query.first()
-        pedido.estado = 'listo'
+        pedido.estado = 'preparado'
 
         # Fill traceability on all details
         for d in DetallePedido.query.filter_by(pedido_id=pedido.id).all():

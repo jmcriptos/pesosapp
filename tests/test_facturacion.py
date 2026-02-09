@@ -61,10 +61,10 @@ def app():
         _db.session.add(producto)
         _db.session.flush()
 
-        # Pedido en estado "listo" con trazabilidad completa (listo para facturar)
+        # Pedido en estado "preparado" con trazabilidad completa (listo para facturar)
         pedido = Pedido(
             cliente_id=cliente.id,
-            estado='listo',
+            estado='preparado',
         )
         _db.session.add(pedido)
         _db.session.flush()
@@ -160,7 +160,7 @@ def test_facturacion_exitosa_con_invoice_id(mock_post, logged_client, app):
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post')
 def test_facturacion_error_400(mock_post, logged_client, app):
-    """AC #2: N8N 400 → pedido sigue 'listo', flash con mensaje específico."""
+    """AC #2: N8N 400 → pedido sigue 'preparado', flash con mensaje específico."""
     mock_post.return_value = _mock_n8n_http_error(400, 'Customer not found in QBO')
 
     with app.app_context():
@@ -175,7 +175,7 @@ def test_facturacion_error_400(mock_post, logged_client, app):
         assert resp.status_code == 200
 
         pedido = Pedido.query.get(pedido_id)
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
         assert pedido.invoice_id_qbo is None
 
         # Flash muestra el error específico
@@ -187,7 +187,7 @@ def test_facturacion_error_400(mock_post, logged_client, app):
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post')
 def test_facturacion_error_500(mock_post, logged_client, app):
-    """AC #3: N8N 500 → pedido sigue 'listo', flash mensaje temporal."""
+    """AC #3: N8N 500 → pedido sigue 'preparado', flash mensaje temporal."""
     mock_post.return_value = _mock_n8n_http_error(500, 'Internal Server Error')
 
     with app.app_context():
@@ -202,7 +202,7 @@ def test_facturacion_error_500(mock_post, logged_client, app):
         assert resp.status_code == 200
 
         pedido = Pedido.query.get(pedido_id)
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
         assert pedido.invoice_id_qbo is None
 
         # Flash muestra mensaje de error temporal
@@ -214,7 +214,7 @@ def test_facturacion_error_500(mock_post, logged_client, app):
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post', side_effect=req_lib.Timeout('Connection timed out'))
 def test_facturacion_timeout(mock_post, logged_client, app):
-    """AC #4: N8N timeout → pedido sigue 'listo', flash timeout."""
+    """AC #4: N8N timeout → pedido sigue 'preparado', flash timeout."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
@@ -227,7 +227,7 @@ def test_facturacion_timeout(mock_post, logged_client, app):
         assert resp.status_code == 200
 
         pedido = Pedido.query.get(pedido_id)
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
         assert pedido.invoice_id_qbo is None
 
         assert 'Timeout'.encode() in resp.data
@@ -309,7 +309,7 @@ def test_facturacion_trazabilidad_incompleta(logged_client, app):
 
         assert resp.status_code == 200
         pedido = Pedido.query.get(pedido_id)
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
         assert 'trazabilidad'.encode() in resp.data
 
 
@@ -318,7 +318,7 @@ def test_facturacion_trazabilidad_incompleta(logged_client, app):
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post', side_effect=req_lib.ConnectionError('Connection refused'))
 def test_facturacion_connection_error(mock_post, logged_client, app):
-    """ConnectionError → pedido sigue 'listo', flash error de conexión."""
+    """ConnectionError → pedido sigue 'preparado', flash error de conexión."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
@@ -331,7 +331,7 @@ def test_facturacion_connection_error(mock_post, logged_client, app):
         assert resp.status_code == 200
 
         pedido = Pedido.query.get(pedido_id)
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
         assert 'conexi'.encode() in resp.data
 
 
@@ -380,7 +380,7 @@ def test_facturacion_sin_webhook_url_configurada(logged_client, app):
         assert 'N8N_WEBHOOK_URL'.encode() in resp.data
 
         pedido = Pedido.query.get(pedido_id)
-        assert pedido.estado == 'listo'
+        assert pedido.estado == 'preparado'
 
 
 # === Regresión: dashboard y login siguen funcionando ===

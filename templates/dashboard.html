@@ -426,7 +426,7 @@
                     <div class="order-status {{ pedido.estado }}">
                         {% if pedido.estado == 'pendiente' %}
                             <i class="fas fa-clock"></i>
-                        {% elif pedido.estado == 'listo' %}
+                        {% elif pedido.estado == 'preparado' %}
                             <i class="fas fa-check-circle"></i>
                         {% elif pedido.estado == 'facturado' %}
                             <i class="fas fa-file-invoice-dollar"></i>
@@ -1677,7 +1677,7 @@
     background: linear-gradient(135deg, #f59e0b, #d97706);
     box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
 }
-.order-status.listo {
+.order-status.preparado {
     background: linear-gradient(135deg, #10b981, #059669);
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
@@ -1723,7 +1723,7 @@
 .legend-item{display:flex;align-items:center;gap:8px;font-size:.9rem}
 .legend-color{width:16px;height:16px;border-radius:4px}
 .legend-color.pendiente{background:#f59e0b}
-.legend-color.listo{background:#10b981}
+.legend-color.preparado{background:#10b981}
 .legend-color.facturado{background:#3b82f6}
 .legend-color.sin_estado{background:#6b7280}
 /* === CLIENTS SECTION - ENHANCED === */
@@ -3317,7 +3317,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const estadosLabels = Object.keys(estadosData).map(estado => {
             const labelMap = {
                 'pendiente': 'Pendientes',
-                'listo': 'Listos',
+                'preparado': 'Preparados',
                 'facturado': 'Facturados',
                 'sin_estado': 'Sin Estado'
             };
@@ -3330,7 +3330,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Colores mejorados con gradientes
         const backgroundColors = {
             'pendiente': '#f59e0b',
-            'listo': '#10b981', 
+            'preparado': '#10b981',
             'facturado': '#3b82f6',
             'sin_estado': '#6b7280'
         };

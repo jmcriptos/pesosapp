@@ -73,7 +73,7 @@ def app():
         # Pedido listo con trazabilidad completa
         pedido = Pedido(
             cliente_id=cliente.id,
-            estado='listo',
+            estado='preparado',
         )
         _db.session.add(pedido)
         _db.session.flush()

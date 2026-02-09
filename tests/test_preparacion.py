@@ -207,7 +207,7 @@ def test_post_preparar_saves_peso_for_se_pesa_product(logged_client, app):
 
 
 def test_pedido_changes_to_listo(logged_client, app):
-    """Story 3-0: marcar_listo changes estado to 'listo' with full traceability."""
+    """Story 3-0: marcar_preparado changes estado to 'preparado' with full traceability."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
@@ -240,13 +240,13 @@ def test_pedido_changes_to_listo(logged_client, app):
         _db.session.commit()
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/marcar_listo',
+            f'/pedidos/{pedido.id}/marcar_preparado',
             follow_redirects=True,
         )
         assert resp.status_code == 200
 
         pedido_updated = Pedido.query.first()
-        assert pedido_updated.estado == 'listo'
+        assert pedido_updated.estado == 'preparado'
 
 
 def test_preparar_pedido_shows_diferencia_column(logged_client, app):
