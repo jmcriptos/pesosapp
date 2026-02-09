@@ -794,6 +794,7 @@
     </div>
     {% endif %}
 
+    {% if pedido.estado != 'facturado' %}
     <!-- Formulario para agregar producto -->
     <div class="mobile-card">
         <div class="mobile-card-header">
@@ -860,6 +861,7 @@
             </form>
         </div>
     </div>
+    {% endif %}
 
     <!-- Productos agregados -->
     <div class="mobile-card">
@@ -1052,6 +1054,7 @@
 
 </div>
 
+{% if pedido.estado != 'facturado' %}
 <!-- Modal de edición de producto -->
 <div class="edit-modal-overlay" id="editModalOverlay">
     <div class="edit-modal">
@@ -1125,6 +1128,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
