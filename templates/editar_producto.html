@@ -29,7 +29,13 @@
       <label for="qbo_id" class="form-label">QBO ID (opcional):</label>
       <input type="text" id="qbo_id" name="qbo_id" value="{{ producto.qbo_id or '' }}" class="form-input">
     </div>
-    <!-- 🆕 Campo TaxCode ID -->
+    <div class="form-group">
+      <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" name="se_pesa" value="1" {% if producto.se_pesa %}checked{% endif %}
+               style="width: 20px; height: 20px; accent-color: #6c63ff;">
+        Se pesa (producto de manufactura que se pesa por caja)
+      </label>
+    </div>
     <div class="form-group">
       <label for="tax_rate" class="form-label">TaxCode ID:</label>
       <select id="tax_rate" name="tax_rate" class="form-input">

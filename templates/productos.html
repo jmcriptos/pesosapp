@@ -58,6 +58,7 @@
                     <th class="text-center">Temperatura</th>
                     <th class="text-center">QBO ID</th>
                     <th class="text-center">TaxCode ID</th>
+                    <th class="text-center">Se pesa</th>
                     <th class="text-center">Acciones</th>
                 </tr>
             </thead>
@@ -70,6 +71,7 @@
                     <td class="text-center">{{ producto.temperatura }}</td>
                     <td class="text-center">{{ producto.qbo_id or '—' }}</td>
                     <td class="text-center">{{ producto.tax_rate|int }}</td>
+                    <td class="text-center">{% if producto.se_pesa %}<i class="fas fa-weight-hanging" style="color: #2563eb;" title="Se pesa"></i>{% else %}—{% endif %}</td>
                     <td class="text-center">
                         <a href="{{ url_for('editar_producto', producto_id=producto.id) }}"
                            class="btn btn-sm btn-primary" title="Editar">

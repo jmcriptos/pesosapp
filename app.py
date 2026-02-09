@@ -4233,6 +4233,7 @@ def editar_producto(producto_id):
         producto.temperatura = request.form.get('temperatura', '')
         producto.qbo_id      = request.form.get('qbo_id')
         producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
+        producto.se_pesa     = 'se_pesa' in request.form
         db.session.commit()
         flash('Producto actualizado correctamente.', 'success')
         return redirect(url_for('productos'))
