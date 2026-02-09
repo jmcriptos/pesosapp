@@ -124,10 +124,11 @@
                     <div class="kpi-icon">
                         <i class="fas fa-dollar-sign"></i>
                     </div>
-                    {% set pct_revenue = ((ventas_mes_v - ventas_mes_anterior_v) / ventas_mes_anterior_v * 100) if ventas_mes_anterior_v > 0 else 0 %}
-                    <div class="kpi-trend {% if pct_revenue >= 0 %}up{% else %}down{% endif %}">
-                        <i class="fas fa-arrow-{% if pct_revenue >= 0 %}up{% else %}down{% endif %}"></i>
-                        <span>{{ '+' if pct_revenue >= 0 else '' }}{{ '%.1f' % pct_revenue }}%</span>
+                    {% set rev_trend = 'up' if porcentaje_meta_v >= 100 else ('neutral' if porcentaje_meta_v >= 50 else 'down') %}
+                    {% set rev_icon = 'arrow-up' if porcentaje_meta_v >= 100 else ('minus' if porcentaje_meta_v >= 50 else 'arrow-down') %}
+                    <div class="kpi-trend {{ rev_trend }}">
+                        <i class="fas fa-{{ rev_icon }}"></i>
+                        <span>{{ '%.0f' % porcentaje_meta_v }}% meta</span>
                     </div>
                 </div>
                 <div class="kpi-content">
