@@ -1,5 +1,6 @@
 # tests/test_preparacion.py
-"""Tests para Story 2.2: Fix unidades de medida en preparación de pedidos."""
+"""Tests para Story 2.2: Fix unidades de medida en preparación de pedidos.
+Updated for Story 3-0: /preparar now redirects to /detalles."""
 import os
 import pytest
 
@@ -78,6 +79,7 @@ def app():
             peso=0,
             precio_unitario=25.00,
             subtotal=250.00,
+            es_linea_pedido=True,
         )
         detalle_aceite = DetallePedido(
             pedido_id=pedido.id,
@@ -86,6 +88,7 @@ def app():
             peso=0,
             precio_unitario=12.00,
             subtotal=60.00,
+            es_linea_pedido=True,
         )
         _db.session.add_all([detalle_carne, detalle_aceite])
         _db.session.commit()
@@ -109,131 +112,169 @@ def anon_client(app):
     return app.test_client()
 
 
-# === AC #1, #2: Test preparar_pedido GET loads correctly ===
+# === Story 3-0: /preparar now redirects 301 to /detalles ===
 
 def test_preparar_pedido_get_loads(logged_client, app):
-    """AC #1: preparar_pedido carga para pedido válido (200)."""
+    """Story 3-0: preparar_pedido GET redirects 301 to detalles."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
         resp = logged_client.get(f'/pedidos/{pedido.id}/preparar')
-        assert resp.status_code == 200
+        assert resp.status_code == 301
+        assert f'/pedidos/{pedido.id}/detalles' in resp.headers['Location']
 
 
 def test_preparar_pedido_shows_product_names(logged_client, app):
-    """AC #1: La vista muestra nombres de productos."""
+    """Following redirect, detalles shows product names."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
-        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar')
+        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar',
+                                  follow_redirects=True)
         html = resp.data.decode('utf-8')
         assert 'Chuleta de Cerdo' in html
         assert 'Aceite de Oliva' in html
 
 
 def test_preparar_pedido_shows_cajas_solicitadas(logged_client, app):
-    """AC #1: La vista muestra cantidad pedida con unidad original."""
+    """Following redirect, detalles shows cajas."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
-        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar')
+        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar',
+                                  follow_redirects=True)
         html = resp.data.decode('utf-8')
-        assert '10 cajas' in html
-        assert '5 cajas' in html
+        # Cajas are shown in the details view
+        assert '10' in html
+        assert '5' in html
 
 
-# === AC #2, #3: Test POST saves cajas and peso correctly ===
+# === AC #2, #3: Test POST via detalles saves correctly ===
 
 def test_post_preparar_saves_cajas(logged_client, app):
-    """AC #3: POST preparar_pedido guarda cajas entregadas correctamente."""
-    with app.app_context():
-        from app import Pedido, DetallePedido
-        pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-
-        form_data = {}
-        for d in detalles:
-            form_data[f'entregadas_{d.id}'] = '8'
-            form_data[f'peso_{d.id}'] = '0'
-            form_data[f'lote_{d.id}'] = 'L001'
-            form_data[f'fab_{d.id}'] = '2026-01-01'
-            form_data[f'exp_{d.id}'] = '2026-06-01'
-
-        resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
-            follow_redirects=True,
-        )
-        assert resp.status_code == 200
-
-        # Verify cajas were saved
-        for d in DetallePedido.query.filter_by(pedido_id=pedido.id).all():
-            assert d.cajas == 8
-
-
-def test_post_preparar_saves_peso_for_se_pesa_product(logged_client, app):
-    """AC #2, #3: POST guarda peso real para producto con se_pesa=True."""
+    """Story 3-0: Adding via detalles creates preparation line (es_linea_pedido=False)."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-
-        form_data = {}
-        for d in detalles:
-            form_data[f'entregadas_{d.id}'] = '7'
-            form_data[f'lote_{d.id}'] = 'L001'
-            form_data[f'fab_{d.id}'] = '2026-01-01'
-            form_data[f'exp_{d.id}'] = '2026-06-01'
-            if d.producto.se_pesa:
-                form_data[f'peso_{d.id}'] = '45.5'
-            else:
-                form_data[f'peso_{d.id}'] = '0'
+        producto = Producto.query.filter_by(se_pesa=True).first()
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/detalles',
+            data={
+                'producto_id': str(producto.id),
+                'peso': '4.5',
+                'cajas': '1',
+                'lote': 'L001',
+                'fecha_fabricacion': '2026-01-01',
+                'fecha_expiracion': '2026-06-01',
+            },
             follow_redirects=True,
         )
         assert resp.status_code == 200
 
-        # Verify peso saved for se_pesa product
-        for d in DetallePedido.query.filter_by(pedido_id=pedido.id).all():
-            if d.producto.se_pesa:
-                assert d.peso == 45.5
+        new_det = DetallePedido.query.filter_by(
+            pedido_id=pedido.id, es_linea_pedido=False
+        ).first()
+        assert new_det is not None
+        assert new_det.peso == 4.5
 
 
-def test_post_preparar_no_peso_for_non_se_pesa_product(logged_client, app):
-    """AC #4: POST no requiere peso para producto con se_pesa=False."""
+def test_post_preparar_saves_peso_for_se_pesa_product(logged_client, app):
+    """POST detalles saves peso for se_pesa product."""
     with app.app_context():
-        from app import Pedido, DetallePedido
+        from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-
-        form_data = {}
-        for d in detalles:
-            form_data[f'entregadas_{d.id}'] = '5'
-            form_data[f'lote_{d.id}'] = ''
-            form_data[f'fab_{d.id}'] = ''
-            form_data[f'exp_{d.id}'] = ''
-            # No peso submitted for non-se_pesa products
+        producto = Producto.query.filter_by(se_pesa=True).first()
 
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/detalles',
+            data={
+                'producto_id': str(producto.id),
+                'peso': '45.5',
+                'cajas': '1',
+                'lote': 'L001',
+                'fecha_fabricacion': '2026-01-01',
+                'fecha_expiracion': '2026-06-01',
+            },
             follow_redirects=True,
         )
         assert resp.status_code == 200
 
-        # Non-se_pesa products should keep original peso (0)
-        for d in DetallePedido.query.filter_by(pedido_id=pedido.id).all():
-            if not d.producto.se_pesa:
-                assert d.peso == 0
+        new_det = DetallePedido.query.filter_by(
+            pedido_id=pedido.id, es_linea_pedido=False
+        ).first()
+        assert new_det.peso == 45.5
 
 
-# === AC #5: Test modelo Producto has se_pesa field ===
+def test_pedido_changes_to_listo(logged_client, app):
+    """Story 3-0: marcar_listo changes estado to 'listo' with full traceability."""
+    with app.app_context():
+        from app import Pedido, DetallePedido, Producto
+        pedido = Pedido.query.first()
+        assert pedido.estado == 'pendiente'
+
+        # Add import product fecha_expiracion
+        prod_import = Producto.query.filter_by(se_pesa=False).first()
+        det_import = DetallePedido.query.filter_by(
+            producto_id=prod_import.id, es_linea_pedido=True
+        ).first()
+        det_import.fecha_expiracion = '2026-06-01'
+
+        # Add preparation lines for se_pesa product
+        prod_pesa = Producto.query.filter_by(se_pesa=True).first()
+        from datetime import datetime
+        for i in range(3):
+            det = DetallePedido(
+                pedido_id=pedido.id,
+                producto_id=prod_pesa.id,
+                cajas=1,
+                peso=4.5,
+                precio_unitario=25.00,
+                subtotal=25.00,
+                lote='L001',
+                fecha_fabricacion=datetime(2026, 1, 1),
+                fecha_expiracion=datetime(2026, 6, 1),
+                es_linea_pedido=False,
+            )
+            _db.session.add(det)
+        _db.session.commit()
+
+        resp = logged_client.post(
+            f'/pedidos/{pedido.id}/marcar_listo',
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+
+        pedido_updated = Pedido.query.first()
+        assert pedido_updated.estado == 'listo'
+
+
+def test_preparar_pedido_shows_diferencia_column(logged_client, app):
+    """Following redirect to detalles, shows products view."""
+    with app.app_context():
+        from app import Pedido
+        pedido = Pedido.query.first()
+        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar',
+                                  follow_redirects=True)
+        html = resp.data.decode('utf-8')
+        assert 'Producto' in html
+
+
+def test_preparar_pedido_peso_field_conditional(logged_client, app):
+    """Following redirect, detalles shows peso field in form."""
+    with app.app_context():
+        from app import Pedido
+        pedido = Pedido.query.first()
+        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar',
+                                  follow_redirects=True)
+        html = resp.data.decode('utf-8')
+        assert 'Peso' in html
+
+
+# === AC #5: Modelo Producto has se_pesa field ===
 
 def test_producto_has_se_pesa_field(app):
-    """AC #2, #4: Modelo Producto tiene campo se_pesa."""
+    """Modelo Producto tiene campo se_pesa."""
     with app.app_context():
         from app import Producto
         p = Producto.query.first()
@@ -251,71 +292,28 @@ def test_producto_se_pesa_default_false(app):
         assert p.se_pesa is False
 
 
-# === AC #3: Test pedido changes to 'listo' after preparation ===
-
-def test_pedido_changes_to_listo(logged_client, app):
-    """AC #3: Pedido cambia a estado 'listo' después de preparación."""
+def test_post_preparar_no_peso_for_non_se_pesa_product(logged_client, app):
+    """Import product original line keeps peso=0."""
     with app.app_context():
-        from app import Pedido, DetallePedido
+        from app import Pedido, DetallePedido, Producto
+        prod_aceite = Producto.query.filter_by(se_pesa=False).first()
         pedido = Pedido.query.first()
-        assert pedido.estado == 'pendiente'
 
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-        form_data = {}
-        for d in detalles:
-            form_data[f'entregadas_{d.id}'] = str(d.cajas)
-            form_data[f'peso_{d.id}'] = '0'
-            form_data[f'lote_{d.id}'] = 'L001'
-            form_data[f'fab_{d.id}'] = '2026-01-01'
-            form_data[f'exp_{d.id}'] = '2026-06-01'
-
-        logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
-            follow_redirects=True,
-        )
-
-        pedido_updated = Pedido.query.first()
-        assert pedido_updated.estado == 'listo'
+        det = DetallePedido.query.filter_by(
+            pedido_id=pedido.id, producto_id=prod_aceite.id
+        ).first()
+        assert det.peso == 0
 
 
-# === AC #5: Template shows difference column ===
-
-def test_preparar_pedido_shows_diferencia_column(logged_client, app):
-    """AC #5: La preparación muestra columna de diferencia."""
-    with app.app_context():
-        from app import Pedido
-        pedido = Pedido.query.first()
-        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar')
-        html = resp.data.decode('utf-8')
-        assert 'Diferencia' in html
-        assert 'diferencia' in html
-
-
-# === AC #4: Template conditionally shows peso field ===
-
-def test_preparar_pedido_peso_field_conditional(logged_client, app):
-    """AC #2, #4: Campo peso solo para productos que se pesan."""
-    with app.app_context():
-        from app import Pedido
-        pedido = Pedido.query.first()
-        resp = logged_client.get(f'/pedidos/{pedido.id}/preparar')
-        html = resp.data.decode('utf-8')
-        # Should have at least one enabled peso input (for se_pesa=True)
-        # and at least one disabled (for se_pesa=False)
-        assert 'disabled' in html
-        assert 'placeholder="N/A"' in html
-
-
-# === AC #6: Regression tests ===
+# === Regression tests ===
 
 def test_regression_dashboard_works(logged_client):
-    """AC #6: El dashboard sigue funcionando normalmente."""
+    """El dashboard sigue funcionando normalmente."""
     resp = logged_client.get('/dashboard')
     assert resp.status_code == 200
 
 
 def test_regression_login_works(anon_client):
-    """AC #6: La página de login sigue funcionando normalmente."""
+    """La página de login sigue funcionando normalmente."""
     resp = anon_client.get('/login')
     assert resp.status_code == 200

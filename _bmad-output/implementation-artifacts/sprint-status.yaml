@@ -1,0 +1,93 @@
+# generated: 2026-02-08
+# project: pesosapp
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Mark epic as 'in-progress' when starting work on its first story
+# - SM typically creates next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then Dev runs code-review (fresh context, ideally different LLM)
+
+generated: 2026-02-08
+project: pesosapp
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Dashboard y KPIs de Servicio (Phase 1 - DONE)
+  epic-1: done
+  1-1-corregir-kpis-servicio: done
+  1-2-reorganizar-dashboard-ventas: done
+  epic-1-retrospective: optional
+
+  # Epic 2: Operación Segura y Estable (Phase 1)
+  epic-2: done
+  2-1-backup-automatico-db: done
+  2-2-fix-unidades-medida-preparacion: done
+  2-3-trazabilidad-obligatoria-preparacion: done
+  2-4-fix-facturacion-atomica: done
+  2-5-verificar-etiquetas-pedidos: done
+  epic-2-retrospective: optional
+
+  # Epic 3: Métricas de Servicio Real y Real-Time (Phase 2)
+  epic-3: in-progress
+  3-0-consolidar-flujo-pedidos: review
+  3-1-ofr-real-linea-por-linea: backlog
+  3-2-dashboard-auto-refresh-sse: backlog
+  3-3-notificacion-nuevo-pedido: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Gestión Ágil de Precios (Phase 2)
+  epic-4: backlog
+  4-1-edicion-inline-precios: backlog
+  4-2-importacion-mejorada-precios: backlog
+  4-3-precios-por-cliente-overrides: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Vendedor Eficiente en Campo (Phase 2)
+  epic-5: backlog
+  5-1-precios-mobile-optimizado: backlog
+  5-2-pedidos-mobile-touch-optimized: backlog
+  5-3-subtotal-tiempo-real: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Evolución de Plataforma y Roles (Phase 3)
+  epic-6: backlog
+  6-1-auto-split-tax-rate: backlog
+  6-2-metas-por-vendedor: backlog
+  6-3-dashboard-por-rol: backlog
+  6-4-pwa-manifest-service-worker: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Inteligencia Comercial (Phase 4 - Vision)
+  epic-7: backlog
+  7-1-pricing-inteligente: backlog
+  7-2-precios-competencia-mobile: backlog
+  7-3-reporte-inteligencia-competitiva: backlog
+  7-4-alertas-patrones-compra: backlog
+  epic-7-retrospective: optional

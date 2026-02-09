@@ -905,6 +905,7 @@ class DetallePedido(db.Model):
     producto = db.relationship('Producto')
     precio_unitario = db.Column(db.Numeric(10,2), nullable=False, default=0)
     subtotal        = db.Column(db.Numeric(10,2), nullable=False)
+    es_linea_pedido = db.Column(db.Boolean, default=True, nullable=False)
 
 
     def __repr__(self):
@@ -1311,6 +1312,14 @@ def pedido_a_json(pedido: Pedido) -> dict:
     total  = 0
 
     for d in pedido.detalles:
+        # Story 3-0: filtrar líneas según tipo de producto
+        # se_pesa=True (manufactura): solo líneas de preparación (es_linea_pedido=False)
+        # se_pesa=False (importación): solo línea original del pedido (es_linea_pedido=True)
+        if d.producto.se_pesa and d.es_linea_pedido:
+            continue
+        if not d.producto.se_pesa and not d.es_linea_pedido:
+            continue
+
         descripcion = d.producto.nombre
         if d.lote:
             descripcion += f" (Lote {d.lote})"
@@ -1324,7 +1333,7 @@ def pedido_a_json(pedido: Pedido) -> dict:
             "qty"           : float(d.cajas or d.peso or 0),
             "unit_price"    : float(d.precio_unitario),
             "amount"        : round(subtotal, 2),
-            "tax_rate"      : d.producto.tax_rate  # 🆕 Incluir la tasa de impuesto
+            "tax_rate"      : d.producto.tax_rate
         })
 
     return {
@@ -3080,7 +3089,8 @@ def detalles_pedido(pedido_id):
             fecha_fabricacion= fecha_fabricacion,
             fecha_expiracion = fecha_expiracion,
             precio_unitario  = precio_unitario,
-            subtotal         = subtotal
+            subtotal         = subtotal,
+            es_linea_pedido  = False
         )
         db.session.add(detalle)
         db.session.commit()
@@ -3215,9 +3225,10 @@ def generar_etiqueta_detalle(pedido_id):
             flash("Formato de fecha inválido", "danger")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        # Filtrar los detalles
+        # Filtrar los detalles (Story 3-0: excluir líneas originales del pedido)
         detalles = (DetallePedido.query
                     .filter_by(pedido_id=pedido_id)
+                    .filter(DetallePedido.es_linea_pedido == False)
                     .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
                     .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
                     .order_by(DetallePedido.id.asc())
@@ -3339,9 +3350,10 @@ def generar_etiqueta_detalle_a4(pedido_id):
             flash("Formato de fecha inválido", "danger")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        # Filtrar los detalles
+        # Filtrar los detalles (Story 3-0: excluir líneas originales del pedido)
         detalles = (DetallePedido.query
                     .filter_by(pedido_id=pedido_id)
+                    .filter(DetallePedido.es_linea_pedido == False)
                     .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
                     .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
                     .order_by(DetallePedido.id.asc())
@@ -3443,56 +3455,71 @@ def generar_etiqueta_detalle_a4(pedido_id):
 @app.route('/pedidos/<int:pedido_id>/preparar', methods=['GET', 'POST'])
 @login_required
 def preparar_pedido(pedido_id):
+    """Deprecated: redirect to detalles_pedido (Story 3-0)."""
+    return redirect(url_for('detalles_pedido', pedido_id=pedido_id), code=301)
+
+
+@app.route('/pedidos/<int:pedido_id>/marcar_listo', methods=['POST'])
+@login_required
+def marcar_listo(pedido_id):
+    """Valida trazabilidad y marca pedido como listo (Story 3-0)."""
     pedido = Pedido.query.get_or_404(pedido_id)
 
     # ── Inmutabilidad post-facturación ─────────────────────────
     if pedido.estado == 'facturado':
-        flash('No se puede preparar un pedido ya facturado', 'error')
-        return redirect(url_for('lista_pedidos'))
+        flash('No se puede modificar un pedido ya facturado', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
-    if request.method == 'POST':
-        # ── Validación de trazabilidad obligatoria ──────────────
-        errores = []
-        datos_form = {}
-        for detalle in pedido.detalles:
-            lote = request.form.get(f'lote_{detalle.id}', '').strip()
-            fab = request.form.get(f'fab_{detalle.id}', '').strip()
-            exp = request.form.get(f'exp_{detalle.id}', '').strip()
-            entregadas = request.form.get(f'entregadas_{detalle.id}', type=int) or 0
-            peso_real = request.form.get(f'peso_{detalle.id}', type=float)
-            datos_form[detalle.id] = {
-                'lote': lote, 'fab': fab, 'exp': exp,
-                'entregadas': entregadas, 'peso_real': peso_real,
-            }
+    if pedido.estado == 'listo':
+        flash('El pedido ya está marcado como listo', 'info')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    errores = []
+    for detalle in pedido.detalles:
+        if detalle.es_linea_pedido:
+            # Línea original del vendedor: para productos de importación,
+            # verificar al menos fecha_expiracion
+            if not detalle.producto.se_pesa:
+                if not detalle.fecha_expiracion:
+                    errores.append(f"{detalle.producto.nombre}: falta fecha expiración")
+        else:
+            # Línea de preparación: requiere trazabilidad completa
             campos_faltantes = []
-            if not lote:
+            if not detalle.lote:
                 campos_faltantes.append('lote')
-            if not fab:
+            if not detalle.fecha_fabricacion:
                 campos_faltantes.append('fecha fabricación')
-            if not exp:
+            if not detalle.fecha_expiracion:
                 campos_faltantes.append('fecha expiración')
             if campos_faltantes:
                 errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
 
-        if errores:
-            for error in errores:
-                flash(error, 'error')
-            return render_template('preparar_pedido.html', pedido=pedido)
+    # Verificar que productos se_pesa tengan al menos una línea de preparación
+    productos_pedido = set()
+    productos_preparados = set()
+    for detalle in pedido.detalles:
+        if detalle.producto.se_pesa:
+            if detalle.es_linea_pedido:
+                productos_pedido.add(detalle.producto_id)
+            else:
+                productos_preparados.add(detalle.producto_id)
+    sin_preparar = productos_pedido - productos_preparados
+    for prod_id in sin_preparar:
+        prod = Producto.query.get(prod_id)
+        if prod:
+            errores.append(f"{prod.nombre}: sin líneas de preparación (peso)")
 
-        # ── Guardar datos de preparación ────────────────────────
-        for detalle in pedido.detalles:
-            d = datos_form[detalle.id]
-            detalle.cajas = d['entregadas']
-            if detalle.producto.se_pesa and d['peso_real'] is not None:
-                detalle.peso = d['peso_real']
-            detalle.lote = d['lote']
-            detalle.fecha_fabricacion = d['fab']
-            detalle.fecha_expiracion = d['exp']
-        pedido.estado = 'listo'
-        db.session.commit()
-        flash('Pedido preparado correctamente', 'success')
-        return redirect(url_for('lista_pedidos'))
-    return render_template('preparar_pedido.html', pedido=pedido)
+    if errores:
+        flash('No se puede marcar como listo. Datos incompletos:', 'error')
+        for err in errores:
+            flash(err, 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    pedido.estado = 'listo'
+    db.session.commit()
+    flash('Pedido marcado como listo', 'success')
+    return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
 
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL")  # ponlo en tu .env
 try:

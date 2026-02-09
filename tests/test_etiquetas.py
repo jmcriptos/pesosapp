@@ -78,7 +78,7 @@ def app():
         _db.session.add(pedido)
         _db.session.flush()
 
-        # Detalle 1: producto que se pesa
+        # Detalle 1: producto que se pesa (línea de preparación)
         det1 = DetallePedido(
             pedido_id=pedido.id,
             producto_id=prod_peso.id,
@@ -89,10 +89,11 @@ def app():
             lote='L001',
             fecha_fabricacion='2026-01-15',
             fecha_expiracion='2026-06-15',
+            es_linea_pedido=False,
         )
         _db.session.add(det1)
 
-        # Detalle 2: producto que NO se pesa
+        # Detalle 2: producto que NO se pesa (línea de preparación)
         det2 = DetallePedido(
             pedido_id=pedido.id,
             producto_id=prod_uds.id,
@@ -103,6 +104,7 @@ def app():
             lote='L002',
             fecha_fabricacion='2026-01-15',
             fecha_expiracion='2026-07-15',
+            es_linea_pedido=False,
         )
         _db.session.add(det2)
         _db.session.commit()

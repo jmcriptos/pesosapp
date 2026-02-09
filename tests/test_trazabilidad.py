@@ -1,8 +1,10 @@
 # tests/test_trazabilidad.py
-"""Tests para Story 2.3: Reforzar trazabilidad obligatoria en preparación."""
+"""Tests para Story 2.3: Reforzar trazabilidad obligatoria en preparación.
+Updated for Story 3-0: /preparar now redirects to /detalles, validation via marcar_listo."""
 import os
 import pytest
 from unittest.mock import patch, MagicMock
+from datetime import datetime
 
 os.environ.setdefault('SECRET_KEY', 'test-secret')
 os.environ.setdefault('FLASK_ENV', 'testing')
@@ -64,7 +66,7 @@ def app():
         _db.session.add_all([producto_carne, producto_aceite])
         _db.session.flush()
 
-        # Setup pedido pendiente con detalles
+        # Setup pedido pendiente con detalles (líneas originales)
         pedido = Pedido(
             cliente_id=cliente.id,
             estado='pendiente',
@@ -79,6 +81,7 @@ def app():
             peso=0,
             precio_unitario=25.00,
             subtotal=250.00,
+            es_linea_pedido=True,
         )
         detalle_aceite = DetallePedido(
             pedido_id=pedido.id,
@@ -87,6 +90,7 @@ def app():
             peso=0,
             precio_unitario=12.00,
             subtotal=60.00,
+            es_linea_pedido=True,
         )
         _db.session.add_all([detalle_carne, detalle_aceite])
         _db.session.commit()
@@ -110,85 +114,120 @@ def anon_client(app):
     return app.test_client()
 
 
-def _build_preparar_form(detalles, lote='L001', fab='2026-01-01', exp='2026-06-01'):
-    """Helper para construir form data de preparación con trazabilidad."""
-    form_data = {}
-    for d in detalles:
-        form_data[f'entregadas_{d.id}'] = str(d.cajas)
-        form_data[f'peso_{d.id}'] = '0'
-        form_data[f'lote_{d.id}'] = lote
-        form_data[f'fab_{d.id}'] = fab
-        form_data[f'exp_{d.id}'] = exp
-    return form_data
+def _add_prep_lines_no_traceability(app, lote='', fab=None, exp=None):
+    """Add preparation lines without full traceability."""
+    from app import Pedido, DetallePedido, Producto
+    pedido = Pedido.query.first()
+    prod_pesa = Producto.query.filter_by(se_pesa=True).first()
+    det = DetallePedido(
+        pedido_id=pedido.id,
+        producto_id=prod_pesa.id,
+        cajas=1,
+        peso=4.5,
+        precio_unitario=25.00,
+        subtotal=25.00,
+        lote=lote or None,
+        fecha_fabricacion=fab,
+        fecha_expiracion=exp,
+        es_linea_pedido=False,
+    )
+    _db.session.add(det)
+    _db.session.commit()
+    return pedido
 
 
-# === AC #1: Validación obligatoria en preparación ===
+def _add_complete_prep_lines(app):
+    """Add preparation lines with full traceability for all products."""
+    from app import Pedido, DetallePedido, Producto
+    pedido = Pedido.query.first()
+    prod_pesa = Producto.query.filter_by(se_pesa=True).first()
+
+    # Set import product fecha_expiracion
+    prod_import = Producto.query.filter_by(se_pesa=False).first()
+    det_import = DetallePedido.query.filter_by(
+        producto_id=prod_import.id, es_linea_pedido=True
+    ).first()
+    det_import.fecha_expiracion = datetime(2026, 6, 1)
+
+    # Add preparation lines
+    for i in range(3):
+        det = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_pesa.id,
+            cajas=1,
+            peso=4.5,
+            precio_unitario=25.00,
+            subtotal=25.00,
+            lote='L001',
+            fecha_fabricacion=datetime(2026, 1, 1),
+            fecha_expiracion=datetime(2026, 6, 1),
+            es_linea_pedido=False,
+        )
+        _db.session.add(det)
+    _db.session.commit()
+    return pedido
+
+
+# === AC #1: Validación obligatoria via marcar_listo ===
 
 def test_preparar_sin_lote_rechazado(logged_client, app):
-    """AC #1: POST preparar_pedido SIN lote retorna 200, pedido sigue pendiente."""
+    """AC #1: marcar_listo with prep lines missing lote → stays pendiente."""
     with app.app_context():
-        from app import Pedido, DetallePedido
-        pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-
-        form_data = _build_preparar_form(detalles, lote='', fab='2026-01-01', exp='2026-06-01')
+        pedido = _add_prep_lines_no_traceability(
+            app, lote='', fab=datetime(2026, 1, 1), exp=datetime(2026, 6, 1)
+        )
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/marcar_listo',
+            follow_redirects=True,
         )
         assert resp.status_code == 200
-        # Pedido sigue en pendiente
+        from app import Pedido
         pedido_updated = Pedido.query.first()
         assert pedido_updated.estado == 'pendiente'
 
 
 def test_preparar_sin_fecha_fabricacion_rechazado(logged_client, app):
-    """AC #1: POST preparar_pedido SIN fecha_fabricacion → error."""
+    """AC #1: marcar_listo with prep lines missing fecha_fabricacion → stays pendiente."""
     with app.app_context():
-        from app import Pedido, DetallePedido
-        pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-
-        form_data = _build_preparar_form(detalles, lote='L001', fab='', exp='2026-06-01')
+        pedido = _add_prep_lines_no_traceability(
+            app, lote='L001', fab=None, exp=datetime(2026, 6, 1)
+        )
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/marcar_listo',
+            follow_redirects=True,
         )
         assert resp.status_code == 200
+        from app import Pedido
         pedido_updated = Pedido.query.first()
         assert pedido_updated.estado == 'pendiente'
 
 
 def test_preparar_sin_fecha_expiracion_rechazado(logged_client, app):
-    """AC #1: POST preparar_pedido SIN fecha_expiracion → error."""
+    """AC #1: marcar_listo with prep lines missing fecha_expiracion → stays pendiente."""
     with app.app_context():
-        from app import Pedido, DetallePedido
-        pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-
-        form_data = _build_preparar_form(detalles, lote='L001', fab='2026-01-01', exp='')
+        pedido = _add_prep_lines_no_traceability(
+            app, lote='L001', fab=datetime(2026, 1, 1), exp=None
+        )
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/marcar_listo',
+            follow_redirects=True,
         )
         assert resp.status_code == 200
+        from app import Pedido
         pedido_updated = Pedido.query.first()
         assert pedido_updated.estado == 'pendiente'
 
 
 def test_preparar_pedido_facturado_rechazado(logged_client, app):
-    """AC #4: POST preparar_pedido de pedido facturado → rechazado."""
+    """AC #4: marcar_listo on facturado pedido → rejected."""
     with app.app_context():
-        from app import Pedido, DetallePedido
+        from app import Pedido
         pedido = Pedido.query.first()
         pedido.estado = 'facturado'
         _db.session.commit()
 
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
-        form_data = _build_preparar_form(detalles)
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/marcar_listo',
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -197,7 +236,7 @@ def test_preparar_pedido_facturado_rechazado(logged_client, app):
 
 
 def test_agregar_detalle_pedido_facturado_rechazado(logged_client, app):
-    """AC #4: POST detalles_pedido de pedido facturado → rechazado, detalle NO se crea."""
+    """AC #4: POST detalles_pedido de pedido facturado → rechazado."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
@@ -225,19 +264,16 @@ def test_agregar_detalle_pedido_facturado_rechazado(logged_client, app):
 
 
 def test_preparar_con_trazabilidad_completa_acepta(logged_client, app):
-    """AC #1: POST preparar_pedido CON todos los campos → estado 'listo'."""
+    """AC #1: marcar_listo with full traceability → estado 'listo'."""
     with app.app_context():
-        from app import Pedido, DetallePedido
-        pedido = Pedido.query.first()
-        detalles = DetallePedido.query.filter_by(pedido_id=pedido.id).all()
+        pedido = _add_complete_prep_lines(app)
 
-        form_data = _build_preparar_form(detalles)
         resp = logged_client.post(
-            f'/pedidos/{pedido.id}/preparar',
-            data=form_data,
+            f'/pedidos/{pedido.id}/marcar_listo',
             follow_redirects=True,
         )
         assert resp.status_code == 200
+        from app import Pedido
         pedido_updated = Pedido.query.first()
         assert pedido_updated.estado == 'listo'
 
@@ -266,13 +302,13 @@ def test_agregar_detalle_sin_lote_rechazado(logged_client, app):
         )
         assert resp.status_code == 200
         count_after = DetallePedido.query.filter_by(pedido_id=pedido.id).count()
-        assert count_after == count_before  # No se creó nuevo detalle
+        assert count_after == count_before
 
 
 # === AC #3: Bloqueo facturación sin trazabilidad ===
 
 def test_facturar_sin_trazabilidad_bloqueado(logged_client, app):
-    """AC #3: POST facturar con trazabilidad incompleta → flash error, estado sigue 'listo'."""
+    """AC #3: POST facturar con trazabilidad incompleta → flash error."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
@@ -289,13 +325,13 @@ def test_facturar_sin_trazabilidad_bloqueado(logged_client, app):
 
 
 def test_facturar_con_trazabilidad_completa_procede(logged_client, app):
-    """AC #3: POST facturar con trazabilidad completa → procede (mock N8N)."""
+    """AC #3: POST facturar with full traceability → proceeds (mock N8N)."""
     with app.app_context():
         from app import Pedido, DetallePedido
         pedido = Pedido.query.first()
         pedido.estado = 'listo'
 
-        # Rellenar trazabilidad en todos los detalles
+        # Fill traceability on all details
         for d in DetallePedido.query.filter_by(pedido_id=pedido.id).all():
             d.lote = 'L001'
             d.fecha_fabricacion = '2026-01-01'
@@ -343,7 +379,6 @@ def test_editar_detalle_facturado_rechazado(logged_client, app):
             follow_redirects=True,
         )
         assert resp.status_code == 200
-        # Verificar que lote NO cambió
         detalle_updated = DetallePedido.query.get(detalle.id)
         assert detalle_updated.lote != 'NUEVO'
 
@@ -365,27 +400,27 @@ def test_eliminar_detalle_facturado_rechazado(logged_client, app):
         )
         assert resp.status_code == 200
         count_after = DetallePedido.query.filter_by(pedido_id=pedido.id).count()
-        assert count_after == count_before  # No se eliminó
+        assert count_after == count_before
 
 
 # === AC #6: Regresión ===
 
 def test_preparar_pedido_get_sigue_cargando(logged_client, app):
-    """AC #6: preparar_pedido GET sigue funcionando."""
+    """Story 3-0: /preparar redirects 301 to /detalles."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
         resp = logged_client.get(f'/pedidos/{pedido.id}/preparar')
-        assert resp.status_code == 200
+        assert resp.status_code == 301
 
 
 def test_regression_dashboard_works(logged_client):
-    """AC #6: El dashboard sigue funcionando."""
+    """El dashboard sigue funcionando."""
     resp = logged_client.get('/dashboard')
     assert resp.status_code == 200
 
 
 def test_regression_login_works(anon_client):
-    """AC #6: La página de login sigue funcionando."""
+    """La página de login sigue funcionando."""
     resp = anon_client.get('/login')
     assert resp.status_code == 200

@@ -772,6 +772,30 @@
 }
 
 /* ============================================
+   LÍNEAS DE PEDIDO ORIGINAL (es_linea_pedido)
+   ============================================ */
+.linea-pedido-original {
+    background: #f0f0f0 !important;
+    opacity: 0.7;
+}
+
+.badge-pedido {
+    display: inline-block;
+    background: #6b7280;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+tr.linea-pedido-original td {
+    color: #6b7280;
+}
+
+/* ============================================
    SAFE AREAS
    ============================================ */
 @supports (padding: max(0px)) {
@@ -876,10 +900,10 @@
                 <div class="productos-list-mobile">
                     {% if detalles_ordenados %}
                         {% for detalle in detalles_ordenados %}
-                        <div class="producto-item-mobile">
+                        <div class="producto-item-mobile{% if detalle.es_linea_pedido %} linea-pedido-original{% endif %}">
                             <div class="producto-item-header">
                                 <span class="producto-item-index">{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</span>
-                                <span class="producto-item-name">{{ detalle.producto.nombre }}</span>
+                                <span class="producto-item-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</span>
                             </div>
                             <div class="producto-item-body">
                                 <div class="producto-detail">
@@ -900,7 +924,7 @@
                                 </div>
                             </div>
                             <div class="producto-item-footer">
-                                {% if pedido.estado != 'facturado' %}
+                                {% if pedido.estado != 'facturado' and not detalle.es_linea_pedido %}
                                 <div class="producto-item-actions">
                                     <button type="button" class="mobile-edit-btn"
                                             onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
@@ -943,15 +967,15 @@
                     <tbody>
                         {% if detalles_ordenados %}
                             {% for detalle in detalles_ordenados %}
-                            <tr>
+                            <tr{% if detalle.es_linea_pedido %} class="linea-pedido-original"{% endif %}>
                                 <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
-                                <td class="product-name">{{ detalle.producto.nombre }}</td>
+                                <td class="product-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</td>
                                 <td>{{ detalle.peso }}</td>
                                 <td>{{ detalle.lote }}</td>
                                 <td>{{ detalle.fecha_fabricacion }}</td>
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
-                                    {% if pedido.estado != 'facturado' %}
+                                    {% if pedido.estado != 'facturado' and not detalle.es_linea_pedido %}
                                     <div class="table-actions">
                                         <button type="button" class="mobile-edit-btn" title="Editar producto"
                                                 onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
@@ -978,6 +1002,21 @@
             </div>
         </div>
     </div>
+
+    <!-- Botón Marcar como Listo -->
+    {% if pedido.estado == 'pendiente' %}
+    <div class="mobile-card">
+        <div class="mobile-card-body" style="text-align: center; padding: 16px;">
+            <form action="{{ url_for('marcar_listo', pedido_id=pedido.id) }}" method="POST" data-confirm="¿Marcar este pedido como listo? Se validará la trazabilidad de todos los productos.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="mobile-btn mobile-btn-success" style="width: 100%; font-size: 1.1rem; padding: 14px 20px;">
+                    <i class="fas fa-check-circle"></i>
+                    Marcar como Listo
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Sección de etiquetas -->
     <div class="mobile-card">
