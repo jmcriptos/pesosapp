@@ -13,8 +13,10 @@
 {# ===== Normalización y defaults seguros ===== #}
 {% set ventas_mes_v = (ventas_mes or 0)|float %}
 {% set ventas_semana_v = (ventas_semana or 0)|float %}
+{% set ventas_mes_anterior_v = (ventas_mes_anterior or 0)|float %}
 {% set pedidos_mes_v = (pedidos_mes or 0)|int %}
 {% set pedidos_semana_v = (pedidos_semana or 0)|int %}
+{% set pedidos_mes_anterior_v = (pedidos_mes_anterior or 0)|int %}
 {% set otd_rate_v = (otd_rate or 0)|float %}
 {% set order_completion_rate_v = (order_completion_rate or 0)|float %}
 {% set perfect_order_rate_v = (perfect_order_rate or 0)|float %}
@@ -122,11 +124,10 @@
                     <div class="kpi-icon">
                         <i class="fas fa-dollar-sign"></i>
                     </div>
-                    {% set ref = ventas_semana_v * 4 %}
-                    {% set pct_revenue = ((ventas_mes_v - ref) / ref * 100) if ref > 0 else 0 %}
+                    {% set pct_revenue = ((ventas_mes_v - ventas_mes_anterior_v) / ventas_mes_anterior_v * 100) if ventas_mes_anterior_v > 0 else 0 %}
                     <div class="kpi-trend {% if pct_revenue >= 0 %}up{% else %}down{% endif %}">
                         <i class="fas fa-arrow-{% if pct_revenue >= 0 %}up{% else %}down{% endif %}"></i>
-                        <span>{{ '+' if pct_revenue >= 0 else '-' }}{{ '%.1f' % (pct_revenue|abs) }}%</span>
+                        <span>{{ '+' if pct_revenue >= 0 else '' }}{{ '%.1f' % pct_revenue }}%</span>
                     </div>
                 </div>
                 <div class="kpi-content">
@@ -147,12 +148,10 @@
                     <div class="kpi-icon">
                         <i class="fas fa-shopping-cart"></i>
                     </div>
-                    {% set denom_orders_raw = pedidos_semana_v * 4 %}
-                    {% set denom_orders = denom_orders_raw if denom_orders_raw > 0 else 1 %}
-                    {% set pct_orders = ((pedidos_mes_v / denom_orders) - 1) * 100 %}
+                    {% set pct_orders = ((pedidos_mes_v - pedidos_mes_anterior_v) / pedidos_mes_anterior_v * 100) if pedidos_mes_anterior_v > 0 else 0 %}
                     <div class="kpi-trend {% if pct_orders >= 0 %}up{% else %}down{% endif %}">
                         <i class="fas fa-arrow-{% if pct_orders >= 0 %}up{% else %}down{% endif %}"></i>
-                        <span>{{ '+' if pct_orders >= 0 else '-' }}{{ '%.1f' % (pct_orders|abs) }}%</span>
+                        <span>{{ '+' if pct_orders >= 0 else '' }}{{ '%.1f' % pct_orders }}%</span>
                     </div>
                 </div>
                 <div class="kpi-content">
@@ -178,7 +177,7 @@
                     {% set proj_icon_class = 'arrow-up' if porcentaje_proyeccion_v >= 100 else ('minus' if porcentaje_proyeccion_v >= 80 else 'arrow-down') %}
                     <div class="kpi-trend {{ proj_trend_class }}">
                         <i class="fas fa-{{ proj_icon_class }}"></i>
-                        <span>{{ '%.0f' % porcentaje_proyeccion_v }}%</span>
+                        <span>{{ '%.0f' % porcentaje_proyeccion_v }}% meta</span>
                     </div>
                 </div>
                 <div class="kpi-content">

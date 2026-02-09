@@ -2266,6 +2266,9 @@ def dashboard():
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
         hace_8_semanas = hoy - timedelta(weeks=8)
+        # Mes anterior (mismo rango de días para comparación justa)
+        fin_mes_anterior = inicio_mes - timedelta(days=1)
+        inicio_mes_anterior = fin_mes_anterior.replace(day=1)
 
         # === CLIENTE EXCLUIDO (ALMACÉN INTERNO) ===
         # AL01 es usado para registrar pesos e imprimir etiquetas de almacén, no son pedidos reales
@@ -2286,6 +2289,10 @@ def dashboard():
             pedidos_mes_list = base_query.filter(Pedido.fecha_pedido >= inicio_mes).all()
             pedidos_semana_list = base_query.filter(Pedido.fecha_pedido >= inicio_semana).all()
             pedidos_30_dias = base_query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
+            pedidos_mes_anterior_list = base_query.filter(
+                Pedido.fecha_pedido >= inicio_mes_anterior,
+                Pedido.fecha_pedido <= fin_mes_anterior
+            ).all()
             
             app.logger.info(f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, {len(pedidos_semana_list)} semana, {len(pedidos_30_dias)} últimos 30 días")
         except Exception as e:
@@ -2317,6 +2324,16 @@ def dashboard():
                     app.logger.warning(f"Error en cálculo ventas semana, pedido {p.id}: {e}")
                     continue
             
+            ventas_mes_anterior = 0
+            for p in pedidos_mes_anterior_list:
+                try:
+                    for d in p.detalles:
+                        if d.subtotal:
+                            ventas_mes_anterior += float(d.subtotal)
+                except (AttributeError, ValueError, TypeError):
+                    continue
+            pedidos_mes_anterior = len(pedidos_mes_anterior_list)
+
             # Consulta robusta para pedidos pendientes (excluyendo AL01)
             pendientes_query = Pedido.query.filter_by(estado='pendiente')
             if cliente_almacen_id:
@@ -2327,6 +2344,8 @@ def dashboard():
             app.logger.error(f"Error en cálculos de ventas: {e}")
             ventas_mes = 0
             ventas_semana = 0
+            ventas_mes_anterior = 0
+            pedidos_mes_anterior = 0
             pedidos_pendientes = 0
 
         # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
@@ -2670,6 +2689,8 @@ def dashboard():
             pedidos_mes=len(pedidos_mes_list),
             ventas_semana=ventas_semana,
             pedidos_semana=len(pedidos_semana_list),
+            ventas_mes_anterior=ventas_mes_anterior,
+            pedidos_mes_anterior=pedidos_mes_anterior,
             pedidos_pendientes=pedidos_pendientes,
             meta_mensual=meta_mensual,
             porcentaje_meta=porcentaje_meta,
@@ -2720,6 +2741,8 @@ def dashboard():
             'porcentaje_meta': 0,
             'proyeccion_ventas': 0,
             'porcentaje_proyeccion': 0,
+            'ventas_mes_anterior': 0,
+            'pedidos_mes_anterior': 0,
             'dias_total_mes': calendar.monthrange(datetime.now().year, datetime.now().month)[1],
             'lead_time_promedio': 0,
             'order_completion_rate': 0,
