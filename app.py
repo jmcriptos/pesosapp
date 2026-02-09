@@ -3103,8 +3103,11 @@ def detalles_pedido(pedido_id):
     detalles_ordenados = sorted(pedido.detalles, key=lambda d: (d.producto.nombre, d.id))
 
     # Calcular conteo de registros por producto para mostrar "#/Total"
+    # Excluir líneas originales del pedido (es_linea_pedido=True)
     conteo_por_producto = {}
     for detalle in detalles_ordenados:
+        if detalle.es_linea_pedido:
+            continue
         pid = detalle.producto_id
         conteo_por_producto[pid] = conteo_por_producto.get(pid, 0) + 1
 
@@ -3112,6 +3115,8 @@ def detalles_pedido(pedido_id):
     indice_detalle = {}
     contador_temp = {}
     for detalle in detalles_ordenados:
+        if detalle.es_linea_pedido:
+            continue
         pid = detalle.producto_id
         contador_temp[pid] = contador_temp.get(pid, 0) + 1
         indice_detalle[detalle.id] = contador_temp[pid]
@@ -3250,10 +3255,10 @@ def generar_etiqueta_detalle(pedido_id):
             producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
             temperatura = getattr(d.producto, "temperatura", None) or "N/A"
 
-            # Formatear peso con unidad según tipo de producto
-            se_pesa = getattr(d.producto, "se_pesa", False)
-            if se_pesa:
-                peso_val = f"{float(d.peso or 0):.2f} kg"
+            # Formatear peso: usar peso real si existe, sino cajas
+            peso_float = float(d.peso or 0)
+            if peso_float > 0:
+                peso_val = f"{peso_float:.2f} kg"
             else:
                 peso_val = f"{int(d.cajas or 0)} uds"
 
@@ -3378,10 +3383,10 @@ def generar_etiqueta_detalle_a4(pedido_id):
             producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
             temperatura = getattr(d.producto, "temperatura", None) or "N/A"
 
-            # Formatear peso con unidad según tipo de producto
-            se_pesa = getattr(d.producto, "se_pesa", False)
-            if se_pesa:
-                peso_val = f"{float(d.peso or 0):.2f} kg"
+            # Formatear peso: usar peso real si existe, sino cajas
+            peso_float = float(d.peso or 0)
+            if peso_float > 0:
+                peso_val = f"{peso_float:.2f} kg"
             else:
                 peso_val = f"{int(d.cajas or 0)} uds"
 

@@ -902,7 +902,7 @@ tr.linea-pedido-original td {
                         {% for detalle in detalles_ordenados %}
                         <div class="producto-item-mobile{% if detalle.es_linea_pedido %} linea-pedido-original{% endif %}">
                             <div class="producto-item-header">
-                                <span class="producto-item-index">{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</span>
+                                <span class="producto-item-index">{% if not detalle.es_linea_pedido %}{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}{% endif %}</span>
                                 <span class="producto-item-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</span>
                             </div>
                             <div class="producto-item-body">
@@ -968,7 +968,7 @@ tr.linea-pedido-original td {
                         {% if detalles_ordenados %}
                             {% for detalle in detalles_ordenados %}
                             <tr{% if detalle.es_linea_pedido %} class="linea-pedido-original"{% endif %}>
-                                <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
+                                <td>{% if not detalle.es_linea_pedido %}{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}{% endif %}</td>
                                 <td class="product-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</td>
                                 <td>{{ detalle.peso }}</td>
                                 <td>{{ detalle.lote }}</td>
