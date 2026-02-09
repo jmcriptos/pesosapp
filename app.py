@@ -4177,7 +4177,7 @@ def productos():
             nombre      = request.form['nombre']
             descripcion = request.form.get('descripcion', '')
             temperatura = request.form.get('temperatura', '')
-            qbo_id      = request.form.get('qbo_id')
+            qbo_id      = request.form.get('qbo_id', '').strip() or None
             tax_rate    = float(request.form.get('tax_rate', 0.0))
 
             nuevo = Producto(
@@ -4232,7 +4232,7 @@ def editar_producto(producto_id):
         producto.nombre      = request.form['nombre']
         producto.descripcion = request.form.get('descripcion', '')
         producto.temperatura = request.form.get('temperatura', '')
-        producto.qbo_id      = request.form.get('qbo_id')
+        producto.qbo_id      = request.form.get('qbo_id', '').strip() or None
         producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
         producto.se_pesa     = 'se_pesa' in request.form
         db.session.commit()
