@@ -924,7 +924,7 @@ tr.linea-pedido-original td {
                                 </div>
                             </div>
                             <div class="producto-item-footer">
-                                {% if pedido.estado != 'facturado' and not detalle.es_linea_pedido %}
+                                {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                 <div class="producto-item-actions">
                                     <button type="button" class="mobile-edit-btn"
                                             onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
@@ -975,7 +975,7 @@ tr.linea-pedido-original td {
                                 <td>{{ detalle.fecha_fabricacion }}</td>
                                 <td>{{ detalle.fecha_expiracion }}</td>
                                 <td>
-                                    {% if pedido.estado != 'facturado' and not detalle.es_linea_pedido %}
+                                    {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                     <div class="table-actions">
                                         <button type="button" class="mobile-edit-btn" title="Editar producto"
                                                 onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
