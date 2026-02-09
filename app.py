@@ -4185,7 +4185,8 @@ def productos():
                 descripcion=descripcion,
                 temperatura=temperatura,
                 qbo_id=qbo_id,
-                tax_rate=tax_rate
+                tax_rate=tax_rate,
+                se_pesa='se_pesa' in request.form
             )
             db.session.add(nuevo)
             db.session.commit()
