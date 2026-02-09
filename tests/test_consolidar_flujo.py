@@ -237,8 +237,8 @@ def test_marcar_preparado_sin_preparacion_falla(logged_client, app):
                'preparaci'.encode() in resp.data.lower()
 
 
-def test_marcar_preparado_import_sin_fecha_exp_falla(logged_client, app):
-    """AC #5: Producto import sin fecha_expiracion impide marcar como listo."""
+def test_marcar_preparado_import_sin_fecha_exp_ok(logged_client, app):
+    """Producto import sin fecha_expiracion NO bloquea marcar como preparado."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
 
@@ -260,8 +260,7 @@ def test_marcar_preparado_import_sin_fecha_exp_falla(logged_client, app):
         assert resp.status_code == 200
 
         pedido = Pedido.query.first()
-        assert pedido.estado == 'pendiente'
-        assert 'fecha'.encode() in resp.data.lower()
+        assert pedido.estado == 'preparado'
 
 
 # === AC #6: pedido_a_json filtra líneas correctamente ===

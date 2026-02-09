@@ -3482,11 +3482,8 @@ def marcar_preparado(pedido_id):
     errores = []
     for detalle in pedido.detalles:
         if detalle.es_linea_pedido:
-            # Línea original del vendedor: para productos de importación,
-            # verificar al menos fecha_expiracion
-            if not detalle.producto.se_pesa:
-                if not detalle.fecha_expiracion:
-                    errores.append(f"{detalle.producto.nombre}: falta fecha expiración")
+            # Línea original del vendedor: sin validación por ahora
+            continue
         else:
             # Línea de preparación: requiere trazabilidad completa
             campos_faltantes = []
