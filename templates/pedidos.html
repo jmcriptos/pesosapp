@@ -522,34 +522,29 @@
     letter-spacing: 0.3px;
 }
 
-.action-view {
-    background: #f3f4f6;
-    color: #374151;
-}
-.action-view:active { background: #e5e7eb; }
-
-.action-edit {
+.action-btn-mobile.action-view {
     background: #eff6ff;
     color: #1d4ed8;
 }
-.action-edit:active { background: #dbeafe; }
+.action-btn-mobile.action-view:active { background: #dbeafe; }
 
-.action-invoice {
+.action-btn-mobile.action-edit {
+    background: #fefce8;
+    color: #a16207;
+}
+.action-btn-mobile.action-edit:active { background: #fef9c3; }
+
+.action-btn-mobile.action-invoice {
     background: #f0fdf4;
     color: #15803d;
 }
-.action-invoice:active { background: #dcfce7; }
-.action-invoice:disabled {
-    background: #f9fafb;
-    color: #d1d5db;
-    cursor: not-allowed;
-}
+.action-btn-mobile.action-invoice:active { background: #dcfce7; }
 
-.action-delete {
+button.action-btn-mobile.action-delete {
     background: #fef2f2;
     color: #dc2626;
 }
-.action-delete:active { background: #fee2e2; }
+button.action-btn-mobile.action-delete:active { background: #fee2e2; }
 
 /* Empty state */
 .pedidos-empty {
@@ -962,10 +957,10 @@
         border-top-color: #374151;
     }
 
-    .action-view { background: #374151; color: #d1d5db; }
-    .action-edit { background: #1e3a5f; color: #93c5fd; }
-    .action-invoice { background: #064e3b; color: #6ee7b7; }
-    .action-delete { background: #450a0a; color: #fca5a5; }
+    .action-btn-mobile.action-view { background: #1e3a5f; color: #93c5fd; }
+    .action-btn-mobile.action-edit { background: #422006; color: #fcd34d; }
+    .action-btn-mobile.action-invoice { background: #064e3b; color: #6ee7b7; }
+    button.action-btn-mobile.action-delete { background: #450a0a; color: #fca5a5; }
 
     .pagination-mobile {
         background: #1f2937;
