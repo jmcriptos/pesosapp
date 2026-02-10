@@ -3097,9 +3097,11 @@ def detalles_pedido(pedido_id):
         fecha_expiracion  = request.form.get('fecha_expiracion', '').strip()
 
         # ── Validación de trazabilidad obligatoria ──────────────
-        if not all([lote, fecha_fabricacion, fecha_expiracion]):
-            flash('Lote, fecha fabricación y fecha expiración son obligatorios', 'error')
-            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+        producto_obj = Producto.query.get(producto_id)
+        if producto_obj and producto_obj.se_pesa:
+            if not all([lote, fecha_fabricacion, fecha_expiracion]):
+                flash('Lote, fecha fabricación y fecha expiración son obligatorios', 'error')
+                return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
         # -------- Obtener precio unitario según la jerarquía --------
         precio_unitario = obtener_precio_producto_cliente(
@@ -3228,19 +3230,14 @@ def editar_detalle_pedido(detalle_id):
         if not all([peso, lote, fecha_fabricacion, fecha_expiracion]):
             flash('Peso, lote, fecha fabricación y fecha expiración son requeridos', 'error')
             return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
-    else:
-        # Importación: cajas (viene como peso del form), lote y fecha_fab obligatorios
-        if not lote or not fecha_fabricacion:
-            flash('Lote y fecha fabricación son requeridos', 'error')
-            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     # Actualizar el detalle
     detalle.producto_id = producto_id
-    detalle.lote = lote
-    detalle.fecha_fabricacion = fecha_fabricacion
+    detalle.lote = lote or None
+    detalle.fecha_fabricacion = fecha_fabricacion or None
+    detalle.fecha_expiracion = fecha_expiracion or None
     if producto.se_pesa:
         detalle.peso = peso
-        detalle.fecha_expiracion = fecha_expiracion
     else:
         detalle.cajas = int(peso)  # el form envía cajas en el campo peso
         detalle.fecha_expiracion = fecha_expiracion if fecha_expiracion else None
@@ -3607,12 +3604,13 @@ def facturar_pedido(pedido_id):
             continue
 
         campos_faltantes = []
-        if not detalle.lote:
-            campos_faltantes.append('lote')
-        if not detalle.fecha_fabricacion:
-            campos_faltantes.append('fecha fabricación')
-        if detalle.producto.se_pesa and not detalle.fecha_expiracion:
-            campos_faltantes.append('fecha expiración')
+        if detalle.producto.se_pesa:
+            if not detalle.lote:
+                campos_faltantes.append('lote')
+            if not detalle.fecha_fabricacion:
+                campos_faltantes.append('fecha fabricación')
+            if not detalle.fecha_expiracion:
+                campos_faltantes.append('fecha expiración')
         if campos_faltantes:
             traz_errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
     if traz_errores:

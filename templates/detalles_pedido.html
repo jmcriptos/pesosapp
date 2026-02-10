@@ -910,6 +910,7 @@ tr.linea-pedido-original td {
                                     <span class="producto-detail-label">Cantidad</span>
                                     <span class="producto-detail-value">{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.6">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</span>
                                 </div>
+                                {% if detalle.producto.se_pesa %}
                                 <div class="producto-detail">
                                     <span class="producto-detail-label">Lote</span>
                                     <span class="producto-detail-value">{{ detalle.lote or '—' }}</span>
@@ -918,7 +919,11 @@ tr.linea-pedido-original td {
                                     <span class="producto-detail-label">F. Fab.</span>
                                     <span class="producto-detail-value">{{ detalle.fecha_fabricacion or '—' }}</span>
                                 </div>
-                                {% if detalle.producto.se_pesa %}
+                                <div class="producto-detail">
+                                    <span class="producto-detail-label">F. Exp.</span>
+                                    <span class="producto-detail-value">{{ detalle.fecha_expiracion or '—' }}</span>
+                                </div>
+                                {% else %}
                                 <div class="producto-detail">
                                     <span class="producto-detail-label">F. Exp.</span>
                                     <span class="producto-detail-value">{{ detalle.fecha_expiracion or '—' }}</span>
@@ -973,9 +978,9 @@ tr.linea-pedido-original td {
                                 <td>{% if not detalle.es_linea_pedido %}{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}{% endif %}</td>
                                 <td class="product-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</td>
                                 <td>{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.5">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</td>
-                                <td>{{ detalle.lote or '—' }}</td>
-                                <td>{{ detalle.fecha_fabricacion or '—' }}</td>
-                                <td>{% if detalle.producto.se_pesa %}{{ detalle.fecha_expiracion or '—' }}{% else %}—{% endif %}</td>
+                                <td>{% if detalle.producto.se_pesa %}{{ detalle.lote or '—' }}{% else %}—{% endif %}</td>
+                                <td>{% if detalle.producto.se_pesa %}{{ detalle.fecha_fabricacion or '—' }}{% else %}—{% endif %}</td>
+                                <td>{{ detalle.fecha_expiracion or '—' }}</td>
                                 <td>
                                     {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                     <div class="table-actions">
@@ -1205,9 +1210,28 @@ function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, ca
         editPeso.inputMode = 'numeric';
     }
 
-    // Mostrar/ocultar F. Expiración
+    // Mostrar/ocultar campos según tipo de producto
+    const editLoteGroup = document.getElementById('edit_lote').closest('.mobile-form-group');
+    const editFabGroup = document.getElementById('edit_fecha_fabricacion').closest('.mobile-form-group');
     const editExpGroup = document.getElementById('edit_fecha_expiracion').closest('.mobile-form-group');
-    editExpGroup.style.display = sePesa ? '' : 'none';
+
+    if (sePesa) {
+        // Manufactura: todos los campos visibles y requeridos
+        editLoteGroup.style.display = '';
+        editFabGroup.style.display = '';
+        editExpGroup.style.display = '';
+        document.getElementById('edit_lote').required = true;
+        document.getElementById('edit_fecha_fabricacion').required = true;
+        document.getElementById('edit_fecha_expiracion').required = true;
+    } else {
+        // Importación: solo Cajas + F. Expiración (opcional)
+        editLoteGroup.style.display = 'none';
+        editFabGroup.style.display = 'none';
+        editExpGroup.style.display = '';
+        document.getElementById('edit_lote').required = false;
+        document.getElementById('edit_fecha_fabricacion').required = false;
+        document.getElementById('edit_fecha_expiracion').required = false;
+    }
 
     // Mostrar el modal
     editModalOverlay.classList.add('show');
@@ -1332,21 +1356,35 @@ $prod.addEventListener('change', calcExp);
 // ========================================================================
 const $cantidadLabel = document.getElementById('cantidad_label');
 const $expGroup = $exp.closest('.mobile-form-group');
+const $loteGroup = $lote.closest('.mobile-form-group');
+const $fabGroup = $fab.closest('.mobile-form-group');
 
 function adaptFormToProduct() {
     const selectedOption = $prod.options[$prod.selectedIndex];
     const sePesa = selectedOption && selectedOption.dataset.sePesa === 'true';
 
     if (sePesa || !selectedOption || !selectedOption.value) {
+        // Manufactura: todos los campos visibles y requeridos
         $cantidadLabel.textContent = 'Peso (kg)';
         $peso.placeholder = '0.00';
         $peso.inputMode = 'decimal';
+        $loteGroup.style.display = '';
+        $fabGroup.style.display = '';
         $expGroup.style.display = '';
+        $lote.required = true;
+        $fab.required = true;
+        $exp.required = true;
     } else {
+        // Importación: solo Cajas + F. Expiración (opcional)
         $cantidadLabel.textContent = 'Cajas';
         $peso.placeholder = '0';
         $peso.inputMode = 'numeric';
-        $expGroup.style.display = 'none';
+        $loteGroup.style.display = 'none';
+        $fabGroup.style.display = 'none';
+        $expGroup.style.display = '';
+        $lote.required = false;
+        $fab.required = false;
+        $exp.required = false;
     }
 }
 
