@@ -929,7 +929,7 @@ tr.linea-pedido-original td {
                                 {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                 <div class="producto-item-actions">
                                     <button type="button" class="mobile-edit-btn"
-                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
+                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote or '' }}', '{{ detalle.fecha_fabricacion or '' }}', '{{ detalle.fecha_expiracion or '' }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
                                         <i class="fas fa-edit"></i>
                                         <span>Editar</span>
                                     </button>
@@ -980,7 +980,7 @@ tr.linea-pedido-original td {
                                     {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                     <div class="table-actions">
                                         <button type="button" class="mobile-edit-btn" title="Editar producto"
-                                                onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
+                                                onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote or '' }}', '{{ detalle.fecha_fabricacion or '' }}', '{{ detalle.fecha_expiracion or '' }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
@@ -1116,10 +1116,9 @@ tr.linea-pedido-original td {
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="edit_producto_id">Producto</label>
                         <div class="mobile-select-wrapper">
-                            {% set allowed_ids = [1,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22] %}
                             <select name="producto_id" id="edit_producto_id" class="mobile-form-control" required>
                                 <option value="">Seleccionar...</option>
-                                {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
+                                {% for p in productos|sort(attribute='nombre') %}
                                     <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
                                 {% endfor %}
                             </select>

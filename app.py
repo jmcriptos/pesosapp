@@ -3211,22 +3211,39 @@ def editar_detalle_pedido(detalle_id):
 
     # Obtener datos del formulario
     producto_id = request.form.get('producto_id', type=int)
-    peso = request.form.get('peso', type=float)
+    peso = request.form.get('peso', type=float) or 0
     lote = request.form.get('lote', '').strip()
     fecha_fabricacion = request.form.get('fecha_fabricacion', '')
     fecha_expiracion = request.form.get('fecha_expiracion', '')
 
-    # Validar datos
-    if not all([producto_id, peso, lote, fecha_fabricacion, fecha_expiracion]):
-        flash('Todos los campos son requeridos', 'error')
+    producto = Producto.query.get(producto_id) if producto_id else None
+
+    # Validar según tipo de producto
+    if not producto:
+        flash('Producto no válido', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    if producto.se_pesa:
+        # Manufactura: peso, lote, fechas obligatorios
+        if not all([peso, lote, fecha_fabricacion, fecha_expiracion]):
+            flash('Peso, lote, fecha fabricación y fecha expiración son requeridos', 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+    else:
+        # Importación: cajas (viene como peso del form), lote y fecha_fab obligatorios
+        if not lote or not fecha_fabricacion:
+            flash('Lote y fecha fabricación son requeridos', 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     # Actualizar el detalle
     detalle.producto_id = producto_id
-    detalle.peso = peso
     detalle.lote = lote
     detalle.fecha_fabricacion = fecha_fabricacion
-    detalle.fecha_expiracion = fecha_expiracion
+    if producto.se_pesa:
+        detalle.peso = peso
+        detalle.fecha_expiracion = fecha_expiracion
+    else:
+        detalle.cajas = int(peso)  # el form envía cajas en el campo peso
+        detalle.fecha_expiracion = fecha_expiracion if fecha_expiracion else None
 
     db.session.commit()
     flash('Detalle actualizado correctamente.', 'success')
