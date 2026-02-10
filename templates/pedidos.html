@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Pedidos Pendientes{% endblock %}
+{% block title %}Pedidos{% endblock %}
 
 {% block header_title %}Gestión de Pedidos{% endblock %}
 
@@ -8,11 +8,30 @@
 <div class="pedidos-container">
     <!-- Header con botón nuevo -->
     <div class="pedidos-header">
-        <h2 class="pedidos-title">Pedidos Pendientes</h2>
+        <h2 class="pedidos-title">Pedidos</h2>
         <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
             <i class="fa fa-plus"></i>
             <span>Nuevo</span>
         </a>
+    </div>
+
+    <!-- Filtros por estado -->
+    {% set count_pendiente = pedidos|selectattr('estado', 'equalto', 'pendiente')|list|length %}
+    {% set count_preparado = pedidos|selectattr('estado', 'equalto', 'preparado')|list|length %}
+    {% set count_facturado = pedidos|selectattr('estado', 'equalto', 'facturado')|list|length %}
+    <div class="filtros-estado">
+        <button class="filtro-btn filtro-active" data-filtro="todos">
+            Todos <span class="filtro-count">{{ pedidos|length }}</span>
+        </button>
+        <button class="filtro-btn filtro-pendiente" data-filtro="pendiente">
+            Pendientes <span class="filtro-count">{{ count_pendiente }}</span>
+        </button>
+        <button class="filtro-btn filtro-preparado" data-filtro="preparado">
+            Preparados <span class="filtro-count">{{ count_preparado }}</span>
+        </button>
+        <button class="filtro-btn filtro-facturado" data-filtro="facturado">
+            Facturados <span class="filtro-count">{{ count_facturado }}</span>
+        </button>
     </div>
 
     <!-- Vista móvil: Cards -->
@@ -65,24 +84,17 @@
                 <span class="total-value">{{ "%.2f"|format(pedido.total_calculado) }} XCG</span>
             </div>
 
-            <!-- Acciones -->
-            <div class="pedido-card-actions">
+            <!-- Acciones contextuales por estado -->
+            <div class="pedido-card-actions pedido-actions-{{ pedido.estado }}">
                 <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-view">
                     <i class="fa fa-eye"></i>
                     <span>Detalles</span>
                 </a>
+                {% if pedido.estado == 'pendiente' %}
                 <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-edit">
                     <i class="fa fa-edit"></i>
                     <span>Editar</span>
                 </a>
-                <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="action-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="action-btn-mobile action-invoice"
-                            {% if pedido.estado == 'facturado' %}disabled{% endif %}>
-                        <i class="fa fa-file-invoice-dollar"></i>
-                        <span>Facturar</span>
-                    </button>
-                </form>
                 <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="action-form"
                       onsubmit="return confirm('¿Eliminar pedido #{{ pedido.id }}?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -91,12 +103,25 @@
                         <span>Eliminar</span>
                     </button>
                 </form>
+                {% elif pedido.estado == 'preparado' %}
+                <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="action-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="action-btn-mobile action-invoice">
+                        <i class="fa fa-file-invoice-dollar"></i>
+                        <span>Facturar</span>
+                    </button>
+                </form>
+                <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-edit">
+                    <i class="fa fa-edit"></i>
+                    <span>Editar</span>
+                </a>
+                {% endif %}
             </div>
         </div>
         {% else %}
         <div class="pedidos-empty">
             <i class="fa fa-clipboard-list"></i>
-            <p>No hay pedidos pendientes</p>
+            <p>No hay pedidos</p>
             <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
                 <i class="fa fa-plus"></i> Crear primer pedido
             </a>
@@ -151,17 +176,20 @@
                             <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="btn-chip btn-chip-view" title="Ver detalles">
                                <i class="fa fa-eye"></i>
                             </a>
+                            {% if pedido.estado != 'facturado' %}
                             <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="btn-chip btn-chip-edit" title="Editar pedido">
                                <i class="fa fa-edit"></i>
                             </a>
+                            {% endif %}
+                            {% if pedido.estado == 'preparado' %}
                             <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-chip btn-chip-success"
-                                        title="{% if pedido.estado == 'facturado' %}Ya facturado{% else %}Facturar pedido{% endif %}"
-                                        {% if pedido.estado == 'facturado' %}disabled{% endif %}>
+                                <button type="submit" class="btn-chip btn-chip-success" title="Facturar pedido">
                                     <i class="fa fa-file-invoice-dollar"></i>
                                 </button>
                             </form>
+                            {% endif %}
+                            {% if pedido.estado == 'pendiente' %}
                             <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
                                   onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -169,6 +197,7 @@
                                     <i class="fa fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endfor %}
@@ -552,32 +581,119 @@
 }
 
 /* ============================================
-   DISTINCIÓN VISUAL ENTRE PEDIDOS
+   DISTINCIÓN VISUAL POR ESTADO
    ============================================ */
-.pedido-card:nth-child(odd) {
-    border-left: 5px solid #1877ff;
-}
-
-.pedido-card:nth-child(odd) .pedido-card-header {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border-bottom-color: #bfdbfe;
-}
-
-.pedido-card:nth-child(odd) .pedido-card-id {
-    color: #1d4ed8;
-}
-
-.pedido-card:nth-child(even) {
+.pedido-card[data-estado="pendiente"] {
     border-left: 5px solid #f59e0b;
 }
-
-.pedido-card:nth-child(even) .pedido-card-header {
+.pedido-card[data-estado="pendiente"] .pedido-card-header {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
     border-bottom-color: #fde68a;
 }
-
-.pedido-card:nth-child(even) .pedido-card-id {
+.pedido-card[data-estado="pendiente"] .pedido-card-id {
     color: #d97706;
+}
+
+.pedido-card[data-estado="preparado"] {
+    border-left: 5px solid #3b82f6;
+}
+.pedido-card[data-estado="preparado"] .pedido-card-header {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-bottom-color: #bfdbfe;
+}
+.pedido-card[data-estado="preparado"] .pedido-card-id {
+    color: #1d4ed8;
+}
+
+.pedido-card[data-estado="facturado"] {
+    border-left: 5px solid #22c55e;
+}
+.pedido-card[data-estado="facturado"] .pedido-card-header {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-bottom-color: #bbf7d0;
+}
+.pedido-card[data-estado="facturado"] .pedido-card-id {
+    color: #15803d;
+}
+
+/* Acciones contextuales: grid se adapta al número de botones */
+.pedido-actions-pendiente { grid-template-columns: repeat(3, 1fr); }
+.pedido-actions-preparado { grid-template-columns: repeat(3, 1fr); }
+.pedido-actions-facturado { grid-template-columns: 1fr; }
+
+/* ============================================
+   FILTROS POR ESTADO
+   ============================================ */
+.filtros-estado {
+    display: flex;
+    gap: 8px;
+    padding: 12px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.filtros-estado::-webkit-scrollbar { display: none; }
+
+.filtro-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 25px;
+    background: white;
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.filtro-btn:active { transform: scale(0.95); }
+
+.filtro-btn.filtro-active {
+    background: #1877ff;
+    color: white;
+    border-color: #1877ff;
+    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
+}
+
+.filtro-pendiente.filtro-active {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.filtro-preparado.filtro-active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.filtro-facturado.filtro-active {
+    background: #22c55e;
+    border-color: #22c55e;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.filtro-count {
+    background: rgba(255,255,255,0.25);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.filtro-btn:not(.filtro-active) .filtro-count {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Card oculta por filtro */
+.pedido-card.filtro-hidden {
+    display: none;
 }
 
 /* ============================================
@@ -907,12 +1023,79 @@
     .pagination-current-mobile {
         color: #e5e7eb;
     }
+
+    .filtro-btn {
+        background: #374151;
+        border-color: #4b5563;
+        color: #9ca3af;
+    }
+
+    .filtro-btn:not(.filtro-active) .filtro-count {
+        background: #4b5563;
+        color: #9ca3af;
+    }
+
+    .pedido-card[data-estado="pendiente"] .pedido-card-header {
+        background: linear-gradient(135deg, #422006 0%, #78350f 100%);
+        border-bottom-color: #92400e;
+    }
+    .pedido-card[data-estado="preparado"] .pedido-card-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+        border-bottom-color: #1d4ed8;
+    }
+    .pedido-card[data-estado="facturado"] .pedido-card-header {
+        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+        border-bottom-color: #047857;
+    }
+    .pedido-card[data-estado="pendiente"] .pedido-card-id { color: #fbbf24; }
+    .pedido-card[data-estado="preparado"] .pedido-card-id { color: #60a5fa; }
+    .pedido-card[data-estado="facturado"] .pedido-card-id { color: #34d399; }
 }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ========================================================================
+// FILTROS POR ESTADO (mobile + desktop)
+// ========================================================================
+(function() {
+    const filtroBtns = document.querySelectorAll('.filtro-btn');
+    const cards = document.querySelectorAll('.pedido-card');
+    const rows = document.querySelectorAll('.tabla-pedidos tbody tr[data-estado]');
+
+    filtroBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filtro = this.dataset.filtro;
+
+            // Actualizar botón activo
+            filtroBtns.forEach(b => b.classList.remove('filtro-active'));
+            this.classList.add('filtro-active');
+
+            // Filtrar cards (mobile)
+            cards.forEach(card => {
+                if (filtro === 'todos' || card.dataset.estado === filtro) {
+                    card.classList.remove('filtro-hidden');
+                } else {
+                    card.classList.add('filtro-hidden');
+                }
+            });
+
+            // Filtrar filas (desktop)
+            rows.forEach(row => {
+                if (filtro === 'todos' || row.dataset.estado === filtro) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+})();
+
+// ========================================================================
+// ORDENAMIENTO DE TABLA DESKTOP
+// ========================================================================
 (function() {
     const table = document.querySelector('.tabla-pedidos');
     if (!table) return;
