@@ -132,6 +132,19 @@ def _add_prep_lines_no_traceability(app, lote='', fab=None, exp=None):
         es_linea_pedido=False,
     )
     _db.session.add(det)
+
+    # Import prep line (no traceability needed for imports)
+    prod_import = Producto.query.filter_by(se_pesa=False).first()
+    det_import = DetallePedido(
+        pedido_id=pedido.id,
+        producto_id=prod_import.id,
+        cajas=5,
+        peso=0,
+        precio_unitario=12.00,
+        subtotal=60.00,
+        es_linea_pedido=False,
+    )
+    _db.session.add(det_import)
     _db.session.commit()
     return pedido
 
@@ -142,14 +155,7 @@ def _add_complete_prep_lines(app):
     pedido = Pedido.query.first()
     prod_pesa = Producto.query.filter_by(se_pesa=True).first()
 
-    # Set import product fecha_expiracion
-    prod_import = Producto.query.filter_by(se_pesa=False).first()
-    det_import = DetallePedido.query.filter_by(
-        producto_id=prod_import.id, es_linea_pedido=True
-    ).first()
-    det_import.fecha_expiracion = datetime(2026, 6, 1)
-
-    # Add preparation lines
+    # Add manufacture preparation lines
     for i in range(3):
         det = DetallePedido(
             pedido_id=pedido.id,
@@ -164,6 +170,19 @@ def _add_complete_prep_lines(app):
             es_linea_pedido=False,
         )
         _db.session.add(det)
+
+    # Add import preparation line
+    prod_import = Producto.query.filter_by(se_pesa=False).first()
+    det_import = DetallePedido(
+        pedido_id=pedido.id,
+        producto_id=prod_import.id,
+        cajas=5,
+        peso=0,
+        precio_unitario=12.00,
+        subtotal=60.00,
+        es_linea_pedido=False,
+    )
+    _db.session.add(det_import)
     _db.session.commit()
     return pedido
 
@@ -327,15 +346,34 @@ def test_facturar_sin_trazabilidad_bloqueado(logged_client, app):
 def test_facturar_con_trazabilidad_completa_procede(logged_client, app):
     """AC #3: POST facturar with full traceability → proceeds (mock N8N)."""
     with app.app_context():
-        from app import Pedido, DetallePedido
+        from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
         pedido.estado = 'preparado'
 
-        # Fill traceability on all details
-        for d in DetallePedido.query.filter_by(pedido_id=pedido.id).all():
-            d.lote = 'L001'
-            d.fecha_fabricacion = '2026-01-01'
-            d.fecha_expiracion = '2026-06-01'
+        # Add preparation lines with full traceability
+        prod_pesa = Producto.query.filter_by(se_pesa=True).first()
+        for i in range(3):
+            det = DetallePedido(
+                pedido_id=pedido.id,
+                producto_id=prod_pesa.id,
+                cajas=1, peso=4.5,
+                precio_unitario=25.00, subtotal=25.00,
+                lote='L001',
+                fecha_fabricacion=datetime(2026, 1, 1),
+                fecha_expiracion=datetime(2026, 6, 1),
+                es_linea_pedido=False,
+            )
+            _db.session.add(det)
+
+        prod_import = Producto.query.filter_by(se_pesa=False).first()
+        det_import = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_import.id,
+            cajas=5, peso=0,
+            precio_unitario=12.00, subtotal=60.00,
+            es_linea_pedido=False,
+        )
+        _db.session.add(det_import)
         _db.session.commit()
 
         mock_resp = MagicMock()

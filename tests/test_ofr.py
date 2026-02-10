@@ -163,7 +163,7 @@ def test_ofr_zero_manufactura(logged_client, app):
 
 
 def test_ofr_importacion_partial(logged_client, app):
-    """OFR parcial para importación: cajas ajustadas < cajas_pedidas."""
+    """OFR parcial para importación: prep lines cajas < cajas_pedidas."""
     with app.app_context():
         from app import Pedido, DetallePedido
         cliente, _, prod_import = _get_ids(_db.session)
@@ -173,11 +173,17 @@ def test_ofr_importacion_partial(logged_client, app):
         _db.session.add(pedido)
         _db.session.flush()
 
+        # Original order line: 10 cajas pedidas
         _db.session.add(DetallePedido(
             pedido_id=pedido.id, producto_id=prod_import.id,
-            cajas=7, cajas_pedidas=10, peso=0,
-            precio_unitario=15, subtotal=105, es_linea_pedido=True,
-            lote='IMP01', fecha_fabricacion='2026-01-01',
+            cajas=10, cajas_pedidas=10, peso=0,
+            precio_unitario=15, subtotal=150, es_linea_pedido=True,
+        ))
+        # Prep line: only 7 cajas delivered
+        _db.session.add(DetallePedido(
+            pedido_id=pedido.id, producto_id=prod_import.id,
+            cajas=7, cajas_pedidas=0, peso=0,
+            precio_unitario=15, subtotal=105, es_linea_pedido=False,
         ))
         _db.session.commit()
 
@@ -217,7 +223,12 @@ def test_ofr_mixed_products(logged_client, app):
             pedido_id=pedido.id, producto_id=prod_import.id,
             cajas=6, cajas_pedidas=6, peso=0,
             precio_unitario=15, subtotal=90, es_linea_pedido=True,
-            lote='IMP01', fecha_fabricacion='2026-01-01',
+        ))
+        # Import prep line: 6 cajas
+        _db.session.add(DetallePedido(
+            pedido_id=pedido.id, producto_id=prod_import.id,
+            cajas=6, cajas_pedidas=0, peso=0,
+            precio_unitario=15, subtotal=90, es_linea_pedido=False,
         ))
         _db.session.commit()
 
@@ -248,3 +259,33 @@ def test_cajas_pedidas_set_on_creation(logged_client, app):
         assert detalle is not None
         assert detalle.cajas_pedidas == 5
         assert detalle.cajas == 5
+
+
+def test_import_prep_lines_auto_generated(logged_client, app):
+    """Import products auto-generate a prep line (es_linea_pedido=False) on order creation."""
+    with app.app_context():
+        from app import DetallePedido, Producto, Cliente
+        prod_import = Producto.query.filter_by(se_pesa=False).first()
+        cliente = Cliente.query.first()
+
+        resp = logged_client.post('/pedidos/nuevo', data={
+            'cliente_id': cliente.id,
+            'productos[0][id]': prod_import.id,
+            'productos[0][cajas]': '8',
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+
+        # Original line
+        orig = DetallePedido.query.filter_by(
+            producto_id=prod_import.id, es_linea_pedido=True
+        ).first()
+        assert orig is not None
+        assert orig.cajas == 8
+        assert orig.cajas_pedidas == 8
+
+        # Auto-generated prep line
+        prep = DetallePedido.query.filter_by(
+            producto_id=prod_import.id, es_linea_pedido=False
+        ).first()
+        assert prep is not None
+        assert prep.cajas == 8

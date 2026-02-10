@@ -1313,12 +1313,8 @@ def pedido_a_json(pedido: Pedido) -> dict:
     total  = 0
 
     for d in pedido.detalles:
-        # Story 3-0: filtrar líneas según tipo de producto
-        # se_pesa=True (manufactura): solo líneas de preparación (es_linea_pedido=False)
-        # se_pesa=False (importación): solo línea original del pedido (es_linea_pedido=True)
-        if d.producto.se_pesa and d.es_linea_pedido:
-            continue
-        if not d.producto.se_pesa and not d.es_linea_pedido:
+        # Solo usar líneas de preparación (tanto manufactura como importación)
+        if d.es_linea_pedido:
             continue
 
         descripcion = d.producto.nombre
@@ -2389,8 +2385,13 @@ def dashboard():
                             if not d.es_linea_pedido and d.producto_id == det.producto_id
                         )
                     else:
-                        # Importación: cajas actuales de la línea original
-                        entregadas = det.cajas or 0
+                        # Importación: sumar cajas de líneas de preparación
+                        prep_cajas = sum(
+                            d.cajas for d in p.detalles
+                            if not d.es_linea_pedido and d.producto_id == det.producto_id
+                        )
+                        # Fallback para pedidos históricos sin líneas de preparación
+                        entregadas = prep_cajas if prep_cajas > 0 else (det.cajas or 0)
                     total_entregadas += min(entregadas, pedidas)
             order_completion_rate_p = (total_entregadas / total_pedidas * 100) if total_pedidas > 0 else 100
 
@@ -2937,11 +2938,28 @@ def nuevo_pedido():
 
         db.session.commit()
 
+        # 2b) Auto-generar líneas de preparación para productos de importación
+        for det in DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).all():
+            prod = Producto.query.get(det.producto_id)
+            if prod and not prod.se_pesa:
+                prep = DetallePedido(
+                    pedido_id=pedido.id,
+                    producto_id=det.producto_id,
+                    cajas=det.cajas,
+                    cajas_pedidas=0,
+                    peso=0,
+                    precio_unitario=det.precio_unitario,
+                    subtotal=det.subtotal,
+                    es_linea_pedido=False,
+                )
+                db.session.add(prep)
+        db.session.commit()
+
         # 3) Total del pedido
         total = db.session.query(
             func.coalesce(func.sum(DetallePedido.subtotal), 0)
         ).filter_by(pedido_id=pedido.id).scalar()
-        
+
         if hasattr(pedido, 'total'):
             pedido.total = total
             db.session.commit()
@@ -3026,11 +3044,28 @@ def editar_pedido(pedido_id):
 
         db.session.commit()
 
+        # Auto-generar líneas de preparación para productos de importación
+        for det in DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).all():
+            prod = Producto.query.get(det.producto_id)
+            if prod and not prod.se_pesa:
+                prep = DetallePedido(
+                    pedido_id=pedido.id,
+                    producto_id=det.producto_id,
+                    cajas=det.cajas,
+                    cajas_pedidas=0,
+                    peso=0,
+                    precio_unitario=det.precio_unitario,
+                    subtotal=det.subtotal,
+                    es_linea_pedido=False,
+                )
+                db.session.add(prep)
+        db.session.commit()
+
         # Actualizar total del pedido
         total = db.session.query(
             func.coalesce(func.sum(DetallePedido.subtotal), 0)
         ).filter_by(pedido_id=pedido.id).scalar()
-        
+
         if hasattr(pedido, 'total'):
             pedido.total = total
             db.session.commit()
@@ -3038,13 +3073,13 @@ def editar_pedido(pedido_id):
         flash('Pedido actualizado.', 'success')
         return redirect(url_for('lista_pedidos'))
 
-    # ----------- pre-cargar detalles -----------
+    # ----------- pre-cargar detalles (solo líneas originales) -----------
     productos_pedido = [{
         'id'     : d.producto.id,
         'nombre' : d.producto.nombre,
         'cajas'  : d.cajas,
-        'precio' : float(d.precio_unitario)   # ← necesario para que la tabla se pinte
-    } for d in pedido.detalles]
+        'precio' : float(d.precio_unitario)
+    } for d in pedido.detalles if d.es_linea_pedido]
 
     return render_template(
         'pedido_form.html',
@@ -3105,6 +3140,11 @@ def detalles_pedido(pedido_id):
             if not all([lote, fecha_fabricacion, fecha_expiracion]):
                 flash('Lote, fecha fabricación y fecha expiración son obligatorios', 'error')
                 return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+        # Importación: el form envía cajas en el campo peso
+        if producto_obj and not producto_obj.se_pesa:
+            cajas = int(peso)
+            peso = 0
 
         # -------- Obtener precio unitario según la jerarquía --------
         precio_unitario = obtener_precio_producto_cliente(
@@ -3538,10 +3578,9 @@ def marcar_preparado(pedido_id):
     errores = []
     for detalle in pedido.detalles:
         if detalle.es_linea_pedido:
-            # Línea original del vendedor: sin validación por ahora
             continue
-        else:
-            # Línea de preparación: requiere trazabilidad completa
+        # Línea de preparación: trazabilidad completa solo para manufactura
+        if detalle.producto.se_pesa:
             campos_faltantes = []
             if not detalle.lote:
                 campos_faltantes.append('lote')
@@ -3552,20 +3591,20 @@ def marcar_preparado(pedido_id):
             if campos_faltantes:
                 errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
 
-    # Verificar que productos se_pesa tengan al menos una línea de preparación
+    # Verificar que TODOS los productos tengan al menos una línea de preparación
     productos_pedido = set()
     productos_preparados = set()
     for detalle in pedido.detalles:
-        if detalle.producto.se_pesa:
-            if detalle.es_linea_pedido:
-                productos_pedido.add(detalle.producto_id)
-            else:
-                productos_preparados.add(detalle.producto_id)
+        if detalle.es_linea_pedido:
+            productos_pedido.add(detalle.producto_id)
+        else:
+            productos_preparados.add(detalle.producto_id)
     sin_preparar = productos_pedido - productos_preparados
     for prod_id in sin_preparar:
         prod = Producto.query.get(prod_id)
         if prod:
-            errores.append(f"{prod.nombre}: sin líneas de preparación (peso)")
+            tipo = "peso" if prod.se_pesa else "cajas"
+            errores.append(f"{prod.nombre}: sin líneas de preparación ({tipo})")
 
     if errores:
         flash('No se puede marcar como preparado. Datos incompletos:', 'error')
@@ -3595,17 +3634,19 @@ def facturar_pedido(pedido_id):
         flash('El pedido ya está facturado.', 'info')
         return redirect(url_for('lista_pedidos'))
 
-    # ── Validación de trazabilidad completa antes de facturar ──
-    # Aplicar la misma lógica de filtrado que pedido_a_json:
-    # manufactura (se_pesa): solo líneas de preparación
-    # importación (!se_pesa): solo línea original del pedido
+    # ── Verificar que todos los productos tengan líneas de preparación ──
     traz_errores = []
-    for detalle in pedido.detalles:
-        if detalle.producto.se_pesa and detalle.es_linea_pedido:
-            continue
-        if not detalle.producto.se_pesa and not detalle.es_linea_pedido:
-            continue
+    productos_pedido = {d.producto_id for d in pedido.detalles if d.es_linea_pedido}
+    productos_preparados = {d.producto_id for d in pedido.detalles if not d.es_linea_pedido}
+    for prod_id in (productos_pedido - productos_preparados):
+        prod = Producto.query.get(prod_id)
+        if prod:
+            traz_errores.append(f"{prod.nombre}: sin líneas de preparación")
 
+    # ── Validación de trazabilidad en líneas de preparación ──
+    for detalle in pedido.detalles:
+        if detalle.es_linea_pedido:
+            continue
         campos_faltantes = []
         if detalle.producto.se_pesa:
             if not detalle.lote:

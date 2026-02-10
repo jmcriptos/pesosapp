@@ -237,6 +237,19 @@ def test_pedido_changes_to_listo(logged_client, app):
                 es_linea_pedido=False,
             )
             _db.session.add(det)
+
+        # Add preparation line for import product
+        prod_import = Producto.query.filter_by(se_pesa=False).first()
+        det_import = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_import.id,
+            cajas=5,
+            peso=0,
+            precio_unitario=12.00,
+            subtotal=60.00,
+            es_linea_pedido=False,
+        )
+        _db.session.add(det_import)
         _db.session.commit()
 
         resp = logged_client.post(

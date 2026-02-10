@@ -183,7 +183,9 @@ def _add_preparation_lines(app):
     from app import Pedido, DetallePedido, Producto
     pedido = Pedido.query.first()
     prod_pesa = Producto.query.filter_by(se_pesa=True).first()
+    prod_import = Producto.query.filter_by(se_pesa=False).first()
 
+    # Manufactura: 3 líneas de preparación con peso
     for i in range(3):
         det = DetallePedido(
             pedido_id=pedido.id,
@@ -198,6 +200,18 @@ def _add_preparation_lines(app):
             es_linea_pedido=False,
         )
         _db.session.add(det)
+
+    # Importación: 1 línea de preparación con cajas
+    det_import = DetallePedido(
+        pedido_id=pedido.id,
+        producto_id=prod_import.id,
+        cajas=6,
+        peso=0,
+        precio_unitario=10.00,
+        subtotal=60.00,
+        es_linea_pedido=False,
+    )
+    _db.session.add(det_import)
     _db.session.commit()
     return pedido
 
@@ -266,7 +280,7 @@ def test_marcar_preparado_import_sin_fecha_exp_ok(logged_client, app):
 # === AC #6: pedido_a_json filtra líneas correctamente ===
 
 def test_pedido_a_json_filtra_lineas(app):
-    """AC #6: pedido_a_json incluye solo prep lines para se_pesa y orig para import."""
+    """AC #6: pedido_a_json incluye solo líneas de preparación para todos los productos."""
     with app.app_context():
         from app import pedido_a_json
         pedido = _add_preparation_lines(app)
@@ -274,7 +288,7 @@ def test_pedido_a_json_filtra_lineas(app):
         result = pedido_a_json(pedido)
         lines = result['lines']
 
-        # 3 líneas de preparación (manufactura) + 1 línea original (importación) = 4
+        # 3 líneas de preparación (manufactura) + 1 línea de preparación (importación) = 4
         assert len(lines) == 4
 
         # Verificar que NO hay línea original de manufactura (peso=0)
@@ -282,13 +296,14 @@ def test_pedido_a_json_filtra_lineas(app):
             if 'Chuleta' in line['descripcion']:
                 assert line['qty'] > 0  # solo líneas con peso real
 
-        # Verificar que la línea de importación está presente
+        # Verificar que la línea de importación prep está presente
         import_lines = [l for l in lines if 'At' in l['descripcion']]
         assert len(import_lines) == 1
+        assert import_lines[0]['qty'] == 6
 
 
 def test_pedido_a_json_sin_prep_lines(app):
-    """pedido_a_json sin líneas de preparación: solo incluye import."""
+    """pedido_a_json sin líneas de preparación: no incluye ninguna línea."""
     with app.app_context():
         from app import pedido_a_json, Pedido
         pedido = Pedido.query.first()
@@ -296,9 +311,8 @@ def test_pedido_a_json_sin_prep_lines(app):
         result = pedido_a_json(pedido)
         lines = result['lines']
 
-        # Solo la línea original de importación
-        assert len(lines) == 1
-        assert 'At' in lines[0]['descripcion']
+        # Sin líneas de preparación, no hay líneas en el JSON
+        assert len(lines) == 0
 
 
 # === AC #8: Botón "Marcar como Preparado" visible solo en estado pendiente ===
