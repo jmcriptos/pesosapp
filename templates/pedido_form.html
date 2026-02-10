@@ -376,26 +376,139 @@
     }
 }
 
+/* ============================================
+   LISTA DE PRODUCTOS COMO CARDS
+   ============================================ */
+.productos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.producto-card-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: #f9fafb;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    animation: slideUp 0.2s ease-out;
+}
+
+.producto-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.producto-card-nombre {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.producto-card-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.producto-card-meta strong {
+    color: #374151;
+}
+
+.producto-card-subtotal {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #1877ff;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.producto-card-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.producto-card-delete:active {
+    background: #fca5a5;
+    transform: scale(0.9);
+}
+
+/* ============================================
+   BOTÓN GUARDAR STICKY
+   ============================================ */
+.sticky-submit-bar {
+    position: sticky;
+    bottom: 70px;
+    z-index: 40;
+    padding: 12px 8px;
+    background: linear-gradient(to top, rgba(243,244,246,1) 60%, rgba(243,244,246,0));
+    padding-top: 24px;
+}
+
+.sticky-submit-bar .mobile-btn-success {
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15), 0 4px 15px rgba(40,167,69,0.3);
+}
+
 /* Modo oscuro automático */
 @media (prefers-color-scheme: dark) {
     .mobile-card {
         background: #2d2d2d;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
-    
+
     .mobile-form-control {
         background: #3a3a3a;
         border-color: #4a4a4a;
         color: #f8f9fa;
     }
-    
+
     .mobile-suggestions {
         background: #2d2d2d;
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
     }
-    
+
     .suggestion-name {
         color: #f8f9fa;
+    }
+
+    .producto-card-item {
+        background: #3a3a3a;
+        border-color: #4a4a4a;
+    }
+
+    .producto-card-nombre {
+        color: #f8f9fa;
+    }
+
+    .producto-card-meta {
+        color: #9ca3af;
+    }
+
+    .producto-card-meta strong {
+        color: #d1d5db;
+    }
+
+    .sticky-submit-bar {
+        background: linear-gradient(to top, rgba(30,30,30,1) 60%, rgba(30,30,30,0));
     }
 }
 
@@ -477,23 +590,23 @@
         overflow: hidden;
     }
     
-    .mobile-table-container {
-        overflow-x: auto;
+    .productos-list {
+        gap: 8px;
     }
-    
-    .mobile-table {
-        min-width: 700px;
+
+    .producto-card-item {
+        padding: 12px 18px;
     }
-    
-    .mobile-table th,
-    .mobile-table td {
-        padding: 12px 16px;
-        font-size: 14px;
+
+    .sticky-submit-bar {
+        bottom: 0;
+        padding: 16px 0;
     }
-    
-    .mobile-table .product-name {
-        max-width: none;
-        width: 40%;
+
+    .sticky-submit-bar .mobile-btn-success {
+        max-width: 350px;
+        margin: 0 auto;
+        display: block;
     }
     
     .mobile-total-section {
@@ -552,26 +665,12 @@
             </div>
             <div class="mobile-card-body">
                 
-                <!-- Tabla de productos -->
-                <div class="mobile-table-container">
-                    <table class="mobile-table">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Cajas</th>
-                                <th>Precio (XCG)</th>
-                                <th>Total</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productos-body">
-                            <tr>
-                                <td colspan="5" class="mobile-empty-state">
-                                    No hay productos agregados
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Lista de productos (cards en mobile) -->
+                <div id="productos-body" class="productos-list">
+                    <div class="mobile-empty-state">
+                        <i class="fas fa-box-open"></i>
+                        <p>No hay productos agregados</p>
+                    </div>
                 </div>
 
                 <!-- Búsqueda y agregar -->
@@ -623,19 +722,22 @@
                 Notas adicionales
             </div>
             <div class="mobile-card-body">
-                <div class="mobile-form-group">
+                <div class="mobile-form-group" style="margin-bottom:0">
                     <label class="mobile-form-label" for="notas">Instrucciones especiales:</label>
-                    <textarea name="notas" 
-                              id="notas" 
-                              class="mobile-form-control mobile-textarea" 
+                    <textarea name="notas"
+                              id="notas"
+                              class="mobile-form-control mobile-textarea"
                               placeholder="Notas o instrucciones especiales para este pedido...">{{ pedido.notas if pedido else '' }}</textarea>
                 </div>
-                
-                <button type="submit" class="mobile-btn mobile-btn-success">
-                    <i class="fas fa-save"></i>
-                    {% if pedido %}Actualizar pedido{% else %}Guardar pedido{% endif %}
-                </button>
             </div>
+        </div>
+
+        <!-- Botón guardar sticky -->
+        <div class="sticky-submit-bar">
+            <button type="submit" class="mobile-btn mobile-btn-success">
+                <i class="fas fa-save"></i>
+                {% if pedido %}Actualizar pedido{% else %}Guardar pedido{% endif %}
+            </button>
         </div>
     </form>
 </div>
@@ -709,14 +811,13 @@ async function actualizarPreciosCliente(clienteId) {
 
 function actualizarTablaProductos() {
     tbody.innerHTML = '';
-    
+
     if (productosAgregados.length === 0) {
         tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="mobile-empty-state">
-                    No hay productos agregados
-                </td>
-            </tr>
+            <div class="mobile-empty-state">
+                <i class="fas fa-box-open"></i>
+                <p>No hay productos agregados</p>
+            </div>
         `;
         totalSpan.textContent = '0.00 XCG';
         return;
@@ -728,29 +829,30 @@ function actualizarTablaProductos() {
         const subtotal = precio * p.cajas;
         total += subtotal;
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="product-name">
-                <input type="hidden" name="productos[${idx}][id]" value="${p.id}">
-                <input type="hidden" name="productos[${idx}][nombre]" value="${p.nombre}">
-                <input type="hidden" name="productos[${idx}][cajas]" value="${p.cajas}">
-                <input type="hidden" name="productos[${idx}][precio]" value="${precio}">
-                ${p.nombre}
-            </td>
-            <td><strong>${p.cajas}</strong></td>
-            <td>${precio.toFixed(2)}</td>
-            <td><strong>${subtotal.toFixed(2)}</strong></td>
-            <td>
-                <button type="button" 
-                        class="mobile-btn mobile-btn-danger" 
-                        data-action="eliminar-producto" 
-                        data-idx="${idx}"
-                        title="Eliminar producto">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
+        const card = document.createElement('div');
+        card.className = 'producto-card-item';
+        card.innerHTML = `
+            <input type="hidden" name="productos[${idx}][id]" value="${p.id}">
+            <input type="hidden" name="productos[${idx}][nombre]" value="${p.nombre}">
+            <input type="hidden" name="productos[${idx}][cajas]" value="${p.cajas}">
+            <input type="hidden" name="productos[${idx}][precio]" value="${precio}">
+            <div class="producto-card-info">
+                <div class="producto-card-nombre">${p.nombre}</div>
+                <div class="producto-card-meta">
+                    <span>${p.cajas} cajas</span>
+                    <span>@ ${precio.toFixed(2)}</span>
+                </div>
+            </div>
+            <div class="producto-card-subtotal">${subtotal.toFixed(2)}</div>
+            <button type="button"
+                    class="producto-card-delete"
+                    data-action="eliminar-producto"
+                    data-idx="${idx}"
+                    title="Eliminar producto">
+                <i class="fas fa-trash"></i>
+            </button>
         `;
-        tbody.appendChild(tr);
+        tbody.appendChild(card);
     });
 
     totalSpan.textContent = total.toFixed(2) + ' XCG';
@@ -778,6 +880,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar
     actualizarTablaProductos();
     cargarProductosEnSelect();
+
+    // Delegación de eventos para eliminar productos
+    tbody.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-action="eliminar-producto"]');
+        if (btn) {
+            eliminarProducto(parseInt(btn.dataset.idx));
+        }
+    });
     /* ------------ Tom Select (búsqueda inteligente) ------------ */
 new TomSelect('#producto-select', {
     copyClassesToDropdown: true,     // hereda clases para que se vea igual
