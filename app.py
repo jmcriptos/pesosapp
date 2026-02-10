@@ -484,15 +484,17 @@ def dashboard_vendedor():
             ventas_totales = db.session.query(
                 func.coalesce(func.sum(DetallePedido.subtotal), 0)
             ).join(Pedido).filter(
-                Pedido.fecha_pedido >= inicio_mes
+                Pedido.fecha_pedido >= inicio_mes,
+                DetallePedido.es_linea_pedido == True
             ).scalar()
-            
+
             # Consulta optimizada para ventas del día usando agregación SQL
             ventas_hoy = db.session.query(
                 func.coalesce(func.sum(DetallePedido.subtotal), 0)
             ).join(Pedido).filter(
                 Pedido.fecha_pedido >= hoy,
-                Pedido.fecha_pedido < hoy + timedelta(days=1)
+                Pedido.fecha_pedido < hoy + timedelta(days=1),
+                DetallePedido.es_linea_pedido == True
             ).scalar()
             
             # Conteo de pedidos optimizado
@@ -526,7 +528,8 @@ def dashboard_vendedor():
             ).outerjoin(
                 DetallePedido, Pedido.id == DetallePedido.pedido_id
             ).filter(
-                Pedido.fecha_pedido >= hace_30_dias
+                Pedido.fecha_pedido >= hace_30_dias,
+                db.or_(DetallePedido.es_linea_pedido == True, DetallePedido.id.is_(None))
             ).group_by(
                 Vendedor.id, Vendedor.nombre_completo
             ).order_by(
@@ -568,7 +571,8 @@ def dashboard_vendedor():
                 func.coalesce(func.sum(DetallePedido.subtotal), 0)
             ).join(Pedido).filter(
                 Pedido.fecha_pedido >= inicio_mes_anterior,
-                Pedido.fecha_pedido <= fin_mes_anterior
+                Pedido.fecha_pedido <= fin_mes_anterior,
+                DetallePedido.es_linea_pedido == True
             ).scalar()
             
             # Calcular crecimiento
@@ -609,15 +613,17 @@ def dashboard_vendedor():
                 ).join(Pedido).filter(
                     Pedido.cliente_id.in_(clientes_ids),
                     Pedido.fecha_pedido >= hoy,
-                    Pedido.fecha_pedido < hoy + timedelta(days=1)
+                    Pedido.fecha_pedido < hoy + timedelta(days=1),
+                    DetallePedido.es_linea_pedido == True
                 ).scalar()
-                
+
                 # Ventas del mes para el vendedor usando agregación SQL
                 ventas_vendedor_mes = db.session.query(
                     func.coalesce(func.sum(DetallePedido.subtotal), 0)
                 ).join(Pedido).filter(
                     Pedido.cliente_id.in_(clientes_ids),
-                    Pedido.fecha_pedido >= inicio_mes
+                    Pedido.fecha_pedido >= inicio_mes,
+                    DetallePedido.es_linea_pedido == True
                 ).scalar()
                 
                 # Conteo de pedidos del día
@@ -1679,7 +1685,8 @@ def admin_reportes():
             DetallePedido, Pedido.id == DetallePedido.pedido_id
         ).filter(
             Vendedor.activo == True,
-            Pedido.fecha_pedido >= hace_30_dias
+            Pedido.fecha_pedido >= hace_30_dias,
+            db.or_(DetallePedido.es_linea_pedido == True, DetallePedido.id.is_(None))
         ).group_by(
             Vendedor.id, Vendedor.nombre_completo, Vendedor.username
         ).order_by(
@@ -1696,7 +1703,8 @@ def admin_reportes():
         ).join(
             Pedido, DetallePedido.pedido_id == Pedido.id
         ).filter(
-            Pedido.fecha_pedido >= hace_30_dias
+            Pedido.fecha_pedido >= hace_30_dias,
+            DetallePedido.es_linea_pedido == True
         ).group_by(
             Producto.id, Producto.nombre
         ).order_by(
@@ -1713,7 +1721,8 @@ def admin_reportes():
         ).join(
             DetallePedido, Pedido.id == DetallePedido.pedido_id
         ).filter(
-            Pedido.fecha_pedido >= hace_30_dias
+            Pedido.fecha_pedido >= hace_30_dias,
+            DetallePedido.es_linea_pedido == True
         ).group_by(
             Cliente.id, Cliente.nombre
         ).order_by(
@@ -1754,7 +1763,8 @@ def admin_analytics():
                 Pedido, DetallePedido.pedido_id == Pedido.id
             ).filter(
                 Pedido.fecha_pedido >= inicio_semana,
-                Pedido.fecha_pedido <= fin_semana
+                Pedido.fecha_pedido <= fin_semana,
+                DetallePedido.es_linea_pedido == True
             ).scalar()
             
             tendencia_ventas.append({
@@ -2094,7 +2104,8 @@ def api_admin_performance():
             DetallePedido, Pedido.id == DetallePedido.pedido_id
         ).filter(
             Vendedor.activo == True,
-            Pedido.fecha_pedido >= hace_30_dias
+            Pedido.fecha_pedido >= hace_30_dias,
+            db.or_(DetallePedido.es_linea_pedido == True, DetallePedido.id.is_(None))
         ).group_by(
             Vendedor.id, Vendedor.nombre_completo, Vendedor.username
         ).order_by(
@@ -2794,10 +2805,12 @@ def lista_pedidos():
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
 
-    # Subquery para calcular totales
+    # Subquery para calcular totales (solo líneas originales del pedido)
     totales_subq = db.session.query(
         DetallePedido.pedido_id,
         func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
+    ).filter(
+        DetallePedido.es_linea_pedido == True
     ).group_by(DetallePedido.pedido_id).subquery()
 
     # Query base con eager loading de Cliente para evitar N+1
@@ -2949,16 +2962,16 @@ def nuevo_pedido():
                     cajas_pedidas=0,
                     peso=0,
                     precio_unitario=det.precio_unitario,
-                    subtotal=det.subtotal,
+                    subtotal=0,
                     es_linea_pedido=False,
                 )
                 db.session.add(prep)
         db.session.commit()
 
-        # 3) Total del pedido
+        # 3) Total del pedido (solo líneas originales)
         total = db.session.query(
             func.coalesce(func.sum(DetallePedido.subtotal), 0)
-        ).filter_by(pedido_id=pedido.id).scalar()
+        ).filter_by(pedido_id=pedido.id, es_linea_pedido=True).scalar()
 
         if hasattr(pedido, 'total'):
             pedido.total = total
@@ -3055,16 +3068,16 @@ def editar_pedido(pedido_id):
                     cajas_pedidas=0,
                     peso=0,
                     precio_unitario=det.precio_unitario,
-                    subtotal=det.subtotal,
+                    subtotal=0,
                     es_linea_pedido=False,
                 )
                 db.session.add(prep)
         db.session.commit()
 
-        # Actualizar total del pedido
+        # Actualizar total del pedido (solo líneas originales)
         total = db.session.query(
             func.coalesce(func.sum(DetallePedido.subtotal), 0)
-        ).filter_by(pedido_id=pedido.id).scalar()
+        ).filter_by(pedido_id=pedido.id, es_linea_pedido=True).scalar()
 
         if hasattr(pedido, 'total'):
             pedido.total = total
