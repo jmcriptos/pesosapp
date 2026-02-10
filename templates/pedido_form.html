@@ -624,6 +624,108 @@
         display: block;
     }
 }
+
+/* ============================================
+   TOM SELECT - MEJORA DE CONTRASTE MÓVIL
+   ============================================ */
+.ts-wrapper.single .ts-control {
+    padding: 14px 16px;
+    font-size: 17px;
+    border: 2px solid #d1d5db;
+    border-radius: 12px;
+    background: #fff;
+    color: #1f2937;
+    min-height: 52px;
+}
+
+.ts-wrapper.single .ts-control input {
+    font-size: 17px;
+    color: #1f2937;
+}
+
+.ts-wrapper.single .ts-control .item {
+    color: #1f2937;
+    font-size: 17px;
+    font-weight: 500;
+}
+
+.ts-wrapper.single.focus .ts-control {
+    border-color: #1877ff;
+    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.15);
+}
+
+.ts-dropdown {
+    border: 2px solid #d1d5db;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    margin-top: 4px;
+}
+
+.ts-dropdown .ts-dropdown-content .option {
+    padding: 14px 16px;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.ts-dropdown .ts-dropdown-content .option.active {
+    background: #eff6ff;
+    color: #1e40af;
+}
+
+.ts-dropdown .ts-dropdown-content .option .suggestion-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.ts-dropdown .ts-dropdown-content .option .suggestion-price {
+    color: #6b7280;
+}
+
+/* Placeholder de Tom Select */
+.ts-wrapper.single .ts-control input::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+}
+
+/* Dark mode para Tom Select */
+@media (prefers-color-scheme: dark) {
+    .ts-wrapper.single .ts-control {
+        background: #3a3a3a;
+        border-color: #4a4a4a;
+        color: #f8f9fa;
+    }
+
+    .ts-wrapper.single .ts-control input {
+        color: #f8f9fa;
+    }
+
+    .ts-wrapper.single .ts-control .item {
+        color: #f8f9fa;
+    }
+
+    .ts-dropdown {
+        background: #2d2d2d;
+        border-color: #4a4a4a;
+    }
+
+    .ts-dropdown .ts-dropdown-content .option {
+        color: #f8f9fa;
+    }
+
+    .ts-dropdown .ts-dropdown-content .option.active {
+        background: #374151;
+        color: #93c5fd;
+    }
+
+    .ts-dropdown .ts-dropdown-content .option .suggestion-name {
+        color: #f8f9fa;
+    }
+
+    .ts-dropdown .ts-dropdown-content .option .suggestion-price {
+        color: #9ca3af;
+    }
+}
 </style>
 {% endblock %}
 

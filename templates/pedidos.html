@@ -363,14 +363,13 @@
     justify-content: space-between;
     align-items: center;
     padding: 14px 16px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     border-bottom: 1px solid #e9ecef;
 }
 
 .pedido-card-id {
     font-size: 1.2rem;
     font-weight: 800;
-    color: #1877ff;
+    color: #1f2937;
 }
 
 /* Estados móviles */
@@ -387,22 +386,22 @@
 }
 
 .estado-pendiente {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    color: #b45309;
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .estado-preparado {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1d4ed8;
+    background: #dbeafe;
+    color: #1e40af;
 }
 
 .estado-facturado {
-    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-    color: #15803d;
+    background: #dcfce7;
+    color: #166534;
 }
 
 .estado-entregado {
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    background: #f3f4f6;
     color: #4b5563;
 }
 
@@ -464,20 +463,20 @@
     justify-content: space-between;
     align-items: center;
     padding: 14px 16px;
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border-top: 1px solid #bbf7d0;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
 }
 
 .total-label {
     font-size: 0.9rem;
-    color: #166534;
+    color: #6b7280;
     font-weight: 600;
 }
 
 .total-value {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #15803d;
+    color: #1f2937;
     font-family: 'SF Mono', monospace;
 }
 
@@ -524,39 +523,33 @@
 }
 
 .action-view {
-    background: #eff6ff;
-    color: #2563eb;
+    background: #f3f4f6;
+    color: #374151;
 }
-.action-view:active { background: #dbeafe; }
+.action-view:active { background: #e5e7eb; }
 
 .action-edit {
-    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
-    color: white;
-    box-shadow: 0 3px 10px rgba(24, 119, 255, 0.25);
+    background: #f3f4f6;
+    color: #374151;
 }
-.action-edit:active {
-    background: linear-gradient(135deg, #0056b3 0%, #2493f7 100%);
-}
+.action-edit:active { background: #e5e7eb; }
 
 .action-invoice {
-    background: #f0fdf4;
-    color: #16a34a;
-}
-.action-invoice:active { background: #dcfce7; }
-.action-invoice:disabled {
     background: #f3f4f6;
-    color: #9ca3af;
+    color: #374151;
+}
+.action-invoice:active { background: #e5e7eb; }
+.action-invoice:disabled {
+    background: #f9fafb;
+    color: #d1d5db;
     cursor: not-allowed;
 }
 
 .action-delete {
-    background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
-    color: white;
-    box-shadow: 0 3px 10px rgba(220, 53, 69, 0.25);
+    background: #f3f4f6;
+    color: #dc2626;
 }
-.action-delete:active {
-    background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
-}
+.action-delete:active { background: #fee2e2; }
 
 /* Empty state */
 .pedidos-empty {
@@ -584,36 +577,15 @@
    DISTINCIÓN VISUAL POR ESTADO
    ============================================ */
 .pedido-card[data-estado="pendiente"] {
-    border-left: 5px solid #f59e0b;
-}
-.pedido-card[data-estado="pendiente"] .pedido-card-header {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border-bottom-color: #fde68a;
-}
-.pedido-card[data-estado="pendiente"] .pedido-card-id {
-    color: #d97706;
+    border-left: 4px solid #f59e0b;
 }
 
 .pedido-card[data-estado="preparado"] {
-    border-left: 5px solid #3b82f6;
-}
-.pedido-card[data-estado="preparado"] .pedido-card-header {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border-bottom-color: #bfdbfe;
-}
-.pedido-card[data-estado="preparado"] .pedido-card-id {
-    color: #1d4ed8;
+    border-left: 4px solid #3b82f6;
 }
 
 .pedido-card[data-estado="facturado"] {
-    border-left: 5px solid #22c55e;
-}
-.pedido-card[data-estado="facturado"] .pedido-card-header {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border-bottom-color: #bbf7d0;
-}
-.pedido-card[data-estado="facturado"] .pedido-card-id {
-    color: #15803d;
+    border-left: 4px solid #22c55e;
 }
 
 /* Acciones contextuales: grid se adapta al número de botones */
@@ -654,28 +626,9 @@
 .filtro-btn:active { transform: scale(0.95); }
 
 .filtro-btn.filtro-active {
-    background: #1877ff;
+    background: #1f2937;
     color: white;
-    border-color: #1877ff;
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
-}
-
-.filtro-pendiente.filtro-active {
-    background: #f59e0b;
-    border-color: #f59e0b;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.filtro-preparado.filtro-active {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.filtro-facturado.filtro-active {
-    background: #22c55e;
-    border-color: #22c55e;
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    border-color: #1f2937;
 }
 
 .filtro-count {
@@ -971,8 +924,11 @@
     }
 
     .pedido-card-header {
-        background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
         border-bottom-color: #374151;
+    }
+
+    .pedido-card-id {
+        color: #f9fafb;
     }
 
     .pedido-card-body {
@@ -990,26 +946,26 @@
     }
 
     .pedido-card-total {
-        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-        border-top-color: #047857;
+        background: #374151;
+        border-top-color: #4b5563;
     }
 
     .total-label {
-        color: #6ee7b7;
+        color: #9ca3af;
     }
 
     .total-value {
-        color: #34d399;
+        color: #f9fafb;
     }
 
     .pedido-card-actions {
         border-top-color: #374151;
     }
 
-    .action-view { background: #1e3a5f; color: #60a5fa; }
-    .action-edit { background: #422006; color: #fbbf24; }
-    .action-invoice { background: #064e3b; color: #34d399; }
-    .action-delete { background: #450a0a; color: #f87171; }
+    .action-view { background: #374151; color: #d1d5db; }
+    .action-edit { background: #374151; color: #d1d5db; }
+    .action-invoice { background: #374151; color: #d1d5db; }
+    .action-delete { background: #374151; color: #f87171; }
 
     .pagination-mobile {
         background: #1f2937;
@@ -1030,26 +986,31 @@
         color: #9ca3af;
     }
 
+    .filtro-btn.filtro-active {
+        background: #f9fafb;
+        color: #1f2937;
+        border-color: #f9fafb;
+    }
+
     .filtro-btn:not(.filtro-active) .filtro-count {
         background: #4b5563;
         color: #9ca3af;
     }
 
-    .pedido-card[data-estado="pendiente"] .pedido-card-header {
-        background: linear-gradient(135deg, #422006 0%, #78350f 100%);
-        border-bottom-color: #92400e;
+    .estado-pendiente {
+        background: #78350f;
+        color: #fcd34d;
     }
-    .pedido-card[data-estado="preparado"] .pedido-card-header {
-        background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
-        border-bottom-color: #1d4ed8;
+
+    .estado-preparado {
+        background: #1e3a5f;
+        color: #93c5fd;
     }
-    .pedido-card[data-estado="facturado"] .pedido-card-header {
-        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-        border-bottom-color: #047857;
+
+    .estado-facturado {
+        background: #064e3b;
+        color: #6ee7b7;
     }
-    .pedido-card[data-estado="pendiente"] .pedido-card-id { color: #fbbf24; }
-    .pedido-card[data-estado="preparado"] .pedido-card-id { color: #60a5fa; }
-    .pedido-card[data-estado="facturado"] .pedido-card-id { color: #34d399; }
 }
 </style>
 {% endblock %}
