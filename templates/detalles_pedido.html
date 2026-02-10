@@ -838,15 +838,15 @@ tr.linea-pedido-original td {
                             <select name="producto_id" id="producto_id" class="mobile-form-control" required>
                                 <option value="">Seleccionar...</option>
                                 {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
-                                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
 
-                    <!-- Peso -->
+                    <!-- Cantidad (peso o cajas según producto) -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="peso">Peso (kg)</label>
+                        <label class="mobile-form-label" for="peso" id="cantidad_label">Peso (kg)</label>
                         <input type="text" inputmode="decimal" name="peso" id="peso"
                                class="mobile-form-control" placeholder="0.00"
                                pattern="[0-9]*[.,]?[0-9]*" required>
@@ -907,27 +907,29 @@ tr.linea-pedido-original td {
                             </div>
                             <div class="producto-item-body">
                                 <div class="producto-detail">
-                                    <span class="producto-detail-label">Peso</span>
-                                    <span class="producto-detail-value">{{ detalle.peso }} kg</span>
+                                    <span class="producto-detail-label">Cantidad</span>
+                                    <span class="producto-detail-value">{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.6">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</span>
                                 </div>
                                 <div class="producto-detail">
                                     <span class="producto-detail-label">Lote</span>
-                                    <span class="producto-detail-value">{{ detalle.lote }}</span>
+                                    <span class="producto-detail-value">{{ detalle.lote or '—' }}</span>
                                 </div>
                                 <div class="producto-detail">
                                     <span class="producto-detail-label">F. Fab.</span>
-                                    <span class="producto-detail-value">{{ detalle.fecha_fabricacion }}</span>
+                                    <span class="producto-detail-value">{{ detalle.fecha_fabricacion or '—' }}</span>
                                 </div>
+                                {% if detalle.producto.se_pesa %}
                                 <div class="producto-detail">
                                     <span class="producto-detail-label">F. Exp.</span>
-                                    <span class="producto-detail-value">{{ detalle.fecha_expiracion }}</span>
+                                    <span class="producto-detail-value">{{ detalle.fecha_expiracion or '—' }}</span>
                                 </div>
+                                {% endif %}
                             </div>
                             <div class="producto-item-footer">
                                 {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                 <div class="producto-item-actions">
                                     <button type="button" class="mobile-edit-btn"
-                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
+                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
                                         <i class="fas fa-edit"></i>
                                         <span>Editar</span>
                                     </button>
@@ -957,7 +959,7 @@ tr.linea-pedido-original td {
                         <tr>
                             <th>#</th>
                             <th>Producto</th>
-                            <th>Peso</th>
+                            <th>Cantidad</th>
                             <th>Lote</th>
                             <th>F. Fab.</th>
                             <th>F. Exp.</th>
@@ -970,15 +972,15 @@ tr.linea-pedido-original td {
                             <tr{% if detalle.es_linea_pedido %} class="linea-pedido-original"{% endif %}>
                                 <td>{% if not detalle.es_linea_pedido %}{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}{% endif %}</td>
                                 <td class="product-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</td>
-                                <td>{{ detalle.peso }}</td>
-                                <td>{{ detalle.lote }}</td>
-                                <td>{{ detalle.fecha_fabricacion }}</td>
-                                <td>{{ detalle.fecha_expiracion }}</td>
+                                <td>{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.5">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</td>
+                                <td>{{ detalle.lote or '—' }}</td>
+                                <td>{{ detalle.fecha_fabricacion or '—' }}</td>
+                                <td>{% if detalle.producto.se_pesa %}{{ detalle.fecha_expiracion or '—' }}{% else %}—{% endif %}</td>
                                 <td>
                                     {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
                                     <div class="table-actions">
                                         <button type="button" class="mobile-edit-btn" title="Editar producto"
-                                                onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}')">
+                                                onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote }}', '{{ detalle.fecha_fabricacion }}', '{{ detalle.fecha_expiracion }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                         <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
@@ -1118,15 +1120,15 @@ tr.linea-pedido-original td {
                             <select name="producto_id" id="edit_producto_id" class="mobile-form-control" required>
                                 <option value="">Seleccionar...</option>
                                 {% for p in productos|sort(attribute='nombre') if p.id in allowed_ids %}
-                                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
 
-                    <!-- Peso -->
+                    <!-- Cantidad (peso o cajas según producto) -->
                     <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="edit_peso">Peso (kg)</label>
+                        <label class="mobile-form-label" for="edit_peso" id="edit_cantidad_label">Peso (kg)</label>
                         <input type="text" inputmode="decimal" name="peso" id="edit_peso"
                                class="mobile-form-control" placeholder="0.00"
                                pattern="[0-9]*[.,]?[0-9]*" required>
@@ -1179,16 +1181,34 @@ const editModalOverlay = document.getElementById('editModalOverlay');
 const editForm = document.getElementById('editDetalleForm');
 const editPesoField = document.getElementById('edit_peso');
 
-function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp) {
+function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, cajas, sePesa) {
     // Establecer la URL de acción del formulario
     editForm.action = `/detalles_pedido/${detalleId}/editar`;
 
     // Poblar los campos del formulario
     document.getElementById('edit_producto_id').value = productoId;
-    document.getElementById('edit_peso').value = peso;
     document.getElementById('edit_lote').value = lote;
     document.getElementById('edit_fecha_fabricacion').value = fechaFab;
     document.getElementById('edit_fecha_expiracion').value = fechaExp;
+
+    // Adaptar campo cantidad según tipo de producto
+    const editLabel = document.getElementById('edit_cantidad_label');
+    const editPeso = document.getElementById('edit_peso');
+    if (sePesa) {
+        editLabel.textContent = 'Peso (kg)';
+        editPeso.value = peso;
+        editPeso.placeholder = '0.00';
+        editPeso.inputMode = 'decimal';
+    } else {
+        editLabel.textContent = 'Cajas';
+        editPeso.value = cajas;
+        editPeso.placeholder = '0';
+        editPeso.inputMode = 'numeric';
+    }
+
+    // Mostrar/ocultar F. Expiración
+    const editExpGroup = document.getElementById('edit_fecha_expiracion').closest('.mobile-form-group');
+    editExpGroup.style.display = sePesa ? '' : 'none';
 
     // Mostrar el modal
     editModalOverlay.classList.add('show');
@@ -1307,6 +1327,32 @@ function calcExp() {
 // Recalcular expiración cuando cambia la fecha de fabricación o el producto
 $fab.addEventListener('change', calcExp);
 $prod.addEventListener('change', calcExp);
+
+// ========================================================================
+// ADAPTAR FORMULARIO SEGÚN TIPO DE PRODUCTO (se_pesa)
+// ========================================================================
+const $cantidadLabel = document.getElementById('cantidad_label');
+const $expGroup = $exp.closest('.mobile-form-group');
+
+function adaptFormToProduct() {
+    const selectedOption = $prod.options[$prod.selectedIndex];
+    const sePesa = selectedOption && selectedOption.dataset.sePesa === 'true';
+
+    if (sePesa || !selectedOption || !selectedOption.value) {
+        $cantidadLabel.textContent = 'Peso (kg)';
+        $peso.placeholder = '0.00';
+        $peso.inputMode = 'decimal';
+        $expGroup.style.display = '';
+    } else {
+        $cantidadLabel.textContent = 'Cajas';
+        $peso.placeholder = '0';
+        $peso.inputMode = 'numeric';
+        $expGroup.style.display = 'none';
+    }
+}
+
+$prod.addEventListener('change', adaptFormToProduct);
+adaptFormToProduct();
 
 // ========================================================================
 // GUARDAR EN LOCALSTORAGE Y LIMPIAR PESO AL ENVIAR
