@@ -906,6 +906,7 @@ class DetallePedido(db.Model):
     precio_unitario = db.Column(db.Numeric(10,2), nullable=False, default=0)
     subtotal        = db.Column(db.Numeric(10,2), nullable=False)
     es_linea_pedido = db.Column(db.Boolean, default=True, nullable=False)
+    cajas_pedidas   = db.Column(db.Integer, nullable=False, default=0)
 
 
     def __repr__(self):
@@ -2370,15 +2371,28 @@ def dashboard():
                 if dias >= 0:
                     lead_times_p.append(dias)
 
-            # Order Completion Rate (antes Fill Rate — misma fórmula, nombre honesto)
-            estados = {'facturado': 0, 'pendiente': 0, 'preparado': 0}
-            for p in pedidos_periodo:
-                estado = p.estado or 'otros'
-                if estado in estados:
-                    estados[estado] += 1
-            completos = estados['facturado']
-            total_eval = completos + estados['pendiente'] + estados['preparado']
-            order_completion_rate_p = (completos / total_eval * 100) if total_eval > 0 else 0
+            # OFR real — línea por línea: cajas entregadas / cajas pedidas
+            total_pedidas = 0
+            total_entregadas = 0
+            for p in facturados:
+                for det in p.detalles:
+                    if not det.es_linea_pedido:
+                        continue  # solo evaluar líneas originales
+                    pedidas = det.cajas_pedidas or det.cajas or 0
+                    if pedidas <= 0:
+                        continue
+                    total_pedidas += pedidas
+                    if det.producto.se_pesa:
+                        # Manufactura: contar líneas de preparación del mismo producto
+                        entregadas = sum(
+                            1 for d in p.detalles
+                            if not d.es_linea_pedido and d.producto_id == det.producto_id
+                        )
+                    else:
+                        # Importación: cajas actuales de la línea original
+                        entregadas = det.cajas or 0
+                    total_entregadas += min(entregadas, pedidas)
+            order_completion_rate_p = (total_entregadas / total_pedidas * 100) if total_pedidas > 0 else 100
 
             # OTD Rate corregido — incluye pendientes vencidos como "fuera de tiempo"
             a_tiempo = sum(1 for lt in lead_times_p if lt <= 2)
@@ -2911,6 +2925,7 @@ def nuevo_pedido():
                 pedido_id=pedido.id,
                 producto_id=prod_id,
                 cajas=cajas,
+                cajas_pedidas=cajas,
                 precio_unitario=precio_unitario,
                 subtotal=subtotal
             )
@@ -2999,6 +3014,7 @@ def editar_pedido(pedido_id):
                 pedido_id      = pedido.id,
                 producto_id    = prod_id,
                 cajas          = cajas,
+                cajas_pedidas  = cajas,
                 precio_unitario= precio_unitario,
                 subtotal       = subtotal
             )

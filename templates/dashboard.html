@@ -249,13 +249,13 @@
                 </div>
             </div>
             <div class="kpi-content">
-                <h3>Order Completion Rate</h3>
+                <h3>Order Fill Rate</h3>
                 <div class="kpi-value">{{ '%.1f' % order_completion_rate_v }}%</div>
-                <div class="kpi-subtitle">pedidos completados</div>
+                <div class="kpi-subtitle">cajas entregadas vs pedidas</div>
             </div>
             <div class="performance-bars">
                 <div class="bar-item">
-                    <span>Completion Rate</span>
+                    <span>Fill Rate</span>
                     <div class="mini-bar">
                         {% set ocr_width = 0 if order_completion_rate_v < 0 else (100 if order_completion_rate_v > 100 else order_completion_rate_v) %}
                         {% set ocr_class = 'excellent' if order_completion_rate_v >= 95 else ('good' if order_completion_rate_v >= 85 else 'poor') %}
@@ -3062,7 +3062,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: kpisHistoricos.map(k => k.mes),
                 datasets: [
                     {
-                        label: 'Order Completion (%)',
+                        label: 'OFR (%)',
                         data: kpisHistoricos.map(k => k.order_completion_rate),
                         borderColor: '#8b5cf6',
                         backgroundColor: 'rgba(139, 92, 246, 0.1)',

@@ -67,11 +67,11 @@ def test_dashboard_no_order_accuracy_in_response(logged_client):
     assert 'order_accuracy_v' not in html
 
 
-def test_dashboard_has_order_completion_rate(logged_client):
-    """AC #2: Fill Rate renombrado a Order Completion Rate en el template."""
+def test_dashboard_has_order_fill_rate(logged_client):
+    """OFR real reemplaza Order Completion Rate en el template."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Order Completion Rate' in html or 'Order Completion' in html
+    assert 'Order Fill Rate' in html
 
 
 def test_dashboard_has_customer_engagement(logged_client):
@@ -104,12 +104,12 @@ def test_kpi_evolution_chart_no_accuracy(logged_client):
     assert "Accuracy (%)" not in html
 
 
-def test_kpi_evolution_chart_has_order_completion(logged_client):
-    """AC #2: El chart de evolución usa Order Completion Rate."""
+def test_kpi_evolution_chart_has_ofr(logged_client):
+    """El chart de evolución usa OFR."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
     assert 'order_completion_rate' in html
-    assert "Order Completion (%)" in html
+    assert "OFR (%)" in html
 
 
 def test_dashboard_no_palabras_error(app):
