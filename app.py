@@ -2811,11 +2811,14 @@ def lista_pedidos():
         Pedido.estado != 'entregado'
     )
 
-    # Orden: 1) Estado (pendientes primero), 2) Fecha desc, 3) ID desc
+    # Orden: 1) Estado (pendiente → preparado → facturado), 2) ID desc
     orden_optimizado = [
-        db.case((Pedido.estado == 'pendiente', 0), else_=1),
-        db.case((Pedido.fecha_pedido.is_(None), 1), else_=0),
-        Pedido.fecha_pedido.desc(),
+        db.case(
+            (Pedido.estado == 'pendiente', 0),
+            (Pedido.estado == 'preparado', 1),
+            (Pedido.estado == 'facturado', 2),
+            else_=3
+        ),
         Pedido.id.desc(),
     ]
 
