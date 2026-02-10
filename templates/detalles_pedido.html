@@ -1036,10 +1036,25 @@ tr.linea-pedido-original td {
                 <div class="productos-list-mobile">
                     {% if detalles_ordenados %}
                         {% for detalle in detalles_ordenados %}
-                        <div class="producto-item-mobile{% if detalle.es_linea_pedido %} linea-pedido-original{% endif %}">
+                        {% if detalle.es_linea_pedido %}
+                        {# Línea de pedido original: solo nombre + cajas #}
+                        <div class="producto-item-mobile linea-pedido-original">
                             <div class="producto-item-header">
-                                <span class="producto-item-index">{% if not detalle.es_linea_pedido %}{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}{% endif %}</span>
-                                <span class="producto-item-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</span>
+                                <span class="producto-item-name">{{ detalle.producto.nombre }} <span class="badge-pedido">Pedido</span></span>
+                            </div>
+                            <div class="producto-item-body">
+                                <div class="producto-detail">
+                                    <span class="producto-detail-label">Cajas pedidas</span>
+                                    <span class="producto-detail-value">{{ detalle.cajas_pedidas or detalle.cajas }} cajas</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        {# Línea de preparación: detalle completo #}
+                        <div class="producto-item-mobile">
+                            <div class="producto-item-header">
+                                <span class="producto-item-index">{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</span>
+                                <span class="producto-item-name">{{ detalle.producto.nombre }}</span>
                             </div>
                             <div class="producto-item-body">
                                 <div class="producto-detail">
@@ -1067,7 +1082,7 @@ tr.linea-pedido-original td {
                                 {% endif %}
                             </div>
                             <div class="producto-item-footer">
-                                {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
+                                {% if pedido.estado != 'facturado' %}
                                 <div class="producto-item-actions">
                                     <button type="button" class="mobile-edit-btn"
                                             onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote or '' }}', '{{ detalle.fecha_fabricacion or '' }}', '{{ detalle.fecha_expiracion or '' }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
@@ -1085,6 +1100,7 @@ tr.linea-pedido-original td {
                                 {% endif %}
                             </div>
                         </div>
+                        {% endif %}
                         {% endfor %}
                     {% else %}
                         <div class="mobile-empty-state">
@@ -1110,15 +1126,26 @@ tr.linea-pedido-original td {
                     <tbody>
                         {% if detalles_ordenados %}
                             {% for detalle in detalles_ordenados %}
-                            <tr{% if detalle.es_linea_pedido %} class="linea-pedido-original"{% endif %}>
-                                <td>{% if not detalle.es_linea_pedido %}{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}{% endif %}</td>
-                                <td class="product-name">{{ detalle.producto.nombre }}{% if detalle.es_linea_pedido %} <span class="badge-pedido">Pedido</span>{% endif %}</td>
+                            {% if detalle.es_linea_pedido %}
+                            <tr class="linea-pedido-original">
+                                <td></td>
+                                <td class="product-name">{{ detalle.producto.nombre }} <span class="badge-pedido">Pedido</span></td>
+                                <td>{{ detalle.cajas_pedidas or detalle.cajas }} cajas</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
+                                <td class="product-name">{{ detalle.producto.nombre }}</td>
                                 <td>{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.5">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</td>
                                 <td>{% if detalle.producto.se_pesa %}{{ detalle.lote or '—' }}{% else %}—{% endif %}</td>
                                 <td>{% if detalle.producto.se_pesa %}{{ detalle.fecha_fabricacion or '—' }}{% else %}—{% endif %}</td>
                                 <td>{{ detalle.fecha_expiracion or '—' }}</td>
                                 <td>
-                                    {% if pedido.estado != 'facturado' and (not detalle.es_linea_pedido or not detalle.producto.se_pesa) %}
+                                    {% if pedido.estado != 'facturado' %}
                                     <div class="table-actions">
                                         <button type="button" class="mobile-edit-btn" title="Editar producto"
                                                 onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote or '' }}', '{{ detalle.fecha_fabricacion or '' }}', '{{ detalle.fecha_expiracion or '' }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
@@ -1134,6 +1161,7 @@ tr.linea-pedido-original td {
                                     {% endif %}
                                 </td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         {% else %}
                             <tr>
