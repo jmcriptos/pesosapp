@@ -1323,17 +1323,22 @@ def pedido_a_json(pedido: Pedido) -> dict:
         if d.es_linea_pedido:
             continue
 
+        # Omitir líneas con cantidad cero (producto no disponible)
+        qty = float(d.cajas or d.peso or 0)
+        if qty == 0:
+            continue
+
         descripcion = d.producto.nombre
         if d.lote:
             descripcion += f" (Lote {d.lote})"
 
-        subtotal = float(d.precio_unitario) * (d.cajas or d.peso or 0)
+        subtotal = float(d.precio_unitario) * qty
         total   += subtotal
 
         lineas.append({
             "product_qbo_id": d.producto.qbo_id,
             "descripcion"   : descripcion,
-            "qty"           : float(d.cajas or d.peso or 0),
+            "qty"           : qty,
             "unit_price"    : float(d.precio_unitario),
             "amount"        : round(subtotal, 2),
             "tax_rate"      : d.producto.tax_rate
@@ -2805,12 +2810,19 @@ def lista_pedidos():
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
 
-    # Subquery para calcular totales (solo líneas originales del pedido)
+    # Subquery para calcular totales:
+    # - Pedidos pendientes: líneas originales del pedido
+    # - Pedidos preparados/facturados: líneas de preparación (cantidades reales)
     totales_subq = db.session.query(
         DetallePedido.pedido_id,
         func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
+    ).join(
+        Pedido, Pedido.id == DetallePedido.pedido_id
     ).filter(
-        DetallePedido.es_linea_pedido == True
+        db.or_(
+            db.and_(Pedido.estado == 'pendiente', DetallePedido.es_linea_pedido == True),
+            db.and_(Pedido.estado != 'pendiente', DetallePedido.es_linea_pedido == False),
+        )
     ).group_by(DetallePedido.pedido_id).subquery()
 
     # Query base con eager loading de Cliente para evitar N+1
@@ -2962,7 +2974,7 @@ def nuevo_pedido():
                     cajas_pedidas=0,
                     peso=0,
                     precio_unitario=det.precio_unitario,
-                    subtotal=0,
+                    subtotal=round(float(det.precio_unitario) * det.cajas, 2),
                     es_linea_pedido=False,
                 )
                 db.session.add(prep)
@@ -3068,7 +3080,7 @@ def editar_pedido(pedido_id):
                     cajas_pedidas=0,
                     peso=0,
                     precio_unitario=det.precio_unitario,
-                    subtotal=0,
+                    subtotal=round(float(det.precio_unitario) * det.cajas, 2),
                     es_linea_pedido=False,
                 )
                 db.session.add(prep)
