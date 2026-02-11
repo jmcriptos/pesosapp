@@ -2810,27 +2810,33 @@ def lista_pedidos():
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
 
-    # Subquery para calcular totales:
-    # - Pedidos pendientes: líneas originales del pedido
-    # - Pedidos preparados/facturados: líneas de preparación (cantidades reales)
-    totales_subq = db.session.query(
+    # Subquery: total de líneas de preparación (cantidades reales)
+    prep_subq = db.session.query(
         DetallePedido.pedido_id,
-        func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_calculado')
-    ).join(
-        Pedido, Pedido.id == DetallePedido.pedido_id
+        func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_prep')
     ).filter(
-        db.or_(
-            db.and_(Pedido.estado == 'pendiente', DetallePedido.es_linea_pedido == True),
-            db.and_(Pedido.estado != 'pendiente', DetallePedido.es_linea_pedido == False),
-        )
+        DetallePedido.es_linea_pedido == False
     ).group_by(DetallePedido.pedido_id).subquery()
 
-    # Query base con eager loading de Cliente para evitar N+1
+    # Subquery: total de líneas originales del pedido
+    orig_subq = db.session.query(
+        DetallePedido.pedido_id,
+        func.coalesce(func.sum(DetallePedido.subtotal), 0).label('total_orig')
+    ).filter(
+        DetallePedido.es_linea_pedido == True
+    ).group_by(DetallePedido.pedido_id).subquery()
+
+    # Query base: usar preparación si existe, si no original
     base_query = db.session.query(
         Pedido,
-        func.coalesce(totales_subq.c.total_calculado, 0).label('total_calculado')
+        db.case(
+            (prep_subq.c.total_prep.isnot(None), prep_subq.c.total_prep),
+            else_=func.coalesce(orig_subq.c.total_orig, 0)
+        ).label('total_calculado')
     ).outerjoin(
-        totales_subq, Pedido.id == totales_subq.c.pedido_id
+        prep_subq, Pedido.id == prep_subq.c.pedido_id
+    ).outerjoin(
+        orig_subq, Pedido.id == orig_subq.c.pedido_id
     ).options(
         joinedload(Pedido.cliente)
     ).filter(
