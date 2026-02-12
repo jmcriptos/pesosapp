@@ -316,11 +316,22 @@
                             <option value="">-- Seleccionar cliente --</option>
                             {% for cliente in clientes|sort(attribute='nombre') %}
                                 <option value="{{ cliente.id }}"
+                                        data-moneda="{{ cliente.moneda or 'XCG' }}"
                                         {% if pedido and pedido.cliente_id == cliente.id %}selected{% endif %}>
-                                    {{ cliente.nombre }}
+                                    {{ cliente.nombre }}{% if cliente.moneda == 'USD' %} (USD){% endif %}
                                 </option>
                             {% endfor %}
                         </select>
+                </div>
+
+                <!-- Tipo de cambio (solo para clientes USD) -->
+                <div class="mobile-form-group" id="tipo-cambio-group" style="display:none;">
+                    <label class="mobile-form-label" for="tipo_cambio">
+                        Tipo de cambio (1 USD = ? XCG):
+                    </label>
+                    <input type="number" id="tipo_cambio" name="tipo_cambio"
+                           class="mobile-form-control" step="0.01" min="0.01"
+                           value="1.79" placeholder="Ej: 1.79">
                 </div>
             </div>
         </div>
@@ -579,17 +590,28 @@ const tomProducto = new TomSelect('#producto-select', {
 });
 
 
+    // Mostrar/ocultar tipo de cambio según moneda del cliente
+    const tipoCambioGroup = document.getElementById('tipo-cambio-group');
+    function actualizarTipoCambio(clienteId) {
+        if (!clienteId || !tipoCambioGroup) return;
+        const opt = clienteSelect.querySelector(`option[value="${clienteId}"]`);
+        const moneda = opt ? opt.dataset.moneda : 'XCG';
+        tipoCambioGroup.style.display = (moneda === 'USD') ? '' : 'none';
+    }
+
     // Cambio de cliente
     if (clienteSelect) {
         clienteSelect.addEventListener('change', async function() {
             const clienteId = this.value;
+            actualizarTipoCambio(clienteId);
             if (clienteId) {
                 await actualizarPreciosCliente(clienteId);
             }
         });
-        
+
         // Si ya hay cliente seleccionado, actualizar precios
         if (clienteSelect.value) {
+            actualizarTipoCambio(clienteSelect.value);
             actualizarPreciosCliente(clienteSelect.value);
         }
     }

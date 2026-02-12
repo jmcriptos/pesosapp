@@ -809,9 +809,10 @@ class Cliente(db.Model):
     facturaciones = db.relationship('Facturacion', back_populates='cliente', cascade="all, delete-orphan")
     pedidos = db.relationship('Pedido', back_populates='cliente', cascade="all, delete-orphan")
     qbo_id = db.Column(db.String(20), unique=True)
+    moneda = db.Column(db.String(3), default='XCG', nullable=False)
 
     def to_dict(self):
-        return {'id': self.id, 'nombre': self.nombre, 'qbo_id': self.qbo_id} 
+        return {'id': self.id, 'nombre': self.nombre, 'qbo_id': self.qbo_id, 'moneda': self.moneda}
 
 class Facturacion(db.Model):
     __tablename__ = 'facturacion'
@@ -891,6 +892,7 @@ class Pedido(db.Model):
     estado = db.Column(db.String(30), default="pendiente", nullable=False)
     notas = db.Column(db.Text, nullable=True)
     invoice_id_qbo = db.Column(db.String(100), nullable=True)
+    tipo_cambio = db.Column(db.Float, default=1.0, nullable=False)
     cliente = db.relationship('Cliente', back_populates='pedidos')
     detalles = db.relationship('DetallePedido', back_populates='pedido', cascade="all, delete-orphan")
 
@@ -1348,6 +1350,7 @@ def pedido_a_json(pedido: Pedido) -> dict:
         "order_id"        : pedido.id,
         "order_date"      : pedido.fecha_pedido.isoformat(),
         "customer_qbo_id" : pedido.cliente.qbo_id,
+        "currency"        : pedido.cliente.moneda or 'XCG',
         "notes"           : pedido.notas,
         "lines"           : lineas,
         "total"           : round(total, 2)
@@ -2314,33 +2317,37 @@ def dashboard():
             pedidos_30_dias = []
 
         # === CÁLCULOS ROBUSTOS DE VENTAS ===
+        # FIX: Solo sumar líneas originales (es_linea_pedido=True) y convertir USD→XCG
         try:
             ventas_mes = 0
             for p in pedidos_mes_list:
                 try:
+                    tc = p.tipo_cambio or 1.0
                     for d in p.detalles:
-                        if d.subtotal:
-                            ventas_mes += float(d.subtotal)
+                        if d.es_linea_pedido and d.subtotal:
+                            ventas_mes += float(d.subtotal) * tc
                 except (AttributeError, ValueError, TypeError) as e:
                     app.logger.warning(f"Error en cálculo ventas mes, pedido {p.id}: {e}")
                     continue
-            
+
             ventas_semana = 0
             for p in pedidos_semana_list:
                 try:
+                    tc = p.tipo_cambio or 1.0
                     for d in p.detalles:
-                        if d.subtotal:
-                            ventas_semana += float(d.subtotal)
+                        if d.es_linea_pedido and d.subtotal:
+                            ventas_semana += float(d.subtotal) * tc
                 except (AttributeError, ValueError, TypeError) as e:
                     app.logger.warning(f"Error en cálculo ventas semana, pedido {p.id}: {e}")
                     continue
-            
+
             ventas_mes_anterior = 0
             for p in pedidos_mes_anterior_list:
                 try:
+                    tc = p.tipo_cambio or 1.0
                     for d in p.detalles:
-                        if d.subtotal:
-                            ventas_mes_anterior += float(d.subtotal)
+                        if d.es_linea_pedido and d.subtotal:
+                            ventas_mes_anterior += float(d.subtotal) * tc
                 except (AttributeError, ValueError, TypeError):
                     continue
             pedidos_mes_anterior = len(pedidos_mes_anterior_list)
@@ -2422,7 +2429,7 @@ def dashboard():
             # Ventas del período
             total_p = len(pedidos_periodo)
             ventas_p = sum(
-                sum(float(d.subtotal or 0) for d in p.detalles)
+                sum(float(d.subtotal or 0) * (p.tipo_cambio or 1.0) for d in p.detalles if d.es_linea_pedido)
                 for p in pedidos_periodo if p.estado == 'facturado'
             )
 
@@ -2517,7 +2524,10 @@ def dashboard():
 
         for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
             pedido_id = p.id
+            tc = p.tipo_cambio or 1.0
             for d in p.detalles:
+                if not d.es_linea_pedido:
+                    continue
                 # Verificar que existe el producto
                 if not d.producto or not d.producto.nombre:
                     app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
@@ -2526,7 +2536,7 @@ def dashboard():
                 nombre = d.producto.nombre
                 cajas_detalle = d.cajas or 0
                 peso_detalle = d.peso or 0
-                ingresos_detalle = float(d.subtotal or 0)
+                ingresos_detalle = float(d.subtotal or 0) * tc
 
                 if nombre not in productos_ventas:
                     productos_ventas[nombre] = {
@@ -2594,8 +2604,9 @@ def dashboard():
             if nombre not in clientes_ventas:
                 clientes_ventas[nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
             clientes_ventas[nombre]['pedidos'] += 1
+            tc = p.tipo_cambio or 1.0
             clientes_ventas[nombre]['total'] += sum(
-                float(d.subtotal or 0) for d in p.detalles
+                float(d.subtotal or 0) * tc for d in p.detalles if d.es_linea_pedido
             )
             if (
                 not clientes_ventas[nombre]['ultimo_pedido']
@@ -2620,7 +2631,7 @@ def dashboard():
                 semana_query = semana_query.filter(Pedido.cliente_id != cliente_almacen_id)
             pedidos_semana_i = semana_query.all()
             ventas_semana_i = sum(
-                sum(float(d.subtotal or 0) for d in p.detalles) for p in pedidos_semana_i
+                sum(float(d.subtotal or 0) * (p.tipo_cambio or 1.0) for d in p.detalles if d.es_linea_pedido) for p in pedidos_semana_i
             )
             tendencia_semanal.append(
                 {
@@ -2664,7 +2675,7 @@ def dashboard():
                 dia_query = dia_query.filter(Pedido.cliente_id != cliente_almacen_id)
             pedidos_dia = dia_query.all()
             total_dia = sum(
-                sum(float(d.subtotal or 0) for d in p.detalles)
+                sum(float(d.subtotal or 0) * (p.tipo_cambio or 1.0) for d in p.detalles if d.es_linea_pedido)
                 for p in pedidos_dia
             )
             ventas_dias.append({
@@ -2931,7 +2942,8 @@ def nuevo_pedido():
                 return redirect(url_for('nuevo_pedido'))
         
         notas = request.form.get('notas')
-        pedido = Pedido(cliente_id=cliente_id, notas=notas)
+        tipo_cambio = float(request.form.get('tipo_cambio', 1.0) or 1.0)
+        pedido = Pedido(cliente_id=cliente_id, notas=notas, tipo_cambio=tipo_cambio)
         db.session.add(pedido)
         db.session.commit()
 
@@ -4959,7 +4971,11 @@ def nuevo_cliente():
         if qbo_id and Cliente.query.filter_by(qbo_id=qbo_id).first():
             return jsonify({"error": "Ya existe un cliente con ese QBO ID"}), 400
         
-        nuevo_cliente = Cliente(nombre=nombre, qbo_id=qbo_id)
+        moneda = request.form.get('moneda', 'XCG').upper()
+        if moneda not in ('XCG', 'USD'):
+            moneda = 'XCG'
+
+        nuevo_cliente = Cliente(nombre=nombre, qbo_id=qbo_id, moneda=moneda)
         db.session.add(nuevo_cliente)
         db.session.commit()
         return jsonify({
@@ -4994,6 +5010,9 @@ def editar_cliente(cliente_id):
                 return redirect(url_for('editar_cliente', cliente_id=cliente.id))
             
             cliente.qbo_id = qbo_id
+            moneda = request.form.get('moneda', 'XCG').upper()
+            if moneda in ('XCG', 'USD'):
+                cliente.moneda = moneda
             db.session.commit()
             flash('Cliente actualizado', 'success')
             return redirect(url_for('mostrar_clientes'))

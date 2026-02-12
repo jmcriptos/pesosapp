@@ -34,6 +34,14 @@
                     <input type="text" id="qbo_id" name="qbo_id" value="{{ cliente.qbo_id }}"
                            class="mobile-form-control">
                 </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="moneda">Moneda:</label>
+                    <select id="moneda" name="moneda" class="mobile-form-control">
+                        <option value="XCG" {{ 'selected' if cliente.moneda == 'XCG' }}>XCG (Guilder)</option>
+                        <option value="USD" {{ 'selected' if cliente.moneda == 'USD' }}>USD (Dólar)</option>
+                    </select>
+                </div>
             </div>
         </div>
 

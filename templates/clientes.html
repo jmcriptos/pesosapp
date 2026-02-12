@@ -26,6 +26,14 @@
       <input id="qbo-cliente" name="qbo_id" class="form-input">
     </div>
 
+    <div class="form-group">
+      <label for="moneda-cliente" class="form-label">Moneda:</label>
+      <select id="moneda-cliente" name="moneda" class="form-input">
+        <option value="XCG">XCG (Guilder)</option>
+        <option value="USD">USD (Dólar)</option>
+      </select>
+    </div>
+
     <button class="form-button">
       <i class="fas fa-plus"></i> Registrar
     </button>
@@ -41,6 +49,7 @@
         <tr>
                       <th class="table-width-70px text-center">ID</th>
           <th>Nombre</th>
+                      <th class="table-width-80px text-center">Moneda</th>
                       <th class="table-width-160px text-center">QBO ID</th>
                       <th class="table-width-120px text-center">Acciones</th>
         </tr>
@@ -51,6 +60,9 @@
         <tr id="cliente-{{ c.id }}">
           <td class="col-id">{{ c.id }}</td>
           <td>{{ c.nombre }}</td>
+          <td class="col-moneda text-center">
+            <span class="badge {{ 'badge-usd' if c.moneda == 'USD' else 'badge-na' }}">{{ c.moneda or 'XCG' }}</span>
+          </td>
           <td class="col-qbo">
             {% if c.qbo_id %}
               <span class="badge badge-ok" title="Integrado a QuickBooks">{{ c.qbo_id }}</span>
@@ -123,6 +135,7 @@
   font-weight:600;line-height:1
 }
 .badge-ok{background:#e6fcec;color:#19a354}
+.badge-usd{background:#fff3e0;color:#e65100}
 .badge-na{background:#f1f2f7;color:#999}
 
 /* ---------- action buttons ---------- */
@@ -139,9 +152,11 @@
 
 /* ---------- responsive ---------- */
 @media(max-width:680px){
-  .col-qbo{display:none}
+  .col-qbo,.col-moneda{display:none}
   .tabla-clientes thead th:nth-child(3),
-  .tabla-clientes td:nth-child(3){display:none}
+  .tabla-clientes td:nth-child(3),
+  .tabla-clientes thead th:nth-child(4),
+  .tabla-clientes td:nth-child(4){display:none}
   .form-section,.table-section{padding:1rem}
   .form-input{font-size:15px}
   .tabla-clientes td,.tabla-clientes th{padding:.7rem}
