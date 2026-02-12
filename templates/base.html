@@ -97,13 +97,13 @@
             </div>
         </nav>
 
-        <!-- Botón hamburguesa flotante -->
-        <button class="drawer-toggle" id="drawerToggle" aria-label="Abrir menú">
-            <i class="fas fa-bars"></i>
-        </button>
-
-        <!-- Blocks heredados (ocultos, para que templates hijos no fallen) -->
-        {% block header %}{% block header_title %}{% endblock %}{% endblock %}
+        <!-- Top bar: hamburguesa + título -->
+        <header class="app-topbar">
+            <button class="topbar-menu" id="drawerToggle" aria-label="Abrir menú">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-title">{% block header %}{% block header_title %}{% endblock %}{% endblock %}</div>
+        </header>
 
         <!-- Contenido principal -->
         <main class="app-content">
