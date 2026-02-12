@@ -34,7 +34,7 @@
             <div class="asignar-form-row">
                 <div class="form-group">
                     <label for="cliente_id">Cliente:</label>
-                    <select id="cliente_id" name="cliente_id" class="form-control" required>
+                    <select id="cliente_id" name="cliente_id" class="form-control ts-select" required>
                         <option value="">Seleccionar cliente...</option>
                         {% for cliente in clientes %}
                             <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
@@ -44,7 +44,7 @@
                 
                 <div class="form-group">
                     <label for="lista_precio_id">Lista de Precios:</label>
-                    <select id="lista_precio_id" name="lista_precio_id" class="form-control" required>
+                    <select id="lista_precio_id" name="lista_precio_id" class="form-control ts-select" required>
                         <option value="">Seleccionar lista...</option>
                         {% for lista in listas %}
                             <option value="{{ lista.id }}">

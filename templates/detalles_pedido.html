@@ -13,7 +13,6 @@
 {% endblock %}
 
 {% block extra_css %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <style>
 /* ============================================
    MOBILE-FIRST EXTREME - DETALLE PEDIDO
@@ -970,14 +969,12 @@ tr.linea-pedido-original td {
                     <!-- Producto -->
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="producto_id">Producto</label>
-                        <div class="mobile-select-wrapper">
-                            <select name="producto_id" id="producto_id" class="mobile-form-control" required>
+                        <select name="producto_id" id="producto_id" class="mobile-form-control ts-select" required>
                                 <option value="">Seleccionar...</option>
                                 {% for p in productos|sort(attribute='nombre') %}
                                     <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
                     </div>
 
                     <!-- Cantidad (peso o cajas según producto) -->
@@ -1232,12 +1229,10 @@ tr.linea-pedido-original td {
 
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="formato_etiqueta">Formato</label>
-                        <div class="mobile-select-wrapper">
-                            <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
+                        <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
                                 <option value="4x2" {% if formato_seleccionado != 'a4' %}selected{% endif %}>4" x 2" (Térmica)</option>
                                 <option value="a4" {% if formato_seleccionado == 'a4' %}selected{% endif %}>A4 (2 por página)</option>
                             </select>
-                        </div>
                     </div>
                 </div>
 
@@ -1283,14 +1278,12 @@ tr.linea-pedido-original td {
                     <!-- Producto -->
                     <div class="mobile-form-group">
                         <label class="mobile-form-label" for="edit_producto_id">Producto</label>
-                        <div class="mobile-select-wrapper">
-                            <select name="producto_id" id="edit_producto_id" class="mobile-form-control" required>
+                        <select name="producto_id" id="edit_producto_id" class="mobile-form-control ts-select" required>
                                 <option value="">Seleccionar...</option>
                                 {% for p in productos|sort(attribute='nombre') %}
                                     <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
                     </div>
 
                     <!-- Cantidad (peso o cajas según producto) -->
@@ -1353,7 +1346,9 @@ function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, ca
     editForm.action = `/detalles_pedido/${detalleId}/editar`;
 
     // Poblar los campos del formulario
-    document.getElementById('edit_producto_id').value = productoId;
+    // Usar Tom Select API para establecer valor
+    const tsEdit = document.getElementById('edit_producto_id').tomselect;
+    if (tsEdit) { tsEdit.setValue(productoId); } else { document.getElementById('edit_producto_id').value = productoId; }
     document.getElementById('edit_lote').value = lote;
     document.getElementById('edit_fecha_fabricacion').value = fechaFab;
     document.getElementById('edit_fecha_expiracion').value = fechaExp;
@@ -1402,7 +1397,7 @@ function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, ca
 
     // Enfocar el primer campo
     setTimeout(() => {
-        document.getElementById('edit_producto_id').focus();
+        var tsEditFocus = document.getElementById('edit_producto_id').tomselect; if (tsEditFocus) { tsEditFocus.focus(); } else { document.getElementById('edit_producto_id').focus(); }
     }, 100);
 }
 
@@ -1473,7 +1468,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!saved) return;
 
     // Restaurar valores guardados
-    if (saved.producto_id) $prod.value = saved.producto_id;
+    if (saved.producto_id) { var tsProd = $prod.tomselect; if (tsProd) { tsProd.setValue(saved.producto_id); } else { $prod.value = saved.producto_id; } }
     if (saved.lote) $lote.value = saved.lote;
     if (saved.fecha_fabricacion) $fab.value = saved.fecha_fabricacion;
     if (saved.fecha_expiracion) $exp.value = saved.fecha_expiracion;

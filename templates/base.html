@@ -18,10 +18,14 @@
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
+
+    <!-- Tom Select + Forms system -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+
     <!-- CSRF Token para AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    
+
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -128,6 +132,19 @@
     <!-- Scripts optimizados - FORZAR MINIFICADOS -->
     {% block scripts %}{% endblock %}
     <script src="{{ url_for('static', filename='js/base.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script>
+    /* Auto-init Tom Select en todo select.ts-select */
+    document.querySelectorAll('select.ts-select').forEach(function(el) {
+        new TomSelect(el, {
+            maxOptions: 1000,
+            closeAfterSelect: true,
+            allowEmptyOption: true,
+            sortField: { field: 'text', direction: 'asc' },
+            onType: function() { this.clear(); }
+        });
+    });
+    </script>
     
     <!-- Script de info de optimización -->
     <script>

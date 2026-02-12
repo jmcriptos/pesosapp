@@ -34,7 +34,7 @@
             <div class="especifico-form-grid">
                 <div class="form-group">
                     <label for="cliente_id">Cliente:</label>
-                    <select id="cliente_id" name="cliente_id" class="form-control" required>
+                    <select id="cliente_id" name="cliente_id" class="form-control ts-select" required>
                         <option value="">Seleccionar cliente...</option>
                         {% for cliente in clientes %}
                             <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
@@ -44,7 +44,7 @@
                 
                 <div class="form-group">
                     <label for="producto_id">Producto:</label>
-                    <select id="producto_id" name="producto_id" class="form-control" required>
+                    <select id="producto_id" name="producto_id" class="form-control ts-select" required>
                         <option value="">Seleccionar producto...</option>
                         {% for producto in productos %}
                             <option value="{{ producto.id }}">{{ producto.nombre }}</option>
@@ -597,8 +597,8 @@ function configurarEventListeners() {
                 const margenJomar = fila.dataset.margenJomar;
                 const margenRetail = fila.dataset.margenRetail;
                 
-                document.getElementById('cliente_id').value = clienteId;
-                document.getElementById('producto_id').value = productoId;
+                var tsC = document.getElementById('cliente_id').tomselect; if (tsC) { tsC.setValue(clienteId); } else { document.getElementById('cliente_id').value = clienteId; }
+                var tsP = document.getElementById('producto_id').tomselect; if (tsP) { tsP.setValue(productoId); } else { document.getElementById('producto_id').value = productoId; }
                 document.getElementById('precio_base').value = precioBase;
                 document.getElementById('margen_jomar').value = margenJomar;
                 document.getElementById('margen_retail').value = margenRetail;

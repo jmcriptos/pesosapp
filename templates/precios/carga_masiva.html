@@ -31,7 +31,7 @@
             
             <div class="form-group">
                 <label for="lista_precios">Lista de Precios:</label>
-                <select name="lista_precios" id="lista_precios" required>
+                <select name="lista_precios" id="lista_precios" class="ts-select" required>
                     <option value="">Seleccione una lista de precios</option>
                     {% for lista in listas_precios %}
                     <option value="{{ lista.id }}">{{ lista.nombre }}</option>

@@ -23,7 +23,7 @@
     <div class="box-card">
         <div class="form-group">
             <label for="cliente_id">Cliente:</label>
-            <select name="cliente_id" id="cliente_id" class="form-control" required>
+            <select name="cliente_id" id="cliente_id" class="form-control ts-select" required>
                 <option value="">Seleccionar cliente...</option>
                 {% for cliente in clientes|sort(attribute='nombre') %}
                     <option value="{{ cliente.id }}"

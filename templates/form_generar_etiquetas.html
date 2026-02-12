@@ -3,160 +3,81 @@
 {% block title %}Generar Etiquetas{% endblock %}
 
 {% block header_title %}
-<i class="fas fa-tags" style="color: #007bff; margin-right: 10px;"></i>Etiquetas de Vencimiento
+    <span class="fw-700 color-white">
+        Generar Etiquetas
+    </span>
+    <br>
+    <small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
+        Etiquetas de vencimiento
+    </small>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2>Generar Etiquetas de Productos</h2>
-    
-    <form method="POST" class="form-mb-1">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# US01: hidden CSRF field #}
+<div class="mobile-form-container">
+    <form method="POST" id="form-etiquetas" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <div class="form-group">
-            <label for="producto_id">Producto:</label>
-            <select name="producto_id" id="producto_id" required>
-                <option value="">Seleccione un producto</option>
-                {% for producto in productos %}
-                <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
-                {% endfor %}
-            </select>
+        <!-- Producto Card -->
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-tags"></i>
+                Datos de la etiqueta
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="producto_id">Producto:</label>
+                    <select name="producto_id" id="producto_id" class="mobile-form-control ts-select" required>
+                        <option value="">Seleccione un producto</option>
+                        {% for producto in productos %}
+                        <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="fecha_fabricacion">Fecha de Fabricación:</label>
+                    <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
+                           class="mobile-form-control" required>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="lote">Número de Lote:</label>
+                    <input type="text" name="lote" id="lote"
+                           class="mobile-form-control"
+                           placeholder="Ej: LOTE-2025-001" required>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="cantidad_etiquetas">Cantidad de etiquetas:</label>
+                    <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas"
+                           class="mobile-form-control"
+                           min="1" max="100" value="1" required>
+                </div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="fecha_fabricacion">Fecha de Fabricación:</label>
-            <input type="date" name="fecha_fabricacion" id="fecha_fabricacion" required>
-        </div>
-
-        <div class="form-group">
-            <label for="lote">Número de Lote:</label>
-            <input type="text" name="lote" id="lote" placeholder="Ej: LOTE-2025-001" required>
-        </div>
-
-        <div class="form-group">
-            <label for="cantidad_etiquetas">Cantidad de etiquetas:</label>
-            <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas" min="1" max="100" value="1" required>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Generar Etiquetas</button>
-            <a href="{{ url_for('productos') }}" class="btn btn-secondary">Cancelar</a>
+        <!-- Botones -->
+        <div class="mobile-form-actions">
+            <a href="{{ url_for('productos') }}" class="mobile-btn mobile-btn-secondary">
+                <i class="fas fa-times"></i>
+                Cancelar
+            </a>
+            <button type="submit" class="mobile-btn mobile-btn-primary">
+                <i class="fas fa-print"></i>
+                Generar Etiquetas
+            </button>
         </div>
     </form>
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h2 {
-    color: #333;
-    margin-bottom: 30px;
-    text-align: center;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #555;
-}
-
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group input[type="date"],
-.form-group select {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-}
-
-.form-group input[type="text"]:focus,
-.form-group input[type="number"]:focus,
-.form-group input[type="date"]:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.1);
-}
-
-.form-actions {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    margin-top: 30px;
-}
-
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-}
-
-.btn-primary {
-    background: var(--primary-color);
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #0056b3;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
-}
-
-.btn-secondary {
-    background: #6c757d;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background: #545b62;
-    transform: translateY(-2px);
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
-    }
-
-    .form-actions {
-        flex-direction: column;
-        align-items: center;
-    }
-}
-</style>
-{% endblock %}
-
 {% block scripts %}
 <script>
-// Validación del formulario
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
     const cantidadInput = document.getElementById('cantidad_etiquetas');
 
-    form.addEventListener('submit', function(e) {
+    document.getElementById('form-etiquetas').addEventListener('submit', function(e) {
         const cantidad = parseInt(cantidadInput.value);
-
         if (cantidad < 1 || cantidad > 100) {
             e.preventDefault();
             alert('La cantidad debe estar entre 1 y 100');
@@ -164,14 +85,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Actualizar etiqueta de cantidad
     cantidadInput.addEventListener('input', function() {
         const valor = parseInt(this.value);
-        if (valor > 100) {
-            this.value = 100;
-        } else if (valor < 1) {
-            this.value = 1;
-        }
+        if (valor > 100) this.value = 100;
+        else if (valor < 1) this.value = 1;
     });
 });
 </script>

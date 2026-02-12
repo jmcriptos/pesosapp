@@ -37,7 +37,7 @@
             <div class="precio-form-row">
                 <div class="form-group">
                     <label for="producto_id">Producto:</label>
-                    <select id="producto_id" name="producto_id" class="form-control" required>
+                    <select id="producto_id" name="producto_id" class="form-control ts-select" required>
                         <option value="">Seleccionar producto...</option>
                         {% for producto in productos %}
                             <option value="{{ producto.id }}">{{ producto.nombre }}</option>
@@ -398,7 +398,7 @@ function calcularPrecios() {
 }
 
 function editarPrecio(id, productoId, precioBase, margenJomar, margenRetail) {
-    document.getElementById('producto_id').value = productoId;
+    var tsP = document.getElementById('producto_id').tomselect; if (tsP) { tsP.setValue(productoId); } else { document.getElementById('producto_id').value = productoId; }
     document.getElementById('precio_base').value = precioBase;
     document.getElementById('margen_jomar').value = margenJomar;
     document.getElementById('margen_retail').value = margenRetail;

@@ -1,24 +1,53 @@
 {% extends "base.html" %}
+
 {% block title %}Editar Cliente{% endblock %}
 
+{% block header_title %}
+    <span class="fw-700 color-white">
+        Editar Cliente
+    </span>
+    <br>
+    <small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
+        {{ cliente.nombre }}
+    </small>
+{% endblock %}
+
 {% block content %}
-<div class="form-section">
-    <h2>Editar Cliente</h2>
-    <form method="POST">
-        <!-- US01: hidden CSRF field -->
+<div class="mobile-form-container">
+    <form method="POST" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label class="form-label">Nombre:</label>
-            <input type="text" name="nombre" value="{{ cliente.nombre }}" required class="form-input">
+
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-user"></i>
+                Datos del Cliente
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="nombre">Nombre:</label>
+                    <input type="text" id="nombre" name="nombre" value="{{ cliente.nombre }}"
+                           class="mobile-form-control" required>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="qbo_id">QBO ID:</label>
+                    <input type="text" id="qbo_id" name="qbo_id" value="{{ cliente.qbo_id }}"
+                           class="mobile-form-control">
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">QBO ID:</label>
-            <input type="text" name="qbo_id" value="{{ cliente.qbo_id }}" class="form-input">
+
+        <!-- Botones -->
+        <div class="mobile-form-actions">
+            <a href="{{ url_for('mostrar_clientes') }}" class="mobile-btn mobile-btn-secondary">
+                <i class="fas fa-times"></i>
+                Cancelar
+            </a>
+            <button type="submit" class="mobile-btn mobile-btn-primary">
+                <i class="fas fa-save"></i>
+                Guardar
+            </button>
         </div>
-        <button type="submit" class="form-button">
-            <i class="fas fa-save"></i> Guardar
-        </button>
-        <a href="{{ url_for('mostrar_clientes') }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 {% endblock %}

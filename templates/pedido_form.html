@@ -15,101 +15,13 @@
 {% endblock %}
 
 {% block extra_css %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css">
 <style>
-/* ==== MOBILE-FIRST OPTIMIZATIONS ==== */
-:root {
-    --mobile-padding: max(16px, env(safe-area-inset-left));
-    --safe-bottom: max(20px, env(safe-area-inset-bottom));
-}
+/* ============================================
+   PEDIDO_FORM — Estilos específicos
+   (Estilos base en forms.css)
+   ============================================ */
 
-/* Contenedor principal optimizado para móvil */
-.mobile-form-container {
-    width: 99.9%;
-    max-width: 99.9vw;
-    padding: 8px max(0.05%, env(safe-area-inset-left)) calc(120px + var(--safe-bottom)) max(0.05%, env(safe-area-inset-right));
-    margin: 0 auto;
-    box-sizing: border-box;
-}
-
-/* Cards con mejor espaciado móvil */
-.mobile-card {
-    background: white;
-    border-radius: 8px; /* Reducido de 12px a 8px para bordes más cuadrados */
-    margin-bottom: 8px; /* Reducido de 12px a 8px */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
-    animation: slideUp 0.3s ease-out;
-    width: 100%;
-}
-
-.mobile-card-header {
-    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
-    color: white;
-    padding: 14px 8px; /* Reducido padding lateral de 12px a 8px */
-    font-weight: 700;
-    font-size: 1.05rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.mobile-card-body {
-    padding: 18px 8px; /* Reducido padding lateral de 12px a 8px */
-}
-
-/* Formulario optimizado para tactil */
-.mobile-form-group {
-    margin-bottom: 20px;
-}
-
-.mobile-form-label {
-    display: block;
-    font-weight: 600;
-    font-size: 16px; /* Incrementado de 15px a 16px */
-    color: #2c3e50;
-    margin-bottom: 8px;
-}
-
-.mobile-form-control {
-    width: 100%;
-    padding: 16px 18px;
-    border: 2px solid #e9ecef;
-    border-radius: 12px;
-    font-size: 17px; /* Incrementado de 16px a 17px */
-    background: #f8f9fa;
-    transition: all 0.2s ease;
-    -webkit-appearance: none;
-    appearance: none;
-    box-sizing: border-box;
-}
-
-.mobile-form-control:focus {
-    outline: none;
-    border-color: #1877ff;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.1);
-}
-
-/* Select personalizado para móvil */
-.mobile-select-wrapper {
-    position: relative;
-}
-
-.mobile-select-wrapper::after {
-    content: '▼';
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #6c757d;
-    font-size: 14px;
-}
-
-/* Tabla ultra-responsive */
+/* ==== TABLA RESPONSIVE ==== */
 .mobile-table-container {
     background: white;
     border-radius: 12px;
@@ -123,7 +35,7 @@
 
 .mobile-table {
     width: 100%;
-    min-width: 100%; /* Usar todo el ancho disponible */
+    min-width: 100%;
 }
 
 .mobile-table thead {
@@ -133,7 +45,7 @@
 
 .mobile-table th {
     padding: 12px 4px;
-    font-size: 0.85rem; /* Incrementado de 0.75rem a 0.85rem */
+    font-size: 0.85rem;
     font-weight: 600;
     text-align: center;
     border: none;
@@ -142,7 +54,7 @@
 
 .mobile-table td {
     padding: 12px 4px;
-    font-size: 0.9rem; /* Incrementado de 0.8rem a 0.9rem */
+    font-size: 0.9rem;
     text-align: center;
     border-bottom: 1px solid #f1f3f4;
     vertical-align: middle;
@@ -157,7 +69,7 @@
     white-space: nowrap;
 }
 
-/* Layout de búsqueda optimizado */
+/* ==== LAYOUT DE BÚSQUEDA ==== */
 .mobile-search-layout {
     margin-bottom: 16px;
 }
@@ -184,55 +96,7 @@
     text-align: center;
 }
 
-/* Botones optimizados para iPhone */
-.mobile-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 16px 20px;
-    border: none;
-    border-radius: 12px;
-    font-size: 17px; /* Incrementado de 16px a 17px */
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    min-height: 48px; /* Apple recommendation */
-    -webkit-tap-highlight-color: transparent;
-    box-sizing: border-box;
-}
-
-.mobile-btn-primary {
-    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
-    color: white;
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.3);
-}
-
-.mobile-btn-primary:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px 8px rgba(24, 119, 255, 0.3);
-}
-
-.mobile-btn-danger {
-    background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
-    color: white;
-    padding: 8px 12px;
-    font-size: 12px;
-    min-height: 36px;
-    border-radius: 8px;
-}
-
-.mobile-btn-success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    width: 100%;
-    font-size: 17px;
-    padding: 18px;
-    margin-top: 12px;
-}
-
-/* Sugerencias dropdown mejorado */
+/* ==== SUGERENCIAS DROPDOWN ==== */
 .mobile-suggestions {
     position: absolute;
     top: 100%;
@@ -263,122 +127,7 @@
     border-bottom: none;
 }
 
-.suggestion-name {
-    font-size: 15px;
-    font-weight: 500;
-    color: #2c3e50;
-}
-
-.suggestion-price {
-    font-size: 13px;
-    color: #6c757d;
-    margin-top: 2px;
-}
-
-/* Total section destacada */
-.mobile-total-section {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 18px;
-    border-radius: 12px;
-    text-align: center;
-    margin: 16px 0;
-    border: 2px solid #e9ecef;
-}
-
-.mobile-total-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: #6c757d;
-    margin-bottom: 5px;
-}
-
-.mobile-total-amount {
-    font-size: 2rem; /* Incrementado de 1.8rem a 2rem */
-    font-weight: 700;
-    color: #1877ff;
-}
-
-/* Textarea optimizado */
-.mobile-textarea {
-    resize: vertical;
-    min-height: 90px;
-    font-family: inherit;
-    line-height: 1.4;
-}
-
-/* Estados vacíos */
-.mobile-empty-state {
-    text-align: center;
-    padding: 30px 20px;
-    color: #6c757d;
-    font-style: italic;
-    font-size: 16px; /* Incrementado de 15px a 16px */
-}
-
-/* Animaciones */
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Responsive breakpoints */
-@media screen and (max-width: 428px) {
-    .mobile-form-container {
-        width: 99.9%;
-        padding-left: 0.05%;
-        padding-right: 0.05%;
-    }
-    
-    .mobile-card-body {
-        padding: 16px 4px; /* Padding aún más reducido en pantallas pequeñas */
-    }
-    
-    .mobile-card-header {
-        padding: 12px 4px;
-    }
-    
-    .mobile-table th,
-    .mobile-table td {
-        padding: 10px 2px; /* Padding reducido de 3px a 2px */
-        font-size: 0.8rem; /* Ligeramente más pequeño para aprovechar espacio */
-    }
-    
-    .mobile-table .product-name {
-        max-width: 35%; /* Aumentado de 32% a 35% */
-    }
-    
-    .mobile-add-row {
-        flex-direction: column;
-    }
-    
-    .mobile-quantity-input {
-        width: 100%;
-    }
-    
-    .mobile-total-amount {
-        font-size: 1.8rem;
-    }
-}
-
-/* iPhone específico - Safe areas */
-@supports (padding: max(0px)) {
-    .mobile-form-container {
-        width: 99.9%;
-        padding-left: max(0.05%, env(safe-area-inset-left));
-        padding-right: max(0.05%, env(safe-area-inset-right));
-        padding-bottom: calc(120px + max(20px, env(safe-area-inset-bottom)));
-    }
-}
-
-/* ============================================
-   LISTA DE PRODUCTOS COMO CARDS
-   ============================================ */
+/* ==== LISTA DE PRODUCTOS COMO CARDS ==== */
 .productos-list {
     display: flex;
     flex-direction: column;
@@ -452,42 +201,32 @@
     transform: scale(0.9);
 }
 
-/* ============================================
-   BOTÓN GUARDAR STICKY
-   ============================================ */
-.sticky-submit-bar {
-    position: sticky;
-    bottom: 70px;
-    z-index: 40;
-    padding: 12px 8px;
-    background: linear-gradient(to top, rgba(243,244,246,1) 60%, rgba(243,244,246,0));
-    padding-top: 24px;
+/* ==== RESPONSIVE — PANTALLAS PEQUEÑAS (<=428px) ==== */
+@media screen and (max-width: 428px) {
+    .mobile-table th,
+    .mobile-table td {
+        padding: 10px 2px;
+        font-size: 0.8rem;
+    }
+
+    .mobile-table .product-name {
+        max-width: 35%;
+    }
+
+    .mobile-add-row {
+        flex-direction: column;
+    }
+
+    .mobile-quantity-input {
+        width: 100%;
+    }
 }
 
-.sticky-submit-bar .mobile-btn-success {
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.15), 0 4px 15px rgba(40,167,69,0.3);
-}
-
-/* Modo oscuro automático */
+/* ==== DARK MODE — PEDIDO-ESPECÍFICO ==== */
 @media (prefers-color-scheme: dark) {
-    .mobile-card {
-        background: #2d2d2d;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    }
-
-    .mobile-form-control {
-        background: #3a3a3a;
-        border-color: #4a4a4a;
-        color: #f8f9fa;
-    }
-
     .mobile-suggestions {
         background: #2d2d2d;
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-    }
-
-    .suggestion-name {
-        color: #f8f9fa;
     }
 
     .producto-card-item {
@@ -507,44 +246,18 @@
         color: #d1d5db;
     }
 
-    .sticky-submit-bar {
-        background: linear-gradient(to top, rgba(30,30,30,1) 60%, rgba(30,30,30,0));
+    .mobile-table-container {
+        background: #2d2d2d;
+    }
+
+    .mobile-table td {
+        border-bottom-color: #4a4a4a;
+        color: #f8f9fa;
     }
 }
 
-/* Ocultar elementos desktop en móvil */
-@media screen and (max-width: 768px) {
-    .desktop-only {
-        display: none !important;
-    }
-}
-
-/* ===== ESTILOS PARA ESCRITORIO (PC) ===== */
+/* ==== DESKTOP (>=769px) — PEDIDO-ESPECÍFICO ==== */
 @media screen and (min-width: 769px) {
-    .mobile-form-container {
-        max-width: 1200px;
-        padding: 20px;
-        margin: 0 auto;
-    }
-    
-    .mobile-card {
-        margin-bottom: 20px;
-    }
-    
-    .mobile-card-body {
-        padding: 24px;
-    }
-    
-    .mobile-card-header {
-        padding: 16px 24px;
-        font-size: 1.1rem;
-    }
-    
-    .mobile-form-control {
-        padding: 12px 16px;
-        font-size: 16px;
-    }
-    
     .mobile-add-row {
         display: flex;
         gap: 12px;
@@ -553,177 +266,32 @@
         max-width: 100%;
         overflow: hidden;
     }
-    
+
     .mobile-search-input {
         flex: 2;
         min-width: 0;
     }
-    
+
     .mobile-quantity-input {
         width: 100px;
         flex-shrink: 0;
     }
-    
-    /* Botón agregar producto optimizado para PC */
-    .mobile-btn {
-        padding: 12px 16px;
-        font-size: 14px;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-    
+
     .mobile-btn-primary {
-        background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
-        transition: all 0.3s ease;
         max-width: 120px;
     }
-    
-    .mobile-btn-primary:hover {
-        background: linear-gradient(135deg, #0056d3 0%, #3691e0 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(24, 119, 255, 0.4);
-    }
-    
-    /* Ajustar el contenedor para evitar desbordamiento */
+
     .mobile-search-layout {
         max-width: 100%;
         overflow: hidden;
     }
-    
+
     .productos-list {
         gap: 8px;
     }
 
     .producto-card-item {
         padding: 12px 18px;
-    }
-
-    .sticky-submit-bar {
-        bottom: 0;
-        padding: 16px 0;
-    }
-
-    .sticky-submit-bar .mobile-btn-success {
-        max-width: 350px;
-        margin: 0 auto;
-        display: block;
-    }
-    
-    .mobile-total-section {
-        padding: 24px;
-        margin: 20px 0;
-    }
-    
-    .mobile-total-amount {
-        font-size: 2.2rem;
-    }
-    
-    .mobile-btn-success {
-        max-width: 300px;
-        margin: 20px auto 0;
-        display: block;
-    }
-}
-
-/* ============================================
-   TOM SELECT - MEJORA DE CONTRASTE MÓVIL
-   ============================================ */
-.ts-wrapper.single .ts-control {
-    padding: 14px 16px;
-    font-size: 17px;
-    border: 2px solid #d1d5db;
-    border-radius: 12px;
-    background: #fff;
-    color: #1f2937;
-    min-height: 52px;
-}
-
-.ts-wrapper.single .ts-control input {
-    font-size: 17px;
-    color: #1f2937;
-}
-
-.ts-wrapper.single .ts-control .item {
-    color: #1f2937;
-    font-size: 17px;
-    font-weight: 500;
-}
-
-.ts-wrapper.single.focus .ts-control {
-    border-color: #1877ff;
-    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.15);
-}
-
-.ts-dropdown {
-    border: 2px solid #d1d5db;
-    border-radius: 12px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    margin-top: 4px;
-}
-
-.ts-dropdown .ts-dropdown-content .option {
-    padding: 14px 16px;
-    font-size: 16px;
-    color: #1f2937;
-}
-
-.ts-dropdown .ts-dropdown-content .option.active {
-    background: #eff6ff;
-    color: #1e40af;
-}
-
-.ts-dropdown .ts-dropdown-content .option .suggestion-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-}
-
-.ts-dropdown .ts-dropdown-content .option .suggestion-price {
-    color: #6b7280;
-}
-
-/* Placeholder de Tom Select */
-.ts-wrapper.single .ts-control input::placeholder {
-    color: #9ca3af;
-    opacity: 1;
-}
-
-/* Dark mode para Tom Select */
-@media (prefers-color-scheme: dark) {
-    .ts-wrapper.single .ts-control {
-        background: #3a3a3a;
-        border-color: #4a4a4a;
-        color: #f8f9fa;
-    }
-
-    .ts-wrapper.single .ts-control input {
-        color: #f8f9fa;
-    }
-
-    .ts-wrapper.single .ts-control .item {
-        color: #f8f9fa;
-    }
-
-    .ts-dropdown {
-        background: #2d2d2d;
-        border-color: #4a4a4a;
-    }
-
-    .ts-dropdown .ts-dropdown-content .option {
-        color: #f8f9fa;
-    }
-
-    .ts-dropdown .ts-dropdown-content .option.active {
-        background: #374151;
-        color: #93c5fd;
-    }
-
-    .ts-dropdown .ts-dropdown-content .option .suggestion-name {
-        color: #f8f9fa;
-    }
-
-    .ts-dropdown .ts-dropdown-content .option .suggestion-price {
-        color: #9ca3af;
     }
 }
 </style>
@@ -744,8 +312,7 @@
             <div class="mobile-card-body">
                 <div class="mobile-form-group">
                     <label class="mobile-form-label" for="cliente_id">Seleccionar cliente:</label>
-                    <div class="mobile-select-wrapper">
-                        <select name="cliente_id" id="cliente_id" class="mobile-form-control" required>
+                        <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" required>
                             <option value="">-- Seleccionar cliente --</option>
                             {% for cliente in clientes|sort(attribute='nombre') %}
                                 <option value="{{ cliente.id }}"
@@ -754,7 +321,6 @@
                                 </option>
                             {% endfor %}
                         </select>
-                    </div>
                 </div>
             </div>
         </div>
@@ -779,12 +345,10 @@
                 <div class="mobile-search-layout">
                     <div class="mobile-search-group">
                         <label class="mobile-form-label" for="producto-select">Seleccionar producto:</label>
-                        <div class="mobile-select-wrapper">
                             <select id="producto-select" class="mobile-form-control">
                                 <option value="">-- Seleccionar producto --</option>
                                 <!-- Opciones se cargarán dinámicamente -->
                             </select>
-                        </div>
                     </div>
                     
                     <div class="mobile-add-section">
@@ -846,7 +410,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
 /* === Datos del backend === */
 const productos = {{ productos|tojson }};
