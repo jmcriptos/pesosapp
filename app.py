@@ -3680,8 +3680,8 @@ except (ValueError, TypeError):
 def facturar_pedido(pedido_id):
     pedido = Pedido.query.get_or_404(pedido_id)
 
-    # Sólo facturar si aún no fue facturado
-    if pedido.estado == 'facturado':
+    # Sólo facturar si aún no fue facturado (permitir reintento si no tiene invoice_id)
+    if pedido.estado == 'facturado' and pedido.invoice_id_qbo:
         flash('El pedido ya está facturado.', 'info')
         return redirect(url_for('lista_pedidos'))
 
@@ -3776,7 +3776,7 @@ def facturar_pedido(pedido_id):
     if invoice_id:
         flash(f'Factura generada: {invoice_id}', 'success')
     else:
-        flash('Factura generada correctamente en QuickBooks.', 'success')
+        flash('Pedido enviado a QuickBooks. Si la factura no aparece, puede reintentar.', 'success')
     return redirect(url_for('lista_pedidos'))
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS
