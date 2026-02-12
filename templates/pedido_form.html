@@ -991,11 +991,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     /* ------------ Tom Select (búsqueda inteligente) ------------ */
-new TomSelect('#producto-select', {
+const tomProducto = new TomSelect('#producto-select', {
     copyClassesToDropdown: true,     // hereda clases para que se vea igual
     maxOptions: 1000,                // muestra hasta 1 000 coincidencias
     closeAfterSelect: true,
     allowEmptyOption: true,
+    onType: function() { this.clear(); },  // limpiar selección al escribir
     sortField: { field: 'text', direction: 'asc' },
     render: {
         option: (data, escape) => `
@@ -1055,7 +1056,7 @@ new TomSelect('#producto-select', {
         }
 
         // Limpiar campos
-        productoSelect.value = '';
+        tomProducto.clear();
         inputCajas.value = '';
         
         actualizarTablaProductos();
