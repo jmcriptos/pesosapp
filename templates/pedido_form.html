@@ -431,11 +431,17 @@ function cargarProductosEnSelect() {
     productos.forEach(producto => {
         const option = document.createElement('option');
         option.value = producto.id;
-        option.textContent = `${producto.nombre} - ${(producto.precio || 0).toFixed(2)} XCG`;
+        option.textContent = producto.nombre;
         option.dataset.precio = producto.precio || 0;
         option.dataset.nombre = producto.nombre;
         productoSelect.appendChild(option);
     });
+
+    // Sincronizar Tom Select con las nuevas opciones
+    if (typeof tomProducto !== 'undefined' && tomProducto) {
+        tomProducto.clearOptions();
+        tomProducto.sync();
+    }
 }
 async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return;

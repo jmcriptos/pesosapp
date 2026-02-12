@@ -263,42 +263,50 @@
 
 /* ==== TOM SELECT — MOBILE-FIRST ==== */
 .ts-wrapper.single .ts-control {
-    padding: 14px 16px;
-    font-size: 17px;
-    border: 2px solid #d1d5db;
-    border-radius: 12px;
-    background: #fff;
-    color: #1f2937;
-    min-height: 52px;
+    padding: 10px 14px !important;
+    font-size: 16px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 10px !important;
+    background: #f9fafb !important;
+    color: #1f2937 !important;
+    min-height: 44px !important;
+    box-shadow: none !important;
 }
 
 .ts-wrapper.single .ts-control input {
-    font-size: 17px;
-    color: #1f2937;
+    font-size: 16px !important;
+    color: #1f2937 !important;
 }
 
 .ts-wrapper.single .ts-control .item {
-    color: #1f2937;
-    font-size: 17px;
+    color: #1f2937 !important;
+    font-size: 16px !important;
     font-weight: 500;
 }
 
 .ts-wrapper.single.focus .ts-control {
-    border-color: #1877ff;
-    box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.15);
+    border-color: #1877ff !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.12) !important;
 }
 
 .ts-dropdown {
-    border: 2px solid #d1d5db;
-    border-radius: 12px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    margin-top: 4px;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+    margin-top: 2px !important;
+    overflow: hidden;
 }
 
 .ts-dropdown .ts-dropdown-content .option {
-    padding: 14px 16px;
-    font-size: 16px;
+    padding: 10px 14px;
+    font-size: 15px;
     color: #1f2937;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.ts-dropdown .ts-dropdown-content .option:last-child {
+    border-bottom: none;
 }
 
 .ts-dropdown .ts-dropdown-content .option.active {
@@ -307,12 +315,13 @@
 }
 
 .ts-dropdown .ts-dropdown-content .option .suggestion-name {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     color: #1f2937;
 }
 
 .ts-dropdown .ts-dropdown-content .option .suggestion-price {
+    font-size: 13px;
     color: #6b7280;
 }
 
@@ -480,26 +489,41 @@
 
     /* Tom Select dark */
     .ts-wrapper.single .ts-control {
-        background: #3a3a3a;
-        border-color: #4a4a4a;
-        color: #f8f9fa;
+        background: #2d2d2d !important;
+        border-color: #4a4a4a !important;
+        color: #f8f9fa !important;
     }
 
-    .ts-wrapper.single .ts-control input { color: #f8f9fa; }
-    .ts-wrapper.single .ts-control .item { color: #f8f9fa; }
+    .ts-wrapper.single.focus .ts-control {
+        background: #1f1f1f !important;
+        border-color: #5b9aff !important;
+        box-shadow: 0 0 0 2px rgba(91, 154, 255, 0.2) !important;
+    }
+
+    .ts-wrapper.single .ts-control input {
+        color: #f8f9fa !important;
+    }
+
+    .ts-wrapper.single .ts-control .item {
+        color: #f8f9fa !important;
+    }
 
     .ts-dropdown {
-        background: #2d2d2d;
-        border-color: #4a4a4a;
+        background: #2d2d2d !important;
+        border-color: #4a4a4a !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
     }
 
-    .ts-dropdown .ts-dropdown-content .option { color: #f8f9fa; }
+    .ts-dropdown .ts-dropdown-content .option {
+        color: #e5e7eb !important;
+        border-bottom-color: #3a3a3a !important;
+    }
 
     .ts-dropdown .ts-dropdown-content .option.active {
-        background: #374151;
-        color: #93c5fd;
+        background: #374151 !important;
+        color: #93c5fd !important;
     }
 
-    .ts-dropdown .ts-dropdown-content .option .suggestion-name { color: #f8f9fa; }
-    .ts-dropdown .ts-dropdown-content .option .suggestion-price { color: #9ca3af; }
+    .ts-dropdown .ts-dropdown-content .option .suggestion-name { color: #f8f9fa !important; }
+    .ts-dropdown .ts-dropdown-content .option .suggestion-price { color: #9ca3af !important; }
 }
