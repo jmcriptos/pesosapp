@@ -97,65 +97,13 @@
             </div>
         </nav>
 
-        <!-- Header de la aplicación con menú de usuario -->
-        <header class="app-header">
-            <div class="header-content">
-                <div class="header-left">
-                    <button class="drawer-toggle" id="drawerToggle" aria-label="Abrir menú">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    {% block header %}
-                    <h1>{% block header_title %}Gestión de Inventario{% endblock %}</h1>
-                    {% endblock %}
-                </div>
-                
-                <!-- Menú de Usuario -->
-                <div class="header-right">
-                    <div class="user-menu">
-                        <button class="user-menu-toggle" id="userMenuToggle">
-                            <i class="fas fa-user-circle"></i>
-                        </button>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="user-info">
-                                {% if current_user and current_user.is_authenticated %}
-                                    <div class="user-avatar-small">
-                                        {{ current_user.username[:2].upper() if current_user.username else 'U' }}
-                                    </div>
-                                    <div class="user-details">
-                                        <div class="user-name">{{ current_user.username or 'Usuario' }}</div>
-                                        <div class="user-role">Activo</div>
-                                    </div>
-                                {% else %}
-                                    <div class="user-avatar-small">U</div>
-                                    <div class="user-details">
-                                        <div class="user-name">Usuario</div>
-                                        <div class="user-role">Sistema</div>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <div class="dropdown-menu">
-                                {% if current_user and current_user.is_authenticated %}
-                                    <a href="/dashboard" class="dropdown-item">
-                                        <i class="fas fa-tachometer-alt"></i>
-                                        <span>Dashboard</span>
-                                    </a>
-                                    <a href="/profile" class="dropdown-item">
-                                        <i class="fas fa-user-cog"></i>
-                                        <span>Mi Perfil</span>
-                                    </a>
-                                    <div class="dropdown-divider"></div>
-                                {% endif %}
-                                <a href="/logout" class="dropdown-item logout-item">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    <span>Cerrar Sesión</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <!-- Botón hamburguesa flotante -->
+        <button class="drawer-toggle" id="drawerToggle" aria-label="Abrir menú">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Blocks heredados (ocultos, para que templates hijos no fallen) -->
+        {% block header %}{% block header_title %}{% endblock %}{% endblock %}
 
         <!-- Contenido principal -->
         <main class="app-content">
