@@ -6,12 +6,11 @@
 
 {% block content %}
 <div class="pedidos-container">
-    <!-- Header con botón nuevo -->
+    <!-- Botón nuevo pedido -->
     <div class="pedidos-header">
-        <h2 class="pedidos-title">Pedidos</h2>
         <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
             <i class="fa fa-plus"></i>
-            <span>Nuevo</span>
+            <span>Nuevo Pedido</span>
         </a>
     </div>
 
@@ -299,10 +298,9 @@
 /* Header */
 .pedidos-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    padding: 16px 12px;
-    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%);
+    padding: 10px 12px;
     position: sticky;
     top: 0;
     z-index: 50;

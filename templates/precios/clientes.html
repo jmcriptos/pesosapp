@@ -11,17 +11,11 @@
 <div id="flash-message" class="flash-message hidden"></div>
 
 <div class="precios-clientes-container">
-    <!-- Header -->
     <div class="page-header">
-        <div class="header-info">
-            <h2>Asignación de Listas de Precios a Clientes</h2>
-            <p>Asigna listas de precios específicas a cada cliente. Si un cliente no tiene lista asignada, usará la lista por defecto.</p>
-        </div>
-        <div class="header-actions">
-            <a href="{{ url_for('mostrar_precios') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver a Precios
-            </a>
-        </div>
+        <p>Si un cliente no tiene lista asignada, usará la lista por defecto.</p>
+        <a href="{{ url_for('mostrar_precios') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Precios
+        </a>
     </div>
 
     <!-- Formulario para asignar lista a cliente -->

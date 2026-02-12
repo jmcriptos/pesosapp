@@ -1368,9 +1368,7 @@ def obtener_ip_servidor():
 @app.route('/')
 @login_required
 def index():
-    ip_servidor = obtener_ip_servidor()
-    port = 5002
-    return render_template('index.html', server_ip=f"{ip_servidor}:{port}")
+    return redirect(url_for('dashboard'))
 
 
 @app.route('/home')

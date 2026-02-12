@@ -48,8 +48,8 @@
 
             <div class="drawer-section">
                 <div class="drawer-section-label">Principal</div>
-                <a href="/" class="drawer-item {{ 'active' if request.endpoint == 'index' }}">
-                    <i class="fas fa-home"></i><span>Inicio</span>
+                <a href="/dashboard" class="drawer-item {{ 'active' if request.endpoint == 'dashboard' }}">
+                    <i class="fas fa-chart-pie"></i><span>Dashboard</span>
                 </a>
                 <a href="/pedidos" class="drawer-item {{ 'active' if request.endpoint == 'lista_pedidos' }}">
                     <i class="fas fa-clipboard-list"></i><span>Pedidos</span>
@@ -86,11 +86,6 @@
             <div class="drawer-divider"></div>
 
             <div class="drawer-section">
-                {% if current_user and current_user.is_authenticated %}
-                <a href="/dashboard" class="drawer-item {{ 'active' if request.endpoint == 'dashboard' }}">
-                    <i class="fas fa-chart-pie"></i><span>Dashboard</span>
-                </a>
-                {% endif %}
                 <a href="/logout" class="drawer-item drawer-item-logout">
                     <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
                 </a>
@@ -123,9 +118,9 @@
         <footer class="app-footer">
             {% block footer %}
             <nav class="mobile-nav">
-                <a href="/" class="nav-item {{ 'active' if request.endpoint == 'index' }}">
-                    <i class="fas fa-home"></i>
-                    <span>Home</span>
+                <a href="/dashboard" class="nav-item {{ 'active' if request.endpoint == 'dashboard' }}">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Dashboard</span>
                 </a>
                 <a href="/pedidos" class="nav-item {{ 'active' if request.endpoint == 'lista_pedidos' }}">
                     <i class="fas fa-clipboard-list"></i>
@@ -139,12 +134,6 @@
                     <i class="fas fa-tags"></i>
                     <span>Etiquetas</span>
                 </a>
-                {% if current_user and current_user.is_authenticated %}
-                <a href="/dashboard" class="nav-item {{ 'active' if request.endpoint == 'dashboard' }}">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Dashboard</span>
-                </a>
-                {% endif %}
             </nav>
             {% endblock %}
         </footer>
