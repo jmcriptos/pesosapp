@@ -28,6 +28,46 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Drawer lateral
+    const drawerToggle = document.getElementById('drawerToggle');
+    const drawer = document.getElementById('drawer');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+
+    if (drawerToggle && drawer && drawerOverlay) {
+        function openDrawer() {
+            drawer.classList.add('open');
+            drawerOverlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            drawerOverlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        drawerToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openDrawer();
+        });
+
+        drawerOverlay.addEventListener('click', closeDrawer);
+
+        // Cerrar al seleccionar un item
+        drawer.querySelectorAll('.drawer-item').forEach(function(item) {
+            item.addEventListener('click', closeDrawer);
+        });
+
+        // Swipe para cerrar
+        let touchStartX = 0;
+        drawer.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        drawer.addEventListener('touchend', function(e) {
+            const diff = touchStartX - e.changedTouches[0].clientX;
+            if (diff > 60) closeDrawer();
+        }, { passive: true });
+    }
+
     // Menú de usuario
     const userMenuToggle = document.getElementById('userMenuToggle');
     const userDropdown = document.getElementById('userDropdown');

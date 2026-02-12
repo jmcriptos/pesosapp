@@ -3,6 +3,162 @@
    Mobile-first, extraído de pedido_form + detalles_pedido
    ============================================ */
 
+/* ============================================
+   DRAWER — Menú lateral de navegación
+   ============================================ */
+
+/* Botón hamburguesa en el header */
+.drawer-toggle {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.25rem;
+    padding: 8px;
+    margin-right: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.drawer-toggle:active {
+    background: rgba(255,255,255,0.15);
+}
+
+/* Overlay oscuro */
+.drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.drawer-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Panel lateral */
+.drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    background: #fff;
+    z-index: 2000;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+}
+
+.drawer.open {
+    transform: translateX(0);
+}
+
+/* Drawer header — avatar + nombre */
+.drawer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 20px 16px;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
+    color: white;
+}
+
+.drawer-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.drawer-user {
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Secciones */
+.drawer-section {
+    padding: 8px 0;
+}
+
+.drawer-section-label {
+    padding: 8px 20px 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #9ca3af;
+}
+
+.drawer-divider {
+    height: 1px;
+    background: #f3f4f6;
+    margin: 0 16px;
+}
+
+/* Items del drawer */
+.drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: background 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.drawer-item i {
+    width: 22px;
+    text-align: center;
+    font-size: 1.05rem;
+    color: #6b7280;
+}
+
+.drawer-item:active {
+    background: #f3f4f6;
+}
+
+.drawer-item.active {
+    background: #eff6ff;
+    color: #1877ff;
+    font-weight: 600;
+}
+
+.drawer-item.active i {
+    color: #1877ff;
+}
+
+.drawer-item-logout {
+    color: #dc2626;
+}
+
+.drawer-item-logout i {
+    color: #dc2626;
+}
+
 /* ==== VARIABLES Y BASE ==== */
 :root {
     --mobile-padding: max(16px, env(safe-area-inset-left));
@@ -464,6 +620,44 @@
    DARK MODE
    ============================================ */
 @media (prefers-color-scheme: dark) {
+    /* Drawer dark */
+    .drawer {
+        background: #1f1f1f;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+    }
+
+    .drawer-item {
+        color: #e5e7eb;
+    }
+
+    .drawer-item i {
+        color: #9ca3af;
+    }
+
+    .drawer-item:active {
+        background: #2d2d2d;
+    }
+
+    .drawer-item.active {
+        background: #1e3a5f;
+        color: #93c5fd;
+    }
+
+    .drawer-item.active i {
+        color: #93c5fd;
+    }
+
+    .drawer-divider {
+        background: #374151;
+    }
+
+    .drawer-section-label {
+        color: #6b7280;
+    }
+
+    .drawer-overlay {
+        background: rgba(0,0,0,0.6);
+    }
     .mobile-card {
         background: #2d2d2d;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);

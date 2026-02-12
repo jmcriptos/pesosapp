@@ -31,10 +31,79 @@
 <body>
     
     <div class="app-container">
+        <!-- Drawer Overlay -->
+        <div class="drawer-overlay" id="drawerOverlay"></div>
+
+        <!-- Drawer Panel -->
+        <nav class="drawer" id="drawer">
+            <div class="drawer-header">
+                {% if current_user and current_user.is_authenticated %}
+                <div class="drawer-avatar">{{ current_user.username[:2].upper() if current_user.username else 'U' }}</div>
+                <div class="drawer-user">{{ current_user.username or 'Usuario' }}</div>
+                {% else %}
+                <div class="drawer-avatar">U</div>
+                <div class="drawer-user">Usuario</div>
+                {% endif %}
+            </div>
+
+            <div class="drawer-section">
+                <div class="drawer-section-label">Principal</div>
+                <a href="/" class="drawer-item {{ 'active' if request.endpoint == 'index' }}">
+                    <i class="fas fa-home"></i><span>Inicio</span>
+                </a>
+                <a href="/pedidos" class="drawer-item {{ 'active' if request.endpoint == 'lista_pedidos' }}">
+                    <i class="fas fa-clipboard-list"></i><span>Pedidos</span>
+                </a>
+                <a href="/precios" class="drawer-item {{ 'active' if request.endpoint == 'mostrar_precios' }}">
+                    <i class="fas fa-dollar-sign"></i><span>Precios</span>
+                </a>
+                <a href="/etiquetas_vencimiento" class="drawer-item {{ 'active' if request.endpoint == 'etiquetas_vencimiento' }}">
+                    <i class="fas fa-tags"></i><span>Etiquetas</span>
+                </a>
+            </div>
+
+            <div class="drawer-divider"></div>
+
+            <div class="drawer-section">
+                <div class="drawer-section-label">Gestión</div>
+                <a href="/productos" class="drawer-item {{ 'active' if request.endpoint == 'productos' }}">
+                    <i class="fas fa-box"></i><span>Productos</span>
+                </a>
+                <a href="/clientes" class="drawer-item {{ 'active' if request.endpoint == 'mostrar_clientes' }}">
+                    <i class="fas fa-users"></i><span>Clientes</span>
+                </a>
+                <a href="/facturacion" class="drawer-item {{ 'active' if request.endpoint == 'facturacion' }}">
+                    <i class="fas fa-file-invoice-dollar"></i><span>Facturación</span>
+                </a>
+                <a href="/recepciones" class="drawer-item {{ 'active' if request.endpoint == 'mostrar_recepciones' }}">
+                    <i class="fas fa-truck"></i><span>Recepciones</span>
+                </a>
+                <a href="/formulario_importacion" class="drawer-item {{ 'active' if request.endpoint == 'formulario_importacion' }}">
+                    <i class="fas fa-file-alt"></i><span>Importación</span>
+                </a>
+            </div>
+
+            <div class="drawer-divider"></div>
+
+            <div class="drawer-section">
+                {% if current_user and current_user.is_authenticated %}
+                <a href="/dashboard" class="drawer-item {{ 'active' if request.endpoint == 'dashboard' }}">
+                    <i class="fas fa-chart-pie"></i><span>Dashboard</span>
+                </a>
+                {% endif %}
+                <a href="/logout" class="drawer-item drawer-item-logout">
+                    <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
+                </a>
+            </div>
+        </nav>
+
         <!-- Header de la aplicación con menú de usuario -->
         <header class="app-header">
             <div class="header-content">
                 <div class="header-left">
+                    <button class="drawer-toggle" id="drawerToggle" aria-label="Abrir menú">
+                        <i class="fas fa-bars"></i>
+                    </button>
                     {% block header %}
                     <h1>{% block header_title %}Gestión de Inventario{% endblock %}</h1>
                     {% endblock %}
@@ -113,6 +182,10 @@
                 <a href="/pedidos" class="nav-item {{ 'active' if request.endpoint == 'lista_pedidos' }}">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Pedidos</span>
+                </a>
+                <a href="/precios" class="nav-item {{ 'active' if request.endpoint == 'mostrar_precios' }}">
+                    <i class="fas fa-dollar-sign"></i>
+                    <span>Precios</span>
                 </a>
                 <a href="/etiquetas_vencimiento" class="nav-item {{ 'active' if request.endpoint == 'etiquetas_vencimiento' }}">
                     <i class="fas fa-tags"></i>
