@@ -944,6 +944,14 @@ tr.linea-pedido-original td {
             {{ pedido.estado|capitalize }}
         </span>
         <span class="status-info">{{ detalles_ordenados|length if detalles_ordenados else 0 }} líneas</span>
+        {% if pedido.estado == 'facturado' and not pedido.invoice_id_qbo %}
+        <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" style="margin:0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="status-badge" style="background:#fff3e0;color:#e65100;border:none;cursor:pointer;font-weight:600;font-size:.82rem;padding:6px 12px;border-radius:20px;">
+                <i class="fas fa-redo"></i> Reintentar
+            </button>
+        </form>
+        {% endif %}
     </div>
 
     <!-- Notas del pedido -->

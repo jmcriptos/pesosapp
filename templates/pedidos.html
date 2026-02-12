@@ -102,20 +102,18 @@
                         <span>Eliminar</span>
                     </button>
                 </form>
-                {% elif pedido.estado == 'preparado' or (pedido.estado == 'facturado' and not pedido.invoice_id_qbo) %}
+                {% elif pedido.estado == 'preparado' %}
                 <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="action-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="action-btn-mobile action-invoice">
                         <i class="fa fa-file-invoice-dollar"></i>
-                        <span>{{ 'Reintentar' if pedido.estado == 'facturado' else 'Facturar' }}</span>
+                        <span>Facturar</span>
                     </button>
                 </form>
-                {% if pedido.estado == 'preparado' %}
                 <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-edit">
                     <i class="fa fa-edit"></i>
                     <span>Editar</span>
                 </a>
-                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -182,11 +180,11 @@
                                <i class="fa fa-edit"></i>
                             </a>
                             {% endif %}
-                            {% if pedido.estado == 'preparado' or (pedido.estado == 'facturado' and not pedido.invoice_id_qbo) %}
+                            {% if pedido.estado == 'preparado' %}
                             <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-chip btn-chip-success" title="{{ 'Reintentar facturación' if pedido.estado == 'facturado' else 'Facturar pedido' }}">
-                                    <i class="fa {{ 'fa-redo' if pedido.estado == 'facturado' else 'fa-file-invoice-dollar' }}"></i>
+                                <button type="submit" class="btn-chip btn-chip-success" title="Facturar pedido">
+                                    <i class="fa fa-file-invoice-dollar"></i>
                                 </button>
                             </form>
                             {% endif %}
