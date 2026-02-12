@@ -479,23 +479,30 @@ def dashboard_vendedor():
             total_clientes = Cliente.query.count()
             total_productos = Producto.query.count()
             
-            # 2. MÉTRICAS DE VENTAS GLOBALES (OPTIMIZADO)
-            # Consulta optimizada para ventas del mes usando agregación SQL
-            ventas_totales = db.session.query(
-                func.coalesce(func.sum(DetallePedido.subtotal), 0)
-            ).join(Pedido).filter(
-                Pedido.fecha_pedido >= inicio_mes,
-                DetallePedido.es_linea_pedido == True
-            ).scalar()
+            # 2. MÉTRICAS DE VENTAS GLOBALES
+            # Usa peso real de líneas de preparación cuando existen
+            def _venta_pedido_v(pedido):
+                tc = pedido.tipo_cambio or 1.0
+                prep_prods = set()
+                prep_t = 0.0
+                orig_t = 0.0
+                for d in pedido.detalles:
+                    if not d.es_linea_pedido and d.subtotal:
+                        prep_prods.add(d.producto_id)
+                        prep_t += float(d.subtotal)
+                for d in pedido.detalles:
+                    if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_prods:
+                        orig_t += float(d.subtotal)
+                return (prep_t + orig_t) * tc
 
-            # Consulta optimizada para ventas del día usando agregación SQL
-            ventas_hoy = db.session.query(
-                func.coalesce(func.sum(DetallePedido.subtotal), 0)
-            ).join(Pedido).filter(
+            pedidos_mes_vd = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
+            ventas_totales = sum(_venta_pedido_v(p) for p in pedidos_mes_vd)
+
+            pedidos_hoy_vd = Pedido.query.filter(
                 Pedido.fecha_pedido >= hoy,
-                Pedido.fecha_pedido < hoy + timedelta(days=1),
-                DetallePedido.es_linea_pedido == True
-            ).scalar()
+                Pedido.fecha_pedido < hoy + timedelta(days=1)
+            ).all()
+            ventas_hoy = sum(_venta_pedido_v(p) for p in pedidos_hoy_vd)
             
             # Conteo de pedidos optimizado
             pedidos_mes_count = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).count()
@@ -566,14 +573,12 @@ def dashboard_vendedor():
             inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
             fin_mes_anterior = inicio_mes - timedelta(days=1)
             
-            # Consulta optimizada para ventas del mes anterior
-            ventas_mes_anterior = db.session.query(
-                func.coalesce(func.sum(DetallePedido.subtotal), 0)
-            ).join(Pedido).filter(
+            # Ventas del mes anterior
+            pedidos_mes_ant_vd = Pedido.query.filter(
                 Pedido.fecha_pedido >= inicio_mes_anterior,
-                Pedido.fecha_pedido <= fin_mes_anterior,
-                DetallePedido.es_linea_pedido == True
-            ).scalar()
+                Pedido.fecha_pedido <= fin_mes_anterior
+            ).all()
+            ventas_mes_anterior = sum(_venta_pedido_v(p) for p in pedidos_mes_ant_vd)
             
             # Calcular crecimiento
             if ventas_mes_anterior > 0:
@@ -607,24 +612,20 @@ def dashboard_vendedor():
             
             # 2. Métricas del vendedor (OPTIMIZADO)
             if clientes_ids:
-                # Ventas del día para el vendedor usando agregación SQL
-                ventas_vendedor_hoy = db.session.query(
-                    func.coalesce(func.sum(DetallePedido.subtotal), 0)
-                ).join(Pedido).filter(
+                # Ventas del día para el vendedor
+                pedidos_vend_hoy = Pedido.query.filter(
                     Pedido.cliente_id.in_(clientes_ids),
                     Pedido.fecha_pedido >= hoy,
-                    Pedido.fecha_pedido < hoy + timedelta(days=1),
-                    DetallePedido.es_linea_pedido == True
-                ).scalar()
+                    Pedido.fecha_pedido < hoy + timedelta(days=1)
+                ).all()
+                ventas_vendedor_hoy = sum(_venta_pedido_v(p) for p in pedidos_vend_hoy)
 
-                # Ventas del mes para el vendedor usando agregación SQL
-                ventas_vendedor_mes = db.session.query(
-                    func.coalesce(func.sum(DetallePedido.subtotal), 0)
-                ).join(Pedido).filter(
+                # Ventas del mes para el vendedor
+                pedidos_vend_mes = Pedido.query.filter(
                     Pedido.cliente_id.in_(clientes_ids),
-                    Pedido.fecha_pedido >= inicio_mes,
-                    DetallePedido.es_linea_pedido == True
-                ).scalar()
+                    Pedido.fecha_pedido >= inicio_mes
+                ).all()
+                ventas_vendedor_mes = sum(_venta_pedido_v(p) for p in pedidos_vend_mes)
                 
                 # Conteo de pedidos del día
                 pedidos_hoy_count = Pedido.query.filter(
@@ -1758,21 +1759,32 @@ def admin_analytics():
         hace_90_dias = hoy - timedelta(days=90)
         
         # Tendencia de ventas últimos 90 días (por semanas)
+        # Usa peso real de líneas de preparación cuando existen
+        def _venta_pedido_a(pedido):
+            tc = pedido.tipo_cambio or 1.0
+            pp = set()
+            pt = 0.0
+            ot = 0.0
+            for d in pedido.detalles:
+                if not d.es_linea_pedido and d.subtotal:
+                    pp.add(d.producto_id)
+                    pt += float(d.subtotal)
+            for d in pedido.detalles:
+                if d.es_linea_pedido and d.subtotal and d.producto_id not in pp:
+                    ot += float(d.subtotal)
+            return (pt + ot) * tc
+
         tendencia_ventas = []
         for i in range(12):  # 12 semanas
             inicio_semana = hace_90_dias + timedelta(weeks=i)
             fin_semana = inicio_semana + timedelta(days=6)
-            
-            ventas_semana = db.session.query(
-                func.coalesce(func.sum(DetallePedido.subtotal), 0)
-            ).join(
-                Pedido, DetallePedido.pedido_id == Pedido.id
-            ).filter(
+
+            pedidos_sem = Pedido.query.filter(
                 Pedido.fecha_pedido >= inicio_semana,
-                Pedido.fecha_pedido <= fin_semana,
-                DetallePedido.es_linea_pedido == True
-            ).scalar()
-            
+                Pedido.fecha_pedido <= fin_semana
+            ).all()
+            ventas_semana = sum(_venta_pedido_a(p) for p in pedidos_sem)
+
             tendencia_ventas.append({
                 'semana': inicio_semana.strftime('%d/%m'),
                 'ventas': float(ventas_semana or 0)
@@ -2317,15 +2329,28 @@ def dashboard():
             pedidos_30_dias = []
 
         # === CÁLCULOS ROBUSTOS DE VENTAS ===
-        # FIX: Solo sumar líneas originales (es_linea_pedido=True) y convertir USD→XCG
+        # Usa líneas de preparación (peso real) cuando existen,
+        # líneas originales solo para productos importados (sin prep).
+        def _venta_pedido(pedido):
+            """Calcula venta real de un pedido en XCG."""
+            tc = pedido.tipo_cambio or 1.0
+            prep_products = set()
+            prep_total = 0.0
+            orig_total = 0.0
+            for d in pedido.detalles:
+                if not d.es_linea_pedido and d.subtotal:
+                    prep_products.add(d.producto_id)
+                    prep_total += float(d.subtotal)
+            for d in pedido.detalles:
+                if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_products:
+                    orig_total += float(d.subtotal)
+            return (prep_total + orig_total) * tc
+
         try:
             ventas_mes = 0
             for p in pedidos_mes_list:
                 try:
-                    tc = p.tipo_cambio or 1.0
-                    for d in p.detalles:
-                        if d.es_linea_pedido and d.subtotal:
-                            ventas_mes += float(d.subtotal) * tc
+                    ventas_mes += _venta_pedido(p)
                 except (AttributeError, ValueError, TypeError) as e:
                     app.logger.warning(f"Error en cálculo ventas mes, pedido {p.id}: {e}")
                     continue
@@ -2333,10 +2358,7 @@ def dashboard():
             ventas_semana = 0
             for p in pedidos_semana_list:
                 try:
-                    tc = p.tipo_cambio or 1.0
-                    for d in p.detalles:
-                        if d.es_linea_pedido and d.subtotal:
-                            ventas_semana += float(d.subtotal) * tc
+                    ventas_semana += _venta_pedido(p)
                 except (AttributeError, ValueError, TypeError) as e:
                     app.logger.warning(f"Error en cálculo ventas semana, pedido {p.id}: {e}")
                     continue
@@ -2344,10 +2366,7 @@ def dashboard():
             ventas_mes_anterior = 0
             for p in pedidos_mes_anterior_list:
                 try:
-                    tc = p.tipo_cambio or 1.0
-                    for d in p.detalles:
-                        if d.es_linea_pedido and d.subtotal:
-                            ventas_mes_anterior += float(d.subtotal) * tc
+                    ventas_mes_anterior += _venta_pedido(p)
                 except (AttributeError, ValueError, TypeError):
                     continue
             pedidos_mes_anterior = len(pedidos_mes_anterior_list)
@@ -2429,8 +2448,7 @@ def dashboard():
             # Ventas del período
             total_p = len(pedidos_periodo)
             ventas_p = sum(
-                sum(float(d.subtotal or 0) * (p.tipo_cambio or 1.0) for d in p.detalles if d.es_linea_pedido)
-                for p in pedidos_periodo if p.estado == 'facturado'
+                _venta_pedido(p) for p in pedidos_periodo if p.estado == 'facturado'
             )
 
             return {
@@ -2604,10 +2622,7 @@ def dashboard():
             if nombre not in clientes_ventas:
                 clientes_ventas[nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
             clientes_ventas[nombre]['pedidos'] += 1
-            tc = p.tipo_cambio or 1.0
-            clientes_ventas[nombre]['total'] += sum(
-                float(d.subtotal or 0) * tc for d in p.detalles if d.es_linea_pedido
-            )
+            clientes_ventas[nombre]['total'] += _venta_pedido(p)
             if (
                 not clientes_ventas[nombre]['ultimo_pedido']
                 or p.fecha_pedido > clientes_ventas[nombre]['ultimo_pedido']
@@ -2630,9 +2645,7 @@ def dashboard():
             if cliente_almacen_id:
                 semana_query = semana_query.filter(Pedido.cliente_id != cliente_almacen_id)
             pedidos_semana_i = semana_query.all()
-            ventas_semana_i = sum(
-                sum(float(d.subtotal or 0) * (p.tipo_cambio or 1.0) for d in p.detalles if d.es_linea_pedido) for p in pedidos_semana_i
-            )
+            ventas_semana_i = sum(_venta_pedido(p) for p in pedidos_semana_i)
             tendencia_semanal.append(
                 {
                     'semana': inicio_i.strftime('%d/%m'),
@@ -2674,10 +2687,7 @@ def dashboard():
             if cliente_almacen_id:
                 dia_query = dia_query.filter(Pedido.cliente_id != cliente_almacen_id)
             pedidos_dia = dia_query.all()
-            total_dia = sum(
-                sum(float(d.subtotal or 0) * (p.tipo_cambio or 1.0) for d in p.detalles if d.es_linea_pedido)
-                for p in pedidos_dia
-            )
+            total_dia = sum(_venta_pedido(p) for p in pedidos_dia)
             ventas_dias.append({
                 'fecha': dia.strftime('%d/%m'),
                 'ventas': total_dia,
