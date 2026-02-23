@@ -6,9 +6,9 @@
 {% block header_title %}
 <div class="topbar-tabs" id="tabBar">
     <button class="tb-tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span>Ventas</span></button>
-    <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span>Servicio</span></button>
+    <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span>Svc</span></button>
     <button class="tb-tab" data-tab="rankings"><i class="fas fa-trophy"></i><span>Top</span></button>
-    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span>Reciente</span></button>
+    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span>Act.</span></button>
 </div>
 {% endblock %}
 
@@ -489,7 +489,7 @@
     display: flex;
     align-items: stretch;
     height: 100%;
-    overflow: visible;
+    overflow: hidden;
 }
 .app-container:has(.exec-dashboard) .app-content {
     background: var(--dash-bg);
@@ -614,11 +614,12 @@
 }
 .tb-tab {
     flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 0 4px;
+    gap: 4px;
+    padding: 0 2px;
     font-size: 0.6875rem;
     font-weight: 600;
     color: var(--dash-text3);
@@ -629,6 +630,7 @@
     transition: color 0.15s, border-color 0.15s;
     font-family: var(--dash-font);
     white-space: nowrap;
+    overflow: hidden;
 }
 .tb-tab i {
     font-size: 0.75rem;
