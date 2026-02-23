@@ -153,7 +153,7 @@
             </div>
 
             {# — Sales Trend Chart — #}
-            <div class="card" style="margin-top:var(--dash-gap)">
+            <div class="card sales-chart-card">
                 <div class="card-head">
                     <h3>Tendencia de Ventas</h3>
                     <div class="period-btns">
@@ -162,7 +162,7 @@
                         <button class="period-btn" data-period="4w">4S</button>
                     </div>
                 </div>
-                <div class="chart-wrap" style="height:240px">
+                <div class="chart-wrap sales-chart-wrap">
                     <canvas id="salesTrendChart"></canvas>
                 </div>
             </div>
@@ -811,18 +811,21 @@
 }
 .km-val i { font-size: 0.6rem; margin-right: 2px; }
 
-/* — Service chart: fill available vertical space — */
+/* — Charts: fill available vertical space — */
+#panel-tendencia.active,
 #panel-servicio.active {
     display: flex !important;
     flex-direction: column;
     min-height: calc(100vh - 160px);
 }
+.sales-chart-card,
 .svc-chart-card {
     flex: 1;
     display: flex;
     flex-direction: column;
-    margin-top: 12px;
+    margin-top: var(--dash-gap);
 }
+.sales-chart-wrap,
 .svc-chart-wrap {
     flex: 1;
     min-height: 180px;
@@ -1029,6 +1032,7 @@
     .tb-tab i { font-size: 0.8125rem; }
     .tb-label { display: inline; }
     .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
+    .sales-chart-wrap,
     .svc-chart-wrap { min-height: 280px; }
     .svc-grid {
         grid-template-columns: repeat(3, 1fr);
