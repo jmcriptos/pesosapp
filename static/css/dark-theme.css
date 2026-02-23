@@ -189,11 +189,12 @@ tr:hover td { background-color: #1a1f2b !important; }
 }
 
 /* ── 11. Tom Select ── */
+/* Control (input box) */
 .ts-wrapper .ts-control,
 .ts-wrapper.single .ts-control,
 .ts-wrapper.multi .ts-control {
     background: #1a1f2b !important;
-    border-color: #3b4a5c !important;
+    border: 1px solid #3b4a5c !important;
     color: #f1f5f9 !important;
 }
 .ts-wrapper.focus .ts-control,
@@ -203,34 +204,65 @@ tr:hover td { background-color: #1a1f2b !important; }
     border-color: #1877ff !important;
     box-shadow: 0 0 0 3px rgba(24,119,255,0.2) !important;
 }
-.ts-control input,
-.ts-control input::placeholder { color: #94a3b8 !important; }
 .ts-control input { color: #f1f5f9 !important; }
+.ts-control input::placeholder { color: #64748b !important; }
+.ts-wrapper .ts-control > input::placeholder { color: #64748b !important; }
+.ts-wrapper.single .ts-control input { color: #f1f5f9 !important; font-size: 16px !important; }
+.ts-wrapper.single .ts-control input::placeholder { color: #64748b !important; }
 .ts-control .item,
-.ts-wrapper.single .ts-control .item { color: #f1f5f9 !important; }
+.ts-wrapper.single .ts-control .item {
+    color: #f1f5f9 !important;
+    font-size: 16px !important;
+}
+
+/* Dropdown container */
 .ts-dropdown,
 .ts-dropdown.single,
 .ts-dropdown.multi {
     background: #141820 !important;
-    border-color: #3b4a5c !important;
+    border: 1px solid #3b4a5c !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
     color: #f1f5f9 !important;
 }
-.ts-dropdown .option {
+
+/* Dropdown options — match forms.css specificity */
+.ts-dropdown .option,
+.ts-dropdown .ts-dropdown-content .option {
     color: #f1f5f9 !important;
     background: #141820 !important;
+    border-bottom-color: #3b4a5c !important;
 }
 .ts-dropdown .option:hover,
-.ts-dropdown .option.active {
+.ts-dropdown .option.active,
+.ts-dropdown .ts-dropdown-content .option:hover,
+.ts-dropdown .ts-dropdown-content .option.active {
     background: #1a1f2b !important;
     color: #60a5fa !important;
 }
+
+/* Suggestion name & price inside options — match forms.css 4-level specificity */
+.ts-dropdown .ts-dropdown-content .option .suggestion-name {
+    color: #f1f5f9 !important;
+}
+.ts-dropdown .ts-dropdown-content .option .suggestion-price {
+    color: #94a3b8 !important;
+}
+.ts-dropdown .ts-dropdown-content .option.active .suggestion-name {
+    color: #60a5fa !important;
+}
+.ts-dropdown .ts-dropdown-content .option.active .suggestion-price {
+    color: #60a5fa !important;
+}
+.suggestion-name { color: #f1f5f9 !important; }
+.suggestion-price { color: #94a3b8 !important; }
+
+/* Search highlight */
 .ts-dropdown .option .highlight {
     background: rgba(24,119,255,0.3) !important;
     color: #60a5fa !important;
 }
 .ts-dropdown .no-results { color: #64748b !important; }
 .ts-dropdown .optgroup-header { color: #94a3b8 !important; background: #0b0e14 !important; }
-.ts-wrapper .ts-control > input::placeholder { color: #64748b !important; }
 
 /* ── 12. Pedidos List Page ── */
 .pedidos-container {
