@@ -1,0 +1,588 @@
+/* ═══════════════════════════════════════════════════
+   PESOSAPP — DARK EXECUTIVE THEME (Global Override)
+   Loaded last in base.html to override light styles.
+   Palette matches dashboard: #0b0e14 / #141820 / #3b4a5c
+   ═══════════════════════════════════════════════════ */
+
+/* ── 1. Design Tokens ── */
+:root {
+    --background-color: #0b0e14;
+    --text-dark: #f1f5f9;
+    --text-light: #94a3b8;
+    --bg-light: #1a1f2b;
+    --shadow-light: 0 2px 10px rgba(0,0,0,0.3);
+    --shadow-medium: 0 4px 20px rgba(0,0,0,0.4);
+    --shadow-strong: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+/* ── 2. Body & App Shell ── */
+html, body {
+    background-color: #0b0e14 !important;
+    color: #f1f5f9 !important;
+}
+.app-container { background-color: #0b0e14; }
+.app-content { background: #0b0e14; }
+
+/* ── 3. Topbar ── */
+.app-topbar {
+    background: #0b0e14 !important;
+    border-bottom: 1px solid #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.topbar-menu { color: #94a3b8 !important; }
+.topbar-menu:active { background: #1a1f2b !important; }
+.topbar-title { color: #f1f5f9 !important; }
+
+/* ── 4. Drawer ── */
+.drawer {
+    background: #141820 !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5) !important;
+}
+.drawer-header {
+    background: linear-gradient(135deg, #1a1f2b 0%, #141820 100%) !important;
+    color: #f1f5f9 !important;
+}
+.drawer-avatar { background: #3b4a5c !important; color: #f1f5f9 !important; }
+.drawer-user { color: #f1f5f9 !important; }
+.drawer-divider { background: #3b4a5c !important; }
+.drawer-section-label { color: #64748b !important; }
+.drawer-item { color: #94a3b8 !important; }
+.drawer-item i { color: #64748b !important; }
+.drawer-item:active { background: #1a1f2b !important; }
+.drawer-item.active {
+    background: rgba(96,165,250,0.12) !important;
+    color: #60a5fa !important;
+}
+.drawer-item.active i { color: #60a5fa !important; }
+.drawer-item-logout { color: #f87171 !important; }
+.drawer-item-logout i { color: #f87171 !important; }
+.drawer-overlay { background: rgba(0,0,0,0.7) !important; }
+
+/* ── 5. Footer / Mobile Nav ── */
+.app-footer {
+    background: #0d1017 !important;
+    border-top: 1px solid #3b4a5c !important;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3) !important;
+}
+.mobile-nav { background: transparent !important; }
+.nav-item { color: #64748b !important; }
+.nav-item span { color: inherit !important; }
+.nav-item .fas { color: inherit !important; }
+.nav-item.active { color: #60a5fa !important; }
+.nav-item.active span { color: #60a5fa !important; }
+.nav-item.active .fas { color: #60a5fa !important; }
+
+/* ── 6. Forms & Inputs ── */
+form {
+    background-color: #141820 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+}
+/* Keep transparent forms transparent */
+table form, .icon-btn form, form.action-form,
+#form-detalle, form[style*="display:inline"],
+form[style*="display: inline"], .pedido-card-actions form {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+label { color: #f1f5f9 !important; }
+input[type="text"], input[type="number"], input[type="date"],
+input[type="email"], input[type="tel"], input[type="password"],
+input[type="search"], input[type="url"], select, textarea {
+    background-color: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+input:focus, select:focus, textarea:focus {
+    background-color: #1f2633 !important;
+    border-color: #1877ff !important;
+    box-shadow: 0 0 0 3px rgba(24,119,255,0.2) !important;
+}
+input::placeholder, textarea::placeholder { color: #64748b !important; }
+input:disabled, select:disabled, textarea:disabled,
+input[readonly], select[readonly], textarea[readonly] {
+    background-color: #0f1318 !important;
+    color: #64748b !important;
+    border-color: #2d3a4a !important;
+}
+input[type="checkbox"] { accent-color: #1877ff; }
+
+/* ── 7. Buttons ── */
+button, .btn {
+    color: #f1f5f9;
+}
+.mobile-btn-secondary {
+    background: #1a1f2b !important;
+    color: #94a3b8 !important;
+}
+.mobile-btn-secondary:active {
+    background: #242b38 !important;
+}
+.btn-danger, .btn-eliminar {
+    background-color: #dc2626 !important;
+    color: white !important;
+}
+
+/* ── 8. Tables ── */
+table {
+    background-color: #141820 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+}
+th {
+    background-color: #1a1f2b !important;
+    color: #f1f5f9 !important;
+    border-color: #3b4a5c !important;
+}
+td {
+    color: #f1f5f9 !important;
+    border-color: #3b4a5c !important;
+}
+tr:nth-child(even) td { background-color: #161c26 !important; }
+tr:hover td { background-color: #1a1f2b !important; }
+
+/* ── 9. Mobile Cards ── */
+.mobile-card {
+    background: #141820 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+}
+.mobile-card-body { color: #f1f5f9 !important; }
+.mobile-form-container {
+    background: #0b0e14 !important;
+}
+.mobile-form-label { color: #94a3b8 !important; }
+.mobile-form-control {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.mobile-form-control:focus {
+    background: #1f2633 !important;
+    border-color: #1877ff !important;
+    box-shadow: 0 0 0 4px rgba(24,119,255,0.15) !important;
+}
+.mobile-form-control[readonly] {
+    background: #0f1318 !important;
+    color: #64748b !important;
+}
+
+/* ── 10. Alerts & Flash Messages ── */
+.alert-success, .flash-message.success {
+    background-color: rgba(16,185,129,0.15) !important;
+    color: #34d399 !important;
+    border-color: #065f46 !important;
+}
+.alert-error, .alert-danger, .flash-message.error {
+    background-color: rgba(248,113,113,0.15) !important;
+    color: #fca5a5 !important;
+    border-color: #991b1b !important;
+}
+.alert-warning, .flash-message.warning {
+    background-color: rgba(251,191,36,0.15) !important;
+    color: #fbbf24 !important;
+    border-color: #92400e !important;
+}
+.alert-info, .flash-message.info {
+    background-color: rgba(96,165,250,0.15) !important;
+    color: #93c5fd !important;
+    border-color: #1e40af !important;
+}
+
+/* ── 11. Tom Select ── */
+.ts-wrapper .ts-control {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.ts-wrapper.focus .ts-control {
+    background: #1f2633 !important;
+    border-color: #1877ff !important;
+    box-shadow: 0 0 0 3px rgba(24,119,255,0.2) !important;
+}
+.ts-control input { color: #f1f5f9 !important; }
+.ts-control .item { color: #f1f5f9 !important; }
+.ts-dropdown {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.ts-dropdown .option { color: #94a3b8 !important; }
+.ts-dropdown .option:hover,
+.ts-dropdown .option.active {
+    background: #1a1f2b !important;
+    color: #60a5fa !important;
+}
+.ts-dropdown .no-results { color: #64748b !important; }
+
+/* ── 12. Pedidos List Page ── */
+.pedidos-container { color: #f1f5f9; }
+.pedidos-header { color: #f1f5f9; }
+.btn-nuevo-pedido {
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%) !important;
+    color: white !important;
+}
+.filtros-estado { background: transparent; }
+.filtro-btn {
+    background: #141820 !important;
+    color: #94a3b8 !important;
+    border-color: #3b4a5c !important;
+}
+.filtro-btn.filtro-active, .filtro-btn:active {
+    background: #1877ff !important;
+    color: white !important;
+    border-color: #1877ff !important;
+}
+.filtro-pendiente.filtro-active { background: #f59e0b !important; border-color: #f59e0b !important; }
+.filtro-preparado.filtro-active { background: #10b981 !important; border-color: #10b981 !important; }
+.filtro-facturado.filtro-active { background: #3b82f6 !important; border-color: #3b82f6 !important; }
+.filtro-count {
+    background: rgba(255,255,255,0.2) !important;
+    color: inherit !important;
+}
+.pedido-card {
+    background: #141820 !important;
+    border: 1px solid #3b4a5c !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+    color: #f1f5f9 !important;
+}
+.pedido-card-header {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.pedido-card-id { color: #f1f5f9 !important; }
+.pedido-card-body { color: #94a3b8 !important; }
+.pedido-cliente span, .pedido-fecha span { color: #f1f5f9 !important; }
+.pedido-cliente i, .pedido-fecha i, .pedido-notas i, .pedido-invoice-id i { color: #64748b !important; }
+.pedido-notas span { color: #94a3b8 !important; }
+.pedido-card-total {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.total-label { color: #64748b !important; }
+.total-value { color: #f1f5f9 !important; }
+.pedido-card-actions {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+}
+.action-btn-mobile { color: #94a3b8 !important; }
+.action-btn-mobile.action-view { color: #60a5fa !important; }
+.action-btn-mobile.action-edit { color: #fbbf24 !important; }
+.action-btn-mobile.action-delete { color: #f87171 !important; }
+.action-btn-mobile.action-invoice { color: #34d399 !important; }
+.estado-badge-mobile {
+    font-weight: 600;
+}
+.estado-pendiente {
+    background: rgba(251,191,36,0.2) !important;
+    color: #fbbf24 !important;
+}
+.estado-preparado {
+    background: rgba(16,185,129,0.2) !important;
+    color: #34d399 !important;
+}
+.estado-facturado {
+    background: rgba(59,130,246,0.2) !important;
+    color: #60a5fa !important;
+}
+/* Desktop table for pedidos */
+.pedidos-table-desktop table {
+    background: #141820 !important;
+}
+.pedidos-table-desktop th {
+    background: #1a1f2b !important;
+}
+.pedidos-empty { color: #64748b !important; }
+
+/* ── 13. Detalles Pedido Page ── */
+.status-bar {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+}
+.status-badge-pendiente {
+    background: rgba(251,191,36,0.2) !important;
+    color: #fbbf24 !important;
+}
+.status-badge-preparado {
+    background: rgba(16,185,129,0.2) !important;
+    color: #34d399 !important;
+}
+.status-badge-facturado {
+    background: rgba(59,130,246,0.2) !important;
+    color: #60a5fa !important;
+}
+.status-info { color: #94a3b8 !important; }
+.mobile-notes-section {
+    background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06)) !important;
+    border-color: #3b4a5c !important;
+}
+.mobile-notes-label { color: #fbbf24 !important; }
+.mobile-notes-content { color: #f1f5f9 !important; }
+.producto-item-mobile {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.producto-item-name { color: #f1f5f9 !important; }
+.producto-detail-label { color: #64748b !important; }
+.producto-detail-value { color: #f1f5f9 !important; }
+.producto-item-total { color: #f1f5f9 !important; }
+.producto-item-index {
+    background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%) !important;
+}
+.edit-modal, .edit-modal-content {
+    background: #141820 !important;
+    color: #f1f5f9 !important;
+}
+.edit-modal-overlay { background: rgba(0,0,0,0.7) !important; }
+.sticky-preparado-bar {
+    background: linear-gradient(to top, rgba(11,14,20,1) 60%, rgba(11,14,20,0)) !important;
+}
+.collapsible-header { color: #f1f5f9 !important; }
+/* Totals section */
+.mobile-totals-section { color: #f1f5f9; }
+.total-row-label { color: #94a3b8 !important; }
+.total-row-value { color: #f1f5f9 !important; }
+.grand-total-label { color: #f1f5f9 !important; }
+.grand-total-value { color: #34d399 !important; }
+/* Payment info */
+.payment-info, .payment-section { color: #f1f5f9; }
+.payment-label { color: #94a3b8 !important; }
+.payment-value { color: #f1f5f9 !important; }
+
+/* ── 14. Clientes Page ── */
+.form-section, .table-section {
+    background: #141820 !important;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important;
+    color: #f1f5f9 !important;
+}
+.form-section h2, .table-section h2 { color: #f1f5f9 !important; }
+.form-label { color: #f1f5f9 !important; }
+.form-input, .form-select {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.form-button {
+    background-color: #1877ff !important;
+    color: white !important;
+}
+.tabla-clientes th, .tabla-clientes thead th {
+    background: #1a1f2b !important;
+    color: #f1f5f9 !important;
+    text-shadow: none !important;
+}
+.tabla-clientes td { border-color: #3b4a5c !important; }
+.tabla-clientes tbody tr:nth-child(odd) { background: #161c26 !important; }
+.tabla-clientes tbody tr:nth-child(even) { background: #141820 !important; }
+/* Currency badges */
+.badge-ok { background: rgba(16,185,129,0.15) !important; color: #34d399 !important; }
+.badge-usd { background: rgba(251,191,36,0.15) !important; color: #fbbf24 !important; }
+.badge-na { background: #1a1f2b !important; color: #64748b !important; }
+.icon-btn.btn-edit { background: rgba(24,119,255,0.15) !important; color: #60a5fa !important; border: none !important; }
+.icon-btn.btn-delete { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; border: none !important; }
+
+/* ── 15. Productos Page ── */
+.productos-container { color: #f1f5f9; }
+
+/* ── 16. Precios Pages ── */
+.precio-table {
+    background: #141820 !important;
+}
+.precio-table th {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    color: white !important;
+}
+.precio-table td { border-color: #3b4a5c !important; color: #f1f5f9 !important; }
+.precio-table tr:hover td { background: #1a1f2b !important; }
+.precio-badge.default { background: rgba(251,191,36,0.15) !important; color: #fbbf24 !important; border-color: rgba(251,191,36,0.3) !important; }
+.precio-badge.active { background: rgba(16,185,129,0.15) !important; color: #34d399 !important; border-color: rgba(16,185,129,0.3) !important; }
+.precio-badge.inactive { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; border-color: rgba(248,113,113,0.3) !important; }
+.precio-form-group label { color: #f1f5f9 !important; }
+.precio-form-group input, .precio-form-group select {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.precio-display { color: #34d399 !important; }
+/* Precio cards (index page) */
+.precio-card {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.precio-card:hover {
+    border-color: #60a5fa !important;
+}
+.precio-card h3 { color: #f1f5f9 !important; }
+.precio-card p { color: #94a3b8 !important; }
+
+/* ── 17. Facturación Page ── */
+.facturacion-form { color: #f1f5f9; }
+
+/* ── 18. Admin Pages ── */
+.admin-page-container { color: #f1f5f9; }
+.page-header {
+    background: #141820 !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+}
+.page-header h1 { color: #f1f5f9 !important; }
+.page-header p { color: #94a3b8 !important; }
+.report-section {
+    background: #141820 !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+}
+.report-section h2 { color: #f1f5f9 !important; border-color: #1877ff !important; }
+.report-table th { background: #1a1f2b !important; color: #f1f5f9 !important; }
+.report-table td { border-color: #3b4a5c !important; color: #f1f5f9 !important; }
+.report-table tr:hover td { background: #1a1f2b !important; }
+
+.admin-metrics-section, .vendedor-metrics-section,
+.admin-control-panel, .admin-alerts-section,
+.quick-actions-section, .context-info-section {
+    background: #141820 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+}
+.metric-card {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.metric-title { color: #94a3b8 !important; }
+.metric-value { color: #f1f5f9 !important; }
+.section-title { color: #f1f5f9 !important; }
+.control-section {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.control-section h3 { color: #f1f5f9 !important; }
+.control-btn {
+    background: #141820 !important;
+    color: #f1f5f9 !important;
+    border-color: #3b4a5c !important;
+}
+.control-btn:hover { border-color: #1877ff !important; color: #60a5fa !important; }
+.alert-item.warning { background: rgba(251,191,36,0.1) !important; }
+.alert-item.info { background: rgba(59,130,246,0.1) !important; }
+.alert-item.success { background: rgba(16,185,129,0.1) !important; }
+.alert-content h4 { color: #f1f5f9 !important; }
+.alert-content p { color: #94a3b8 !important; }
+.action-btn {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.action-btn:hover { border-color: #1877ff !important; }
+.config-section {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+}
+.config-section h3 { color: #f1f5f9 !important; border-color: #1877ff !important; }
+.config-item label { color: #f1f5f9 !important; }
+.config-input {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.export-card {
+    background: #141820 !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+}
+.export-card h3 { color: #f1f5f9 !important; }
+.export-card p { color: #94a3b8 !important; }
+
+/* Admin vendedores / territorios */
+.vendedor-card, .territorio-card {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.vendedor-card:hover, .territorio-card:hover {
+    border-color: #60a5fa !important;
+}
+
+/* ── 19. Pedido Form ── */
+.mobile-table-container { background: #141820 !important; }
+.mobile-table thead { background: #1877ff !important; }
+.mobile-table th { color: white !important; }
+.mobile-table td { color: #f1f5f9 !important; border-color: #3b4a5c !important; }
+.sticky-submit-bar {
+    background: linear-gradient(to top, rgba(11,14,20,1) 60%, rgba(11,14,20,0)) !important;
+}
+.mobile-select-wrapper::after { color: #94a3b8 !important; }
+/* Search/filter inputs in pedido form */
+.search-input, .filter-input {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+
+/* ── 20. Etiquetas Page ── */
+.etiqueta-form { color: #f1f5f9; }
+
+/* ── 21. Recepciones Page ── */
+.recepciones-container { color: #f1f5f9; }
+
+/* ── 22. Importación Form ── */
+.importacion-container { color: #f1f5f9; }
+
+/* ── 23. Index / Home Page ── */
+.index-container, .main-nav { color: #f1f5f9; }
+.nav-card, .module-card {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+.nav-card:hover, .module-card:hover {
+    border-color: #60a5fa !important;
+    transform: translateY(-2px);
+}
+.nav-card h3, .module-card h3 { color: #f1f5f9 !important; }
+.nav-card p, .module-card p { color: #94a3b8 !important; }
+
+/* ── 24. Dashboard Vendedor ── */
+.stat-card {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.stat-value { color: #f1f5f9 !important; }
+.stat-label { color: #94a3b8 !important; }
+.chart-container { background: #141820 !important; }
+
+/* ── 25. Text Globals ── */
+h1, h2, h3, h4, h5, h6 { color: #f1f5f9; }
+p { color: #94a3b8; }
+a { color: #60a5fa; }
+a:hover { color: #93c5fd; }
+small { color: #94a3b8; }
+strong { color: #f1f5f9; }
+hr { border-color: #3b4a5c; }
+
+/* ── 26. Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0b0e14; }
+::-webkit-scrollbar-thumb { background: #3b4a5c; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5a6c; }
+
+/* ── 27. Misc Utilities ── */
+.text-muted { color: #64748b !important; }
+.text-secondary { color: #94a3b8 !important; }
+.bg-white { background: #141820 !important; }
+.border { border-color: #3b4a5c !important; }
+code, pre {
+    background: #1a1f2b !important;
+    color: #34d399 !important;
+    border-color: #3b4a5c !important;
+}
+.modal-content, .modal {
+    background: #141820 !important;
+    color: #f1f5f9 !important;
+    border-color: #3b4a5c !important;
+}
+.modal-backdrop { background: rgba(0,0,0,0.7) !important; }
+
+/* ── 28. Selection ── */
+::selection {
+    background: rgba(96,165,250,0.3);
+    color: #f1f5f9;
+}
