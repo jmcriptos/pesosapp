@@ -123,10 +123,10 @@
 
     {# ══════ ZONA B: Tab Bar ══════ #}
     <div class="tab-bar" id="tabBar">
-        <button class="tab active" data-tab="tendencia">Tendencia</button>
-        <button class="tab" data-tab="servicio">Servicio</button>
-        <button class="tab" data-tab="rankings">Rankings</button>
-        <button class="tab" data-tab="actividad">Actividad</button>
+        <button class="tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span>Ventas</span></button>
+        <button class="tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span>Servicio</span></button>
+        <button class="tab" data-tab="rankings"><i class="fas fa-trophy"></i><span>Top</span></button>
+        <button class="tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span>Reciente</span></button>
     </div>
 
     {# ══════ ZONA C: Tab Panels ══════ #}
@@ -275,58 +275,44 @@
         {# ── Tab: Rankings ── #}
         <div class="tab-panel" id="panel-rankings">
             {# Top 5 Productos #}
-            <div class="card">
-                <div class="card-head"><h3>Top 5 Productos</h3></div>
+            <div class="rank-section">
+                <h3 class="rank-title"><i class="fas fa-box"></i> Top Productos</h3>
                 {% set max_ingreso_prod = ((top_productos or [])[0].ingresos or 1)|float if (top_productos or []) else 1 %}
-                <div class="rank-list">
+                <div class="rank-scroll">
                     {% for producto in (top_productos or []) %}
                     {% set ingresos = (producto.ingresos or 0)|float %}
                     {% set cajas = (producto.cajas or 0)|int %}
                     {% set peso = (producto.peso or 0)|float %}
                     {% set bar_pct = (ingresos / max_ingreso_prod * 100) if max_ingreso_prod > 0 else 0 %}
-                    <div class="rank-item">
-                        <div class="rank-pos rank-{{ loop.index }}">{{ loop.index }}</div>
-                        <div class="rank-body">
-                            <div class="rank-row">
-                                <span class="rank-name">{{ producto.nombre }}</span>
-                                <span class="rank-amt">{{ '{:,.0f}'.format(ingresos) }}</span>
-                            </div>
-                            <div class="rank-bar-wrap">
-                                <div class="rank-bar rank-c{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
-                            </div>
-                            <div class="rank-detail">
-                                <span>{% if cajas > 0 %}{{ cajas }} cj{% endif %}{% if cajas > 0 and peso > 0 %} · {% endif %}{% if peso > 0 %}{{ '{:,.1f}'.format(peso) }} kg{% endif %}{% if cajas == 0 and peso == 0 %}—{% endif %}</span>
-                                <span>{{ producto.pedidos or 0 }} ped</span>
-                            </div>
+                    <div class="rank-card rc-{{ loop.index }}">
+                        <div class="rc-head">
+                            <span class="rc-pos">{{ loop.index }}</span>
+                            <span class="rc-bar" style="width:{{ bar_pct }}%"></span>
                         </div>
+                        <div class="rc-name">{{ producto.nombre }}</div>
+                        <div class="rc-amount">{{ '{:,.0f}'.format(ingresos) }} <small>XCG</small></div>
+                        <div class="rc-detail">{% if cajas > 0 %}{{ cajas }} cj{% endif %}{% if cajas > 0 and peso > 0 %} · {% endif %}{% if peso > 0 %}{{ '{:,.1f}'.format(peso) }} kg{% endif %}{% if cajas == 0 and peso == 0 %}—{% endif %} · {{ producto.pedidos or 0 }} ped</div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
             {# Top 5 Clientes #}
-            <div class="card" style="margin-top:12px">
-                <div class="card-head"><h3>Top 5 Clientes</h3></div>
-                {% set max_total_cli = ((top_clientes or [])[0][1].total or 1)|float if (top_clientes or []) else 1 %}
-                <div class="rank-list">
+            <div class="rank-section" style="margin-top:16px">
+                <h3 class="rank-title"><i class="fas fa-users"></i> Top Clientes</h3>
+                <div class="rank-scroll">
                     {% for nombre, datos in (top_clientes or []) %}
                     {% set cliente_total = (datos.total or 0)|float %}
+                    {% set max_total_cli = ((top_clientes or [])[0][1].total or 1)|float if (top_clientes or []) else 1 %}
                     {% set bar_pct = (cliente_total / max_total_cli * 100) if max_total_cli > 0 else 0 %}
-                    <div class="rank-item">
-                        <div class="rank-pos rank-{{ loop.index }}">{{ loop.index }}</div>
-                        <div class="rank-body">
-                            <div class="rank-row">
-                                <span class="rank-name">{{ nombre }}</span>
-                                <span class="rank-amt">{{ '{:,.0f}'.format(cliente_total) }}</span>
-                            </div>
-                            <div class="rank-bar-wrap">
-                                <div class="rank-bar rank-c{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
-                            </div>
-                            <div class="rank-detail">
-                                <span>{{ (datos.pedidos or 0) }} pedidos</span>
-                                <span>{{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
-                            </div>
+                    <div class="rank-card rc-{{ loop.index }}">
+                        <div class="rc-head">
+                            <span class="rc-pos">{{ loop.index }}</span>
+                            <span class="rc-bar" style="width:{{ bar_pct }}%"></span>
                         </div>
+                        <div class="rc-name">{{ nombre }}</div>
+                        <div class="rc-amount">{{ '{:,.0f}'.format(cliente_total) }} <small>XCG</small></div>
+                        <div class="rc-detail">{{ (datos.pedidos or 0) }} pedidos · {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</div>
                     </div>
                     {% endfor %}
                 </div>
@@ -493,6 +479,7 @@
 }
 .kpi-tile {
     background: var(--dash-card);
+    border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
     padding: var(--dash-pad);
     box-shadow: var(--dash-shadow);
@@ -626,29 +613,31 @@
     display: flex;
     background: var(--dash-bg);
     border-bottom: 1px solid var(--dash-border);
-    padding: 0 var(--dash-gap);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    padding: 0 4px;
 }
-.tab-bar::-webkit-scrollbar { display: none; }
 .tab {
-    flex: 1 0 auto;
-    padding: 10px 14px;
-    font-size: 0.8125rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px 6px;
+    font-size: 0.625rem;
     font-weight: 600;
     color: var(--dash-text3);
     border: none;
     background: none;
     border-bottom: 2px solid transparent;
-    white-space: nowrap;
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
     font-family: var(--dash-font);
-    text-align: center;
+}
+.tab i {
+    font-size: 0.9375rem;
+    line-height: 1;
 }
 .tab.active {
-    color: var(--dash-text);
+    color: var(--dash-blue);
     border-bottom-color: var(--dash-blue);
 }
 
@@ -662,6 +651,7 @@
 /* — Generic Card — */
 .card {
     background: var(--dash-card);
+    border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
     box-shadow: var(--dash-shadow);
     overflow: hidden;
@@ -714,6 +704,7 @@
 .wow-item {
     flex: 1;
     background: var(--dash-card);
+    border: 1px solid var(--dash-border);
     border-radius: 10px;
     padding: 10px;
     box-shadow: var(--dash-shadow);
@@ -745,6 +736,7 @@
 }
 .svc-card {
     background: var(--dash-card);
+    border: 1px solid var(--dash-border);
     border-radius: 12px;
     padding: 12px;
     box-shadow: var(--dash-shadow);
@@ -833,77 +825,109 @@
 .km-val i { font-size: 0.6rem; margin-right: 2px; }
 
 /* ═══════════════════════════
-   RANKINGS TAB
+   RANKINGS TAB — Horizontal Cards
    ═══════════════════════════ */
-.rank-list { padding: 0 var(--dash-pad) var(--dash-pad); }
-.rank-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--dash-border);
+.rank-section {}
+.rank-title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 8px 2px;
 }
-.rank-item:last-child { border-bottom: none; }
-.rank-pos {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
+.rank-title i {
+    color: var(--dash-text3);
+    margin-right: 6px;
+    font-size: 0.75rem;
+}
+
+/* Horizontal scroll container */
+.rank-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+}
+.rank-scroll::-webkit-scrollbar { display: none; }
+
+/* Individual rank card */
+.rank-card {
+    flex: 0 0 150px;
+    scroll-snap-align: start;
+    background: var(--dash-card);
+    border: 1px solid var(--dash-border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Top bar with rank badge + progress bar background */
+.rc-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rc-pos {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.6875rem;
-    font-weight: 700;
+    font-weight: 800;
     color: #fff;
     flex-shrink: 0;
-    margin-top: 2px;
 }
-.rank-1 { background: #f59e0b; }
-.rank-2 { background: #64748b; }
-.rank-3 { background: #d97706; }
-.rank-4, .rank-5 { background: #374151; color: #94a3b8; }
-.rank-body { flex: 1; min-width: 0; }
-.rank-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 8px;
+.rc-bar {
+    height: 3px;
+    border-radius: 2px;
+    flex: 1;
+    transition: width 0.5s ease;
 }
-.rank-name {
-    font-size: 0.8125rem;
+
+/* Rank color accents */
+.rc-1 .rc-pos { background: #f59e0b; }
+.rc-1 .rc-bar { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.rc-2 .rc-pos { background: #60a5fa; }
+.rc-2 .rc-bar { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.rc-3 .rc-pos { background: #34d399; }
+.rc-3 .rc-bar { background: linear-gradient(90deg, #10b981, #34d399); }
+.rc-4 .rc-pos { background: #a78bfa; }
+.rc-4 .rc-bar { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.rc-5 .rc-pos { background: #fb7185; }
+.rc-5 .rc-bar { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+
+.rc-name {
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--dash-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
 }
-.rank-amt {
-    font-size: 0.8125rem;
+.rc-amount {
+    font-size: 1.125rem;
     font-weight: 700;
     color: var(--dash-text);
-    flex-shrink: 0;
+    line-height: 1;
 }
-.rank-bar-wrap {
-    height: 4px;
-    background: #1f2937;
-    border-radius: 2px;
-    margin: 6px 0;
-    overflow: hidden;
-}
-.rank-bar {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.5s ease;
-}
-.rank-c1 { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.rank-c2 { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-.rank-c3 { background: linear-gradient(90deg, #10b981, #34d399); }
-.rank-c4 { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
-.rank-c5 { background: linear-gradient(90deg, #f43f5e, #fb7185); }
-.rank-detail {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.6875rem;
+.rc-amount small {
+    font-size: 0.625rem;
+    font-weight: 500;
     color: var(--dash-text3);
+}
+.rc-detail {
+    font-size: 0.625rem;
+    color: var(--dash-text3);
+    line-height: 1.3;
 }
 
 /* ═══════════════════════════
@@ -996,15 +1020,22 @@
     }
     .tab-bar {
         justify-content: center;
-        gap: 8px;
+        padding: 0;
     }
-    .tab { flex: 0 0 auto; padding: 10px 24px; }
+    .tab {
+        flex: 0 0 auto;
+        flex-direction: row;
+        gap: 6px;
+        padding: 10px 24px;
+        font-size: 0.8125rem;
+    }
+    .tab i { font-size: 0.8125rem; }
     .chart-wrap { height: 320px !important; padding: 0 16px 16px; }
     .svc-grid {
         grid-template-columns: repeat(3, 1fr);
     }
     .wow-row { max-width: none; }
-    .rank-list { columns: 1; }
+    .rank-card { flex: 0 0 180px; }
     .orders-list { max-height: 450px; }
 }
 
@@ -1027,10 +1058,12 @@
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
     .pair-val { font-size: 1.25rem; }
-    .tab { padding: 8px 10px; font-size: 0.75rem; }
+    .tab i { font-size: 0.8125rem; }
+    .tab span { font-size: 0.5625rem; }
     .tab-panels { padding: 6px; }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
+    .rank-card { flex: 0 0 130px; padding: 10px; }
 }
 </style>
 {% endblock %}
