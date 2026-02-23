@@ -437,6 +437,7 @@ button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !impo
 .pedidos-empty i { color: #3b4a5c !important; }
 
 /* ── 13. Detalles Pedido Page ── */
+/* Status bar */
 .status-bar {
     background: #141820 !important;
     border-color: #3b4a5c !important;
@@ -454,12 +455,16 @@ button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !impo
     color: #60a5fa !important;
 }
 .status-info { color: #94a3b8 !important; }
+
+/* Notes section */
 .mobile-notes-section {
     background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06)) !important;
     border-color: #3b4a5c !important;
 }
 .mobile-notes-label { color: #fbbf24 !important; }
 .mobile-notes-content { color: #f1f5f9 !important; }
+
+/* Product items (mobile cards) */
 .producto-item-mobile {
     background: #1a1f2b !important;
     border-color: #3b4a5c !important;
@@ -468,20 +473,54 @@ button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !impo
 .producto-detail-label { color: #64748b !important; }
 .producto-detail-value { color: #f1f5f9 !important; }
 .producto-item-total { color: #f1f5f9 !important; }
+.producto-item-footer { border-top-color: #3b4a5c !important; }
 .producto-item-index {
     background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%) !important;
 }
+
+/* Linea pedido original (uses !important in template) */
+.linea-pedido-original,
+.producto-item-mobile.linea-pedido-original {
+    background: #0f1318 !important;
+    opacity: 0.7 !important;
+}
+tr.linea-pedido-original td { color: #64748b !important; }
+.badge-pedido {
+    background: #3b4a5c !important;
+    color: #94a3b8 !important;
+}
+
+/* Empty state */
+.mobile-empty-state { color: #64748b !important; }
+
+/* Edit modal */
 .edit-modal, .edit-modal-content {
     background: #141820 !important;
     color: #f1f5f9 !important;
 }
+.edit-modal-body { color: #f1f5f9 !important; }
+.edit-modal-footer { border-top-color: #3b4a5c !important; }
 .edit-modal-overlay { background: rgba(0,0,0,0.7) !important; }
+
+/* Sticky preparado bar */
 .sticky-preparado-bar {
     background: linear-gradient(to top, rgba(11,14,20,1) 60%, rgba(11,14,20,0)) !important;
 }
 .collapsible-header { color: #f1f5f9 !important; }
+
+/* Desktop table overrides for detalles */
+.mobile-table td {
+    color: #f1f5f9 !important;
+    border-bottom-color: #3b4a5c !important;
+}
+.mobile-table tr:hover td { background: #1a1f2b !important; }
+.product-name { color: #f1f5f9 !important; }
+
 /* Totals section */
 .mobile-totals-section { color: #f1f5f9; }
+.mobile-total-section { color: #f1f5f9 !important; }
+.mobile-total-label { color: #94a3b8 !important; }
+.mobile-total-amount { color: #34d399 !important; }
 .total-row-label { color: #94a3b8 !important; }
 .total-row-value { color: #f1f5f9 !important; }
 .grand-total-label { color: #f1f5f9 !important; }
