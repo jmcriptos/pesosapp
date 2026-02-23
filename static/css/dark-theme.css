@@ -215,7 +215,10 @@ tr:hover td { background-color: #1a1f2b !important; }
 .ts-dropdown .no-results { color: #64748b !important; }
 
 /* ── 12. Pedidos List Page ── */
-.pedidos-container { color: #f1f5f9; }
+.pedidos-container {
+    color: #f1f5f9;
+    max-width: 100% !important;
+}
 .pedidos-header { color: #f1f5f9; }
 .btn-nuevo-pedido {
     background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%) !important;
@@ -239,6 +242,11 @@ tr:hover td { background-color: #1a1f2b !important; }
     background: rgba(255,255,255,0.2) !important;
     color: inherit !important;
 }
+.filtro-btn:not(.filtro-active) .filtro-count {
+    background: #1a1f2b !important;
+    color: #64748b !important;
+}
+/* Mobile cards */
 .pedido-card {
     background: #141820 !important;
     border: 1px solid #3b4a5c !important;
@@ -252,9 +260,12 @@ tr:hover td { background-color: #1a1f2b !important; }
 }
 .pedido-card-id { color: #f1f5f9 !important; }
 .pedido-card-body { color: #94a3b8 !important; }
+.pedido-cliente, .pedido-fecha, .pedido-notas { color: #94a3b8 !important; }
 .pedido-cliente span, .pedido-fecha span { color: #f1f5f9 !important; }
 .pedido-cliente i, .pedido-fecha i, .pedido-notas i, .pedido-invoice-id i { color: #64748b !important; }
 .pedido-notas span { color: #94a3b8 !important; }
+.pedido-invoice-id { color: #34d399 !important; }
+.pedido-invoice-id i { color: #34d399 !important; }
 .pedido-card-total {
     background: #1a1f2b !important;
     border-color: #3b4a5c !important;
@@ -265,14 +276,16 @@ tr:hover td { background-color: #1a1f2b !important; }
     background: #141820 !important;
     border-color: #3b4a5c !important;
 }
-.action-btn-mobile { color: #94a3b8 !important; }
-.action-btn-mobile.action-view { color: #60a5fa !important; }
-.action-btn-mobile.action-edit { color: #fbbf24 !important; }
-.action-btn-mobile.action-delete { color: #f87171 !important; }
-.action-btn-mobile.action-invoice { color: #34d399 !important; }
-.estado-badge-mobile {
-    font-weight: 600;
+.action-btn-mobile {
+    color: #94a3b8 !important;
+    background: transparent !important;
 }
+.action-btn-mobile.action-view { background: rgba(96,165,250,0.1) !important; color: #60a5fa !important; }
+.action-btn-mobile.action-edit { background: rgba(251,191,36,0.1) !important; color: #fbbf24 !important; }
+button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !important; color: #f87171 !important; }
+.action-btn-mobile.action-invoice { background: rgba(52,211,153,0.1) !important; color: #34d399 !important; }
+/* Status badges (mobile + desktop) */
+.estado-badge-mobile, .estado-badge { font-weight: 600; }
 .estado-pendiente {
     background: rgba(251,191,36,0.2) !important;
     color: #fbbf24 !important;
@@ -285,14 +298,93 @@ tr:hover td { background-color: #1a1f2b !important; }
     background: rgba(59,130,246,0.2) !important;
     color: #60a5fa !important;
 }
-/* Desktop table for pedidos */
-.pedidos-table-desktop table {
+.estado-entregado {
+    background: rgba(148,163,184,0.2) !important;
+    color: #94a3b8 !important;
+}
+.invoice-id-badge {
+    background: rgba(52,211,153,0.15) !important;
+    color: #34d399 !important;
+}
+/* Desktop table for pedidos — full width */
+.tabla-pedidos-card {
+    background: #141820 !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
+}
+.tabla-pedidos {
     background: #141820 !important;
 }
-.pedidos-table-desktop th {
+.tabla-pedidos th {
+    background: #1a1f2b !important;
+    color: #f1f5f9 !important;
+    border-color: #3b4a5c !important;
+}
+.tabla-pedidos th.sortable:hover {
+    background: #242b38 !important;
+}
+.tabla-pedidos td {
+    background: #141820 !important;
+    color: #f1f5f9 !important;
+    border-color: #3b4a5c !important;
+}
+.tabla-pedidos tr:nth-child(even) td {
+    background: #161c26 !important;
+}
+.tabla-pedidos tr:hover td {
     background: #1a1f2b !important;
 }
+.text-right { color: #f1f5f9 !important; }
+.font-mono { color: #f1f5f9 !important; }
+/* Desktop chip buttons */
+.btn-chip-view { background: rgba(96,165,250,0.15) !important; color: #60a5fa !important; }
+.btn-chip-view:hover { background: rgba(96,165,250,0.25) !important; color: #93c5fd !important; }
+.btn-chip-edit { background: rgba(251,191,36,0.15) !important; color: #fbbf24 !important; }
+.btn-chip-edit:hover { background: rgba(251,191,36,0.25) !important; color: #fcd34d !important; }
+.btn-chip-success { background: rgba(52,211,153,0.15) !important; color: #34d399 !important; }
+.btn-chip-success:hover { background: rgba(52,211,153,0.25) !important; color: #6ee7b7 !important; }
+.btn-chip-danger { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; }
+.btn-chip-danger:hover { background: rgba(248,113,113,0.25) !important; color: #fca5a5 !important; }
+.inline-form { background: none !important; box-shadow: none !important; }
+/* Pagination desktop */
+.pagination-desktop {
+    border-color: #3b4a5c !important;
+}
+.pagination-info { color: #94a3b8 !important; }
+.pagination-btn {
+    background: #1a1f2b !important;
+    color: #60a5fa !important;
+}
+.pagination-btn:hover:not(.disabled) {
+    background: #1877ff !important;
+    color: white !important;
+}
+.pagination-btn.disabled {
+    background: #0f1318 !important;
+    color: #3b4a5c !important;
+}
+.pagination-current { color: #f1f5f9 !important; }
+/* Pagination mobile */
+.pagination-mobile {
+    background: #141820 !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+}
+.pagination-info-mobile { color: #94a3b8 !important; }
+.pagination-btn-mobile {
+    background: #1a1f2b !important;
+    color: #60a5fa !important;
+}
+.pagination-btn-mobile:active:not(.disabled) {
+    background: #1877ff !important;
+    color: white !important;
+}
+.pagination-btn-mobile.disabled {
+    background: #0f1318 !important;
+    color: #3b4a5c !important;
+}
+.pagination-current-mobile { color: #f1f5f9 !important; }
+/* Empty state */
 .pedidos-empty { color: #64748b !important; }
+.pedidos-empty i { color: #3b4a5c !important; }
 
 /* ── 13. Detalles Pedido Page ── */
 .status-bar {
