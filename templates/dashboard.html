@@ -49,6 +49,18 @@
 {% set pend_pct = [0, 100 - pedidos_pendientes_v * 20]|max %}
 {% set ring4_offset = ring_circ - (pend_pct / 100) * ring_circ %}
 
+{# Service KPI ring offsets #}
+{% set svc_otd_pct = [0, [otd_rate_v, 100]|min]|max %}
+{% set svc_otd_offset = ring_circ - (svc_otd_pct / 100) * ring_circ %}
+{% set svc_ofr_pct = [0, [order_completion_rate_v, 100]|min]|max %}
+{% set svc_ofr_offset = ring_circ - (svc_ofr_pct / 100) * ring_circ %}
+{% set svc_ce_pct = [0, [customer_engagement_v, 100]|min]|max %}
+{% set svc_ce_offset = ring_circ - (svc_ce_pct / 100) * ring_circ %}
+{% set svc_por_pct = [0, [perfect_order_rate_v, 100]|min]|max %}
+{% set svc_por_offset = ring_circ - (svc_por_pct / 100) * ring_circ %}
+{% set svc_lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
+{% set svc_lt_offset = ring_circ - (svc_lt_pct / 100) * ring_circ %}
+
 <div class="exec-dashboard">
 
     {# ══════ Tab Panels ══════ #}
@@ -176,79 +188,114 @@
         {# ── Tab: Servicio ── #}
         <div class="tab-panel" id="panel-servicio">
             <div class="svc-grid">
-                {# OTD detail #}
+                {# OTD #}
                 <div class="svc-card">
-                    <div class="svc-icon"><i class="fas fa-truck"></i></div>
-                    <div class="svc-body">
-                        <span class="svc-val
-                            {%- if otd_rate_v >= 95 %} c-green
-                            {%- elif otd_rate_v >= 85 %} c-amber
-                            {%- else %} c-red{% endif %}">{{ '%.1f' % otd_rate_v }}%</span>
+                    <div class="svc-top">
                         <span class="svc-name">On Time Delivery</span>
-                        <span class="svc-desc">Entregas ≤2 días</span>
+                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
+                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
+                            <circle class="ring-fg
+                                {%- if otd_rate_v >= 95 %} c-green
+                                {%- elif otd_rate_v >= 85 %} c-amber
+                                {%- else %} c-red{% endif %}"
+                                cx="24" cy="24" r="{{ ring_r }}"
+                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_otd_offset }}" />
+                            <text x="24" y="26" class="ring-text">{{ '%.0f' % otd_rate_v }}%</text>
+                        </svg>
                     </div>
-                    <div class="svc-bar">
-                        {% set otd_w = [0, [otd_rate_v, 100]|min]|max %}
-                        {% set otd_c = 'bar-green' if otd_rate_v >= 95 else ('bar-amber' if otd_rate_v >= 85 else 'bar-red') %}
-                        <div class="svc-bar-fill {{ otd_c }}" style="width:{{ otd_w }}%"></div>
-                    </div>
+                    <div class="svc-val
+                        {%- if otd_rate_v >= 95 %} c-green
+                        {%- elif otd_rate_v >= 85 %} c-amber
+                        {%- else %} c-red{% endif %}">{{ '%.1f' % otd_rate_v }}%</div>
+                    <div class="svc-desc">Entregas ≤2 días</div>
                 </div>
 
-                {# OFR detail #}
+                {# OFR #}
                 <div class="svc-card">
-                    <div class="svc-icon"><i class="fas fa-clipboard-check"></i></div>
-                    <div class="svc-body">
-                        <span class="svc-val
-                            {%- if order_completion_rate_v >= 95 %} c-green
-                            {%- elif order_completion_rate_v >= 85 %} c-amber
-                            {%- else %} c-red{% endif %}">{{ '%.1f' % order_completion_rate_v }}%</span>
+                    <div class="svc-top">
                         <span class="svc-name">Order Fill Rate</span>
-                        <span class="svc-desc">Cajas entregadas vs pedidas</span>
+                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
+                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
+                            <circle class="ring-fg
+                                {%- if order_completion_rate_v >= 95 %} c-green
+                                {%- elif order_completion_rate_v >= 85 %} c-amber
+                                {%- else %} c-red{% endif %}"
+                                cx="24" cy="24" r="{{ ring_r }}"
+                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ofr_offset }}" />
+                            <text x="24" y="26" class="ring-text">{{ '%.0f' % order_completion_rate_v }}%</text>
+                        </svg>
                     </div>
-                    <div class="svc-bar">
-                        {% set ocr_w = [0, [order_completion_rate_v, 100]|min]|max %}
-                        {% set ocr_c = 'bar-green' if order_completion_rate_v >= 95 else ('bar-amber' if order_completion_rate_v >= 85 else 'bar-red') %}
-                        <div class="svc-bar-fill {{ ocr_c }}" style="width:{{ ocr_w }}%"></div>
-                    </div>
+                    <div class="svc-val
+                        {%- if order_completion_rate_v >= 95 %} c-green
+                        {%- elif order_completion_rate_v >= 85 %} c-amber
+                        {%- else %} c-red{% endif %}">{{ '%.1f' % order_completion_rate_v }}%</div>
+                    <div class="svc-desc">Cajas entregadas vs pedidas</div>
                 </div>
 
                 {# Customer Engagement #}
                 <div class="svc-card">
-                    <div class="svc-icon"><i class="fas fa-users"></i></div>
-                    <div class="svc-body">
-                        <span class="svc-val
-                            {%- if customer_engagement_v >= 80 %} c-green
-                            {%- elif customer_engagement_v >= 60 %} c-amber
-                            {%- else %} c-red{% endif %}">{{ '%.0f' % customer_engagement_v }}%</span>
-                        <span class="svc-name">Customer Engagement</span>
-                        <span class="svc-desc">Clientes activos del mes</span>
+                    <div class="svc-top">
+                        <span class="svc-name">Engagement</span>
+                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
+                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
+                            <circle class="ring-fg
+                                {%- if customer_engagement_v >= 80 %} c-green
+                                {%- elif customer_engagement_v >= 60 %} c-amber
+                                {%- else %} c-red{% endif %}"
+                                cx="24" cy="24" r="{{ ring_r }}"
+                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ce_offset }}" />
+                            <text x="24" y="26" class="ring-text">{{ '%.0f' % customer_engagement_v }}%</text>
+                        </svg>
                     </div>
+                    <div class="svc-val
+                        {%- if customer_engagement_v >= 80 %} c-green
+                        {%- elif customer_engagement_v >= 60 %} c-amber
+                        {%- else %} c-red{% endif %}">{{ '%.0f' % customer_engagement_v }}%</div>
+                    <div class="svc-desc">Clientes activos del mes</div>
                 </div>
 
                 {# Perfect Order Rate #}
                 <div class="svc-card">
-                    <div class="svc-icon"><i class="fas fa-star"></i></div>
-                    <div class="svc-body">
-                        <span class="svc-val
-                            {%- if perfect_order_rate_v >= 95 %} c-green
-                            {%- elif perfect_order_rate_v >= 85 %} c-amber
-                            {%- else %} c-red{% endif %}">{{ '%.0f' % perfect_order_rate_v }}%</span>
-                        <span class="svc-name">Perfect Order Rate</span>
-                        <span class="svc-desc">Entregas perfectas</span>
+                    <div class="svc-top">
+                        <span class="svc-name">Perfect Order</span>
+                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
+                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
+                            <circle class="ring-fg
+                                {%- if perfect_order_rate_v >= 95 %} c-green
+                                {%- elif perfect_order_rate_v >= 85 %} c-amber
+                                {%- else %} c-red{% endif %}"
+                                cx="24" cy="24" r="{{ ring_r }}"
+                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_por_offset }}" />
+                            <text x="24" y="26" class="ring-text">{{ '%.0f' % perfect_order_rate_v }}%</text>
+                        </svg>
                     </div>
+                    <div class="svc-val
+                        {%- if perfect_order_rate_v >= 95 %} c-green
+                        {%- elif perfect_order_rate_v >= 85 %} c-amber
+                        {%- else %} c-red{% endif %}">{{ '%.0f' % perfect_order_rate_v }}%</div>
+                    <div class="svc-desc">Entregas perfectas</div>
                 </div>
 
                 {# Lead Time #}
                 <div class="svc-card">
-                    <div class="svc-icon"><i class="fas fa-clock"></i></div>
-                    <div class="svc-body">
-                        <span class="svc-val
-                            {%- if lead_time_promedio_v <= 2 %} c-green
-                            {%- elif lead_time_promedio_v <= 4 %} c-amber
-                            {%- else %} c-red{% endif %}">{{ lead_time_promedio_v|round(1) }}d</span>
+                    <div class="svc-top">
                         <span class="svc-name">Lead Time</span>
-                        <span class="svc-desc">Promedio de procesamiento</span>
+                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
+                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
+                            <circle class="ring-fg
+                                {%- if lead_time_promedio_v <= 2 %} c-green
+                                {%- elif lead_time_promedio_v <= 4 %} c-amber
+                                {%- else %} c-red{% endif %}"
+                                cx="24" cy="24" r="{{ ring_r }}"
+                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_lt_offset }}" />
+                            <text x="24" y="26" class="ring-text">{{ lead_time_promedio_v|round(1) }}d</text>
+                        </svg>
                     </div>
+                    <div class="svc-val
+                        {%- if lead_time_promedio_v <= 2 %} c-green
+                        {%- elif lead_time_promedio_v <= 4 %} c-amber
+                        {%- else %} c-red{% endif %}">{{ lead_time_promedio_v|round(1) }} días</div>
+                    <div class="svc-desc">Promedio de procesamiento</div>
                 </div>
             </div>
 
@@ -283,44 +330,63 @@
         {# ── Tab: Rankings ── #}
         <div class="tab-panel" id="panel-rankings">
             {# Top 5 Productos #}
-            <div class="rank-section">
-                <h3 class="rank-title"><i class="fas fa-box"></i> Top Productos</h3>
+            <div class="card">
+                <div class="card-head">
+                    <h3><i class="fas fa-box" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Top Productos</h3>
+                </div>
                 {% set max_ingreso_prod = ((top_productos or [])[0].ingresos or 1)|float if (top_productos or []) else 1 %}
-                <div class="rank-scroll">
+                <div class="rank-list">
                     {% for producto in (top_productos or []) %}
                     {% set ingresos = (producto.ingresos or 0)|float %}
                     {% set cajas = (producto.cajas or 0)|int %}
                     {% set peso = (producto.peso or 0)|float %}
                     {% set bar_pct = (ingresos / max_ingreso_prod * 100) if max_ingreso_prod > 0 else 0 %}
-                    <div class="rank-card rc-{{ loop.index }}">
-                        <div class="rc-head">
-                            <span class="rc-pos">{{ loop.index }}</span>
-                            <span class="rc-bar" style="width:{{ bar_pct }}%"></span>
+                    <div class="rank-row">
+                        <span class="rr-pos rc-{{ loop.index }}">{{ loop.index }}</span>
+                        <div class="rr-body">
+                            <div class="rr-top">
+                                <span class="rr-name">{{ producto.nombre }}</span>
+                                <span class="rr-amount">{{ '{:,.0f}'.format(ingresos) }} <small>XCG</small></span>
+                            </div>
+                            <div class="rr-bar-track">
+                                <div class="rr-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
+                            </div>
+                            <div class="rr-meta">
+                                {% if cajas > 0 %}<span><i class="fas fa-boxes-stacked"></i> {{ cajas }} cj</span>{% endif %}
+                                {% if peso > 0 %}<span><i class="fas fa-weight-hanging"></i> {{ '{:,.1f}'.format(peso) }} kg</span>{% endif %}
+                                <span><i class="fas fa-clipboard-list"></i> {{ producto.pedidos or 0 }} ped</span>
+                            </div>
                         </div>
-                        <div class="rc-name">{{ producto.nombre }}</div>
-                        <div class="rc-amount">{{ '{:,.0f}'.format(ingresos) }} <small>XCG</small></div>
-                        <div class="rc-detail">{% if cajas > 0 %}{{ cajas }} cj{% endif %}{% if cajas > 0 and peso > 0 %} · {% endif %}{% if peso > 0 %}{{ '{:,.1f}'.format(peso) }} kg{% endif %}{% if cajas == 0 and peso == 0 %}—{% endif %} · {{ producto.pedidos or 0 }} ped</div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
             {# Top 5 Clientes #}
-            <div class="rank-section" style="margin-top:16px">
-                <h3 class="rank-title"><i class="fas fa-users"></i> Top Clientes</h3>
-                <div class="rank-scroll">
+            <div class="card" style="margin-top:12px">
+                <div class="card-head">
+                    <h3><i class="fas fa-users" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Top Clientes</h3>
+                </div>
+                {% set max_total_cli = ((top_clientes or [])[0][1].total or 1)|float if (top_clientes or []) else 1 %}
+                <div class="rank-list">
                     {% for nombre, datos in (top_clientes or []) %}
                     {% set cliente_total = (datos.total or 0)|float %}
-                    {% set max_total_cli = ((top_clientes or [])[0][1].total or 1)|float if (top_clientes or []) else 1 %}
                     {% set bar_pct = (cliente_total / max_total_cli * 100) if max_total_cli > 0 else 0 %}
-                    <div class="rank-card rc-{{ loop.index }}">
-                        <div class="rc-head">
-                            <span class="rc-pos">{{ loop.index }}</span>
-                            <span class="rc-bar" style="width:{{ bar_pct }}%"></span>
+                    <div class="rank-row">
+                        <span class="rr-pos rc-{{ loop.index }}">{{ loop.index }}</span>
+                        <div class="rr-body">
+                            <div class="rr-top">
+                                <span class="rr-name">{{ nombre }}</span>
+                                <span class="rr-amount">{{ '{:,.0f}'.format(cliente_total) }} <small>XCG</small></span>
+                            </div>
+                            <div class="rr-bar-track">
+                                <div class="rr-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
+                            </div>
+                            <div class="rr-meta">
+                                <span><i class="fas fa-clipboard-list"></i> {{ datos.pedidos or 0 }} pedidos</span>
+                                <span><i class="fas fa-calendar"></i> {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
+                            </div>
                         </div>
-                        <div class="rc-name">{{ nombre }}</div>
-                        <div class="rc-amount">{{ '{:,.0f}'.format(cliente_total) }} <small>XCG</small></div>
-                        <div class="rc-detail">{{ (datos.pedidos or 0) }} pedidos · {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</div>
                     </div>
                     {% endfor %}
                 </div>
@@ -329,11 +395,27 @@
 
         {# ── Tab: Actividad ── #}
         <div class="tab-panel" id="panel-actividad">
-            {# Recent Orders #}
+            {# Status Doughnut — first #}
             <div class="card">
-                <div class="card-head"><h3>Pedidos Recientes</h3></div>
+                <div class="card-head"><h3>Estado de Pedidos</h3></div>
+                <div class="chart-wrap status-chart-wrap" style="height:200px;position:relative">
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="status-legend">
+                    {% for estado, cantidad in (estados_pedidos or {}).items() %}
+                    <div class="sl-item">
+                        <span class="sl-dot {{ estado }}"></span>
+                        <span>{{ estado.replace('_', ' ').title() }}: {{ cantidad }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Recent Orders — below chart #}
+            <div class="card" style="margin-top:12px">
+                <div class="card-head"><h3>Últimos 20 Pedidos</h3></div>
                 <div class="orders-list">
-                    {% for pedido in (pedidos_recientes or []) %}
+                    {% for pedido in (pedidos_recientes or [])[:20] %}
                     <div class="order-row">
                         <div class="order-badge {{ pedido.estado }}">
                             {% if pedido.estado == 'pendiente' %}
@@ -354,22 +436,6 @@
                             {% set total_pedido = (pedido.detalles|sum(attribute='subtotal')|float) if pedido.detalles else 0 %}
                             {{ '{:,.0f}'.format(total_pedido) }}
                         </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            {# Status Doughnut #}
-            <div class="card" style="margin-top:12px">
-                <div class="card-head"><h3>Estado de Pedidos</h3></div>
-                <div class="chart-wrap status-chart-wrap" style="height:200px;position:relative">
-                    <canvas id="statusChart"></canvas>
-                </div>
-                <div class="status-legend">
-                    {% for estado, cantidad in (estados_pedidos or {}).items() %}
-                    <div class="sl-item">
-                        <span class="sl-dot {{ estado }}"></span>
-                        <span>{{ estado.replace('_', ' ').title() }}: {{ cantidad }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -668,47 +734,34 @@
     background: var(--dash-card);
     border: 1px solid var(--dash-border);
     border-radius: 12px;
-    padding: 12px;
+    padding: var(--dash-pad);
     box-shadow: var(--dash-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
-.svc-icon {
-    font-size: 0.875rem;
-    color: var(--dash-text3);
-    margin-bottom: 6px;
-}
-.svc-val {
-    display: block;
-    font-size: 1.25rem;
-    font-weight: 700;
-    line-height: 1.2;
+.svc-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 .svc-name {
-    display: block;
     font-size: 0.6875rem;
     font-weight: 600;
     color: var(--dash-text2);
-    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.svc-val {
+    font-size: 1.375rem;
+    font-weight: 700;
+    line-height: 1.2;
 }
 .svc-desc {
-    display: block;
     font-size: 0.625rem;
     color: var(--dash-text3);
+    line-height: 1.3;
 }
-.svc-bar {
-    height: 4px;
-    background: #2d3a4a;
-    border-radius: 2px;
-    margin-top: 8px;
-    overflow: hidden;
-}
-.svc-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.6s ease;
-}
-.bar-green { background: var(--dash-green); }
-.bar-amber { background: var(--dash-amber); }
-.bar-red { background: var(--dash-red); }
 
 /* KPI Legend Row */
 .kpi-legend-row {
@@ -755,109 +808,109 @@
 .km-val i { font-size: 0.6rem; margin-right: 2px; }
 
 /* ═══════════════════════════
-   RANKINGS TAB — Horizontal Cards
+   RANKINGS TAB — Vertical List
    ═══════════════════════════ */
-.rank-section {}
-.rank-title {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--dash-text);
-    margin: 0 0 8px 2px;
+.rank-list {
+    padding: 0;
 }
-.rank-title i {
-    color: var(--dash-text3);
-    margin-right: 6px;
-    font-size: 0.75rem;
-}
-
-/* Horizontal scroll container */
-.rank-scroll {
+.rank-row {
     display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 4px;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px var(--dash-pad);
+    border-bottom: 1px solid var(--dash-border);
 }
-.rank-scroll::-webkit-scrollbar { display: none; }
+.rank-row:last-child { border-bottom: none; }
 
-/* Individual rank card */
-.rank-card {
-    flex: 0 0 150px;
-    scroll-snap-align: start;
-    background: var(--dash-card);
-    border: 1px solid var(--dash-border);
-    border-radius: 12px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    position: relative;
-    overflow: hidden;
-}
-
-/* Top bar with rank badge + progress bar background */
-.rc-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.rc-pos {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
+/* Position badge */
+.rr-pos {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 800;
     color: #fff;
     flex-shrink: 0;
+    margin-top: 2px;
 }
-.rc-bar {
-    height: 3px;
-    border-radius: 2px;
+
+/* Rank color accents — badge */
+.rr-pos.rc-1 { background: #f59e0b; }
+.rr-pos.rc-2 { background: #60a5fa; }
+.rr-pos.rc-3 { background: #34d399; }
+.rr-pos.rc-4 { background: #a78bfa; }
+.rr-pos.rc-5 { background: #fb7185; }
+
+/* Body with name, bar, meta */
+.rr-body {
     flex: 1;
-    transition: width 0.5s ease;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
-
-/* Rank color accents */
-.rc-1 .rc-pos { background: #f59e0b; }
-.rc-1 .rc-bar { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.rc-2 .rc-pos { background: #60a5fa; }
-.rc-2 .rc-bar { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-.rc-3 .rc-pos { background: #34d399; }
-.rc-3 .rc-bar { background: linear-gradient(90deg, #10b981, #34d399); }
-.rc-4 .rc-pos { background: #a78bfa; }
-.rc-4 .rc-bar { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
-.rc-5 .rc-pos { background: #fb7185; }
-.rc-5 .rc-bar { background: linear-gradient(90deg, #f43f5e, #fb7185); }
-
-.rc-name {
-    font-size: 0.75rem;
+.rr-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+.rr-name {
+    font-size: 0.8125rem;
     font-weight: 600;
     color: var(--dash-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    line-height: 1.3;
 }
-.rc-amount {
-    font-size: 1.125rem;
+.rr-amount {
+    font-size: 0.9375rem;
     font-weight: 700;
     color: var(--dash-text);
-    line-height: 1;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
-.rc-amount small {
+.rr-amount small {
     font-size: 0.625rem;
     font-weight: 500;
     color: var(--dash-text3);
 }
-.rc-detail {
-    font-size: 0.625rem;
+
+/* Proportional bar */
+.rr-bar-track {
+    height: 4px;
+    background: #2d3a4a;
+    border-radius: 2px;
+    overflow: hidden;
+}
+.rr-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+/* Bar color accents */
+.rc-bar-1 { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.rc-bar-2 { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.rc-bar-3 { background: linear-gradient(90deg, #10b981, #34d399); }
+.rc-bar-4 { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.rc-bar-5 { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+
+/* Meta details row */
+.rr-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.6875rem;
     color: var(--dash-text3);
-    line-height: 1.3;
+}
+.rr-meta i {
+    font-size: 0.5625rem;
+    margin-right: 3px;
+    opacity: 0.7;
 }
 
 /* ═══════════════════════════
@@ -958,7 +1011,6 @@
         grid-template-columns: repeat(3, 1fr);
     }
     .wow-row { max-width: none; }
-    .rank-card { flex: 0 0 180px; }
     .orders-list { max-height: 450px; }
 }
 
@@ -978,13 +1030,14 @@
     .kpi-tile { padding: 10px; min-height: 95px; }
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
-    .pair-val { font-size: 1.25rem; }
     .tb-tab { font-size: 0.5625rem; gap: 3px; }
     .tb-tab i { font-size: 0.625rem; }
     .tab-panels { padding: 6px; }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
-    .rank-card { flex: 0 0 130px; padding: 10px; }
+    .rr-name { font-size: 0.75rem; }
+    .rr-amount { font-size: 0.8125rem; }
+    .rr-pos { width: 22px; height: 22px; font-size: 0.6875rem; }
 }
 </style>
 {% endblock %}
