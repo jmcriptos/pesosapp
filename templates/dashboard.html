@@ -393,24 +393,55 @@
    EXECUTIVE DASHBOARD — Mobile-First Design
    ═══════════════════════════════════════════ */
 
-/* — Design Tokens — */
+/* — Design Tokens — Dark Executive Theme */
 :root {
     --dash-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --dash-bg: #f4f6f9;
-    --dash-card: #ffffff;
-    --dash-border: #e5e7eb;
-    --dash-text: #111827;
-    --dash-text2: #6b7280;
-    --dash-text3: #9ca3af;
-    --dash-green: #22c55e;
-    --dash-amber: #f59e0b;
-    --dash-red: #ef4444;
-    --dash-blue: #3b82f6;
-    --dash-purple: #8b5cf6;
-    --dash-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --dash-bg: #0b0e14;
+    --dash-card: #141820;
+    --dash-card2: #1a1f2b;
+    --dash-border: #1f2937;
+    --dash-text: #f1f5f9;
+    --dash-text2: #94a3b8;
+    --dash-text3: #64748b;
+    --dash-green: #34d399;
+    --dash-amber: #fbbf24;
+    --dash-red: #f87171;
+    --dash-blue: #60a5fa;
+    --dash-purple: #a78bfa;
+    --dash-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
     --dash-radius: 14px;
     --dash-gap: 10px;
     --dash-pad: 14px;
+}
+
+/* — Override app shell for dark dashboard — */
+.app-container:has(.exec-dashboard) .app-topbar {
+    background: var(--dash-bg);
+    border-bottom: 1px solid var(--dash-border);
+    color: var(--dash-text);
+}
+.app-container:has(.exec-dashboard) .app-topbar .topbar-menu {
+    color: var(--dash-text2);
+}
+.app-container:has(.exec-dashboard) .app-topbar .topbar-title,
+.app-container:has(.exec-dashboard) .app-topbar .dashboard-title {
+    color: var(--dash-text);
+}
+.app-container:has(.exec-dashboard) .app-topbar .dashboard-subtitle {
+    color: var(--dash-text3);
+}
+.app-container:has(.exec-dashboard) .app-content {
+    background: var(--dash-bg);
+}
+.app-container:has(.exec-dashboard) .app-footer {
+    background: #0d1017;
+    border-top: 1px solid var(--dash-border);
+}
+.app-container:has(.exec-dashboard) .app-footer .nav-item {
+    color: var(--dash-text3);
+}
+.app-container:has(.exec-dashboard) .app-footer .nav-item.active {
+    color: var(--dash-blue);
 }
 
 /* — Base — */
@@ -450,7 +481,7 @@
     border-radius: 6px;
     font-family: var(--dash-font);
 }
-.glance-refresh:active { background: rgba(0,0,0,0.04); }
+.glance-refresh:active { background: rgba(255,255,255,0.05); }
 .glance-refresh i { font-size: 0.8rem; }
 
 /* — KPI Grid 2×2 — */
@@ -516,7 +547,7 @@
 .progress-ring { flex-shrink: 0; }
 .ring-bg {
     fill: none;
-    stroke: #f3f4f6;
+    stroke: #1f2937;
     stroke-width: 4;
 }
 .ring-fg {
@@ -743,7 +774,7 @@
 }
 .svc-bar {
     height: 4px;
-    background: #f3f4f6;
+    background: #1f2937;
     border-radius: 2px;
     margin-top: 8px;
     overflow: hidden;
@@ -782,7 +813,7 @@
 .kpi-month {
     flex: 1;
     text-align: center;
-    background: #fafbfc;
+    background: var(--dash-card2);
     border-radius: 8px;
     padding: 8px 4px;
 }
@@ -810,7 +841,7 @@
     align-items: flex-start;
     gap: 10px;
     padding: 10px 0;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--dash-border);
 }
 .rank-item:last-child { border-bottom: none; }
 .rank-pos {
@@ -827,9 +858,9 @@
     margin-top: 2px;
 }
 .rank-1 { background: #f59e0b; }
-.rank-2 { background: #94a3b8; }
+.rank-2 { background: #64748b; }
 .rank-3 { background: #d97706; }
-.rank-4, .rank-5 { background: #cbd5e1; color: #475569; }
+.rank-4, .rank-5 { background: #374151; color: #94a3b8; }
 .rank-body { flex: 1; min-width: 0; }
 .rank-row {
     display: flex;
@@ -853,7 +884,7 @@
 }
 .rank-bar-wrap {
     height: 4px;
-    background: #f3f4f6;
+    background: #1f2937;
     border-radius: 2px;
     margin: 6px 0;
     overflow: hidden;
@@ -888,7 +919,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px var(--dash-pad);
-    border-bottom: 1px solid #f9fafb;
+    border-bottom: 1px solid var(--dash-border);
 }
 .order-row:last-child { border-bottom: none; }
 .order-badge {
@@ -901,10 +932,10 @@
     font-size: 0.75rem;
     flex-shrink: 0;
 }
-.order-badge.pendiente { background: #fef3c7; color: #d97706; }
-.order-badge.preparado { background: #d1fae5; color: #059669; }
-.order-badge.facturado { background: #dbeafe; color: #2563eb; }
-.order-badge { background: #f3f4f6; color: #6b7280; }
+.order-badge.pendiente { background: rgba(251,191,36,0.15); color: var(--dash-amber); }
+.order-badge.preparado { background: rgba(52,211,153,0.15); color: var(--dash-green); }
+.order-badge.facturado { background: rgba(96,165,250,0.15); color: var(--dash-blue); }
+.order-badge { background: #1f2937; color: var(--dash-text3); }
 .order-info { flex: 1; min-width: 0; }
 .order-id {
     display: block;
@@ -954,7 +985,7 @@
 /* Custom scrollbar */
 .orders-list::-webkit-scrollbar { width: 3px; }
 .orders-list::-webkit-scrollbar-track { background: transparent; }
-.orders-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 3px; }
+.orders-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
 
 /* ═══════════════════════════
    DESKTOP RESPONSIVE (≥769px)
@@ -972,20 +1003,19 @@
     .svc-grid {
         grid-template-columns: repeat(3, 1fr);
     }
-    .wow-row { max-width: 600px; }
+    .wow-row { max-width: none; }
     .rank-list { columns: 1; }
     .orders-list { max-height: 450px; }
 }
 
-/* Large desktop */
+/* Large desktop — full width */
 @media (min-width: 1024px) {
-    .exec-dashboard {
-        max-width: 1000px;
-        margin: 0 auto;
-    }
     .svc-grid {
         grid-template-columns: repeat(5, 1fr);
     }
+    .tab-panels { padding: var(--dash-gap) 16px; }
+    .kpi-grid { padding: 6px 16px var(--dash-gap); }
+    .glance-header { padding: 12px 16px 4px; }
 }
 
 /* ═══════════════════════════
@@ -1013,8 +1043,8 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         // === GLOBAL CHART CONFIG ===
         Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
-        Chart.defaults.color = '#6b7280';
-        Chart.defaults.borderColor = 'rgba(243, 244, 246, 0.8)';
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(31, 41, 55, 0.8)';
 
         // Safe data
         const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
@@ -1133,7 +1163,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             display: true,
                             position: 'left',
                             beginAtZero: true,
-                            grid: { color: 'rgba(243,244,246,0.8)' },
+                            grid: { color: 'rgba(31,41,55,0.6)' },
                             ticks: {
                                 callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
                                 font: { size: 10 }
@@ -1233,7 +1263,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     },
                     scales: {
-                        y: { min: 0, max: 100, grid: { color: 'rgba(243,244,246,0.8)' }, ticks: { callback: v => v+'%', stepSize: 25, font: { size: 10 } } },
+                        y: { min: 0, max: 100, grid: { color: 'rgba(31,41,55,0.6)' }, ticks: { callback: v => v+'%', stepSize: 25, font: { size: 10 } } },
                         x: { grid: { display: false }, ticks: { font: { size: 10 } } }
                     }
                 }
@@ -1256,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 type: 'doughnut',
                 data: {
                     labels: labels,
-                    datasets: [{ data: values, backgroundColor: colors, borderColor: '#fff', borderWidth: 3, cutout: '65%', hoverOffset: 6 }]
+                    datasets: [{ data: values, backgroundColor: colors, borderColor: '#141820', borderWidth: 3, cutout: '65%', hoverOffset: 6 }]
                 },
                 options: {
                     responsive: true,
@@ -1297,7 +1327,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <style>
 /* Doughnut center text (injected by JS) */
-.doughnut-center .dc-num { font-size: 1.25rem; font-weight: 700; color: #111827; line-height: 1; }
-.doughnut-center .dc-label { font-size: 0.625rem; color: #6b7280; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+.doughnut-center .dc-num { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; line-height: 1; }
+.doughnut-center .dc-label { font-size: 0.625rem; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
 </style>
 {% endblock %}
