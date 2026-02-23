@@ -189,30 +189,48 @@ tr:hover td { background-color: #1a1f2b !important; }
 }
 
 /* ── 11. Tom Select ── */
-.ts-wrapper .ts-control {
+.ts-wrapper .ts-control,
+.ts-wrapper.single .ts-control,
+.ts-wrapper.multi .ts-control {
     background: #1a1f2b !important;
     border-color: #3b4a5c !important;
     color: #f1f5f9 !important;
 }
-.ts-wrapper.focus .ts-control {
+.ts-wrapper.focus .ts-control,
+.ts-wrapper.single.focus .ts-control,
+.ts-wrapper.multi.focus .ts-control {
     background: #1f2633 !important;
     border-color: #1877ff !important;
     box-shadow: 0 0 0 3px rgba(24,119,255,0.2) !important;
 }
+.ts-control input,
+.ts-control input::placeholder { color: #94a3b8 !important; }
 .ts-control input { color: #f1f5f9 !important; }
-.ts-control .item { color: #f1f5f9 !important; }
-.ts-dropdown {
+.ts-control .item,
+.ts-wrapper.single .ts-control .item { color: #f1f5f9 !important; }
+.ts-dropdown,
+.ts-dropdown.single,
+.ts-dropdown.multi {
     background: #141820 !important;
     border-color: #3b4a5c !important;
     color: #f1f5f9 !important;
 }
-.ts-dropdown .option { color: #94a3b8 !important; }
+.ts-dropdown .option {
+    color: #f1f5f9 !important;
+    background: #141820 !important;
+}
 .ts-dropdown .option:hover,
 .ts-dropdown .option.active {
     background: #1a1f2b !important;
     color: #60a5fa !important;
 }
+.ts-dropdown .option .highlight {
+    background: rgba(24,119,255,0.3) !important;
+    color: #60a5fa !important;
+}
 .ts-dropdown .no-results { color: #64748b !important; }
+.ts-dropdown .optgroup-header { color: #94a3b8 !important; background: #0b0e14 !important; }
+.ts-wrapper .ts-control > input::placeholder { color: #64748b !important; }
 
 /* ── 12. Pedidos List Page ── */
 .pedidos-container {
@@ -600,11 +618,46 @@ button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !impo
     background: linear-gradient(to top, rgba(11,14,20,1) 60%, rgba(11,14,20,0)) !important;
 }
 .mobile-select-wrapper::after { color: #94a3b8 !important; }
+
+/* Suggestions dropdown */
+.mobile-suggestions {
+    background: #141820 !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.5) !important;
+    border: 1px solid #3b4a5c !important;
+}
+.mobile-suggestion-item {
+    color: #f1f5f9 !important;
+    border-bottom-color: #3b4a5c !important;
+}
+.mobile-suggestion-item:active {
+    background: #1a1f2b !important;
+}
+
+/* Producto card items in the order list */
+.producto-card-item {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.producto-card-nombre { color: #f1f5f9 !important; }
+.producto-card-meta { color: #94a3b8 !important; }
+.producto-card-meta strong { color: #f1f5f9 !important; }
+.producto-card-subtotal { color: #60a5fa !important; }
+.producto-card-delete {
+    background: rgba(248,113,113,0.15) !important;
+    color: #f87171 !important;
+}
+.producto-card-delete:active { background: rgba(248,113,113,0.3) !important; }
+
 /* Search/filter inputs in pedido form */
 .search-input, .filter-input {
     background: #1a1f2b !important;
     border-color: #3b4a5c !important;
     color: #f1f5f9 !important;
+}
+
+/* Empty state text */
+.mobile-form-container .text-center {
+    color: #64748b !important;
 }
 
 /* ── 20. Etiquetas Page ── */
