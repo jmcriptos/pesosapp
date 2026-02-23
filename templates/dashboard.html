@@ -300,7 +300,7 @@
             </div>
 
             {# KPI Evolution Chart #}
-            <div class="card" style="margin-top:12px">
+            <div class="card svc-chart-card">
                 <div class="card-head">
                     <h3>Evolución de Indicadores</h3>
                     <div class="kpi-legend-row">
@@ -308,7 +308,7 @@
                         <span class="legend-dot" style="background:#f59e0b;margin-left:12px"></span> OTD
                     </div>
                 </div>
-                <div class="chart-wrap" style="height:220px">
+                <div class="chart-wrap svc-chart-wrap">
                     <canvas id="kpiEvolutionChart"></canvas>
                 </div>
                 <div class="kpi-months">
@@ -811,6 +811,23 @@
 }
 .km-val i { font-size: 0.6rem; margin-right: 2px; }
 
+/* — Service chart: fill available vertical space — */
+#panel-servicio.active {
+    display: flex !important;
+    flex-direction: column;
+    min-height: calc(100vh - 160px);
+}
+.svc-chart-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 12px;
+}
+.svc-chart-wrap {
+    flex: 1;
+    min-height: 180px;
+}
+
 /* ═══════════════════════════
    RANKINGS TAB — Vertical List
    ═══════════════════════════ */
@@ -1011,7 +1028,8 @@
     }
     .tb-tab i { font-size: 0.8125rem; }
     .tb-label { display: inline; }
-    .chart-wrap { height: 320px !important; padding: 0 16px 16px; }
+    .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
+    .svc-chart-wrap { min-height: 280px; }
     .svc-grid {
         grid-template-columns: repeat(3, 1fr);
     }
