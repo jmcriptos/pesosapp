@@ -478,16 +478,25 @@ button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !impo
     background: linear-gradient(135deg, #1877ff 0%, #0d5bdb 100%) !important;
 }
 
-/* Linea pedido original (uses !important in template) */
+/* Linea pedido original */
 .linea-pedido-original,
 .producto-item-mobile.linea-pedido-original {
     background: #0f1318 !important;
-    opacity: 0.7 !important;
 }
 tr.linea-pedido-original td { color: #64748b !important; }
+tr.linea-pedido-original td:first-child {
+    border-left: 3px solid #fbbf24 !important;
+}
 .badge-pedido {
-    background: #3b4a5c !important;
-    color: #94a3b8 !important;
+    background: rgba(251,191,36,0.2) !important;
+    color: #fbbf24 !important;
+}
+/* Mobile: left accent on cards */
+.producto-item-mobile.linea-pedido-original {
+    border-left: 3px solid #fbbf24 !important;
+}
+.producto-item-mobile.linea-preparacion {
+    border-left: 3px solid #1877ff !important;
 }
 
 /* Empty state */
@@ -515,6 +524,18 @@ tr.linea-pedido-original td { color: #64748b !important; }
 }
 .mobile-table tr:hover td { background: #1a1f2b !important; }
 .product-name { color: #f1f5f9 !important; }
+
+/* Visual grouping: prep lines get blue left accent */
+tr.linea-preparacion td:first-child {
+    border-left: 3px solid #1877ff !important;
+}
+/* Date columns: ensure no truncation */
+.mobile-table th:nth-child(5),
+.mobile-table th:nth-child(6),
+.mobile-table td:nth-child(5),
+.mobile-table td:nth-child(6) {
+    white-space: nowrap !important;
+}
 
 /* Totals section */
 .mobile-totals-section { color: #f1f5f9; }

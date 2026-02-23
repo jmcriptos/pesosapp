@@ -603,7 +603,7 @@
    ============================================ */
 @media screen and (min-width: 769px) {
     .mobile-form-container {
-        max-width: 1000px;
+        max-width: 1100px;
         margin: 0 auto;
         padding: 20px;
         padding-bottom: 120px;
@@ -615,7 +615,7 @@
 
     .mobile-form-grid {
         display: grid;
-        grid-template-columns: minmax(240px, 6fr) minmax(90px, 2fr) minmax(120px, 2.5fr) minmax(140px, 2.5fr) minmax(140px, 2.5fr) auto;
+        grid-template-columns: minmax(280px, 6fr) minmax(90px, 2fr) minmax(120px, 2.5fr) minmax(150px, 2.5fr) minmax(150px, 2.5fr) auto;
         gap: 12px;
         align-items: end;
     }
@@ -902,24 +902,28 @@
    LÍNEAS DE PEDIDO ORIGINAL (es_linea_pedido)
    ============================================ */
 .linea-pedido-original {
-    background: #f0f0f0 !important;
-    opacity: 0.7;
+    background: #0f1318 !important;
 }
 
 .badge-pedido {
     display: inline-block;
-    background: #6b7280;
-    color: #fff;
+    background: rgba(251,191,36,0.2);
+    color: #fbbf24;
     font-size: 0.65rem;
     font-weight: 600;
-    padding: 2px 6px;
+    padding: 2px 8px;
     border-radius: 4px;
     vertical-align: middle;
     margin-left: 4px;
 }
 
 tr.linea-pedido-original td {
-    color: #6b7280;
+    color: #64748b !important;
+}
+
+/* Visual grouping: left accent on pedido rows */
+tr.linea-pedido-original td:first-child {
+    border-left: 3px solid #fbbf24;
 }
 
 /* ============================================
@@ -1056,7 +1060,7 @@ tr.linea-pedido-original td {
                         </div>
                         {% else %}
                         {# Línea de preparación: detalle completo #}
-                        <div class="producto-item-mobile">
+                        <div class="producto-item-mobile linea-preparacion">
                             <div class="producto-item-header">
                                 <span class="producto-item-index">{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</span>
                                 <span class="producto-item-name">{{ detalle.producto.nombre }}</span>
@@ -1142,7 +1146,7 @@ tr.linea-pedido-original td {
                                 <td></td>
                             </tr>
                             {% else %}
-                            <tr>
+                            <tr class="linea-preparacion">
                                 <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
                                 <td class="product-name">{{ detalle.producto.nombre }}</td>
                                 <td>{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.5">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</td>
