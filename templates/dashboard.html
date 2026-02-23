@@ -4,8 +4,12 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block header_title %}
-<span class="dashboard-title">Dashboard</span>
-<span class="dashboard-subtitle">{{ fecha_actual.strftime('%b %Y') if fecha_actual else '' }}</span>
+<div class="topbar-tabs" id="tabBar">
+    <button class="tb-tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span>Ventas</span></button>
+    <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span>Servicio</span></button>
+    <button class="tb-tab" data-tab="rankings"><i class="fas fa-trophy"></i><span>Top</span></button>
+    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span>Reciente</span></button>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -121,15 +125,7 @@
         </div>
     </div>
 
-    {# ══════ ZONA B: Tab Bar ══════ #}
-    <div class="tab-bar" id="tabBar">
-        <button class="tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span>Ventas</span></button>
-        <button class="tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span>Servicio</span></button>
-        <button class="tab" data-tab="rankings"><i class="fas fa-trophy"></i><span>Top</span></button>
-        <button class="tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span>Reciente</span></button>
-    </div>
-
-    {# ══════ ZONA C: Tab Panels ══════ #}
+    {# ══════ ZONA B: Tab Panels ══════ #}
     <div class="tab-panels">
 
         {# ── Tab: Tendencia ── #}
@@ -409,12 +405,12 @@
 .app-container:has(.exec-dashboard) .app-topbar .topbar-menu {
     color: var(--dash-text2);
 }
-.app-container:has(.exec-dashboard) .app-topbar .topbar-title,
-.app-container:has(.exec-dashboard) .app-topbar .dashboard-title {
-    color: var(--dash-text);
-}
-.app-container:has(.exec-dashboard) .app-topbar .dashboard-subtitle {
-    color: var(--dash-text3);
+.app-container:has(.exec-dashboard) .app-topbar .topbar-title {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    height: 100%;
+    overflow: hidden;
 }
 .app-container:has(.exec-dashboard) .app-content {
     background: var(--dash-bg);
@@ -604,25 +600,23 @@
 .c-red { color: var(--dash-red); }
 
 /* ═══════════════════════════
-   TAB BAR
+   TOPBAR TABS
    ═══════════════════════════ */
-.tab-bar {
-    position: sticky;
-    top: 0;
-    z-index: 40;
+.topbar-tabs {
     display: flex;
-    background: var(--dash-bg);
-    border-bottom: 1px solid var(--dash-border);
-    padding: 0 4px;
+    align-items: stretch;
+    height: 100%;
+    gap: 0;
+    flex: 1;
 }
-.tab {
+.tb-tab {
     flex: 1;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 8px 4px 6px;
-    font-size: 0.625rem;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 4px;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: var(--dash-text3);
     border: none;
@@ -631,12 +625,12 @@
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
     font-family: var(--dash-font);
+    white-space: nowrap;
 }
-.tab i {
-    font-size: 0.9375rem;
-    line-height: 1;
+.tb-tab i {
+    font-size: 0.75rem;
 }
-.tab.active {
+.tb-tab.active {
     color: var(--dash-blue);
     border-bottom-color: var(--dash-blue);
 }
@@ -1018,18 +1012,11 @@
     .kpi-grid {
         grid-template-columns: repeat(4, 1fr);
     }
-    .tab-bar {
-        justify-content: center;
-        padding: 0;
-    }
-    .tab {
-        flex: 0 0 auto;
-        flex-direction: row;
-        gap: 6px;
-        padding: 10px 24px;
+    .tb-tab {
         font-size: 0.8125rem;
+        gap: 6px;
     }
-    .tab i { font-size: 0.8125rem; }
+    .tb-tab i { font-size: 0.8125rem; }
     .chart-wrap { height: 320px !important; padding: 0 16px 16px; }
     .svc-grid {
         grid-template-columns: repeat(3, 1fr);
@@ -1058,8 +1045,8 @@
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
     .pair-val { font-size: 1.25rem; }
-    .tab i { font-size: 0.8125rem; }
-    .tab span { font-size: 0.5625rem; }
+    .tb-tab { font-size: 0.5625rem; gap: 3px; }
+    .tb-tab i { font-size: 0.625rem; }
     .tab-panels { padding: 6px; }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
@@ -1103,9 +1090,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const chartInited = { tendencia: false, servicio: false, actividad: false };
 
         tabBar.addEventListener('click', function(e) {
-            const tab = e.target.closest('.tab');
+            const tab = e.target.closest('.tb-tab');
             if (!tab) return;
-            tabBar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tabBar.querySelectorAll('.tb-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             const target = tab.dataset.tab;
             panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + target));
