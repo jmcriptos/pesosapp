@@ -5,10 +5,10 @@
 
 {% block header_title %}
 <div class="topbar-tabs" id="tabBar">
-    <button class="tb-tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i></button>
-    <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i></button>
-    <button class="tb-tab" data-tab="rankings"><i class="fas fa-trophy"></i></button>
-    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i></button>
+    <button class="tb-tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span class="tb-label">Ventas</span></button>
+    <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span class="tb-label">Servicio</span></button>
+    <button class="tb-tab" data-tab="rankings"><i class="fas fa-trophy"></i><span class="tb-label">Top</span></button>
+    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span class="tb-label">Reciente</span></button>
 </div>
 {% endblock %}
 
@@ -635,6 +635,7 @@
 .tb-tab i {
     font-size: 1rem;
 }
+.tb-label { display: none; }
 .tb-tab.active {
     color: var(--dash-blue);
     border-bottom-color: var(--dash-blue);
@@ -1009,6 +1010,7 @@
         gap: 6px;
     }
     .tb-tab i { font-size: 0.8125rem; }
+    .tb-label { display: inline; }
     .chart-wrap { height: 320px !important; padding: 0 16px 16px; }
     .svc-grid {
         grid-template-columns: repeat(3, 1fr);
