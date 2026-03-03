@@ -587,36 +587,126 @@ tr.linea-preparacion td:first-child {
 .productos-container { color: #f1f5f9; }
 
 /* ── 16. Precios Pages ── */
-.precio-table {
+
+/* Shared precios table */
+.precio-table, .precios-table {
     background: #141820 !important;
 }
-.precio-table th {
-    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+.precio-table th, .precios-table th {
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%) !important;
     color: white !important;
 }
-.precio-table td { border-color: #3b4a5c !important; color: #f1f5f9 !important; }
-.precio-table tr:hover td { background: #1a1f2b !important; }
+.precio-table td, .precios-table td { border-color: #1e2533 !important; color: #f1f5f9 !important; }
+.precio-table tr:hover td, .precios-table tr:hover td { background: #1a1f2b !important; }
+
+/* Badges */
 .precio-badge.default { background: rgba(251,191,36,0.15) !important; color: #fbbf24 !important; border-color: rgba(251,191,36,0.3) !important; }
 .precio-badge.active { background: rgba(16,185,129,0.15) !important; color: #34d399 !important; border-color: rgba(16,185,129,0.3) !important; }
 .precio-badge.inactive { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; border-color: rgba(248,113,113,0.3) !important; }
+
+/* Form elements */
 .precio-form-group label { color: #f1f5f9 !important; }
 .precio-form-group input, .precio-form-group select {
     background: #1a1f2b !important;
     border-color: #3b4a5c !important;
     color: #f1f5f9 !important;
 }
-.precio-display { color: #34d399 !important; }
-/* Precio cards (index page) */
+
+/* Containers */
+.precios-container, .precios-productos-container { color: #f1f5f9; }
+.lista-info-header {
+    background: #141820 !important;
+    border-color: #3b4a5c !important;
+}
+.lista-info-header h2 { color: #f1f5f9 !important; }
+.lista-info-header .lista-descripcion { color: #94a3b8 !important; }
+
+.precio-form-card, .precios-tabla-card, .agregar-form-card {
+    background: #141820 !important;
+    border: 1px solid #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.precio-form-card h3, .precios-tabla-card h3, .agregar-form-card h3 { color: #f1f5f9 !important; }
+
+/* Hub cards (index page) */
 .precio-card {
     background: #141820 !important;
+    border: 1px solid #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.precio-card:hover { border-color: #60a5fa !important; }
+.precio-card h3 { color: #f1f5f9 !important; }
+.precio-card p { color: #94a3b8 !important; }
+.precio-icon { color: #1877ff !important; }
+.precio-count {
+    background: rgba(24,119,255,0.15) !important;
+    color: #60a5fa !important;
+}
+
+/* Listas page */
+.lista-card {
+    background: #141820 !important;
+    border: 1px solid #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.lista-card:hover { border-color: #60a5fa !important; }
+.lista-card h3 { color: #f1f5f9 !important; }
+.lista-card p { color: #94a3b8 !important; }
+.lista-stats {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.stat-item { color: #94a3b8 !important; }
+.stat-item .stat-value { color: #f1f5f9 !important; }
+
+/* Form controls in precios */
+.precios-container .form-control,
+.precios-container .form-input,
+.precios-container select,
+.precios-container input[type="text"],
+.precios-container input[type="number"] {
+    background: #1a1f2b !important;
     border-color: #3b4a5c !important;
     color: #f1f5f9 !important;
 }
-.precio-card:hover {
-    border-color: #60a5fa !important;
+.precios-container .form-control:focus,
+.precios-container input:focus,
+.precios-container select:focus {
+    border-color: #1877ff !important;
 }
-.precio-card h3 { color: #f1f5f9 !important; }
-.precio-card p { color: #94a3b8 !important; }
+.precios-container label { color: #f1f5f9 !important; }
+
+/* Upload / carga masiva */
+.upload-section, .resultado-section, .plantilla-section {
+    background: #141820 !important;
+    border: 1px solid #3b4a5c !important;
+    color: #f1f5f9 !important;
+}
+.upload-section h2, .resultado-section h3, .plantilla-section h3 { color: #f1f5f9 !important; }
+.upload-section label, .upload-section .form-help { color: #94a3b8 !important; }
+.resultado-section .stat-item {
+    background: #1a1f2b !important;
+    border-color: #3b4a5c !important;
+}
+.resultado-section .stat-label { color: #94a3b8 !important; }
+.resultado-section .stat-value { color: #f1f5f9 !important; }
+
+/* Buttons in precios */
+.precios-container .btn-primary, .upload-section .btn-primary {
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+.precios-container .btn-secondary, .upload-section .btn-secondary {
+    background: #1a1f2b !important;
+    color: #94a3b8 !important;
+    border: 1px solid #3b4a5c !important;
+}
+
+/* Empty states */
+.precios-container .empty-message, .precios-tabla-card .empty-state {
+    color: #64748b !important;
+}
 
 /* ── 17. Facturación Page ── */
 .facturacion-form { color: #f1f5f9; }

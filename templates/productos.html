@@ -28,6 +28,10 @@
             <input type="text" id="temperatura" name="temperatura" class="form-input">
         </div>
         <div class="form-group">
+            <label for="proveedor">Proveedor:</label>
+            <input type="text" id="proveedor" name="proveedor" class="form-input" placeholder="Ej: Distribuidora ABC">
+        </div>
+        <div class="form-group">
             <label for="qbo-producto">QBO ID (opcional):</label>
             <input type="text" id="qbo-producto" name="qbo_id" class="form-input">
         </div>
@@ -61,6 +65,7 @@
                 <tr>
                     <th class="text-center">ID</th>
                     <th>Nombre</th>
+                    <th>Proveedor</th>
                     <th>Descripción</th>
                     <th class="text-center">Temperatura</th>
                     <th class="text-center">QBO ID</th>
@@ -74,6 +79,7 @@
                 <tr id="producto-{{ producto.id }}">
                     <td class="text-center">{{ producto.id }}</td>
                     <td>{{ producto.nombre }}</td>
+                    <td>{{ producto.proveedor or '—' }}</td>
                     <td>{{ producto.descripcion }}</td>
                     <td class="text-center">{{ producto.temperatura }}</td>
                     <td class="text-center">{{ producto.qbo_id or '—' }}</td>

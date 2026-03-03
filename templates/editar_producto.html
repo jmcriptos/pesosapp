@@ -58,6 +58,12 @@
                 </div>
 
                 <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="proveedor">Proveedor:</label>
+                    <input type="text" id="proveedor" name="proveedor" value="{{ producto.proveedor or '' }}"
+                           class="mobile-form-control" placeholder="Ej: Distribuidora ABC">
+                </div>
+
+                <div class="mobile-form-group">
                     <label class="mobile-form-label" for="tax_rate">TaxCode ID:</label>
                     <select id="tax_rate" name="tax_rate" class="mobile-form-control ts-select">
                         <option value="10" {% if producto.tax_rate|int == 10 %}selected{% endif %}>OB 6%</option>

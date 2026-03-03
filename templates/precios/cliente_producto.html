@@ -4,7 +4,7 @@
 {% block title %}Precios Específicos{% endblock %}
 
 {% block header_title %}
-    <i class="fas fa-tags" style="color: #28a745; margin-right: 10px;"></i>Precios Específicos
+    <i class="fas fa-tags color-blue mr-10"></i>Precios Específicos
 {% endblock %}
 
 {% block content %}
@@ -24,10 +24,10 @@
         </div>
     </div>
 
-    <!-- Formulario para crear precio específico -->
+    <!-- Formulario para crear precio especifico -->
     <div class="precio-especifico-card">
         <h3><i class="fas fa-bullseye"></i> Crear Precio Específico</h3>
-        
+
         <form id="form-precio-especifico">
             <!-- US01: hidden CSRF field -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -41,7 +41,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="producto_id">Producto:</label>
                     <select id="producto_id" name="producto_id" class="form-control ts-select" required>
@@ -51,23 +51,23 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="precio_base">Precio Base ($):</label>
                     <input type="number" id="precio_base" name="precio_base" class="form-control" step="0.01" min="0" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="margen_jomar">Margen Jomar:</label>
                     <input type="number" id="margen_jomar" name="margen_jomar" class="form-control" step="0.01" min="0" value="1.0">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="margen_retail">Margen Retail:</label>
                     <input type="number" id="margen_retail" name="margen_retail" class="form-control" step="0.01" min="0" value="1.2">
                 </div>
             </div>
-            
+
             <div class="precios-calculados">
                 <div class="precio-calc-item">
                     <label>Precio Jomar:</label>
@@ -78,7 +78,7 @@
                     <div id="precio_retail_calc" class="precio-calculado">$0.00</div>
                 </div>
             </div>
-            
+
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Guardar Precio
@@ -90,14 +90,14 @@
         </form>
     </div>
 
-    <!-- Tabla de precios específicos existentes -->
+    <!-- Tabla de precios especificos existentes -->
     <div class="precios-existentes-card">
         <h3>
-            <i class="fas fa-table"></i> 
-            Precios Específicos Configurados 
+            <i class="fas fa-table"></i>
+            Precios Específicos Configurados
             <span class="contador-precios">({{ precios_especificos|length }})</span>
         </h3>
-        
+
         {% if precios_especificos %}
         <div class="table-responsive">
             <table class="table">
@@ -114,8 +114,8 @@
                 </thead>
                 <tbody>
                     {% for precio, cliente, producto in precios_especificos %}
-                    <tr data-precio-id="{{ precio.id }}" 
-                        data-cliente-id="{{ cliente.id }}" 
+                    <tr data-precio-id="{{ precio.id }}"
+                        data-cliente-id="{{ cliente.id }}"
                         data-producto-id="{{ producto.id }}"
                         data-precio-base="{{ precio.precio_base }}"
                         data-margen-jomar="{{ precio.margen_jomar or 1.0 }}"
@@ -194,35 +194,35 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    background: white;
+    background: #141820;
     padding: 25px;
     border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #3b4a5c;
 }
 
 .header-info h2 {
-    color: #28a745;
+    color: #f1f5f9;
     margin: 0 0 10px 0;
     font-size: 1.8rem;
 }
 
 .header-info p {
-    color: #666;
+    color: #94a3b8;
     margin: 0;
     line-height: 1.5;
 }
 
 .precio-especifico-card, .precios-existentes-card {
-    background: white;
+    background: #141820;
     padding: 25px;
     border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #3b4a5c;
 }
 
 .precio-especifico-card h3, .precios-existentes-card h3 {
-    color: #333;
+    color: #f1f5f9;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
@@ -231,8 +231,8 @@
 }
 
 .contador-precios {
-    background: #28a745;
-    color: white;
+    background: rgba(24,119,255,0.15);
+    color: #60a5fa;
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 0.9rem;
@@ -254,18 +254,20 @@
 .form-group label {
     margin-bottom: 8px;
     font-weight: 600;
-    color: #333;
+    color: #f1f5f9;
 }
 
 .form-control {
     padding: 10px 12px;
-    border: 2px solid #e1e5e9;
+    background: #1a1f2b;
+    border: 1px solid #3b4a5c;
     border-radius: 6px;
     font-size: 16px;
+    color: #f1f5f9;
 }
 
 .form-control:focus {
-    border-color: #28a745;
+    border-color: #1877ff;
     outline: none;
 }
 
@@ -275,7 +277,7 @@
     gap: 20px;
     margin-bottom: 20px;
     padding: 20px;
-    background: #f8f9fa;
+    background: #1a1f2b;
     border-radius: 8px;
 }
 
@@ -287,15 +289,15 @@
     display: block;
     margin-bottom: 10px;
     font-weight: 600;
-    color: #333;
+    color: #f1f5f9;
 }
 
 .precio-calculado {
     font-size: 1.5rem;
     font-weight: bold;
-    color: #28a745;
+    color: #34d399;
     padding: 15px;
-    background: white;
+    background: #141820;
     border-radius: 6px;
     font-family: monospace;
 }
@@ -319,19 +321,20 @@
 }
 
 .btn-primary {
-    background: #28a745;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
     color: white;
 }
 
 .btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: #1a1f2b;
+    color: #94a3b8;
+    border: 1px solid #3b4a5c;
 }
 
 .btn-light {
-    background: #f8f9fa;
-    color: #495057;
-    border: 1px solid #dee2e6;
+    background: #1a1f2b;
+    color: #94a3b8;
+    border: 1px solid #3b4a5c;
 }
 
 .btn-edit, .btn-delete {
@@ -343,13 +346,13 @@
 }
 
 .btn-edit {
-    background: #ffc107;
-    color: #212529;
+    background: rgba(251,191,36,0.15);
+    color: #fbbf24;
 }
 
 .btn-delete {
-    background: #dc3545;
-    color: white;
+    background: rgba(239,68,68,0.15);
+    color: #f87171;
 }
 
 .table-responsive {
@@ -362,7 +365,7 @@
 }
 
 .table th {
-    background: #28a745;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
     color: white;
     padding: 12px 8px;
     text-align: center;
@@ -371,32 +374,34 @@
 
 .table td {
     padding: 12px 8px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #1e2533;
     text-align: center;
+    color: #f1f5f9;
 }
 
 .precio-valor {
     font-family: monospace;
     font-weight: bold;
+    color: #f1f5f9;
 }
 
 .precio-valor.jomar {
-    color: #17a2b8;
+    color: #38bdf8;
 }
 
 .precio-valor.retail {
-    color: #fd7e14;
+    color: #fb923c;
 }
 
 .empty-message {
     text-align: center;
     padding: 40px 20px;
-    color: #666;
+    color: #64748b;
 }
 
 .empty-icon {
     font-size: 3rem;
-    color: #ccc;
+    color: #3b4a5c;
     margin-bottom: 15px;
 }
 
@@ -405,14 +410,14 @@
 }
 
 .info-card {
-    background: white;
+    background: #141820;
     padding: 25px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #3b4a5c;
 }
 
 .info-card h4 {
-    color: #333;
+    color: #f1f5f9;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
@@ -430,7 +435,7 @@
     align-items: center;
     gap: 15px;
     padding: 15px;
-    background: #f8f9fa;
+    background: #1a1f2b;
     border-radius: 8px;
 }
 
@@ -438,7 +443,7 @@
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #28a745;
+    background: #1877ff;
     color: white;
     display: flex;
     align-items: center;
@@ -454,11 +459,12 @@
 .jerarquia-item strong {
     display: block;
     margin-bottom: 5px;
+    color: #f1f5f9;
 }
 
 .jerarquia-item p {
     margin: 0;
-    color: #666;
+    color: #94a3b8;
     font-size: 0.9rem;
 }
 
@@ -474,11 +480,11 @@
 }
 
 .flash-message.success {
-    background: #28a745;
+    background: #059669;
 }
 
 .flash-message.error {
-    background: #dc3545;
+    background: #dc2626;
 }
 
 @media (max-width: 768px) {
@@ -486,15 +492,15 @@
         flex-direction: column;
         gap: 15px;
     }
-    
+
     .especifico-form-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .precios-calculados {
         grid-template-columns: 1fr;
     }
-    
+
     .form-actions {
         flex-direction: column;
     }
@@ -514,7 +520,7 @@ function mostrarMensaje(mensaje, tipo) {
     flashDiv.className = 'flash-message ' + tipo;
     flashDiv.textContent = mensaje;
     flashDiv.style.display = 'block';
-    
+
     setTimeout(function() {
         flashDiv.style.display = 'none';
     }, 3000);
@@ -524,10 +530,10 @@ function calcularPrecios() {
     const base = parseFloat(document.getElementById('precio_base').value) || 0;
     const margenJ = parseFloat(document.getElementById('margen_jomar').value) || 1.0;
     const margenR = parseFloat(document.getElementById('margen_retail').value) || 1.2;
-    
+
     const jomar = base * margenJ;
     const retail = base * margenR;
-    
+
     document.getElementById('precio_jomar_calc').textContent = '$' + jomar.toFixed(2);
     document.getElementById('precio_retail_calc').textContent = '$' + retail.toFixed(2);
 }
@@ -548,21 +554,21 @@ function configurarEventListeners() {
             elemento.addEventListener('input', calcularPrecios);
         }
     });
-    
+
     // Limpiar formulario
     const btnLimpiar = document.getElementById('limpiar-form');
     if (btnLimpiar) {
         btnLimpiar.addEventListener('click', limpiarFormulario);
     }
-    
+
     // Enviar formulario
     const formulario = document.getElementById('form-precio-especifico');
     if (formulario) {
         formulario.addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const formData = new FormData(this);
-            
+
             fetch('/precios/cliente-producto', {
                 method: 'POST',
                 body: formData
@@ -582,12 +588,12 @@ function configurarEventListeners() {
             });
         });
     }
-    
+
     // Event listeners para botones de la tabla
     document.addEventListener('click', function(e) {
         const target = e.target.closest('button');
         if (!target) return;
-        
+
         if (target.classList.contains('btn-edit')) {
             const fila = target.closest('tr');
             if (fila) {
@@ -596,27 +602,27 @@ function configurarEventListeners() {
                 const precioBase = fila.dataset.precioBase;
                 const margenJomar = fila.dataset.margenJomar;
                 const margenRetail = fila.dataset.margenRetail;
-                
+
                 var tsC = document.getElementById('cliente_id').tomselect; if (tsC) { tsC.setValue(clienteId); } else { document.getElementById('cliente_id').value = clienteId; }
                 var tsP = document.getElementById('producto_id').tomselect; if (tsP) { tsP.setValue(productoId); } else { document.getElementById('producto_id').value = productoId; }
                 document.getElementById('precio_base').value = precioBase;
                 document.getElementById('margen_jomar').value = margenJomar;
                 document.getElementById('margen_retail').value = margenRetail;
-                
+
                 calcularPrecios();
-                
+
                 // Scroll al formulario
-                document.querySelector('.precio-especifico-card').scrollIntoView({ 
-                    behavior: 'smooth' 
+                document.querySelector('.precio-especifico-card').scrollIntoView({
+                    behavior: 'smooth'
                 });
             }
         }
-        
+
         if (target.classList.contains('btn-delete')) {
             const fila = target.closest('tr');
             if (fila) {
                 const precioId = fila.dataset.precioId;
-                
+
                 if (confirm('¿Eliminar este precio específico?')) {
                     fetch('/precios/cliente-producto/' + precioId + '/eliminar', {
                         method: 'DELETE'

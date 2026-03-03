@@ -17,26 +17,33 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    dialect = bind.dialect.name if bind is not None else None
+    inspector = sa.inspect(bind)
+    cols = {c['name'] for c in inspector.get_columns('producto')}
+
     # qbo_id ya existe en la tabla, lo omitimos
     # op.add_column('producto',
     #     sa.Column('qbo_id', sa.String(length=20), nullable=True, unique=True)
     # )
 
     # añadimos tax_rate con DEFAULT 0 para evitar violaciones de NOT NULL
-    op.add_column('producto',
-        sa.Column(
-            'tax_rate',
-            sa.Float(),
-            nullable=False,
-            server_default='0'
+    if 'tax_rate' not in cols:
+        op.add_column('producto',
+            sa.Column(
+                'tax_rate',
+                sa.Float(),
+                nullable=False,
+                server_default='0'
+            )
         )
-    )
+
     # eliminamos el default en el esquema si no lo queremos permanentemente
-    op.alter_column('producto', 'tax_rate', server_default=None)
+    if dialect != 'sqlite':
+        op.alter_column('producto', 'tax_rate', server_default=None)
 
 
 def downgrade():
     # eliminamos sólo tax_rate
     op.drop_column('producto', 'tax_rate')
     # qbo_id no tocamos porque ya existía
-

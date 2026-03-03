@@ -6,67 +6,50 @@
 {% endblock %}
 
 {% block header_title %}
-    <i class="fas fa-list-alt" style="color: #28a745; margin-right: 10px;"></i>
+    <i class="fas fa-list-alt color-blue mr-10"></i>
     {% if lista %}Editar Lista{% else %}Nueva Lista{% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="form-container">
+<div class="form-container precios-container">
     <div class="form-card">
-        <div class="form-header">
-            <h2>
-                {% if lista %}
-                    Editar Lista de Precios
-                {% else %}
-                    Crear Nueva Lista de Precios
-                {% endif %}
-            </h2>
+        <div class="form-card-header">
+            <h2>{% if lista %}Editar Lista de Precios{% else %}Crear Nueva Lista de Precios{% endif %}</h2>
         </div>
 
         <form method="POST" class="lista-form">
-            <!-- US01: hidden CSRF field -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label for="nombre" class="form-label">
-                    <i class="fas fa-tag"></i>
-                    Nombre de la Lista
+            <div class="form-grupo">
+                <label for="nombre">
+                    <i class="fas fa-tag"></i> Nombre de la Lista
                 </label>
-                <input type="text" 
-                       id="nombre" 
-                       name="nombre" 
-                       class="form-control" 
+                <input type="text" id="nombre" name="nombre"
                        value="{{ lista.nombre if lista else '' }}"
-                       placeholder="Ej: Lista Clientes Premium"
-                       required>
-                <small class="form-help">Nombre descriptivo para identificar la lista</small>
+                       placeholder="Ej: Lista Clientes Premium" required>
+                <small>Nombre descriptivo para identificar la lista</small>
             </div>
 
-            <div class="form-group">
-                <label for="descripcion" class="form-label">
-                    <i class="fas fa-align-left"></i>
-                    Descripción
+            <div class="form-grupo">
+                <label for="descripcion">
+                    <i class="fas fa-align-left"></i> Descripción
                 </label>
-                <textarea id="descripcion" 
-                          name="descripcion" 
-                          class="form-control" 
-                          rows="3"
-                          placeholder="Descripción opcional de la lista de precios">{{ lista.descripcion if lista else '' }}</textarea>
-                <small class="form-help">Descripción opcional para explicar el propósito de esta lista</small>
+                <textarea id="descripcion" name="descripcion" rows="3"
+                          placeholder="Descripción opcional">{{ lista.descripcion if lista else '' }}</textarea>
+                <small>Descripción opcional para explicar el propósito de esta lista</small>
             </div>
 
             {% if lista and lista.es_default %}
-            <div class="alert alert-info">
+            <div class="alert-info-card">
                 <i class="fas fa-info-circle"></i>
                 <strong>Lista por defecto:</strong> Esta es la lista de precios principal del sistema.
             </div>
             {% endif %}
 
-            <div class="form-actions">
-                <a href="{{ url_for('listas_precios') }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i>
-                    Cancelar
+            <div class="form-acciones">
+                <a href="{{ url_for('listas_precios') }}" class="btn-cancelar">
+                    <i class="fas fa-arrow-left"></i> Cancelar
                 </a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn-guardar">
                     <i class="fas fa-save"></i>
                     {% if lista %}Actualizar Lista{% else %}Crear Lista{% endif %}
                 </button>
@@ -75,40 +58,36 @@
     </div>
 
     {% if lista %}
-    <div class="info-section">
-        <div class="info-card">
-            <h4>Información de la Lista</h4>
-            <div class="info-grid">
-                <div class="info-item">
-                    <label>Fecha de creación:</label>
-                    <span>{{ lista.fecha_creacion.strftime('%d/%m/%Y %H:%M') if lista.fecha_creacion else 'No disponible' }}</span>
-                </div>
-                <div class="info-item">
-                    <label>Estado:</label>
-                    <span class="status-badge {{ 'active' if lista.activa else 'inactive' }}">
-                        {{ 'Activa' if lista.activa else 'Inactiva' }}
-                    </span>
-                </div>
-                <div class="info-item">
-                    <label>Productos configurados:</label>
-                    <span>{{ lista.precios_productos|length }} productos</span>
-                </div>
-                <div class="info-item">
-                    <label>Clientes asignados:</label>
-                    <span>{{ lista.clientes|length }} clientes</span>
-                </div>
+    <div class="info-card">
+        <h4>Información de la Lista</h4>
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Fecha de creación:</label>
+                <span>{{ lista.fecha_creacion.strftime('%d/%m/%Y %H:%M') if lista.fecha_creacion else 'No disponible' }}</span>
             </div>
-            
-            {% if lista.precios_productos|length > 0 %}
-            <div class="quick-actions">
-                <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}" 
-                   class="btn btn-info btn-sm">
-                    <i class="fas fa-edit"></i>
-                    Gestionar Precios
-                </a>
+            <div class="info-item">
+                <label>Estado:</label>
+                <span class="precio-badge {{ 'active' if lista.activa else 'inactive' }}">
+                    {{ 'Activa' if lista.activa else 'Inactiva' }}
+                </span>
             </div>
-            {% endif %}
+            <div class="info-item">
+                <label>Productos configurados:</label>
+                <span>{{ lista.precios_productos|length }} productos</span>
+            </div>
+            <div class="info-item">
+                <label>Clientes asignados:</label>
+                <span>{{ lista.clientes|length }} clientes</span>
+            </div>
         </div>
+
+        {% if lista.precios_productos|length > 0 %}
+        <div class="info-actions">
+            <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}" class="btn-ver-precios">
+                <i class="fas fa-dollar-sign"></i> Gestionar Precios
+            </a>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>
@@ -117,240 +96,173 @@
 {% block extra_css %}
 <style>
 .form-container {
-    max-width: 800px;
+    max-width: 700px;
     margin: 0 auto;
     padding: 20px;
 }
 
 .form-card {
-    background: white;
+    background: #141820;
+    border: 1px solid #3b4a5c;
     border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
+    padding: 28px;
+    margin-bottom: 16px;
 }
 
-.form-header {
-    margin-bottom: 30px;
+.form-card-header {
+    margin-bottom: 24px;
     text-align: center;
 }
-
-.form-header h2 {
-    color: #333;
+.form-card-header h2 {
+    color: #f1f5f9;
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 1.4rem;
 }
 
-.form-group {
-    margin-bottom: 25px;
+.form-grupo {
+    margin-bottom: 20px;
 }
-
-.form-label {
+.form-grupo label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-weight: 600;
-    color: #333;
-    font-size: 1rem;
+    color: #f1f5f9;
+    font-size: 0.95rem;
 }
-
-.form-label i {
-    color: #28a745;
-    margin-right: 8px;
-    width: 16px;
+.form-grupo label i {
+    color: #60a5fa;
+    margin-right: 6px;
+    width: 14px;
 }
-
-.form-control {
+.form-grupo input, .form-grupo textarea {
     width: 100%;
-    padding: 12px 16px;
-    border: 2px solid #e1e5e9;
+    padding: 10px 14px;
+    background: #1a1f2b;
+    color: #f1f5f9;
+    border: 1px solid #3b4a5c;
     border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    background-color: #fafbfc;
+    font-size: 1rem;
+    transition: border-color 0.2s;
 }
-
-.form-control:focus {
-    border-color: #28a745;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+.form-grupo input:focus, .form-grupo textarea:focus {
+    border-color: #1877ff;
     outline: none;
-    background-color: white;
+    box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.15);
+}
+.form-grupo small {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 0.85rem;
 }
 
-.form-help {
-    display: block;
-    margin-top: 5px;
-    color: #6c757d;
+.alert-info-card {
+    padding: 12px 16px;
+    background: rgba(24, 119, 255, 0.1);
+    border: 1px solid rgba(24, 119, 255, 0.25);
+    border-radius: 8px;
+    color: #93c5fd;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 0.9rem;
 }
 
-.form-actions {
+.form-acciones {
     display: flex;
-    gap: 15px;
+    gap: 12px;
     justify-content: center;
-    margin-top: 30px;
-    flex-wrap: wrap;
+    margin-top: 28px;
 }
 
-.btn {
-    padding: 12px 24px;
+.btn-cancelar {
+    padding: 10px 20px;
+    background: #1a1f2b;
+    color: #94a3b8;
+    border: 1px solid #3b4a5c;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+.btn-cancelar:hover { color: #f1f5f9; text-decoration: none; }
+
+.btn-guardar {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
+    color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-    min-width: 140px;
-    justify-content: center;
+    gap: 6px;
+}
+.btn-guardar:hover {
+    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.4);
 }
 
-.btn-primary {
-    background-color: #28a745;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #218838;
-    transform: translateY(-2px);
-}
-
-.btn-secondary {
-    background-color: #6c757d;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: #5a6268;
-    transform: translateY(-2px);
-}
-
-.btn-info {
-    background-color: #17a2b8;
-    color: white;
-}
-
-.btn-info:hover {
-    background-color: #138496;
-}
-
-.btn-sm {
-    padding: 8px 16px;
-    font-size: 0.9rem;
-    min-width: auto;
-}
-
-.alert {
-    padding: 15px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.alert-info {
-    background-color: #d1ecf1;
-    border: 1px solid #bee5eb;
-    color: #0c5460;
-}
-
-.info-section {
-    margin-top: 20px;
-}
-
+/* Info card */
 .info-card {
-    background: white;
+    background: #141820;
+    border: 1px solid #3b4a5c;
     border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    padding: 24px;
 }
-
 .info-card h4 {
-    color: #333;
-    margin-bottom: 20px;
-    font-size: 1.3rem;
-    border-bottom: 2px solid #28a745;
+    color: #f1f5f9;
+    margin: 0 0 16px 0;
+    font-size: 1.1rem;
     padding-bottom: 10px;
+    border-bottom: 1px solid #3b4a5c;
 }
 
 .info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 16px;
 }
-
-.info-item {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
 .info-item label {
+    display: block;
     font-weight: 600;
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.info-item span {
-    color: #333;
-    font-size: 1rem;
-}
-
-.status-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
+    color: #94a3b8;
     font-size: 0.8rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    display: inline-block;
-    width: fit-content;
+    margin-bottom: 2px;
+}
+.info-item span {
+    color: #f1f5f9;
+    font-size: 0.95rem;
 }
 
-.status-badge.active {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-.status-badge.inactive {
-    background-color: #f8d7da;
-    color: #721c24;
-}
-
-.quick-actions {
-    border-top: 1px solid #eee;
-    padding-top: 20px;
+.info-actions {
+    border-top: 1px solid #3b4a5c;
+    padding-top: 14px;
     text-align: center;
 }
+.btn-ver-precios {
+    padding: 8px 16px;
+    background: rgba(24, 119, 255, 0.15);
+    color: #60a5fa;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn-ver-precios:hover { background: rgba(24, 119, 255, 0.25); text-decoration: none; color: #60a5fa; }
 
 @media (max-width: 768px) {
-    .form-container {
-        padding: 15px;
-    }
-    
-    .form-card {
-        padding: 20px;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .btn {
-        width: 100%;
-    }
-    
-    .info-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-control {
-        font-size: 16px; /* Previene zoom en iOS */
-    }
+    .form-acciones { flex-direction: column; align-items: stretch; }
+    .btn-cancelar, .btn-guardar { justify-content: center; }
+    .info-grid { grid-template-columns: 1fr; }
 }
 </style>
 {% endblock %}
@@ -358,32 +270,18 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Enfocar el primer campo del formulario
-    const nombreInput = document.getElementById('nombre');
-    if (nombreInput) {
-        nombreInput.focus();
-    }
-    
-    // Validación en tiempo real
-    const form = document.querySelector('.lista-form');
-    const nombreField = document.getElementById('nombre');
-    
-    nombreField.addEventListener('input', function() {
-        const value = this.value.trim();
-        if (value.length < 3) {
-            this.style.borderColor = '#dc3545';
-        } else {
-            this.style.borderColor = '#28a745';
-        }
+    var nombre = document.getElementById('nombre');
+    if (nombre) nombre.focus();
+
+    nombre.addEventListener('input', function() {
+        this.style.borderColor = this.value.trim().length < 3 ? '#ef4444' : '#1877ff';
     });
-    
-    // Prevenir envío con nombre vacío
-    form.addEventListener('submit', function(e) {
-        const nombre = nombreField.value.trim();
-        if (nombre.length < 3) {
+
+    document.querySelector('.lista-form').addEventListener('submit', function(e) {
+        if (nombre.value.trim().length < 3) {
             e.preventDefault();
-            alert('El nombre de la lista debe tener al menos 3 caracteres');
-            nombreField.focus();
+            alert('El nombre debe tener al menos 3 caracteres');
+            nombre.focus();
         }
     });
 });

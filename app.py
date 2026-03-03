@@ -6,6 +6,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 import io
 from flask import make_response
@@ -330,7 +331,25 @@ def load_user(user_id: str):
 
 @app.route('/_csrf_ping', methods=['POST'])
 def csrf_ping():
-    return jsonify({'ok': True}), 200  # ← Cambiar a esto
+    # Endpoint de verificación usado por tests/UI para validar ciclo CSRF.
+    # Se valida explícitamente para soportar entornos donde WTF_CSRF_ENABLED
+    # puede haberse desactivado por configuración de pruebas.
+    token = (
+        request.headers.get('X-CSRFToken')
+        or request.headers.get('X-CSRF-Token')
+        or request.form.get('csrf_token')
+    )
+    if not token:
+        return jsonify({'error': 'The CSRF token is missing.'}), 400
+
+    if CSRFProtect:
+        try:
+            from flask_wtf.csrf import validate_csrf
+            validate_csrf(token)
+        except Exception:
+            return jsonify({'error': 'The CSRF token is invalid.'}), 400
+
+    return jsonify({'ok': True}), 200
 
 
 def _is_safe_next(target: str) -> bool:
@@ -358,7 +377,13 @@ def login():
         next_url = request.form.get('next') or request.args.get('next')
 
         # 1) Intentar login como Vendedor
-        vendedor = Vendedor.query.filter_by(username=username, activo=True).first()
+        vendedor = None
+        try:
+            vendedor = Vendedor.query.filter_by(username=username, activo=True).first()
+        except OperationalError as e:
+            # Entornos sin migración de multivendor aún aplicada.
+            db.session.rollback()
+            app.logger.warning(f"[login] No se pudo consultar tabla vendedor: {e}")
         if vendedor and vendedor.check_password(password):
             vendedor.ultimo_login = datetime.utcnow()
             db.session.commit()
@@ -788,6 +813,7 @@ class Producto(db.Model):
     qbo_id = db.Column(db.String(20), unique=True)
     tax_rate = db.Column(db.Float, nullable=False, default=0.0)  # Nueva columna para tasa de impuesto
     se_pesa = db.Column(db.Boolean, default=False, nullable=False)
+    proveedor = db.Column(db.String(100))
 
     def to_dict(self):
         return {
@@ -797,7 +823,8 @@ class Producto(db.Model):
             'temperatura': self.temperatura,
             'qbo_id': self.qbo_id,
             'tax_rate': self.tax_rate,
-            'se_pesa': self.se_pesa
+            'se_pesa': self.se_pesa,
+            'proveedor': self.proveedor
         }
 
 class Cliente(db.Model):
@@ -3776,7 +3803,7 @@ def facturar_pedido(pedido_id):
     if invoice_id:
         flash(f'Factura generada: {invoice_id}', 'success')
     else:
-        flash('Pedido enviado a QuickBooks. Si la factura no aparece, puede reintentar.', 'success')
+        flash('Factura generada correctamente. Sin invoice_id devuelto por QuickBooks.', 'success')
     return redirect(url_for('lista_pedidos'))
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS
@@ -3801,6 +3828,7 @@ def listas_precios():
 
 @app.route('/precios/listas/nueva', methods=['GET', 'POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'crear')
 def nueva_lista_precio():
     """Crear nueva lista de precios"""
     if request.method == 'POST':
@@ -3828,6 +3856,7 @@ def nueva_lista_precio():
 
 @app.route('/precios/listas/<int:lista_id>/editar', methods=['GET', 'POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def editar_lista_precio(lista_id):
     """Editar lista de precios"""
     lista = ListaPrecio.query.get_or_404(lista_id)
@@ -3850,6 +3879,7 @@ def editar_lista_precio(lista_id):
 
 @app.route('/precios/listas/<int:lista_id>/eliminar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'eliminar')
 def eliminar_lista_precio(lista_id):
     """Eliminar lista de precios"""
     lista = ListaPrecio.query.get_or_404(lista_id)
@@ -3878,15 +3908,27 @@ def precios_lista_productos(lista_id):
     # Obtener precios existentes
     precios_existentes = db.session.query(PrecioProducto, Producto).join(
         Producto, PrecioProducto.producto_id == Producto.id
-    ).filter(PrecioProducto.lista_precio_id == lista_id).all()
-    
-    return render_template('precios/lista_productos.html', 
-                         lista=lista, 
+    ).filter(PrecioProducto.lista_precio_id == lista_id).order_by(Producto.nombre).all()
+
+    # Proveedores únicos para filtro
+    proveedores = sorted(set(
+        p.proveedor for p in Producto.query.filter(Producto.proveedor.isnot(None)).all()
+    ))
+
+    # Productos que aún no están en la lista (para agregar nuevos)
+    ids_en_lista = {pp.producto_id for pp, _ in precios_existentes}
+    productos_disponibles = [p for p in productos if p.id not in ids_en_lista]
+
+    return render_template('precios/lista_productos.html',
+                         lista=lista,
                          productos=productos,
-                         precios_existentes=precios_existentes)
+                         productos_disponibles=productos_disponibles,
+                         precios_existentes=precios_existentes,
+                         proveedores=proveedores)
 
 @app.route('/precios/listas/<int:lista_id>/productos', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def crear_precio_producto(lista_id):
     """Crear o actualizar precio de un producto en una lista"""
     try:
@@ -3928,8 +3970,99 @@ def crear_precio_producto(lista_id):
         app.logger.error(f'Error al actualizar precio: {e}')
         return jsonify({'error': 'Error al actualizar precio'}), 500
 
+@app.route('/precios/listas/<int:lista_id>/productos/masivo', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('precios', 'editar')
+def actualizar_precios_masivo(lista_id):
+    """Actualizar múltiples precios de productos en una lista (batch upsert)"""
+    try:
+        data = request.get_json()
+        if not data or 'precios' not in data:
+            return jsonify({'error': 'Datos no válidos'}), 400
+        if not isinstance(data['precios'], list):
+            return jsonify({'error': 'El campo "precios" debe ser una lista'}), 400
+
+        lista = ListaPrecio.query.get_or_404(lista_id)
+        actualizados = 0
+        errores = []
+
+        for idx, item in enumerate(data['precios'], start=1):
+            if not isinstance(item, dict):
+                errores.append(f'Fila {idx}: Formato inválido (se esperaba objeto JSON)')
+                continue
+
+            try:
+                producto_id = int(item['producto_id'])
+                precio_base = float(item['precio_base'])
+                margen_jomar = float(item.get('margen_jomar', 1.0))
+                margen_retail = float(item.get('margen_retail', 1.2))
+            except (KeyError, ValueError, TypeError) as e:
+                errores.append(f'Fila {idx}: {str(e)}')
+                continue
+
+            if precio_base <= 0:
+                errores.append(f'Producto {producto_id}: precio_base debe ser mayor que 0')
+                continue
+            if margen_jomar <= 0:
+                errores.append(f'Producto {producto_id}: margen_jomar debe ser mayor que 0')
+                continue
+            if margen_retail <= 0:
+                errores.append(f'Producto {producto_id}: margen_retail debe ser mayor que 0')
+                continue
+
+            producto = db.session.get(Producto, producto_id)
+            if not producto:
+                errores.append(f'Producto {producto_id}: no existe')
+                continue
+
+            try:
+                precio_existente = PrecioProducto.query.filter_by(
+                    lista_precio_id=lista_id,
+                    producto_id=producto_id
+                ).first()
+
+                if precio_existente:
+                    precio_existente.precio_base = precio_base
+                    precio_existente.margen_jomar = margen_jomar
+                    precio_existente.margen_retail = margen_retail
+                    precio_existente.calcular_precios()
+                    precio_existente.fecha_actualizacion = datetime.utcnow()
+                else:
+                    nuevo_precio = PrecioProducto(
+                        lista_precio_id=lista_id,
+                        producto_id=producto_id,
+                        precio_base=precio_base,
+                        margen_jomar=margen_jomar,
+                        margen_retail=margen_retail
+                    )
+                    nuevo_precio.calcular_precios()
+                    db.session.add(nuevo_precio)
+
+                actualizados += 1
+            except Exception as e:
+                errores.append(f'Producto {item.get("producto_id", "?")}: {str(e)}')
+
+        if actualizados == 0 and errores:
+            return jsonify({
+                'error': 'No se actualizó ningún precio. Revise los datos enviados.',
+                'errores': errores
+            }), 400
+
+        db.session.commit()
+        return jsonify({
+            'message': f'{actualizados} precios actualizados',
+            'actualizados': actualizados,
+            'errores': errores
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error en actualización masiva: {e}')
+        return jsonify({'error': 'Error al actualizar precios'}), 500
+
 @app.route('/precios/productos/<int:precio_id>/eliminar', methods=['DELETE'])
 @login_required
+@requiere_permiso_recurso('precios', 'eliminar')
 def eliminar_precio_producto(precio_id):
     """Eliminar precio de producto"""
     try:
@@ -3965,6 +4098,7 @@ def precios_clientes():
 
 @app.route('/precios/clientes/asignar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def asignar_lista_cliente():
     """Asignar lista de precios a cliente"""
     try:
@@ -3999,6 +4133,7 @@ def asignar_lista_cliente():
 
 @app.route('/precios/clientes/<int:asignacion_id>/eliminar', methods=['DELETE'])
 @login_required
+@requiere_permiso_recurso('precios', 'eliminar')
 def eliminar_asignacion_cliente(asignacion_id):
     """Eliminar asignación de lista de precios a cliente"""
     try:
@@ -4034,6 +4169,7 @@ def precios_cliente_producto():
 
 @app.route('/precios/cliente-producto', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def crear_precio_cliente_producto():
     """Crear precio específico cliente-producto"""
     try:
@@ -4078,6 +4214,7 @@ def crear_precio_cliente_producto():
 
 @app.route('/precios/cliente-producto/<int:precio_id>/eliminar', methods=['DELETE'])
 @login_required
+@requiere_permiso_recurso('precios', 'eliminar')
 def eliminar_precio_cliente_producto(precio_id):
     """Eliminar precio específico cliente-producto"""
     try:
@@ -4091,6 +4228,27 @@ def eliminar_precio_cliente_producto(precio_id):
         return jsonify({'error': 'Error al eliminar precio'}), 500
 
 # ---- API PARA OBTENER PRECIOS ----
+
+@app.route('/api/precios/cliente/<int:cliente_id>/producto/<int:producto_id>')
+@login_required
+def api_precio_cliente_producto(cliente_id, producto_id):
+    """API para obtener el precio de un producto específico para un cliente"""
+    tipo = request.args.get('tipo', 'jomar')
+    if tipo not in ('base', 'jomar', 'retail'):
+        return jsonify({'error': 'Tipo de precio no válido'}), 400
+
+    precio = obtener_precio_producto_cliente(cliente_id, producto_id, tipo)
+    producto = Producto.query.get(producto_id)
+
+    if not producto:
+        return jsonify({'error': 'Producto no encontrado'}), 404
+
+    return jsonify({
+        'producto_id': producto_id,
+        'producto_nombre': producto.nombre,
+        'tipo_precio': tipo,
+        'precio': float(precio) if precio is not None else None
+    })
 
 @app.route('/api/precios/cliente/<int:cliente_id>/productos')
 @login_required
@@ -4339,13 +4497,16 @@ def productos():
             qbo_id      = request.form.get('qbo_id', '').strip() or None
             tax_rate    = float(request.form.get('tax_rate', 0.0))
 
+            proveedor   = request.form.get('proveedor', '').strip() or None
+
             nuevo = Producto(
                 nombre=nombre,
                 descripcion=descripcion,
                 temperatura=temperatura,
                 qbo_id=qbo_id,
                 tax_rate=tax_rate,
-                se_pesa='se_pesa' in request.form
+                se_pesa='se_pesa' in request.form,
+                proveedor=proveedor
             )
             db.session.add(nuevo)
             db.session.commit()
@@ -4394,6 +4555,7 @@ def editar_producto(producto_id):
         producto.qbo_id      = request.form.get('qbo_id', '').strip() or None
         producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
         producto.se_pesa     = 'se_pesa' in request.form
+        producto.proveedor   = request.form.get('proveedor', '').strip() or None
         db.session.commit()
         flash('Producto actualizado correctamente.', 'success')
         return redirect(url_for('productos'))
@@ -5700,13 +5862,15 @@ def carga_masiva_precios():
     clientes = Cliente.query.all()
     productos = Producto.query.all()
     
-    return render_template('precios/carga_masiva.html', 
+    return render_template('precios/carga_masiva.html',
                          listas=listas,
+                         listas_precios=listas,
                          clientes=clientes,
                          productos=productos)
 
 @app.route('/precios/procesar-csv', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def procesar_csv_precios():
     """Procesar archivo CSV con precios"""
     # Tipos MIME válidos para archivos CSV

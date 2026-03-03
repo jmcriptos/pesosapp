@@ -16,6 +16,25 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    dialect = bind.dialect.name if bind is not None else None
+
+    if dialect == 'sqlite':
+        inspector = sa.inspect(bind)
+        cols = {c['name'] for c in inspector.get_columns('detalle_pedido')}
+
+        if 'precio_unitario' not in cols:
+            op.add_column(
+                'detalle_pedido',
+                sa.Column('precio_unitario', sa.Numeric(10, 2), nullable=False, server_default='0')
+            )
+        if 'subtotal' not in cols:
+            op.add_column(
+                'detalle_pedido',
+                sa.Column('subtotal', sa.Numeric(10, 2), nullable=False, server_default='0')
+            )
+        return
+
     # --- cambios previos auto-generados ---
     op.alter_column(
         'cliente_lista_precio', 'fecha_asignacion',
@@ -85,6 +104,18 @@ def upgrade():
 
 
 def downgrade():
+    bind = op.get_bind()
+    dialect = bind.dialect.name if bind is not None else None
+
+    if dialect == 'sqlite':
+        inspector = sa.inspect(bind)
+        cols = {c['name'] for c in inspector.get_columns('detalle_pedido')}
+        if 'subtotal' in cols:
+            op.drop_column('detalle_pedido', 'subtotal')
+        if 'precio_unitario' in cols:
+            op.drop_column('detalle_pedido', 'precio_unitario')
+        return
+
     # Deshacer los pasos en orden inverso
 
     op.drop_constraint(None, 'precio_producto', type_='foreignkey')
@@ -166,4 +197,3 @@ def downgrade():
         nullable=False,
         existing_server_default=sa.text('now()')
     )
-

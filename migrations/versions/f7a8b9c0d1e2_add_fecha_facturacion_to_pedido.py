@@ -17,22 +17,36 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    dialect = bind.dialect.name if bind is not None else None
+    inspector = sa.inspect(bind)
+    cols = {c['name'] for c in inspector.get_columns('pedido')}
+
     # Agregar columna fecha_facturacion a la tabla pedido
-    op.add_column('pedido', 
-        sa.Column('fecha_facturacion', 
-                  sa.DateTime(), 
-                  nullable=True,
-                  comment='Fecha y hora cuando el pedido fue facturado')
-    )
+    if 'fecha_facturacion' not in cols:
+        op.add_column('pedido',
+            sa.Column('fecha_facturacion',
+                      sa.DateTime(),
+                      nullable=True,
+                      comment='Fecha y hora cuando el pedido fue facturado')
+        )
     
     # Opcional: Actualizar pedidos existentes que están facturados
     # Les asignamos la fecha del pedido + 2 días como estimación
-    op.execute("""
-        UPDATE pedido 
-        SET fecha_facturacion = fecha_pedido + INTERVAL '2 days'
-        WHERE estado = 'facturado' 
-        AND fecha_facturacion IS NULL
-    """)
+    if dialect == 'sqlite':
+        op.execute("""
+            UPDATE pedido
+            SET fecha_facturacion = datetime(fecha_pedido, '+2 days')
+            WHERE estado = 'facturado'
+            AND fecha_facturacion IS NULL
+        """)
+    else:
+        op.execute("""
+            UPDATE pedido
+            SET fecha_facturacion = fecha_pedido + INTERVAL '2 days'
+            WHERE estado = 'facturado'
+            AND fecha_facturacion IS NULL
+        """)
 
 
 def downgrade():

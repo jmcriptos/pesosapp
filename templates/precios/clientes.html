@@ -4,7 +4,7 @@
 {% block title %}Precios por Cliente{% endblock %}
 
 {% block header_title %}
-    <i class="fas fa-users color-green mr-10"></i>Precios por Cliente
+    <i class="fas fa-users color-blue mr-10"></i>Precios por Cliente
 {% endblock %}
 
 {% block content %}
@@ -21,7 +21,7 @@
     <!-- Formulario para asignar lista a cliente -->
     <div class="asignar-card">
         <h3><i class="fas fa-link"></i> Asignar Lista de Precios</h3>
-        
+
         <form id="form-asignar-lista">
             <!-- US01: hidden CSRF field -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -35,7 +35,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="lista_precio_id">Lista de Precios:</label>
                     <select id="lista_precio_id" name="lista_precio_id" class="form-control ts-select" required>
@@ -48,7 +48,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label>&nbsp;</label>
                     <button type="submit" class="btn btn-success form-control">
@@ -62,7 +62,7 @@
     <!-- Tabla de asignaciones actuales -->
     <div class="asignaciones-card">
         <h3><i class="fas fa-list"></i> Asignaciones Actuales</h3>
-        
+
         {% if asignaciones %}
         <div class="table-responsive">
             <table class="table">
@@ -146,7 +146,7 @@
                 </ul>
             </div>
         </div>
-        
+
         <div class="info-card">
             <div class="info-icon">
                 <i class="fas fa-chart-line"></i>
@@ -191,36 +191,43 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    background: white;
+    background: #141820;
     padding: 25px;
     border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #3b4a5c;
+}
+
+.page-header p {
+    color: #94a3b8;
+    margin: 0;
+    max-width: 600px;
+    line-height: 1.5;
 }
 
 .header-info h2 {
-    color: #28a745;
+    color: #1877ff;
     margin: 0 0 10px 0;
     font-size: 1.8rem;
 }
 
 .header-info p {
-    color: #666;
+    color: #94a3b8;
     margin: 0;
     max-width: 600px;
     line-height: 1.5;
 }
 
 .asignar-card, .asignaciones-card {
-    background: white;
+    background: #141820;
     padding: 25px;
     border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #3b4a5c;
 }
 
 .asignar-card h3, .asignaciones-card h3 {
-    color: #333;
+    color: #f1f5f9;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
@@ -243,19 +250,21 @@
 .form-group label {
     margin-bottom: 8px;
     font-weight: 600;
-    color: #333;
+    color: #f1f5f9;
 }
 
 .form-control {
     padding: 12px;
-    border: 2px solid #e1e5e9;
+    border: 2px solid #3b4a5c;
     border-radius: 8px;
     font-size: 16px;
     transition: border-color 0.3s ease;
+    background: #1a1f2b;
+    color: #f1f5f9;
 }
 
 .form-control:focus {
-    border-color: #28a745;
+    border-color: #1877ff;
     outline: none;
 }
 
@@ -273,17 +282,18 @@
 }
 
 .btn-success {
-    background: #28a745;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
     color: white;
 }
 
 .btn-success:hover {
-    background: #218838;
+    background: linear-gradient(135deg, #1565e0 0%, #2563eb 100%);
 }
 
 .btn-secondary {
-    background: #6c757d;
-    color: white;
+    background: #1a1f2b;
+    color: #94a3b8;
+    border: 1px solid #3b4a5c;
 }
 
 .btn-view, .btn-delete {
@@ -295,13 +305,13 @@
 }
 
 .btn-view {
-    background: #17a2b8;
-    color: white;
+    background: rgba(24,119,255,0.15);
+    color: #60a5fa;
 }
 
 .btn-delete {
-    background: #dc3545;
-    color: white;
+    background: rgba(239,68,68,0.15);
+    color: #f87171;
 }
 
 .table-responsive {
@@ -314,7 +324,7 @@
 }
 
 .table th {
-    background: #28a745;
+    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
     color: white;
     padding: 15px 12px;
     text-align: left;
@@ -323,8 +333,9 @@
 
 .table td {
     padding: 15px 12px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #1e2533;
     vertical-align: middle;
+    color: #f1f5f9;
 }
 
 .badge {
@@ -337,8 +348,8 @@
 }
 
 .badge-default {
-    background: #ffd700;
-    color: #333;
+    background: rgba(251,191,36,0.15);
+    color: #fbbf24;
 }
 
 .tipo-lista {
@@ -349,13 +360,13 @@
 }
 
 .tipo-default {
-    background: #e9ecef;
-    color: #495057;
+    background: rgba(148,163,184,0.15);
+    color: #94a3b8;
 }
 
 .tipo-custom {
-    background: #d4edda;
-    color: #155724;
+    background: rgba(16,185,129,0.15);
+    color: #34d399;
 }
 
 .estado-badge {
@@ -366,24 +377,28 @@
 }
 
 .estado-badge.activo {
-    background: #d4edda;
-    color: #155724;
+    background: rgba(16,185,129,0.15);
+    color: #34d399;
 }
 
 .estado-badge.inactivo {
-    background: #f8d7da;
-    color: #721c24;
+    background: rgba(248,113,113,0.15);
+    color: #f87171;
 }
 
 .empty-message {
     text-align: center;
     padding: 60px 20px;
-    color: #666;
+    color: #64748b;
+}
+
+.empty-message h4 {
+    color: #64748b;
 }
 
 .empty-icon {
     font-size: 4rem;
-    color: #ccc;
+    color: #3b4a5c;
     margin-bottom: 20px;
 }
 
@@ -395,28 +410,28 @@
 }
 
 .info-card {
-    background: white;
+    background: #141820;
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #3b4a5c;
     display: flex;
     gap: 15px;
 }
 
 .info-icon {
     font-size: 2rem;
-    color: #28a745;
+    color: #1877ff;
 }
 
 .info-content h4 {
     margin: 0 0 10px 0;
-    color: #333;
+    color: #f1f5f9;
 }
 
 .info-content ul {
     margin: 0;
     padding-left: 20px;
-    color: #666;
+    color: #94a3b8;
 }
 
 .info-content li {
@@ -438,17 +453,18 @@
 }
 
 .modal-content {
-    background: white;
+    background: #141820;
     border-radius: 12px;
     width: 90%;
     max-width: 900px;
     max-height: 80vh;
     overflow: hidden;
+    border: 1px solid #3b4a5c;
 }
 
 .modal-header {
     padding: 20px 25px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #3b4a5c;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -456,7 +472,7 @@
 
 .modal-header h3 {
     margin: 0;
-    color: #333;
+    color: #f1f5f9;
 }
 
 .modal-close {
@@ -464,13 +480,15 @@
     border: none;
     font-size: 24px;
     cursor: pointer;
-    color: #666;
+    color: #94a3b8;
 }
 
 .modal-body {
     padding: 25px;
     max-height: 60vh;
     overflow-y: auto;
+    background: #141820;
+    color: #f1f5f9;
 }
 
 .flash-message {
@@ -485,11 +503,11 @@
 }
 
 .flash-message.success {
-    background: #28a745;
+    background: #059669;
 }
 
 .flash-message.error {
-    background: #dc3545;
+    background: #dc2626;
 }
 
 /* Estilos para precios mejorados */
@@ -506,27 +524,27 @@
 }
 
 .alert-info {
-    color: #0c5460;
-    background-color: #d1ecf1;
-    border-color: #bee5eb;
+    color: #93c5fd;
+    background: rgba(24,119,255,0.1);
+    border-color: rgba(24,119,255,0.25);
 }
 
 .alert-warning {
-    color: #856404;
-    background-color: #fff3cd;
-    border-color: #ffeaa7;
+    color: #fbbf24;
+    background: rgba(251,191,36,0.1);
+    border-color: rgba(251,191,36,0.25);
 }
 
 .alert-success {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
+    color: #34d399;
+    background: rgba(16,185,129,0.1);
+    border-color: rgba(16,185,129,0.25);
 }
 
 .alert-danger {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
+    color: #f87171;
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.25);
 }
 
 .badge-tipo {
@@ -536,7 +554,6 @@
     font-size: 11px;
     font-weight: 600;
     line-height: 1;
-    color: #fff;
     text-align: center;
     white-space: nowrap;
     vertical-align: middle;
@@ -545,38 +562,41 @@
 }
 
 .badge-primary {
-    background-color: #007bff;
+    background: rgba(24,119,255,0.15);
+    color: #60a5fa;
 }
 
 .badge-success {
-    background-color: #28a745;
+    background: rgba(16,185,129,0.15);
+    color: #34d399;
 }
 
 .badge-secondary {
-    background-color: #6c757d;
+    background: rgba(148,163,184,0.15);
+    color: #94a3b8;
 }
 
 .precios-resumen {
-    background: #f8f9fa;
+    background: #1a1f2b;
     padding: 15px;
     border-radius: 6px;
     margin-bottom: 15px;
-    border-left: 4px solid #28a745;
+    border-left: 4px solid #1877ff;
 }
 
 .precios-resumen p {
     margin: 0;
     font-weight: 500;
-    color: #333;
+    color: #f1f5f9;
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(0,0,0,.05);
+    background-color: rgba(255,255,255,0.03);
 }
 
 .precio-valor {
     font-weight: 600;
-    color: #28a745;
+    color: #34d399;
 }
 
 @media (max-width: 768px) {
@@ -584,21 +604,21 @@
         flex-direction: column;
         gap: 20px;
     }
-    
+
     .asignar-form-row {
         grid-template-columns: 1fr;
         gap: 15px;
     }
-    
+
     .info-cards {
         grid-template-columns: 1fr;
     }
-    
+
     .info-card {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .modal-content {
         width: 95%;
         max-width: none;
@@ -617,7 +637,7 @@ $(document).ready(function() {
         flashDiv.className = 'flash-message ' + tipo;
         flashDiv.textContent = mensaje;
         flashDiv.style.display = 'block';
-        
+
         setTimeout(function() {
             flashDiv.style.display = 'none';
         }, 3000);
@@ -626,9 +646,9 @@ $(document).ready(function() {
     // Event listeners con jQuery para evitar conflictos
     $('.btn-delete').click(function() {
         const asignacionId = $(this).data('asignacion-id');
-        
+
         if (!confirm('¿Desasignar esta lista de precios del cliente?')) return;
-        
+
         fetch('/precios/clientes/' + asignacionId + '/eliminar', {
             method: 'DELETE'
         })
@@ -651,21 +671,21 @@ $(document).ready(function() {
     $('.btn-view').click(function() {
         const clienteId = $(this).data('cliente-id');
         const clienteNombre = $(this).data('cliente-nombre');
-        
+
         $('#modal-cliente-nombre').text('Precios de ' + clienteNombre);
         $('#modal-precios-cliente').show();
-        
+
         // Mostrar loading
         $('#precios-cliente-contenido').html('<p>Cargando información del cliente...</p>');
-        
+
         // Debug info primero
         fetch('/api/precios/cliente/' + clienteId + '/debug')
         .then(response => response.json())
         .then(debugInfo => {
             console.log('Debug info:', debugInfo);
-            
+
             let infoHtml = '<div class="cliente-info">';
-            
+
             if (debugInfo.lista_asignada) {
                 infoHtml += '<div class="alert alert-info">';
                 infoHtml += '<strong>Lista Asignada:</strong> ' + debugInfo.lista_asignada.nombre + ' ';
@@ -679,34 +699,34 @@ $(document).ready(function() {
                 }
                 infoHtml += '</div>';
             }
-            
+
             if (debugInfo.precios_especificos_count > 0) {
                 infoHtml += '<div class="alert alert-success">';
                 infoHtml += '<strong>' + debugInfo.precios_especificos_count + ' precios específicos</strong> configurados';
                 infoHtml += '</div>';
             }
-            
+
             infoHtml += '</div>';
-            
+
             $('#precios-cliente-contenido').html(infoHtml + '<p>Cargando precios...</p>');
-            
+
             return fetch('/api/precios/cliente/' + clienteId);
         })
         .then(response => response.json())
         .then(data => {
             const infoExistente = $('.cliente-info')[0].outerHTML;
             let html = infoExistente;
-            
+
             if (data.length > 0) {
                 html += '<div class="precios-resumen">';
                 html += '<p><strong>Total de productos con precio:</strong> ' + data.length + '</p>';
                 html += '</div>';
-                
+
                 html += '<div class="table-responsive">';
                 html += '<table class="table table-striped"><thead><tr>';
                 html += '<th>Producto</th><th>Precio Base</th><th>Precio Jomar</th><th>Precio Retail</th><th>Tipo</th>';
                 html += '</tr></thead><tbody>';
-                
+
                 data.forEach(function(precio) {
                     let tipoBadge = '';
                     if (precio.tipo_precio === 'específico') {
@@ -716,7 +736,7 @@ $(document).ready(function() {
                     } else {
                         tipoBadge = '<span class="badge-tipo badge-secondary">Default</span>';
                     }
-                        
+
                     html += '<tr>';
                     html += '<td><strong>' + precio.producto_nombre + '</strong></td>';
                     html += '<td class="precio-valor">$' + precio.precio_base.toFixed(2) + '</td>';
@@ -731,7 +751,7 @@ $(document).ready(function() {
                 html += 'Este cliente no tiene productos con precios configurados.';
                 html += '</div>';
             }
-            
+
             $('#precios-cliente-contenido').html(html);
         })
         .catch(error => {
@@ -750,9 +770,9 @@ $(document).ready(function() {
     // Formulario de asignación
     $('#form-asignar-lista').submit(function(e) {
         e.preventDefault();
-        
+
         const formData = new FormData(this);
-        
+
         fetch('/precios/clientes/asignar', {
             method: 'POST',
             body: formData
