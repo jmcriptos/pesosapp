@@ -147,7 +147,7 @@ def test_facturacion_exitosa_con_invoice_id(mock_post, logged_client, app):
         )
         assert resp.status_code == 200
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'facturado'
         assert pedido.invoice_id_qbo == 'INV-001'
         assert pedido.fecha_facturacion is not None
@@ -175,7 +175,7 @@ def test_facturacion_error_400(mock_post, logged_client, app):
         )
         assert resp.status_code == 200
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'preparado'
         assert pedido.invoice_id_qbo is None
 
@@ -202,7 +202,7 @@ def test_facturacion_error_500(mock_post, logged_client, app):
         )
         assert resp.status_code == 200
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'preparado'
         assert pedido.invoice_id_qbo is None
 
@@ -227,7 +227,7 @@ def test_facturacion_timeout(mock_post, logged_client, app):
         )
         assert resp.status_code == 200
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'preparado'
         assert pedido.invoice_id_qbo is None
 
@@ -253,7 +253,7 @@ def test_facturacion_exitosa_sin_invoice_id(mock_post, logged_client, app):
         )
         assert resp.status_code == 200
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'facturado'
         assert pedido.invoice_id_qbo is None
         assert pedido.fecha_facturacion is not None
@@ -309,7 +309,7 @@ def test_facturacion_trazabilidad_incompleta(logged_client, app):
             mock_post.assert_not_called()
 
         assert resp.status_code == 200
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'preparado'
         assert 'trazabilidad'.encode() in resp.data
 
@@ -331,7 +331,7 @@ def test_facturacion_connection_error(mock_post, logged_client, app):
         )
         assert resp.status_code == 200
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'preparado'
         assert 'conexi'.encode() in resp.data
 
@@ -380,7 +380,7 @@ def test_facturacion_sin_webhook_url_configurada(logged_client, app):
         assert resp.status_code == 200
         assert 'N8N_WEBHOOK_URL'.encode() in resp.data
 
-        pedido = Pedido.query.get(pedido_id)
+        pedido = _db.session.get(Pedido, pedido_id)
         assert pedido.estado == 'preparado'
 
 

@@ -1504,14 +1504,14 @@ def crear_vendedor():
                 return redirect(url_for('crear_vendedor'))
             
             # Verificar que el rol existe
-            rol_valido = Rol.query.get(rol_id)
+            rol_valido = db.session.get(Rol, rol_id)
             if not rol_valido:
                 flash("El rol seleccionado no es válido", "error")
                 return redirect(url_for('crear_vendedor'))
             
             # Verificar territorio si se proporcionó
             if territorio_id:
-                territorio_valido = Territorio.query.get(territorio_id)
+                territorio_valido = db.session.get(Territorio, territorio_id)
                 if not territorio_valido:
                     flash("El territorio seleccionado no es válido", "error")
                     return redirect(url_for('crear_vendedor'))
@@ -1662,7 +1662,7 @@ def api_clientes_del_vendedor(v_id):
     """
     try:
         # Verificar que el vendedor existe
-        vendedor = Vendedor.query.get(v_id)
+        vendedor = db.session.get(Vendedor, v_id)
         if not vendedor:
             return jsonify({'error': 'Vendedor no encontrado'}), 404
 
@@ -3018,7 +3018,7 @@ def nuevo_pedido():
 
         # 2b) Auto-generar líneas de preparación para productos de importación
         for det in DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).all():
-            prod = Producto.query.get(det.producto_id)
+            prod = db.session.get(Producto, det.producto_id)
             if prod and not prod.se_pesa:
                 prep = DetallePedido(
                     pedido_id=pedido.id,
@@ -3124,7 +3124,7 @@ def editar_pedido(pedido_id):
 
         # Auto-generar líneas de preparación para productos de importación
         for det in DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).all():
-            prod = Producto.query.get(det.producto_id)
+            prod = db.session.get(Producto, det.producto_id)
             if prod and not prod.se_pesa:
                 prep = DetallePedido(
                     pedido_id=pedido.id,
@@ -3213,7 +3213,7 @@ def detalles_pedido(pedido_id):
         fecha_expiracion  = request.form.get('fecha_expiracion', '').strip()
 
         # ── Validación de trazabilidad obligatoria ──────────────
-        producto_obj = Producto.query.get(producto_id)
+        producto_obj = db.session.get(Producto, producto_id)
         if producto_obj and producto_obj.se_pesa:
             if not all([lote, fecha_fabricacion, fecha_expiracion]):
                 flash('Lote, fecha fabricación y fecha expiración son obligatorios', 'error')
@@ -3339,7 +3339,7 @@ def editar_detalle_pedido(detalle_id):
     fecha_fabricacion = request.form.get('fecha_fabricacion', '')
     fecha_expiracion = request.form.get('fecha_expiracion', '')
 
-    producto = Producto.query.get(producto_id) if producto_id else None
+    producto = db.session.get(Producto, producto_id) if producto_id else None
 
     # Validar según tipo de producto
     if not producto:
@@ -3679,7 +3679,7 @@ def marcar_preparado(pedido_id):
             productos_preparados.add(detalle.producto_id)
     sin_preparar = productos_pedido - productos_preparados
     for prod_id in sin_preparar:
-        prod = Producto.query.get(prod_id)
+        prod = db.session.get(Producto, prod_id)
         if prod:
             tipo = "peso" if prod.se_pesa else "cajas"
             errores.append(f"{prod.nombre}: sin líneas de preparación ({tipo})")
@@ -3717,7 +3717,7 @@ def facturar_pedido(pedido_id):
     productos_pedido = {d.producto_id for d in pedido.detalles if d.es_linea_pedido}
     productos_preparados = {d.producto_id for d in pedido.detalles if not d.es_linea_pedido}
     for prod_id in (productos_pedido - productos_preparados):
-        prod = Producto.query.get(prod_id)
+        prod = db.session.get(Producto, prod_id)
         if prod:
             traz_errores.append(f"{prod.nombre}: sin líneas de preparación")
 
@@ -4238,7 +4238,7 @@ def api_precio_cliente_producto(cliente_id, producto_id):
         return jsonify({'error': 'Tipo de precio no válido'}), 400
 
     precio = obtener_precio_producto_cliente(cliente_id, producto_id, tipo)
-    producto = Producto.query.get(producto_id)
+    producto = db.session.get(Producto, producto_id)
 
     if not producto:
         return jsonify({'error': 'Producto no encontrado'}), 404
@@ -5205,7 +5205,7 @@ def eliminar_cliente(cliente_id):
         return jsonify({"error": "No tienes permisos para eliminar clientes"}), 403
     
     try:
-        cliente = Cliente.query.get(cliente_id)
+        cliente = db.session.get(Cliente, cliente_id)
         if not cliente:
             return jsonify({"error": "Cliente no encontrado"}), 404
         db.session.delete(cliente)
@@ -5461,7 +5461,7 @@ def etiquetas_vencimiento():
 
         fecha_fabricacion_date = datetime.strptime(fecha_fabricacion, '%Y-%m-%d')
         fecha_expiracion = fecha_fabricacion_date + timedelta(days=365)
-        producto = Producto.query.get(producto_id)
+        producto = db.session.get(Producto, producto_id)
 
         datos_producto = {
             "nombre_producto": producto.nombre,
@@ -5565,7 +5565,7 @@ def procesar_precios_por_lista_mejorado(csv_input, lista_precio_id, resultados):
     if not lista_precio_id:
         raise ValueError("Se requiere seleccionar una lista de precios")
     
-    lista = ListaPrecio.query.get(lista_precio_id)
+    lista = db.session.get(ListaPrecio, lista_precio_id)
     if not lista:
         raise ValueError("Lista de precios no encontrada")
     
@@ -5666,7 +5666,7 @@ def generar_reporte_carga():
         lista_id = datos.get('lista_id')
         
         if tipo_reporte == 'lista_precios' and lista_id:
-            lista = ListaPrecio.query.get(lista_id)
+            lista = db.session.get(ListaPrecio, lista_id)
             if not lista:
                 return jsonify({'error': 'Lista no encontrada'}), 404
             
@@ -5947,7 +5947,7 @@ def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
     if not lista_precio_id:
         raise ValueError("Se requiere seleccionar una lista de precios")
     
-    lista = ListaPrecio.query.get(lista_precio_id)
+    lista = db.session.get(ListaPrecio, lista_precio_id)
     if not lista:
         raise ValueError("Lista de precios no encontrada")
     
@@ -5965,7 +5965,7 @@ def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
             # CORRECCIÓN: Buscar producto por ID (ya que los valores en CSV son IDs)
             try:
                 producto_id = int(codigo_producto)
-                producto = Producto.query.get(producto_id)
+                producto = db.session.get(Producto, producto_id)
             except ValueError:
                 # Si no es un número, intentar buscar por qbo_id o nombre
                 producto = Producto.query.filter(
@@ -6097,7 +6097,7 @@ def procesar_precios_especificos(csv_input, resultados):
             # Buscar cliente por ID o nombre
             try:
                 cliente_id = int(codigo_cliente)
-                cliente = Cliente.query.get(cliente_id)
+                cliente = db.session.get(Cliente, cliente_id)
             except ValueError:
                 cliente = Cliente.query.filter(Cliente.nombre.ilike(f'%{codigo_cliente}%')).first()
             
@@ -6109,7 +6109,7 @@ def procesar_precios_especificos(csv_input, resultados):
             # CORRECCIÓN: Buscar producto por ID (igual que arriba)
             try:
                 producto_id = int(codigo_producto)
-                producto = Producto.query.get(producto_id)
+                producto = db.session.get(Producto, producto_id)
             except ValueError:
                 producto = Producto.query.filter(
                     (Producto.qbo_id == codigo_producto) | 

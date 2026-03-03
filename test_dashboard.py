@@ -14,7 +14,7 @@ try:
     from app import app, db, Pedido, Cliente
     from datetime import datetime, timedelta, date
     
-    def test_dashboard_basic():
+    def dashboard_basic_check():
         """Prueba básica de las funciones del dashboard"""
         print("🧪 Iniciando pruebas del dashboard...")
         
@@ -57,7 +57,7 @@ try:
                 traceback.print_exc()
                 return False
     
-    def test_dashboard_route():
+    def dashboard_route_check():
         """Prueba la ruta del dashboard completa"""
         print("\n🧪 Probando ruta completa del dashboard...")
         
@@ -91,8 +91,8 @@ try:
         print("🚀 Iniciando pruebas del dashboard para Heroku...")
         
         # Ejecutar pruebas
-        basic_ok = test_dashboard_basic()
-        route_ok = test_dashboard_route()
+        basic_ok = dashboard_basic_check()
+        route_ok = dashboard_route_check()
         
         if basic_ok and route_ok:
             print("\n✅ ¡Todas las pruebas pasaron! El dashboard debería funcionar en Heroku.")

@@ -417,7 +417,7 @@ def test_editar_detalle_facturado_rechazado(logged_client, app):
             follow_redirects=True,
         )
         assert resp.status_code == 200
-        detalle_updated = DetallePedido.query.get(detalle.id)
+        detalle_updated = _db.session.get(DetallePedido, detalle.id)
         assert detalle_updated.lote != 'NUEVO'
 
 
