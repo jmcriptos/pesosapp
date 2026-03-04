@@ -354,6 +354,45 @@ def test_dashboard_ventas_mes_cuenta_pedido_creado_antes_si_facturo_este_mes(app
     assert _ventas_mes_en_html(html) == 333
 
 
+def test_dashboard_ventas_mes_no_reconvierte_tipo_cambio(app, logged_client):
+    """Ventas del mes debe reflejar subtotal facturado, sin multiplicar por tipo_cambio."""
+    from app import db, Cliente, Producto, Pedido, DetallePedido
+
+    tz_cur = ZoneInfo('America/Curacao')
+    fecha_fact_utc = datetime.now(tz_cur).astimezone(timezone.utc)
+
+    with app.app_context():
+        cliente = Cliente(nombre='Cliente USD Dashboard', moneda='USD')
+        producto = Producto(nombre='Producto USD Dashboard', tax_rate=0.0, se_pesa=False)
+        db.session.add_all([cliente, producto])
+        db.session.flush()
+
+        pedido = Pedido(
+            cliente_id=cliente.id,
+            estado='facturado',
+            fecha_pedido=fecha_fact_utc,
+            fecha_facturacion=fecha_fact_utc,
+            tipo_cambio=1.78
+        )
+        db.session.add(pedido)
+        db.session.flush()
+        db.session.add(DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=producto.id,
+            cajas=1,
+            cajas_pedidas=1,
+            precio_unitario=100,
+            subtotal=100,
+            es_linea_pedido=True
+        ))
+        db.session.commit()
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 100
+
+
 def test_dashboard_top_productos_prioriza_lineas_preparacion_facturadas(app, logged_client):
     """Top productos debe usar líneas facturadas (preparación), no línea original."""
     from app import db, Cliente, Producto, Pedido, DetallePedido

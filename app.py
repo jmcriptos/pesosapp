@@ -487,11 +487,11 @@ def _to_dashboard_date(dt):
 
 def _calcular_venta_pedido(pedido):
     """
-    Venta real del pedido en XCG:
+    Venta facturada del pedido:
     - Usa líneas de preparación cuando existen
     - Usa línea original solo si no hay preparación para ese producto
+    - No aplica tipo_cambio: subtotal ya refleja el monto facturado de la línea
     """
-    tc = pedido.tipo_cambio or 1.0
     prep_products = set()
     prep_total = 0.0
     orig_total = 0.0
@@ -505,7 +505,7 @@ def _calcular_venta_pedido(pedido):
         if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_products:
             orig_total += float(d.subtotal)
 
-    return (prep_total + orig_total) * tc
+    return prep_total + orig_total
 
 
 def _pedido_facturado_en_periodo_local(pedido, fecha_inicio, fecha_fin=None):
@@ -1853,20 +1853,9 @@ def admin_analytics():
         hace_90_dias = hoy - timedelta(days=90)
         
         # Tendencia de ventas últimos 90 días (por semanas)
-        # Usa peso real de líneas de preparación cuando existen
+        # Usa líneas facturadas reales del pedido (sin reconversión por tipo_cambio)
         def _venta_pedido_a(pedido):
-            tc = pedido.tipo_cambio or 1.0
-            pp = set()
-            pt = 0.0
-            ot = 0.0
-            for d in pedido.detalles:
-                if not d.es_linea_pedido and d.subtotal:
-                    pp.add(d.producto_id)
-                    pt += float(d.subtotal)
-            for d in pedido.detalles:
-                if d.es_linea_pedido and d.subtotal and d.producto_id not in pp:
-                    ot += float(d.subtotal)
-            return (pt + ot) * tc
+            return _calcular_venta_pedido(pedido)
 
         tendencia_ventas = []
         for i in range(12):  # 12 semanas
@@ -2666,7 +2655,7 @@ def dashboard():
         productos_ventas = {}
         max_ingresos = 0
 
-        def _acumular_top_producto(detalle, pedido_id, tc):
+        def _acumular_top_producto(detalle, pedido_id):
             """Acumula métricas por producto para rankings usando líneas facturadas."""
             if not detalle.producto or not detalle.producto.nombre:
                 app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
@@ -2675,7 +2664,7 @@ def dashboard():
             nombre = detalle.producto.nombre
             cajas_detalle = detalle.cajas or 0
             peso_detalle = detalle.peso or 0
-            ingresos_detalle = float(detalle.subtotal or 0) * tc
+            ingresos_detalle = float(detalle.subtotal or 0)
 
             if nombre not in productos_ventas:
                 productos_ventas[nombre] = {
@@ -2692,7 +2681,6 @@ def dashboard():
 
         for p in pedidos_facturados_mes_list:
             pedido_id = p.id
-            tc = p.tipo_cambio or 1.0
 
             # 1) Priorizar líneas de preparación/facturación reales
             productos_con_prep = set()
@@ -2700,7 +2688,7 @@ def dashboard():
                 if d.es_linea_pedido:
                     continue
                 productos_con_prep.add(d.producto_id)
-                _acumular_top_producto(d, pedido_id, tc)
+                _acumular_top_producto(d, pedido_id)
 
             # 2) Fallback histórico: usar línea original solo si no hubo preparación
             for d in p.detalles:
@@ -2708,7 +2696,7 @@ def dashboard():
                     continue
                 if d.producto_id in productos_con_prep:
                     continue
-                _acumular_top_producto(d, pedido_id, tc)
+                _acumular_top_producto(d, pedido_id)
 
         # Optimización: Convertir sets a contadores en una pasada
         for datos in productos_ventas.values():
