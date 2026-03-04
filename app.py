@@ -2664,45 +2664,61 @@ def dashboard():
 
         # === ANÁLISIS OPTIMIZADO DE PRODUCTOS (MES EN CURSO) ===
         productos_ventas = {}
-        max_ingresos = 0  # Tracking del máximo para optimizar (por valor facturado)
+        max_ingresos = 0
+
+        def _acumular_top_producto(detalle, pedido_id, tc):
+            """Acumula métricas por producto para rankings usando líneas facturadas."""
+            if not detalle.producto or not detalle.producto.nombre:
+                app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
+                return
+
+            nombre = detalle.producto.nombre
+            cajas_detalle = detalle.cajas or 0
+            peso_detalle = detalle.peso or 0
+            ingresos_detalle = float(detalle.subtotal or 0) * tc
+
+            if nombre not in productos_ventas:
+                productos_ventas[nombre] = {
+                    'cajas': 0,
+                    'peso': 0,
+                    'ingresos': 0,
+                    'pedidos': set()
+                }
+
+            productos_ventas[nombre]['cajas'] += cajas_detalle
+            productos_ventas[nombre]['peso'] += peso_detalle
+            productos_ventas[nombre]['ingresos'] += ingresos_detalle
+            productos_ventas[nombre]['pedidos'].add(pedido_id)
 
         for p in pedidos_facturados_mes_list:
             pedido_id = p.id
             tc = p.tipo_cambio or 1.0
+
+            # 1) Priorizar líneas de preparación/facturación reales
+            productos_con_prep = set()
+            for d in p.detalles:
+                if d.es_linea_pedido:
+                    continue
+                productos_con_prep.add(d.producto_id)
+                _acumular_top_producto(d, pedido_id, tc)
+
+            # 2) Fallback histórico: usar línea original solo si no hubo preparación
             for d in p.detalles:
                 if not d.es_linea_pedido:
                     continue
-                # Verificar que existe el producto
-                if not d.producto or not d.producto.nombre:
-                    app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
+                if d.producto_id in productos_con_prep:
                     continue
-
-                nombre = d.producto.nombre
-                cajas_detalle = d.cajas or 0
-                peso_detalle = d.peso or 0
-                ingresos_detalle = float(d.subtotal or 0) * tc
-
-                if nombre not in productos_ventas:
-                    productos_ventas[nombre] = {
-                        'cajas': 0,
-                        'peso': 0,
-                        'ingresos': 0,
-                        'pedidos': set()
-                    }
-
-                # Actualizar datos del producto
-                productos_ventas[nombre]['cajas'] += cajas_detalle
-                productos_ventas[nombre]['peso'] += peso_detalle
-                productos_ventas[nombre]['ingresos'] += ingresos_detalle
-                productos_ventas[nombre]['pedidos'].add(pedido_id)
-                
-                # Tracking optimizado del máximo (por valor facturado)
-                if productos_ventas[nombre]['ingresos'] > max_ingresos:
-                    max_ingresos = productos_ventas[nombre]['ingresos']
+                _acumular_top_producto(d, pedido_id, tc)
 
         # Optimización: Convertir sets a contadores en una pasada
         for datos in productos_ventas.values():
             datos['pedidos'] = len(datos['pedidos'])
+
+        # Máximo de ingresos para escalado visual
+        max_ingresos = max(
+            (datos['ingresos'] for datos in productos_ventas.values()),
+            default=0
+        )
 
         # Top productos con manejo robusto
         try:

@@ -197,6 +197,18 @@ def _ventas_mes_en_html(html):
     return int(re.sub(r'[^0-9]', '', match.group(1)) or '0')
 
 
+def _top_producto_1_en_html(html):
+    match = re.search(
+        r'Top Productos.*?<span class="rr-name">([^<]+)</span>\s*<span class="rr-amount">([^<]+)<small>XCG</small>',
+        html,
+        flags=re.S
+    )
+    assert match is not None
+    nombre = match.group(1).strip()
+    monto = int(re.sub(r'[^0-9]', '', match.group(2)) or '0')
+    return nombre, monto
+
+
 def test_dashboard_ventas_mes_usa_fecha_facturacion_local_y_solo_facturados(app, logged_client):
     """Ventas del mes: solo facturados y clasificados por fecha_facturacion local."""
     from app import db, Cliente, Producto, Pedido, DetallePedido
@@ -340,3 +352,92 @@ def test_dashboard_ventas_mes_cuenta_pedido_creado_antes_si_facturo_este_mes(app
     assert resp.status_code == 200
     html = resp.data.decode('utf-8')
     assert _ventas_mes_en_html(html) == 333
+
+
+def test_dashboard_top_productos_prioriza_lineas_preparacion_facturadas(app, logged_client):
+    """Top productos debe usar líneas facturadas (preparación), no línea original."""
+    from app import db, Cliente, Producto, Pedido, DetallePedido
+
+    tz_cur = ZoneInfo('America/Curacao')
+    now_local = datetime.now(tz_cur)
+    fecha_fact_utc = now_local.astimezone(timezone.utc)
+
+    with app.app_context():
+        cliente = Cliente(nombre='Cliente Top Productos')
+        prod_a = Producto(nombre='Producto A', tax_rate=0.0, se_pesa=False)
+        prod_b = Producto(nombre='Producto B', tax_rate=0.0, se_pesa=False)
+        db.session.add_all([cliente, prod_a, prod_b])
+        db.session.flush()
+
+        # Producto A:
+        # Línea original alta (1000), línea de preparación real menor (300)
+        pedido_a = Pedido(
+            cliente_id=cliente.id,
+            estado='facturado',
+            fecha_pedido=fecha_fact_utc,
+            fecha_facturacion=fecha_fact_utc,
+            tipo_cambio=1.0
+        )
+        db.session.add(pedido_a)
+        db.session.flush()
+        db.session.add_all([
+            DetallePedido(
+                pedido_id=pedido_a.id,
+                producto_id=prod_a.id,
+                cajas=10,
+                cajas_pedidas=10,
+                precio_unitario=100,
+                subtotal=1000,
+                es_linea_pedido=True
+            ),
+            DetallePedido(
+                pedido_id=pedido_a.id,
+                producto_id=prod_a.id,
+                cajas=3,
+                cajas_pedidas=0,
+                precio_unitario=100,
+                subtotal=300,
+                es_linea_pedido=False
+            ),
+        ])
+
+        # Producto B:
+        # Línea original menor (400), línea de preparación real mayor (500)
+        pedido_b = Pedido(
+            cliente_id=cliente.id,
+            estado='facturado',
+            fecha_pedido=fecha_fact_utc,
+            fecha_facturacion=fecha_fact_utc,
+            tipo_cambio=1.0
+        )
+        db.session.add(pedido_b)
+        db.session.flush()
+        db.session.add_all([
+            DetallePedido(
+                pedido_id=pedido_b.id,
+                producto_id=prod_b.id,
+                cajas=4,
+                cajas_pedidas=4,
+                precio_unitario=100,
+                subtotal=400,
+                es_linea_pedido=True
+            ),
+            DetallePedido(
+                pedido_id=pedido_b.id,
+                producto_id=prod_b.id,
+                cajas=5,
+                cajas_pedidas=0,
+                precio_unitario=100,
+                subtotal=500,
+                es_linea_pedido=False
+            ),
+        ])
+        db.session.commit()
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    nombre_top, monto_top = _top_producto_1_en_html(html)
+
+    assert nombre_top == 'Producto B'
+    assert monto_top == 500
