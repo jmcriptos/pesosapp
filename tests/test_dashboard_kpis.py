@@ -1,8 +1,10 @@
 # tests/test_dashboard_kpis.py
 """Tests para Story 1.1: KPIs de nivel de servicio corregidos."""
 import os
+import re
 import pytest
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
+from zoneinfo import ZoneInfo
 
 os.environ.setdefault('SECRET_KEY', 'test-secret')
 os.environ.setdefault('FLASK_ENV', 'testing')
@@ -183,3 +185,158 @@ def test_fallback_data_has_proyeccion_keys(app):
     assert "'proyeccion_ventas'" in fallback_section
     assert "'porcentaje_proyeccion'" in fallback_section
     assert "'dias_total_mes'" in fallback_section
+
+
+def _ventas_mes_en_html(html):
+    match = re.search(
+        r'Ventas del Mes</span>.*?<div class="tile-value">([^<]+)<small>XCG</small>',
+        html,
+        flags=re.S
+    )
+    assert match is not None
+    return int(re.sub(r'[^0-9]', '', match.group(1)) or '0')
+
+
+def test_dashboard_ventas_mes_usa_fecha_facturacion_local_y_solo_facturados(app, logged_client):
+    """Ventas del mes: solo facturados y clasificados por fecha_facturacion local."""
+    from app import db, Cliente, Producto, Pedido, DetallePedido
+
+    tz_cur = ZoneInfo('America/Curacao')
+    now_local = datetime.now(tz_cur)
+    inicio_mes = now_local.date().replace(day=1)
+    ultimo_dia_mes_anterior = inicio_mes - timedelta(days=1)
+
+    # 23:30 del último día del mes anterior en Curazao (UTC cae al día siguiente)
+    fecha_fact_prev_local = datetime(
+        ultimo_dia_mes_anterior.year, ultimo_dia_mes_anterior.month, ultimo_dia_mes_anterior.day,
+        23, 30, tzinfo=tz_cur
+    )
+    fecha_fact_prev_utc = fecha_fact_prev_local.astimezone(timezone.utc)
+
+    # Facturación válida en mes actual
+    fecha_fact_mes_local = datetime(
+        inicio_mes.year, inicio_mes.month, inicio_mes.day, 9, 0, tzinfo=tz_cur
+    )
+    fecha_fact_mes_utc = fecha_fact_mes_local.astimezone(timezone.utc)
+
+    with app.app_context():
+        cliente = Cliente(nombre='Cliente Dashboard Ventas')
+        producto = Producto(nombre='Producto Dashboard Ventas', tax_rate=0.0, se_pesa=False)
+        db.session.add_all([cliente, producto])
+        db.session.flush()
+
+        # NO debe contar en ventas del mes (facturado local mes anterior)
+        pedido_prev = Pedido(
+            cliente_id=cliente.id,
+            estado='facturado',
+            fecha_pedido=fecha_fact_mes_utc,
+            fecha_facturacion=fecha_fact_prev_utc,
+            tipo_cambio=1.0
+        )
+        db.session.add(pedido_prev)
+        db.session.flush()
+        db.session.add(DetallePedido(
+            pedido_id=pedido_prev.id,
+            producto_id=producto.id,
+            cajas=1,
+            cajas_pedidas=1,
+            precio_unitario=111,
+            subtotal=111,
+            es_linea_pedido=True
+        ))
+
+        # Debe contar en ventas del mes
+        pedido_mes = Pedido(
+            cliente_id=cliente.id,
+            estado='facturado',
+            fecha_pedido=fecha_fact_mes_utc,
+            fecha_facturacion=fecha_fact_mes_utc,
+            tipo_cambio=1.0
+        )
+        db.session.add(pedido_mes)
+        db.session.flush()
+        db.session.add(DetallePedido(
+            pedido_id=pedido_mes.id,
+            producto_id=producto.id,
+            cajas=1,
+            cajas_pedidas=1,
+            precio_unitario=222,
+            subtotal=222,
+            es_linea_pedido=True
+        ))
+
+        # No facturado: nunca debe entrar a ventas
+        pedido_pendiente = Pedido(
+            cliente_id=cliente.id,
+            estado='pendiente',
+            fecha_pedido=fecha_fact_mes_utc,
+            tipo_cambio=1.0
+        )
+        db.session.add(pedido_pendiente)
+        db.session.flush()
+        db.session.add(DetallePedido(
+            pedido_id=pedido_pendiente.id,
+            producto_id=producto.id,
+            cajas=1,
+            cajas_pedidas=1,
+            precio_unitario=900,
+            subtotal=900,
+            es_linea_pedido=True
+        ))
+
+        db.session.commit()
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 222
+
+
+def test_dashboard_ventas_mes_cuenta_pedido_creado_antes_si_facturo_este_mes(app, logged_client):
+    """Si se facturó este mes, debe contar aunque se creó el mes pasado."""
+    from app import db, Cliente, Producto, Pedido, DetallePedido
+
+    tz_cur = ZoneInfo('America/Curacao')
+    now_local = datetime.now(tz_cur)
+    inicio_mes = now_local.date().replace(day=1)
+    dia_mes_pasado = inicio_mes - timedelta(days=5)
+
+    fecha_pedido_utc = datetime(
+        dia_mes_pasado.year, dia_mes_pasado.month, dia_mes_pasado.day,
+        10, 0, tzinfo=tz_cur
+    ).astimezone(timezone.utc)
+    fecha_fact_utc = datetime(
+        inicio_mes.year, inicio_mes.month, inicio_mes.day,
+        11, 0, tzinfo=tz_cur
+    ).astimezone(timezone.utc)
+
+    with app.app_context():
+        cliente = Cliente(nombre='Cliente Facturado Mes Actual')
+        producto = Producto(nombre='Producto Facturado Mes Actual', tax_rate=0.0, se_pesa=False)
+        db.session.add_all([cliente, producto])
+        db.session.flush()
+
+        pedido = Pedido(
+            cliente_id=cliente.id,
+            estado='facturado',
+            fecha_pedido=fecha_pedido_utc,
+            fecha_facturacion=fecha_fact_utc,
+            tipo_cambio=1.0
+        )
+        db.session.add(pedido)
+        db.session.flush()
+        db.session.add(DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=producto.id,
+            cajas=1,
+            cajas_pedidas=1,
+            precio_unitario=333,
+            subtotal=333,
+            es_linea_pedido=True
+        ))
+        db.session.commit()
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 333

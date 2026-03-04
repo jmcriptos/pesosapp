@@ -40,6 +40,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from datetime import datetime, date, timedelta, timezone
 from urllib.parse import urlparse, urljoin
 from markupsafe import Markup
+from zoneinfo import ZoneInfo
 from utils.label_utils import (
     draw_order_label, draw_expiration_label, get_logo_path,
     create_single_label_pdf, create_letter_page_pdf, get_centered_x,
@@ -88,6 +89,11 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['REMEMBER_COOKIE_SECURE'] = True
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+
+try:
+    DASHBOARD_TIMEZONE = ZoneInfo(os.environ.get('BUSINESS_TIMEZONE', 'America/Curacao'))
+except Exception:
+    DASHBOARD_TIMEZONE = timezone.utc
 
 # SQLAlchemy ya inicializado arriba
 
@@ -468,6 +474,54 @@ def inject_permissions():
         puede_editar=puede_editar,
         puede_eliminar=puede_eliminar
     )
+
+
+def _to_dashboard_date(dt):
+    """Convierte datetime UTC/naive a fecha local del dashboard."""
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(DASHBOARD_TIMEZONE).date()
+
+
+def _calcular_venta_pedido(pedido):
+    """
+    Venta real del pedido en XCG:
+    - Usa líneas de preparación cuando existen
+    - Usa línea original solo si no hay preparación para ese producto
+    """
+    tc = pedido.tipo_cambio or 1.0
+    prep_products = set()
+    prep_total = 0.0
+    orig_total = 0.0
+
+    for d in pedido.detalles:
+        if not d.es_linea_pedido and d.subtotal:
+            prep_products.add(d.producto_id)
+            prep_total += float(d.subtotal)
+
+    for d in pedido.detalles:
+        if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_products:
+            orig_total += float(d.subtotal)
+
+    return (prep_total + orig_total) * tc
+
+
+def _pedido_facturado_en_periodo_local(pedido, fecha_inicio, fecha_fin=None):
+    """True si el pedido está facturado y su fecha_facturacion local cae en el rango."""
+    if pedido.estado != 'facturado' or not pedido.fecha_facturacion:
+        return False
+
+    fecha_local = _to_dashboard_date(pedido.fecha_facturacion)
+    if not fecha_local:
+        return False
+
+    if fecha_fin is None:
+        return fecha_local >= fecha_inicio
+    return fecha_inicio <= fecha_local <= fecha_fin
+
+
 @app.route('/dashboard_vendedor')
 @login_required
 def dashboard_vendedor():
@@ -480,7 +534,7 @@ def dashboard_vendedor():
     
     try:
         # Fechas para análisis
-        hoy = datetime.now().date()
+        hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
@@ -504,30 +558,23 @@ def dashboard_vendedor():
             total_clientes = Cliente.query.count()
             total_productos = Producto.query.count()
             
-            # 2. MÉTRICAS DE VENTAS GLOBALES
-            # Usa peso real de líneas de preparación cuando existen
-            def _venta_pedido_v(pedido):
-                tc = pedido.tipo_cambio or 1.0
-                prep_prods = set()
-                prep_t = 0.0
-                orig_t = 0.0
-                for d in pedido.detalles:
-                    if not d.es_linea_pedido and d.subtotal:
-                        prep_prods.add(d.producto_id)
-                        prep_t += float(d.subtotal)
-                for d in pedido.detalles:
-                    if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_prods:
-                        orig_t += float(d.subtotal)
-                return (prep_t + orig_t) * tc
-
-            pedidos_mes_vd = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-            ventas_totales = sum(_venta_pedido_v(p) for p in pedidos_mes_vd)
-
-            pedidos_hoy_vd = Pedido.query.filter(
-                Pedido.fecha_pedido >= hoy,
-                Pedido.fecha_pedido < hoy + timedelta(days=1)
+            # 2. MÉTRICAS DE VENTAS GLOBALES (por fecha de facturación local)
+            pedidos_facturados_data = Pedido.query.filter(
+                Pedido.estado == 'facturado',
+                Pedido.fecha_facturacion.isnot(None)
             ).all()
-            ventas_hoy = sum(_venta_pedido_v(p) for p in pedidos_hoy_vd)
+
+            ventas_totales = sum(
+                _calcular_venta_pedido(p)
+                for p in pedidos_facturados_data
+                if _pedido_facturado_en_periodo_local(p, inicio_mes)
+            )
+
+            ventas_hoy = sum(
+                _calcular_venta_pedido(p)
+                for p in pedidos_facturados_data
+                if _pedido_facturado_en_periodo_local(p, hoy, hoy)
+            )
             
             # Conteo de pedidos optimizado
             pedidos_mes_count = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).count()
@@ -599,11 +646,11 @@ def dashboard_vendedor():
             fin_mes_anterior = inicio_mes - timedelta(days=1)
             
             # Ventas del mes anterior
-            pedidos_mes_ant_vd = Pedido.query.filter(
-                Pedido.fecha_pedido >= inicio_mes_anterior,
-                Pedido.fecha_pedido <= fin_mes_anterior
-            ).all()
-            ventas_mes_anterior = sum(_venta_pedido_v(p) for p in pedidos_mes_ant_vd)
+            ventas_mes_anterior = sum(
+                _calcular_venta_pedido(p)
+                for p in pedidos_facturados_data
+                if _pedido_facturado_en_periodo_local(p, inicio_mes_anterior, fin_mes_anterior)
+            )
             
             # Calcular crecimiento
             if ventas_mes_anterior > 0:
@@ -618,6 +665,8 @@ def dashboard_vendedor():
                 'total_productos': total_productos,
                 'ventas_totales': ventas_totales,
                 'ventas_hoy': ventas_hoy,
+                'ventas_mes': ventas_totales,
+                'pedidos_mes': pedidos_mes_count,
                 'total_pedidos': pedidos_pendientes,
                 'pedidos_hoy': pedidos_hoy_count,
                 'eficiencia_sistema': round(eficiencia_sistema, 1),
@@ -637,20 +686,28 @@ def dashboard_vendedor():
             
             # 2. Métricas del vendedor (OPTIMIZADO)
             if clientes_ids:
-                # Ventas del día para el vendedor
-                pedidos_vend_hoy = Pedido.query.filter(
+                # Ventas facturadas del vendedor (fecha de facturación local)
+                pedidos_vend_facturados = Pedido.query.filter(
                     Pedido.cliente_id.in_(clientes_ids),
-                    Pedido.fecha_pedido >= hoy,
-                    Pedido.fecha_pedido < hoy + timedelta(days=1)
+                    Pedido.estado == 'facturado',
+                    Pedido.fecha_facturacion.isnot(None)
                 ).all()
-                ventas_vendedor_hoy = sum(_venta_pedido_v(p) for p in pedidos_vend_hoy)
 
-                # Ventas del mes para el vendedor
+                ventas_vendedor_hoy = sum(
+                    _calcular_venta_pedido(p)
+                    for p in pedidos_vend_facturados
+                    if _pedido_facturado_en_periodo_local(p, hoy, hoy)
+                )
+
                 pedidos_vend_mes = Pedido.query.filter(
                     Pedido.cliente_id.in_(clientes_ids),
                     Pedido.fecha_pedido >= inicio_mes
                 ).all()
-                ventas_vendedor_mes = sum(_venta_pedido_v(p) for p in pedidos_vend_mes)
+                ventas_vendedor_mes = sum(
+                    _calcular_venta_pedido(p)
+                    for p in pedidos_vend_facturados
+                    if _pedido_facturado_en_periodo_local(p, inicio_mes)
+                )
                 
                 # Conteo de pedidos del día
                 pedidos_hoy_count = Pedido.query.filter(
@@ -675,6 +732,7 @@ def dashboard_vendedor():
             context.update({
                 'clientes_asignados': len(clientes_vendedor),
                 'pedidos_hoy': pedidos_hoy_count,
+                'pedidos_mes': len(pedidos_vend_mes) if clientes_ids else 0,
                 'ventas_hoy': ventas_vendedor_hoy,
                 'ventas_mes': ventas_vendedor_mes,
                 'pedidos_pendientes': pedidos_pendientes_vendedor,
@@ -692,7 +750,7 @@ def dashboard_vendedor():
         # Contexto mínimo en caso de error
         context = {
             'vendedor': current_user,
-            'fecha_actual': datetime.now().date(),
+            'fecha_actual': datetime.now(DASHBOARD_TIMEZONE).date(),
             'total_vendedores': 0,
             'ventas_totales': 0,
             'total_pedidos': 0,
@@ -707,7 +765,7 @@ def dashboard_vendedor():
 def obtener_metricas_sistema():
     """Función auxiliar para obtener métricas del sistema de forma centralizada"""
     try:
-        hoy = datetime.now().date()
+        hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
         
         metricas = {
@@ -718,13 +776,16 @@ def obtener_metricas_sistema():
             'pedidos_facturados': Pedido.query.filter_by(estado='facturado').count(),
         }
         
-        # Calcular ventas del mes
-        pedidos_mes = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-        ventas_mes = 0
-        for pedido in pedidos_mes:
-            for detalle in pedido.detalles:
-                if detalle.subtotal:
-                    ventas_mes += float(detalle.subtotal)
+        # Calcular ventas facturadas del mes (fecha de facturación local)
+        pedidos_facturados_data = Pedido.query.filter(
+            Pedido.estado == 'facturado',
+            Pedido.fecha_facturacion.isnot(None)
+        ).all()
+        ventas_mes = sum(
+            _calcular_venta_pedido(p)
+            for p in pedidos_facturados_data
+            if _pedido_facturado_en_periodo_local(p, inicio_mes)
+        )
         
         metricas['ventas_mes'] = ventas_mes
         metricas['total_pedidos'] = Pedido.query.count()
@@ -766,7 +827,7 @@ def api_dashboard_metricas():
             clientes_vendedor = current_user.obtener_clientes_visibles()
             clientes_ids = [c.id for c in clientes_vendedor]
             
-            hoy = datetime.now().date()
+            hoy = datetime.now(DASHBOARD_TIMEZONE).date()
             pedidos_hoy = 0
             ventas_hoy = 0
             
@@ -777,10 +838,16 @@ def api_dashboard_metricas():
                 ).all()
                 
                 pedidos_hoy = len(pedidos_vendedor_hoy)
-                for pedido in pedidos_vendedor_hoy:
-                    for detalle in pedido.detalles:
-                        if detalle.subtotal:
-                            ventas_hoy += float(detalle.subtotal)
+                pedidos_facturados_hoy = Pedido.query.filter(
+                    Pedido.cliente_id.in_(clientes_ids),
+                    Pedido.estado == 'facturado',
+                    Pedido.fecha_facturacion.isnot(None)
+                ).all()
+                ventas_hoy = sum(
+                    _calcular_venta_pedido(p)
+                    for p in pedidos_facturados_hoy
+                    if _pedido_facturado_en_periodo_local(p, hoy, hoy)
+                )
             
             metricas = {
                 'clientes_asignados': len(clientes_vendedor),
@@ -2102,7 +2169,7 @@ def crear_rol():
 def api_admin_stats():
     """API para obtener estadísticas en tiempo real para el dashboard admin"""
     try:
-        hoy = datetime.now().date()
+        hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
         
         stats = {
@@ -2115,12 +2182,16 @@ def api_admin_stats():
             'ventas_mes': 0
         }
         
-        # Calcular ventas del mes
-        pedidos_mes = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-        for pedido in pedidos_mes:
-            for detalle in pedido.detalles:
-                if detalle.subtotal:
-                    stats['ventas_mes'] += float(detalle.subtotal)
+        # Calcular ventas facturadas del mes (fecha de facturación local)
+        pedidos_facturados_data = Pedido.query.filter(
+            Pedido.estado == 'facturado',
+            Pedido.fecha_facturacion.isnot(None)
+        ).all()
+        stats['ventas_mes'] = sum(
+            _calcular_venta_pedido(p)
+            for p in pedidos_facturados_data
+            if _pedido_facturado_en_periodo_local(p, inicio_mes)
+        )
         
         return jsonify(stats)
         
@@ -2314,7 +2385,7 @@ def dashboard():
             
         app.logger.info("Iniciando cálculo de dashboard...")
         # === FECHAS DE REFERENCIA ===
-        hoy = datetime.now().date()
+        hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
@@ -2342,60 +2413,78 @@ def dashboard():
             pedidos_mes_list = base_query.filter(Pedido.fecha_pedido >= inicio_mes).all()
             pedidos_semana_list = base_query.filter(Pedido.fecha_pedido >= inicio_semana).all()
             pedidos_30_dias = base_query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
+            pedidos_facturados_list = base_query.filter(
+                Pedido.estado == 'facturado',
+                Pedido.fecha_facturacion.isnot(None)
+            ).all()
             pedidos_mes_anterior_list = base_query.filter(
                 Pedido.fecha_pedido >= inicio_mes_anterior,
                 Pedido.fecha_pedido <= fin_mes_anterior
             ).all()
             
-            app.logger.info(f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, {len(pedidos_semana_list)} semana, {len(pedidos_30_dias)} últimos 30 días")
+            app.logger.info(
+                f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, "
+                f"{len(pedidos_semana_list)} semana, {len(pedidos_30_dias)} últimos 30 días, "
+                f"{len(pedidos_facturados_list)} facturados"
+            )
         except Exception as e:
             app.logger.error(f"Error en consultas dashboard: {e}")
             # Fallback con datos vacíos
             pedidos_mes_list = []
             pedidos_semana_list = []
             pedidos_30_dias = []
-
-        # === CÁLCULOS ROBUSTOS DE VENTAS ===
-        # Usa líneas de preparación (peso real) cuando existen,
-        # líneas originales solo para productos importados (sin prep).
-        def _venta_pedido(pedido):
-            """Calcula venta real de un pedido en XCG."""
-            tc = pedido.tipo_cambio or 1.0
-            prep_products = set()
-            prep_total = 0.0
-            orig_total = 0.0
-            for d in pedido.detalles:
-                if not d.es_linea_pedido and d.subtotal:
-                    prep_products.add(d.producto_id)
-                    prep_total += float(d.subtotal)
-            for d in pedido.detalles:
-                if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_products:
-                    orig_total += float(d.subtotal)
-            return (prep_total + orig_total) * tc
+            pedidos_facturados_list = []
+            pedidos_mes_anterior_list = []
 
         try:
+            # Ventas reconocidas por fecha de facturación local
             ventas_mes = 0
-            for p in pedidos_mes_list:
-                try:
-                    ventas_mes += _venta_pedido(p)
-                except (AttributeError, ValueError, TypeError) as e:
-                    app.logger.warning(f"Error en cálculo ventas mes, pedido {p.id}: {e}")
-                    continue
-
             ventas_semana = 0
-            for p in pedidos_semana_list:
+            ventas_mes_anterior = 0
+            ventas_semanales_idx = {}
+            ventas_diarias_idx = {}
+            pedidos_facturados_mes_list = []
+
+            inicio_tendencia = inicio_semana - timedelta(weeks=25)
+            inicio_ultimos_7_dias = hoy - timedelta(days=6)
+
+            for p in pedidos_facturados_list:
                 try:
-                    ventas_semana += _venta_pedido(p)
+                    fecha_fact_local = _to_dashboard_date(p.fecha_facturacion)
+                    if not fecha_fact_local:
+                        continue
+                    venta = _calcular_venta_pedido(p)
                 except (AttributeError, ValueError, TypeError) as e:
-                    app.logger.warning(f"Error en cálculo ventas semana, pedido {p.id}: {e}")
+                    app.logger.warning(f"Error en cálculo ventas pedido {p.id}: {e}")
                     continue
 
-            ventas_mes_anterior = 0
-            for p in pedidos_mes_anterior_list:
-                try:
-                    ventas_mes_anterior += _venta_pedido(p)
-                except (AttributeError, ValueError, TypeError):
-                    continue
+                if fecha_fact_local >= inicio_mes:
+                    ventas_mes += venta
+                    pedidos_facturados_mes_list.append(p)
+
+                if fecha_fact_local >= inicio_semana:
+                    ventas_semana += venta
+
+                if inicio_mes_anterior <= fecha_fact_local <= fin_mes_anterior:
+                    ventas_mes_anterior += venta
+
+                if fecha_fact_local >= inicio_ultimos_7_dias:
+                    bucket = ventas_diarias_idx.setdefault(
+                        fecha_fact_local,
+                        {'ventas': 0.0, 'pedidos': 0}
+                    )
+                    bucket['ventas'] += venta
+                    bucket['pedidos'] += 1
+
+                semana_inicio = fecha_fact_local - timedelta(days=fecha_fact_local.weekday())
+                if inicio_tendencia <= semana_inicio <= inicio_semana:
+                    bucket = ventas_semanales_idx.setdefault(
+                        semana_inicio,
+                        {'ventas': 0.0, 'pedidos': 0}
+                    )
+                    bucket['ventas'] += venta
+                    bucket['pedidos'] += 1
+
             pedidos_mes_anterior = len(pedidos_mes_anterior_list)
 
             # Consulta robusta para pedidos pendientes (excluyendo AL01)
@@ -2411,6 +2500,9 @@ def dashboard():
             ventas_mes_anterior = 0
             pedidos_mes_anterior = 0
             pedidos_pendientes = 0
+            pedidos_facturados_mes_list = []
+            ventas_semanales_idx = {}
+            ventas_diarias_idx = {}
 
         # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
         # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
@@ -2430,7 +2522,11 @@ def dashboard():
             # Lead times
             lead_times_p = []
             for p in facturados:
-                dias = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                fecha_fact_local = _to_dashboard_date(p.fecha_facturacion)
+                fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
+                if not fecha_fact_local or not fecha_pedido_local:
+                    continue
+                dias = (fecha_fact_local - fecha_pedido_local).days
                 if dias >= 0:
                     lead_times_p.append(dias)
 
@@ -2475,7 +2571,7 @@ def dashboard():
             # Ventas del período
             total_p = len(pedidos_periodo)
             ventas_p = sum(
-                _venta_pedido(p) for p in pedidos_periodo if p.estado == 'facturado'
+                _calcular_venta_pedido(p) for p in pedidos_periodo if p.estado == 'facturado'
             )
 
             return {
@@ -2491,8 +2587,11 @@ def dashboard():
 
         # Extraer valores para compatibilidad con template existente
         pedidos_facturados = [p for p in pedidos_mes_list if p.estado == 'facturado' and p.fecha_facturacion]
-        lead_times = [dias for p in pedidos_facturados if p.fecha_facturacion
-                     for dias in [(p.fecha_facturacion.date() - p.fecha_pedido.date()).days]
+        lead_times = [dias for p in pedidos_facturados
+                     if _to_dashboard_date(p.fecha_facturacion) and _to_dashboard_date(p.fecha_pedido)
+                     for dias in [(
+                        _to_dashboard_date(p.fecha_facturacion) - _to_dashboard_date(p.fecha_pedido)
+                     ).days]
                      if dias >= 0]
         lead_time_promedio = kpis_mes_actual['lead_time']
         order_completion_rate = kpis_mes_actual['order_completion_rate']
@@ -2567,7 +2666,7 @@ def dashboard():
         productos_ventas = {}
         max_ingresos = 0  # Tracking del máximo para optimizar (por valor facturado)
 
-        for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
+        for p in pedidos_facturados_mes_list:
             pedido_id = p.id
             tc = p.tipo_cambio or 1.0
             for d in p.detalles:
@@ -2639,7 +2738,7 @@ def dashboard():
 
         # === ANÁLISIS DE CLIENTES (MES EN CURSO) ===
         clientes_ventas = {}
-        for p in pedidos_mes_list:  # Cambiado de pedidos_30_dias a mes en curso
+        for p in pedidos_facturados_mes_list:
             # Verificar que existe el cliente
             if not p.cliente:
                 app.logger.warning(f'Pedido sin cliente: {p.id}')
@@ -2649,7 +2748,7 @@ def dashboard():
             if nombre not in clientes_ventas:
                 clientes_ventas[nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
             clientes_ventas[nombre]['pedidos'] += 1
-            clientes_ventas[nombre]['total'] += _venta_pedido(p)
+            clientes_ventas[nombre]['total'] += _calcular_venta_pedido(p)
             if (
                 not clientes_ventas[nombre]['ultimo_pedido']
                 or p.fecha_pedido > clientes_ventas[nombre]['ultimo_pedido']
@@ -2662,25 +2761,16 @@ def dashboard():
 
         # === TENDENCIA SEMANAL (excluyendo AL01) — 26 semanas (6 meses) ===
         tendencia_semanal = []
-        for i in range(26):
-            inicio_i = hoy - timedelta(days=hoy.weekday() + 7 * i)
-            fin_i = inicio_i + timedelta(days=6)
-            semana_query = Pedido.query.filter(
-                db.func.date(Pedido.fecha_pedido) >= inicio_i,
-                db.func.date(Pedido.fecha_pedido) <= fin_i
-            )
-            if cliente_almacen_id:
-                semana_query = semana_query.filter(Pedido.cliente_id != cliente_almacen_id)
-            pedidos_semana_i = semana_query.all()
-            ventas_semana_i = sum(_venta_pedido(p) for p in pedidos_semana_i)
+        for i in range(25, -1, -1):
+            inicio_i = inicio_semana - timedelta(weeks=i)
+            bucket = ventas_semanales_idx.get(inicio_i, {'ventas': 0.0, 'pedidos': 0})
             tendencia_semanal.append(
                 {
                     'semana': inicio_i.strftime('%d/%m'),
-                    'ventas': ventas_semana_i,
-                    'pedidos': len(pedidos_semana_i),
+                    'ventas': bucket['ventas'],
+                    'pedidos': bucket['pedidos'],
                 }
             )
-        tendencia_semanal.reverse()
 
         # === ESTADOS DE PEDIDOS ===
         estados_count = {}
@@ -2706,21 +2796,14 @@ def dashboard():
 
         # === VENTAS DIARIAS (excluyendo AL01) ===
         ventas_dias = []
-        for i in range(7):
+        for i in range(6, -1, -1):
             dia = hoy - timedelta(days=i)
-            dia_query = Pedido.query.filter(
-                db.func.date(Pedido.fecha_pedido) == dia
-            )
-            if cliente_almacen_id:
-                dia_query = dia_query.filter(Pedido.cliente_id != cliente_almacen_id)
-            pedidos_dia = dia_query.all()
-            total_dia = sum(_venta_pedido(p) for p in pedidos_dia)
+            bucket = ventas_diarias_idx.get(dia, {'ventas': 0.0, 'pedidos': 0})
             ventas_dias.append({
                 'fecha': dia.strftime('%d/%m'),
-                'ventas': total_dia,
-                'pedidos': len(pedidos_dia)
+                'ventas': bucket['ventas'],
+                'pedidos': bucket['pedidos']
             })
-        ventas_dias.reverse()
 
         # === CALCULAR PORCENTAJE DE META ===
         try:
