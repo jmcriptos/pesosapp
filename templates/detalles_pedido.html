@@ -185,9 +185,16 @@
 }
 
 .mobile-form-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 132px);
+    grid-template-areas:
+        "producto producto"
+        "cantidad accion"
+        "lote lote"
+        "fabricacion fabricacion"
+        "expiracion expiracion";
+    gap: 16px 10px;
+    align-items: end;
 }
 
 .mobile-form-group {
@@ -195,6 +202,13 @@
     flex-direction: column;
     gap: 6px;
 }
+
+.mobile-form-group-producto { grid-area: producto; }
+.mobile-form-group-cantidad { grid-area: cantidad; }
+.mobile-form-group-lote { grid-area: lote; }
+.mobile-form-group-fab { grid-area: fabricacion; }
+.mobile-form-group-exp { grid-area: expiracion; }
+.mobile-form-group-btn { grid-area: accion; }
 
 /* Label oculto en móvil */
 .mobile-label-hidden {
@@ -273,6 +287,15 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
+}
+
+.mobile-form-group-btn .mobile-btn {
+    height: 56px;
+    padding: 0 14px;
+}
+
+.mobile-form-group-btn .mobile-btn span {
+    white-space: nowrap;
 }
 
 .mobile-btn-success {
@@ -615,10 +638,27 @@
 
     .mobile-form-grid {
         display: grid;
+        grid-template-areas: none;
         grid-template-columns: minmax(280px, 6fr) minmax(90px, 2fr) minmax(120px, 2.5fr) minmax(150px, 2.5fr) minmax(150px, 2.5fr) auto;
         gap: 12px;
         align-items: end;
     }
+
+    .mobile-form-group-producto,
+    .mobile-form-group-cantidad,
+    .mobile-form-group-lote,
+    .mobile-form-group-fab,
+    .mobile-form-group-exp,
+    .mobile-form-group-btn {
+        grid-area: auto;
+    }
+
+    .mobile-form-group-producto { grid-column: 1; }
+    .mobile-form-group-cantidad { grid-column: 2; }
+    .mobile-form-group-lote { grid-column: 3; }
+    .mobile-form-group-fab { grid-column: 4; }
+    .mobile-form-group-exp { grid-column: 5; }
+    .mobile-form-group-btn { grid-column: 6; }
 
     .mobile-form-control {
         padding: 12px 14px;
@@ -979,7 +1019,7 @@ tr.linea-pedido-original td:first-child {
                 <div class="mobile-form-grid">
 
                     <!-- Producto -->
-                    <div class="mobile-form-group">
+                    <div class="mobile-form-group mobile-form-group-producto">
                         <label class="mobile-form-label" for="producto_id">Producto</label>
                         <select name="producto_id" id="producto_id" class="mobile-form-control ts-select" required>
                                 <option value="">Seleccionar...</option>
@@ -990,7 +1030,7 @@ tr.linea-pedido-original td:first-child {
                     </div>
 
                     <!-- Cantidad (peso o cajas según producto) -->
-                    <div class="mobile-form-group">
+                    <div class="mobile-form-group mobile-form-group-cantidad">
                         <label class="mobile-form-label" for="peso" id="cantidad_label">Peso (kg)</label>
                         <input type="text" inputmode="decimal" name="peso" id="peso"
                                class="mobile-form-control" placeholder="0.00"
@@ -998,21 +1038,21 @@ tr.linea-pedido-original td:first-child {
                     </div>
 
                     <!-- Lote -->
-                    <div class="mobile-form-group">
+                    <div class="mobile-form-group mobile-form-group-lote">
                         <label class="mobile-form-label" for="lote">Lote</label>
                         <input type="text" name="lote" id="lote"
                                class="mobile-form-control" placeholder="Ej: L001" required>
                     </div>
 
                     <!-- Fecha Fabricación -->
-                    <div class="mobile-form-group">
+                    <div class="mobile-form-group mobile-form-group-fab">
                         <label class="mobile-form-label" for="fecha_fabricacion">F. Fabricación</label>
                         <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
                                class="mobile-form-control" required>
                     </div>
 
                     <!-- Fecha Expiración -->
-                    <div class="mobile-form-group">
+                    <div class="mobile-form-group mobile-form-group-exp">
                         <label class="mobile-form-label" for="fecha_expiracion">F. Expiración</label>
                         <input type="date" name="fecha_expiracion" id="fecha_expiracion"
                                class="mobile-form-control" required>
