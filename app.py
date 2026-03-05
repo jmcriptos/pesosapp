@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, send_file, jsonify,
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 import io
 from flask import make_response
 import csv
@@ -105,6 +105,11 @@ try:
     N8N_QB_SALES_TIMEOUT = int(os.environ.get('N8N_QB_SALES_TIMEOUT', 20))
 except (TypeError, ValueError):
     N8N_QB_SALES_TIMEOUT = 20
+try:
+    N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 60))
+except (TypeError, ValueError):
+    N8N_QB_CACHE_TTL = 60
+_qb_sales_cache = {'key': None, 'value': None, 'expires_at': 0.0}
 
 # SQLAlchemy ya inicializado arriba
 
@@ -1047,6 +1052,8 @@ def _obtener_metricas_ventas_quickbooks(
     inicio_tendencia,
     inicio_ultimos_7_dias,
 ):
+    global _qb_sales_cache
+
     if not _quickbooks_sales_enabled():
         return None
 
@@ -1062,6 +1069,19 @@ def _obtener_metricas_ventas_quickbooks(
         'group_by': ['day', 'week', 'customer', 'product'],
         'include_summary': True
     }
+    cache_key = (
+        N8N_QB_SALES_WEBHOOK_URL,
+        payload['from_date'],
+        payload['to_date'],
+        payload['timezone'],
+    )
+    now_ts = datetime.now(timezone.utc).timestamp()
+    if (
+        N8N_QB_CACHE_TTL > 0
+        and _qb_sales_cache.get('key') == cache_key
+        and _qb_sales_cache.get('expires_at', 0.0) > now_ts
+    ):
+        return _qb_sales_cache.get('value')
 
     try:
         resp = requests.post(
@@ -1074,7 +1094,7 @@ def _obtener_metricas_ventas_quickbooks(
         if not isinstance(data, dict):
             app.logger.warning('Respuesta QuickBooks inválida: se esperaba JSON objeto')
             return None
-        return _normalizar_metricas_ventas_quickbooks(
+        normalized = _normalizar_metricas_ventas_quickbooks(
             data,
             hoy=hoy,
             inicio_mes=inicio_mes,
@@ -1084,6 +1104,13 @@ def _obtener_metricas_ventas_quickbooks(
             inicio_tendencia=inicio_tendencia,
             inicio_ultimos_7_dias=inicio_ultimos_7_dias,
         )
+        if N8N_QB_CACHE_TTL > 0:
+            _qb_sales_cache = {
+                'key': cache_key,
+                'value': normalized,
+                'expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_CACHE_TTL,
+            }
+        return normalized
     except requests.Timeout:
         app.logger.warning(
             f'Timeout obteniendo ventas de QuickBooks ({N8N_QB_SALES_TIMEOUT}s). Fallback a datos locales.'
@@ -2997,12 +3024,16 @@ def dashboard():
         inicio_mes = hoy.replace(day=1)
         inicio_semana = hoy - timedelta(days=hoy.weekday())
         hace_30_dias = hoy - timedelta(days=30)
-        hace_8_semanas = hoy - timedelta(weeks=8)
         # Mes anterior (mismo rango de días para comparación justa)
         fin_mes_anterior = inicio_mes - timedelta(days=1)
         inicio_mes_anterior = fin_mes_anterior.replace(day=1)
         inicio_tendencia = inicio_semana - timedelta(weeks=25)
         inicio_ultimos_7_dias = hoy - timedelta(days=6)
+        pedidos_period_starts = {
+            '6m': hoy - timedelta(days=181),
+            '3m': hoy - timedelta(days=90),
+            '4w': hoy - timedelta(days=27),
+        }
 
         # === CLIENTE EXCLUIDO (ALMACÉN INTERNO) ===
         # AL01 es usado para registrar pesos e imprimir etiquetas de almacén, no son pedidos reales
@@ -3017,21 +3048,52 @@ def dashboard():
 
         # === CONSULTAS ROBUSTAS PARA PRODUCCIÓN ===
         try:
-            # Consultas simples sin eager loading para evitar problemas en Heroku
-            # NOTA: Se excluye cliente AL01 (almacén interno) de todos los cálculos
-            base_query = Pedido.query.filter(filtro_sin_almacen())
-            pedidos_mes_list = base_query.filter(Pedido.fecha_pedido >= inicio_mes).all()
-            pedidos_semana_list = base_query.filter(Pedido.fecha_pedido >= inicio_semana).all()
-            pedidos_30_dias = base_query.filter(Pedido.fecha_pedido >= hace_30_dias).all()
-            pedidos_facturados_list = base_query.filter(
+            # Cargar una sola vez pedidos de los últimos ~6 meses con relaciones necesarias,
+            # para evitar N+1 y múltiples consultas solapadas por período.
+            inicio_historico_mensual = (inicio_mes - relativedelta(months=5)).replace(day=1)
+            inicio_carga_pedidos = min(inicio_historico_mensual, pedidos_period_starts['6m'])
+
+            pedidos_base_list = (
+                Pedido.query.options(
+                    joinedload(Pedido.cliente),
+                    selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
+                )
+                .filter(
+                    filtro_sin_almacen(),
+                    Pedido.fecha_pedido >= inicio_carga_pedidos
+                )
+                .all()
+            )
+
+            pedidos_base_with_dates = []
+            for pedido in pedidos_base_list:
+                fecha_local = _to_dashboard_date(pedido.fecha_pedido)
+                if not fecha_local or fecha_local > hoy:
+                    continue
+                pedidos_base_with_dates.append((pedido, fecha_local))
+
+            pedidos_mes_list = [p for p, fecha in pedidos_base_with_dates if fecha >= inicio_mes]
+            pedidos_semana_list = [p for p, fecha in pedidos_base_with_dates if fecha >= inicio_semana]
+            pedidos_30_dias = [p for p, fecha in pedidos_base_with_dates if fecha >= hace_30_dias]
+            pedidos_mes_anterior_list = [
+                p for p, fecha in pedidos_base_with_dates
+                if inicio_mes_anterior <= fecha <= fin_mes_anterior
+            ]
+            pedidos_6m_list = [
+                p for p, fecha in pedidos_base_with_dates
+                if fecha >= pedidos_period_starts['6m']
+            ]
+
+            pedidos_facturados_list = Pedido.query.options(
+                joinedload(Pedido.cliente),
+                selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
+            ).filter(
+                filtro_sin_almacen(),
                 Pedido.estado == 'facturado',
-                Pedido.fecha_facturacion.isnot(None)
+                Pedido.fecha_facturacion.isnot(None),
+                Pedido.fecha_facturacion >= (inicio_tendencia - timedelta(days=1))
             ).all()
-            pedidos_mes_anterior_list = base_query.filter(
-                Pedido.fecha_pedido >= inicio_mes_anterior,
-                Pedido.fecha_pedido <= fin_mes_anterior
-            ).all()
-            
+
             app.logger.info(
                 f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, "
                 f"{len(pedidos_semana_list)} semana, {len(pedidos_30_dias)} últimos 30 días, "
@@ -3040,11 +3102,13 @@ def dashboard():
         except Exception as e:
             app.logger.error(f"Error en consultas dashboard: {e}")
             # Fallback con datos vacíos
+            pedidos_base_with_dates = []
             pedidos_mes_list = []
             pedidos_semana_list = []
             pedidos_30_dias = []
             pedidos_facturados_list = []
             pedidos_mes_anterior_list = []
+            pedidos_6m_list = []
 
         try:
             # Ventas reconocidas por fecha de facturación local
@@ -3053,7 +3117,6 @@ def dashboard():
             ventas_mes_anterior = 0
             ventas_semanales_idx = {}
             ventas_diarias_idx = {}
-            pedidos_facturados_mes_list = []
 
             for p in pedidos_facturados_list:
                 try:
@@ -3067,7 +3130,6 @@ def dashboard():
 
                 if fecha_fact_local >= inicio_mes:
                     ventas_mes += venta
-                    pedidos_facturados_mes_list.append(p)
 
                 if fecha_fact_local >= inicio_semana:
                     ventas_semana += venta
@@ -3107,7 +3169,6 @@ def dashboard():
             ventas_mes_anterior = 0
             pedidos_mes_anterior = 0
             pedidos_pendientes = 0
-            pedidos_facturados_mes_list = []
             ventas_semanales_idx = {}
             ventas_diarias_idx = {}
 
@@ -3223,41 +3284,23 @@ def dashboard():
 
         # === HISTÓRICO DE KPIs (ÚLTIMOS 6 MESES) ===
         kpis_historicos = []
-        for i in range(6):
-            # Calcular inicio y fin de cada mes
-            if i == 0:
-                mes_inicio = inicio_mes
+        for months_back in range(5, -1, -1):
+            mes_inicio = (inicio_mes - relativedelta(months=months_back)).replace(day=1)
+            if months_back == 0:
                 mes_fin = hoy
             else:
-                # Mes anterior
-                primer_dia_mes_actual = inicio_mes
-                for _ in range(i):
-                    primer_dia_mes_actual = (primer_dia_mes_actual - timedelta(days=1)).replace(day=1)
-                mes_inicio = primer_dia_mes_actual
-                # Último día del mes
-                if mes_inicio.month == 12:
-                    mes_fin = mes_inicio.replace(year=mes_inicio.year + 1, month=1, day=1) - timedelta(days=1)
-                else:
-                    mes_fin = mes_inicio.replace(month=mes_inicio.month + 1, day=1) - timedelta(days=1)
+                mes_fin = (mes_inicio + relativedelta(months=1)) - timedelta(days=1)
 
-            # Obtener pedidos del mes (excluyendo AL01)
-            hist_query = Pedido.query.filter(
-                Pedido.fecha_pedido >= mes_inicio,
-                Pedido.fecha_pedido <= mes_fin
-            )
-            if cliente_almacen_id:
-                hist_query = hist_query.filter(Pedido.cliente_id != cliente_almacen_id)
-            pedidos_mes_hist = hist_query.all()
+            pedidos_mes_hist = [
+                p for p, fecha_local in pedidos_base_with_dates
+                if mes_inicio <= fecha_local <= mes_fin
+            ]
 
-            # Calcular KPIs
             kpis = calcular_kpis_periodo(pedidos_mes_hist)
             kpis['mes'] = mes_inicio.strftime('%b %Y')
             kpis['mes_num'] = mes_inicio.month
             kpis['año'] = mes_inicio.year
             kpis_historicos.append(kpis)
-
-        # Invertir para que el más antiguo esté primero
-        kpis_historicos.reverse()
 
         # Perfect order rate del mes actual (simplificado: solo OTD)
         perfect_orders = sum(1 for lt in lead_times if lt <= 2)
@@ -3407,11 +3450,6 @@ def dashboard():
         }
 
         # === PEDIDOS VISUAL (DIARIO + ESTADOS 6M / 3M / 4S) ===
-        pedidos_period_starts = {
-            '6m': hoy - timedelta(days=181),
-            '3m': hoy - timedelta(days=90),
-            '4w': hoy - timedelta(days=27),
-        }
         pedidos_diarios_periodos = {k: [] for k in pedidos_period_starts.keys()}
         pedidos_resumen_periodos = {
             k: {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0}
@@ -3419,11 +3457,6 @@ def dashboard():
         }
 
         try:
-            pedidos_6m_query = Pedido.query.filter(Pedido.fecha_pedido >= pedidos_period_starts['6m'])
-            if cliente_almacen_id:
-                pedidos_6m_query = pedidos_6m_query.filter(Pedido.cliente_id != cliente_almacen_id)
-            pedidos_6m_list = pedidos_6m_query.all()
-
             pedidos_diarios_idx = {}
             for p in pedidos_6m_list:
                 fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
@@ -3464,7 +3497,7 @@ def dashboard():
             app.logger.error(f'Error calculando visual de pedidos: {e}')
 
         # === PEDIDOS RECIENTES (excluyendo AL01) ===
-        recientes_query = Pedido.query
+        recientes_query = Pedido.query.options(joinedload(Pedido.cliente))
         if cliente_almacen_id:
             recientes_query = recientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
         pedidos_recientes_data = recientes_query.order_by(
