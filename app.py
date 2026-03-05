@@ -3414,6 +3414,74 @@ def dashboard():
             Pedido.fecha_pedido.desc()
         ).limit(10).all()
 
+        # === OPERACIÓN DE PEDIDOS (TAB PEDIDOS) ===
+        pedidos_facturados_hoy = sum(
+            1 for p in pedidos_facturados_list
+            if _pedido_facturado_en_periodo_local(p, hoy, hoy)
+        )
+
+        pedidos_operativos = []
+        pedidos_vencidos = 0
+        pedidos_preparados_activos = 0
+
+        estado_priority = {
+            'pendiente': 0,
+            'preparado': 1,
+            'facturado': 2,
+        }
+
+        for p in pedidos_30_dias:
+            estado = (p.estado or 'sin_estado').strip().lower()
+            fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
+            edad_dias = (hoy - fecha_pedido_local).days if fecha_pedido_local else 0
+            total_xcg = round(_coerce_float(_calcular_venta_pedido(p), 0.0), 2)
+            cliente_nombre = p.cliente.nombre if p.cliente and p.cliente.nombre else 'Sin cliente'
+
+            es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
+            if es_urgente:
+                pedidos_vencidos += 1
+            if estado == 'preparado':
+                pedidos_preparados_activos += 1
+
+            if estado == 'facturado':
+                sla_text = 'Facturado'
+                sla_class = 'sla-ok'
+            elif edad_dias <= 1:
+                sla_text = 'En tiempo'
+                sla_class = 'sla-ok'
+            elif edad_dias == 2:
+                sla_text = 'Límite hoy'
+                sla_class = 'sla-warn'
+            else:
+                sla_text = f'Vencido {edad_dias - 2}d'
+                sla_class = 'sla-danger'
+
+            pedidos_operativos.append({
+                'id': p.id,
+                'cliente': cliente_nombre,
+                'estado': estado,
+                'fecha_pedido': fecha_pedido_local.strftime('%d/%m') if fecha_pedido_local else 'N/A',
+                'fecha_pedido_full': p.fecha_pedido.strftime('%d/%m %H:%M') if p.fecha_pedido else '',
+                'edad_dias': max(0, edad_dias),
+                'total_xcg': total_xcg,
+                'sla_text': sla_text,
+                'sla_class': sla_class,
+                'es_urgente': es_urgente,
+                'puede_preparar': estado == 'pendiente',
+                'puede_facturar': estado == 'preparado',
+                'puede_editar': estado != 'facturado',
+            })
+
+        pedidos_operativos.sort(
+            key=lambda x: (
+                estado_priority.get(x['estado'], 3),
+                -x['edad_dias'],
+                -x['total_xcg'],
+                -x['id']
+            )
+        )
+        pedidos_operativos = pedidos_operativos[:20]
+
         # === VENTAS DIARIAS (excluyendo AL01) ===
         ventas_dias = []
         for i in range(6, -1, -1):
@@ -3493,6 +3561,10 @@ def dashboard():
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
+            pedidos_operativos=pedidos_operativos,
+            pedidos_vencidos=pedidos_vencidos,
+            pedidos_preparados_activos=pedidos_preparados_activos,
+            pedidos_facturados_hoy=pedidos_facturados_hoy,
             fecha_actual=hoy,
             ventas_dias=ventas_dias,
             tiempo_respuesta_data=tiempo_respuesta_data,
@@ -3537,6 +3609,10 @@ def dashboard():
             'estados_pedidos': {'pendiente': 0, 'preparado': 0, 'facturado': 0},
             'tendencia_semanal': [],
             'pedidos_recientes': [],
+            'pedidos_operativos': [],
+            'pedidos_vencidos': 0,
+            'pedidos_preparados_activos': 0,
+            'pedidos_facturados_hoy': 0,
             'fecha_actual': datetime.now().date(),
             'ventas_dias': [],
             'tiempo_respuesta_data': [],

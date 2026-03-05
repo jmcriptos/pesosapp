@@ -8,7 +8,7 @@
     <button class="tb-tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span class="tb-label">Ventas</span></button>
     <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span class="tb-label">Servicio</span></button>
     <button class="tb-tab" data-tab="rankings"><i class="fas fa-trophy"></i><span class="tb-label">Top</span></button>
-    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span class="tb-label">Reciente</span></button>
+    <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span class="tb-label">Pedidos</span></button>
 </div>
 {% endblock %}
 
@@ -32,6 +32,9 @@
 {% set max_ventas_v = (max_ventas or 0)|float %}
 {% set proyeccion_ventas_v = (proyeccion_ventas or 0)|float %}
 {% set porcentaje_proyeccion_v = (porcentaje_proyeccion or 0)|float %}
+{% set pedidos_vencidos_v = (pedidos_vencidos or 0)|int %}
+{% set pedidos_preparados_activos_v = (pedidos_preparados_activos or 0)|int %}
+{% set pedidos_facturados_hoy_v = (pedidos_facturados_hoy or 0)|int %}
 {% set day_count = (fecha_actual.day if fecha_actual else 30)|int %}
 
 {# helpers de progreso 0..100 #}
@@ -410,9 +413,115 @@
 
         {# ── Tab: Actividad ── #}
         <div class="tab-panel" id="panel-actividad">
-            {# Status Doughnut — first #}
-            <div class="card">
-                <div class="card-head"><h3>Estado de Pedidos</h3></div>
+            <h3 class="card-title-inline">Operación de Pedidos</h3>
+
+            <div class="ops-kpi-grid">
+                <div class="ops-kpi-card">
+                    <span class="ops-kpi-label">Pendientes</span>
+                    <span class="ops-kpi-value">{{ pedidos_pendientes_v }}</span>
+                </div>
+                <div class="ops-kpi-card">
+                    <span class="ops-kpi-label">Vencidos</span>
+                    <span class="ops-kpi-value {{ 'c-red' if pedidos_vencidos_v > 0 else 'c-green' }}">{{ pedidos_vencidos_v }}</span>
+                </div>
+                <div class="ops-kpi-card">
+                    <span class="ops-kpi-label">Preparados</span>
+                    <span class="ops-kpi-value">{{ pedidos_preparados_activos_v }}</span>
+                </div>
+                <div class="ops-kpi-card">
+                    <span class="ops-kpi-label">Facturados Hoy</span>
+                    <span class="ops-kpi-value">{{ pedidos_facturados_hoy_v }}</span>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+                <div class="card-head">
+                    <h3>Cola Priorizada</h3>
+                    <span class="period-chip" id="opsVisibleCount">{{ (pedidos_operativos or [])|length }} en cola</span>
+                </div>
+                <div class="ops-filter-wrap">
+                    <div class="period-btns ops-filter-btns">
+                        <button class="period-btn ops-filter-btn active" data-ops-filter="todos">Todos</button>
+                        <button class="period-btn ops-filter-btn" data-ops-filter="pendiente">Pendientes</button>
+                        <button class="period-btn ops-filter-btn" data-ops-filter="preparado">Preparados</button>
+                        <button class="period-btn ops-filter-btn" data-ops-filter="facturado">Facturados</button>
+                        <button class="period-btn ops-filter-btn" data-ops-filter="urgentes">Urgentes</button>
+                    </div>
+                    <div class="ops-filter-row">
+                        <input type="text" id="opsOrderSearch" class="ops-search-input" placeholder="Buscar cliente o #pedido">
+                        <a href="{{ url_for('lista_pedidos') }}" class="ops-link-btn">
+                            <i class="fas fa-arrow-up-right-from-square"></i> Ver lista completa
+                        </a>
+                    </div>
+                </div>
+                <div class="orders-list ops-orders-list" id="opsOrdersList">
+                    {% for pedido in (pedidos_operativos or []) %}
+                    <div class="order-row ops-order-row"
+                         data-estado="{{ pedido.estado }}"
+                         data-urgente="{{ 1 if pedido.es_urgente else 0 }}"
+                         data-cliente="{{ (pedido.cliente or '')|lower }}"
+                         data-id="{{ pedido.id }}">
+                        <div class="order-badge {{ pedido.estado }}">
+                            {% if pedido.estado == 'pendiente' %}
+                                <i class="fas fa-clock"></i>
+                            {% elif pedido.estado == 'preparado' %}
+                                <i class="fas fa-box"></i>
+                            {% elif pedido.estado == 'facturado' %}
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            {% else %}
+                                <i class="fas fa-question-circle"></i>
+                            {% endif %}
+                        </div>
+                        <div class="order-info">
+                            <span class="order-id">#{{ pedido.id }} · {{ pedido.cliente }}</span>
+                            <span class="order-date">{{ pedido.fecha_pedido_full }}</span>
+                            <div class="ops-meta">
+                                <span><i class="fas fa-hourglass-half"></i> {{ pedido.edad_dias }}d</span>
+                                <span><i class="fas fa-coins"></i> {{ '{:,.0f}'.format(pedido.total_xcg) }} XCG</span>
+                            </div>
+                        </div>
+                        <span class="sla-pill {{ pedido.sla_class }}">{{ pedido.sla_text }}</span>
+                        <div class="ops-actions">
+                            <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="ops-action-btn">
+                                <i class="fas fa-eye"></i> Detalles
+                            </a>
+                            {% if pedido.puede_preparar %}
+                            <form action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}" method="POST"
+                                  onsubmit="return confirm('¿Marcar pedido #{{ pedido.id }} como preparado?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="ops-action-btn ops-action-primary">
+                                    <i class="fas fa-box"></i> Preparar
+                                </button>
+                            </form>
+                            {% elif pedido.puede_facturar %}
+                            <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
+                                  onsubmit="return confirm('¿Facturar pedido #{{ pedido.id }}?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="ops-action-btn ops-action-primary">
+                                    <i class="fas fa-file-invoice-dollar"></i> Facturar
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if pedido.puede_editar %}
+                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="ops-action-btn">
+                                <i class="fas fa-pen"></i> Editar
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="order-row">
+                        <div class="order-info">
+                            <span class="order-id">Sin pedidos en la cola operativa</span>
+                            <span class="order-date">No hay datos para los últimos 30 días</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+                <div class="card-head"><h3>Distribución de Estados</h3></div>
                 <div class="chart-wrap status-chart-wrap" style="height:200px;position:relative">
                     <canvas id="statusChart"></canvas>
                 </div>
@@ -421,36 +530,6 @@
                     <div class="sl-item">
                         <span class="sl-dot {{ estado }}"></span>
                         <span>{{ estado.replace('_', ' ').title() }}: {{ cantidad }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            {# Recent Orders — below chart #}
-            <div class="card" style="margin-top:12px">
-                <div class="card-head"><h3>Últimos 20 Pedidos</h3></div>
-                <div class="orders-list">
-                    {% for pedido in (pedidos_recientes or [])[:20] %}
-                    <div class="order-row">
-                        <div class="order-badge {{ pedido.estado }}">
-                            {% if pedido.estado == 'pendiente' %}
-                                <i class="fas fa-clock"></i>
-                            {% elif pedido.estado == 'preparado' %}
-                                <i class="fas fa-check-circle"></i>
-                            {% elif pedido.estado == 'facturado' %}
-                                <i class="fas fa-file-invoice-dollar"></i>
-                            {% else %}
-                                <i class="fas fa-question-circle"></i>
-                            {% endif %}
-                        </div>
-                        <div class="order-info">
-                            <span class="order-id">#{{ pedido.id }} · {{ pedido.cliente.nombre if pedido.cliente else 'N/A' }}</span>
-                            <span class="order-date">{{ pedido.fecha_pedido.strftime('%d/%m %H:%M') if pedido.fecha_pedido else '' }}</span>
-                        </div>
-                        <div class="order-amt">
-                            {% set total_pedido = (pedido.detalles|sum(attribute='subtotal')|float) if pedido.detalles else 0 %}
-                            {{ '{:,.0f}'.format(total_pedido) }}
-                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -967,6 +1046,143 @@
 /* ═══════════════════════════
    ACTIVIDAD TAB
    ═══════════════════════════ */
+.ops-kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--dash-gap);
+    padding: 6px var(--dash-gap) 0;
+}
+.ops-kpi-card {
+    background: var(--dash-card);
+    border: 1px solid var(--dash-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.ops-kpi-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--dash-text3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.ops-kpi-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--dash-text);
+}
+.ops-filter-wrap {
+    padding: 0 var(--dash-pad) 8px;
+}
+.ops-filter-btns {
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.ops-filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.ops-search-input {
+    flex: 1;
+    min-width: 0;
+    background: #0f172a;
+    border: 1px solid var(--dash-border);
+    border-radius: 8px;
+    color: var(--dash-text);
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    outline: none;
+}
+.ops-search-input::placeholder {
+    color: var(--dash-text3);
+}
+.ops-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+    color: var(--dash-blue);
+    border: 1px solid var(--dash-border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+.ops-orders-list {
+    max-height: 460px;
+}
+.ops-order-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+.ops-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+    color: var(--dash-text3);
+    font-size: 0.6875rem;
+}
+.ops-meta i {
+    margin-right: 3px;
+    opacity: 0.8;
+}
+.sla-pill {
+    font-size: 0.625rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    margin-left: auto;
+    white-space: nowrap;
+}
+.sla-pill.sla-ok {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.35);
+}
+.sla-pill.sla-warn {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.35);
+}
+.sla-pill.sla-danger {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.35);
+}
+.ops-actions {
+    width: 100%;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding-left: 42px;
+}
+.ops-actions form {
+    margin: 0;
+}
+.ops-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--dash-border);
+    border-radius: 7px;
+    padding: 5px 8px;
+    background: #111827;
+    color: var(--dash-text2);
+    text-decoration: none;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ops-action-primary {
+    color: #fff;
+    background: var(--dash-blue);
+    border-color: var(--dash-blue);
+}
 .orders-list {
     max-height: 320px;
     overflow-y: auto;
@@ -1052,6 +1268,9 @@
     .kpi-grid {
         grid-template-columns: repeat(4, 1fr);
     }
+    .ops-kpi-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
     .tb-tab {
         font-size: 0.8125rem;
         gap: 6px;
@@ -1066,6 +1285,19 @@
     }
     .wow-row { max-width: none; }
     .orders-list { max-height: 450px; }
+    .ops-order-row {
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+    .ops-actions {
+        width: auto;
+        margin-left: 10px;
+        padding-left: 0;
+        justify-content: flex-end;
+    }
+    .ops-filter-row {
+        justify-content: space-between;
+    }
 }
 
 /* Large desktop — full width */
@@ -1387,6 +1619,75 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
+        // === OPERATIONS QUEUE FILTERING (PEDIDOS TAB) ===
+        function initOpsQueue() {
+            const ordersWrap = document.getElementById('opsOrdersList');
+            if (!ordersWrap) return;
+
+            const filterButtons = Array.from(document.querySelectorAll('.ops-filter-btn'));
+            const searchInput = document.getElementById('opsOrderSearch');
+            const visibleCount = document.getElementById('opsVisibleCount');
+            const rows = Array.from(ordersWrap.querySelectorAll('.ops-order-row'))
+                .filter(row => (row.dataset.estado || '').length > 0);
+
+            if (rows.length === 0) {
+                if (visibleCount) visibleCount.textContent = '0 en cola';
+                return;
+            }
+
+            let activeFilter = 'todos';
+
+            function matchesFilter(row) {
+                const estado = (row.dataset.estado || '').toLowerCase();
+                const isUrgent = row.dataset.urgente === '1';
+
+                if (activeFilter === 'todos') return true;
+                if (activeFilter === 'urgentes') return isUrgent;
+                return estado === activeFilter;
+            }
+
+            function matchesSearch(row, queryRaw) {
+                const query = String(queryRaw || '').trim().toLowerCase();
+                if (!query) return true;
+
+                const cliente = (row.dataset.cliente || '').toLowerCase();
+                const id = String(row.dataset.id || '');
+                const queryNoHash = query.replace(/^#/, '');
+
+                return cliente.includes(query) || id.includes(queryNoHash) || ('#' + id).includes(query);
+            }
+
+            function applyFilters() {
+                const query = searchInput ? searchInput.value : '';
+                let visibleRows = 0;
+
+                rows.forEach(row => {
+                    const show = matchesFilter(row) && matchesSearch(row, query);
+                    row.style.display = show ? '' : 'none';
+                    if (show) visibleRows += 1;
+                });
+
+                if (visibleCount) {
+                    visibleCount.textContent = `${visibleRows} en cola`;
+                }
+            }
+
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    activeFilter = this.dataset.opsFilter || 'todos';
+                    applyFilters();
+                });
+            });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
+
+            applyFilters();
+        }
+
         // === KPI EVOLUTION CHART ===
         function initKpiEvolution() {
             const ctx = document.getElementById('kpiEvolutionChart');
@@ -1501,6 +1802,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Init default tab chart
         initChartsFor('tendencia');
         renderRankingsForPeriod('month');
+        initOpsQueue();
 
     } catch (error) {
         console.error('Dashboard init error:', error);
