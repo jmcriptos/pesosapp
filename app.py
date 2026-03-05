@@ -95,6 +95,17 @@ try:
 except Exception:
     DASHBOARD_TIMEZONE = timezone.utc
 
+# Fuente de ventas para dashboard:
+# - local: calcula ventas desde la base de datos de PesosApp
+# - quickbooks: usa endpoint N8N/QuickBooks para ventas
+# - auto: usa QuickBooks solo si hay endpoint configurado, si no local
+QB_SALES_SOURCE = os.environ.get('QB_SALES_SOURCE', 'auto').strip().lower()
+N8N_QB_SALES_WEBHOOK_URL = os.environ.get('N8N_QB_SALES_WEBHOOK_URL', '').strip()
+try:
+    N8N_QB_SALES_TIMEOUT = int(os.environ.get('N8N_QB_SALES_TIMEOUT', 20))
+except (TypeError, ValueError):
+    N8N_QB_SALES_TIMEOUT = 20
+
 # SQLAlchemy ya inicializado arriba
 
 migrate = Migrate(app, db)
@@ -522,6 +533,360 @@ def _pedido_facturado_en_periodo_local(pedido, fecha_inicio, fecha_fin=None):
     return fecha_inicio <= fecha_local <= fecha_fin
 
 
+def _coerce_float(value, default=0.0):
+    if value in (None, ''):
+        return default
+    try:
+        if isinstance(value, str):
+            value = value.replace(',', '').strip()
+            if value == '':
+                return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_int(value, default=0):
+    if value in (None, ''):
+        return default
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _pick_row_value(row, keys):
+    for key in keys:
+        if key in row and row[key] not in (None, ''):
+            return row[key]
+    return None
+
+
+def _parse_dashboard_date_value(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return _to_dashboard_date(value)
+    if isinstance(value, date):
+        return value
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    # ISO datetime/date (con o sin zona horaria)
+    try:
+        dt = datetime.fromisoformat(text.replace('Z', '+00:00'))
+        return _to_dashboard_date(dt)
+    except ValueError:
+        pass
+
+    # Fechas comunes exportadas por QuickBooks
+    for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%Y/%m/%d', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(text[:10], fmt).date()
+        except ValueError:
+            continue
+
+    return None
+
+
+def _inicio_semana_local(fecha):
+    return fecha - timedelta(days=fecha.weekday())
+
+
+def _quickbooks_sales_enabled():
+    if QB_SALES_SOURCE == 'local':
+        return False
+    if QB_SALES_SOURCE == 'quickbooks':
+        return bool(N8N_QB_SALES_WEBHOOK_URL)
+    return bool(N8N_QB_SALES_WEBHOOK_URL)
+
+
+def _normalizar_metricas_ventas_quickbooks(
+    raw_data,
+    hoy,
+    inicio_mes,
+    inicio_semana,
+    inicio_mes_anterior,
+    fin_mes_anterior,
+    inicio_tendencia,
+    inicio_ultimos_7_dias,
+):
+    ventas_mes = 0.0
+    ventas_semana = 0.0
+    ventas_mes_anterior = 0.0
+
+    ventas_diarias_idx = {}
+    ventas_semanales_idx = {}
+    clientes_ventas = {}
+    productos_ventas = {}
+
+    filas = raw_data.get('transactions') or raw_data.get('invoices') or raw_data.get('rows') or []
+    if isinstance(filas, dict):
+        filas = filas.get('items', [])
+    if not isinstance(filas, list):
+        filas = []
+
+    filas_procesadas = 0
+    for row in filas:
+        if not isinstance(row, dict):
+            continue
+
+        fecha = _parse_dashboard_date_value(_pick_row_value(
+            row,
+            ['date', 'invoice_date', 'transaction_date', 'fecha', 'fecha_facturacion']
+        ))
+        if not fecha:
+            continue
+        if fecha < inicio_tendencia or fecha > hoy:
+            continue
+
+        monto = _coerce_float(_pick_row_value(row, ['amount', 'sales', 'total', 'venta', 'subtotal']), None)
+        if monto is None:
+            continue
+        filas_procesadas += 1
+
+        invoice_key = str(_pick_row_value(
+            row,
+            ['invoice_id', 'invoice_number', 'invoice_no', 'num', 'numero_factura', 'id']
+        ) or f'{fecha.isoformat()}-{monto}')
+
+        cliente_nombre = str(_pick_row_value(
+            row,
+            ['customer', 'customer_name', 'cliente', 'cliente_nombre']
+        ) or 'Sin cliente')
+
+        producto_nombre = _pick_row_value(
+            row,
+            ['product', 'product_name', 'producto', 'producto_nombre', 'item_name']
+        )
+        qty = _coerce_float(_pick_row_value(row, ['quantity', 'qty', 'cajas', 'cantidad']), 0.0)
+        peso = _coerce_float(_pick_row_value(row, ['weight', 'peso']), 0.0)
+
+        if fecha >= inicio_mes:
+            ventas_mes += monto
+        if fecha >= inicio_semana:
+            ventas_semana += monto
+        if inicio_mes_anterior <= fecha <= fin_mes_anterior:
+            ventas_mes_anterior += monto
+
+        if fecha >= inicio_ultimos_7_dias:
+            bucket_d = ventas_diarias_idx.setdefault(fecha, {'ventas': 0.0, '_invoices': set()})
+            bucket_d['ventas'] += monto
+            bucket_d['_invoices'].add(invoice_key)
+
+        semana_inicio = _inicio_semana_local(fecha)
+        if inicio_tendencia <= semana_inicio <= inicio_semana:
+            bucket_w = ventas_semanales_idx.setdefault(semana_inicio, {'ventas': 0.0, '_invoices': set()})
+            bucket_w['ventas'] += monto
+            bucket_w['_invoices'].add(invoice_key)
+
+        cli = clientes_ventas.setdefault(
+            cliente_nombre,
+            {'total': 0.0, 'ultimo_pedido': None, '_invoices': set()}
+        )
+        cli['total'] += monto
+        cli['_invoices'].add(invoice_key)
+        if not cli['ultimo_pedido'] or fecha > cli['ultimo_pedido']:
+            cli['ultimo_pedido'] = fecha
+
+        if producto_nombre:
+            prod = productos_ventas.setdefault(
+                str(producto_nombre),
+                {'ingresos': 0.0, 'cajas': 0.0, 'peso': 0.0, '_invoices': set()}
+            )
+            prod['ingresos'] += monto
+            if qty > 0:
+                prod['cajas'] += qty
+            if peso > 0:
+                prod['peso'] += peso
+            prod['_invoices'].add(invoice_key)
+
+    # Fallback cuando N8N devuelve agregados ya resumidos
+    if filas_procesadas == 0:
+        for row in (raw_data.get('daily') or raw_data.get('sales_by_day') or []):
+            if not isinstance(row, dict):
+                continue
+            fecha = _parse_dashboard_date_value(_pick_row_value(row, ['date', 'day', 'fecha']))
+            if not fecha:
+                continue
+            ventas = _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0)
+            pedidos = _coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)
+            ventas_diarias_idx[fecha] = {'ventas': ventas, '_invoices': set(range(pedidos))}
+            if fecha >= inicio_mes:
+                ventas_mes += ventas
+            if fecha >= inicio_semana:
+                ventas_semana += ventas
+            if inicio_mes_anterior <= fecha <= fin_mes_anterior:
+                ventas_mes_anterior += ventas
+
+        for row in (raw_data.get('weekly') or raw_data.get('sales_by_week') or []):
+            if not isinstance(row, dict):
+                continue
+            semana_inicio = _parse_dashboard_date_value(_pick_row_value(
+                row,
+                ['week_start', 'start_date', 'week', 'fecha_inicio']
+            ))
+            if not semana_inicio:
+                continue
+            ventas = _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0)
+            pedidos = _coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)
+            ventas_semanales_idx[semana_inicio] = {'ventas': ventas, '_invoices': set(range(pedidos))}
+
+        for row in (raw_data.get('customers') or raw_data.get('sales_by_customer') or []):
+            if not isinstance(row, dict):
+                continue
+            nombre = str(_pick_row_value(row, ['name', 'customer', 'cliente']) or 'Sin cliente')
+            clientes_ventas[nombre] = {
+                'total': _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0),
+                'ultimo_pedido': _parse_dashboard_date_value(_pick_row_value(
+                    row,
+                    ['last_date', 'last_invoice_date', 'ultimo_pedido']
+                )),
+                '_invoices': set(range(_coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)))
+            }
+
+        for row in (raw_data.get('products') or raw_data.get('sales_by_product') or []):
+            if not isinstance(row, dict):
+                continue
+            nombre = str(_pick_row_value(row, ['name', 'product', 'producto']) or '').strip()
+            if not nombre:
+                continue
+            productos_ventas[nombre] = {
+                'ingresos': _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0),
+                'cajas': _coerce_float(_pick_row_value(row, ['quantity', 'qty', 'cajas', 'cantidad']), 0.0),
+                'peso': _coerce_float(_pick_row_value(row, ['weight', 'peso']), 0.0),
+                '_invoices': set(range(_coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)))
+            }
+
+    summary = raw_data.get('summary') if isinstance(raw_data.get('summary'), dict) else {}
+    ventas_mes = _coerce_float(
+        _pick_row_value(summary, ['ventas_mes', 'sales_month', 'month_sales']),
+        ventas_mes
+    )
+    ventas_semana = _coerce_float(
+        _pick_row_value(summary, ['ventas_semana', 'sales_week', 'week_sales']),
+        ventas_semana
+    )
+    ventas_mes_anterior = _coerce_float(
+        _pick_row_value(summary, ['ventas_mes_anterior', 'sales_previous_month', 'previous_month_sales']),
+        ventas_mes_anterior
+    )
+
+    # Normalizar buckets para el dashboard (pedidos = facturas únicas)
+    for bucket in ventas_diarias_idx.values():
+        bucket['pedidos'] = len(bucket.pop('_invoices', set()))
+
+    for bucket in ventas_semanales_idx.values():
+        bucket['pedidos'] = len(bucket.pop('_invoices', set()))
+
+    top_clientes = []
+    for nombre, datos in sorted(
+        clientes_ventas.items(),
+        key=lambda x: x[1].get('total', 0),
+        reverse=True
+    )[:5]:
+        top_clientes.append((
+            nombre,
+            {
+                'pedidos': len(datos.get('_invoices', set())),
+                'total': round(_coerce_float(datos.get('total'), 0.0), 2),
+                'ultimo_pedido': datos.get('ultimo_pedido')
+            }
+        ))
+
+    top_productos = []
+    for nombre, datos in sorted(
+        productos_ventas.items(),
+        key=lambda x: x[1].get('ingresos', 0),
+        reverse=True
+    )[:5]:
+        ingresos = round(_coerce_float(datos.get('ingresos'), 0.0), 2)
+        cajas = round(_coerce_float(datos.get('cajas'), 0.0), 2)
+        peso = round(_coerce_float(datos.get('peso'), 0.0), 2)
+        top_productos.append({
+            'nombre': nombre,
+            'total_vendido': ingresos,
+            'cajas': cajas,
+            'peso': peso,
+            'ingresos': ingresos,
+            'pedidos': len(datos.get('_invoices', set()))
+        })
+
+    max_ventas = max((p['ingresos'] for p in top_productos), default=0)
+
+    return {
+        'ventas_mes': round(ventas_mes, 2),
+        'ventas_semana': round(ventas_semana, 2),
+        'ventas_mes_anterior': round(ventas_mes_anterior, 2),
+        'ventas_diarias_idx': ventas_diarias_idx,
+        'ventas_semanales_idx': ventas_semanales_idx,
+        'top_clientes': top_clientes,
+        'top_productos': top_productos,
+        'max_ventas': max_ventas if max_ventas > 0 else 1,
+    }
+
+
+def _obtener_metricas_ventas_quickbooks(
+    hoy,
+    inicio_mes,
+    inicio_semana,
+    inicio_mes_anterior,
+    fin_mes_anterior,
+    inicio_tendencia,
+    inicio_ultimos_7_dias,
+):
+    if not _quickbooks_sales_enabled():
+        return None
+
+    if not N8N_QB_SALES_WEBHOOK_URL:
+        if QB_SALES_SOURCE == 'quickbooks':
+            app.logger.warning('QB_SALES_SOURCE=quickbooks pero N8N_QB_SALES_WEBHOOK_URL no está configurada')
+        return None
+
+    payload = {
+        'from_date': inicio_tendencia.isoformat(),
+        'to_date': hoy.isoformat(),
+        'timezone': str(DASHBOARD_TIMEZONE),
+        'group_by': ['day', 'week', 'customer', 'product'],
+        'include_summary': True
+    }
+
+    try:
+        resp = requests.post(
+            N8N_QB_SALES_WEBHOOK_URL,
+            json=payload,
+            timeout=N8N_QB_SALES_TIMEOUT
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, dict):
+            app.logger.warning('Respuesta QuickBooks inválida: se esperaba JSON objeto')
+            return None
+        return _normalizar_metricas_ventas_quickbooks(
+            data,
+            hoy=hoy,
+            inicio_mes=inicio_mes,
+            inicio_semana=inicio_semana,
+            inicio_mes_anterior=inicio_mes_anterior,
+            fin_mes_anterior=fin_mes_anterior,
+            inicio_tendencia=inicio_tendencia,
+            inicio_ultimos_7_dias=inicio_ultimos_7_dias,
+        )
+    except requests.Timeout:
+        app.logger.warning(
+            f'Timeout obteniendo ventas de QuickBooks ({N8N_QB_SALES_TIMEOUT}s). Fallback a datos locales.'
+        )
+    except requests.RequestException as e:
+        app.logger.warning(f'Error consultando ventas QuickBooks: {e}. Fallback a datos locales.')
+    except ValueError:
+        app.logger.warning('Error parseando JSON de ventas QuickBooks. Fallback a datos locales.')
+    except Exception as e:
+        app.logger.warning(f'Error inesperado ventas QuickBooks: {e}. Fallback a datos locales.')
+    return None
+
+
 @app.route('/dashboard_vendedor')
 @login_required
 def dashboard_vendedor():
@@ -557,24 +922,50 @@ def dashboard_vendedor():
             total_vendedores = Vendedor.query.filter_by(activo=True).count()
             total_clientes = Cliente.query.count()
             total_productos = Producto.query.count()
-            
-            # 2. MÉTRICAS DE VENTAS GLOBALES (por fecha de facturación local)
-            pedidos_facturados_data = Pedido.query.filter(
-                Pedido.estado == 'facturado',
-                Pedido.fecha_facturacion.isnot(None)
-            ).all()
 
-            ventas_totales = sum(
-                _calcular_venta_pedido(p)
-                for p in pedidos_facturados_data
-                if _pedido_facturado_en_periodo_local(p, inicio_mes)
+            # 2. MÉTRICAS DE VENTAS GLOBALES (QuickBooks como fuente de verdad cuando está disponible)
+            inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
+            fin_mes_anterior = inicio_mes - timedelta(days=1)
+            metricas_ventas_qb_admin = _obtener_metricas_ventas_quickbooks(
+                hoy=hoy,
+                inicio_mes=inicio_mes,
+                inicio_semana=inicio_semana,
+                inicio_mes_anterior=inicio_mes_anterior,
+                fin_mes_anterior=fin_mes_anterior,
+                inicio_tendencia=inicio_semana - timedelta(weeks=8),
+                inicio_ultimos_7_dias=hoy - timedelta(days=6),
             )
 
-            ventas_hoy = sum(
-                _calcular_venta_pedido(p)
-                for p in pedidos_facturados_data
-                if _pedido_facturado_en_periodo_local(p, hoy, hoy)
-            )
+            if metricas_ventas_qb_admin:
+                ventas_totales = metricas_ventas_qb_admin['ventas_mes']
+                ventas_hoy = metricas_ventas_qb_admin['ventas_diarias_idx'].get(
+                    hoy,
+                    {'ventas': 0.0, 'pedidos': 0}
+                )['ventas']
+                ventas_mes_anterior = metricas_ventas_qb_admin['ventas_mes_anterior']
+            else:
+                pedidos_facturados_data = Pedido.query.filter(
+                    Pedido.estado == 'facturado',
+                    Pedido.fecha_facturacion.isnot(None)
+                ).all()
+
+                ventas_totales = sum(
+                    _calcular_venta_pedido(p)
+                    for p in pedidos_facturados_data
+                    if _pedido_facturado_en_periodo_local(p, inicio_mes)
+                )
+
+                ventas_hoy = sum(
+                    _calcular_venta_pedido(p)
+                    for p in pedidos_facturados_data
+                    if _pedido_facturado_en_periodo_local(p, hoy, hoy)
+                )
+
+                ventas_mes_anterior = sum(
+                    _calcular_venta_pedido(p)
+                    for p in pedidos_facturados_data
+                    if _pedido_facturado_en_periodo_local(p, inicio_mes_anterior, fin_mes_anterior)
+                )
             
             # Conteo de pedidos optimizado
             pedidos_mes_count = Pedido.query.filter(Pedido.fecha_pedido >= inicio_mes).count()
@@ -640,18 +1031,7 @@ def dashboard_vendedor():
                     'accion': '/precios'
                 })
             
-            # 6. MÉTRICAS FINANCIERAS ADICIONALES (OPTIMIZADO)
-            # Facturación del mes anterior para comparación
-            inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
-            fin_mes_anterior = inicio_mes - timedelta(days=1)
-            
-            # Ventas del mes anterior
-            ventas_mes_anterior = sum(
-                _calcular_venta_pedido(p)
-                for p in pedidos_facturados_data
-                if _pedido_facturado_en_periodo_local(p, inicio_mes_anterior, fin_mes_anterior)
-            )
-            
+            # 6. MÉTRICAS FINANCIERAS ADICIONALES
             # Calcular crecimiento
             if ventas_mes_anterior > 0:
                 crecimiento_ventas = ((ventas_totales - ventas_mes_anterior) / ventas_mes_anterior) * 100
@@ -767,6 +1147,9 @@ def obtener_metricas_sistema():
     try:
         hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
+        fin_mes_anterior = inicio_mes - timedelta(days=1)
         
         metricas = {
             'total_vendedores': Vendedor.query.filter_by(activo=True).count(),
@@ -775,19 +1158,30 @@ def obtener_metricas_sistema():
             'pedidos_pendientes': Pedido.query.filter_by(estado='pendiente').count(),
             'pedidos_facturados': Pedido.query.filter_by(estado='facturado').count(),
         }
-        
-        # Calcular ventas facturadas del mes (fecha de facturación local)
-        pedidos_facturados_data = Pedido.query.filter(
-            Pedido.estado == 'facturado',
-            Pedido.fecha_facturacion.isnot(None)
-        ).all()
-        ventas_mes = sum(
-            _calcular_venta_pedido(p)
-            for p in pedidos_facturados_data
-            if _pedido_facturado_en_periodo_local(p, inicio_mes)
+
+        metricas_qb = _obtener_metricas_ventas_quickbooks(
+            hoy=hoy,
+            inicio_mes=inicio_mes,
+            inicio_semana=inicio_semana,
+            inicio_mes_anterior=inicio_mes_anterior,
+            fin_mes_anterior=fin_mes_anterior,
+            inicio_tendencia=inicio_semana - timedelta(weeks=8),
+            inicio_ultimos_7_dias=hoy - timedelta(days=6),
         )
-        
-        metricas['ventas_mes'] = ventas_mes
+        if metricas_qb:
+            metricas['ventas_mes'] = metricas_qb['ventas_mes']
+        else:
+            # Fallback local cuando QuickBooks no está disponible
+            pedidos_facturados_data = Pedido.query.filter(
+                Pedido.estado == 'facturado',
+                Pedido.fecha_facturacion.isnot(None)
+            ).all()
+            metricas['ventas_mes'] = sum(
+                _calcular_venta_pedido(p)
+                for p in pedidos_facturados_data
+                if _pedido_facturado_en_periodo_local(p, inicio_mes)
+            )
+
         metricas['total_pedidos'] = Pedido.query.count()
         
         if metricas['total_pedidos'] > 0:
@@ -2160,6 +2554,9 @@ def api_admin_stats():
     try:
         hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
+        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        inicio_mes_anterior = (inicio_mes - timedelta(days=1)).replace(day=1)
+        fin_mes_anterior = inicio_mes - timedelta(days=1)
         
         stats = {
             'vendedores_activos': Vendedor.query.filter_by(activo=True).count(),
@@ -2170,17 +2567,29 @@ def api_admin_stats():
             'pedidos_pendientes': Pedido.query.filter_by(estado='pendiente').count(),
             'ventas_mes': 0
         }
-        
-        # Calcular ventas facturadas del mes (fecha de facturación local)
-        pedidos_facturados_data = Pedido.query.filter(
-            Pedido.estado == 'facturado',
-            Pedido.fecha_facturacion.isnot(None)
-        ).all()
-        stats['ventas_mes'] = sum(
-            _calcular_venta_pedido(p)
-            for p in pedidos_facturados_data
-            if _pedido_facturado_en_periodo_local(p, inicio_mes)
+
+        metricas_qb = _obtener_metricas_ventas_quickbooks(
+            hoy=hoy,
+            inicio_mes=inicio_mes,
+            inicio_semana=inicio_semana,
+            inicio_mes_anterior=inicio_mes_anterior,
+            fin_mes_anterior=fin_mes_anterior,
+            inicio_tendencia=inicio_semana - timedelta(weeks=8),
+            inicio_ultimos_7_dias=hoy - timedelta(days=6),
         )
+        if metricas_qb:
+            stats['ventas_mes'] = metricas_qb['ventas_mes']
+        else:
+            # Fallback local cuando QuickBooks no está disponible
+            pedidos_facturados_data = Pedido.query.filter(
+                Pedido.estado == 'facturado',
+                Pedido.fecha_facturacion.isnot(None)
+            ).all()
+            stats['ventas_mes'] = sum(
+                _calcular_venta_pedido(p)
+                for p in pedidos_facturados_data
+                if _pedido_facturado_en_periodo_local(p, inicio_mes)
+            )
         
         return jsonify(stats)
         
@@ -2382,6 +2791,8 @@ def dashboard():
         # Mes anterior (mismo rango de días para comparación justa)
         fin_mes_anterior = inicio_mes - timedelta(days=1)
         inicio_mes_anterior = fin_mes_anterior.replace(day=1)
+        inicio_tendencia = inicio_semana - timedelta(weeks=25)
+        inicio_ultimos_7_dias = hoy - timedelta(days=6)
 
         # === CLIENTE EXCLUIDO (ALMACÉN INTERNO) ===
         # AL01 es usado para registrar pesos e imprimir etiquetas de almacén, no son pedidos reales
@@ -2433,9 +2844,6 @@ def dashboard():
             ventas_semanales_idx = {}
             ventas_diarias_idx = {}
             pedidos_facturados_mes_list = []
-
-            inicio_tendencia = inicio_semana - timedelta(weeks=25)
-            inicio_ultimos_7_dias = hoy - timedelta(days=6)
 
             for p in pedidos_facturados_list:
                 try:
@@ -2492,6 +2900,23 @@ def dashboard():
             pedidos_facturados_mes_list = []
             ventas_semanales_idx = {}
             ventas_diarias_idx = {}
+
+        # === OVERRIDE OPCIONAL: ventas desde QuickBooks (fuente de verdad) ===
+        metricas_ventas_qb = _obtener_metricas_ventas_quickbooks(
+            hoy=hoy,
+            inicio_mes=inicio_mes,
+            inicio_semana=inicio_semana,
+            inicio_mes_anterior=inicio_mes_anterior,
+            fin_mes_anterior=fin_mes_anterior,
+            inicio_tendencia=inicio_tendencia,
+            inicio_ultimos_7_dias=inicio_ultimos_7_dias,
+        )
+        if metricas_ventas_qb:
+            ventas_mes = metricas_ventas_qb['ventas_mes']
+            ventas_semana = metricas_ventas_qb['ventas_semana']
+            ventas_mes_anterior = metricas_ventas_qb['ventas_mes_anterior']
+            ventas_diarias_idx = metricas_ventas_qb['ventas_diarias_idx']
+            ventas_semanales_idx = metricas_ventas_qb['ventas_semanales_idx']
 
         # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
         # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
@@ -2762,6 +3187,12 @@ def dashboard():
         top_clientes = sorted(
             clientes_ventas.items(), key=lambda x: x[1]['total'], reverse=True
         )[:5]
+
+        # Si QuickBooks está disponible, usar sus rankings de ventas
+        if metricas_ventas_qb:
+            top_productos = metricas_ventas_qb['top_productos']
+            top_clientes = metricas_ventas_qb['top_clientes']
+            max_ventas = metricas_ventas_qb['max_ventas']
 
         # === TENDENCIA SEMANAL (excluyendo AL01) — 26 semanas (6 meses) ===
         tendencia_semanal = []
