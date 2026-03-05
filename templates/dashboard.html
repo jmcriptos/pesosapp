@@ -158,9 +158,9 @@
                 <div class="card-head">
                     <h3>Tendencia de Ventas</h3>
                     <div class="period-btns">
-                        <button class="period-btn active" data-period="6m">6M</button>
-                        <button class="period-btn" data-period="3m">3M</button>
-                        <button class="period-btn" data-period="4w">4S</button>
+                        <button class="period-btn sales-period-btn active" data-period="6m">6M</button>
+                        <button class="period-btn sales-period-btn" data-period="3m">3M</button>
+                        <button class="period-btn sales-period-btn" data-period="4w">4S</button>
                     </div>
                 </div>
                 <div class="chart-wrap sales-chart-wrap">
@@ -331,13 +331,25 @@
 
         {# ── Tab: Rankings ── #}
         <div class="tab-panel" id="panel-rankings">
+            <div class="card" style="margin-bottom:12px">
+                <div class="card-head">
+                    <h3><i class="fas fa-filter" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Periodo de Ranking</h3>
+                    <div class="period-btns ranking-period-btns">
+                        <button class="period-btn ranking-period-btn active" data-ranking-period="month">MES</button>
+                        <button class="period-btn ranking-period-btn" data-ranking-period="6m">6M</button>
+                        <button class="period-btn ranking-period-btn" data-ranking-period="3m">3M</button>
+                        <button class="period-btn ranking-period-btn" data-ranking-period="4w">4S</button>
+                    </div>
+                </div>
+            </div>
             {# Top 5 Productos #}
             <div class="card">
                 <div class="card-head">
                     <h3><i class="fas fa-box" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Top Productos</h3>
+                    <span class="period-chip" id="rankingPeriodChipProducts">Mes en curso</span>
                 </div>
                 {% set max_ingreso_prod = ((top_productos or [])[0].ingresos or 1)|float if (top_productos or []) else 1 %}
-                <div class="rank-list">
+                <div class="rank-list" id="rankProductsList">
                     {% for producto in (top_productos or []) %}
                     {% set ingresos = (producto.ingresos or 0)|float %}
                     {% set cajas = (producto.cajas or 0)|int %}
@@ -368,9 +380,10 @@
             <div class="card" style="margin-top:12px">
                 <div class="card-head">
                     <h3><i class="fas fa-users" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Top Clientes</h3>
+                    <span class="period-chip" id="rankingPeriodChipClients">Mes en curso</span>
                 </div>
                 {% set max_total_cli = ((top_clientes or [])[0][1].total or 1)|float if (top_clientes or []) else 1 %}
-                <div class="rank-list">
+                <div class="rank-list" id="rankClientsList">
                     {% for nombre, datos in (top_clientes or []) %}
                     {% set cliente_total = (datos.total or 0)|float %}
                     {% set bar_pct = (cliente_total / max_total_cli * 100) if max_total_cli > 0 else 0 %}
@@ -695,6 +708,18 @@
     background: var(--dash-blue);
     color: #fff;
     border-color: var(--dash-blue);
+}
+.period-chip {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text2);
+    border: 1px solid var(--dash-border);
+    border-radius: 999px;
+    padding: 3px 8px;
+    white-space: nowrap;
+}
+.ranking-period-btns {
+    flex-wrap: wrap;
 }
 
 /* — Week-over-Week Row — */
@@ -1086,6 +1111,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
         const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
         const kpisHistoricos = {{ (kpis_historicos or [])|tojson|safe }} || [];
+        const rankingsPeriodosData = {{ (rankings_periodos_json or {})|tojson|safe }} || {};
 
         // === REFRESH ===
         const refreshBtn = document.getElementById('refreshDashboard');
@@ -1234,9 +1260,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 '4w': { labels: tendenciaData.slice(-4).map(d => d.semana||''), sales: tendenciaData.slice(-4).map(d => d.ventas||0) }
             };
 
-            document.querySelectorAll('.period-btn').forEach(btn => {
+            document.querySelectorAll('.sales-period-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.sales-period-btn').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
                     const d = periodData[this.dataset.period];
                     if (d && salesChart) {
@@ -1249,6 +1275,117 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         }
+
+        // === RANKINGS (MES / 6M / 3M / 4S) ===
+        function _escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function _fmtInt(value) {
+            return Number(value || 0).toLocaleString('es-ES', { maximumFractionDigits: 0 });
+        }
+
+        function _fmt1(value) {
+            return Number(value || 0).toLocaleString('es-ES', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1
+            });
+        }
+
+        function renderRankingsForPeriod(periodKey) {
+            const productsWrap = document.getElementById('rankProductsList');
+            const clientsWrap = document.getElementById('rankClientsList');
+            if (!productsWrap || !clientsWrap) return;
+
+            const periodLabels = {
+                month: 'Mes en curso',
+                '6m': 'Últimos 6 meses',
+                '3m': 'Últimos 3 meses',
+                '4w': 'Últimas 4 semanas',
+            };
+            const payload = rankingsPeriodosData[periodKey] || rankingsPeriodosData.month || {};
+            const topProductos = payload.top_productos || [];
+            const topClientes = payload.top_clientes || [];
+            const maxVentas = Number(payload.max_ventas || 1);
+            const maxClientes = Number(payload.max_total_clientes || 1);
+
+            productsWrap.innerHTML = topProductos.length
+                ? topProductos.map((producto, idx) => {
+                    const pos = Math.min(idx + 1, 5);
+                    const ingresos = Number(producto.ingresos || 0);
+                    const cajas = Number(producto.cajas || 0);
+                    const peso = Number(producto.peso || 0);
+                    const pedidos = Number(producto.pedidos || 0);
+                    const barPct = maxVentas > 0 ? Math.max(4, (ingresos / maxVentas) * 100) : 0;
+
+                    return `
+                    <div class="rank-row">
+                        <span class="rr-pos rc-${pos}">${idx + 1}</span>
+                        <div class="rr-body">
+                            <div class="rr-top">
+                                <span class="rr-name">${_escapeHtml(producto.nombre || 'Sin producto')}</span>
+                                <span class="rr-amount">${_fmtInt(ingresos)} <small>XCG</small></span>
+                            </div>
+                            <div class="rr-bar-track">
+                                <div class="rr-bar-fill rc-bar-${pos}" style="width:${barPct}%"></div>
+                            </div>
+                            <div class="rr-meta">
+                                ${cajas > 0 ? `<span><i class="fas fa-boxes-stacked"></i> ${_fmtInt(cajas)} cj</span>` : ''}
+                                ${peso > 0 ? `<span><i class="fas fa-weight-hanging"></i> ${_fmt1(peso)} kg</span>` : ''}
+                                <span><i class="fas fa-clipboard-list"></i> ${_fmtInt(pedidos)} ped</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('')
+                : `<div class="rank-row"><div class="rr-body"><div class="rr-top"><span class="rr-name">Sin datos para este período</span></div></div></div>`;
+
+            clientsWrap.innerHTML = topClientes.length
+                ? topClientes.map((cliente, idx) => {
+                    const pos = Math.min(idx + 1, 5);
+                    const total = Number(cliente.total || 0);
+                    const pedidos = Number(cliente.pedidos || 0);
+                    const ultimo = cliente.ultimo_pedido || 'N/A';
+                    const barPct = maxClientes > 0 ? Math.max(4, (total / maxClientes) * 100) : 0;
+
+                    return `
+                    <div class="rank-row">
+                        <span class="rr-pos rc-${pos}">${idx + 1}</span>
+                        <div class="rr-body">
+                            <div class="rr-top">
+                                <span class="rr-name">${_escapeHtml(cliente.nombre || 'Sin cliente')}</span>
+                                <span class="rr-amount">${_fmtInt(total)} <small>XCG</small></span>
+                            </div>
+                            <div class="rr-bar-track">
+                                <div class="rr-bar-fill rc-bar-${pos}" style="width:${barPct}%"></div>
+                            </div>
+                            <div class="rr-meta">
+                                <span><i class="fas fa-clipboard-list"></i> ${_fmtInt(pedidos)} pedidos</span>
+                                <span><i class="fas fa-calendar"></i> ${_escapeHtml(ultimo)}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('')
+                : `<div class="rank-row"><div class="rr-body"><div class="rr-top"><span class="rr-name">Sin datos para este período</span></div></div></div>`;
+
+            const label = periodLabels[periodKey] || periodLabels.month;
+            const chipProducts = document.getElementById('rankingPeriodChipProducts');
+            const chipClients = document.getElementById('rankingPeriodChipClients');
+            if (chipProducts) chipProducts.textContent = label;
+            if (chipClients) chipClients.textContent = label;
+        }
+
+        document.querySelectorAll('.ranking-period-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.ranking-period-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                renderRankingsForPeriod(this.dataset.rankingPeriod || 'month');
+            });
+        });
 
         // === KPI EVOLUTION CHART ===
         function initKpiEvolution() {
@@ -1363,6 +1500,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Init default tab chart
         initChartsFor('tendencia');
+        renderRankingsForPeriod('month');
 
     } catch (error) {
         console.error('Dashboard init error:', error);

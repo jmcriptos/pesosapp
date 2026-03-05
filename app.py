@@ -603,6 +603,163 @@ def _quickbooks_sales_enabled():
     return bool(N8N_QB_SALES_WEBHOOK_URL)
 
 
+def _build_rankings_periodos_from_rows(client_rows, product_rows, hoy, period_starts):
+    """Construye rankings de clientes/productos por periodo desde filas normalizadas."""
+    rankings = {}
+
+    for period_key, start_date in period_starts.items():
+        clientes_ventas = {}
+        productos_ventas = {}
+
+        for row in client_rows or []:
+            if not isinstance(row, dict):
+                continue
+            fecha = row.get('date')
+            if not isinstance(fecha, date):
+                continue
+            if fecha < start_date or fecha > hoy:
+                continue
+
+            monto = _coerce_float(row.get('amount'), 0.0)
+            if monto <= 0:
+                continue
+            invoice_key = str(row.get('invoice_key') or f'{fecha.isoformat()}-{monto}')
+            customer_name = str(row.get('customer') or 'Sin cliente')
+
+            cli = clientes_ventas.setdefault(
+                customer_name,
+                {'total': 0.0, 'ultimo_pedido': None, '_invoices': set()}
+            )
+            cli['total'] += monto
+            cli['_invoices'].add(invoice_key)
+            if not cli['ultimo_pedido'] or fecha > cli['ultimo_pedido']:
+                cli['ultimo_pedido'] = fecha
+
+        for row in product_rows or []:
+            if not isinstance(row, dict):
+                continue
+            fecha = row.get('date')
+            if not isinstance(fecha, date):
+                continue
+            if fecha < start_date or fecha > hoy:
+                continue
+
+            monto = _coerce_float(row.get('amount'), 0.0)
+            if monto <= 0:
+                continue
+            nombre = str(row.get('product') or '').strip()
+            if not nombre:
+                continue
+
+            invoice_key = str(row.get('invoice_key') or f'{fecha.isoformat()}-{monto}')
+            qty = _coerce_float(row.get('quantity'), 0.0)
+            peso = _coerce_float(row.get('weight'), 0.0)
+
+            prod = productos_ventas.setdefault(
+                nombre,
+                {'ingresos': 0.0, 'cajas': 0.0, 'peso': 0.0, '_invoices': set()}
+            )
+            prod['ingresos'] += monto
+            if qty > 0:
+                prod['cajas'] += qty
+            if peso > 0:
+                prod['peso'] += peso
+            prod['_invoices'].add(invoice_key)
+
+        top_clientes = []
+        for nombre, datos in sorted(
+            clientes_ventas.items(),
+            key=lambda x: x[1].get('total', 0),
+            reverse=True
+        )[:5]:
+            top_clientes.append((
+                nombre,
+                {
+                    'pedidos': len(datos.get('_invoices', set())),
+                    'total': round(_coerce_float(datos.get('total'), 0.0), 2),
+                    'ultimo_pedido': datos.get('ultimo_pedido')
+                }
+            ))
+
+        top_productos = []
+        for nombre, datos in sorted(
+            productos_ventas.items(),
+            key=lambda x: x[1].get('ingresos', 0),
+            reverse=True
+        )[:5]:
+            ingresos = round(_coerce_float(datos.get('ingresos'), 0.0), 2)
+            cajas = round(_coerce_float(datos.get('cajas'), 0.0), 2)
+            peso = round(_coerce_float(datos.get('peso'), 0.0), 2)
+            top_productos.append({
+                'nombre': nombre,
+                'total_vendido': ingresos,
+                'cajas': cajas,
+                'peso': peso,
+                'ingresos': ingresos,
+                'pedidos': len(datos.get('_invoices', set()))
+            })
+
+        rankings[period_key] = {
+            'top_clientes': top_clientes,
+            'top_productos': top_productos,
+            'max_ventas': max((p['ingresos'] for p in top_productos), default=0) or 1,
+            'max_total_clientes': max(
+                (c[1].get('total', 0) for c in top_clientes),
+                default=0
+            ) or 1,
+        }
+
+    return rankings
+
+
+def _serialize_rankings_periodos(rankings_periodos):
+    """Convierte rankings por periodo a un formato JSON-safe para el template."""
+    serializado = {}
+    for period_key, payload in (rankings_periodos or {}).items():
+        if not isinstance(payload, dict):
+            continue
+
+        productos = []
+        for p in payload.get('top_productos', []) or []:
+            if not isinstance(p, dict):
+                continue
+            productos.append({
+                'nombre': str(p.get('nombre') or ''),
+                'ingresos': round(_coerce_float(p.get('ingresos'), 0.0), 2),
+                'cajas': round(_coerce_float(p.get('cajas'), 0.0), 2),
+                'peso': round(_coerce_float(p.get('peso'), 0.0), 2),
+                'pedidos': _coerce_int(p.get('pedidos'), 0),
+            })
+
+        clientes = []
+        for item in payload.get('top_clientes', []) or []:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                nombre, datos = item
+            elif isinstance(item, dict):
+                nombre = item.get('nombre') or 'Sin cliente'
+                datos = item
+            else:
+                continue
+
+            datos = datos or {}
+            ultimo = _parse_dashboard_date_value(datos.get('ultimo_pedido'))
+            clientes.append({
+                'nombre': str(nombre or 'Sin cliente'),
+                'total': round(_coerce_float(datos.get('total'), 0.0), 2),
+                'pedidos': _coerce_int(datos.get('pedidos'), 0),
+                'ultimo_pedido': ultimo.strftime('%d/%m') if ultimo else 'N/A',
+            })
+
+        serializado[period_key] = {
+            'top_productos': productos,
+            'top_clientes': clientes,
+            'max_ventas': round(_coerce_float(payload.get('max_ventas'), 1.0), 2) or 1,
+            'max_total_clientes': round(_coerce_float(payload.get('max_total_clientes'), 1.0), 2) or 1,
+        }
+
+    return serializado
+
+
 def _normalizar_metricas_ventas_quickbooks(
     raw_data,
     hoy,
@@ -621,6 +778,8 @@ def _normalizar_metricas_ventas_quickbooks(
     ventas_semanales_idx = {}
     clientes_ventas = {}
     productos_ventas = {}
+    ranking_client_rows = []
+    ranking_product_rows = []
 
     filas = raw_data.get('transactions') or raw_data.get('invoices') or raw_data.get('rows') or []
     if isinstance(filas, dict):
@@ -703,6 +862,22 @@ def _normalizar_metricas_ventas_quickbooks(
                 prod['peso'] += peso
             prod['_invoices'].add(invoice_key)
 
+        ranking_client_rows.append({
+            'date': fecha,
+            'invoice_key': invoice_key,
+            'customer': cliente_nombre,
+            'amount': monto,
+        })
+        if producto_nombre:
+            ranking_product_rows.append({
+                'date': fecha,
+                'invoice_key': invoice_key,
+                'product': str(producto_nombre),
+                'amount': monto,
+                'quantity': qty,
+                'weight': peso,
+            })
+
     # Fallback cuando N8N devuelve agregados ya resumidos
     if filas_procesadas == 0:
         for row in (raw_data.get('daily') or raw_data.get('sales_by_day') or []):
@@ -781,13 +956,14 @@ def _normalizar_metricas_ventas_quickbooks(
     for bucket in ventas_semanales_idx.values():
         bucket['pedidos'] = len(bucket.pop('_invoices', set()))
 
-    top_clientes = []
+    # Fallback de ranking general usando agregados globales
+    top_clientes_fallback = []
     for nombre, datos in sorted(
         clientes_ventas.items(),
         key=lambda x: x[1].get('total', 0),
         reverse=True
     )[:5]:
-        top_clientes.append((
+        top_clientes_fallback.append((
             nombre,
             {
                 'pedidos': len(datos.get('_invoices', set())),
@@ -796,7 +972,7 @@ def _normalizar_metricas_ventas_quickbooks(
             }
         ))
 
-    top_productos = []
+    top_productos_fallback = []
     for nombre, datos in sorted(
         productos_ventas.items(),
         key=lambda x: x[1].get('ingresos', 0),
@@ -805,7 +981,7 @@ def _normalizar_metricas_ventas_quickbooks(
         ingresos = round(_coerce_float(datos.get('ingresos'), 0.0), 2)
         cajas = round(_coerce_float(datos.get('cajas'), 0.0), 2)
         peso = round(_coerce_float(datos.get('peso'), 0.0), 2)
-        top_productos.append({
+        top_productos_fallback.append({
             'nombre': nombre,
             'total_vendido': ingresos,
             'cajas': cajas,
@@ -814,7 +990,40 @@ def _normalizar_metricas_ventas_quickbooks(
             'pedidos': len(datos.get('_invoices', set()))
         })
 
-    max_ventas = max((p['ingresos'] for p in top_productos), default=0)
+    period_starts = {
+        'month': inicio_mes,
+        '6m': inicio_tendencia,
+        '3m': inicio_semana - timedelta(weeks=12),
+        '4w': inicio_semana - timedelta(weeks=3),
+    }
+
+    if ranking_client_rows or ranking_product_rows:
+        rankings_periodos = _build_rankings_periodos_from_rows(
+            ranking_client_rows,
+            ranking_product_rows,
+            hoy=hoy,
+            period_starts=period_starts,
+        )
+    else:
+        max_ventas_fallback = max((p['ingresos'] for p in top_productos_fallback), default=0) or 1
+        max_clientes_fallback = max(
+            (c[1].get('total', 0) for c in top_clientes_fallback),
+            default=0
+        ) or 1
+        rankings_periodos = {
+            key: {
+                'top_clientes': top_clientes_fallback,
+                'top_productos': top_productos_fallback,
+                'max_ventas': max_ventas_fallback,
+                'max_total_clientes': max_clientes_fallback,
+            }
+            for key in period_starts.keys()
+        }
+
+    month_rankings = rankings_periodos.get('month', {})
+    top_clientes = month_rankings.get('top_clientes', top_clientes_fallback)
+    top_productos = month_rankings.get('top_productos', top_productos_fallback)
+    max_ventas = month_rankings.get('max_ventas', 1)
 
     return {
         'ventas_mes': round(ventas_mes, 2),
@@ -825,6 +1034,7 @@ def _normalizar_metricas_ventas_quickbooks(
         'top_clientes': top_clientes,
         'top_productos': top_productos,
         'max_ventas': max_ventas if max_ventas > 0 else 1,
+        'rankings_periodos': rankings_periodos,
     }
 
 
@@ -3076,123 +3286,98 @@ def dashboard():
             if total_clientes > 0 else 0
         )
 
-        # === ANÁLISIS OPTIMIZADO DE PRODUCTOS (MES EN CURSO) ===
-        productos_ventas = {}
-        max_ingresos = 0
+        # === RANKINGS DE PRODUCTOS/CLIENTES (MES + 6M/3M/4S) ===
+        period_starts_rankings = {
+            'month': inicio_mes,
+            '6m': inicio_tendencia,
+            '3m': inicio_semana - timedelta(weeks=12),
+            '4w': inicio_semana - timedelta(weeks=3),
+        }
 
-        def _acumular_top_producto(detalle, pedido_id):
-            """Acumula métricas por producto para rankings usando líneas facturadas."""
-            if not detalle.producto or not detalle.producto.nombre:
-                app.logger.warning(f'Detalle sin producto válido en pedido {pedido_id}')
-                return
+        ranking_client_rows_local = []
+        ranking_product_rows_local = []
 
-            nombre = detalle.producto.nombre
-            cajas_detalle = detalle.cajas or 0
-            peso_detalle = detalle.peso or 0
-            ingresos_detalle = float(detalle.subtotal or 0)
+        for p in pedidos_facturados_list:
+            fecha_fact_local = _to_dashboard_date(p.fecha_facturacion)
+            if not fecha_fact_local or fecha_fact_local < inicio_tendencia or fecha_fact_local > hoy:
+                continue
 
-            if nombre not in productos_ventas:
-                productos_ventas[nombre] = {
-                    'cajas': 0,
-                    'peso': 0,
-                    'ingresos': 0,
-                    'pedidos': set()
-                }
+            invoice_key = str(p.id)
+            if p.cliente and p.cliente.nombre:
+                cliente_nombre = p.cliente.nombre
+            else:
+                app.logger.warning(f'Pedido sin cliente: {p.id}')
+                cliente_nombre = 'Sin cliente'
 
-            productos_ventas[nombre]['cajas'] += cajas_detalle
-            productos_ventas[nombre]['peso'] += peso_detalle
-            productos_ventas[nombre]['ingresos'] += ingresos_detalle
-            productos_ventas[nombre]['pedidos'].add(pedido_id)
+            ranking_client_rows_local.append({
+                'date': fecha_fact_local,
+                'invoice_key': invoice_key,
+                'customer': cliente_nombre,
+                'amount': _calcular_venta_pedido(p),
+            })
 
-        for p in pedidos_facturados_mes_list:
-            pedido_id = p.id
-
-            # 1) Priorizar líneas de preparación/facturación reales
             productos_con_prep = set()
             for d in p.detalles:
                 if d.es_linea_pedido:
                     continue
+                if not d.producto or not d.producto.nombre:
+                    continue
                 productos_con_prep.add(d.producto_id)
-                _acumular_top_producto(d, pedido_id)
+                ranking_product_rows_local.append({
+                    'date': fecha_fact_local,
+                    'invoice_key': invoice_key,
+                    'product': d.producto.nombre,
+                    'amount': float(d.subtotal or 0),
+                    'quantity': d.cajas or 0,
+                    'weight': d.peso or 0,
+                })
 
-            # 2) Fallback histórico: usar línea original solo si no hubo preparación
             for d in p.detalles:
                 if not d.es_linea_pedido:
                     continue
                 if d.producto_id in productos_con_prep:
                     continue
-                _acumular_top_producto(d, pedido_id)
+                if not d.producto or not d.producto.nombre:
+                    continue
+                ranking_product_rows_local.append({
+                    'date': fecha_fact_local,
+                    'invoice_key': invoice_key,
+                    'product': d.producto.nombre,
+                    'amount': float(d.subtotal or 0),
+                    'quantity': d.cajas or 0,
+                    'weight': d.peso or 0,
+                })
 
-        # Optimización: Convertir sets a contadores en una pasada
-        for datos in productos_ventas.values():
-            datos['pedidos'] = len(datos['pedidos'])
-
-        # Máximo de ingresos para escalado visual
-        max_ingresos = max(
-            (datos['ingresos'] for datos in productos_ventas.values()),
-            default=0
+        rankings_periodos_local = _build_rankings_periodos_from_rows(
+            ranking_client_rows_local,
+            ranking_product_rows_local,
+            hoy=hoy,
+            period_starts=period_starts_rankings,
         )
+        rankings_periodos = rankings_periodos_local
 
-        # Top productos con manejo robusto
-        try:
-            if productos_ventas:
-                # Usar sorted (más compatible) en lugar de heapq
-                # Ordenar por valor facturado (ingresos) en lugar de cantidad de cajas
-                top_productos_raw = sorted(
-                    productos_ventas.items(),
-                    key=lambda x: x[1]['ingresos'],
-                    reverse=True
-                )[:5]
-            else:
-                top_productos_raw = []
-        except Exception as e:
-            app.logger.error(f"Error en top productos: {e}")
-            top_productos_raw = []
+        # Si QuickBooks está disponible, priorizar su ranking por periodos
+        if metricas_ventas_qb and metricas_ventas_qb.get('rankings_periodos'):
+            rankings_periodos_qb = metricas_ventas_qb['rankings_periodos']
+            rankings_periodos = {}
+            for period_key in period_starts_rankings.keys():
+                local_payload = rankings_periodos_local.get(period_key, {})
+                qb_payload = rankings_periodos_qb.get(period_key, {})
+                top_productos_qb = qb_payload.get('top_productos') or []
+                top_clientes_qb = qb_payload.get('top_clientes') or []
 
-        # Convertir a formato optimizado para el template
-        top_productos = [
-            {
-                'nombre': nombre,
-                'total_vendido': round(datos['ingresos'], 2),  # Usar ingresos para ordenamiento visual
-                'cajas': datos['cajas'],
-                'peso': round(datos['peso'], 2),
-                'ingresos': round(datos['ingresos'], 2),
-                'pedidos': datos['pedidos']
-            }
-            for nombre, datos in top_productos_raw
-        ]
+                rankings_periodos[period_key] = {
+                    'top_productos': top_productos_qb or local_payload.get('top_productos', []),
+                    'top_clientes': top_clientes_qb or local_payload.get('top_clientes', []),
+                    'max_ventas': qb_payload.get('max_ventas') or local_payload.get('max_ventas', 1),
+                    'max_total_clientes': qb_payload.get('max_total_clientes') or local_payload.get('max_total_clientes', 1),
+                }
 
-        # Usar el máximo precalculado (por valor facturado)
-        max_ventas = max_ingresos if max_ingresos > 0 else 1
-
-        # === ANÁLISIS DE CLIENTES (MES EN CURSO) ===
-        clientes_ventas = {}
-        for p in pedidos_facturados_mes_list:
-            # Verificar que existe el cliente
-            if not p.cliente:
-                app.logger.warning(f'Pedido sin cliente: {p.id}')
-                continue
-            
-            nombre = p.cliente.nombre
-            if nombre not in clientes_ventas:
-                clientes_ventas[nombre] = {'pedidos': 0, 'total': 0, 'ultimo_pedido': None}
-            clientes_ventas[nombre]['pedidos'] += 1
-            clientes_ventas[nombre]['total'] += _calcular_venta_pedido(p)
-            if (
-                not clientes_ventas[nombre]['ultimo_pedido']
-                or p.fecha_pedido > clientes_ventas[nombre]['ultimo_pedido']
-            ):
-                clientes_ventas[nombre]['ultimo_pedido'] = p.fecha_pedido
-
-        top_clientes = sorted(
-            clientes_ventas.items(), key=lambda x: x[1]['total'], reverse=True
-        )[:5]
-
-        # Si QuickBooks está disponible, usar sus rankings de ventas
-        if metricas_ventas_qb:
-            top_productos = metricas_ventas_qb['top_productos']
-            top_clientes = metricas_ventas_qb['top_clientes']
-            max_ventas = metricas_ventas_qb['max_ventas']
+        month_rankings = rankings_periodos.get('month', {})
+        top_productos = month_rankings.get('top_productos', [])
+        top_clientes = month_rankings.get('top_clientes', [])
+        max_ventas = month_rankings.get('max_ventas', 1)
+        rankings_periodos_json = _serialize_rankings_periodos(rankings_periodos)
 
         # === TENDENCIA SEMANAL (excluyendo AL01) — 26 semanas (6 meses) ===
         tendencia_semanal = []
@@ -3304,6 +3489,7 @@ def dashboard():
             top_clientes=top_clientes,
             top_productos=top_productos,
             max_ventas=max_ventas,
+            rankings_periodos_json=rankings_periodos_json,
             estados_pedidos=estados_pedidos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
@@ -3347,6 +3533,7 @@ def dashboard():
             'top_clientes': [],
             'top_productos': [],
             'max_ventas': 1,
+            'rankings_periodos_json': {},
             'estados_pedidos': {'pendiente': 0, 'preparado': 0, 'facturado': 0},
             'tendencia_semanal': [],
             'pedidos_recientes': [],
