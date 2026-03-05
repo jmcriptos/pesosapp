@@ -432,6 +432,13 @@
             <div class="card" style="margin-top:12px">
                 <div class="card-head">
                     <h3>Estado de pedidos</h3>
+                    <div class="period-btns orders-period-btns">
+                        <button class="period-btn orders-period-btn active" data-orders-period="6m">6M</button>
+                        <button class="period-btn orders-period-btn" data-orders-period="3m">3M</button>
+                        <button class="period-btn orders-period-btn" data-orders-period="4w">4S</button>
+                    </div>
+                </div>
+                <div class="card-head" style="padding-top:0;">
                     <span class="period-chip" id="ordersPeriodChip">Últimos 6 meses</span>
                 </div>
                 <div class="orders-status-grid">
@@ -1589,15 +1596,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const statusCtx = document.getElementById('ordersStatusChart');
             if (!dailyCtx || !statusCtx) return;
 
-            const buttons = document.querySelectorAll('.orders-period-btn');
+            const buttons = Array.from(document.querySelectorAll('.orders-period-btn'));
+            const setActiveButtons = (periodKey) => {
+                buttons.forEach(b => {
+                    const btnPeriod = b.dataset.ordersPeriod || '6m';
+                    b.classList.toggle('active', btnPeriod === periodKey);
+                });
+            };
+
             buttons.forEach(btn => {
                 btn.addEventListener('click', function() {
-                    buttons.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    renderOrdersPeriod(this.dataset.ordersPeriod || '6m');
+                    const periodKey = this.dataset.ordersPeriod || '6m';
+                    setActiveButtons(periodKey);
+                    renderOrdersPeriod(periodKey);
                 });
             });
 
+            setActiveButtons('6m');
             renderOrdersPeriod('6m');
         }
 
@@ -1738,7 +1753,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     callbacks: {
                                         label: (ctx) => {
                                             const value = Number(ctx.parsed || 0);
-                                            const pct = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
+                                            const datasetTotal = (ctx.dataset.data || [])
+                                                .map(v => Number(v || 0))
+                                                .reduce((acc, n) => acc + n, 0);
+                                            const pct = datasetTotal > 0 ? ((value / datasetTotal) * 100).toFixed(0) : '0';
                                             return `${ctx.label}: ${value.toLocaleString('es-ES')} (${pct}%)`;
                                         }
                                     }

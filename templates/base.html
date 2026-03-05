@@ -29,6 +29,18 @@
     <!-- CSRF Token para AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <style>
+    @media (min-width: 1024px) {
+        .app-footer {
+            display: none !important;
+        }
+        .app-content {
+            margin-bottom: 0 !important;
+            padding-bottom: 1rem !important;
+        }
+    }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body>
