@@ -1133,39 +1133,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // === SALES TREND CHART ===
         let salesChart = null;
+        function buildSalesTrendLine(values, windowSize = 3) {
+            const nums = (values || []).map(v => Number(v) || 0);
+            return nums.map((_, idx) => {
+                const start = Math.max(0, idx - windowSize + 1);
+                const slice = nums.slice(start, idx + 1);
+                const avg = slice.reduce((acc, n) => acc + n, 0) / (slice.length || 1);
+                return Number(avg.toFixed(2));
+            });
+        }
+
         function initSalesTrend() {
             const ctx = document.getElementById('salesTrendChart');
             if (!ctx || tendenciaData.length === 0) return;
 
+            const salesValues = tendenciaData.map(d => d.ventas || 0);
+            const salesTrendValues = buildSalesTrendLine(salesValues);
+
             salesChart = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: tendenciaData.map(d => d.semana || ''),
                     datasets: [
                         {
                             label: 'Ventas (XCG)',
-                            data: tendenciaData.map(d => d.ventas || 0),
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59,130,246,0.08)',
-                            borderWidth: 2.5,
-                            fill: true,
-                            tension: 0.4,
-                            pointBackgroundColor: '#3b82f6',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            pointRadius: 3,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'Pedidos',
-                            data: tendenciaData.map(d => d.pedidos || 0),
+                            data: salesValues,
                             type: 'bar',
                             backgroundColor: 'rgba(16,185,129,0.5)',
                             borderColor: '#10b981',
                             borderWidth: 1,
-                            yAxisID: 'y1',
                             order: 2,
                             borderRadius: 3
+                        },
+                        {
+                            label: 'Tendencia de ventas',
+                            data: salesTrendValues,
+                            type: 'line',
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59,130,246,0.08)',
+                            borderWidth: 2.5,
+                            fill: false,
+                            tension: 0.35,
+                            pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            order: 1
                         }
                     ]
                 },
@@ -1190,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 title: (items) => 'Sem ' + items[0].label,
                                 label: (ctx) => ctx.datasetIndex === 0
                                     ? 'Ventas: XCG ' + ctx.parsed.y.toLocaleString('es-ES')
-                                    : 'Pedidos: ' + ctx.parsed.y
+                                    : 'Tendencia: XCG ' + ctx.parsed.y.toLocaleString('es-ES')
                             }
                         }
                     },
@@ -1205,13 +1219,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 font: { size: 10 }
                             }
                         },
-                        y1: {
-                            display: true,
-                            position: 'right',
-                            beginAtZero: true,
-                            grid: { drawOnChartArea: false },
-                            ticks: { font: { size: 10 } }
-                        },
                         x: {
                             grid: { display: false },
                             ticks: { font: { size: 10 }, maxRotation: 45 }
@@ -1222,9 +1229,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Period switching
             const periodData = {
-                '6m': { labels: tendenciaData.map(d => d.semana||''), sales: tendenciaData.map(d => d.ventas||0), orders: tendenciaData.map(d => d.pedidos||0) },
-                '3m': { labels: tendenciaData.slice(-13).map(d => d.semana||''), sales: tendenciaData.slice(-13).map(d => d.ventas||0), orders: tendenciaData.slice(-13).map(d => d.pedidos||0) },
-                '4w': { labels: tendenciaData.slice(-4).map(d => d.semana||''), sales: tendenciaData.slice(-4).map(d => d.ventas||0), orders: tendenciaData.slice(-4).map(d => d.pedidos||0) }
+                '6m': { labels: tendenciaData.map(d => d.semana||''), sales: tendenciaData.map(d => d.ventas||0) },
+                '3m': { labels: tendenciaData.slice(-13).map(d => d.semana||''), sales: tendenciaData.slice(-13).map(d => d.ventas||0) },
+                '4w': { labels: tendenciaData.slice(-4).map(d => d.semana||''), sales: tendenciaData.slice(-4).map(d => d.ventas||0) }
             };
 
             document.querySelectorAll('.period-btn').forEach(btn => {
@@ -1233,9 +1240,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.classList.add('active');
                     const d = periodData[this.dataset.period];
                     if (d && salesChart) {
+                        const trend = buildSalesTrendLine(d.sales);
                         salesChart.data.labels = d.labels;
                         salesChart.data.datasets[0].data = d.sales;
-                        salesChart.data.datasets[1].data = d.orders;
+                        salesChart.data.datasets[1].data = trend;
                         salesChart.update('active');
                     }
                 });
