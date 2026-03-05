@@ -6,31 +6,29 @@
 
 {% block content %}
 <div class="pedidos-container">
-    <!-- Botón nuevo pedido -->
-    <div class="pedidos-header">
+    <!-- Filtros por estado + acción -->
+    {% set count_pendiente = pedidos|selectattr('estado', 'equalto', 'pendiente')|list|length %}
+    {% set count_preparado = pedidos|selectattr('estado', 'equalto', 'preparado')|list|length %}
+    {% set count_facturado = pedidos|selectattr('estado', 'equalto', 'facturado')|list|length %}
+    <div class="pedidos-toolbar">
+        <div class="filtros-estado">
+            <button class="filtro-btn filtro-active" data-filtro="todos">
+                Todos <span class="filtro-count">{{ pedidos|length }}</span>
+            </button>
+            <button class="filtro-btn filtro-pendiente" data-filtro="pendiente">
+                Pendientes <span class="filtro-count">{{ count_pendiente }}</span>
+            </button>
+            <button class="filtro-btn filtro-preparado" data-filtro="preparado">
+                Preparados <span class="filtro-count">{{ count_preparado }}</span>
+            </button>
+            <button class="filtro-btn filtro-facturado" data-filtro="facturado">
+                Facturados <span class="filtro-count">{{ count_facturado }}</span>
+            </button>
+        </div>
         <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
             <i class="fa fa-plus"></i>
             <span>Nuevo Pedido</span>
         </a>
-    </div>
-
-    <!-- Filtros por estado -->
-    {% set count_pendiente = pedidos|selectattr('estado', 'equalto', 'pendiente')|list|length %}
-    {% set count_preparado = pedidos|selectattr('estado', 'equalto', 'preparado')|list|length %}
-    {% set count_facturado = pedidos|selectattr('estado', 'equalto', 'facturado')|list|length %}
-    <div class="filtros-estado">
-        <button class="filtro-btn filtro-active" data-filtro="todos">
-            Todos <span class="filtro-count">{{ pedidos|length }}</span>
-        </button>
-        <button class="filtro-btn filtro-pendiente" data-filtro="pendiente">
-            Pendientes <span class="filtro-count">{{ count_pendiente }}</span>
-        </button>
-        <button class="filtro-btn filtro-preparado" data-filtro="preparado">
-            Preparados <span class="filtro-count">{{ count_preparado }}</span>
-        </button>
-        <button class="filtro-btn filtro-facturado" data-filtro="facturado">
-            Facturados <span class="filtro-count">{{ count_facturado }}</span>
-        </button>
     </div>
 
     <!-- Vista móvil: Cards -->
@@ -295,15 +293,16 @@
     padding-bottom: 100px;
 }
 
-/* Header */
-.pedidos-header {
+/* Toolbar de filtros + acción */
+.pedidos-toolbar {
     display: flex;
-    justify-content: flex-end;
     align-items: center;
-    padding: 10px 12px;
+    gap: 10px;
+    padding: 12px 8px;
     position: sticky;
     top: 0;
     z-index: 50;
+    background: inherit;
 }
 
 .pedidos-title {
@@ -318,14 +317,16 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: white;
-    color: #1877ff;
-    padding: 12px 20px;
+    background: #16a34a;
+    color: #ffffff;
+    padding: 10px 16px;
     border-radius: 25px;
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 700;
     text-decoration: none;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(22,163,74,0.35);
     transition: all 0.2s ease;
 }
 
@@ -592,7 +593,9 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
 .filtros-estado {
     display: flex;
     gap: 8px;
-    padding: 12px 8px;
+    padding: 0;
+    flex: 1;
+    min-width: 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -731,9 +734,10 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
         padding: 20px;
     }
 
-    .pedidos-header {
-        border-radius: 16px;
+    .pedidos-toolbar {
+        padding: 0 0 20px;
         margin-bottom: 20px;
+        position: static;
     }
 
     .tabla-pedidos-card {
