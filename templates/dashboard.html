@@ -413,12 +413,10 @@
 
         {# ── Tab: Actividad ── #}
         <div class="tab-panel" id="panel-actividad">
-            <h3 class="card-title-inline">Pedidos</h3>
-
             <div class="card">
                 <div class="card-head">
                     <h3>Pedidos diarios</h3>
-                    <div class="period-btns orders-period-btns">
+                    <div class="period-btns orders-period-btns" id="ordersPeriodControls">
                         <button class="period-btn orders-period-btn active" data-orders-period="6m">6M</button>
                         <button class="period-btn orders-period-btn" data-orders-period="3m">3M</button>
                         <button class="period-btn orders-period-btn" data-orders-period="4w">4S</button>
@@ -432,13 +430,6 @@
             <div class="card" style="margin-top:12px">
                 <div class="card-head">
                     <h3>Estado de pedidos</h3>
-                    <div class="period-btns orders-period-btns">
-                        <button class="period-btn orders-period-btn active" data-orders-period="6m">6M</button>
-                        <button class="period-btn orders-period-btn" data-orders-period="3m">3M</button>
-                        <button class="period-btn orders-period-btn" data-orders-period="4w">4S</button>
-                    </div>
-                </div>
-                <div class="card-head" style="padding-top:0;">
                     <span class="period-chip" id="ordersPeriodChip">Últimos 6 meses</span>
                 </div>
                 <div class="orders-status-grid">
@@ -1596,7 +1587,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const statusCtx = document.getElementById('ordersStatusChart');
             if (!dailyCtx || !statusCtx) return;
 
-            const buttons = Array.from(document.querySelectorAll('.orders-period-btn'));
+            const controls = document.getElementById('ordersPeriodControls');
+            const buttons = controls
+                ? Array.from(controls.querySelectorAll('.orders-period-btn'))
+                : [];
+            if (!buttons.length) return;
+
             const setActiveButtons = (periodKey) => {
                 buttons.forEach(b => {
                     const btnPeriod = b.dataset.ordersPeriod || '6m';
