@@ -3406,6 +3406,63 @@ def dashboard():
             **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'preparado', 'facturado']}
         }
 
+        # === PEDIDOS VISUAL (DIARIO + ESTADOS 6M / 3M / 4S) ===
+        pedidos_period_starts = {
+            '6m': hoy - timedelta(days=181),
+            '3m': hoy - timedelta(days=90),
+            '4w': hoy - timedelta(days=27),
+        }
+        pedidos_diarios_periodos = {k: [] for k in pedidos_period_starts.keys()}
+        pedidos_resumen_periodos = {
+            k: {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0}
+            for k in pedidos_period_starts.keys()
+        }
+
+        try:
+            pedidos_6m_query = Pedido.query.filter(Pedido.fecha_pedido >= pedidos_period_starts['6m'])
+            if cliente_almacen_id:
+                pedidos_6m_query = pedidos_6m_query.filter(Pedido.cliente_id != cliente_almacen_id)
+            pedidos_6m_list = pedidos_6m_query.all()
+
+            pedidos_diarios_idx = {}
+            for p in pedidos_6m_list:
+                fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
+                if (
+                    not fecha_pedido_local
+                    or fecha_pedido_local < pedidos_period_starts['6m']
+                    or fecha_pedido_local > hoy
+                ):
+                    continue
+
+                pedidos_diarios_idx[fecha_pedido_local] = pedidos_diarios_idx.get(fecha_pedido_local, 0) + 1
+                estado = (p.estado or '').strip().lower()
+
+                for period_key, start_date in pedidos_period_starts.items():
+                    if fecha_pedido_local < start_date:
+                        continue
+                    resumen = pedidos_resumen_periodos[period_key]
+                    resumen['total'] += 1
+                    if estado == 'facturado':
+                        resumen['facturados'] += 1
+                    elif estado in ('pendiente', 'preparado'):
+                        resumen['pendientes'] += 1
+                    else:
+                        resumen['otros'] += 1
+
+            for period_key, start_date in pedidos_period_starts.items():
+                cursor = start_date
+                serie = []
+                while cursor <= hoy:
+                    serie.append({
+                        'fecha': cursor.strftime('%d/%m'),
+                        'pedidos': pedidos_diarios_idx.get(cursor, 0),
+                    })
+                    cursor += timedelta(days=1)
+                pedidos_diarios_periodos[period_key] = serie
+
+        except Exception as e:
+            app.logger.error(f'Error calculando visual de pedidos: {e}')
+
         # === PEDIDOS RECIENTES (excluyendo AL01) ===
         recientes_query = Pedido.query
         if cliente_almacen_id:
@@ -3559,6 +3616,8 @@ def dashboard():
             max_ventas=max_ventas,
             rankings_periodos_json=rankings_periodos_json,
             estados_pedidos=estados_pedidos,
+            pedidos_diarios_periodos=pedidos_diarios_periodos,
+            pedidos_resumen_periodos=pedidos_resumen_periodos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
             pedidos_operativos=pedidos_operativos,
@@ -3607,6 +3666,12 @@ def dashboard():
             'max_ventas': 1,
             'rankings_periodos_json': {},
             'estados_pedidos': {'pendiente': 0, 'preparado': 0, 'facturado': 0},
+            'pedidos_diarios_periodos': {'6m': [], '3m': [], '4w': []},
+            'pedidos_resumen_periodos': {
+                '6m': {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0},
+                '3m': {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0},
+                '4w': {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0},
+            },
             'tendencia_semanal': [],
             'pedidos_recientes': [],
             'pedidos_operativos': [],

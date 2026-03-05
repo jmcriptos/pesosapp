@@ -413,125 +413,49 @@
 
         {# ── Tab: Actividad ── #}
         <div class="tab-panel" id="panel-actividad">
-            <h3 class="card-title-inline">Operación de Pedidos</h3>
+            <h3 class="card-title-inline">Pedidos</h3>
 
-            <div class="ops-kpi-grid">
-                <div class="ops-kpi-card">
-                    <span class="ops-kpi-label">Pendientes</span>
-                    <span class="ops-kpi-value">{{ pedidos_pendientes_v }}</span>
+            <div class="card">
+                <div class="card-head">
+                    <h3>Pedidos diarios</h3>
+                    <div class="period-btns orders-period-btns">
+                        <button class="period-btn orders-period-btn active" data-orders-period="6m">6M</button>
+                        <button class="period-btn orders-period-btn" data-orders-period="3m">3M</button>
+                        <button class="period-btn orders-period-btn" data-orders-period="4w">4S</button>
+                    </div>
                 </div>
-                <div class="ops-kpi-card">
-                    <span class="ops-kpi-label">Vencidos</span>
-                    <span class="ops-kpi-value {{ 'c-red' if pedidos_vencidos_v > 0 else 'c-green' }}">{{ pedidos_vencidos_v }}</span>
-                </div>
-                <div class="ops-kpi-card">
-                    <span class="ops-kpi-label">Preparados</span>
-                    <span class="ops-kpi-value">{{ pedidos_preparados_activos_v }}</span>
-                </div>
-                <div class="ops-kpi-card">
-                    <span class="ops-kpi-label">Facturados Hoy</span>
-                    <span class="ops-kpi-value">{{ pedidos_facturados_hoy_v }}</span>
+                <div class="chart-wrap orders-chart-wrap">
+                    <canvas id="ordersDailyChart"></canvas>
                 </div>
             </div>
 
             <div class="card" style="margin-top:12px">
                 <div class="card-head">
-                    <h3>Cola Priorizada</h3>
-                    <span class="period-chip" id="opsVisibleCount">{{ (pedidos_operativos or [])|length }} en cola</span>
+                    <h3>Estado de pedidos</h3>
+                    <span class="period-chip" id="ordersPeriodChip">Últimos 6 meses</span>
                 </div>
-                <div class="ops-filter-wrap">
-                    <div class="period-btns ops-filter-btns">
-                        <button class="period-btn ops-filter-btn active" data-ops-filter="todos">Todos</button>
-                        <button class="period-btn ops-filter-btn" data-ops-filter="pendiente">Pendientes</button>
-                        <button class="period-btn ops-filter-btn" data-ops-filter="preparado">Preparados</button>
-                        <button class="period-btn ops-filter-btn" data-ops-filter="facturado">Facturados</button>
-                        <button class="period-btn ops-filter-btn" data-ops-filter="urgentes">Urgentes</button>
-                    </div>
-                    <div class="ops-filter-row">
-                        <input type="text" id="opsOrderSearch" class="ops-search-input" placeholder="Buscar cliente o #pedido">
-                        <a href="{{ url_for('lista_pedidos') }}" class="ops-link-btn">
-                            <i class="fas fa-arrow-up-right-from-square"></i> Ver lista completa
-                        </a>
-                    </div>
-                </div>
-                <div class="orders-list ops-orders-list" id="opsOrdersList">
-                    {% for pedido in (pedidos_operativos or []) %}
-                    <div class="order-row ops-order-row"
-                         data-estado="{{ pedido.estado }}"
-                         data-urgente="{{ 1 if pedido.es_urgente else 0 }}"
-                         data-cliente="{{ (pedido.cliente or '')|lower }}"
-                         data-id="{{ pedido.id }}">
-                        <div class="order-badge {{ pedido.estado }}">
-                            {% if pedido.estado == 'pendiente' %}
-                                <i class="fas fa-clock"></i>
-                            {% elif pedido.estado == 'preparado' %}
-                                <i class="fas fa-box"></i>
-                            {% elif pedido.estado == 'facturado' %}
-                                <i class="fas fa-file-invoice-dollar"></i>
-                            {% else %}
-                                <i class="fas fa-question-circle"></i>
-                            {% endif %}
-                        </div>
-                        <div class="order-info">
-                            <span class="order-id">#{{ pedido.id }} · {{ pedido.cliente }}</span>
-                            <span class="order-date">{{ pedido.fecha_pedido_full }}</span>
-                            <div class="ops-meta">
-                                <span><i class="fas fa-hourglass-half"></i> {{ pedido.edad_dias }}d</span>
-                                <span><i class="fas fa-coins"></i> {{ '{:,.0f}'.format(pedido.total_xcg) }} XCG</span>
-                            </div>
-                        </div>
-                        <span class="sla-pill {{ pedido.sla_class }}">{{ pedido.sla_text }}</span>
-                        <div class="ops-actions">
-                            <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="ops-action-btn">
-                                <i class="fas fa-eye"></i> Detalles
-                            </a>
-                            {% if pedido.puede_preparar %}
-                            <form action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}" method="POST"
-                                  onsubmit="return confirm('¿Marcar pedido #{{ pedido.id }} como preparado?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="ops-action-btn ops-action-primary">
-                                    <i class="fas fa-box"></i> Preparar
-                                </button>
-                            </form>
-                            {% elif pedido.puede_facturar %}
-                            <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
-                                  onsubmit="return confirm('¿Facturar pedido #{{ pedido.id }}?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="ops-action-btn ops-action-primary">
-                                    <i class="fas fa-file-invoice-dollar"></i> Facturar
-                                </button>
-                            </form>
-                            {% endif %}
-                            {% if pedido.puede_editar %}
-                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="ops-action-btn">
-                                <i class="fas fa-pen"></i> Editar
-                            </a>
-                            {% endif %}
+                <div class="orders-status-grid">
+                    <div class="orders-status-donut-wrap">
+                        <canvas id="ordersStatusChart"></canvas>
+                        <div class="orders-donut-center">
+                            <div class="dc-num" id="ordersTotalCenter">0</div>
+                            <div class="dc-label">Total</div>
                         </div>
                     </div>
-                    {% else %}
-                    <div class="order-row">
-                        <div class="order-info">
-                            <span class="order-id">Sin pedidos en la cola operativa</span>
-                            <span class="order-date">No hay datos para los últimos 30 días</span>
+                    <div class="orders-status-cards">
+                        <div class="ops-kpi-card">
+                            <span class="ops-kpi-label">Total pedidos</span>
+                            <span class="ops-kpi-value" id="ordersTotalCount">0</span>
+                        </div>
+                        <div class="ops-kpi-card">
+                            <span class="ops-kpi-label">Facturados</span>
+                            <span class="ops-kpi-value c-green" id="ordersFacturadosCount">0</span>
+                        </div>
+                        <div class="ops-kpi-card">
+                            <span class="ops-kpi-label">Pendientes</span>
+                            <span class="ops-kpi-value c-amber" id="ordersPendientesCount">0</span>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="card" style="margin-top:12px">
-                <div class="card-head"><h3>Distribución de Estados</h3></div>
-                <div class="chart-wrap status-chart-wrap" style="height:200px;position:relative">
-                    <canvas id="statusChart"></canvas>
-                </div>
-                <div class="status-legend">
-                    {% for estado, cantidad in (estados_pedidos or {}).items() %}
-                    <div class="sl-item">
-                        <span class="sl-dot {{ estado }}"></span>
-                        <span>{{ estado.replace('_', ' ').title() }}: {{ cantidad }}</span>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -1073,6 +997,35 @@
     font-weight: 800;
     color: var(--dash-text);
 }
+.orders-period-btns {
+    flex-wrap: nowrap;
+}
+.orders-chart-wrap {
+    min-height: 300px;
+}
+.orders-status-grid {
+    display: grid;
+    gap: var(--dash-gap);
+    padding: 0 var(--dash-pad) var(--dash-pad);
+    grid-template-columns: 1fr;
+}
+.orders-status-donut-wrap {
+    position: relative;
+    min-height: 240px;
+}
+.orders-donut-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+}
+.orders-status-cards {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr;
+}
 .ops-filter-wrap {
     padding: 0 var(--dash-pad) 8px;
 }
@@ -1298,6 +1251,13 @@
     .ops-filter-row {
         justify-content: space-between;
     }
+    .orders-status-grid {
+        grid-template-columns: minmax(260px, 340px) 1fr;
+        align-items: center;
+    }
+    .orders-status-cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 
 /* Large desktop — full width */
@@ -1341,9 +1301,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Safe data
         const tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }} || [];
-        const estadosData = {{ (estados_pedidos or {})|tojson|safe }} || {};
         const kpisHistoricos = {{ (kpis_historicos or [])|tojson|safe }} || [];
         const rankingsPeriodosData = {{ (rankings_periodos_json or {})|tojson|safe }} || {};
+        const pedidosDiariosPeriodosData = {{ (pedidos_diarios_periodos or {})|tojson|safe }} || {};
+        const pedidosResumenPeriodosData = {{ (pedidos_resumen_periodos or {})|tojson|safe }} || {};
 
         // === REFRESH ===
         const refreshBtn = document.getElementById('refreshDashboard');
@@ -1384,7 +1345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 chartInited.servicio = true;
             }
             if (tab === 'actividad' && !chartInited.actividad) {
-                initStatusChart();
+                initOrdersCharts();
                 chartInited.actividad = true;
             }
         }
@@ -1619,73 +1580,188 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // === OPERATIONS QUEUE FILTERING (PEDIDOS TAB) ===
-        function initOpsQueue() {
-            const ordersWrap = document.getElementById('opsOrdersList');
-            if (!ordersWrap) return;
+        // === PEDIDOS TAB CHARTS (6M / 3M / 4S) ===
+        let ordersDailyChart = null;
+        let ordersStatusChart = null;
 
-            const filterButtons = Array.from(document.querySelectorAll('.ops-filter-btn'));
-            const searchInput = document.getElementById('opsOrderSearch');
-            const visibleCount = document.getElementById('opsVisibleCount');
-            const rows = Array.from(ordersWrap.querySelectorAll('.ops-order-row'))
-                .filter(row => (row.dataset.estado || '').length > 0);
+        function initOrdersCharts() {
+            const dailyCtx = document.getElementById('ordersDailyChart');
+            const statusCtx = document.getElementById('ordersStatusChart');
+            if (!dailyCtx || !statusCtx) return;
 
-            if (rows.length === 0) {
-                if (visibleCount) visibleCount.textContent = '0 en cola';
-                return;
-            }
-
-            let activeFilter = 'todos';
-
-            function matchesFilter(row) {
-                const estado = (row.dataset.estado || '').toLowerCase();
-                const isUrgent = row.dataset.urgente === '1';
-
-                if (activeFilter === 'todos') return true;
-                if (activeFilter === 'urgentes') return isUrgent;
-                return estado === activeFilter;
-            }
-
-            function matchesSearch(row, queryRaw) {
-                const query = String(queryRaw || '').trim().toLowerCase();
-                if (!query) return true;
-
-                const cliente = (row.dataset.cliente || '').toLowerCase();
-                const id = String(row.dataset.id || '');
-                const queryNoHash = query.replace(/^#/, '');
-
-                return cliente.includes(query) || id.includes(queryNoHash) || ('#' + id).includes(query);
-            }
-
-            function applyFilters() {
-                const query = searchInput ? searchInput.value : '';
-                let visibleRows = 0;
-
-                rows.forEach(row => {
-                    const show = matchesFilter(row) && matchesSearch(row, query);
-                    row.style.display = show ? '' : 'none';
-                    if (show) visibleRows += 1;
-                });
-
-                if (visibleCount) {
-                    visibleCount.textContent = `${visibleRows} en cola`;
-                }
-            }
-
-            filterButtons.forEach(btn => {
+            const buttons = document.querySelectorAll('.orders-period-btn');
+            buttons.forEach(btn => {
                 btn.addEventListener('click', function() {
-                    filterButtons.forEach(b => b.classList.remove('active'));
+                    buttons.forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
-                    activeFilter = this.dataset.opsFilter || 'todos';
-                    applyFilters();
+                    renderOrdersPeriod(this.dataset.ordersPeriod || '6m');
                 });
             });
 
-            if (searchInput) {
-                searchInput.addEventListener('input', applyFilters);
+            renderOrdersPeriod('6m');
+        }
+
+        function renderOrdersPeriod(periodKey) {
+            const periodLabels = {
+                '6m': 'Últimos 6 meses',
+                '3m': 'Últimos 3 meses',
+                '4w': 'Últimas 4 semanas',
+            };
+
+            const dailySeries = pedidosDiariosPeriodosData[periodKey] || [];
+            const summary = pedidosResumenPeriodosData[periodKey] || {};
+            const total = Number(summary.total || 0);
+            const facturados = Number(summary.facturados || 0);
+            const pendientes = Number(summary.pendientes || 0);
+            const otros = Math.max(0, total - facturados - pendientes);
+            const label = periodLabels[periodKey] || periodLabels['6m'];
+
+            const labels = dailySeries.map(d => d.fecha || '');
+            const dailyValues = dailySeries.map(d => Number(d.pedidos || 0));
+            const trendValues = buildSalesTrendLine(dailyValues, 5);
+
+            const dailyCtx = document.getElementById('ordersDailyChart');
+            if (dailyCtx) {
+                if (!ordersDailyChart) {
+                    ordersDailyChart = new Chart(dailyCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Pedidos diarios',
+                                    data: dailyValues,
+                                    type: 'bar',
+                                    backgroundColor: 'rgba(59,130,246,0.42)',
+                                    borderColor: '#3b82f6',
+                                    borderWidth: 1,
+                                    borderRadius: 3,
+                                    order: 2,
+                                },
+                                {
+                                    label: 'Tendencia',
+                                    data: trendValues,
+                                    type: 'line',
+                                    borderColor: '#34d399',
+                                    backgroundColor: 'rgba(52,211,153,0.12)',
+                                    borderWidth: 2.2,
+                                    pointRadius: 0,
+                                    pointHoverRadius: 5,
+                                    fill: false,
+                                    tension: 0.35,
+                                    order: 1,
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { intersect: false, mode: 'index' },
+                            animation: { duration: 500 },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: { usePointStyle: true, padding: 12, font: { size: 11 } }
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0,0,0,0.8)',
+                                    padding: 10,
+                                    cornerRadius: 8,
+                                    callbacks: {
+                                        label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-ES')}`,
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(31,41,55,0.6)' },
+                                    ticks: { precision: 0, font: { size: 10 } }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: {
+                                        autoSkip: true,
+                                        maxTicksLimit: periodKey === '6m' ? 14 : (periodKey === '3m' ? 12 : 10),
+                                        maxRotation: 0,
+                                        font: { size: 10 }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    ordersDailyChart.data.labels = labels;
+                    ordersDailyChart.data.datasets[0].data = dailyValues;
+                    ordersDailyChart.data.datasets[1].data = trendValues;
+                    ordersDailyChart.options.scales.x.ticks.maxTicksLimit = periodKey === '6m' ? 14 : (periodKey === '3m' ? 12 : 10);
+                    ordersDailyChart.update('active');
+                }
             }
 
-            applyFilters();
+            const statusCtx = document.getElementById('ordersStatusChart');
+            if (statusCtx) {
+                const donutValues = [facturados, pendientes, otros];
+                if (!ordersStatusChart) {
+                    ordersStatusChart = new Chart(statusCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Facturados', 'Pendientes', 'Otros'],
+                            datasets: [{
+                                data: donutValues,
+                                backgroundColor: ['#10b981', '#f59e0b', '#64748b'],
+                                borderColor: '#141820',
+                                borderWidth: 3,
+                                cutout: '68%',
+                                hoverOffset: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom',
+                                    labels: {
+                                        color: '#94a3b8',
+                                        usePointStyle: true,
+                                        padding: 12,
+                                        font: { size: 11 }
+                                    }
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0,0,0,0.8)',
+                                    padding: 10,
+                                    cornerRadius: 8,
+                                    callbacks: {
+                                        label: (ctx) => {
+                                            const value = Number(ctx.parsed || 0);
+                                            const pct = total > 0 ? ((value / total) * 100).toFixed(0) : '0';
+                                            return `${ctx.label}: ${value.toLocaleString('es-ES')} (${pct}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    ordersStatusChart.data.datasets[0].data = donutValues;
+                    ordersStatusChart.update('active');
+                }
+            }
+
+            const chip = document.getElementById('ordersPeriodChip');
+            if (chip) chip.textContent = label;
+            const totalEl = document.getElementById('ordersTotalCount');
+            const factEl = document.getElementById('ordersFacturadosCount');
+            const pendEl = document.getElementById('ordersPendientesCount');
+            const centerEl = document.getElementById('ordersTotalCenter');
+            if (totalEl) totalEl.textContent = total.toLocaleString('es-ES');
+            if (factEl) factEl.textContent = facturados.toLocaleString('es-ES');
+            if (pendEl) pendEl.textContent = pendientes.toLocaleString('es-ES');
+            if (centerEl) centerEl.textContent = total.toLocaleString('es-ES');
         }
 
         // === KPI EVOLUTION CHART ===
@@ -1752,57 +1828,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // === STATUS DOUGHNUT CHART ===
-        function initStatusChart() {
-            const ctx = document.getElementById('statusChart');
-            if (!ctx || Object.keys(estadosData).length === 0) return;
-
-            const labelMap = { 'pendiente': 'Pendientes', 'preparado': 'Preparados', 'facturado': 'Facturados', 'sin_estado': 'Sin Estado' };
-            const colorMap = { 'pendiente': '#f59e0b', 'preparado': '#10b981', 'facturado': '#3b82f6', 'sin_estado': '#6b7280' };
-            const labels = Object.keys(estadosData).map(e => labelMap[e] || e);
-            const values = Object.values(estadosData);
-            const colors = Object.keys(estadosData).map(e => colorMap[e] || '#9ca3af');
-            const total = values.reduce((s, v) => s + v, 0);
-
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{ data: values, backgroundColor: colors, borderColor: '#141820', borderWidth: 3, cutout: '65%', hoverOffset: 6 }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 600 },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(0,0,0,0.8)',
-                            padding: 10,
-                            cornerRadius: 8,
-                            callbacks: {
-                                label: ctx => ctx.label + ': ' + ctx.parsed + ' (' + ((ctx.parsed/total)*100).toFixed(0) + '%)'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Center text
-            const wrap = ctx.parentElement;
-            if (!wrap.querySelector('.doughnut-center')) {
-                const c = document.createElement('div');
-                c.className = 'doughnut-center';
-                c.innerHTML = '<div class="dc-num">' + total + '</div><div class="dc-label">Total</div>';
-                c.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none';
-                wrap.appendChild(c);
-            }
-        }
-
         // Init default tab chart
         initChartsFor('tendencia');
         renderRankingsForPeriod('month');
-        initOpsQueue();
 
     } catch (error) {
         console.error('Dashboard init error:', error);
@@ -1810,8 +1838,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <style>
-/* Doughnut center text (injected by JS) */
-.doughnut-center .dc-num { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; line-height: 1; }
-.doughnut-center .dc-label { font-size: 0.625rem; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Doughnut center text */
+.orders-donut-center .dc-num { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; line-height: 1; }
+.orders-donut-center .dc-label { font-size: 0.625rem; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
 </style>
 {% endblock %}
