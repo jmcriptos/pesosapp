@@ -174,33 +174,29 @@
 
             <div class="desktop-header-shell">
                 <a href="/dashboard" class="desktop-brand" aria-label="Ir al dashboard">
-                    <span class="desktop-brand-mark">P</span>
+                    <span class="desktop-brand-mark">
+                        <img src="{{ url_for('static', filename='icons/apple-touch-icon.png') }}" alt="" class="desktop-brand-logo" aria-hidden="true">
+                    </span>
                     <span class="desktop-brand-copy">
                         <span class="desktop-brand-title">PesosApp</span>
-                        <span class="desktop-brand-subtitle">Operaciones</span>
                     </span>
                 </a>
 
-                <nav class="desktop-nav" aria-label="Menú principal">
-                    <a href="/dashboard" class="desktop-nav-link {{ 'active' if is_dashboard }}">
-                        <i class="fas fa-chart-pie"></i><span>Dashboard</span>
-                    </a>
-                    <a href="/pedidos" class="desktop-nav-link {{ 'active' if is_pedidos }}">
-                        <i class="fas fa-clipboard-list"></i><span>Pedidos</span>
-                    </a>
-                    <a href="/precios" class="desktop-nav-link {{ 'active' if is_precios }}">
-                        <i class="fas fa-dollar-sign"></i><span>Precios</span>
-                    </a>
-                    <a href="/etiquetas_vencimiento" class="desktop-nav-link {{ 'active' if is_etiquetas }}">
-                        <i class="fas fa-tags"></i><span>Etiquetas</span>
-                    </a>
-                </nav>
-
-                <div class="desktop-header-actions">
-                    <div class="desktop-page-chip">
-                        <span class="desktop-page-chip-label">Vista</span>
-                        <span class="desktop-page-chip-title">{% block desktop_header_title %}{{ self.title()|striptags|trim }}{% endblock %}</span>
-                    </div>
+                <div class="desktop-nav-group">
+                    <nav class="desktop-nav" aria-label="Menú principal">
+                        <a href="/dashboard" class="desktop-nav-link {{ 'active' if is_dashboard }}">
+                            <i class="fas fa-chart-pie"></i><span>Dashboard</span>
+                        </a>
+                        <a href="/pedidos" class="desktop-nav-link {{ 'active' if is_pedidos }}">
+                            <i class="fas fa-clipboard-list"></i><span>Pedidos</span>
+                        </a>
+                        <a href="/precios" class="desktop-nav-link {{ 'active' if is_precios }}">
+                            <i class="fas fa-dollar-sign"></i><span>Precios</span>
+                        </a>
+                        <a href="/etiquetas_vencimiento" class="desktop-nav-link {{ 'active' if is_etiquetas }}">
+                            <i class="fas fa-tags"></i><span>Etiquetas</span>
+                        </a>
+                    </nav>
 
                     <div class="desktop-ops">
                         <button class="desktop-ops-toggle {{ 'active' if is_management }}" id="desktopOpsToggle" aria-label="Abrir menú de gestión" aria-haspopup="true" aria-expanded="false">
@@ -246,6 +242,13 @@
                                 </span>
                             </a>
                         </div>
+                    </div>
+                </div>
+
+                <div class="desktop-header-actions">
+                    <div class="desktop-page-chip">
+                        <span class="desktop-page-chip-label">Vista</span>
+                        <span class="desktop-page-chip-title">{% block desktop_header_title %}{{ self.title()|striptags|trim }}{% endblock %}</span>
                     </div>
 
                     <div class="user-menu">

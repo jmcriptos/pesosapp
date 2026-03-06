@@ -60,11 +60,11 @@
 <div class="exec-dashboard">
     <div class="dashboard-subnav-wrap">
         <div class="dashboard-subnav">
-            <div class="topbar-tabs" id="tabBar">
-                <button class="tb-tab active" data-tab="tendencia"><i class="fas fa-chart-line"></i><span class="tb-label">Ventas</span></button>
-                <button class="tb-tab" data-tab="servicio"><i class="fas fa-gauge-high"></i><span class="tb-label">Servicio</span></button>
-                <button class="tb-tab" data-tab="rankings"><i class="fas fa-trophy"></i><span class="tb-label">Top</span></button>
-                <button class="tb-tab" data-tab="actividad"><i class="fas fa-list-ul"></i><span class="tb-label">Pedidos</span></button>
+            <div class="topbar-tabs" id="tabBar" role="tablist" aria-label="Secciones del dashboard">
+                <button class="tb-tab active" id="tab-tendencia" type="button" role="tab" aria-selected="true" aria-controls="panel-tendencia" tabindex="0" data-tab="tendencia"><i class="fas fa-chart-line"></i><span class="tb-label">Ventas</span></button>
+                <button class="tb-tab" id="tab-servicio" type="button" role="tab" aria-selected="false" aria-controls="panel-servicio" tabindex="-1" data-tab="servicio"><i class="fas fa-gauge-high"></i><span class="tb-label">Servicio</span></button>
+                <button class="tb-tab" id="tab-rankings" type="button" role="tab" aria-selected="false" aria-controls="panel-rankings" tabindex="-1" data-tab="rankings"><i class="fas fa-trophy"></i><span class="tb-label">Top</span></button>
+                <button class="tb-tab" id="tab-actividad" type="button" role="tab" aria-selected="false" aria-controls="panel-actividad" tabindex="-1" data-tab="actividad"><i class="fas fa-list-ul"></i><span class="tb-label">Pedidos</span></button>
             </div>
         </div>
     </div>
@@ -73,7 +73,7 @@
     <div class="tab-panels">
 
         {# ── Tab: Ventas ── #}
-        <div class="tab-panel active" id="panel-tendencia">
+        <div class="tab-panel active" id="panel-tendencia" role="tabpanel" aria-labelledby="tab-tendencia">
             {# — 4 KPI Cards with Progress Rings — #}
             <div class="kpi-grid">
                 {# Tile 1: Ventas del Mes #}
@@ -191,7 +191,7 @@
         </div>
 
         {# ── Tab: Servicio ── #}
-        <div class="tab-panel" id="panel-servicio">
+        <div class="tab-panel" id="panel-servicio" role="tabpanel" aria-labelledby="tab-servicio">
             <div class="svc-grid">
                 {# OTD #}
                 <div class="svc-card">
@@ -333,7 +333,7 @@
         </div>
 
         {# ── Tab: Rankings ── #}
-        <div class="tab-panel" id="panel-rankings">
+        <div class="tab-panel" id="panel-rankings" role="tabpanel" aria-labelledby="tab-rankings">
             <div class="card" style="margin-bottom:12px">
                 <div class="card-head">
                     <h3><i class="fas fa-filter" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Periodo de Ranking</h3>
@@ -412,7 +412,7 @@
         </div>
 
         {# ── Tab: Actividad ── #}
-        <div class="tab-panel" id="panel-actividad">
+        <div class="tab-panel" id="panel-actividad" role="tabpanel" aria-labelledby="tab-actividad">
             <div class="card">
                 <div class="card-head">
                     <h3>Pedidos diarios</h3>
@@ -647,12 +647,12 @@
 .topbar-tabs {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     width: 100%;
-    padding: 4px;
+    padding: 6px;
     border: 1px solid var(--dash-border);
-    border-radius: 16px;
-    background: rgba(20, 24, 32, 0.9);
+    border-radius: 18px;
+    background: rgba(20, 24, 32, 0.82);
     box-shadow: 0 10px 24px rgba(0,0,0,0.16);
     overflow-x: auto;
     scrollbar-width: none;
@@ -662,6 +662,7 @@
     display: none;
 }
 .tb-tab {
+    position: relative;
     flex: 1 0 auto;
     min-width: 108px;
     display: flex;
@@ -673,26 +674,54 @@
     font-size: 0.74rem;
     font-weight: 700;
     color: var(--dash-text3);
-    border: none;
-    background: none;
+    border: 1px solid transparent;
+    background: rgba(148, 163, 184, 0.05);
     border-radius: 12px;
     cursor: pointer;
     transition: color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
     font-family: var(--dash-font);
     white-space: nowrap;
 }
+.tb-tab::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 6px;
+    height: 2px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    opacity: 0;
+    transform: scaleX(0.4);
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
 .tb-tab i {
     font-size: 0.8rem;
+    transition: transform 0.18s ease, color 0.18s ease;
 }
 .tb-label { display: inline; }
 .tb-tab:hover {
     color: var(--dash-text);
     background: rgba(59, 74, 92, 0.28);
 }
+.tb-tab:focus-visible {
+    outline: 2px solid rgba(96, 165, 250, 0.72);
+    outline-offset: 2px;
+}
 .tb-tab.active {
     color: #ffffff;
     background: linear-gradient(135deg, #1877ff 0%, #1f8cff 100%);
-    box-shadow: 0 8px 18px rgba(24, 119, 255, 0.22);
+    border-color: rgba(147, 197, 253, 0.28);
+    box-shadow: 0 10px 24px rgba(24, 119, 255, 0.24);
+    transform: translateY(-1px);
+}
+.tb-tab.active::after {
+    opacity: 1;
+    transform: scaleX(1);
+}
+.tb-tab.active i {
+    color: #dbeafe;
+    transform: scale(1.05);
 }
 
 /* ═══════════════════════════
@@ -1380,8 +1409,14 @@ document.addEventListener('DOMContentLoaded', function() {
         tabBar.addEventListener('click', function(e) {
             const tab = e.target.closest('.tb-tab');
             if (!tab) return;
-            tabBar.querySelectorAll('.tb-tab').forEach(t => t.classList.remove('active'));
+            tabBar.querySelectorAll('.tb-tab').forEach(t => {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+                t.setAttribute('tabindex', '-1');
+            });
             tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            tab.setAttribute('tabindex', '0');
             const target = tab.dataset.tab;
             panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + target));
             initChartsFor(target);

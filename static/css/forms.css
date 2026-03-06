@@ -60,6 +60,7 @@
 }
 
 .desktop-header-shell,
+.desktop-nav-group,
 .desktop-nav,
 .desktop-header-actions,
 .desktop-page-chip {
@@ -68,7 +69,7 @@
 
 .desktop-header-shell {
     align-items: center;
-    gap: 22px;
+    gap: 18px;
     width: 100%;
     min-width: 0;
 }
@@ -76,7 +77,7 @@
 .desktop-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     color: #0f172a;
     text-decoration: none;
     flex-shrink: 0;
@@ -88,38 +89,38 @@
 }
 
 .desktop-brand-mark {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     border-radius: 14px;
-    background: linear-gradient(135deg, #1877ff 0%, #4dabf7 100%);
-    color: #fff;
+    padding: 5px;
+    background: linear-gradient(135deg, rgba(24, 119, 255, 0.14) 0%, rgba(77, 171, 247, 0.28) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
-    font-weight: 800;
-    box-shadow: 0 12px 24px rgba(24, 119, 255, 0.24);
+    box-shadow: 0 12px 24px rgba(24, 119, 255, 0.12);
+    overflow: hidden;
+}
+
+.desktop-brand-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    display: block;
 }
 
 .desktop-brand-copy {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     min-width: 0;
 }
 
 .desktop-brand-title {
-    font-size: 1rem;
+    font-size: 1.03rem;
     font-weight: 700;
     line-height: 1.1;
-}
-
-.desktop-brand-subtitle {
-    font-size: 0.76rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #64748b;
+    letter-spacing: -0.02em;
 }
 
 .desktop-page-chip {
@@ -161,6 +162,13 @@
 
 .desktop-page-chip-title i {
     font-size: 0.92rem;
+}
+
+.desktop-nav-group {
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
 }
 
 .desktop-nav {
@@ -222,38 +230,46 @@
     position: relative;
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .desktop-ops-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    color: #0f172a;
+    gap: 8px;
+    padding: 11px 14px;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    background: transparent;
+    color: #64748b;
     cursor: pointer;
-    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .desktop-ops-toggle:hover {
-    border-color: #cbd5e1;
-    background: #ffffff;
+    color: #0f172a;
+    background: #f8fafc;
+    border-color: #e2e8f0;
     transform: translateY(-1px);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    box-shadow: none;
 }
 
-.desktop-ops-toggle.active {
+.desktop-ops-toggle.active,
+.desktop-ops-toggle[aria-expanded="true"] {
+    color: #1877ff;
+    background: rgba(24, 119, 255, 0.1);
     border-color: rgba(24, 119, 255, 0.18);
-    background: rgba(24, 119, 255, 0.08);
-    box-shadow: 0 12px 28px rgba(24, 119, 255, 0.12);
+    box-shadow: 0 8px 20px rgba(24, 119, 255, 0.14);
 }
 
 .desktop-ops-toggle-label {
-    font-size: 0.9rem;
-    font-weight: 700;
-    line-height: 1.1;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
 }
 
 .desktop-ops-toggle i {
@@ -262,13 +278,13 @@
 }
 
 .desktop-ops-toggle i:first-child {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 .desktop-ops-dropdown {
     position: absolute;
     top: calc(100% + 10px);
-    right: 0;
+    left: 0;
     min-width: 280px;
     padding: 10px;
     border-radius: 22px;
@@ -395,6 +411,7 @@
     }
 
     .desktop-header-shell,
+    .desktop-nav-group,
     .desktop-nav,
     .desktop-header-actions {
         display: flex;

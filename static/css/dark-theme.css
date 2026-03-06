@@ -35,10 +35,9 @@ html, body {
 .desktop-brand,
 .desktop-brand:hover { color: #f1f5f9 !important; }
 .desktop-brand-title { color: #f1f5f9 !important; }
-.desktop-brand-subtitle { color: #64748b !important; }
 .desktop-brand-mark {
-    background: linear-gradient(135deg, #1877ff 0%, #60a5fa 100%) !important;
-    box-shadow: 0 12px 24px rgba(24,119,255,0.22) !important;
+    background: linear-gradient(135deg, rgba(96,165,250,0.16) 0%, rgba(37,99,235,0.32) 100%) !important;
+    box-shadow: 0 12px 24px rgba(24,119,255,0.16) !important;
 }
 .desktop-page-chip {
     background: #141820 !important;
@@ -58,19 +57,22 @@ html, body {
     box-shadow: inset 0 0 0 1px rgba(96,165,250,0.24) !important;
 }
 .desktop-ops-toggle {
-    background: #141820 !important;
-    border-color: #3b4a5c !important;
-    color: #f1f5f9 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #94a3b8 !important;
 }
 .desktop-ops-toggle:hover {
     background: #1a1f2b !important;
-    border-color: #4b5d73 !important;
-    box-shadow: 0 12px 28px rgba(0,0,0,0.28) !important;
+    border-color: #3b4a5c !important;
+    color: #f1f5f9 !important;
+    box-shadow: none !important;
 }
-.desktop-ops-toggle.active {
+.desktop-ops-toggle.active,
+.desktop-ops-toggle[aria-expanded="true"] {
     background: rgba(96,165,250,0.12) !important;
     border-color: rgba(96,165,250,0.24) !important;
-    box-shadow: 0 12px 28px rgba(37,99,235,0.18) !important;
+    color: #60a5fa !important;
+    box-shadow: inset 0 0 0 1px rgba(96,165,250,0.24) !important;
 }
 .desktop-ops-toggle i { color: #94a3b8 !important; }
 .desktop-ops-dropdown {
