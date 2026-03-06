@@ -60,20 +60,41 @@
 <div class="exec-dashboard">
     <div class="dashboard-subnav-wrap">
         <div class="dashboard-subnav">
-            <div class="topbar-tabs" id="tabBar" role="tablist" aria-label="Secciones del dashboard">
-                <button class="tb-tab active" id="tab-tendencia" type="button" role="tab" aria-selected="true" aria-controls="panel-tendencia" tabindex="0" data-tab="tendencia"><i class="fas fa-chart-line"></i><span class="tb-label">Ventas</span></button>
-                <button class="tb-tab" id="tab-servicio" type="button" role="tab" aria-selected="false" aria-controls="panel-servicio" tabindex="-1" data-tab="servicio"><i class="fas fa-gauge-high"></i><span class="tb-label">Servicio</span></button>
-                <button class="tb-tab" id="tab-rankings" type="button" role="tab" aria-selected="false" aria-controls="panel-rankings" tabindex="-1" data-tab="rankings"><i class="fas fa-trophy"></i><span class="tb-label">Top</span></button>
-                <button class="tb-tab" id="tab-actividad" type="button" role="tab" aria-selected="false" aria-controls="panel-actividad" tabindex="-1" data-tab="actividad"><i class="fas fa-list-ul"></i><span class="tb-label">Pedidos</span></button>
+            <div class="dashboard-carousel-head">
+                <div class="dashboard-carousel-copy">
+                    <span class="dashboard-carousel-kicker">Dashboard</span>
+                    <div class="dashboard-carousel-title-row">
+                        <span class="dashboard-carousel-title" id="dashboardSectionLabel">Ventas</span>
+                        <span class="dashboard-carousel-counter" id="dashboardSectionCounter">1 / 4</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-carousel-controls">
+                    <div class="dashboard-carousel-dots" id="dashboardCarouselDots" aria-label="Páginas del dashboard">
+                        <button class="dashboard-carousel-dot active" type="button" data-panel-target="tendencia" aria-label="Ir a Ventas" aria-pressed="true"></button>
+                        <button class="dashboard-carousel-dot" type="button" data-panel-target="servicio" aria-label="Ir a Servicio" aria-pressed="false"></button>
+                        <button class="dashboard-carousel-dot" type="button" data-panel-target="rankings" aria-label="Ir a Top" aria-pressed="false"></button>
+                        <button class="dashboard-carousel-dot" type="button" data-panel-target="actividad" aria-label="Ir a Pedidos" aria-pressed="false"></button>
+                    </div>
+
+                    <div class="dashboard-carousel-nav">
+                        <button class="dashboard-carousel-btn" id="dashboardPrev" type="button" aria-label="Ir a la sección anterior" disabled>
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <button class="dashboard-carousel-btn" id="dashboardNext" type="button" aria-label="Ir a la siguiente sección">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     {# ══════ Tab Panels ══════ #}
-    <div class="tab-panels">
+    <div class="tab-panels" id="dashboardCarousel">
 
         {# ── Tab: Ventas ── #}
-        <div class="tab-panel active" id="panel-tendencia" role="tabpanel" aria-labelledby="tab-tendencia">
+        <div class="tab-panel active" id="panel-tendencia" data-panel="tendencia" data-panel-label="Ventas" role="group" aria-roledescription="slide" aria-label="Ventas" aria-hidden="false">
             {# — 4 KPI Cards with Progress Rings — #}
             <div class="kpi-grid">
                 {# Tile 1: Ventas del Mes #}
@@ -191,7 +212,7 @@
         </div>
 
         {# ── Tab: Servicio ── #}
-        <div class="tab-panel" id="panel-servicio" role="tabpanel" aria-labelledby="tab-servicio">
+        <div class="tab-panel" id="panel-servicio" data-panel="servicio" data-panel-label="Servicio" role="group" aria-roledescription="slide" aria-label="Servicio" aria-hidden="true">
             <div class="svc-grid">
                 {# OTD #}
                 <div class="svc-card">
@@ -333,7 +354,7 @@
         </div>
 
         {# ── Tab: Rankings ── #}
-        <div class="tab-panel" id="panel-rankings" role="tabpanel" aria-labelledby="tab-rankings">
+        <div class="tab-panel" id="panel-rankings" data-panel="rankings" data-panel-label="Top" role="group" aria-roledescription="slide" aria-label="Top" aria-hidden="true">
             <div class="card" style="margin-bottom:12px">
                 <div class="card-head">
                     <h3><i class="fas fa-filter" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Periodo de Ranking</h3>
@@ -412,7 +433,7 @@
         </div>
 
         {# ── Tab: Actividad ── #}
-        <div class="tab-panel" id="panel-actividad" role="tabpanel" aria-labelledby="tab-actividad">
+        <div class="tab-panel" id="panel-actividad" data-panel="actividad" data-panel-label="Pedidos" role="group" aria-roledescription="slide" aria-label="Pedidos" aria-hidden="true">
             <div class="card">
                 <div class="card-head">
                     <h3>Pedidos diarios</h3>
@@ -641,92 +662,142 @@
 .dashboard-subnav {
     max-width: 100%;
 }
-.topbar-tabs {
+.dashboard-carousel-head {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
     width: 100%;
-    padding: 6px;
+    padding: 10px 12px;
     border: 1px solid var(--dash-border);
     border-radius: 18px;
     background: rgba(20, 24, 32, 0.82);
     box-shadow: 0 10px 24px rgba(0,0,0,0.16);
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
 }
-.topbar-tabs::-webkit-scrollbar {
-    display: none;
-}
-.tb-tab {
-    position: relative;
-    flex: 1 0 auto;
-    min-width: 108px;
+.dashboard-carousel-copy {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    min-height: 40px;
-    padding: 0 13px;
-    font-size: 0.74rem;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.dashboard-carousel-kicker {
+    font-size: 0.62rem;
     font-weight: 700;
     color: var(--dash-text3);
-    border: 1px solid transparent;
-    background: rgba(148, 163, 184, 0.05);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
-    font-family: var(--dash-font);
-    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
-.tb-tab::after {
-    content: "";
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 6px;
-    height: 2px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.92);
-    opacity: 0;
-    transform: scaleX(0.4);
-    transition: transform 0.18s ease, opacity 0.18s ease;
+.dashboard-carousel-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
-.tb-tab i {
-    font-size: 0.8rem;
-    transition: transform 0.18s ease, color 0.18s ease;
-}
-.tb-label { display: inline; }
-.tb-tab:hover {
+.dashboard-carousel-title {
+    font-size: 1rem;
+    font-weight: 700;
     color: var(--dash-text);
-    background: rgba(59, 74, 92, 0.28);
+    line-height: 1.1;
 }
-.tb-tab:focus-visible {
+.dashboard-carousel-counter {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--dash-text2);
+    padding: 4px 9px;
+    border: 1px solid var(--dash-border);
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.08);
+}
+.dashboard-carousel-controls {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.dashboard-carousel-dots {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+.dashboard-carousel-dot {
+    width: 10px;
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    padding: 0;
+    background: rgba(148, 163, 184, 0.34);
+    cursor: pointer;
+    transition: width 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.dashboard-carousel-dot.active {
+    width: 28px;
+    background: linear-gradient(135deg, #1877ff 0%, #1f8cff 100%);
+    box-shadow: 0 8px 18px rgba(24, 119, 255, 0.26);
+}
+.dashboard-carousel-dot:focus-visible {
     outline: 2px solid rgba(96, 165, 250, 0.72);
     outline-offset: 2px;
 }
-.tb-tab.active {
+.dashboard-carousel-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.dashboard-carousel-btn {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--dash-border);
+    border-radius: 10px;
+    background: rgba(148, 163, 184, 0.06);
+    color: var(--dash-text2);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.dashboard-carousel-btn:hover:not(:disabled) {
     color: #ffffff;
-    background: linear-gradient(135deg, #1877ff 0%, #1f8cff 100%);
-    border-color: rgba(147, 197, 253, 0.28);
-    box-shadow: 0 10px 24px rgba(24, 119, 255, 0.24);
+    background: rgba(59, 74, 92, 0.32);
+    border-color: rgba(147, 197, 253, 0.22);
     transform: translateY(-1px);
 }
-.tb-tab.active::after {
-    opacity: 1;
-    transform: scaleX(1);
+.dashboard-carousel-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
-.tb-tab.active i {
-    color: #dbeafe;
-    transform: scale(1.05);
+.dashboard-carousel-btn i {
+    font-size: 0.78rem;
 }
 
 /* ═══════════════════════════
-   TAB PANELS
+   DASHBOARD PAGES
    ═══════════════════════════ */
-.tab-panels { padding: 4px var(--dash-gap) var(--dash-gap); }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
+.tab-panels {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 100%;
+    gap: 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    padding: 4px var(--dash-gap) var(--dash-gap);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.tab-panels::-webkit-scrollbar {
+    display: none;
+}
+.tab-panel {
+    display: block;
+    min-width: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
 
 /* — Generic Card — */
 .card {
@@ -904,11 +975,10 @@
 .km-val i { font-size: 0.6rem; margin-right: 2px; }
 
 /* — Charts: fill available vertical space — */
-#panel-tendencia.active,
-#panel-servicio.active {
-    display: flex !important;
+#panel-tendencia,
+#panel-servicio {
+    display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 160px);
 }
 .sales-chart-card,
 .svc-chart-card {
@@ -1288,8 +1358,16 @@
         backdrop-filter: none;
     }
     .dashboard-subnav {
-        max-width: 760px;
+        max-width: 620px;
         margin: 0;
+    }
+    .dashboard-carousel-head {
+        padding: 12px 14px;
+    }
+    .dashboard-carousel-controls {
+        width: auto;
+        margin-left: auto;
+        justify-content: flex-end;
     }
     .kpi-grid {
         grid-template-columns: repeat(4, 1fr);
@@ -1297,12 +1375,9 @@
     .ops-kpi-grid {
         grid-template-columns: repeat(4, 1fr);
     }
-    .tb-tab {
-        min-width: 124px;
-        font-size: 0.8rem;
-        gap: 7px;
+    .dashboard-carousel-title {
+        font-size: 1.05rem;
     }
-    .tb-tab i { font-size: 0.82rem; }
     .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
     .sales-chart-wrap,
     .svc-chart-wrap { min-height: 280px; }
@@ -1331,12 +1406,16 @@
     .orders-status-cards {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+    #panel-tendencia,
+    #panel-servicio {
+        min-height: calc(100vh - 220px);
+    }
 }
 
 /* Large desktop — full width */
 @media (min-width: 1024px) {
     .dashboard-subnav {
-        max-width: 720px;
+        max-width: 640px;
         margin: 0;
     }
     .svc-grid {
@@ -1352,12 +1431,35 @@
     .dashboard-subnav-wrap {
         padding: 8px 8px 0;
     }
+    .dashboard-carousel-head {
+        padding: 9px 10px;
+        gap: 10px;
+    }
+    .dashboard-carousel-title {
+        font-size: 0.92rem;
+    }
+    .dashboard-carousel-counter {
+        font-size: 0.66rem;
+        padding: 3px 7px;
+    }
+    .dashboard-carousel-dots {
+        gap: 6px;
+    }
+    .dashboard-carousel-dot {
+        width: 9px;
+        height: 9px;
+    }
+    .dashboard-carousel-dot.active {
+        width: 22px;
+    }
+    .dashboard-carousel-btn {
+        width: 32px;
+        height: 32px;
+    }
     .kpi-grid { gap: 6px; padding: 4px 6px 6px; }
     .kpi-tile { padding: 10px; min-height: 95px; }
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
-    .tb-tab { min-width: 92px; font-size: 0.66rem; gap: 5px; padding: 0 10px; }
-    .tb-tab i { font-size: 0.625rem; }
     .tab-panels { padding: 6px; }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
@@ -1399,26 +1501,21 @@ document.addEventListener('DOMContentLoaded', function() {
             ts.textContent = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
         }
 
-        // === TAB SWITCHING ===
-        const tabBar = document.getElementById('tabBar');
-        const panels = document.querySelectorAll('.tab-panel');
+        // === DASHBOARD CAROUSEL ===
+        const carousel = document.getElementById('dashboardCarousel');
+        const panels = Array.from(document.querySelectorAll('.tab-panel'));
+        const panelLookup = new Map(panels.map(panel => [panel.dataset.panel, panel]));
+        const carouselDots = Array.from(document.querySelectorAll('.dashboard-carousel-dot'));
+        const sectionLabel = document.getElementById('dashboardSectionLabel');
+        const sectionCounter = document.getElementById('dashboardSectionCounter');
+        const prevBtn = document.getElementById('dashboardPrev');
+        const nextBtn = document.getElementById('dashboardNext');
         const chartInited = { tendencia: false, servicio: false, actividad: false };
-
-        tabBar.addEventListener('click', function(e) {
-            const tab = e.target.closest('.tb-tab');
-            if (!tab) return;
-            tabBar.querySelectorAll('.tb-tab').forEach(t => {
-                t.classList.remove('active');
-                t.setAttribute('aria-selected', 'false');
-                t.setAttribute('tabindex', '-1');
-            });
-            tab.classList.add('active');
-            tab.setAttribute('aria-selected', 'true');
-            tab.setAttribute('tabindex', '0');
-            const target = tab.dataset.tab;
-            panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + target));
-            initChartsFor(target);
-        });
+        let salesChart = null;
+        let kpiEvolutionChart = null;
+        let ordersDailyChart = null;
+        let ordersStatusChart = null;
+        let activePanelKey = 'tendencia';
 
         // === LAZY CHART INIT ===
         function initChartsFor(tab) {
@@ -1436,8 +1533,125 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        function resizeChartsFor(panelKey) {
+            if (panelKey === 'tendencia' && salesChart) {
+                salesChart.resize();
+            }
+            if (panelKey === 'servicio' && kpiEvolutionChart) {
+                kpiEvolutionChart.resize();
+            }
+            if (panelKey === 'actividad') {
+                if (ordersDailyChart) ordersDailyChart.resize();
+                if (ordersStatusChart) ordersStatusChart.resize();
+            }
+        }
+
+        function syncCarouselState(panelKey, options = {}) {
+            const panel = panelLookup.get(panelKey);
+            if (!panel) return;
+
+            activePanelKey = panelKey;
+            const panelIndex = panels.findIndex(item => item.dataset.panel === panelKey);
+
+            panels.forEach(item => {
+                const isActive = item.dataset.panel === panelKey;
+                item.classList.toggle('active', isActive);
+                item.setAttribute('aria-hidden', String(!isActive));
+            });
+
+            carouselDots.forEach(dot => {
+                const isActive = dot.dataset.panelTarget === panelKey;
+                dot.classList.toggle('active', isActive);
+                dot.setAttribute('aria-pressed', String(isActive));
+            });
+
+            if (sectionLabel) {
+                sectionLabel.textContent = panel.dataset.panelLabel || '';
+            }
+            if (sectionCounter) {
+                sectionCounter.textContent = `${panelIndex + 1} / ${panels.length}`;
+            }
+            if (prevBtn) {
+                prevBtn.disabled = panelIndex <= 0;
+            }
+            if (nextBtn) {
+                nextBtn.disabled = panelIndex >= panels.length - 1;
+            }
+
+            initChartsFor(panelKey);
+            requestAnimationFrame(() => resizeChartsFor(panelKey));
+
+            if (options.scroll !== false) {
+                panel.scrollIntoView({
+                    behavior: options.behavior || 'smooth',
+                    block: 'nearest',
+                    inline: 'start'
+                });
+            }
+        }
+
+        function findNearestPanel() {
+            if (!carousel || !panels.length) return activePanelKey;
+
+            const viewportCenter = carousel.scrollLeft + (carousel.clientWidth / 2);
+            let nearestPanel = panels[0];
+            let nearestDistance = Number.POSITIVE_INFINITY;
+
+            panels.forEach(panel => {
+                const panelCenter = panel.offsetLeft + (panel.offsetWidth / 2);
+                const distance = Math.abs(panelCenter - viewportCenter);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestPanel = panel;
+                }
+            });
+
+            return nearestPanel.dataset.panel;
+        }
+
+        if (carouselDots.length) {
+            carouselDots.forEach(dot => {
+                dot.addEventListener('click', function() {
+                    syncCarouselState(this.dataset.panelTarget, { scroll: true });
+                });
+            });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                const currentIndex = panels.findIndex(panel => panel.dataset.panel === activePanelKey);
+                if (currentIndex > 0) {
+                    syncCarouselState(panels[currentIndex - 1].dataset.panel, { scroll: true });
+                }
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                const currentIndex = panels.findIndex(panel => panel.dataset.panel === activePanelKey);
+                if (currentIndex < panels.length - 1) {
+                    syncCarouselState(panels[currentIndex + 1].dataset.panel, { scroll: true });
+                }
+            });
+        }
+
+        if (carousel) {
+            let isTicking = false;
+            carousel.addEventListener('scroll', function() {
+                if (isTicking) return;
+
+                isTicking = true;
+                window.requestAnimationFrame(function() {
+                    const nearestPanelKey = findNearestPanel();
+                    if (nearestPanelKey && nearestPanelKey !== activePanelKey) {
+                        syncCarouselState(nearestPanelKey, { scroll: false });
+                    }
+                    isTicking = false;
+                });
+            }, { passive: true });
+        }
+
         // === SALES TREND CHART ===
-        let salesChart = null;
         function buildSalesTrendLine(values, windowSize = 3) {
             const nums = (values || []).map(v => Number(v) || 0);
             return nums.map((_, idx) => {
@@ -1667,9 +1881,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // === PEDIDOS TAB CHARTS (6M / 3M / 4S) ===
-        let ordersDailyChart = null;
-        let ordersStatusChart = null;
-
         function initOrdersCharts() {
             const dailyCtx = document.getElementById('ordersDailyChart');
             const statusCtx = document.getElementById('ordersStatusChart');
@@ -1871,7 +2082,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('kpiEvolutionChart');
             if (!ctx || kpisHistoricos.length === 0) return;
 
-            new Chart(ctx, {
+            if (kpiEvolutionChart) return;
+
+            kpiEvolutionChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: kpisHistoricos.map(k => k.mes),
@@ -1930,8 +2143,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Init default tab chart
-        initChartsFor('tendencia');
+        // Init default dashboard page
+        syncCarouselState('tendencia', { scroll: false });
         renderRankingsForPeriod('month');
 
     } catch (error) {

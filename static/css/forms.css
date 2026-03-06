@@ -111,7 +111,7 @@
 
 .desktop-nav-group {
     align-items: center;
-    gap: 2px;
+    gap: 0;
     flex: 1;
     min-width: 0;
 }
@@ -119,15 +119,8 @@
 .desktop-nav {
     align-items: center;
     gap: 6px;
-    flex: 1;
+    flex: 0 0 auto;
     min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.desktop-nav::-webkit-scrollbar {
-    display: none;
 }
 
 .desktop-nav-link {
@@ -169,6 +162,7 @@
     align-items: center;
     flex-shrink: 0;
     gap: 10px;
+    margin-left: auto;
 }
 
 .desktop-ops {
@@ -193,7 +187,7 @@
     line-height: 1.1;
     white-space: nowrap;
     transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-    margin-left: -2px;
+    margin-left: 0;
 }
 
 .desktop-ops-toggle:hover {
@@ -221,6 +215,12 @@
 .desktop-ops-toggle i {
     font-size: 0.85rem;
     color: #94a3b8;
+}
+
+.desktop-ops-toggle:hover i,
+.desktop-ops-toggle.active i,
+.desktop-ops-toggle[aria-expanded="true"] i {
+    color: inherit;
 }
 
 .desktop-ops-toggle i:first-child {
