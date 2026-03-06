@@ -34,14 +34,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const drawerOverlay = document.getElementById('drawerOverlay');
 
     if (drawerToggle && drawer && drawerOverlay) {
+        drawerToggle.setAttribute('aria-expanded', 'false');
+
         function openDrawer() {
             drawer.classList.add('open');
             drawerOverlay.classList.add('open');
+            drawerToggle.setAttribute('aria-expanded', 'true');
             document.body.style.overflow = 'hidden';
         }
         function closeDrawer() {
             drawer.classList.remove('open');
             drawerOverlay.classList.remove('open');
+            drawerToggle.setAttribute('aria-expanded', 'false');
             document.body.style.overflow = '';
         }
 
@@ -66,35 +70,95 @@ document.addEventListener('DOMContentLoaded', function() {
             const diff = touchStartX - e.changedTouches[0].clientX;
             if (diff > 60) closeDrawer();
         }, { passive: true });
+
+        const drawerDesktopMedia = window.matchMedia('(min-width: 1024px)');
+        const syncDrawerState = () => {
+            if (drawerDesktopMedia.matches) {
+                closeDrawer();
+            }
+        };
+
+        if (typeof drawerDesktopMedia.addEventListener === 'function') {
+            drawerDesktopMedia.addEventListener('change', syncDrawerState);
+        } else if (typeof drawerDesktopMedia.addListener === 'function') {
+            drawerDesktopMedia.addListener(syncDrawerState);
+        }
     }
 
-    // Menú de usuario
-    const userMenuToggle = document.getElementById('userMenuToggle');
-    const userDropdown = document.getElementById('userDropdown');
-    
-    if (userMenuToggle && userDropdown) {
-        // Toggle del menú
-        userMenuToggle.addEventListener('click', function(e) {
+    function bindDesktopDropdown(toggleId, dropdownId) {
+        const toggle = document.getElementById(toggleId);
+        const dropdown = document.getElementById(dropdownId);
+
+        if (!toggle || !dropdown) {
+            return;
+        }
+
+        const closeDropdown = () => {
+            dropdown.classList.remove('show');
+            toggle.setAttribute('aria-expanded', 'false');
+        };
+
+        toggle.setAttribute('aria-expanded', 'false');
+
+        toggle.addEventListener('click', function(e) {
             e.stopPropagation();
-            userDropdown.classList.toggle('show');
-            
-            // Añadir efecto de click
-            this.classList.add('clicked');
-            setTimeout(() => this.classList.remove('clicked'), 200);
-        });
-        
-        // Cerrar menú al hacer click fuera
-        document.addEventListener('click', function(e) {
-            if (!userMenuToggle.contains(e.target) && !userDropdown.contains(e.target)) {
-                userDropdown.classList.remove('show');
+
+            document.querySelectorAll('.desktop-ops-dropdown.show, .user-dropdown.show').forEach(function(menu) {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+            document.querySelectorAll('#desktopOpsToggle, #userMenuToggle').forEach(function(button) {
+                if (button !== toggle) {
+                    button.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            const isOpen = dropdown.classList.toggle('show');
+            toggle.setAttribute('aria-expanded', String(isOpen));
+
+            if (toggleId === 'userMenuToggle') {
+                toggle.classList.add('clicked');
+                setTimeout(() => toggle.classList.remove('clicked'), 200);
             }
         });
-        
-        // Prevenir que el dropdown se cierre al hacer click dentro
-        userDropdown.addEventListener('click', function(e) {
+
+        document.addEventListener('click', function(e) {
+            if (!toggle.contains(e.target) && !dropdown.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+
+        dropdown.addEventListener('click', function(e) {
             e.stopPropagation();
         });
+
+        dropdown.querySelectorAll('a').forEach(function(link) {
+            link.addEventListener('click', closeDropdown);
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDropdown();
+            }
+        });
+
+        const desktopDropdownMedia = window.matchMedia('(max-width: 1023px)');
+        const syncDropdownState = () => {
+            if (desktopDropdownMedia.matches) {
+                closeDropdown();
+            }
+        };
+
+        if (typeof desktopDropdownMedia.addEventListener === 'function') {
+            desktopDropdownMedia.addEventListener('change', syncDropdownState);
+        } else if (typeof desktopDropdownMedia.addListener === 'function') {
+            desktopDropdownMedia.addListener(syncDropdownState);
+        }
     }
+
+    bindDesktopDropdown('desktopOpsToggle', 'desktopOpsDropdown');
+    bindDesktopDropdown('userMenuToggle', 'userDropdown');
     
     // Prevenir zoom en doble tap en iOS
     document.addEventListener('touchend', function(event) {
@@ -254,4 +318,3 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 })();
-

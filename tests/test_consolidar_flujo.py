@@ -176,6 +176,22 @@ def test_lineas_originales_sin_botones_editar_eliminar(logged_client, app):
         assert 'linea-pedido-original' in resp.data.decode()
 
 
+def test_detalles_incluye_contexto_persistente_por_pedido(logged_client, app):
+    """Regresión: el formulario de detalles persiste producto/lote/fechas por pedido."""
+    with app.app_context():
+        from app import Pedido
+        pedido = Pedido.query.first()
+
+        resp = logged_client.get(f'/pedidos/{pedido.id}/detalles')
+        html = resp.data.decode('utf-8')
+
+        assert resp.status_code == 200
+        assert f"const LS_KEY = 'lastDetalle:{pedido.id}'" in html
+        assert 'producto_id: $prod.value' in html
+        assert 'fecha_fabricacion: $fab.value' in html
+        assert 'fecha_expiracion: $exp.value' in html
+
+
 # === AC #5: Marcar como listo — validación exitosa ===
 
 def _add_preparation_lines(app):

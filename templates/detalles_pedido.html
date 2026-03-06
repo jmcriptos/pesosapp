@@ -1498,10 +1498,11 @@ editForm.addEventListener('submit', function(e) {
 // ========================================================================
 // CONFIGURACIÓN Y REFERENCIAS
 // ========================================================================
-const LS_KEY = 'lastDetalle';
+const LS_KEY = 'lastDetalle:{{ pedido.id }}';
+const DEFAULT_SHELF_LIFE_DAYS = 365;
 const shelfLife = {
     /* idProducto : díasVidaÚtil */
-    // Ejemplo: 1: 180, 2: 365, etc.
+    // Hoy todos los productos usan 365 días por defecto.
 };
 
 // Referencias a elementos del formulario de detalles
@@ -1512,178 +1513,251 @@ const $fab = document.getElementById('fecha_fabricacion');
 const $exp = document.getElementById('fecha_expiracion');
 const $form = document.getElementById('form-detalle');
 
-// ========================================================================
-// PREFILL: Restaurar valores desde localStorage (excepto Peso)
-// ========================================================================
-window.addEventListener('DOMContentLoaded', () => {
-    const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
-    if (!saved) return;
+if ($prod && $peso && $lote && $fab && $exp && $form) {
+    let restoringDetalleContext = false;
 
-    // Restaurar valores guardados
-    if (saved.producto_id) { var tsProd = $prod.tomselect; if (tsProd) { tsProd.setValue(saved.producto_id); } else { $prod.value = saved.producto_id; } }
-    if (saved.lote) $lote.value = saved.lote;
-    if (saved.fecha_fabricacion) $fab.value = saved.fecha_fabricacion;
-    if (saved.fecha_expiracion) $exp.value = saved.fecha_expiracion;
-
-    // Sincronizar expiración si hay fecha de fabricación
-    if ($fab.value) calcExp();
-
-    // Enfocar en peso para entrada rápida
-    $peso.focus();
-});
-
-// ========================================================================
-// CÁLCULO AUTOMÁTICO DE FECHA DE EXPIRACIÓN
-// ========================================================================
-function calcExp() {
-    if (!$fab.value) {
-        $exp.value = '';
-        return;
+    // ====================================================================
+    // HELPERS DE PERSISTENCIA
+    // ====================================================================
+    function readSavedDetalleContext() {
+        try {
+            return JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+        } catch (_) {
+            return null;
+        }
     }
 
-    const id = +$prod.value;
-    const days = shelfLife.hasOwnProperty(id) ? shelfLife[id] : 365;
-
-    // Si días = 0, el producto no tiene expiración
-    if (days === 0) {
-        $exp.value = '';
-        $exp.disabled = true;
-        return;
+    function writeSavedDetalleContext() {
+        try {
+            localStorage.setItem(LS_KEY, JSON.stringify({
+                producto_id: $prod.value,
+                lote: $lote.value.trim(),
+                fecha_fabricacion: $fab.value,
+                fecha_expiracion: $exp.value,
+            }));
+        } catch (_) {
+            // No bloquear la captura si el storage no está disponible
+        }
     }
 
-    $exp.disabled = false;
-    const d = new Date($fab.value + 'T00:00');
-    d.setDate(d.getDate() + days);
-    $exp.value = d.toISOString().slice(0, 10);
-}
+    function setProductValue(productId) {
+        if (!productId) return;
 
-// Recalcular expiración cuando cambia la fecha de fabricación o el producto
-$fab.addEventListener('change', calcExp);
-$prod.addEventListener('change', calcExp);
+        const normalizedId = String(productId);
+        const tsProd = $prod.tomselect;
 
-// ========================================================================
-// ADAPTAR FORMULARIO SEGÚN TIPO DE PRODUCTO (se_pesa)
-// ========================================================================
-const $cantidadLabel = document.getElementById('cantidad_label');
-const $expGroup = $exp.closest('.mobile-form-group');
-const $loteGroup = $lote.closest('.mobile-form-group');
-const $fabGroup = $fab.closest('.mobile-form-group');
-
-function adaptFormToProduct() {
-    const selectedOption = $prod.options[$prod.selectedIndex];
-    const sePesa = selectedOption && selectedOption.dataset.sePesa === 'true';
-
-    if (sePesa || !selectedOption || !selectedOption.value) {
-        // Manufactura: todos los campos visibles y requeridos
-        $cantidadLabel.textContent = 'Peso (kg)';
-        $peso.placeholder = '0.00';
-        $peso.inputMode = 'decimal';
-        $loteGroup.style.display = '';
-        $fabGroup.style.display = '';
-        $expGroup.style.display = '';
-        $lote.required = true;
-        $fab.required = true;
-        $exp.required = true;
-    } else {
-        // Importación: solo Cajas + F. Expiración (opcional)
-        $cantidadLabel.textContent = 'Cajas';
-        $peso.placeholder = '0';
-        $peso.inputMode = 'numeric';
-        $loteGroup.style.display = 'none';
-        $fabGroup.style.display = 'none';
-        $expGroup.style.display = '';
-        $lote.required = false;
-        $fab.required = false;
-        $exp.required = false;
+        if (tsProd) {
+            tsProd.setValue(normalizedId, true);
+        } else {
+            $prod.value = normalizedId;
+        }
     }
-}
 
-$prod.addEventListener('change', adaptFormToProduct);
-adaptFormToProduct();
+    // ====================================================================
+    // CÁLCULO AUTOMÁTICO DE FECHA DE EXPIRACIÓN
+    // ====================================================================
+    function calcExp(options = {}) {
+        const { force = false } = options;
 
-// ========================================================================
-// GUARDAR EN LOCALSTORAGE Y LIMPIAR PESO AL ENVIAR
-// ========================================================================
-$form.addEventListener('submit', (e) => {
-    // Normalizar coma → punto en el campo peso
-    $peso.value = $peso.value.replace(',', '.').trim();
+        if (restoringDetalleContext && !force) {
+            return;
+        }
 
-    // Guardar valores en localStorage (excepto peso)
-    localStorage.setItem(LS_KEY, JSON.stringify({
-        producto_id: $prod.value,
-        lote: $lote.value.trim(),
-        fecha_fabricacion: $fab.value,
-        fecha_expiracion: $exp.value,
-    }));
+        if (!$fab.value) {
+            $exp.value = '';
+            return;
+        }
 
-    // Limpiar peso después de que el form ha sido enviado
-    setTimeout(() => {
+        const id = +$prod.value;
+        const days = shelfLife.hasOwnProperty(id) ? shelfLife[id] : DEFAULT_SHELF_LIFE_DAYS;
+
+        // Si días = 0, el producto no tiene expiración
+        if (days === 0) {
+            $exp.value = '';
+            $exp.disabled = true;
+            return;
+        }
+
+        $exp.disabled = false;
+        const d = new Date($fab.value + 'T00:00');
+        d.setDate(d.getDate() + days);
+        $exp.value = d.toISOString().slice(0, 10);
+    }
+
+    // ====================================================================
+    // ADAPTAR FORMULARIO SEGÚN TIPO DE PRODUCTO (se_pesa)
+    // ====================================================================
+    const $cantidadLabel = document.getElementById('cantidad_label');
+    const $expGroup = $exp.closest('.mobile-form-group');
+    const $loteGroup = $lote.closest('.mobile-form-group');
+    const $fabGroup = $fab.closest('.mobile-form-group');
+
+    function adaptFormToProduct() {
+        const selectedOption = $prod.options[$prod.selectedIndex];
+        const sePesa = selectedOption && selectedOption.dataset.sePesa === 'true';
+
+        if (sePesa || !selectedOption || !selectedOption.value) {
+            // Manufactura: todos los campos visibles y requeridos
+            $cantidadLabel.textContent = 'Peso (kg)';
+            $peso.placeholder = '0.00';
+            $peso.inputMode = 'decimal';
+            $loteGroup.style.display = '';
+            $fabGroup.style.display = '';
+            $expGroup.style.display = '';
+            $lote.disabled = false;
+            $fab.disabled = false;
+            $lote.required = true;
+            $fab.required = true;
+            $exp.required = true;
+        } else {
+            // Importación: solo Cajas + F. Expiración (opcional)
+            $cantidadLabel.textContent = 'Cajas';
+            $peso.placeholder = '0';
+            $peso.inputMode = 'numeric';
+            $loteGroup.style.display = 'none';
+            $fabGroup.style.display = 'none';
+            $expGroup.style.display = '';
+            $lote.disabled = true;
+            $fab.disabled = true;
+            $lote.required = false;
+            $fab.required = false;
+            $exp.required = false;
+        }
+    }
+
+    function restoreSavedDetalleContext() {
+        const saved = readSavedDetalleContext();
+        if (!saved) return;
+
+        restoringDetalleContext = true;
+
+        if (saved.producto_id) {
+            setProductValue(saved.producto_id);
+            if (!$prod.tomselect) {
+                $prod.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        if (typeof saved.lote === 'string') $lote.value = saved.lote;
+        if (typeof saved.fecha_fabricacion === 'string') $fab.value = saved.fecha_fabricacion;
+        if (typeof saved.fecha_expiracion === 'string') $exp.value = saved.fecha_expiracion;
+
+        adaptFormToProduct();
+
+        restoringDetalleContext = false;
+
+        if ($fab.value && !$exp.value) {
+            calcExp({ force: true });
+        }
+
         $peso.value = '';
-        $peso.focus(); // Mantener foco en peso para siguiente entrada
-    }, 50);
-});
-
-// ========================================================================
-// CONVERSIÓN EN TIEMPO REAL DE COMA A PUNTO EN PESO
-// ========================================================================
-$peso.addEventListener('input', function(e) {
-    // Convertir coma a punto mientras el usuario escribe
-    const cursorPos = this.selectionStart;
-    const hadComma = this.value.includes(',');
-    this.value = this.value.replace(',', '.');
-
-    // Mantener posición del cursor
-    if (hadComma) {
-        this.setSelectionRange(cursorPos, cursorPos);
-    }
-
-    // Validar que solo contenga números y un punto decimal
-    this.value = this.value.replace(/[^0-9.]/g, '');
-
-    // Evitar múltiples puntos decimales
-    const parts = this.value.split('.');
-    if (parts.length > 2) {
-        this.value = parts[0] + '.' + parts.slice(1).join('');
-    }
-});
-
-// ========================================================================
-// NAVEGACIÓN CON ENTER ENTRE CAMPOS
-// ========================================================================
-$prod.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
         $peso.focus();
     }
-});
 
-$peso.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        $lote.focus();
-    }
-});
+    // ====================================================================
+    // PREFILL: Restaurar valores desde localStorage (excepto Peso)
+    // ====================================================================
+    window.addEventListener('DOMContentLoaded', restoreSavedDetalleContext);
 
-$lote.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        $fab.focus();
-    }
-});
+    $prod.addEventListener('change', function() {
+        adaptFormToProduct();
+        calcExp();
+        writeSavedDetalleContext();
+    });
 
-$fab.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        $exp.focus();
-    }
-});
+    $fab.addEventListener('change', function() {
+        calcExp({ force: true });
+        writeSavedDetalleContext();
+    });
 
-$exp.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        $form.querySelector('button[type="submit"]').click();
-    }
-});
+    $lote.addEventListener('input', writeSavedDetalleContext);
+    $exp.addEventListener('change', writeSavedDetalleContext);
+
+    adaptFormToProduct();
+
+    // ====================================================================
+    // GUARDAR EN LOCALSTORAGE Y LIMPIAR PESO AL ENVIAR
+    // ====================================================================
+    $form.addEventListener('submit', () => {
+        // Normalizar coma → punto en el campo peso
+        $peso.value = $peso.value.replace(',', '.').trim();
+
+        // Guardar valores en localStorage (excepto peso)
+        writeSavedDetalleContext();
+
+        // Limpiar peso después de que el form ha sido enviado
+        setTimeout(() => {
+            $peso.value = '';
+            $peso.focus(); // Mantener foco en peso para siguiente entrada
+        }, 50);
+    });
+
+    // ====================================================================
+    // CONVERSIÓN EN TIEMPO REAL DE COMA A PUNTO EN PESO
+    // ====================================================================
+    $peso.addEventListener('input', function() {
+        // Convertir coma a punto mientras el usuario escribe
+        const cursorPos = this.selectionStart;
+        const hadComma = this.value.includes(',');
+        this.value = this.value.replace(',', '.');
+
+        // Mantener posición del cursor
+        if (hadComma) {
+            this.setSelectionRange(cursorPos, cursorPos);
+        }
+
+        // Validar que solo contenga números y un punto decimal
+        this.value = this.value.replace(/[^0-9.]/g, '');
+
+        // Evitar múltiples puntos decimales
+        const parts = this.value.split('.');
+        if (parts.length > 2) {
+            this.value = parts[0] + '.' + parts.slice(1).join('');
+        }
+    });
+
+    // ====================================================================
+    // NAVEGACIÓN CON ENTER ENTRE CAMPOS
+    // ====================================================================
+    $prod.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $peso.focus();
+        }
+    });
+
+    $peso.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (!$lote.disabled) {
+                $lote.focus();
+            } else {
+                $exp.focus();
+            }
+        }
+    });
+
+    $lote.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $fab.focus();
+        }
+    });
+
+    $fab.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $exp.focus();
+        }
+    });
+
+    $exp.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $form.querySelector('button[type="submit"]').click();
+        }
+    });
+}
 
 // ========================================================================
 // DESCARGA DE ETIQUETAS OPTIMIZADA PARA iOS
