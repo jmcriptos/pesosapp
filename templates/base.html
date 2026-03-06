@@ -10,6 +10,10 @@
     
     <!-- Favicon -->
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="manifest" href="{{ url_for('static', filename='app.webmanifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <meta name="apple-mobile-web-app-title" content="PesosApp">
+    <meta name="theme-color" content="#0f172a">
     
     <!-- CSS Files - FORZAR MINIFICADOS PARA TESTING -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.min.css') }}">
@@ -30,6 +34,49 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <style>
+    .app-flash-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: min(100%, 1100px);
+        margin: 0 auto;
+        padding: 14px 12px 0;
+    }
+
+    .app-flash {
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid transparent;
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.4;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .app-flash-success {
+        color: #065f46;
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+    }
+
+    .app-flash-danger {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .app-flash-warning {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fcd34d;
+    }
+
+    .app-flash-info {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
     @media (min-width: 1024px) {
         .app-footer {
             display: none !important;
@@ -37,6 +84,9 @@
         .app-content {
             margin-bottom: 0 !important;
             padding-bottom: 1rem !important;
+        }
+        .app-flash-stack {
+            padding-top: 18px;
         }
     }
     </style>
@@ -117,16 +167,21 @@
 
         <!-- Contenido principal -->
         <main class="app-content">
-            {% block content %}{% endblock %}
-            
             <!-- Mensajes Flash -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
+                    <div class="app-flash-stack" data-flash-stack>
+                        {% for category, message in messages %}
+                            {% set flash_variant = 'danger' if category in ['error', 'danger'] else category %}
+                            <div class="app-flash app-flash-{{ flash_variant }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
             {% endwith %}
+
+            {% block content %}{% endblock %}
         </main>
 
         <!-- Footer con Navegación Móvil -->
@@ -173,6 +228,11 @@
     
     <!-- Script de info de optimización -->
     <script>
+        const flashStack = document.querySelector('[data-flash-stack]');
+        if (flashStack) {
+            window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
+        }
+
         console.log('🚀 PesosApp Optimizations Active:');
         console.log('✅ Minified CSS loaded: styles.min.css + main.min.css');
         console.log('✅ Minified JS loaded: base.min.js');

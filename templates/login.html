@@ -2,8 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PesosApp">
+  <meta name="theme-color" content="#0f172a">
   <title>Iniciar Sesión</title>
 
+  <link rel="manifest" href="{{ url_for('static', filename='app.webmanifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   {% if csrf_token is defined %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
