@@ -4113,6 +4113,7 @@ def detalles_pedido(pedido_id):
             return redirect(url_for('lista_pedidos'))
 
     productos = Producto.query.all()
+    detalle_context_key = f'last_detalle:{pedido.id}'
 
     # ── 2) Alta de un nuevo detalle ───────────────────────────
     if request.method == 'POST':
@@ -4127,6 +4128,13 @@ def detalles_pedido(pedido_id):
         lote              = request.form.get('lote', '').strip()
         fecha_fabricacion = request.form.get('fecha_fabricacion', '').strip()
         fecha_expiracion  = request.form.get('fecha_expiracion', '').strip()
+        session[detalle_context_key] = {
+            'producto_id': producto_id,
+            'lote': lote,
+            'fecha_fabricacion': fecha_fabricacion,
+            'fecha_expiracion': fecha_expiracion,
+        }
+        session.modified = True
 
         # ── Validación de trazabilidad obligatoria ──────────────
         producto_obj = db.session.get(Producto, producto_id)
@@ -4199,9 +4207,12 @@ def detalles_pedido(pedido_id):
         contador_temp[pid] = contador_temp.get(pid, 0) + 1
         indice_detalle[detalle.id] = contador_temp[pid]
 
+    saved_detalle_context = session.get(detalle_context_key, {})
+
     return render_template('detalles_pedido.html',
                            pedido   = pedido,
                            productos= productos,
+                           saved_detalle_context=saved_detalle_context,
                            conteo_por_producto=conteo_por_producto,
                            indice_detalle=indice_detalle,
                            detalles_ordenados=detalles_ordenados)

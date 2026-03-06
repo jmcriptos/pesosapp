@@ -1,6 +1,7 @@
 # tests/test_consolidar_flujo.py
 """Tests para Story 3-0: Consolidar flujo de pedidos."""
 import os
+import re
 import pytest
 from datetime import datetime
 
@@ -190,6 +191,45 @@ def test_detalles_incluye_contexto_persistente_por_pedido(logged_client, app):
         assert 'producto_id: $prod.value' in html
         assert 'fecha_fabricacion: $fab.value' in html
         assert 'fecha_expiracion: $exp.value' in html
+
+
+def test_detalles_rellena_contexto_tras_agregar_y_deja_peso_vacio(logged_client, app):
+    """Regresión: tras agregar un detalle, el form conserva contexto y limpia solo peso."""
+    with app.app_context():
+        from app import Pedido, Producto
+
+        pedido = Pedido.query.first()
+        prod = Producto.query.filter_by(se_pesa=True).first()
+
+        resp = logged_client.post(
+            f'/pedidos/{pedido.id}/detalles',
+            data={
+                'producto_id': prod.id,
+                'peso': '4.5',
+                'cajas': '1',
+                'lote': 'L100',
+                'fecha_fabricacion': '2026-02-01',
+                'fecha_expiracion': '2026-08-01',
+            },
+            follow_redirects=True,
+        )
+
+        html = resp.data.decode('utf-8')
+        peso_input = re.search(r'<input[^>]*name="peso"[^>]*id="peso"[^>]*>', html)
+        lote_input = re.search(r'<input[^>]*name="lote"[^>]*id="lote"[^>]*>', html)
+        fab_input = re.search(r'<input[^>]*name="fecha_fabricacion"[^>]*id="fecha_fabricacion"[^>]*>', html)
+        exp_input = re.search(r'<input[^>]*name="fecha_expiracion"[^>]*id="fecha_expiracion"[^>]*>', html)
+
+        assert resp.status_code == 200
+        assert re.search(rf'<option value="{prod.id}"[^>]*selected[^>]*>', html)
+        assert peso_input
+        assert lote_input
+        assert fab_input
+        assert exp_input
+        assert 'value=' not in peso_input.group(0)
+        assert 'value="L100"' in lote_input.group(0)
+        assert 'value="2026-02-01"' in fab_input.group(0)
+        assert 'value="2026-08-01"' in exp_input.group(0)
 
 
 # === AC #5: Marcar como listo — validación exitosa ===

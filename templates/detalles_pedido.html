@@ -1014,6 +1014,7 @@ tr.linea-pedido-original td:first-child {
             Agregar producto
         </div>
         <div class="mobile-card-body">
+            {% set detalle_context = saved_detalle_context or {} %}
             <form id="form-detalle" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mobile-form-grid">
@@ -1024,7 +1025,7 @@ tr.linea-pedido-original td:first-child {
                         <select name="producto_id" id="producto_id" class="mobile-form-control ts-select" required>
                                 <option value="">Seleccionar...</option>
                                 {% for p in productos|sort(attribute='nombre') %}
-                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
+                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}" {% if detalle_context.get('producto_id')|string == p.id|string %}selected{% endif %}>{{ p.nombre }}</option>
                                 {% endfor %}
                             </select>
                     </div>
@@ -1041,21 +1042,21 @@ tr.linea-pedido-original td:first-child {
                     <div class="mobile-form-group mobile-form-group-lote">
                         <label class="mobile-form-label" for="lote">Lote</label>
                         <input type="text" name="lote" id="lote"
-                               class="mobile-form-control" placeholder="Ej: L001" required>
+                               class="mobile-form-control" placeholder="Ej: L001" value="{{ detalle_context.get('lote', '') }}" required>
                     </div>
 
                     <!-- Fecha Fabricación -->
                     <div class="mobile-form-group mobile-form-group-fab">
                         <label class="mobile-form-label" for="fecha_fabricacion">F. Fabricación</label>
                         <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
-                               class="mobile-form-control" required>
+                               class="mobile-form-control" value="{{ detalle_context.get('fecha_fabricacion', '') }}" required>
                     </div>
 
                     <!-- Fecha Expiración -->
                     <div class="mobile-form-group mobile-form-group-exp">
                         <label class="mobile-form-label" for="fecha_expiracion">F. Expiración</label>
                         <input type="date" name="fecha_expiracion" id="fecha_expiracion"
-                               class="mobile-form-control" required>
+                               class="mobile-form-control" value="{{ detalle_context.get('fecha_expiracion', '') }}" required>
                     </div>
 
                     <!-- Botón Agregar -->
@@ -1519,6 +1520,26 @@ if ($prod && $peso && $lote && $fab && $exp && $form) {
     // ====================================================================
     // HELPERS DE PERSISTENCIA
     // ====================================================================
+    function getCurrentDetalleContext() {
+        return {
+            producto_id: $prod.value,
+            lote: $lote.value.trim(),
+            fecha_fabricacion: $fab.value,
+            fecha_expiracion: $exp.value,
+        };
+    }
+
+    function hasDetalleContext(context) {
+        return Boolean(
+            context && (
+                context.producto_id ||
+                context.lote ||
+                context.fecha_fabricacion ||
+                context.fecha_expiracion
+            )
+        );
+    }
+
     function readSavedDetalleContext() {
         try {
             return JSON.parse(localStorage.getItem(LS_KEY) || 'null');
@@ -1529,12 +1550,7 @@ if ($prod && $peso && $lote && $fab && $exp && $form) {
 
     function writeSavedDetalleContext() {
         try {
-            localStorage.setItem(LS_KEY, JSON.stringify({
-                producto_id: $prod.value,
-                lote: $lote.value.trim(),
-                fecha_fabricacion: $fab.value,
-                fecha_expiracion: $exp.value,
-            }));
+            localStorage.setItem(LS_KEY, JSON.stringify(getCurrentDetalleContext()));
         } catch (_) {
             // No bloquear la captura si el storage no está disponible
         }
@@ -1547,7 +1563,7 @@ if ($prod && $peso && $lote && $fab && $exp && $form) {
         const tsProd = $prod.tomselect;
 
         if (tsProd) {
-            tsProd.setValue(normalizedId, true);
+            tsProd.setValue(normalizedId);
         } else {
             $prod.value = normalizedId;
         }
@@ -1626,16 +1642,15 @@ if ($prod && $peso && $lote && $fab && $exp && $form) {
     }
 
     function restoreSavedDetalleContext() {
-        const saved = readSavedDetalleContext();
+        const currentContext = getCurrentDetalleContext();
+        const saved = hasDetalleContext(currentContext) ? currentContext : readSavedDetalleContext();
+
         if (!saved) return;
 
         restoringDetalleContext = true;
 
         if (saved.producto_id) {
             setProductValue(saved.producto_id);
-            if (!$prod.tomselect) {
-                $prod.dispatchEvent(new Event('change', { bubbles: true }));
-            }
         }
 
         if (typeof saved.lote === 'string') $lote.value = saved.lote;
@@ -1650,14 +1665,34 @@ if ($prod && $peso && $lote && $fab && $exp && $form) {
             calcExp({ force: true });
         }
 
+        writeSavedDetalleContext();
         $peso.value = '';
         $peso.focus();
+    }
+
+    function restoreSavedDetalleContextWhenReady(attempt = 0) {
+        if ($prod.tomselect || !$prod.classList.contains('ts-select') || attempt >= 6) {
+            restoreSavedDetalleContext();
+            return;
+        }
+
+        window.setTimeout(() => restoreSavedDetalleContextWhenReady(attempt + 1), 60);
     }
 
     // ====================================================================
     // PREFILL: Restaurar valores desde localStorage (excepto Peso)
     // ====================================================================
-    window.addEventListener('DOMContentLoaded', restoreSavedDetalleContext);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => restoreSavedDetalleContextWhenReady());
+    } else {
+        restoreSavedDetalleContextWhenReady();
+    }
+
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            restoreSavedDetalleContextWhenReady();
+        }
+    });
 
     $prod.addEventListener('change', function() {
         adaptFormToProduct();
