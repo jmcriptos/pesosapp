@@ -553,11 +553,17 @@
 
 /* — Base — */
 .exec-dashboard {
+    --dashboard-shell-top: 48px;
+    --dashboard-shell-bottom: calc(76px + env(safe-area-inset-bottom));
     font-family: var(--dash-font);
     background: var(--dash-bg);
     color: var(--dash-text);
-    min-height: 100%;
-    padding-bottom: 20px;
+    min-height: calc(100dvh - var(--dashboard-shell-top) - var(--dashboard-shell-bottom));
+    height: calc(100dvh - var(--dashboard-shell-top) - var(--dashboard-shell-bottom));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -655,6 +661,7 @@
     position: sticky;
     top: 48px;
     z-index: 30;
+    flex-shrink: 0;
     padding: 8px 10px 2px;
     background: linear-gradient(180deg, rgba(11,14,20,0.96) 0%, rgba(11,14,20,0.88) 78%, rgba(11,14,20,0) 100%);
     backdrop-filter: blur(10px);
@@ -781,12 +788,14 @@
     display: flex;
     align-items: stretch;
     gap: 0;
+    flex: 1;
+    min-height: 0;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     scroll-padding-inline: 0;
-    padding: 8px 0 18px;
+    padding: 8px 0 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -799,8 +808,13 @@
 .tab-panel {
     display: block;
     flex: 0 0 100%;
+    height: 100%;
     min-width: 0;
     width: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 18px;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     opacity: 0.74;
@@ -808,6 +822,16 @@
     filter: saturate(0.92);
     transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, filter 0.3s ease;
     will-change: transform, opacity;
+}
+.tab-panel::-webkit-scrollbar {
+    width: 5px;
+}
+.tab-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+.tab-panel::-webkit-scrollbar-thumb {
+    background: rgba(59, 74, 92, 0.8);
+    border-radius: 999px;
 }
 .tab-panel.active {
     opacity: 1;
@@ -995,6 +1019,7 @@
 #panel-servicio {
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 .sales-chart-card,
 .svc-chart-card {
@@ -1366,6 +1391,9 @@
    DESKTOP RESPONSIVE (≥769px)
    ═══════════════════════════ */
 @media (min-width: 769px) {
+    .exec-dashboard {
+        --dashboard-shell-bottom: 0px;
+    }
     .dashboard-subnav-wrap {
         position: static;
         top: auto;
@@ -1409,7 +1437,7 @@
         font-size: 1.14rem;
     }
     .tab-panels {
-        padding: 10px 0 22px;
+        padding: 10px 0 0;
     }
     .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
     .sales-chart-wrap,
@@ -1439,14 +1467,13 @@
     .orders-status-cards {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-    #panel-tendencia,
-    #panel-servicio {
-        min-height: calc(100vh - 220px);
-    }
 }
 
 /* Large desktop — full width */
 @media (min-width: 1024px) {
+    .exec-dashboard {
+        --dashboard-shell-top: 78px;
+    }
     .dashboard-subnav {
         max-width: 760px;
         margin: 0;
@@ -1492,7 +1519,8 @@
     .kpi-tile { padding: 10px; min-height: 95px; }
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
-    .tab-panels { padding: 6px 0 14px; }
+    .tab-panels { padding: 6px 0 0; }
+    .tab-panel { padding-bottom: 14px; }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
     .rr-name { font-size: 0.75rem; }
