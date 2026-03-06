@@ -667,13 +667,13 @@
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 14px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: 1px solid var(--dash-border);
-    border-radius: 18px;
+    border-radius: 20px;
     background: rgba(20, 24, 32, 0.82);
-    box-shadow: 0 10px 24px rgba(0,0,0,0.16);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.18);
 }
 .dashboard-carousel-copy {
     display: flex;
@@ -695,16 +695,16 @@
     flex-wrap: wrap;
 }
 .dashboard-carousel-title {
-    font-size: 1rem;
+    font-size: 1.08rem;
     font-weight: 700;
     color: var(--dash-text);
     line-height: 1.1;
 }
 .dashboard-carousel-counter {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--dash-text2);
-    padding: 4px 9px;
+    padding: 5px 10px;
     border: 1px solid var(--dash-border);
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.08);
@@ -719,12 +719,12 @@
 .dashboard-carousel-dots {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 9px;
     min-width: 0;
 }
 .dashboard-carousel-dot {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border: none;
     border-radius: 999px;
     padding: 0;
@@ -733,9 +733,9 @@
     transition: width 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 .dashboard-carousel-dot.active {
-    width: 28px;
+    width: 34px;
     background: linear-gradient(135deg, #1877ff 0%, #1f8cff 100%);
-    box-shadow: 0 8px 18px rgba(24, 119, 255, 0.26);
+    box-shadow: 0 10px 20px rgba(24, 119, 255, 0.28);
 }
 .dashboard-carousel-dot:focus-visible {
     outline: 2px solid rgba(96, 165, 250, 0.72);
@@ -744,33 +744,34 @@
 .dashboard-carousel-nav {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 .dashboard-carousel-btn {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--dash-border);
-    border-radius: 10px;
+    border-radius: 12px;
     background: rgba(148, 163, 184, 0.06);
     color: var(--dash-text2);
     cursor: pointer;
-    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .dashboard-carousel-btn:hover:not(:disabled) {
     color: #ffffff;
     background: rgba(59, 74, 92, 0.32);
     border-color: rgba(147, 197, 253, 0.22);
     transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(2, 6, 23, 0.18);
 }
 .dashboard-carousel-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
 .dashboard-carousel-btn i {
-    font-size: 0.78rem;
+    font-size: 0.9rem;
 }
 
 /* ═══════════════════════════
@@ -779,15 +780,19 @@
 .tab-panels {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: 100%;
-    gap: 12px;
+    grid-auto-columns: minmax(0, calc(100% - 22px));
+    gap: 16px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
-    padding: 4px var(--dash-gap) var(--dash-gap);
+    scroll-padding-inline: 10px;
+    padding: 8px 10px 18px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+}
+.tab-panels.is-animating {
+    scroll-snap-type: none;
 }
 .tab-panels::-webkit-scrollbar {
     display: none;
@@ -797,6 +802,16 @@
     min-width: 0;
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    opacity: 0.74;
+    transform: scale(0.985);
+    filter: saturate(0.92);
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, filter 0.3s ease;
+    will-change: transform, opacity;
+}
+.tab-panel.active {
+    opacity: 1;
+    transform: scale(1);
+    filter: saturate(1);
 }
 
 /* — Generic Card — */
@@ -1358,16 +1373,30 @@
         backdrop-filter: none;
     }
     .dashboard-subnav {
-        max-width: 620px;
+        max-width: 700px;
         margin: 0;
     }
     .dashboard-carousel-head {
-        padding: 12px 14px;
+        padding: 14px 16px;
     }
     .dashboard-carousel-controls {
         width: auto;
         margin-left: auto;
         justify-content: flex-end;
+    }
+    .dashboard-carousel-dots {
+        gap: 10px;
+    }
+    .dashboard-carousel-dot {
+        width: 13px;
+        height: 13px;
+    }
+    .dashboard-carousel-dot.active {
+        width: 38px;
+    }
+    .dashboard-carousel-btn {
+        width: 44px;
+        height: 44px;
     }
     .kpi-grid {
         grid-template-columns: repeat(4, 1fr);
@@ -1376,7 +1405,13 @@
         grid-template-columns: repeat(4, 1fr);
     }
     .dashboard-carousel-title {
-        font-size: 1.05rem;
+        font-size: 1.14rem;
+    }
+    .tab-panels {
+        grid-auto-columns: minmax(0, calc(100% - 56px));
+        gap: 20px;
+        scroll-padding-inline: 16px;
+        padding: 10px 16px 22px;
     }
     .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
     .sales-chart-wrap,
@@ -1415,13 +1450,16 @@
 /* Large desktop — full width */
 @media (min-width: 1024px) {
     .dashboard-subnav {
-        max-width: 640px;
+        max-width: 760px;
         margin: 0;
+    }
+    .tab-panels {
+        grid-auto-columns: minmax(0, calc(100% - 72px));
+        gap: 24px;
     }
     .svc-grid {
         grid-template-columns: repeat(5, 1fr);
     }
-    .tab-panels { padding: 0 16px 16px; }
 }
 
 /* ═══════════════════════════
@@ -1432,35 +1470,35 @@
         padding: 8px 8px 0;
     }
     .dashboard-carousel-head {
-        padding: 9px 10px;
+        padding: 10px 11px;
         gap: 10px;
     }
     .dashboard-carousel-title {
-        font-size: 0.92rem;
+        font-size: 0.98rem;
     }
     .dashboard-carousel-counter {
-        font-size: 0.66rem;
-        padding: 3px 7px;
+        font-size: 0.68rem;
+        padding: 4px 8px;
     }
     .dashboard-carousel-dots {
         gap: 6px;
     }
     .dashboard-carousel-dot {
-        width: 9px;
-        height: 9px;
+        width: 10px;
+        height: 10px;
     }
     .dashboard-carousel-dot.active {
-        width: 22px;
+        width: 24px;
     }
     .dashboard-carousel-btn {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
     }
     .kpi-grid { gap: 6px; padding: 4px 6px 6px; }
     .kpi-tile { padding: 10px; min-height: 95px; }
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
-    .tab-panels { padding: 6px; }
+    .tab-panels { grid-auto-columns: minmax(0, calc(100% - 18px)); padding: 6px 8px 14px; }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
     .rr-name { font-size: 0.75rem; }
@@ -1516,6 +1554,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let ordersDailyChart = null;
         let ordersStatusChart = null;
         let activePanelKey = 'tendencia';
+        let scrollAnimationFrame = null;
+        let scrollStopTimer = null;
+        let isCarouselAnimating = false;
 
         // === LAZY CHART INIT ===
         function initChartsFor(tab) {
@@ -1544,6 +1585,79 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (ordersDailyChart) ordersDailyChart.resize();
                 if (ordersStatusChart) ordersStatusChart.resize();
             }
+        }
+
+        function cancelCarouselAnimation() {
+            window.clearTimeout(scrollStopTimer);
+            if (scrollAnimationFrame) {
+                window.cancelAnimationFrame(scrollAnimationFrame);
+                scrollAnimationFrame = null;
+            }
+            isCarouselAnimating = false;
+            if (carousel) {
+                carousel.classList.remove('is-animating');
+            }
+        }
+
+        function getCarouselTargetLeft(panel) {
+            if (!carousel || !panel) return 0;
+            const carouselStyles = window.getComputedStyle(carousel);
+            const paddingLeft = parseFloat(carouselStyles.paddingLeft || '0') || 0;
+            return Math.max(0, panel.offsetLeft - paddingLeft);
+        }
+
+        function easeInOutCubic(progress) {
+            return progress < 0.5
+                ? 4 * progress * progress * progress
+                : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        }
+
+        function animateCarouselTo(panel, duration) {
+            if (!carousel || !panel) return;
+
+            const targetLeft = getCarouselTargetLeft(panel);
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            cancelCarouselAnimation();
+
+            if (prefersReducedMotion) {
+                carousel.scrollLeft = targetLeft;
+                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
+                return;
+            }
+
+            const startLeft = carousel.scrollLeft;
+            const delta = targetLeft - startLeft;
+            if (Math.abs(delta) < 2) {
+                carousel.scrollLeft = targetLeft;
+                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
+                return;
+            }
+
+            const animationDuration = duration || (window.innerWidth >= 1024 ? 480 : 360);
+            const startTime = performance.now();
+            isCarouselAnimating = true;
+            carousel.classList.add('is-animating');
+
+            const step = (now) => {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / animationDuration, 1);
+                const easedProgress = easeInOutCubic(progress);
+                carousel.scrollLeft = startLeft + (delta * easedProgress);
+
+                if (progress < 1) {
+                    scrollAnimationFrame = window.requestAnimationFrame(step);
+                    return;
+                }
+
+                carousel.scrollLeft = targetLeft;
+                scrollAnimationFrame = null;
+                isCarouselAnimating = false;
+                carousel.classList.remove('is-animating');
+                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
+            };
+
+            scrollAnimationFrame = window.requestAnimationFrame(step);
         }
 
         function syncCarouselState(panelKey, options = {}) {
@@ -1579,14 +1693,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             initChartsFor(panelKey);
-            requestAnimationFrame(() => resizeChartsFor(panelKey));
-
-            if (options.scroll !== false) {
-                panel.scrollIntoView({
-                    behavior: options.behavior || 'smooth',
-                    block: 'nearest',
-                    inline: 'start'
-                });
+            if (options.scroll === false) {
+                requestAnimationFrame(() => resizeChartsFor(panelKey));
+            } else {
+                animateCarouselTo(panel, options.duration);
             }
         }
 
@@ -1636,19 +1746,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (carousel) {
-            let isTicking = false;
             carousel.addEventListener('scroll', function() {
-                if (isTicking) return;
+                if (isCarouselAnimating) return;
 
-                isTicking = true;
-                window.requestAnimationFrame(function() {
+                window.clearTimeout(scrollStopTimer);
+                scrollStopTimer = window.setTimeout(function() {
                     const nearestPanelKey = findNearestPanel();
                     if (nearestPanelKey && nearestPanelKey !== activePanelKey) {
                         syncCarouselState(nearestPanelKey, { scroll: false });
                     }
-                    isTicking = false;
-                });
+                }, 90);
             }, { passive: true });
+
+            carousel.addEventListener('pointerdown', cancelCarouselAnimation, { passive: true });
+            carousel.addEventListener('wheel', cancelCarouselAnimation, { passive: true });
         }
 
         // === SALES TREND CHART ===
