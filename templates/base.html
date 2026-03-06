@@ -177,7 +177,7 @@
                     <span class="desktop-brand-mark">P</span>
                     <span class="desktop-brand-copy">
                         <span class="desktop-brand-title">PesosApp</span>
-                        <span class="desktop-brand-subtitle">Control de operaciones</span>
+                        <span class="desktop-brand-subtitle">Operaciones</span>
                     </span>
                 </a>
 
@@ -198,16 +198,14 @@
 
                 <div class="desktop-header-actions">
                     <div class="desktop-page-chip">
-                        <span class="desktop-page-chip-label">Vista actual</span>
-                        <span class="desktop-page-chip-title">{{ self.header_title() }}</span>
+                        <span class="desktop-page-chip-label">Vista</span>
+                        <span class="desktop-page-chip-title">{% block desktop_header_title %}{{ self.title()|striptags|trim }}{% endblock %}</span>
                     </div>
 
                     <div class="desktop-ops">
                         <button class="desktop-ops-toggle {{ 'active' if is_management }}" id="desktopOpsToggle" aria-label="Abrir menú de gestión" aria-haspopup="true" aria-expanded="false">
-                            <span class="desktop-ops-toggle-copy">
-                                <span class="desktop-ops-toggle-label">Gestión</span>
-                                <span class="desktop-ops-toggle-meta">Productos, clientes y más</span>
-                            </span>
+                            <i class="fas fa-briefcase"></i>
+                            <span class="desktop-ops-toggle-label">Gestión</span>
                             <i class="fas fa-chevron-down"></i>
                         </button>
 
