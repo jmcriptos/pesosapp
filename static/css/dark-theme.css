@@ -34,17 +34,11 @@ html, body {
 .topbar-title { color: #f1f5f9 !important; }
 .desktop-brand,
 .desktop-brand:hover { color: #f1f5f9 !important; }
-.desktop-brand-title { color: #f1f5f9 !important; }
 .desktop-brand-mark {
-    background: linear-gradient(135deg, rgba(96,165,250,0.16) 0%, rgba(37,99,235,0.32) 100%) !important;
-    box-shadow: 0 12px 24px rgba(24,119,255,0.16) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%) !important;
+    border-color: rgba(255,255,255,0.18) !important;
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.34) !important;
 }
-.desktop-page-chip {
-    background: #141820 !important;
-    border-color: #3b4a5c !important;
-    color: #f1f5f9 !important;
-}
-.desktop-page-chip-label { color: #64748b !important; }
 .desktop-nav-link { color: #94a3b8 !important; }
 .desktop-nav-link:hover {
     background: #1a1f2b !important;

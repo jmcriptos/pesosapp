@@ -496,9 +496,6 @@
     border-bottom: 1px solid var(--dash-border);
     color: var(--dash-text);
 }
-.app-container:has(.exec-dashboard) .desktop-page-chip {
-    display: none !important;
-}
 .app-container:has(.exec-dashboard) .desktop-header-shell {
     gap: 18px;
 }
@@ -1292,7 +1289,7 @@
     }
     .dashboard-subnav {
         max-width: 760px;
-        margin: 0 auto;
+        margin: 0;
     }
     .kpi-grid {
         grid-template-columns: repeat(4, 1fr);
@@ -1340,6 +1337,7 @@
 @media (min-width: 1024px) {
     .dashboard-subnav {
         max-width: 720px;
+        margin: 0;
     }
     .svc-grid {
         grid-template-columns: repeat(5, 1fr);
