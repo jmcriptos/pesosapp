@@ -35,6 +35,7 @@ from decimal import Decimal
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from functools import wraps
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from datetime import datetime, date, timedelta, timezone
@@ -57,6 +58,19 @@ except ImportError:
     Talisman = None
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+
+def _env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+IS_HEROKU = bool(os.environ.get("DYNO"))
+SECURE_COOKIES = _env_flag("SESSION_COOKIE_SECURE", default=IS_HEROKU)
+FORCE_HTTPS = _env_flag("FORCE_HTTPS", default=IS_HEROKU)
 
 # --- SECRET KEY (con fallback seguro) ---
 _secret_key = os.environ.get("SECRET_KEY")
@@ -84,9 +98,9 @@ db = SQLAlchemy(app)
 # Cookies / sesión
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# En Heroku vas por HTTPS (tls=true en logs)
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['REMEMBER_COOKIE_SECURE'] = True
+# Usa cookies Secure en despliegues reales detrás de HTTPS.
+app.config['SESSION_COOKIE_SECURE'] = SECURE_COOKIES
+app.config['REMEMBER_COOKIE_SECURE'] = SECURE_COOKIES
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
@@ -175,6 +189,16 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+
+@app.before_request
+def redirect_insecure_requests():
+    if not FORCE_HTTPS or app.debug or app.testing or request.is_secure:
+        return
+
+    # Evita perder la cookie de sesión/CSRF cuando el navegador entra por HTTP.
+    secure_url = request.url.replace("http://", "https://", 1)
+    return redirect(secure_url, code=308)
 
 # Credenciales legacy - SOLO usar si se configuran explícitamente las variables de entorno
 # Se recomienda migrar a Vendedor y deshabilitar el usuario legacy
