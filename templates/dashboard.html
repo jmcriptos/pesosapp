@@ -496,6 +496,21 @@
     border-bottom: 1px solid var(--dash-border);
     color: var(--dash-text);
 }
+.app-container:has(.exec-dashboard) .desktop-page-chip {
+    display: none !important;
+}
+.app-container:has(.exec-dashboard) .desktop-header-shell {
+    gap: 18px;
+}
+.app-container:has(.exec-dashboard) .desktop-nav-link {
+    padding: 10px 13px;
+    border-radius: 12px;
+}
+.app-container:has(.exec-dashboard) .desktop-ops-toggle {
+    min-height: 42px;
+    padding: 9px 11px;
+    border-radius: 14px;
+}
 .app-container:has(.exec-dashboard) .app-topbar .topbar-menu {
     color: var(--dash-text2);
 }
@@ -622,9 +637,9 @@
     position: sticky;
     top: 48px;
     z-index: 30;
-    padding: 10px 10px 0;
-    background: linear-gradient(180deg, rgba(11,14,20,0.98) 0%, rgba(11,14,20,0.92) 75%, rgba(11,14,20,0) 100%);
-    backdrop-filter: blur(14px);
+    padding: 8px 10px 2px;
+    background: linear-gradient(180deg, rgba(11,14,20,0.96) 0%, rgba(11,14,20,0.88) 78%, rgba(11,14,20,0) 100%);
+    backdrop-filter: blur(10px);
 }
 .dashboard-subnav {
     max-width: 100%;
@@ -632,13 +647,13 @@
 .topbar-tabs {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
     padding: 4px;
     border: 1px solid var(--dash-border);
-    border-radius: 18px;
-    background: rgba(20, 24, 32, 0.94);
-    box-shadow: 0 18px 36px rgba(0,0,0,0.22);
+    border-radius: 16px;
+    background: rgba(20, 24, 32, 0.9);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.16);
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -648,26 +663,26 @@
 }
 .tb-tab {
     flex: 1 0 auto;
-    min-width: 112px;
+    min-width: 108px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 0 14px;
-    font-size: 0.78rem;
+    gap: 7px;
+    min-height: 40px;
+    padding: 0 13px;
+    font-size: 0.74rem;
     font-weight: 700;
     color: var(--dash-text3);
     border: none;
     background: none;
-    border-radius: 14px;
+    border-radius: 12px;
     cursor: pointer;
     transition: color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
     font-family: var(--dash-font);
     white-space: nowrap;
 }
 .tb-tab i {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
 }
 .tb-label { display: inline; }
 .tb-tab:hover {
@@ -677,13 +692,13 @@
 .tb-tab.active {
     color: #ffffff;
     background: linear-gradient(135deg, #1877ff 0%, #1f8cff 100%);
-    box-shadow: 0 10px 24px rgba(24, 119, 255, 0.28);
+    box-shadow: 0 8px 18px rgba(24, 119, 255, 0.22);
 }
 
 /* ═══════════════════════════
    TAB PANELS
    ═══════════════════════════ */
-.tab-panels { padding: 8px var(--dash-gap) var(--dash-gap); }
+.tab-panels { padding: 4px var(--dash-gap) var(--dash-gap); }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
@@ -1240,11 +1255,14 @@
    ═══════════════════════════ */
 @media (min-width: 769px) {
     .dashboard-subnav-wrap {
-        top: 78px;
-        padding: 14px 16px 0;
+        position: static;
+        top: auto;
+        padding: 12px 16px 8px;
+        background: transparent;
+        backdrop-filter: none;
     }
     .dashboard-subnav {
-        max-width: 980px;
+        max-width: 760px;
         margin: 0 auto;
     }
     .kpi-grid {
@@ -1254,11 +1272,11 @@
         grid-template-columns: repeat(4, 1fr);
     }
     .tb-tab {
-        min-width: 132px;
-        font-size: 0.84rem;
-        gap: 8px;
+        min-width: 124px;
+        font-size: 0.8rem;
+        gap: 7px;
     }
-    .tb-tab i { font-size: 0.875rem; }
+    .tb-tab i { font-size: 0.82rem; }
     .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
     .sales-chart-wrap,
     .svc-chart-wrap { min-height: 280px; }
@@ -1292,12 +1310,12 @@
 /* Large desktop — full width */
 @media (min-width: 1024px) {
     .dashboard-subnav {
-        max-width: 1180px;
+        max-width: 720px;
     }
     .svc-grid {
         grid-template-columns: repeat(5, 1fr);
     }
-    .tab-panels { padding: 10px 16px 16px; }
+    .tab-panels { padding: 0 16px 16px; }
 }
 
 /* ═══════════════════════════
@@ -1311,7 +1329,7 @@
     .kpi-tile { padding: 10px; min-height: 95px; }
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
-    .tb-tab { min-width: 96px; font-size: 0.68rem; gap: 5px; padding: 0 12px; }
+    .tb-tab { min-width: 92px; font-size: 0.66rem; gap: 5px; padding: 0 10px; }
     .tb-tab i { font-size: 0.625rem; }
     .tab-panels { padding: 6px; }
     .wow-item { padding: 8px 4px; }
