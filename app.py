@@ -200,6 +200,19 @@ def redirect_insecure_requests():
     secure_url = request.url.replace("http://", "https://", 1)
     return redirect(secure_url, code=308)
 
+
+@app.after_request
+def disable_cache_for_auth_and_session_responses(response):
+    should_disable_cache = (
+        request.endpoint in {"login", "logout"} or
+        "Set-Cookie" in response.headers
+    )
+    if should_disable_cache:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Credenciales legacy - SOLO usar si se configuran explícitamente las variables de entorno
 # Se recomienda migrar a Vendedor y deshabilitar el usuario legacy
 DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME")
