@@ -11,36 +11,29 @@
     {% set active_filter_count = (1 if filtros.estado != 'todos' else 0) + (1 if filtros.solo_notas else 0) %}
     {% set has_active_filters = active_filter_count > 0 or filtros.q %}
 
-    <section class="ops-inbox-shell">
-        <div class="ops-inbox-hero">
-            <div class="ops-inbox-copy">
-                <span class="ops-inbox-eyebrow">Bandeja operativa</span>
-                <h1 class="ops-inbox-title">Pedidos</h1>
-                <p class="ops-inbox-subtitle">
-                    {% if has_active_filters %}
-                        Mostrando {{ results_total }} de {{ status_counts.total }} pedidos visibles para esta vista.
-                    {% else %}
-                        {{ status_counts.total }} pedidos activos. Prioridad actual: {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }} por resolver.
-                    {% endif %}
-                </p>
+    <section class="ops-command-bar">
+        <div class="ops-command-copy">
+            <div class="ops-command-title-row">
+                <h1 class="ops-command-title">Pedidos</h1>
+                <span class="ops-command-total">{{ status_counts.total }} activos</span>
             </div>
-
-            <div class="ops-inbox-kpis" aria-label="Resumen de estados">
-                <div class="ops-kpi ops-kpi-pendiente">
-                    <span class="ops-kpi-label">Pendientes</span>
-                    <span class="ops-kpi-value">{{ status_counts.pendiente }}</span>
-                </div>
-                <div class="ops-kpi ops-kpi-preparado">
-                    <span class="ops-kpi-label">Preparados</span>
-                    <span class="ops-kpi-value">{{ status_counts.preparado }}</span>
-                </div>
-                <div class="ops-kpi ops-kpi-facturado">
-                    <span class="ops-kpi-label">Facturados</span>
-                    <span class="ops-kpi-value">{{ status_counts.facturado }}</span>
-                </div>
-            </div>
+            <p class="ops-command-summary">
+                {% if has_active_filters %}
+                    Mostrando {{ results_total }} resultados para esta vista.
+                {% else %}
+                    Prioridad actual: {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }} por resolver.
+                {% endif %}
+            </p>
         </div>
 
+        <div class="ops-command-metrics" aria-label="Resumen de estados">
+            <span class="ops-mini-kpi is-pendiente">Pendientes <strong>{{ status_counts.pendiente }}</strong></span>
+            <span class="ops-mini-kpi is-preparado">Preparados <strong>{{ status_counts.preparado }}</strong></span>
+            <span class="ops-mini-kpi is-facturado">Facturados <strong>{{ status_counts.facturado }}</strong></span>
+        </div>
+    </section>
+
+    <section class="ops-inbox-shell">
         <div class="pedidos-toolbar">
             <form class="pedidos-search-form" method="GET" action="{{ url_for('lista_pedidos') }}">
                 <input type="hidden" name="estado" value="{{ filtros.estado }}">
@@ -261,9 +254,9 @@
     <div class="pedidos-table-desktop">
         <div class="tabla-pedidos-card">
             <div class="tabla-pedidos-header">
-                <div>
-                    <span class="tabla-pedidos-eyebrow">Cola de trabajo</span>
+                <div class="tabla-pedidos-heading">
                     <h2 class="tabla-pedidos-title">Lista operativa</h2>
+                    <p class="tabla-pedidos-subtitle">Pedidos ordenados para revisión y acción rápida.</p>
                 </div>
                 <div class="tabla-pedidos-meta">
                     {{ results_total }} resultado{{ 's' if results_total != 1 else '' }} en esta vista
@@ -483,102 +476,105 @@
     color: var(--orders-text);
 }
 
-.ops-inbox-shell {
+.ops-command-bar {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 0 2px;
 }
 
-.ops-inbox-hero {
+.ops-command-copy {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    padding: 18px;
-    border-radius: 26px;
-    border: 1px solid var(--orders-border);
-    background:
-        radial-gradient(circle at top left, rgba(31, 139, 255, 0.18), transparent 34%),
-        linear-gradient(180deg, rgba(16, 25, 42, 0.96), rgba(10, 15, 27, 0.94));
-    box-shadow: var(--orders-shadow);
+    gap: 6px;
 }
 
-.ops-inbox-eyebrow,
-.tabla-pedidos-eyebrow {
-    display: inline-block;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #7e90b2;
-    margin-bottom: 10px;
+.ops-command-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
 }
 
-.ops-inbox-title,
+.ops-command-title,
 .tabla-pedidos-title {
     margin: 0;
-    font-size: clamp(1.9rem, 3vw, 2.7rem);
+    font-size: clamp(1.75rem, 2.3vw, 2.2rem);
     line-height: 1;
     letter-spacing: -0.04em;
     color: #ffffff;
 }
 
-.ops-inbox-subtitle {
-    margin: 10px 0 0;
-    max-width: 680px;
-    font-size: 1rem;
-    line-height: 1.55;
+.ops-command-total {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(31, 139, 255, 0.12);
+    border: 1px solid rgba(31, 139, 255, 0.18);
+    color: #9fd0ff;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.ops-command-summary {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.45;
     color: var(--orders-muted);
 }
 
-.ops-inbox-kpis {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+.ops-command-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
-.ops-kpi {
+.ops-mini-kpi {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(10, 16, 28, 0.72);
+    color: #cdd8ee;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.ops-mini-kpi strong {
+    font-size: 0.88rem;
+    color: #ffffff;
+}
+
+.ops-mini-kpi.is-pendiente strong { color: #ffd166; }
+.ops-mini-kpi.is-preparado strong { color: #7dd3fc; }
+.ops-mini-kpi.is-facturado strong { color: #6ee7b7; }
+
+.ops-inbox-shell {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-height: 86px;
-    padding: 14px 16px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(13, 20, 35, 0.78);
+    gap: 10px;
+    margin-bottom: 14px;
 }
-
-.ops-kpi-label {
-    font-size: 0.76rem;
-    font-weight: 800;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: #8fa2c4;
-}
-
-.ops-kpi-value {
-    font-size: clamp(1.55rem, 2vw, 2.15rem);
-    line-height: 1;
-    font-weight: 800;
-}
-
-.ops-kpi-pendiente .ops-kpi-value { color: #ffd166; }
-.ops-kpi-preparado .ops-kpi-value { color: #7dd3fc; }
-.ops-kpi-facturado .ops-kpi-value { color: #6ee7b7; }
 
 .pedidos-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .pedidos-search-form {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 56px;
+    min-height: 50px;
     padding: 0 10px 0 14px;
-    border-radius: 18px;
+    border-radius: 16px;
     border: 1px solid var(--orders-border);
     background: rgba(9, 15, 26, 0.88);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
@@ -645,9 +641,9 @@
     justify-content: center;
     gap: 10px;
     width: 100%;
-    min-height: 54px;
+    min-height: 50px;
     padding: 0 16px;
-    border-radius: 18px;
+    border-radius: 16px;
     border: 1px solid var(--orders-border);
     background: rgba(9, 15, 26, 0.88);
     color: #ebf2ff;
@@ -784,9 +780,9 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 54px;
+    min-height: 50px;
     padding: 0 18px;
-    border-radius: 18px;
+    border-radius: 16px;
     font-size: 0.95rem;
     font-weight: 800;
     text-decoration: none;
@@ -1094,28 +1090,40 @@
 
 @media (min-width: 900px) {
     .pedidos-container {
-        padding: 24px 18px 48px;
+        padding: 20px 18px 48px;
     }
 
-    .ops-inbox-hero {
-        flex-direction: row;
-        align-items: flex-end;
-        justify-content: space-between;
-    }
-
-    .ops-inbox-kpis {
-        width: min(430px, 100%);
-    }
-
-    .pedidos-toolbar {
+    .ops-command-bar {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
+        gap: 20px;
+    }
+
+    .ops-command-copy {
+        min-width: 0;
+    }
+
+    .ops-command-summary {
+        white-space: nowrap;
+    }
+
+    .ops-command-metrics {
+        justify-content: flex-end;
+        flex-shrink: 0;
+    }
+
+    .pedidos-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
     }
 
     .pedidos-search-form {
-        flex: 1;
-        max-width: 560px;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
     }
 
     .pedidos-toolbar-actions {
@@ -1147,7 +1155,7 @@
 
     .tabla-pedidos-card {
         overflow: hidden;
-        border-radius: 28px;
+        border-radius: 24px;
         border: 1px solid var(--orders-border);
         background: var(--orders-panel);
         box-shadow: var(--orders-shadow);
@@ -1155,25 +1163,32 @@
 
     .tabla-pedidos-header {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: space-between;
         gap: 18px;
-        padding: 24px 26px 16px;
+        padding: 18px 22px 12px;
     }
 
     .tabla-pedidos-title {
-        font-size: 1.45rem;
+        font-size: 1.18rem;
+    }
+
+    .tabla-pedidos-subtitle {
+        margin: 4px 0 0;
+        color: #7f90b0;
+        font-size: 0.86rem;
+        line-height: 1.35;
     }
 
     .tabla-pedidos-meta {
         color: #8fa2c4;
-        font-size: 0.95rem;
+        font-size: 0.88rem;
         font-weight: 600;
     }
 
     .tabla-pedidos-scroll {
         overflow: auto;
-        padding: 0 18px;
+        padding: 0 14px;
     }
 
     .tabla-pedidos {
@@ -1187,20 +1202,20 @@
         position: sticky;
         top: 0;
         z-index: 2;
-        padding: 14px 16px;
+        padding: 12px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(17, 25, 41, 0.96);
         color: #dfe9fb;
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         font-weight: 800;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
         text-align: left;
         backdrop-filter: blur(18px);
     }
 
     .tabla-pedidos td {
-        padding: 16px;
+        padding: 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         color: #edf3ff;
         background: transparent;
@@ -1272,7 +1287,7 @@
     }
 
     .pedido-context-cell {
-        width: 180px;
+        width: 160px;
     }
 
     .pedido-context-stack {
@@ -1314,34 +1329,34 @@
 
     .pedido-row-actions {
         display: flex;
-        justify-content: center;
+        justify-content: flex-end;
         align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
+        gap: 6px;
+        flex-wrap: nowrap;
     }
 
     .row-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 34px;
-        padding: 0 12px;
+        min-height: 32px;
+        padding: 0 11px;
         border: none;
         border-radius: 999px;
         text-decoration: none;
-        font-size: 0.84rem;
+        font-size: 0.8rem;
         font-weight: 700;
         cursor: pointer;
     }
 
     .row-action-primary {
-        min-width: 62px;
+        min-width: 56px;
         background: rgba(31, 139, 255, 0.16);
         color: #cfe8ff;
     }
 
     .row-action-icon {
-        width: 34px;
+        width: 32px;
         padding: 0;
         background: rgba(148, 163, 184, 0.12);
         color: #dfe9fb;
@@ -1370,7 +1385,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        padding: 18px 26px 22px;
+        padding: 16px 22px 18px;
         border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
@@ -1409,12 +1424,12 @@
     }
 
     .pagination-info-single {
-        padding: 0 26px 22px;
+        padding: 0 22px 18px;
     }
 
     .pedidos-empty-desktop {
         min-height: 320px;
-        margin: 0 18px 18px;
+        margin: 0 14px 14px;
     }
 }
 </style>
