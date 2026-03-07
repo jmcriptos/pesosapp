@@ -12,37 +12,9 @@
     {% set has_active_filters = active_filter_count > 0 or filtros.q %}
 
     <section class="pedidos-mobile-toolbar">
-        <form class="pedidos-search-form" method="GET" action="{{ url_for('lista_pedidos') }}">
-            <input type="hidden" name="estado" value="{{ filtros.estado }}">
-            {% if filtros.solo_notas %}
-            <input type="hidden" name="solo_notas" value="1">
-            {% endif %}
-            <input type="hidden" name="per_page" value="{{ per_page_value }}">
-
-            <i class="fa-solid fa-magnifying-glass pedidos-search-icon" aria-hidden="true"></i>
-            <input
-                type="search"
-                name="q"
-                value="{{ filtros.q }}"
-                class="pedidos-search-input"
-                placeholder="Buscar por cliente, ID o nota"
-                aria-label="Buscar pedidos por cliente, ID o nota"
-            >
-            {% if filtros.q %}
-            <a
-                href="{{ url_for('lista_pedidos', estado=filtros.estado, solo_notas=1 if filtros.solo_notas else None, per_page=per_page_value) }}"
-                class="pedidos-search-clear"
-                aria-label="Limpiar búsqueda"
-                title="Limpiar búsqueda"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </a>
-            {% endif %}
-            <button type="submit" class="pedidos-search-submit" aria-label="Buscar pedidos">
-                <i class="fa-solid fa-arrow-right"></i>
-            </button>
-        </form>
-
+        <span class="pedidos-mobile-summary">
+            {{ results_total }} activo{{ 's' if results_total != 1 else '' }}{% if status_counts.pendiente %} · {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }}{% endif %}
+        </span>
         <div class="pedidos-toolbar-actions">
             <div class="ops-filter-wrap">
                 <button
@@ -554,9 +526,19 @@
 
 .pedidos-mobile-toolbar {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-bottom: 10px;
+}
+
+.pedidos-mobile-summary {
+    color: #8ea1c1;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
 }
 
 .ops-inbox-shell {
@@ -626,6 +608,20 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.pedidos-mobile-toolbar .pedidos-toolbar-actions {
+    margin-left: auto;
+}
+
+.pedidos-mobile-toolbar .ops-filter-wrap {
+    flex: none;
+}
+
+.pedidos-mobile-toolbar .ops-filter-trigger,
+.pedidos-mobile-toolbar .btn-nuevo-pedido {
+    min-height: 40px;
+    border-radius: 12px;
 }
 
 .ops-filter-wrap {
