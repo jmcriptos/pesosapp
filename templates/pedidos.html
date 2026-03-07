@@ -205,9 +205,6 @@
             <div class="tabla-pedidos-header">
                 <div class="tabla-pedidos-heading">
                     <h2 class="tabla-pedidos-title">Pedidos</h2>
-                    <p class="tabla-pedidos-subtitle">
-                        {{ results_total }} resultado{{ 's' if results_total != 1 else '' }} en esta vista{% if status_counts.pendiente %} · {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }}{% endif %}
-                    </p>
                 </div>
                 <div class="tabla-pedidos-controls">
                     <div class="pedidos-toolbar-actions">
@@ -346,20 +343,20 @@
                                 </div>
                             </td>
                             <td class="text-center">
-                                <div class="pedido-row-actions">
-                                    <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="row-action row-action-primary" title="Ver detalles">
-                                        Ver
+                                <div class="pedido-row-actions" role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
+                                    <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="row-action row-action-view" title="Ver pedido #{{ pedido.id }}" aria-label="Ver pedido #{{ pedido.id }}">
+                                        <i class="fa-solid fa-eye"></i>
                                     </a>
                                     {% if pedido.estado != 'facturado' %}
-                                    <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="row-action row-action-icon row-action-edit" title="Editar pedido" aria-label="Editar pedido">
-                                        <i class="fa fa-edit"></i>
+                                    <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="row-action row-action-edit" title="Editar pedido #{{ pedido.id }}" aria-label="Editar pedido #{{ pedido.id }}">
+                                        <i class="fa-solid fa-pen-to-square"></i>
                                     </a>
                                     {% endif %}
                                     {% if pedido.estado == 'preparado' %}
                                     <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="row-action row-action-icon row-action-success" title="Facturar pedido" aria-label="Facturar pedido">
-                                            <i class="fa fa-file-invoice-dollar"></i>
+                                        <button type="submit" class="row-action row-action-success" title="Facturar pedido #{{ pedido.id }}" aria-label="Facturar pedido #{{ pedido.id }}">
+                                            <i class="fa-solid fa-file-invoice-dollar"></i>
                                         </button>
                                     </form>
                                     {% endif %}
@@ -367,8 +364,8 @@
                                     <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
                                           onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="row-action row-action-icon row-action-danger" title="Eliminar pedido" aria-label="Eliminar pedido">
-                                            <i class="fa fa-trash"></i>
+                                        <button type="submit" class="row-action row-action-danger" title="Eliminar pedido #{{ pedido.id }}" aria-label="Eliminar pedido #{{ pedido.id }}">
+                                            <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </form>
                                     {% endif %}
@@ -1114,20 +1111,13 @@
     .tabla-pedidos-heading {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 0;
         min-width: 0;
         flex-shrink: 0;
     }
 
     .tabla-pedidos-title {
         font-size: 1.05rem;
-    }
-
-    .tabla-pedidos-subtitle {
-        margin: 0;
-        color: #7f90b0;
-        font-size: 0.78rem;
-        line-height: 1.3;
     }
 
     .tabla-pedidos-controls {
@@ -1301,48 +1291,58 @@
     }
 
     .pedido-row-actions {
-        display: flex;
+        display: inline-flex;
         justify-content: flex-end;
         align-items: center;
         gap: 6px;
         flex-wrap: nowrap;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(10, 16, 29, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .row-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 32px;
-        padding: 0 11px;
+        width: 36px;
+        height: 36px;
         border: none;
-        border-radius: 999px;
+        border-radius: 12px;
         text-decoration: none;
-        font-size: 0.8rem;
+        font-size: 0.92rem;
         font-weight: 700;
         cursor: pointer;
+        transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
     }
 
-    .row-action-primary {
-        min-width: 56px;
+    .row-action:hover {
+        transform: translateY(-1px);
+    }
+
+    .row-action-view {
         background: rgba(31, 139, 255, 0.16);
         color: #cfe8ff;
+        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.16);
     }
 
-    .row-action-icon {
-        width: 32px;
-        padding: 0;
-        background: rgba(148, 163, 184, 0.12);
-        color: #dfe9fb;
+    .row-action-edit {
+        background: rgba(245, 158, 11, 0.14);
+        color: #f7c66b;
+        box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.14);
     }
 
     .row-action-success {
         background: rgba(34, 197, 94, 0.16);
         color: #9df0bc;
+        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.16);
     }
 
     .row-action-danger {
         background: rgba(251, 113, 133, 0.16);
         color: #fda4af;
+        box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.16);
     }
 
     .inline-form {
