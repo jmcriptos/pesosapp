@@ -342,8 +342,9 @@
                                     {% endif %}
                                 </div>
                             </td>
+                            {% set action_count = 1 + (1 if pedido.estado != 'facturado' else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
                             <td class="pedido-actions-cell">
-                                <div class="pedido-row-actions" role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
+                                <div class="pedido-row-actions{% if action_count == 1 %} pedido-row-actions-single{% endif %}" role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
                                     <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="row-action row-action-view" title="Ver pedido #{{ pedido.id }}" aria-label="Ver pedido #{{ pedido.id }}">
                                         <i class="fa-solid fa-eye"></i>
                                     </a>
@@ -1305,19 +1306,36 @@
         flex-wrap: nowrap;
     }
 
+    .pedido-row-actions-single {
+        justify-content: center;
+    }
+
     .row-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 34px;
         height: 34px;
+        padding: 0;
         border: none;
         border-radius: 10px;
         text-decoration: none;
         font-size: 0.88rem;
         font-weight: 700;
         cursor: pointer;
+        appearance: none;
         transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+
+    .row-action i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        font-size: 0.95rem;
+        line-height: 1;
+        flex-shrink: 0;
     }
 
     .row-action:hover {
