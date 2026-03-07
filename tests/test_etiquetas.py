@@ -238,8 +238,8 @@ def test_vista_pedidos_carga_correctamente(logged_client, app):
     resp = logged_client.get('/pedidos')
     assert resp.status_code == 200
     assert b'Cliente Test' in resp.data
-    assert b'Buscar por cliente, ID o nota' in resp.data
     assert b'Filtrar' in resp.data
+    assert b'Nuevo Pedido' in resp.data
 
 
 def test_vista_pedidos_filtra_desde_get(logged_client, app):

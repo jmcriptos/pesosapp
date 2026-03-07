@@ -210,37 +210,6 @@
                     </p>
                 </div>
                 <div class="tabla-pedidos-controls">
-                    <form class="pedidos-search-form pedidos-search-form-desktop" method="GET" action="{{ url_for('lista_pedidos') }}">
-                        <input type="hidden" name="estado" value="{{ filtros.estado }}">
-                        {% if filtros.solo_notas %}
-                        <input type="hidden" name="solo_notas" value="1">
-                        {% endif %}
-                        <input type="hidden" name="per_page" value="{{ per_page_value }}">
-
-                        <i class="fa-solid fa-magnifying-glass pedidos-search-icon" aria-hidden="true"></i>
-                        <input
-                            type="search"
-                            name="q"
-                            value="{{ filtros.q }}"
-                            class="pedidos-search-input"
-                            placeholder="Buscar por cliente, ID o nota"
-                            aria-label="Buscar pedidos por cliente, ID o nota"
-                        >
-                        {% if filtros.q %}
-                        <a
-                            href="{{ url_for('lista_pedidos', estado=filtros.estado, solo_notas=1 if filtros.solo_notas else None, per_page=per_page_value) }}"
-                            class="pedidos-search-clear"
-                            aria-label="Limpiar búsqueda"
-                            title="Limpiar búsqueda"
-                        >
-                            <i class="fa-solid fa-xmark"></i>
-                        </a>
-                        {% endif %}
-                        <button type="submit" class="pedidos-search-submit" aria-label="Buscar pedidos">
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </form>
-
                     <div class="pedidos-toolbar-actions">
                         <div class="ops-filter-wrap">
                             <button
@@ -1136,16 +1105,16 @@
 
     .tabla-pedidos-header {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
-        gap: 14px;
-        padding: 14px 18px 10px;
+        gap: 12px;
+        padding: 10px 16px 8px;
     }
 
     .tabla-pedidos-heading {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
         min-width: 0;
         flex-shrink: 0;
     }
@@ -1157,39 +1126,22 @@
     .tabla-pedidos-subtitle {
         margin: 0;
         color: #7f90b0;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         line-height: 1.3;
     }
 
     .tabla-pedidos-controls {
-        display: grid;
-        grid-template-columns: minmax(260px, 360px) auto;
+        display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: flex-end;
+        gap: 8px;
         min-width: 0;
         margin-left: auto;
     }
 
     .tabla-pedidos-scroll {
         overflow: auto;
-        padding: 0 14px;
-    }
-
-    .pedidos-search-form-desktop {
-        min-height: 40px;
-        padding: 0 6px 0 10px;
-        border-radius: 12px;
-    }
-
-    .pedidos-search-form-desktop .pedidos-search-input {
-        font-size: 0.88rem;
-    }
-
-    .pedidos-search-form-desktop .pedidos-search-submit,
-    .pedidos-search-form-desktop .pedidos-search-clear {
-        width: 30px;
-        height: 30px;
-        border-radius: 9px;
+        padding: 0 12px;
     }
 
     .tabla-pedidos-controls .pedidos-toolbar-actions {
