@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_, cast, String
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, selectinload
 import io
@@ -3771,6 +3771,16 @@ def lista_pedidos():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
+    estado = (request.args.get('estado', 'todos', type=str) or 'todos').strip().lower()
+    estado = estado if estado in {'todos', 'pendiente', 'preparado', 'facturado'} else 'todos'
+    q = (request.args.get('q', '', type=str) or '').strip()
+    solo_notas = (request.args.get('solo_notas', '', type=str) or '').strip().lower() in {'1', 'true', 'on', 'yes'}
+
+    filtros = {
+        'estado': estado,
+        'q': q,
+        'solo_notas': solo_notas,
+    }
 
     # Subquery: total de líneas de preparación (cantidades reales)
     prep_subq = db.session.query(
@@ -3821,8 +3831,51 @@ def lista_pedidos():
         clientes_ids = [c.id for c in current_user.obtener_clientes_visibles()]
         if not clientes_ids:
             # Sin clientes asignados - retornar vacío con paginación mock
-            return render_template('pedidos.html', pedidos=[], pagination=None)
+            return render_template(
+                'pedidos.html',
+                pedidos=[],
+                pagination=None,
+                filtros=filtros,
+                status_counts={
+                    'total': 0,
+                    'pendiente': 0,
+                    'preparado': 0,
+                    'facturado': 0,
+                },
+            )
         base_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))
+
+    # Conteos globales de la bandeja visible antes de aplicar filtros
+    raw_status_counts = base_query.with_entities(
+        Pedido.estado,
+        func.count(Pedido.id)
+    ).group_by(Pedido.estado).all()
+
+    status_counts = {
+        'total': 0,
+        'pendiente': 0,
+        'preparado': 0,
+        'facturado': 0,
+    }
+    for estado_nombre, cantidad in raw_status_counts:
+        if estado_nombre in status_counts:
+            status_counts[estado_nombre] = cantidad
+            status_counts['total'] += cantidad
+
+    # Filtros de bandeja operativa
+    if estado != 'todos':
+        base_query = base_query.filter(Pedido.estado == estado)
+
+    if solo_notas:
+        base_query = base_query.filter(Pedido.notas.isnot(None), Pedido.notas != '')
+
+    if q:
+        q_like = f'%{q}%'
+        base_query = base_query.filter(or_(
+            cast(Pedido.id, String).ilike(q_like),
+            Pedido.notas.ilike(q_like),
+            Pedido.cliente.has(Cliente.nombre.ilike(q_like)),
+        ))
 
     # Aplicar ordenamiento
     base_query = base_query.order_by(*orden_optimizado)
@@ -3852,7 +3905,13 @@ def lista_pedidos():
         'next_num': page + 1 if page < total_pages else None,
     }
 
-    return render_template('pedidos.html', pedidos=pedidos, pagination=pagination)
+    return render_template(
+        'pedidos.html',
+        pedidos=pedidos,
+        pagination=pagination,
+        filtros=filtros,
+        status_counts=status_counts,
+    )
 
 
 

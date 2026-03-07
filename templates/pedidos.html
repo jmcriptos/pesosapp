@@ -2,40 +2,175 @@
 
 {% block title %}Pedidos{% endblock %}
 
-{% block header_title %}Gestión de Pedidos{% endblock %}
+{% block header_title %}Pedidos{% endblock %}
 
 {% block content %}
 <div class="pedidos-container">
-    <!-- Filtros por estado + acción -->
-    {% set count_pendiente = pedidos|selectattr('estado', 'equalto', 'pendiente')|list|length %}
-    {% set count_preparado = pedidos|selectattr('estado', 'equalto', 'preparado')|list|length %}
-    {% set count_facturado = pedidos|selectattr('estado', 'equalto', 'facturado')|list|length %}
-    <div class="pedidos-toolbar">
-        <div class="filtros-estado">
-            <button class="filtro-btn filtro-active" data-filtro="todos">
-                Todos <span class="filtro-count">{{ pedidos|length }}</span>
-            </button>
-            <button class="filtro-btn filtro-pendiente" data-filtro="pendiente">
-                Pendientes <span class="filtro-count">{{ count_pendiente }}</span>
-            </button>
-            <button class="filtro-btn filtro-preparado" data-filtro="preparado">
-                Preparados <span class="filtro-count">{{ count_preparado }}</span>
-            </button>
-            <button class="filtro-btn filtro-facturado" data-filtro="facturado">
-                Facturados <span class="filtro-count">{{ count_facturado }}</span>
-            </button>
-        </div>
-        <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
-            <i class="fa fa-plus"></i>
-            <span>Nuevo Pedido</span>
-        </a>
-    </div>
+    {% set per_page_value = pagination.per_page if pagination else 20 %}
+    {% set results_total = pagination.total if pagination else pedidos|length %}
+    {% set active_filter_count = (1 if filtros.estado != 'todos' else 0) + (1 if filtros.solo_notas else 0) %}
+    {% set has_active_filters = active_filter_count > 0 or filtros.q %}
 
-    <!-- Vista móvil: Cards -->
+    <section class="ops-inbox-shell">
+        <div class="ops-inbox-hero">
+            <div class="ops-inbox-copy">
+                <span class="ops-inbox-eyebrow">Bandeja operativa</span>
+                <h1 class="ops-inbox-title">Pedidos</h1>
+                <p class="ops-inbox-subtitle">
+                    {% if has_active_filters %}
+                        Mostrando {{ results_total }} de {{ status_counts.total }} pedidos visibles para esta vista.
+                    {% else %}
+                        {{ status_counts.total }} pedidos activos. Prioridad actual: {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }} por resolver.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="ops-inbox-kpis" aria-label="Resumen de estados">
+                <div class="ops-kpi ops-kpi-pendiente">
+                    <span class="ops-kpi-label">Pendientes</span>
+                    <span class="ops-kpi-value">{{ status_counts.pendiente }}</span>
+                </div>
+                <div class="ops-kpi ops-kpi-preparado">
+                    <span class="ops-kpi-label">Preparados</span>
+                    <span class="ops-kpi-value">{{ status_counts.preparado }}</span>
+                </div>
+                <div class="ops-kpi ops-kpi-facturado">
+                    <span class="ops-kpi-label">Facturados</span>
+                    <span class="ops-kpi-value">{{ status_counts.facturado }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pedidos-toolbar">
+            <form class="pedidos-search-form" method="GET" action="{{ url_for('lista_pedidos') }}">
+                <input type="hidden" name="estado" value="{{ filtros.estado }}">
+                {% if filtros.solo_notas %}
+                <input type="hidden" name="solo_notas" value="1">
+                {% endif %}
+                <input type="hidden" name="per_page" value="{{ per_page_value }}">
+
+                <i class="fa-solid fa-magnifying-glass pedidos-search-icon" aria-hidden="true"></i>
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ filtros.q }}"
+                    class="pedidos-search-input"
+                    placeholder="Buscar por cliente, ID o nota"
+                    aria-label="Buscar pedidos por cliente, ID o nota"
+                >
+                {% if filtros.q %}
+                <a
+                    href="{{ url_for('lista_pedidos', estado=filtros.estado, solo_notas=1 if filtros.solo_notas else None, per_page=per_page_value) }}"
+                    class="pedidos-search-clear"
+                    aria-label="Limpiar búsqueda"
+                    title="Limpiar búsqueda"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
+                {% endif %}
+                <button type="submit" class="pedidos-search-submit" aria-label="Buscar pedidos">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="pedidos-toolbar-actions">
+                <div class="ops-filter-wrap">
+                    <button
+                        type="button"
+                        class="ops-filter-trigger"
+                        id="ordersFilterTrigger"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="ordersFilterPopover"
+                    >
+                        <i class="fa-solid fa-filter"></i>
+                        <span>Filtrar</span>
+                        {% if active_filter_count %}
+                        <span class="ops-filter-count">{{ active_filter_count }}</span>
+                        {% endif %}
+                    </button>
+
+                    <div class="ops-filter-popover" id="ordersFilterPopover" hidden>
+                        <form class="ops-filter-form" method="GET" action="{{ url_for('lista_pedidos') }}">
+                            <input type="hidden" name="q" value="{{ filtros.q }}">
+                            <input type="hidden" name="per_page" value="{{ per_page_value }}">
+
+                            <div class="ops-filter-section">
+                                <span class="ops-filter-section-title">Estado del pedido</span>
+
+                                <label class="ops-filter-option">
+                                    <input type="radio" name="estado" value="todos" {% if filtros.estado == 'todos' %}checked{% endif %}>
+                                    <span class="ops-filter-option-copy">Todos</span>
+                                    <span class="ops-filter-option-count">{{ status_counts.total }}</span>
+                                </label>
+                                <label class="ops-filter-option">
+                                    <input type="radio" name="estado" value="pendiente" {% if filtros.estado == 'pendiente' %}checked{% endif %}>
+                                    <span class="ops-filter-option-copy">Pendientes</span>
+                                    <span class="ops-filter-option-count">{{ status_counts.pendiente }}</span>
+                                </label>
+                                <label class="ops-filter-option">
+                                    <input type="radio" name="estado" value="preparado" {% if filtros.estado == 'preparado' %}checked{% endif %}>
+                                    <span class="ops-filter-option-copy">Preparados</span>
+                                    <span class="ops-filter-option-count">{{ status_counts.preparado }}</span>
+                                </label>
+                                <label class="ops-filter-option">
+                                    <input type="radio" name="estado" value="facturado" {% if filtros.estado == 'facturado' %}checked{% endif %}>
+                                    <span class="ops-filter-option-copy">Facturados</span>
+                                    <span class="ops-filter-option-count">{{ status_counts.facturado }}</span>
+                                </label>
+                            </div>
+
+                            <div class="ops-filter-section">
+                                <span class="ops-filter-section-title">Contexto</span>
+                                <label class="ops-filter-check">
+                                    <input type="checkbox" name="solo_notas" value="1" {% if filtros.solo_notas %}checked{% endif %}>
+                                    <span>Solo pedidos con notas</span>
+                                </label>
+                            </div>
+
+                            <div class="ops-filter-footer">
+                                <a href="{{ url_for('lista_pedidos') }}" class="ops-filter-reset">Limpiar</a>
+                                <button type="submit" class="ops-filter-apply">Aplicar filtros</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Nuevo Pedido</span>
+                </a>
+            </div>
+        </div>
+
+        {% if has_active_filters %}
+        <div class="pedidos-active-filters" aria-label="Filtros activos">
+            {% if filtros.estado != 'todos' %}
+            <span class="active-filter-chip">
+                <i class="fa-solid fa-wave-square"></i>
+                Estado: {{ filtros.estado|capitalize }}
+            </span>
+            {% endif %}
+            {% if filtros.solo_notas %}
+            <span class="active-filter-chip">
+                <i class="fa-solid fa-note-sticky"></i>
+                Con notas
+            </span>
+            {% endif %}
+            {% if filtros.q %}
+            <span class="active-filter-chip">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                {{ filtros.q }}
+            </span>
+            {% endif %}
+            <a href="{{ url_for('lista_pedidos') }}" class="active-filter-clear">Limpiar todo</a>
+        </div>
+        {% endif %}
+    </section>
+
     <div class="pedidos-cards-mobile">
         {% for pedido in pedidos %}
         <div class="pedido-card" data-id="{{ pedido.id }}" data-estado="{{ pedido.estado }}">
-            <!-- Header del card -->
             <div class="pedido-card-header">
                 <div class="pedido-card-id">#{{ pedido.id }}</div>
                 <span class="estado-badge-mobile estado-{{ pedido.estado }}">
@@ -51,7 +186,6 @@
                 </span>
             </div>
 
-            <!-- Contenido principal -->
             <div class="pedido-card-body">
                 <div class="pedido-cliente">
                     <i class="fa fa-user"></i>
@@ -63,8 +197,8 @@
                 </div>
                 {% if pedido.notas %}
                 <div class="pedido-notas">
-                    <i class="fa fa-sticky-note"></i>
-                    <span>{{ pedido.notas|truncate(50) }}</span>
+                    <i class="fa fa-note-sticky"></i>
+                    <span>{{ pedido.notas|truncate(72) }}</span>
                 </div>
                 {% endif %}
                 {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
@@ -75,13 +209,11 @@
                 {% endif %}
             </div>
 
-            <!-- Total -->
             <div class="pedido-card-total">
                 <span class="total-label">Total</span>
-                <span class="total-value">{{ "%.2f"|format(pedido.total_calculado) }} XCG</span>
+                <span class="total-value">{{ "%.2f"|format(pedido.total_calculado) }} <small>XCG</small></span>
             </div>
 
-            <!-- Acciones contextuales por estado -->
             <div class="pedido-card-actions pedido-actions-{{ pedido.estado }}">
                 <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="action-btn-mobile action-view">
                     <i class="fa fa-eye"></i>
@@ -118,7 +250,7 @@
         {% else %}
         <div class="pedidos-empty">
             <i class="fa fa-clipboard-list"></i>
-            <p>No hay pedidos</p>
+            <p>{% if has_active_filters %}No encontramos pedidos con estos filtros.{% else %}No hay pedidos cargados.{% endif %}</p>
             <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
                 <i class="fa fa-plus"></i> Crear primer pedido
             </a>
@@ -126,82 +258,118 @@
         {% endfor %}
     </div>
 
-    <!-- Vista desktop: Tabla (solo visible en pantallas grandes) -->
     <div class="pedidos-table-desktop">
         <div class="tabla-pedidos-card">
-            <table class="tabla-pedidos">
-                <thead>
-                    <tr>
-                        <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
-                        <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
-                        <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
-                        <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
-                        <th class="sortable" data-sort="total" data-type="number">Total&nbsp;(XCG) <i class="fa fa-sort"></i></th>
-                        <th>Notas</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for pedido in pedidos %}
-                    <tr data-id="{{ pedido.id }}"
-                        data-cliente="{{ pedido.cliente.nombre }}"
-                        data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
-                        data-estado="{{ pedido.estado }}"
-                        data-total="{{ pedido.total_calculado }}">
-                        <td>{{ pedido.id }}</td>
-                        <td>{{ pedido.cliente.nombre }}</td>
-                        <td>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
-                        <td>
-                            <span class="estado-badge estado-{{ pedido.estado }}">
-                                {% if pedido.estado == 'pendiente' %}
-                                    <i class="fa fa-clock"></i> {{ pedido.estado }}
-                                {% elif pedido.estado == 'facturado' %}
-                                    <i class="fa fa-check-circle"></i> {{ pedido.estado }}
-                                {% elif pedido.estado == 'preparado' %}
-                                    <i class="fa fa-box"></i> {{ pedido.estado }}
-                                {% else %}
-                                    <i class="fa fa-info-circle"></i> {{ pedido.estado }}
-                                {% endif %}
-                            </span>
-                            {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
-                            <span class="invoice-id-badge" title="QuickBooks Invoice ID">{{ pedido.invoice_id_qbo }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-right font-mono fw-600">{{ "%.2f"|format(pedido.total_calculado) }}</td>
-                        <td>{{ pedido.notas or '' }}</td>
-                        <td class="text-center nowrap">
-                            <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="btn-chip btn-chip-view" title="Ver detalles">
-                               <i class="fa fa-eye"></i>
-                            </a>
-                            {% if pedido.estado != 'facturado' %}
-                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="btn-chip btn-chip-edit" title="Editar pedido">
-                               <i class="fa fa-edit"></i>
-                            </a>
-                            {% endif %}
-                            {% if pedido.estado == 'preparado' %}
-                            <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-chip btn-chip-success" title="Facturar pedido">
-                                    <i class="fa fa-file-invoice-dollar"></i>
-                                </button>
-                            </form>
-                            {% endif %}
-                            {% if pedido.estado == 'pendiente' %}
-                            <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
-                                  onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-chip btn-chip-danger" title="Eliminar pedido">
-                                    <i class="fa fa-trash"></i>
-                                </button>
-                            </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <div class="tabla-pedidos-header">
+                <div>
+                    <span class="tabla-pedidos-eyebrow">Cola de trabajo</span>
+                    <h2 class="tabla-pedidos-title">Lista operativa</h2>
+                </div>
+                <div class="tabla-pedidos-meta">
+                    {{ results_total }} resultado{{ 's' if results_total != 1 else '' }} en esta vista
+                </div>
+            </div>
 
-            <!-- Paginación Desktop -->
+            {% if pedidos %}
+            <div class="tabla-pedidos-scroll">
+                <table class="tabla-pedidos">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
+                            <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
+                            <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
+                            <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
+                            <th class="sortable text-right" data-sort="total" data-type="number">Total (XCG) <i class="fa fa-sort"></i></th>
+                            <th>Contexto</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for pedido in pedidos %}
+                        <tr
+                            class="pedido-row pedido-row-{{ pedido.estado }}"
+                            data-id="{{ pedido.id }}"
+                            data-cliente="{{ pedido.cliente.nombre }}"
+                            data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
+                            data-estado="{{ pedido.estado }}"
+                            data-total="{{ pedido.total_calculado }}"
+                            data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
+                        >
+                            <td class="pedido-id-cell">#{{ pedido.id }}</td>
+                            <td>
+                                <div class="pedido-client-stack">
+                                    <span class="pedido-client-name">{{ pedido.cliente.nombre }}</span>
+                                    {% if pedido.notas %}
+                                    <span class="pedido-client-note">{{ pedido.notas|truncate(46) }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="pedido-date-cell">{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
+                            <td>
+                                <span class="estado-badge estado-{{ pedido.estado }}">
+                                    {% if pedido.estado == 'pendiente' %}
+                                        <i class="fa fa-clock"></i> Pendiente
+                                    {% elif pedido.estado == 'facturado' %}
+                                        <i class="fa fa-check-circle"></i> Facturado
+                                    {% elif pedido.estado == 'preparado' %}
+                                        <i class="fa fa-box"></i> Preparado
+                                    {% else %}
+                                        <i class="fa fa-info-circle"></i> {{ pedido.estado }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="text-right pedido-total-cell">{{ "%.2f"|format(pedido.total_calculado) }}</td>
+                            <td class="pedido-context-cell">
+                                <div class="pedido-context-stack">
+                                    {% if pedido.notas %}
+                                    <span class="pedido-context-chip" title="{{ pedido.notas }}">
+                                        <i class="fa-solid fa-note-sticky"></i>
+                                        Nota
+                                    </span>
+                                    {% else %}
+                                    <span class="pedido-context-empty">Sin notas</span>
+                                    {% endif %}
+
+                                    {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                                    <span class="invoice-id-badge" title="QuickBooks Invoice ID">{{ pedido.invoice_id_qbo }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="pedido-row-actions">
+                                    <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="row-action row-action-primary" title="Ver detalles">
+                                        Ver
+                                    </a>
+                                    {% if pedido.estado != 'facturado' %}
+                                    <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="row-action row-action-icon row-action-edit" title="Editar pedido" aria-label="Editar pedido">
+                                        <i class="fa fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if pedido.estado == 'preparado' %}
+                                    <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="row-action row-action-icon row-action-success" title="Facturar pedido" aria-label="Facturar pedido">
+                                            <i class="fa fa-file-invoice-dollar"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if pedido.estado == 'pendiente' %}
+                                    <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
+                                          onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="row-action row-action-icon row-action-danger" title="Eliminar pedido" aria-label="Eliminar pedido">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
             {% if pagination and pagination.pages > 1 %}
             <div class="pagination-desktop">
                 <div class="pagination-info">
@@ -209,10 +377,10 @@
                 </div>
                 <div class="pagination-controls">
                     {% if pagination.has_prev %}
-                    <a href="{{ url_for('lista_pedidos', page=1) }}" class="pagination-btn" title="Primera">
+                    <a href="{{ url_for('lista_pedidos', page=1, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Primera">
                         <i class="fa fa-angles-left"></i>
                     </a>
-                    <a href="{{ url_for('lista_pedidos', page=pagination.prev_num) }}" class="pagination-btn" title="Anterior">
+                    <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Anterior">
                         <i class="fa fa-angle-left"></i>
                     </a>
                     {% else %}
@@ -223,10 +391,10 @@
                     <span class="pagination-current">Página {{ pagination.page }} de {{ pagination.pages }}</span>
 
                     {% if pagination.has_next %}
-                    <a href="{{ url_for('lista_pedidos', page=pagination.next_num) }}" class="pagination-btn" title="Siguiente">
+                    <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Siguiente">
                         <i class="fa fa-angle-right"></i>
                     </a>
-                    <a href="{{ url_for('lista_pedidos', page=pagination.pages) }}" class="pagination-btn" title="Última">
+                    <a href="{{ url_for('lista_pedidos', page=pagination.pages, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Última">
                         <i class="fa fa-angles-right"></i>
                     </a>
                     {% else %}
@@ -236,14 +404,22 @@
                 </div>
             </div>
             {% elif pagination %}
-            <div class="pagination-info" style="text-align:center;padding:16px;color:#6b7280;">
+            <div class="pagination-info pagination-info-single">
                 {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }} en total
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="pedidos-empty pedidos-empty-desktop">
+                <i class="fa fa-clipboard-list"></i>
+                <p>{% if has_active_filters %}No encontramos pedidos con estos filtros.{% else %}No hay pedidos cargados.{% endif %}</p>
+                <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+                    <i class="fa fa-plus"></i> Crear primer pedido
+                </a>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Paginación móvil optimizada -->
     {% if pagination and pagination.pages > 1 %}
     <div class="pagination-mobile">
         <div class="pagination-info-mobile">
@@ -251,7 +427,7 @@
         </div>
         <div class="pagination-controls-mobile">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('lista_pedidos', page=pagination.prev_num) }}" class="pagination-btn-mobile">
+            <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn-mobile">
                 <i class="fa fa-chevron-left"></i>
             </a>
             {% else %}
@@ -261,7 +437,7 @@
             <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages }}</span>
 
             {% if pagination.has_next %}
-            <a href="{{ url_for('lista_pedidos', page=pagination.next_num) }}" class="pagination-btn-mobile">
+            <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn-mobile">
                 <i class="fa fa-chevron-right"></i>
             </a>
             {% else %}
@@ -270,7 +446,7 @@
         </div>
     </div>
     {% elif pagination %}
-    <div class="pagination-info-mobile" style="text-align:center;padding:16px;">
+    <div class="pagination-info-mobile pagination-info-mobile-single">
         {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }}
     </div>
     {% endif %}
@@ -280,230 +456,524 @@
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <style>
-/* ============================================
-   MOBILE-FIRST EXTREME - PEDIDOS
-   ============================================ */
+:root {
+    --orders-bg: transparent;
+    --orders-panel: rgba(11, 18, 30, 0.88);
+    --orders-panel-soft: rgba(20, 30, 49, 0.88);
+    --orders-panel-strong: rgba(10, 15, 27, 0.96);
+    --orders-border: rgba(96, 165, 250, 0.18);
+    --orders-border-strong: rgba(96, 165, 250, 0.32);
+    --orders-text: #f3f7ff;
+    --orders-muted: #93a4c3;
+    --orders-blue: #1f8bff;
+    --orders-blue-soft: rgba(31, 139, 255, 0.16);
+    --orders-green: #22c55e;
+    --orders-green-soft: rgba(34, 197, 94, 0.16);
+    --orders-amber: #fbbf24;
+    --orders-amber-soft: rgba(251, 191, 36, 0.16);
+    --orders-red: #fb7185;
+    --orders-red-soft: rgba(251, 113, 133, 0.16);
+    --orders-shadow: 0 22px 48px rgba(2, 8, 23, 0.34);
+}
 
-/* Container principal */
 .pedidos-container {
-    width: 100%;
-    max-width: 100vw;
-    padding: 0;
-    margin: 0;
-    padding-bottom: 100px;
+    width: min(100%, 1460px);
+    margin: 0 auto;
+    padding: 18px 10px 92px;
+    color: var(--orders-text);
 }
 
-/* Toolbar de filtros + acción */
-.pedidos-toolbar {
+.ops-inbox-shell {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 8px;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: inherit;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
 }
 
-.pedidos-title {
-    color: white;
-    font-size: 1.3rem;
-    font-weight: 700;
-    margin: 0;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
-.btn-nuevo-pedido {
+.ops-inbox-hero {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #16a34a;
+    flex-direction: column;
+    gap: 18px;
+    padding: 18px;
+    border-radius: 26px;
+    border: 1px solid var(--orders-border);
+    background:
+        radial-gradient(circle at top left, rgba(31, 139, 255, 0.18), transparent 34%),
+        linear-gradient(180deg, rgba(16, 25, 42, 0.96), rgba(10, 15, 27, 0.94));
+    box-shadow: var(--orders-shadow);
+}
+
+.ops-inbox-eyebrow,
+.tabla-pedidos-eyebrow {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #7e90b2;
+    margin-bottom: 10px;
+}
+
+.ops-inbox-title,
+.tabla-pedidos-title {
+    margin: 0;
+    font-size: clamp(1.9rem, 3vw, 2.7rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
     color: #ffffff;
-    padding: 10px 16px;
-    border-radius: 25px;
-    font-size: 0.9rem;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-    flex-shrink: 0;
-    box-shadow: 0 4px 14px rgba(22,163,74,0.35);
-    transition: all 0.2s ease;
 }
 
-.pedidos-toolbar .btn-nuevo-pedido {
-    background: #16a34a !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(22,163,74,0.35) !important;
+.ops-inbox-subtitle {
+    margin: 10px 0 0;
+    max-width: 680px;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--orders-muted);
 }
 
-.pedidos-toolbar .btn-nuevo-pedido:hover {
-    background: #15803d !important;
-    color: #ffffff !important;
+.ops-inbox-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
 }
 
-.btn-nuevo-pedido:active {
-    transform: scale(0.95);
+.ops-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 86px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(13, 20, 35, 0.78);
 }
 
-/* ============================================
-   CARDS MÓVILES - Vista principal en móvil
-   ============================================ */
-.pedidos-cards-mobile {
+.ops-kpi-label {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #8fa2c4;
+}
+
+.ops-kpi-value {
+    font-size: clamp(1.55rem, 2vw, 2.15rem);
+    line-height: 1;
+    font-weight: 800;
+}
+
+.ops-kpi-pendiente .ops-kpi-value { color: #ffd166; }
+.ops-kpi-preparado .ops-kpi-value { color: #7dd3fc; }
+.ops-kpi-facturado .ops-kpi-value { color: #6ee7b7; }
+
+.pedidos-toolbar {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 12px 8px;
 }
 
-.pedido-card {
-    background: white;
+.pedidos-search-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 0 10px 0 14px;
+    border-radius: 18px;
+    border: 1px solid var(--orders-border);
+    background: rgba(9, 15, 26, 0.88);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.pedidos-search-icon {
+    color: #7f90b1;
+    font-size: 0.95rem;
+}
+
+.pedidos-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    font-size: 0.98rem;
+    outline: none;
+}
+
+.pedidos-search-input::placeholder {
+    color: #6f809f;
+}
+
+.pedidos-search-submit,
+.pedidos-search-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: none;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.pedidos-search-submit {
+    background: var(--orders-blue);
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(31, 139, 255, 0.28);
+    cursor: pointer;
+}
+
+.pedidos-search-clear {
+    background: rgba(148, 163, 184, 0.16);
+    color: #d6def1;
+}
+
+.pedidos-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ops-filter-wrap {
+    position: relative;
+    flex: 1;
+}
+
+.ops-filter-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 54px;
+    padding: 0 16px;
+    border-radius: 18px;
+    border: 1px solid var(--orders-border);
+    background: rgba(9, 15, 26, 0.88);
+    color: #ebf2ff;
+    font-size: 0.96rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ops-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(31, 139, 255, 0.18);
+    color: #8dc5ff;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.ops-filter-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    width: min(100vw - 20px, 360px);
+    padding: 16px;
+    border-radius: 22px;
+    border: 1px solid var(--orders-border-strong);
+    background: rgba(10, 16, 29, 0.98);
+    box-shadow: 0 26px 60px rgba(2, 8, 23, 0.48);
+    z-index: 80;
+}
+
+.ops-filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ops-filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ops-filter-section-title {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7f90b0;
+}
+
+.ops-filter-option {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
     border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    overflow: hidden;
-    transition: all 0.2s ease;
+    background: rgba(18, 27, 43, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    color: #e7eefc;
+    cursor: pointer;
 }
 
-.pedido-card:active {
-    transform: scale(0.98);
+.ops-filter-option input,
+.ops-filter-check input {
+    accent-color: var(--orders-blue);
 }
 
-/* Card Header */
-.pedido-card-header {
+.ops-filter-option-copy {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.ops-filter-option-count {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(31, 139, 255, 0.12);
+    color: #9fd0ff;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.ops-filter-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(18, 27, 43, 0.88);
+    color: #e7eefc;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.ops-filter-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 16px;
-    border-bottom: 1px solid #e9ecef;
+    gap: 12px;
+}
+
+.ops-filter-reset,
+.ops-filter-apply {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.ops-filter-reset {
+    color: #c6d2eb;
+    background: rgba(148, 163, 184, 0.12);
+}
+
+.ops-filter-apply {
+    border: none;
+    background: var(--orders-blue);
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(31, 139, 255, 0.28);
+}
+
+.btn-nuevo-pedido {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 0 18px;
+    border-radius: 18px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(34, 197, 94, 0.28);
+}
+
+.pedidos-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.active-filter-chip,
+.active-filter-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--orders-border);
+    background: rgba(12, 20, 34, 0.76);
+    color: #dde7fb;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.active-filter-clear {
+    color: #93c5fd;
+}
+
+.pedidos-cards-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pedido-card {
+    overflow: hidden;
+    border-radius: 22px;
+    border: 1px solid var(--orders-border);
+    background: var(--orders-panel);
+    box-shadow: var(--orders-shadow);
+}
+
+.pedido-card[data-estado="pendiente"] {
+    border-color: rgba(251, 191, 36, 0.36);
+}
+
+.pedido-card-header,
+.pedido-card-body,
+.pedido-card-total {
+    padding: 16px 18px;
+}
+
+.pedido-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .pedido-card-id {
-    font-size: 1.2rem;
+    font-size: 1.22rem;
     font-weight: 800;
-    color: #1f2937;
+    color: #ffffff;
 }
 
-/* Estados móviles */
-.estado-badge-mobile {
+.estado-badge-mobile,
+.estado-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 700;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .estado-pendiente {
-    background: #fef3c7;
-    color: #92400e;
+    background: rgba(251, 191, 36, 0.16);
+    color: #ffd166;
 }
 
 .estado-preparado {
-    background: #dbeafe;
-    color: #1e40af;
+    background: rgba(96, 165, 250, 0.16);
+    color: #93c5fd;
 }
 
 .estado-facturado {
-    background: #dcfce7;
-    color: #166534;
+    background: rgba(34, 197, 94, 0.16);
+    color: #86efac;
 }
 
-.estado-entregado {
-    background: #f3f4f6;
-    color: #4b5563;
-}
-
-/* Card Body */
 .pedido-card-body {
-    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .pedido-cliente,
 .pedido-fecha,
-.pedido-notas {
+.pedido-notas,
+.pedido-invoice-id {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
-    font-size: 1rem;
-    color: #374151;
+    color: #dbe5f6;
 }
 
 .pedido-cliente i,
 .pedido-fecha i,
-.pedido-notas i {
-    width: 20px;
-    color: #6b7280;
-    font-size: 1.1rem;
+.pedido-notas i,
+.pedido-invoice-id i {
+    width: 18px;
+    margin-top: 2px;
+    color: #7f90b1;
 }
 
 .pedido-cliente span {
-    font-weight: 600;
-    color: #1f2937;
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: #ffffff;
 }
 
-.pedido-notas {
-    font-size: 0.9rem;
-    color: #6b7280;
-    font-style: italic;
+.pedido-notas span,
+.pedido-invoice-id span,
+.pedido-fecha span {
+    font-size: 0.94rem;
+    line-height: 1.45;
+    color: #b7c5de;
 }
 
-.pedido-invoice-id {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 0.85rem;
-    color: #15803d;
-    font-weight: 600;
-}
-
-.pedido-invoice-id i {
-    width: 20px;
-    color: #16a34a;
-    font-size: 1.1rem;
-}
-
-/* Card Total */
 .pedido-card-total {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 14px 16px;
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .total-label {
-    font-size: 0.9rem;
-    color: #6b7280;
-    font-weight: 600;
+    color: #8ea1c1;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
 }
 
 .total-value {
-    font-size: 1.5rem;
+    font-family: "SFMono-Regular", "Menlo", monospace;
+    font-size: 1.45rem;
     font-weight: 800;
-    color: #1f2937;
-    font-family: 'SF Mono', monospace;
+    color: #ffffff;
 }
 
-/* Card Actions */
+.total-value small {
+    font-size: 0.85rem;
+    color: #8ea1c1;
+}
+
 .pedido-card-actions {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
     gap: 0;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pedido-actions-pendiente,
+.pedido-actions-preparado {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pedido-actions-facturado {
+    grid-template-columns: 1fr;
 }
 
 .action-form {
     display: contents;
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: none !important;
 }
 
 .action-btn-mobile {
@@ -512,352 +982,380 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    padding: 14px 8px;
-    text-decoration: none;
-    font-size: 0.75rem;
-    font-weight: 600;
-    transition: all 0.15s ease;
+    min-height: 72px;
+    padding: 10px 8px;
     border: none;
-    cursor: pointer;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
     background: transparent;
+    color: #dbe5f6;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.pedido-card-actions > *:last-child .action-btn-mobile,
+.pedido-card-actions > *:last-child.action-btn-mobile {
+    border-right: none;
 }
 
 .action-btn-mobile i {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
 }
 
 .action-btn-mobile span {
     font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
 }
 
-.action-btn-mobile.action-view {
-    background: #eff6ff;
-    color: #1d4ed8;
-}
-.action-btn-mobile.action-view:active { background: #dbeafe; }
+.action-view { background: rgba(31, 139, 255, 0.08); color: #9fd0ff; }
+.action-edit { background: rgba(96, 165, 250, 0.08); color: #c5dcff; }
+.action-invoice { background: rgba(34, 197, 94, 0.08); color: #9df0bc; }
+.action-delete { background: rgba(251, 113, 133, 0.08); color: #fda4af; }
 
-.action-btn-mobile.action-edit {
-    background: #fefce8;
-    color: #a16207;
-}
-.action-btn-mobile.action-edit:active { background: #fef9c3; }
-
-.action-btn-mobile.action-invoice {
-    background: #f0fdf4;
-    color: #15803d;
-}
-.action-btn-mobile.action-invoice:active { background: #dcfce7; }
-
-button.action-btn-mobile.action-delete {
-    background: #fef2f2;
-    color: #dc2626;
-}
-button.action-btn-mobile.action-delete:active { background: #fee2e2; }
-
-/* Empty state */
 .pedidos-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px;
+    gap: 14px;
+    min-height: 240px;
+    padding: 32px 20px;
+    border-radius: 24px;
+    border: 1px dashed var(--orders-border-strong);
+    background: rgba(10, 16, 28, 0.66);
     text-align: center;
-    color: #6b7280;
+    color: #b9c7df;
 }
 
 .pedidos-empty i {
-    font-size: 4rem;
-    margin-bottom: 20px;
-    opacity: 0.5;
+    font-size: 2.8rem;
+    color: #7e90b3;
 }
 
 .pedidos-empty p {
-    font-size: 1.1rem;
-    margin-bottom: 20px;
+    margin: 0;
+    font-size: 1rem;
 }
 
-/* ============================================
-   DISTINCIÓN VISUAL POR ESTADO
-   ============================================ */
-.pedido-card[data-estado="pendiente"] {
-    border-left: 4px solid #f59e0b;
-}
-
-.pedido-card[data-estado="preparado"] {
-    border-left: 4px solid #3b82f6;
-}
-
-.pedido-card[data-estado="facturado"] {
-    border-left: 4px solid #22c55e;
-}
-
-/* Acciones contextuales: grid se adapta al número de botones */
-.pedido-actions-pendiente { grid-template-columns: repeat(3, 1fr); }
-.pedido-actions-preparado { grid-template-columns: repeat(3, 1fr); }
-.pedido-actions-facturado { grid-template-columns: 1fr; }
-
-/* ============================================
-   FILTROS POR ESTADO
-   ============================================ */
-.filtros-estado {
-    display: flex;
-    gap: 8px;
-    padding: 0;
-    flex: 1;
-    min-width: 0;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
-.filtros-estado::-webkit-scrollbar { display: none; }
-
-.filtro-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 16px;
-    border: 2px solid #e5e7eb;
-    border-radius: 25px;
-    background: white;
-    color: #6b7280;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.filtro-btn:active { transform: scale(0.95); }
-
-.filtro-btn.filtro-active {
-    background: #1f2937;
-    color: white;
-    border-color: #1f2937;
-}
-
-.filtro-count {
-    background: rgba(255,255,255,0.25);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.filtro-btn:not(.filtro-active) .filtro-count {
-    background: #f3f4f6;
-    color: #6b7280;
-}
-
-/* Card oculta por filtro */
-.pedido-card.filtro-hidden {
+.pedidos-table-desktop {
     display: none;
 }
 
-/* ============================================
-   PAGINACIÓN MÓVIL
-   ============================================ */
 .pagination-mobile {
     display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 16px;
-    padding: 20px 16px;
-    background: white;
-    border-radius: 16px;
-    margin: 12px 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--orders-border);
+    background: rgba(10, 16, 28, 0.86);
 }
 
-.pagination-info-mobile {
-    font-size: 0.9rem;
-    color: #6b7280;
+.pagination-info-mobile,
+.pagination-current-mobile {
+    color: #c9d4e8;
+    font-size: 0.92rem;
 }
 
 .pagination-controls-mobile {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .pagination-btn-mobile {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 12px;
-    background: #f3f4f6;
-    color: #1877ff;
+    background: rgba(31, 139, 255, 0.12);
+    color: #9fd0ff;
     text-decoration: none;
-    font-size: 1.1rem;
-    transition: all 0.15s ease;
-}
-
-.pagination-btn-mobile:active:not(.disabled) {
-    background: #1877ff;
-    color: white;
-    transform: scale(0.95);
 }
 
 .pagination-btn-mobile.disabled {
-    background: #f9fafb;
-    color: #d1d5db;
+    background: rgba(148, 163, 184, 0.1);
+    color: #64748b;
 }
 
-.pagination-current-mobile {
-    font-weight: 700;
-    color: #374151;
-    font-size: 1rem;
-    min-width: 60px;
+.pagination-info-mobile-single {
+    margin-top: 16px;
     text-align: center;
+    color: #9eb0cf;
 }
 
-/* ============================================
-   TABLA DESKTOP - Oculta en móvil
-   ============================================ */
-.pedidos-table-desktop {
-    display: none;
-}
+.text-center { text-align: center; }
+.text-right { text-align: right; }
 
-/* ============================================
-   DESKTOP STYLES (>= 900px)
-   ============================================ */
 @media (min-width: 900px) {
-    .pedidos-cards-mobile {
-        display: none;
+    .pedidos-container {
+        padding: 24px 18px 48px;
     }
 
+    .ops-inbox-hero {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+
+    .ops-inbox-kpis {
+        width: min(430px, 100%);
+    }
+
+    .pedidos-toolbar {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .pedidos-search-form {
+        flex: 1;
+        max-width: 560px;
+    }
+
+    .pedidos-toolbar-actions {
+        flex-shrink: 0;
+    }
+
+    .ops-filter-wrap {
+        flex: none;
+    }
+
+    .ops-filter-trigger {
+        width: auto;
+        min-width: 154px;
+    }
+
+    .ops-filter-popover {
+        left: auto;
+        right: 0;
+    }
+
+    .pedidos-cards-mobile,
     .pagination-mobile {
         display: none;
     }
 
     .pedidos-table-desktop {
         display: block;
-        padding: 20px;
-    }
-
-    .pedidos-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-
-    .pedidos-toolbar {
-        padding: 0 0 20px;
-        margin-bottom: 20px;
-        position: static;
     }
 
     .tabla-pedidos-card {
-        background: #fff;
-        border-radius: 16px;
-        box-shadow: 0 8px 30px rgba(24,119,255,.09);
-        padding: 16px 22px;
         overflow: hidden;
+        border-radius: 28px;
+        border: 1px solid var(--orders-border);
+        background: var(--orders-panel);
+        box-shadow: var(--orders-shadow);
+    }
+
+    .tabla-pedidos-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 24px 26px 16px;
+    }
+
+    .tabla-pedidos-title {
+        font-size: 1.45rem;
+    }
+
+    .tabla-pedidos-meta {
+        color: #8fa2c4;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .tabla-pedidos-scroll {
+        overflow: auto;
+        padding: 0 18px;
     }
 
     .tabla-pedidos {
         width: 100%;
-        border-collapse: collapse;
-        font-size: 1rem;
+        min-width: 1050px;
+        border-collapse: separate;
+        border-spacing: 0;
     }
 
     .tabla-pedidos th {
-        background: #1877ff;
-        color: #fff;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(17, 25, 41, 0.96);
+        color: #dfe9fb;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
         text-align: left;
-        font-weight: 700;
-        padding: 14px 12px;
+        backdrop-filter: blur(18px);
     }
 
     .tabla-pedidos td {
-        background: #fff;
-        padding: 12px;
-        border-bottom: 1px solid #eef3fa;
+        padding: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: #edf3ff;
+        background: transparent;
         vertical-align: middle;
-    }
-
-    .tabla-pedidos tr:last-child td {
-        border-bottom: none;
     }
 
     .tabla-pedidos th.sortable {
         cursor: pointer;
         user-select: none;
-        transition: background .15s;
         white-space: nowrap;
-    }
-
-    .tabla-pedidos th.sortable:hover {
-        background: #0d5bdb;
     }
 
     .tabla-pedidos th.sortable i {
         margin-left: 6px;
-        opacity: 0.5;
-        font-size: 0.85em;
+        color: #6e80a2;
+        font-size: 0.82rem;
     }
 
     .tabla-pedidos th.sortable.asc i,
     .tabla-pedidos th.sortable.desc i {
-        opacity: 1;
+        color: #dfe9fb;
     }
 
-    /* Estados desktop */
-    .estado-badge {
+    .pedido-row {
+        cursor: pointer;
+    }
+
+    .pedido-row td {
+        transition: background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .pedido-row:hover td {
+        background: rgba(19, 29, 49, 0.92);
+    }
+
+    .pedido-row-pendiente td {
+        background:
+            linear-gradient(90deg, rgba(251, 191, 36, 0.08), rgba(251, 191, 36, 0) 24%),
+            transparent;
+    }
+
+    .pedido-id-cell,
+    .pedido-total-cell {
+        font-family: "SFMono-Regular", "Menlo", monospace;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .pedido-client-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .pedido-client-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .pedido-client-note {
+        font-size: 0.84rem;
+        color: #8092b3;
+    }
+
+    .pedido-date-cell {
+        color: #d5dff2;
+        font-weight: 600;
+    }
+
+    .pedido-context-cell {
+        width: 180px;
+    }
+
+    .pedido-context-stack {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pedido-context-chip,
+    .invoice-id-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 0.85rem;
+        min-height: 30px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .pedido-context-chip {
+        background: rgba(148, 163, 184, 0.12);
+        color: #d4ddf2;
+    }
+
+    .pedido-context-empty {
+        color: #6f809f;
+        font-size: 0.84rem;
         font-weight: 600;
-        text-transform: uppercase;
     }
 
     .invoice-id-badge {
-        display: inline-block;
-        margin-left: 6px;
-        padding: 2px 8px;
-        border-radius: 8px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        background: #dcfce7;
-        color: #15803d;
-        font-family: 'SF Mono', monospace;
+        background: rgba(34, 197, 94, 0.16);
+        color: #9df0bc;
+        font-family: "SFMono-Regular", "Menlo", monospace;
     }
 
-    /* Botones chip desktop */
-    .btn-chip {
+    .pedido-row-actions {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .row-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
-        font-size: 1rem;
+        min-height: 34px;
+        padding: 0 12px;
         border: none;
-        border-radius: 50%;
+        border-radius: 999px;
+        text-decoration: none;
+        font-size: 0.84rem;
         font-weight: 700;
         cursor: pointer;
-        margin-right: 4px;
-        transition: all .2s ease;
-        box-shadow: 0 2px 8px rgba(24,119,255,.06);
-        text-decoration: none;
     }
 
-    .btn-chip:last-child { margin-right: 0; }
-    .btn-chip-view { background: #f4f8ff; color: #1877ff; }
-    .btn-chip-view:hover { background: #e1eaff; color: #0d3c85; transform: scale(1.1); }
-    .btn-chip-edit { background: #eef7ff; color: #409cff; }
-    .btn-chip-edit:hover { background: #d6eaff; color: #1877ff; transform: scale(1.1); }
-    .btn-chip-success { background: #e7fbe8; color: #17a34a; }
-    .btn-chip-success:hover { background: #cbf4cf; color: #0b7a36; transform: scale(1.1); }
-    .btn-chip-success:disabled { background: #f9fafb; color: #9ca3af; cursor: not-allowed; transform: none; }
-    .btn-chip-danger { background: #ffeaea; color: #e55353; }
-    .btn-chip-danger:hover { background: #ffc1c1; color: #a60000; transform: scale(1.1); }
+    .row-action-primary {
+        min-width: 62px;
+        background: rgba(31, 139, 255, 0.16);
+        color: #cfe8ff;
+    }
+
+    .row-action-icon {
+        width: 34px;
+        padding: 0;
+        background: rgba(148, 163, 184, 0.12);
+        color: #dfe9fb;
+    }
+
+    .row-action-success {
+        background: rgba(34, 197, 94, 0.16);
+        color: #9df0bc;
+    }
+
+    .row-action-danger {
+        background: rgba(251, 113, 133, 0.16);
+        color: #fda4af;
+    }
 
     .inline-form {
         display: inline;
@@ -867,21 +1365,18 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
         border: none;
     }
 
-    /* Paginación Desktop */
     .pagination-desktop {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 16px 8px;
-        border-top: 1px solid #eef3fa;
-        margin-top: 8px;
-        flex-wrap: wrap;
-        gap: 12px;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 26px 22px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .pagination-info {
-        color: #6b7280;
-        font-size: 0.95rem;
+        color: #9eb0cf;
+        font-size: 0.94rem;
     }
 
     .pagination-controls {
@@ -894,130 +1389,32 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: #f4f8ff;
-        color: #1877ff;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: rgba(31, 139, 255, 0.12);
+        color: #9fd0ff;
         text-decoration: none;
-        font-size: 1rem;
-        transition: all .15s;
-    }
-
-    .pagination-btn:hover:not(.disabled) {
-        background: #1877ff;
-        color: #fff;
     }
 
     .pagination-btn.disabled {
-        background: #f3f4f6;
-        color: #9ca3af;
-        cursor: not-allowed;
+        background: rgba(148, 163, 184, 0.1);
+        color: #64748b;
     }
 
     .pagination-current {
-        padding: 0 12px;
-        font-weight: 600;
-        color: #374151;
-    }
-}
-
-/* ============================================
-   DARK MODE SUPPORT
-   ============================================ */
-@media (prefers-color-scheme: dark) {
-    .pedido-card {
-        background: #1f2937;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        padding: 0 6px;
+        color: #d8e2f5;
+        font-weight: 700;
     }
 
-    .pedido-card-header {
-        border-bottom-color: #374151;
+    .pagination-info-single {
+        padding: 0 26px 22px;
     }
 
-    .pedido-card-id {
-        color: #f9fafb;
-    }
-
-    .pedido-card-body {
-        color: #e5e7eb;
-    }
-
-    .pedido-cliente span {
-        color: #f9fafb;
-    }
-
-    .pedido-cliente i,
-    .pedido-fecha i,
-    .pedido-notas i {
-        color: #9ca3af;
-    }
-
-    .pedido-card-total {
-        background: #374151;
-        border-top-color: #4b5563;
-    }
-
-    .total-label {
-        color: #9ca3af;
-    }
-
-    .total-value {
-        color: #f9fafb;
-    }
-
-    .pedido-card-actions {
-        border-top-color: #374151;
-    }
-
-    .action-btn-mobile.action-view { background: #1e3a5f; color: #93c5fd; }
-    .action-btn-mobile.action-edit { background: #422006; color: #fcd34d; }
-    .action-btn-mobile.action-invoice { background: #064e3b; color: #6ee7b7; }
-    button.action-btn-mobile.action-delete { background: #450a0a; color: #fca5a5; }
-
-    .pagination-mobile {
-        background: #1f2937;
-    }
-
-    .pagination-btn-mobile {
-        background: #374151;
-        color: #60a5fa;
-    }
-
-    .pagination-current-mobile {
-        color: #e5e7eb;
-    }
-
-    .filtro-btn {
-        background: #374151;
-        border-color: #4b5563;
-        color: #9ca3af;
-    }
-
-    .filtro-btn.filtro-active {
-        background: #f9fafb;
-        color: #1f2937;
-        border-color: #f9fafb;
-    }
-
-    .filtro-btn:not(.filtro-active) .filtro-count {
-        background: #4b5563;
-        color: #9ca3af;
-    }
-
-    .estado-pendiente {
-        background: #78350f;
-        color: #fcd34d;
-    }
-
-    .estado-preparado {
-        background: #1e3a5f;
-        color: #93c5fd;
-    }
-
-    .estado-facturado {
-        background: #064e3b;
-        color: #6ee7b7;
+    .pedidos-empty-desktop {
+        min-height: 320px;
+        margin: 0 18px 18px;
     }
 }
 </style>
@@ -1026,39 +1423,45 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
 {% block scripts %}
 <script>
 // ========================================================================
-// FILTROS POR ESTADO (mobile + desktop)
+// POPOVER DE FILTROS
 // ========================================================================
 (function() {
-    const filtroBtns = document.querySelectorAll('.filtro-btn');
-    const cards = document.querySelectorAll('.pedido-card');
-    const rows = document.querySelectorAll('.tabla-pedidos tbody tr[data-estado]');
+    const trigger = document.getElementById('ordersFilterTrigger');
+    const popover = document.getElementById('ordersFilterPopover');
 
-    filtroBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const filtro = this.dataset.filtro;
+    if (!trigger || !popover) return;
 
-            // Actualizar botón activo
-            filtroBtns.forEach(b => b.classList.remove('filtro-active'));
-            this.classList.add('filtro-active');
+    function closePopover() {
+        popover.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+    }
 
-            // Filtrar cards (mobile)
-            cards.forEach(card => {
-                if (filtro === 'todos' || card.dataset.estado === filtro) {
-                    card.classList.remove('filtro-hidden');
-                } else {
-                    card.classList.add('filtro-hidden');
-                }
-            });
+    function openPopover() {
+        popover.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+    }
 
-            // Filtrar filas (desktop)
-            rows.forEach(row => {
-                if (filtro === 'todos' || row.dataset.estado === filtro) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        });
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (popover.hidden) {
+            openPopover();
+        } else {
+            closePopover();
+        }
+    });
+
+    popover.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    document.addEventListener('click', function() {
+        closePopover();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closePopover();
+        }
     });
 })();
 
@@ -1071,11 +1474,8 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
 
     const tbody = table.querySelector('tbody');
     const headers = table.querySelectorAll('th.sortable');
-
-    // Prioridad de estados para ordenamiento
-    const estadoPrioridad = { 'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3 };
-
-    let currentSort = { column: 'estado', direction: 'asc' }; // Default: estado + fecha
+    const estadoPrioridad = { pendiente: 0, preparado: 1, facturado: 2, entregado: 3 };
+    let currentSort = { column: 'estado', direction: 'asc' };
 
     function sortTable(column, type) {
         const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -1104,27 +1504,36 @@ button.action-btn-mobile.action-delete:active { background: #fee2e2; }
             return 0;
         });
 
-        // Actualizar DOM
         rows.forEach(row => tbody.appendChild(row));
 
-        // Actualizar estado visual
-        headers.forEach(h => h.classList.remove('asc', 'desc'));
+        headers.forEach(header => header.classList.remove('asc', 'desc'));
         const activeHeader = table.querySelector(`th[data-sort="${column}"]`);
-        activeHeader.classList.add(dir);
+        if (activeHeader) {
+            activeHeader.classList.add(dir);
+        }
 
         currentSort = { column, direction: dir };
     }
 
-    // Event listeners
     headers.forEach(header => {
-        header.addEventListener('click', () => {
-            const column = header.dataset.sort;
-            const type = header.dataset.type;
-            sortTable(column, type);
+        header.addEventListener('click', function() {
+            sortTable(header.dataset.sort, header.dataset.type);
         });
     });
+})();
 
-    console.log('Ordenamiento dinámico activado. Clic en cabeceras para ordenar.');
+// ========================================================================
+// FILA CLICKEABLE EN DESKTOP
+// ========================================================================
+(function() {
+    document.querySelectorAll('.pedido-row[data-href]').forEach(function(row) {
+        row.addEventListener('click', function(event) {
+            if (event.target.closest('a, button, form, input, label')) {
+                return;
+            }
+            window.location.href = row.dataset.href;
+        });
+    });
 })();
 </script>
 {% endblock %}

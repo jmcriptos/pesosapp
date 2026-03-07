@@ -238,6 +238,40 @@ def test_vista_pedidos_carga_correctamente(logged_client, app):
     resp = logged_client.get('/pedidos')
     assert resp.status_code == 200
     assert b'Cliente Test' in resp.data
+    assert b'Bandeja operativa' in resp.data
+    assert b'Filtrar' in resp.data
+
+
+def test_vista_pedidos_filtra_desde_get(logged_client, app):
+    """La bandeja operativa respeta filtros GET por estado, notas y búsqueda."""
+    with app.app_context():
+        from app import Cliente, Pedido
+
+        cliente_base = Cliente.query.first()
+        cliente_filtro = Cliente(
+            nombre='Cliente Filtro',
+            territorio_id=cliente_base.territorio_id,
+            qbo_id='QBO-C002',
+        )
+        _db.session.add(cliente_filtro)
+        _db.session.flush()
+
+        pedido_filtrado = Pedido(
+            cliente_id=cliente_filtro.id,
+            estado='pendiente',
+            notas='Urgente para ruta norte',
+        )
+        _db.session.add(pedido_filtrado)
+        _db.session.commit()
+
+    resp = logged_client.get('/pedidos?estado=pendiente&solo_notas=1&q=Filtro')
+    html = resp.data.decode('utf-8')
+
+    assert resp.status_code == 200
+    assert 'Cliente Filtro' in html
+    assert 'Cliente Test' not in html
+    assert 'value="pendiente" checked' in html
+    assert 'Solo pedidos con notas' in html
 
 
 # === AC #5: Sin regresiones ===
