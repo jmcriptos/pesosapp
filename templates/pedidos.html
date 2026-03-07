@@ -288,7 +288,7 @@
                             <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
                             <th class="sortable text-right" data-sort="total" data-type="number">Total (XCG) <i class="fa fa-sort"></i></th>
                             <th>Contexto</th>
-                            <th class="text-center">Acciones</th>
+                            <th class="pedido-actions-header">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -342,7 +342,7 @@
                                     {% endif %}
                                 </div>
                             </td>
-                            <td class="text-center">
+                            <td class="pedido-actions-cell">
                                 <div class="pedido-row-actions" role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
                                     <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="row-action row-action-view" title="Ver pedido #{{ pedido.id }}" aria-label="Ver pedido #{{ pedido.id }}">
                                         <i class="fa-solid fa-eye"></i>
@@ -1290,31 +1290,34 @@
         font-family: "SFMono-Regular", "Menlo", monospace;
     }
 
+    .pedido-actions-header,
+    .pedido-actions-cell {
+        width: 152px;
+        min-width: 152px;
+        text-align: right;
+    }
+
     .pedido-row-actions {
-        display: inline-flex;
+        display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         flex-wrap: nowrap;
-        padding: 4px;
-        border-radius: 999px;
-        background: rgba(10, 16, 29, 0.72);
-        border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .row-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         border: none;
-        border-radius: 12px;
+        border-radius: 10px;
         text-decoration: none;
-        font-size: 0.92rem;
+        font-size: 0.88rem;
         font-weight: 700;
         cursor: pointer;
-        transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+        transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
     }
 
     .row-action:hover {
@@ -1322,31 +1325,57 @@
     }
 
     .row-action-view {
-        background: rgba(31, 139, 255, 0.16);
-        color: #cfe8ff;
-        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.16);
+        background: rgba(31, 139, 255, 0.12);
+        color: #b9dcff;
+        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.22);
     }
 
     .row-action-edit {
-        background: rgba(245, 158, 11, 0.14);
+        background: rgba(245, 158, 11, 0.1);
         color: #f7c66b;
-        box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2);
     }
 
     .row-action-success {
-        background: rgba(34, 197, 94, 0.16);
-        color: #9df0bc;
-        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.16);
+        background: rgba(34, 197, 94, 0.1);
+        color: #98f2bc;
+        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.22);
     }
 
     .row-action-danger {
+        background: rgba(251, 113, 133, 0.1);
+        color: #ffb6c1;
+        box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.22);
+    }
+
+    .pedido-row:hover .row-action {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    .pedido-row:hover .row-action-view {
+        background: rgba(31, 139, 255, 0.18);
+        color: #d9efff;
+    }
+
+    .pedido-row:hover .row-action-edit {
+        background: rgba(245, 158, 11, 0.16);
+        color: #ffd78b;
+    }
+
+    .pedido-row:hover .row-action-success {
+        background: rgba(34, 197, 94, 0.16);
+        color: #baf8d2;
+    }
+
+    .pedido-row:hover .row-action-danger {
         background: rgba(251, 113, 133, 0.16);
-        color: #fda4af;
-        box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.16);
+        color: #ffc8d0;
     }
 
     .inline-form {
-        display: inline;
+        display: inline-flex;
         margin: 0;
         padding: 0;
         background: none;
