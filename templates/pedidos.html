@@ -11,132 +11,109 @@
     {% set active_filter_count = (1 if filtros.estado != 'todos' else 0) + (1 if filtros.solo_notas else 0) %}
     {% set has_active_filters = active_filter_count > 0 or filtros.q %}
 
-    <section class="ops-command-bar">
-        <div class="ops-command-copy">
-            <div class="ops-command-title-row">
-                <h1 class="ops-command-title">Pedidos</h1>
-                <span class="ops-command-total">{{ status_counts.total }} activos</span>
-            </div>
-            <p class="ops-command-summary">
-                {% if has_active_filters %}
-                    Mostrando {{ results_total }} resultados para esta vista.
-                {% else %}
-                    Prioridad actual: {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }} por resolver.
-                {% endif %}
-            </p>
-        </div>
+    <section class="pedidos-mobile-toolbar">
+        <form class="pedidos-search-form" method="GET" action="{{ url_for('lista_pedidos') }}">
+            <input type="hidden" name="estado" value="{{ filtros.estado }}">
+            {% if filtros.solo_notas %}
+            <input type="hidden" name="solo_notas" value="1">
+            {% endif %}
+            <input type="hidden" name="per_page" value="{{ per_page_value }}">
 
-        <div class="ops-command-metrics" aria-label="Resumen de estados">
-            <span class="ops-mini-kpi is-pendiente">Pendientes <strong>{{ status_counts.pendiente }}</strong></span>
-            <span class="ops-mini-kpi is-preparado">Preparados <strong>{{ status_counts.preparado }}</strong></span>
-            <span class="ops-mini-kpi is-facturado">Facturados <strong>{{ status_counts.facturado }}</strong></span>
+            <i class="fa-solid fa-magnifying-glass pedidos-search-icon" aria-hidden="true"></i>
+            <input
+                type="search"
+                name="q"
+                value="{{ filtros.q }}"
+                class="pedidos-search-input"
+                placeholder="Buscar por cliente, ID o nota"
+                aria-label="Buscar pedidos por cliente, ID o nota"
+            >
+            {% if filtros.q %}
+            <a
+                href="{{ url_for('lista_pedidos', estado=filtros.estado, solo_notas=1 if filtros.solo_notas else None, per_page=per_page_value) }}"
+                class="pedidos-search-clear"
+                aria-label="Limpiar búsqueda"
+                title="Limpiar búsqueda"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </a>
+            {% endif %}
+            <button type="submit" class="pedidos-search-submit" aria-label="Buscar pedidos">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </form>
+
+        <div class="pedidos-toolbar-actions">
+            <div class="ops-filter-wrap">
+                <button
+                    type="button"
+                    class="ops-filter-trigger"
+                    data-filter-trigger
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                >
+                    <i class="fa-solid fa-filter"></i>
+                    <span>Filtrar</span>
+                    {% if active_filter_count %}
+                    <span class="ops-filter-count">{{ active_filter_count }}</span>
+                    {% endif %}
+                </button>
+
+                <div class="ops-filter-popover" data-filter-popover hidden>
+                    <form class="ops-filter-form" method="GET" action="{{ url_for('lista_pedidos') }}">
+                        <input type="hidden" name="q" value="{{ filtros.q }}">
+                        <input type="hidden" name="per_page" value="{{ per_page_value }}">
+
+                        <div class="ops-filter-section">
+                            <span class="ops-filter-section-title">Estado del pedido</span>
+
+                            <label class="ops-filter-option">
+                                <input type="radio" name="estado" value="todos" {% if filtros.estado == 'todos' %}checked{% endif %}>
+                                <span class="ops-filter-option-copy">Todos</span>
+                                <span class="ops-filter-option-count">{{ status_counts.total }}</span>
+                            </label>
+                            <label class="ops-filter-option">
+                                <input type="radio" name="estado" value="pendiente" {% if filtros.estado == 'pendiente' %}checked{% endif %}>
+                                <span class="ops-filter-option-copy">Pendientes</span>
+                                <span class="ops-filter-option-count">{{ status_counts.pendiente }}</span>
+                            </label>
+                            <label class="ops-filter-option">
+                                <input type="radio" name="estado" value="preparado" {% if filtros.estado == 'preparado' %}checked{% endif %}>
+                                <span class="ops-filter-option-copy">Preparados</span>
+                                <span class="ops-filter-option-count">{{ status_counts.preparado }}</span>
+                            </label>
+                            <label class="ops-filter-option">
+                                <input type="radio" name="estado" value="facturado" {% if filtros.estado == 'facturado' %}checked{% endif %}>
+                                <span class="ops-filter-option-copy">Facturados</span>
+                                <span class="ops-filter-option-count">{{ status_counts.facturado }}</span>
+                            </label>
+                        </div>
+
+                        <div class="ops-filter-section">
+                            <span class="ops-filter-section-title">Contexto</span>
+                            <label class="ops-filter-check">
+                                <input type="checkbox" name="solo_notas" value="1" {% if filtros.solo_notas %}checked{% endif %}>
+                                <span>Solo pedidos con notas</span>
+                            </label>
+                        </div>
+
+                        <div class="ops-filter-footer">
+                            <a href="{{ url_for('lista_pedidos') }}" class="ops-filter-reset">Limpiar</a>
+                            <button type="submit" class="ops-filter-apply">Aplicar filtros</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+                <i class="fa-solid fa-plus"></i>
+                <span>Nuevo Pedido</span>
+            </a>
         </div>
     </section>
 
+    {% if has_active_filters %}
     <section class="ops-inbox-shell">
-        <div class="pedidos-toolbar">
-            <form class="pedidos-search-form" method="GET" action="{{ url_for('lista_pedidos') }}">
-                <input type="hidden" name="estado" value="{{ filtros.estado }}">
-                {% if filtros.solo_notas %}
-                <input type="hidden" name="solo_notas" value="1">
-                {% endif %}
-                <input type="hidden" name="per_page" value="{{ per_page_value }}">
-
-                <i class="fa-solid fa-magnifying-glass pedidos-search-icon" aria-hidden="true"></i>
-                <input
-                    type="search"
-                    name="q"
-                    value="{{ filtros.q }}"
-                    class="pedidos-search-input"
-                    placeholder="Buscar por cliente, ID o nota"
-                    aria-label="Buscar pedidos por cliente, ID o nota"
-                >
-                {% if filtros.q %}
-                <a
-                    href="{{ url_for('lista_pedidos', estado=filtros.estado, solo_notas=1 if filtros.solo_notas else None, per_page=per_page_value) }}"
-                    class="pedidos-search-clear"
-                    aria-label="Limpiar búsqueda"
-                    title="Limpiar búsqueda"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </a>
-                {% endif %}
-                <button type="submit" class="pedidos-search-submit" aria-label="Buscar pedidos">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-            </form>
-
-            <div class="pedidos-toolbar-actions">
-                <div class="ops-filter-wrap">
-                    <button
-                        type="button"
-                        class="ops-filter-trigger"
-                        id="ordersFilterTrigger"
-                        aria-haspopup="true"
-                        aria-expanded="false"
-                        aria-controls="ordersFilterPopover"
-                    >
-                        <i class="fa-solid fa-filter"></i>
-                        <span>Filtrar</span>
-                        {% if active_filter_count %}
-                        <span class="ops-filter-count">{{ active_filter_count }}</span>
-                        {% endif %}
-                    </button>
-
-                    <div class="ops-filter-popover" id="ordersFilterPopover" hidden>
-                        <form class="ops-filter-form" method="GET" action="{{ url_for('lista_pedidos') }}">
-                            <input type="hidden" name="q" value="{{ filtros.q }}">
-                            <input type="hidden" name="per_page" value="{{ per_page_value }}">
-
-                            <div class="ops-filter-section">
-                                <span class="ops-filter-section-title">Estado del pedido</span>
-
-                                <label class="ops-filter-option">
-                                    <input type="radio" name="estado" value="todos" {% if filtros.estado == 'todos' %}checked{% endif %}>
-                                    <span class="ops-filter-option-copy">Todos</span>
-                                    <span class="ops-filter-option-count">{{ status_counts.total }}</span>
-                                </label>
-                                <label class="ops-filter-option">
-                                    <input type="radio" name="estado" value="pendiente" {% if filtros.estado == 'pendiente' %}checked{% endif %}>
-                                    <span class="ops-filter-option-copy">Pendientes</span>
-                                    <span class="ops-filter-option-count">{{ status_counts.pendiente }}</span>
-                                </label>
-                                <label class="ops-filter-option">
-                                    <input type="radio" name="estado" value="preparado" {% if filtros.estado == 'preparado' %}checked{% endif %}>
-                                    <span class="ops-filter-option-copy">Preparados</span>
-                                    <span class="ops-filter-option-count">{{ status_counts.preparado }}</span>
-                                </label>
-                                <label class="ops-filter-option">
-                                    <input type="radio" name="estado" value="facturado" {% if filtros.estado == 'facturado' %}checked{% endif %}>
-                                    <span class="ops-filter-option-copy">Facturados</span>
-                                    <span class="ops-filter-option-count">{{ status_counts.facturado }}</span>
-                                </label>
-                            </div>
-
-                            <div class="ops-filter-section">
-                                <span class="ops-filter-section-title">Contexto</span>
-                                <label class="ops-filter-check">
-                                    <input type="checkbox" name="solo_notas" value="1" {% if filtros.solo_notas %}checked{% endif %}>
-                                    <span>Solo pedidos con notas</span>
-                                </label>
-                            </div>
-
-                            <div class="ops-filter-footer">
-                                <a href="{{ url_for('lista_pedidos') }}" class="ops-filter-reset">Limpiar</a>
-                                <button type="submit" class="ops-filter-apply">Aplicar filtros</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Nuevo Pedido</span>
-                </a>
-            </div>
-        </div>
-
-        {% if has_active_filters %}
         <div class="pedidos-active-filters" aria-label="Filtros activos">
             {% if filtros.estado != 'todos' %}
             <span class="active-filter-chip">
@@ -158,8 +135,8 @@
             {% endif %}
             <a href="{{ url_for('lista_pedidos') }}" class="active-filter-clear">Limpiar todo</a>
         </div>
-        {% endif %}
     </section>
+    {% endif %}
 
     <div class="pedidos-cards-mobile">
         {% for pedido in pedidos %}
@@ -255,11 +232,110 @@
         <div class="tabla-pedidos-card">
             <div class="tabla-pedidos-header">
                 <div class="tabla-pedidos-heading">
-                    <h2 class="tabla-pedidos-title">Lista operativa</h2>
-                    <p class="tabla-pedidos-subtitle">Pedidos ordenados para revisión y acción rápida.</p>
+                    <h2 class="tabla-pedidos-title">Pedidos</h2>
+                    <p class="tabla-pedidos-subtitle">
+                        {{ results_total }} resultado{{ 's' if results_total != 1 else '' }} en esta vista{% if status_counts.pendiente %} · {{ status_counts.pendiente }} pendiente{{ 's' if status_counts.pendiente != 1 else '' }}{% endif %}
+                    </p>
                 </div>
-                <div class="tabla-pedidos-meta">
-                    {{ results_total }} resultado{{ 's' if results_total != 1 else '' }} en esta vista
+                <div class="tabla-pedidos-controls">
+                    <form class="pedidos-search-form pedidos-search-form-desktop" method="GET" action="{{ url_for('lista_pedidos') }}">
+                        <input type="hidden" name="estado" value="{{ filtros.estado }}">
+                        {% if filtros.solo_notas %}
+                        <input type="hidden" name="solo_notas" value="1">
+                        {% endif %}
+                        <input type="hidden" name="per_page" value="{{ per_page_value }}">
+
+                        <i class="fa-solid fa-magnifying-glass pedidos-search-icon" aria-hidden="true"></i>
+                        <input
+                            type="search"
+                            name="q"
+                            value="{{ filtros.q }}"
+                            class="pedidos-search-input"
+                            placeholder="Buscar por cliente, ID o nota"
+                            aria-label="Buscar pedidos por cliente, ID o nota"
+                        >
+                        {% if filtros.q %}
+                        <a
+                            href="{{ url_for('lista_pedidos', estado=filtros.estado, solo_notas=1 if filtros.solo_notas else None, per_page=per_page_value) }}"
+                            class="pedidos-search-clear"
+                            aria-label="Limpiar búsqueda"
+                            title="Limpiar búsqueda"
+                        >
+                            <i class="fa-solid fa-xmark"></i>
+                        </a>
+                        {% endif %}
+                        <button type="submit" class="pedidos-search-submit" aria-label="Buscar pedidos">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </form>
+
+                    <div class="pedidos-toolbar-actions">
+                        <div class="ops-filter-wrap">
+                            <button
+                                type="button"
+                                class="ops-filter-trigger"
+                                data-filter-trigger
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                            >
+                                <i class="fa-solid fa-filter"></i>
+                                <span>Filtrar</span>
+                                {% if active_filter_count %}
+                                <span class="ops-filter-count">{{ active_filter_count }}</span>
+                                {% endif %}
+                            </button>
+
+                            <div class="ops-filter-popover" data-filter-popover hidden>
+                                <form class="ops-filter-form" method="GET" action="{{ url_for('lista_pedidos') }}">
+                                    <input type="hidden" name="q" value="{{ filtros.q }}">
+                                    <input type="hidden" name="per_page" value="{{ per_page_value }}">
+
+                                    <div class="ops-filter-section">
+                                        <span class="ops-filter-section-title">Estado del pedido</span>
+
+                                        <label class="ops-filter-option">
+                                            <input type="radio" name="estado" value="todos" {% if filtros.estado == 'todos' %}checked{% endif %}>
+                                            <span class="ops-filter-option-copy">Todos</span>
+                                            <span class="ops-filter-option-count">{{ status_counts.total }}</span>
+                                        </label>
+                                        <label class="ops-filter-option">
+                                            <input type="radio" name="estado" value="pendiente" {% if filtros.estado == 'pendiente' %}checked{% endif %}>
+                                            <span class="ops-filter-option-copy">Pendientes</span>
+                                            <span class="ops-filter-option-count">{{ status_counts.pendiente }}</span>
+                                        </label>
+                                        <label class="ops-filter-option">
+                                            <input type="radio" name="estado" value="preparado" {% if filtros.estado == 'preparado' %}checked{% endif %}>
+                                            <span class="ops-filter-option-copy">Preparados</span>
+                                            <span class="ops-filter-option-count">{{ status_counts.preparado }}</span>
+                                        </label>
+                                        <label class="ops-filter-option">
+                                            <input type="radio" name="estado" value="facturado" {% if filtros.estado == 'facturado' %}checked{% endif %}>
+                                            <span class="ops-filter-option-copy">Facturados</span>
+                                            <span class="ops-filter-option-count">{{ status_counts.facturado }}</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="ops-filter-section">
+                                        <span class="ops-filter-section-title">Contexto</span>
+                                        <label class="ops-filter-check">
+                                            <input type="checkbox" name="solo_notas" value="1" {% if filtros.solo_notas %}checked{% endif %}>
+                                            <span>Solo pedidos con notas</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="ops-filter-footer">
+                                        <a href="{{ url_for('lista_pedidos') }}" class="ops-filter-reset">Limpiar</a>
+                                        <button type="submit" class="ops-filter-apply">Aplicar filtros</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Nuevo Pedido</span>
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -476,105 +552,27 @@
     color: var(--orders-text);
 }
 
-.ops-command-bar {
+.pedidos-mobile-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 12px;
-    padding: 0 2px;
-}
-
-.ops-command-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.ops-command-title-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-}
-
-.ops-command-title,
-.tabla-pedidos-title {
-    margin: 0;
-    font-size: clamp(1.75rem, 2.3vw, 2.2rem);
-    line-height: 1;
-    letter-spacing: -0.04em;
-    color: #ffffff;
-}
-
-.ops-command-total {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    padding: 0 12px;
-    border-radius: 999px;
-    background: rgba(31, 139, 255, 0.12);
-    border: 1px solid rgba(31, 139, 255, 0.18);
-    color: #9fd0ff;
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
-.ops-command-summary {
-    margin: 0;
-    font-size: 0.95rem;
-    line-height: 1.45;
-    color: var(--orders-muted);
-}
-
-.ops-command-metrics {
-    display: flex;
-    flex-wrap: wrap;
     gap: 8px;
+    margin-bottom: 10px;
 }
-
-.ops-mini-kpi {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(10, 16, 28, 0.72);
-    color: #cdd8ee;
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
-.ops-mini-kpi strong {
-    font-size: 0.88rem;
-    color: #ffffff;
-}
-
-.ops-mini-kpi.is-pendiente strong { color: #ffd166; }
-.ops-mini-kpi.is-preparado strong { color: #7dd3fc; }
-.ops-mini-kpi.is-facturado strong { color: #6ee7b7; }
 
 .ops-inbox-shell {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 14px;
-}
-
-.pedidos-toolbar {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 .pedidos-search-form {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 50px;
-    padding: 0 10px 0 14px;
-    border-radius: 16px;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 8px 0 12px;
+    border-radius: 14px;
     border: 1px solid var(--orders-border);
     background: rgba(9, 15, 26, 0.88);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
@@ -591,7 +589,7 @@
     border: none;
     background: transparent;
     color: #ffffff;
-    font-size: 0.98rem;
+    font-size: 0.92rem;
     outline: none;
 }
 
@@ -604,9 +602,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
     border: none;
     text-decoration: none;
     flex-shrink: 0;
@@ -627,7 +625,7 @@
 .pedidos-toolbar-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .ops-filter-wrap {
@@ -641,13 +639,13 @@
     justify-content: center;
     gap: 10px;
     width: 100%;
-    min-height: 50px;
-    padding: 0 16px;
-    border-radius: 16px;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 14px;
     border: 1px solid var(--orders-border);
     background: rgba(9, 15, 26, 0.88);
     color: #ebf2ff;
-    font-size: 0.96rem;
+    font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
 }
@@ -780,10 +778,10 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 50px;
-    padding: 0 18px;
-    border-radius: 16px;
-    font-size: 0.95rem;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 14px;
+    font-size: 0.9rem;
     font-weight: 800;
     text-decoration: none;
     white-space: nowrap;
@@ -791,6 +789,14 @@
     background: linear-gradient(135deg, #22c55e, #16a34a);
     color: #ffffff;
     box-shadow: 0 14px 28px rgba(34, 197, 94, 0.28);
+}
+
+.tabla-pedidos-title {
+    margin: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: #ffffff;
 }
 
 .pedidos-active-filters {
@@ -1090,40 +1096,11 @@
 
 @media (min-width: 900px) {
     .pedidos-container {
-        padding: 20px 18px 48px;
+        padding: 16px 18px 48px;
     }
 
-    .ops-command-bar {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-    }
-
-    .ops-command-copy {
-        min-width: 0;
-    }
-
-    .ops-command-summary {
-        white-space: nowrap;
-    }
-
-    .ops-command-metrics {
-        justify-content: flex-end;
-        flex-shrink: 0;
-    }
-
-    .pedidos-toolbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .pedidos-search-form {
-        width: 100%;
-        min-width: 0;
-        max-width: none;
+    .pedidos-mobile-toolbar {
+        display: none;
     }
 
     .pedidos-toolbar-actions {
@@ -1136,7 +1113,7 @@
 
     .ops-filter-trigger {
         width: auto;
-        min-width: 154px;
+        min-width: 132px;
     }
 
     .ops-filter-popover {
@@ -1163,31 +1140,79 @@
 
     .tabla-pedidos-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 18px;
-        padding: 18px 22px 12px;
+        gap: 14px;
+        padding: 14px 18px 10px;
+    }
+
+    .tabla-pedidos-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        flex-shrink: 0;
     }
 
     .tabla-pedidos-title {
-        font-size: 1.18rem;
+        font-size: 1.05rem;
     }
 
     .tabla-pedidos-subtitle {
-        margin: 4px 0 0;
+        margin: 0;
         color: #7f90b0;
-        font-size: 0.86rem;
-        line-height: 1.35;
+        font-size: 0.8rem;
+        line-height: 1.3;
     }
 
-    .tabla-pedidos-meta {
-        color: #8fa2c4;
-        font-size: 0.88rem;
-        font-weight: 600;
+    .tabla-pedidos-controls {
+        display: grid;
+        grid-template-columns: minmax(260px, 360px) auto;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        margin-left: auto;
     }
 
     .tabla-pedidos-scroll {
         overflow: auto;
+        padding: 0 14px;
+    }
+
+    .pedidos-search-form-desktop {
+        min-height: 40px;
+        padding: 0 6px 0 10px;
+        border-radius: 12px;
+    }
+
+    .pedidos-search-form-desktop .pedidos-search-input {
+        font-size: 0.88rem;
+    }
+
+    .pedidos-search-form-desktop .pedidos-search-submit,
+    .pedidos-search-form-desktop .pedidos-search-clear {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+    }
+
+    .tabla-pedidos-controls .pedidos-toolbar-actions {
+        gap: 8px;
+    }
+
+    .tabla-pedidos-controls .ops-filter-trigger,
+    .tabla-pedidos-controls .btn-nuevo-pedido {
+        min-height: 40px;
+        border-radius: 12px;
+        font-size: 0.86rem;
+    }
+
+    .tabla-pedidos-controls .ops-filter-trigger {
+        min-width: 118px;
+        padding: 0 12px;
+    }
+
+    .tabla-pedidos-controls .btn-nuevo-pedido {
         padding: 0 14px;
     }
 
@@ -1441,41 +1466,45 @@
 // POPOVER DE FILTROS
 // ========================================================================
 (function() {
-    const trigger = document.getElementById('ordersFilterTrigger');
-    const popover = document.getElementById('ordersFilterPopover');
+    const wraps = document.querySelectorAll('.ops-filter-wrap');
+    if (!wraps.length) return;
 
-    if (!trigger || !popover) return;
-
-    function closePopover() {
-        popover.hidden = true;
-        trigger.setAttribute('aria-expanded', 'false');
+    function closeAll(exceptWrap = null) {
+        wraps.forEach(function(wrap) {
+            const trigger = wrap.querySelector('[data-filter-trigger]');
+            const popover = wrap.querySelector('[data-filter-popover]');
+            if (!trigger || !popover || wrap === exceptWrap) return;
+            popover.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+        });
     }
 
-    function openPopover() {
-        popover.hidden = false;
-        trigger.setAttribute('aria-expanded', 'true');
-    }
+    wraps.forEach(function(wrap) {
+        const trigger = wrap.querySelector('[data-filter-trigger]');
+        const popover = wrap.querySelector('[data-filter-popover]');
 
-    trigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (popover.hidden) {
-            openPopover();
-        } else {
-            closePopover();
-        }
-    });
+        if (!trigger || !popover) return;
 
-    popover.addEventListener('click', function(e) {
-        e.stopPropagation();
+        trigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isHidden = popover.hidden;
+            closeAll(wrap);
+            popover.hidden = !isHidden;
+            trigger.setAttribute('aria-expanded', String(isHidden));
+        });
+
+        popover.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
     });
 
     document.addEventListener('click', function() {
-        closePopover();
+        closeAll();
     });
 
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            closePopover();
+            closeAll();
         }
     });
 })();
