@@ -232,6 +232,91 @@ def test_detalles_rellena_contexto_tras_agregar_y_deja_peso_vacio(logged_client,
         assert 'value="2026-08-01"' in exp_input.group(0)
 
 
+def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_client, app):
+    """Regresión: cambiar el cliente no elimina pesos/cajas ya registrados."""
+    with app.app_context():
+        from app import Cliente, DetallePedido, Pedido, Producto, Territorio
+
+        pedido = Pedido.query.first()
+        territorio = Territorio.query.first()
+        prod_pesa = Producto.query.filter_by(se_pesa=True).first()
+        prod_import = Producto.query.filter_by(se_pesa=False).first()
+
+        cliente_nuevo = Cliente(
+            nombre='Cliente Reasignado',
+            territorio_id=territorio.id,
+            qbo_id='QBO-C002',
+        )
+        _db.session.add(cliente_nuevo)
+        _db.session.flush()
+
+        prep_pesa = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_pesa.id,
+            cajas=0,
+            peso=4.5,
+            precio_unitario=25.00,
+            subtotal=112.50,
+            lote='L300',
+            fecha_fabricacion='2026-02-10',
+            fecha_expiracion='2026-08-10',
+            es_linea_pedido=False,
+        )
+        prep_import = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_import.id,
+            cajas=5,
+            peso=0,
+            precio_unitario=10.00,
+            subtotal=50.00,
+            es_linea_pedido=False,
+        )
+        _db.session.add(prep_pesa)
+        _db.session.add(prep_import)
+        _db.session.commit()
+
+        prep_pesa_id = prep_pesa.id
+        prep_import_id = prep_import.id
+
+        resp = logged_client.post(
+            f'/pedidos/{pedido.id}/editar',
+            data={
+                'cliente_id': cliente_nuevo.id,
+                'notas': 'Cliente corregido',
+                'productos[0][id]': prod_pesa.id,
+                'productos[0][cajas]': '3',
+                'productos[0][precio]': '30.50',
+                'productos[1][id]': prod_import.id,
+                'productos[1][cajas]': '5',
+                'productos[1][precio]': '12.25',
+            },
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+
+        _db.session.expire_all()
+        pedido = _db.session.get(Pedido, pedido.id)
+        prep_pesa = _db.session.get(DetallePedido, prep_pesa_id)
+        prep_import = _db.session.get(DetallePedido, prep_import_id)
+        lineas_prep = DetallePedido.query.filter_by(
+            pedido_id=pedido.id,
+            es_linea_pedido=False,
+        ).all()
+
+        assert pedido.cliente_id == cliente_nuevo.id
+        assert pedido.notas == 'Cliente corregido'
+        assert prep_pesa is not None
+        assert prep_import is not None
+        assert len(lineas_prep) == 2
+        assert prep_pesa.peso == pytest.approx(4.5)
+        assert prep_pesa.lote == 'L300'
+        assert float(prep_pesa.precio_unitario) == pytest.approx(30.50)
+        assert float(prep_pesa.subtotal) == pytest.approx(137.25)
+        assert prep_import.cajas == 5
+        assert float(prep_import.precio_unitario) == pytest.approx(12.25)
+        assert float(prep_import.subtotal) == pytest.approx(61.25)
+
+
 # === AC #5: Marcar como listo — validación exitosa ===
 
 def _add_preparation_lines(app):

@@ -3915,6 +3915,53 @@ def lista_pedidos():
 
 
 
+def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_raw=None):
+    """Obtiene el precio unitario para una línea del pedido."""
+    if precio_raw not in (None, ''):
+        return Decimal(str(precio_raw))
+
+    precio_cliente = obtener_precio_producto_cliente(cliente_id, producto_id, 'base')
+    if precio_cliente is not None:
+        return Decimal(str(precio_cliente))
+
+    precio_def = obtener_precio_default_producto(producto_id, 'base')
+    if precio_def is not None:
+        return Decimal(str(precio_def))
+
+    return Decimal('0')
+
+
+def _extraer_lineas_pedido_form(form_data, cliente_id):
+    """Normaliza las líneas enviadas desde el formulario de pedido."""
+    lineas = []
+    idx = 0
+
+    while f'productos[{idx}][id]' in form_data:
+        prod_id = int(form_data.get(f'productos[{idx}][id]'))
+        cajas = int(form_data.get(f'productos[{idx}][cajas]', 0))
+        precio_unitario = _resolver_precio_unitario_pedido(
+            cliente_id,
+            prod_id,
+            form_data.get(f'productos[{idx}][precio]'),
+        )
+
+        lineas.append({
+            'producto_id': prod_id,
+            'cajas': cajas,
+            'precio_unitario': precio_unitario,
+            'subtotal': precio_unitario * cajas,
+        })
+        idx += 1
+
+    return lineas
+
+
+def _cantidad_detalle_facturable(detalle):
+    """Cantidad real utilizada para subtotalizar líneas de preparación."""
+    cantidad = detalle.peso if detalle.peso else detalle.cajas
+    return Decimal(str(cantidad or 0))
+
+
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'crear')
@@ -3960,34 +4007,16 @@ def nuevo_pedido():
         db.session.commit()
 
         # 2) Detalle (resto del código igual)
-        idx = 0
-        while f'productos[{idx}][id]' in request.form:
-            prod_id = int(request.form.get(f'productos[{idx}][id]'))
-            cajas = int(request.form.get(f'productos[{idx}][cajas]', 0))
-
-            precio_raw = request.form.get(f'productos[{idx}][precio]')
-            if precio_raw:
-                precio_unitario = Decimal(precio_raw)
-            else:
-                precio_cliente = obtener_precio_producto_cliente(cliente_id, prod_id, 'base')
-                if precio_cliente is not None:
-                    precio_unitario = Decimal(precio_cliente)
-                else:
-                    precio_def = obtener_precio_default_producto(prod_id, 'base')
-                    precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
-
-            subtotal = precio_unitario * cajas
-
+        for linea in _extraer_lineas_pedido_form(request.form, cliente_id):
             detalle = DetallePedido(
                 pedido_id=pedido.id,
-                producto_id=prod_id,
-                cajas=cajas,
-                cajas_pedidas=cajas,
-                precio_unitario=precio_unitario,
-                subtotal=subtotal
+                producto_id=linea['producto_id'],
+                cajas=linea['cajas'],
+                cajas_pedidas=linea['cajas'],
+                precio_unitario=linea['precio_unitario'],
+                subtotal=linea['subtotal']
             )
             db.session.add(detalle)
-            idx += 1
 
         db.session.commit()
 
@@ -4054,64 +4083,76 @@ def editar_pedido(pedido_id):
         if isinstance(current_user, Vendedor) and not current_user.puede_editar_pedido(pedido):
             flash('No tienes permisos para editar este pedido', 'error')
             return redirect(url_for('lista_pedidos'))
+
+        nuevo_cliente_id = int(request.form['cliente_id'])
+        if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+            if not current_user.puede_crear_pedido_para_cliente(nuevo_cliente_id):
+                flash('No tienes permisos para reasignar este pedido a ese cliente', 'error')
+                return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+
+        lineas_form = _extraer_lineas_pedido_form(request.form, nuevo_cliente_id)
+        if not lineas_form:
+            flash('Agrega al menos un producto al pedido', 'error')
+            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+
+        lineas_por_producto = {
+            linea['producto_id']: linea for linea in lineas_form
+        }
+        productos_en_form = set(lineas_por_producto.keys())
+
         # Actualizar cabecera
-        pedido.cliente_id = int(request.form['cliente_id'])
+        pedido.cliente_id = nuevo_cliente_id
         pedido.notas = request.form.get('notas')
-        
-        # Eliminar detalles existentes
-        DetallePedido.query.filter_by(pedido_id=pedido.id).delete()
-        
-        # Agregar nuevos detalles
-        idx = 0
-        while f'productos[{idx}][id]' in request.form:
-            prod_id = int(request.form.get(f'productos[{idx}][id]'))
-            cajas   = int(request.form.get(f'productos[{idx}][cajas]', 0))
 
-            # Precio unitario
-            precio_raw = request.form.get(f'productos[{idx}][precio]')
-            if precio_raw:
-                precio_unitario = Decimal(precio_raw)
-            else:
-                # Usar cliente actualizado para obtener precio
-                precio_cliente = obtener_precio_producto_cliente(pedido.cliente_id, prod_id, 'base')
-                if precio_cliente is not None:
-                    precio_unitario = Decimal(precio_cliente)
-                else:
-                    precio_def = obtener_precio_default_producto(prod_id, 'base')
-                    precio_unitario = Decimal(precio_def) if precio_def is not None else Decimal('0')
+        # Preservar líneas de preparación ya capturadas y solo resincronizar precios.
+        productos_con_prep = set()
+        detalles_prep = DetallePedido.query.filter_by(
+            pedido_id=pedido.id,
+            es_linea_pedido=False,
+        ).all()
+        for detalle in detalles_prep:
+            if detalle.producto_id not in productos_en_form:
+                db.session.delete(detalle)
+                continue
 
-            # Sub-total
-            subtotal = precio_unitario * cajas
+            linea = lineas_por_producto[detalle.producto_id]
+            detalle.precio_unitario = linea['precio_unitario']
+            detalle.subtotal = linea['precio_unitario'] * _cantidad_detalle_facturable(detalle)
+            productos_con_prep.add(detalle.producto_id)
 
-            # Crear detalle
+        # Reemplazar únicamente las líneas originales del pedido.
+        DetallePedido.query.filter_by(
+            pedido_id=pedido.id,
+            es_linea_pedido=True,
+        ).delete()
+
+        for linea in lineas_form:
             detalle = DetallePedido(
-                pedido_id      = pedido.id,
-                producto_id    = prod_id,
-                cajas          = cajas,
-                cajas_pedidas  = cajas,
-                precio_unitario= precio_unitario,
-                subtotal       = subtotal
+                pedido_id=pedido.id,
+                producto_id=linea['producto_id'],
+                cajas=linea['cajas'],
+                cajas_pedidas=linea['cajas'],
+                precio_unitario=linea['precio_unitario'],
+                subtotal=linea['subtotal']
             )
             db.session.add(detalle)
-            idx += 1
-
-        db.session.commit()
 
         # Auto-generar líneas de preparación para productos de importación
-        for det in DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).all():
-            prod = db.session.get(Producto, det.producto_id)
-            if prod and not prod.se_pesa:
+        for linea in lineas_form:
+            prod = db.session.get(Producto, linea['producto_id'])
+            if prod and not prod.se_pesa and linea['producto_id'] not in productos_con_prep:
                 prep = DetallePedido(
                     pedido_id=pedido.id,
-                    producto_id=det.producto_id,
-                    cajas=det.cajas,
+                    producto_id=linea['producto_id'],
+                    cajas=linea['cajas'],
                     cajas_pedidas=0,
                     peso=0,
-                    precio_unitario=det.precio_unitario,
-                    subtotal=round(float(det.precio_unitario) * det.cajas, 2),
+                    precio_unitario=linea['precio_unitario'],
+                    subtotal=linea['precio_unitario'] * linea['cajas'],
                     es_linea_pedido=False,
                 )
                 db.session.add(prep)
+                productos_con_prep.add(linea['producto_id'])
         db.session.commit()
 
         # Actualizar total del pedido (solo líneas originales)
