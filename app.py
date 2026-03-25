@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, send_file, jsonify,
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_, or_, cast, String
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, load_only
 import io
 from flask import make_response
 import csv
@@ -31,6 +31,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import locale
 import traceback
 from decimal import Decimal
+from time import perf_counter
 # from models.extensions import db  # Comentado para evitar conflictos
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -71,6 +72,7 @@ def _env_flag(name, default=False):
 IS_HEROKU = bool(os.environ.get("DYNO"))
 SECURE_COOKIES = _env_flag("SESSION_COOKIE_SECURE", default=IS_HEROKU)
 FORCE_HTTPS = _env_flag("FORCE_HTTPS", default=IS_HEROKU)
+DASHBOARD_PERF_LOG = _env_flag("DASHBOARD_PERF_LOG", default=True)
 
 # --- SECRET KEY (con fallback seguro) ---
 _secret_key = os.environ.get("SECRET_KEY")
@@ -123,7 +125,11 @@ try:
     N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 60))
 except (TypeError, ValueError):
     N8N_QB_CACHE_TTL = 60
-_qb_sales_cache = {'key': None, 'value': None, 'expires_at': 0.0}
+try:
+    N8N_QB_FAILURE_CACHE_TTL = int(os.environ.get('N8N_QB_FAILURE_CACHE_TTL', 30))
+except (TypeError, ValueError):
+    N8N_QB_FAILURE_CACHE_TTL = 30
+_qb_sales_cache = {'key': None, 'value': None, 'expires_at': 0.0, 'failure_expires_at': 0.0}
 
 # SQLAlchemy ya inicializado arriba
 
@@ -1119,6 +1125,12 @@ def _obtener_metricas_ventas_quickbooks(
         and _qb_sales_cache.get('expires_at', 0.0) > now_ts
     ):
         return _qb_sales_cache.get('value')
+    if (
+        N8N_QB_FAILURE_CACHE_TTL > 0
+        and _qb_sales_cache.get('key') == cache_key
+        and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
+    ):
+        return None
 
     try:
         resp = requests.post(
@@ -1146,6 +1158,7 @@ def _obtener_metricas_ventas_quickbooks(
                 'key': cache_key,
                 'value': normalized,
                 'expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_CACHE_TTL,
+                'failure_expires_at': 0.0,
             }
         return normalized
     except requests.Timeout:
@@ -1158,6 +1171,13 @@ def _obtener_metricas_ventas_quickbooks(
         app.logger.warning('Error parseando JSON de ventas QuickBooks. Fallback a datos locales.')
     except Exception as e:
         app.logger.warning(f'Error inesperado ventas QuickBooks: {e}. Fallback a datos locales.')
+    if N8N_QB_FAILURE_CACHE_TTL > 0:
+        _qb_sales_cache = {
+            'key': cache_key,
+            'value': None,
+            'expires_at': 0.0,
+            'failure_expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_FAILURE_CACHE_TTL,
+        }
     return None
 
 
@@ -3049,6 +3069,26 @@ def webhook_actualizacion_precios():
 def dashboard():
     app.logger.info("[/dashboard] entrando")
     """Dashboard optimizado con KPIs de ventas y nivel de servicio"""
+    dashboard_perf_start = perf_counter()
+    dashboard_perf_marks = {}
+    dashboard_perf_last = dashboard_perf_start
+
+    def mark_dashboard_perf(block_name):
+        nonlocal dashboard_perf_last
+        now = perf_counter()
+        dashboard_perf_marks[block_name] = round((now - dashboard_perf_last) * 1000, 2)
+        dashboard_perf_last = now
+
+    def log_dashboard_perf(stage):
+        if not DASHBOARD_PERF_LOG:
+            return
+        total_ms = (perf_counter() - dashboard_perf_start) * 1000
+        breakdown = " | ".join(f"{k}={v:.2f}ms" for k, v in dashboard_perf_marks.items())
+        if breakdown:
+            app.logger.info(f"[/dashboard] perf stage={stage} total={total_ms:.2f}ms :: {breakdown}")
+        else:
+            app.logger.info(f"[/dashboard] perf stage={stage} total={total_ms:.2f}ms")
+
     try:
         # Verificación de dependencias críticas
         if not db or not Pedido:
@@ -3082,6 +3122,7 @@ def dashboard():
             if cliente_almacen_id:
                 return Pedido.cliente_id != cliente_almacen_id
             return True  # Si no existe AL01, no filtrar nada
+        mark_dashboard_perf('setup')
 
         # === CONSULTAS ROBUSTAS PARA PRODUCCIÓN ===
         try:
@@ -3089,12 +3130,33 @@ def dashboard():
             # para evitar N+1 y múltiples consultas solapadas por período.
             inicio_historico_mensual = (inicio_mes - relativedelta(months=5)).replace(day=1)
             inicio_carga_pedidos = min(inicio_historico_mensual, pedidos_period_starts['6m'])
+            pedido_load_options = (
+                load_only(
+                    Pedido.id,
+                    Pedido.cliente_id,
+                    Pedido.fecha_pedido,
+                    Pedido.fecha_facturacion,
+                    Pedido.estado,
+                ),
+                joinedload(Pedido.cliente).load_only(Cliente.id, Cliente.nombre),
+                selectinload(Pedido.detalles).load_only(
+                    DetallePedido.id,
+                    DetallePedido.pedido_id,
+                    DetallePedido.producto_id,
+                    DetallePedido.es_linea_pedido,
+                    DetallePedido.cajas,
+                    DetallePedido.cajas_pedidas,
+                    DetallePedido.peso,
+                    DetallePedido.subtotal,
+                ).selectinload(DetallePedido.producto).load_only(
+                    Producto.id,
+                    Producto.nombre,
+                    Producto.se_pesa,
+                ),
+            )
 
             pedidos_base_list = (
-                Pedido.query.options(
-                    joinedload(Pedido.cliente),
-                    selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
-                )
+                Pedido.query.options(*pedido_load_options)
                 .filter(
                     filtro_sin_almacen(),
                     Pedido.fecha_pedido >= inicio_carga_pedidos
@@ -3121,10 +3183,7 @@ def dashboard():
                 if fecha >= pedidos_period_starts['6m']
             ]
 
-            pedidos_facturados_list = Pedido.query.options(
-                joinedload(Pedido.cliente),
-                selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
-            ).filter(
+            pedidos_facturados_list = Pedido.query.options(*pedido_load_options).filter(
                 filtro_sin_almacen(),
                 Pedido.estado == 'facturado',
                 Pedido.fecha_facturacion.isnot(None),
@@ -3146,6 +3205,80 @@ def dashboard():
             pedidos_facturados_list = []
             pedidos_mes_anterior_list = []
             pedidos_6m_list = []
+        mark_dashboard_perf('carga_datos')
+
+        pedido_metricas_cache = {}
+
+        def obtener_metricas_pedido(pedido):
+            cache_key = pedido.id if pedido.id is not None else id(pedido)
+            metricas = pedido_metricas_cache.get(cache_key)
+            if metricas is not None:
+                return metricas
+
+            fecha_pedido_local = _to_dashboard_date(pedido.fecha_pedido)
+            fecha_fact_local = _to_dashboard_date(pedido.fecha_facturacion) if pedido.fecha_facturacion else None
+            estado_normalizado = (pedido.estado or '').strip().lower()
+            es_facturado = estado_normalizado == 'facturado' and bool(fecha_fact_local)
+
+            venta = _coerce_float(_calcular_venta_pedido(pedido), 0.0)
+
+            lead_time_days = None
+            if fecha_fact_local and fecha_pedido_local:
+                dias = (fecha_fact_local - fecha_pedido_local).days
+                if dias >= 0:
+                    lead_time_days = dias
+
+            total_pedidas = 0
+            total_entregadas = 0
+            if es_facturado:
+                prep_count_por_producto = {}
+                prep_cajas_por_producto = {}
+
+                for det in pedido.detalles:
+                    if det.es_linea_pedido:
+                        continue
+                    if det.producto_id is None:
+                        continue
+                    prep_count_por_producto[det.producto_id] = prep_count_por_producto.get(det.producto_id, 0) + 1
+                    prep_cajas_por_producto[det.producto_id] = prep_cajas_por_producto.get(det.producto_id, 0) + (det.cajas or 0)
+
+                for det in pedido.detalles:
+                    if not det.es_linea_pedido:
+                        continue
+                    pedidas = det.cajas_pedidas or det.cajas or 0
+                    if pedidas <= 0:
+                        continue
+
+                    total_pedidas += pedidas
+
+                    if det.producto and det.producto.se_pesa:
+                        entregadas = prep_count_por_producto.get(det.producto_id, 0)
+                    else:
+                        prep_cajas = prep_cajas_por_producto.get(det.producto_id, 0)
+                        entregadas = prep_cajas if prep_cajas > 0 else (det.cajas or 0)
+
+                    total_entregadas += min(entregadas, pedidas)
+
+            fecha_pedido_ref = pedido.fecha_pedido.date() if pedido.fecha_pedido else None
+            is_pending_overdue = (
+                estado_normalizado in ('pendiente', 'preparado')
+                and bool(fecha_pedido_ref)
+                and (hoy - fecha_pedido_ref).days > 2
+            )
+
+            metricas = {
+                'fecha_pedido_local': fecha_pedido_local,
+                'fecha_fact_local': fecha_fact_local,
+                'estado': estado_normalizado,
+                'es_facturado': es_facturado,
+                'venta': venta,
+                'lead_time_days': lead_time_days,
+                'total_pedidas': total_pedidas,
+                'total_entregadas': total_entregadas,
+                'is_pending_overdue': is_pending_overdue,
+            }
+            pedido_metricas_cache[cache_key] = metricas
+            return metricas
 
         try:
             # Ventas reconocidas por fecha de facturación local
@@ -3157,10 +3290,11 @@ def dashboard():
 
             for p in pedidos_facturados_list:
                 try:
-                    fecha_fact_local = _to_dashboard_date(p.fecha_facturacion)
+                    pedido_metricas = obtener_metricas_pedido(p)
+                    fecha_fact_local = pedido_metricas['fecha_fact_local']
                     if not fecha_fact_local:
                         continue
-                    venta = _calcular_venta_pedido(p)
+                    venta = pedido_metricas['venta']
                 except (AttributeError, ValueError, TypeError) as e:
                     app.logger.warning(f"Error en cálculo ventas pedido {p.id}: {e}")
                     continue
@@ -3208,6 +3342,7 @@ def dashboard():
             pedidos_pendientes = 0
             ventas_semanales_idx = {}
             ventas_diarias_idx = {}
+        mark_dashboard_perf('ventas_locales')
 
         # === OVERRIDE OPCIONAL: ventas desde QuickBooks (fuente de verdad) ===
         metricas_ventas_qb = _obtener_metricas_ventas_quickbooks(
@@ -3225,6 +3360,7 @@ def dashboard():
             ventas_mes_anterior = metricas_ventas_qb['ventas_mes_anterior']
             ventas_diarias_idx = metricas_ventas_qb['ventas_diarias_idx']
             ventas_semanales_idx = metricas_ventas_qb['ventas_semanales_idx']
+        mark_dashboard_perf('fuente_ventas')
 
         # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
         # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
@@ -3239,62 +3375,35 @@ def dashboard():
                 }
 
             # Pedidos facturados del período
-            facturados = [p for p in pedidos_periodo if p.estado == 'facturado' and p.fecha_facturacion]
+            facturados_metricas = []
+            pendientes_vencidos = 0
+            for p in pedidos_periodo:
+                pedido_metricas = obtener_metricas_pedido(p)
+                if pedido_metricas['es_facturado']:
+                    facturados_metricas.append(pedido_metricas)
+                if pedido_metricas['is_pending_overdue']:
+                    pendientes_vencidos += 1
 
             # Lead times
-            lead_times_p = []
-            for p in facturados:
-                fecha_fact_local = _to_dashboard_date(p.fecha_facturacion)
-                fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
-                if not fecha_fact_local or not fecha_pedido_local:
-                    continue
-                dias = (fecha_fact_local - fecha_pedido_local).days
-                if dias >= 0:
-                    lead_times_p.append(dias)
+            lead_times_p = [
+                m['lead_time_days']
+                for m in facturados_metricas
+                if m['lead_time_days'] is not None
+            ]
 
             # OFR real — línea por línea: cajas entregadas / cajas pedidas
-            total_pedidas = 0
-            total_entregadas = 0
-            for p in facturados:
-                for det in p.detalles:
-                    if not det.es_linea_pedido:
-                        continue  # solo evaluar líneas originales
-                    pedidas = det.cajas_pedidas or det.cajas or 0
-                    if pedidas <= 0:
-                        continue
-                    total_pedidas += pedidas
-                    if det.producto.se_pesa:
-                        # Manufactura: contar líneas de preparación del mismo producto
-                        entregadas = sum(
-                            1 for d in p.detalles
-                            if not d.es_linea_pedido and d.producto_id == det.producto_id
-                        )
-                    else:
-                        # Importación: sumar cajas de líneas de preparación
-                        prep_cajas = sum(
-                            d.cajas for d in p.detalles
-                            if not d.es_linea_pedido and d.producto_id == det.producto_id
-                        )
-                        # Fallback para pedidos históricos sin líneas de preparación
-                        entregadas = prep_cajas if prep_cajas > 0 else (det.cajas or 0)
-                    total_entregadas += min(entregadas, pedidas)
+            total_pedidas = sum(m['total_pedidas'] for m in facturados_metricas)
+            total_entregadas = sum(m['total_entregadas'] for m in facturados_metricas)
             order_completion_rate_p = (total_entregadas / total_pedidas * 100) if total_pedidas > 0 else 100
 
             # OTD Rate corregido — incluye pendientes vencidos como "fuera de tiempo"
             a_tiempo = sum(1 for lt in lead_times_p if lt <= 2)
-            pendientes_vencidos = sum(
-                1 for p in pedidos_periodo
-                if p.estado in ('pendiente', 'preparado')
-                and (hoy - p.fecha_pedido.date()).days > 2
-            )
             total_otd = len(lead_times_p) + pendientes_vencidos
             otd_p = (a_tiempo / total_otd * 100) if total_otd > 0 else 100
 
             # Ventas del período
             total_p = len(pedidos_periodo)
-            ventas_p = sum(
-                _calcular_venta_pedido(p) for p in pedidos_periodo if p.estado == 'facturado'
-            )
+            ventas_p = sum(m['venta'] for m in facturados_metricas)
 
             return {
                 'order_completion_rate': round(order_completion_rate_p, 1),
@@ -3308,13 +3417,15 @@ def dashboard():
         kpis_mes_actual = calcular_kpis_periodo(pedidos_mes_list)
 
         # Extraer valores para compatibilidad con template existente
-        pedidos_facturados = [p for p in pedidos_mes_list if p.estado == 'facturado' and p.fecha_facturacion]
-        lead_times = [dias for p in pedidos_facturados
-                     if _to_dashboard_date(p.fecha_facturacion) and _to_dashboard_date(p.fecha_pedido)
-                     for dias in [(
-                        _to_dashboard_date(p.fecha_facturacion) - _to_dashboard_date(p.fecha_pedido)
-                     ).days]
-                     if dias >= 0]
+        pedidos_facturados = []
+        lead_times = []
+        for p in pedidos_mes_list:
+            pedido_metricas = obtener_metricas_pedido(p)
+            if not pedido_metricas['es_facturado']:
+                continue
+            pedidos_facturados.append(p)
+            if pedido_metricas['lead_time_days'] is not None:
+                lead_times.append(pedido_metricas['lead_time_days'])
         lead_time_promedio = kpis_mes_actual['lead_time']
         order_completion_rate = kpis_mes_actual['order_completion_rate']
         otd_rate = kpis_mes_actual['otd_rate']
@@ -3342,9 +3453,7 @@ def dashboard():
         # Perfect order rate del mes actual (simplificado: solo OTD)
         perfect_orders = sum(1 for lt in lead_times if lt <= 2)
         pendientes_vencidos_mes = sum(
-            1 for p in pedidos_mes_list
-            if p.estado in ('pendiente', 'preparado')
-            and (hoy - p.fecha_pedido.date()).days > 2
+            1 for p in pedidos_mes_list if obtener_metricas_pedido(p)['is_pending_overdue']
         )
         total_evaluado_por = len(pedidos_facturados) + pendientes_vencidos_mes
         perfect_order_rate = (
@@ -3365,6 +3474,7 @@ def dashboard():
             (clientes_activos_mes / total_clientes * 100) 
             if total_clientes > 0 else 0
         )
+        mark_dashboard_perf('kpis_servicio')
 
         # === RANKINGS DE PRODUCTOS/CLIENTES (MES + 6M/3M/4S) ===
         period_starts_rankings = {
@@ -3378,7 +3488,8 @@ def dashboard():
         ranking_product_rows_local = []
 
         for p in pedidos_facturados_list:
-            fecha_fact_local = _to_dashboard_date(p.fecha_facturacion)
+            pedido_metricas = obtener_metricas_pedido(p)
+            fecha_fact_local = pedido_metricas['fecha_fact_local']
             if not fecha_fact_local or fecha_fact_local < inicio_tendencia or fecha_fact_local > hoy:
                 continue
 
@@ -3393,7 +3504,7 @@ def dashboard():
                 'date': fecha_fact_local,
                 'invoice_key': invoice_key,
                 'customer': cliente_nombre,
-                'amount': _calcular_venta_pedido(p),
+                'amount': pedido_metricas['venta'],
             })
 
             productos_con_prep = set()
@@ -3458,6 +3569,7 @@ def dashboard():
         top_clientes = month_rankings.get('top_clientes', [])
         max_ventas = month_rankings.get('max_ventas', 1)
         rankings_periodos_json = _serialize_rankings_periodos(rankings_periodos)
+        mark_dashboard_perf('rankings')
 
         # === TENDENCIA SEMANAL (excluyendo AL01) — 26 semanas (6 meses) ===
         tendencia_semanal = []
@@ -3496,7 +3608,8 @@ def dashboard():
         try:
             pedidos_diarios_idx = {}
             for p in pedidos_6m_list:
-                fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
+                pedido_metricas = obtener_metricas_pedido(p)
+                fecha_pedido_local = pedido_metricas['fecha_pedido_local']
                 if (
                     not fecha_pedido_local
                     or fecha_pedido_local < pedidos_period_starts['6m']
@@ -3544,7 +3657,7 @@ def dashboard():
         # === OPERACIÓN DE PEDIDOS (TAB PEDIDOS) ===
         pedidos_facturados_hoy = sum(
             1 for p in pedidos_facturados_list
-            if _pedido_facturado_en_periodo_local(p, hoy, hoy)
+            if obtener_metricas_pedido(p)['fecha_fact_local'] == hoy
         )
 
         pedidos_operativos = []
@@ -3558,10 +3671,11 @@ def dashboard():
         }
 
         for p in pedidos_30_dias:
-            estado = (p.estado or 'sin_estado').strip().lower()
-            fecha_pedido_local = _to_dashboard_date(p.fecha_pedido)
+            pedido_metricas = obtener_metricas_pedido(p)
+            estado = pedido_metricas['estado'] or 'sin_estado'
+            fecha_pedido_local = pedido_metricas['fecha_pedido_local']
             edad_dias = (hoy - fecha_pedido_local).days if fecha_pedido_local else 0
-            total_xcg = round(_coerce_float(_calcular_venta_pedido(p), 0.0), 2)
+            total_xcg = round(pedido_metricas['venta'], 2)
             cliente_nombre = p.cliente.nombre if p.cliente and p.cliente.nombre else 'Sin cliente'
 
             es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
@@ -3619,6 +3733,7 @@ def dashboard():
                 'ventas': bucket['ventas'],
                 'pedidos': bucket['pedidos']
             })
+        mark_dashboard_perf('operacion_pedidos')
 
         # === CALCULAR PORCENTAJE DE META ===
         try:
@@ -3655,9 +3770,10 @@ def dashboard():
                 'pedidos': len(tiempos)
             })
         tiempo_respuesta_data = sorted(tiempo_respuesta_data, key=lambda x: x['promedio'])[:10]
+        mark_dashboard_perf('metas_y_respuesta')
 
         # === RENDER ===
-        return render_template(
+        dashboard_html = render_template(
             'dashboard.html',
             # Métricas principales
             ventas_mes=ventas_mes,
@@ -3704,9 +3820,13 @@ def dashboard():
             # Configuración
             moneda='XCG'
         )
+        mark_dashboard_perf('render_template')
+        log_dashboard_perf('ok')
+        return dashboard_html
 
     except Exception as e:
         app.logger.exception(f'Error crítico en /dashboard: {e}')
+        log_dashboard_perf('error')
         
         # Datos de fallback para evitar error 500
         try:
@@ -3756,7 +3876,10 @@ def dashboard():
         }
         
         try:
-            return render_template('dashboard.html', **fallback_data)
+            fallback_html = render_template('dashboard.html', **fallback_data)
+            mark_dashboard_perf('render_fallback')
+            log_dashboard_perf('fallback')
+            return fallback_html
         except Exception as template_error:
             app.logger.error(f'Error incluso con datos de fallback: {template_error}')
             from flask import abort

@@ -141,17 +141,17 @@ def test_fallback_data_has_correct_keys(app):
 # === Tests de Story 1.2: Reorganización dashboard y proyección ===
 
 def test_dashboard_has_objetivos_de_ventas_section(logged_client):
-    """AC #1: Sección 'Objetivos de Ventas' visible en el dashboard."""
+    """AC #1: La sección de Ventas está visible en el dashboard."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Objetivos de Ventas' in html
+    assert 'data-panel-label="Ventas"' in html
 
 
 def test_dashboard_has_nivel_de_servicio_section(logged_client):
-    """AC #2: Sección 'Nivel de Servicio' visible en el dashboard."""
+    """AC #2: La sección de Servicio está visible en el dashboard."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Nivel de Servicio' in html
+    assert 'data-panel-label="Servicio"' in html
 
 
 def test_dashboard_has_proyeccion(logged_client):
