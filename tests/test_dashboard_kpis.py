@@ -441,7 +441,12 @@ def test_dashboard_ventas_desde_quickbooks_si_fuente_habilitada(app, logged_clie
     assert 'Cliente QB' in html
     assert 'Producto QB' in html
     assert called['url'] == 'https://n8n.test/qb-sales'
-    assert called['timeout'] == 7
+    expected_timeout = (
+        min(7, app_module.N8N_QB_BLOCKING_TIMEOUT_MS / 1000.0)
+        if app_module.N8N_QB_BLOCKING_TIMEOUT_MS > 0
+        else 7
+    )
+    assert called['timeout'] == expected_timeout
     assert called['json']['group_by'] == ['day', 'week', 'customer', 'product']
 
 

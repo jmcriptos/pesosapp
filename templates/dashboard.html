@@ -539,6 +539,10 @@
 }
 .app-container:has(.exec-dashboard) .app-content {
     background: var(--dash-bg);
+    padding: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+    min-height: 0;
 }
 .app-container:has(.exec-dashboard) .app-footer {
     background: #0d1017;
@@ -553,8 +557,12 @@
 
 /* — Base — */
 .exec-dashboard {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
     --dashboard-shell-top: 48px;
-    --dashboard-shell-bottom: calc(76px + env(safe-area-inset-bottom));
+    --dashboard-shell-bottom: calc(76px + var(--safe-bottom));
     font-family: var(--dash-font);
     background: var(--dash-bg);
     color: var(--dash-text);
@@ -662,7 +670,7 @@
     top: 48px;
     z-index: 30;
     flex-shrink: 0;
-    padding: 8px 10px 2px;
+    padding: calc(8px + var(--safe-top)) calc(10px + var(--safe-right)) 2px calc(10px + var(--safe-left));
     background: linear-gradient(180deg, rgba(11,14,20,0.96) 0%, rgba(11,14,20,0.88) 78%, rgba(11,14,20,0) 100%);
     backdrop-filter: blur(10px);
 }
@@ -794,7 +802,8 @@
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
-    scroll-padding-inline: 0;
+    scroll-padding-inline-start: var(--safe-left);
+    scroll-padding-inline-end: var(--safe-right);
     padding: 8px 0 0;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -814,6 +823,8 @@
     overflow-y: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
     padding-bottom: 18px;
     scroll-snap-align: start;
     scroll-snap-stop: always;
@@ -1488,7 +1499,7 @@
    ═══════════════════════════ */
 @media (max-width: 375px) {
     .dashboard-subnav-wrap {
-        padding: 8px 8px 0;
+        padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) 0 calc(8px + var(--safe-left));
     }
     .dashboard-carousel-head {
         padding: 10px 11px;
@@ -1520,7 +1531,11 @@
     .tile-value { font-size: 1.15rem; }
     .tile-value-big { font-size: 1.6rem; }
     .tab-panels { padding: 6px 0 0; }
-    .tab-panel { padding-bottom: 14px; }
+    .tab-panel {
+        padding-left: var(--safe-left);
+        padding-right: var(--safe-right);
+        padding-bottom: calc(14px + var(--safe-bottom));
+    }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }
     .rr-name { font-size: 0.75rem; }

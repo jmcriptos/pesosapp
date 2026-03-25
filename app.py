@@ -122,6 +122,18 @@ try:
 except (TypeError, ValueError):
     N8N_QB_SALES_TIMEOUT = 20
 try:
+    N8N_QB_BLOCKING_TIMEOUT_MS = int(os.environ.get('N8N_QB_BLOCKING_TIMEOUT_MS', 2000))
+except (TypeError, ValueError):
+    N8N_QB_BLOCKING_TIMEOUT_MS = 2000
+try:
+    N8N_QB_STALE_CACHE_TTL = int(os.environ.get('N8N_QB_STALE_CACHE_TTL', 900))
+except (TypeError, ValueError):
+    N8N_QB_STALE_CACHE_TTL = 900
+try:
+    N8N_QB_REFRESH_THROTTLE_SEC = int(os.environ.get('N8N_QB_REFRESH_THROTTLE_SEC', 30))
+except (TypeError, ValueError):
+    N8N_QB_REFRESH_THROTTLE_SEC = 30
+try:
     N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 60))
 except (TypeError, ValueError):
     N8N_QB_CACHE_TTL = 60
@@ -129,7 +141,14 @@ try:
     N8N_QB_FAILURE_CACHE_TTL = int(os.environ.get('N8N_QB_FAILURE_CACHE_TTL', 30))
 except (TypeError, ValueError):
     N8N_QB_FAILURE_CACHE_TTL = 30
-_qb_sales_cache = {'key': None, 'value': None, 'expires_at': 0.0, 'failure_expires_at': 0.0}
+_qb_sales_cache = {
+    'key': None,
+    'value': None,
+    'expires_at': 0.0,
+    'stale_expires_at': 0.0,
+    'failure_expires_at': 0.0,
+    'last_refresh_attempt': 0.0,
+}
 
 # SQLAlchemy ya inicializado arriba
 
@@ -1119,30 +1138,56 @@ def _obtener_metricas_ventas_quickbooks(
         payload['timezone'],
     )
     now_ts = datetime.now(timezone.utc).timestamp()
+    cache_hit_for_key = _qb_sales_cache.get('key') == cache_key
+    cached_value = _qb_sales_cache.get('value')
+    has_stale_value = (
+        cache_hit_for_key
+        and cached_value is not None
+        and _qb_sales_cache.get('stale_expires_at', 0.0) > now_ts
+    )
+
     if (
         N8N_QB_CACHE_TTL > 0
-        and _qb_sales_cache.get('key') == cache_key
+        and cache_hit_for_key
         and _qb_sales_cache.get('expires_at', 0.0) > now_ts
     ):
         return _qb_sales_cache.get('value')
     if (
         N8N_QB_FAILURE_CACHE_TTL > 0
-        and _qb_sales_cache.get('key') == cache_key
+        and cache_hit_for_key
         and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
     ):
-        return None
+        return cached_value if has_stale_value else None
+    if (
+        has_stale_value
+        and N8N_QB_REFRESH_THROTTLE_SEC > 0
+        and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
+    ):
+        return cached_value
+
+    blocking_timeout = N8N_QB_SALES_TIMEOUT
+    if N8N_QB_BLOCKING_TIMEOUT_MS > 0:
+        blocking_timeout = min(
+            float(N8N_QB_SALES_TIMEOUT),
+            float(N8N_QB_BLOCKING_TIMEOUT_MS) / 1000.0
+        )
+    if blocking_timeout <= 0:
+        blocking_timeout = float(N8N_QB_SALES_TIMEOUT)
+
+    _qb_sales_cache['last_refresh_attempt'] = now_ts
 
     try:
+        qb_fetch_start = perf_counter()
         resp = requests.post(
             N8N_QB_SALES_WEBHOOK_URL,
             json=payload,
-            timeout=N8N_QB_SALES_TIMEOUT
+            timeout=blocking_timeout
         )
         resp.raise_for_status()
         data = resp.json()
         if not isinstance(data, dict):
             app.logger.warning('Respuesta QuickBooks inválida: se esperaba JSON objeto')
-            return None
+            return cached_value if has_stale_value else None
         normalized = _normalizar_metricas_ventas_quickbooks(
             data,
             hoy=hoy,
@@ -1153,32 +1198,52 @@ def _obtener_metricas_ventas_quickbooks(
             inicio_tendencia=inicio_tendencia,
             inicio_ultimos_7_dias=inicio_ultimos_7_dias,
         )
-        if N8N_QB_CACHE_TTL > 0:
-            _qb_sales_cache = {
-                'key': cache_key,
-                'value': normalized,
-                'expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_CACHE_TTL,
-                'failure_expires_at': 0.0,
-            }
+        cache_now = datetime.now(timezone.utc).timestamp()
+        _qb_sales_cache = {
+            'key': cache_key,
+            'value': normalized,
+            'expires_at': cache_now + N8N_QB_CACHE_TTL if N8N_QB_CACHE_TTL > 0 else 0.0,
+            'stale_expires_at': cache_now + N8N_QB_STALE_CACHE_TTL if N8N_QB_STALE_CACHE_TTL > 0 else 0.0,
+            'failure_expires_at': 0.0,
+            'last_refresh_attempt': cache_now,
+        }
+        qb_elapsed_ms = (perf_counter() - qb_fetch_start) * 1000
+        if qb_elapsed_ms >= 1000:
+            app.logger.info(
+                f'QuickBooks ventas respondió en {qb_elapsed_ms:.0f}ms '
+                f'(timeout efectivo {blocking_timeout:.2f}s)'
+            )
         return normalized
     except requests.Timeout:
         app.logger.warning(
-            f'Timeout obteniendo ventas de QuickBooks ({N8N_QB_SALES_TIMEOUT}s). Fallback a datos locales.'
+            f'Timeout obteniendo ventas de QuickBooks ({blocking_timeout:.2f}s). '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
         )
     except requests.RequestException as e:
-        app.logger.warning(f'Error consultando ventas QuickBooks: {e}. Fallback a datos locales.')
+        app.logger.warning(
+            f'Error consultando ventas QuickBooks: {e}. '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
     except ValueError:
-        app.logger.warning('Error parseando JSON de ventas QuickBooks. Fallback a datos locales.')
+        app.logger.warning(
+            f'Error parseando JSON de ventas QuickBooks. '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
     except Exception as e:
-        app.logger.warning(f'Error inesperado ventas QuickBooks: {e}. Fallback a datos locales.')
+        app.logger.warning(
+            f'Error inesperado ventas QuickBooks: {e}. '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
     if N8N_QB_FAILURE_CACHE_TTL > 0:
         _qb_sales_cache = {
             'key': cache_key,
-            'value': None,
+            'value': cached_value if has_stale_value else None,
             'expires_at': 0.0,
+            'stale_expires_at': _qb_sales_cache.get('stale_expires_at', 0.0) if has_stale_value else 0.0,
             'failure_expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_FAILURE_CACHE_TTL,
+            'last_refresh_attempt': now_ts,
         }
-    return None
+    return cached_value if has_stale_value else None
 
 
 @app.route('/dashboard_vendedor')
