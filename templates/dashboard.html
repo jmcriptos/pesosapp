@@ -512,31 +512,38 @@
 }
 
 /* — Override app shell for dark dashboard — */
+.app-container.dashboard-shell .app-topbar,
 .app-container:has(.exec-dashboard) .app-topbar {
     background: var(--dash-bg);
     border-bottom: 1px solid var(--dash-border);
     color: var(--dash-text);
 }
+.app-container.dashboard-shell .desktop-header-shell,
 .app-container:has(.exec-dashboard) .desktop-header-shell {
     gap: 18px;
 }
+.app-container.dashboard-shell .desktop-nav-link,
 .app-container:has(.exec-dashboard) .desktop-nav-link {
     padding: 10px 13px;
     border-radius: 12px;
 }
+.app-container.dashboard-shell .desktop-ops-toggle,
 .app-container:has(.exec-dashboard) .desktop-ops-toggle {
     min-height: 42px;
     padding: 9px 11px;
     border-radius: 14px;
 }
+.app-container.dashboard-shell .app-topbar .topbar-menu,
 .app-container:has(.exec-dashboard) .app-topbar .topbar-menu {
     color: var(--dash-text2);
 }
+.app-container.dashboard-shell .app-topbar .topbar-title,
 .app-container:has(.exec-dashboard) .app-topbar .topbar-title {
     display: flex;
     align-items: center;
     min-width: 0;
 }
+.app-container.dashboard-shell .app-content,
 .app-container:has(.exec-dashboard) .app-content {
     background: var(--dash-bg);
     padding: 0;
@@ -544,13 +551,16 @@
     overflow: hidden;
     min-height: 0;
 }
+.app-container.dashboard-shell .app-footer,
 .app-container:has(.exec-dashboard) .app-footer {
     background: #0d1017;
     border-top: 1px solid var(--dash-border);
 }
+.app-container.dashboard-shell .app-footer .nav-item,
 .app-container:has(.exec-dashboard) .app-footer .nav-item {
     color: var(--dash-text3);
 }
+.app-container.dashboard-shell .app-footer .nav-item.active,
 .app-container:has(.exec-dashboard) .app-footer .nav-item.active {
     color: var(--dash-blue);
 }
@@ -566,7 +576,9 @@
     font-family: var(--dash-font);
     background: var(--dash-bg);
     color: var(--dash-text);
+    min-height: calc(100vh - var(--dashboard-shell-top) - var(--dashboard-shell-bottom));
     min-height: calc(100dvh - var(--dashboard-shell-top) - var(--dashboard-shell-bottom));
+    height: calc(100vh - var(--dashboard-shell-top) - var(--dashboard-shell-bottom));
     height: calc(100dvh - var(--dashboard-shell-top) - var(--dashboard-shell-bottom));
     display: flex;
     flex-direction: column;
