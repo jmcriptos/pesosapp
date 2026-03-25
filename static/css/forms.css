@@ -9,11 +9,13 @@
 
 /* Top bar slim */
 .app-topbar {
+    --app-safe-top: env(safe-area-inset-top, 0px);
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 12px;
-    height: 48px;
+    padding: var(--app-safe-top) 12px 0;
+    height: calc(48px + var(--app-safe-top));
+    box-sizing: border-box;
     background: #fff;
     border-bottom: 1px solid #e5e7eb;
     flex-shrink: 0;

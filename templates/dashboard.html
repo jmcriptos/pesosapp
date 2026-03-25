@@ -571,7 +571,7 @@
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
-    --dashboard-shell-top: 48px;
+    --dashboard-shell-top: 0px;
     --dashboard-shell-bottom: calc(76px + var(--safe-bottom));
     font-family: var(--dash-font);
     background: var(--dash-bg);
@@ -679,10 +679,10 @@
    ═══════════════════════════ */
 .dashboard-subnav-wrap {
     position: sticky;
-    top: 48px;
+    top: 0;
     z-index: 30;
     flex-shrink: 0;
-    padding: calc(8px + var(--safe-top)) calc(10px + var(--safe-right)) 2px calc(10px + var(--safe-left));
+    padding: 8px calc(10px + var(--safe-right)) 2px calc(10px + var(--safe-left));
     background: linear-gradient(180deg, rgba(11,14,20,0.96) 0%, rgba(11,14,20,0.88) 78%, rgba(11,14,20,0) 100%);
     backdrop-filter: blur(10px);
 }
@@ -1495,7 +1495,7 @@
 /* Large desktop — full width */
 @media (min-width: 1024px) {
     .exec-dashboard {
-        --dashboard-shell-top: 78px;
+        --dashboard-shell-top: 0px;
     }
     .dashboard-subnav {
         max-width: 760px;
@@ -1511,7 +1511,7 @@
    ═══════════════════════════ */
 @media (max-width: 375px) {
     .dashboard-subnav-wrap {
-        padding: calc(8px + var(--safe-top)) calc(8px + var(--safe-right)) 0 calc(8px + var(--safe-left));
+        padding: 8px calc(8px + var(--safe-right)) 0 calc(8px + var(--safe-left));
     }
     .dashboard-carousel-head {
         padding: 10px 11px;
