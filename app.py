@@ -141,6 +141,14 @@ try:
     N8N_QB_FAILURE_CACHE_TTL = int(os.environ.get('N8N_QB_FAILURE_CACHE_TTL', 30))
 except (TypeError, ValueError):
     N8N_QB_FAILURE_CACHE_TTL = 30
+try:
+    DASHBOARD_USD_TO_XCG_FALLBACK_RATE = float(
+        os.environ.get('DASHBOARD_USD_TO_XCG_FALLBACK_RATE', 1.78)
+    )
+except (TypeError, ValueError):
+    DASHBOARD_USD_TO_XCG_FALLBACK_RATE = 1.78
+if DASHBOARD_USD_TO_XCG_FALLBACK_RATE <= 0:
+    DASHBOARD_USD_TO_XCG_FALLBACK_RATE = 1.78
 _qb_sales_cache = {
     'key': None,
     'value': None,
@@ -629,6 +637,74 @@ def _pick_row_value(row, keys):
     return None
 
 
+def _normalizar_codigo_moneda(value):
+    if value in (None, ''):
+        return ''
+
+    if isinstance(value, dict):
+        value = value.get('value') or value.get('code') or value.get('name')
+        if value in (None, ''):
+            return ''
+
+    code = str(value).strip().upper()
+    if not code:
+        return ''
+
+    # Ejemplos esperados: "USD", "usd", "USD - US Dollar", "ANG", "XCG"
+    code = code.replace('-', ' ').split()[0]
+    aliases = {
+        'ANG': 'XCG',
+        'NLG': 'XCG',
+    }
+    return aliases.get(code, code)
+
+
+def _monto_qb_a_xcg(row):
+    """
+    Normaliza montos de QuickBooks a XCG:
+    1) Si el payload ya trae monto en moneda base, usarlo.
+    2) Si viene en USD, convertir por exchange_rate.
+    3) Si USD trae exchange_rate inválido (1/vacío), usar fallback fijo.
+    """
+    monto_base = _coerce_float(_pick_row_value(
+        row,
+        [
+            'home_amount',
+            'amount_home',
+            'home_total',
+            'home_total_amt',
+            'home_total_amount',
+            'amount_xcg',
+            'amount_ang',
+            'xcg_amount',
+            'ang_amount',
+            'total_xcg',
+            'total_ang',
+        ]
+    ), None)
+    if monto_base is not None:
+        return monto_base
+
+    monto = _coerce_float(_pick_row_value(row, ['amount', 'sales', 'total', 'venta', 'subtotal']), None)
+    if monto is None:
+        return None
+
+    moneda = _normalizar_codigo_moneda(_pick_row_value(
+        row,
+        ['currency', 'currency_code', 'currency_ref', 'currencyref', 'moneda']
+    ))
+    if moneda == 'USD':
+        tasa = _coerce_float(_pick_row_value(
+            row,
+            ['exchange_rate', 'exchangeRate', 'fx_rate', 'rate', 'tipo_cambio']
+        ), None)
+        if tasa is None or tasa <= 1:
+            tasa = DASHBOARD_USD_TO_XCG_FALLBACK_RATE
+        return monto * tasa
+
+    return monto
+
+
 def _parse_dashboard_date_value(value):
     if value is None:
         return None
@@ -868,7 +944,7 @@ def _normalizar_metricas_ventas_quickbooks(
         if fecha < inicio_tendencia or fecha > hoy:
             continue
 
-        monto = _coerce_float(_pick_row_value(row, ['amount', 'sales', 'total', 'venta', 'subtotal']), None)
+        monto = _monto_qb_a_xcg(row)
         if monto is None:
             continue
         filas_procesadas += 1

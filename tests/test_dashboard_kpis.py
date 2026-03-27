@@ -450,6 +450,109 @@ def test_dashboard_ventas_desde_quickbooks_si_fuente_habilitada(app, logged_clie
     assert called['json']['group_by'] == ['day', 'week', 'customer', 'product']
 
 
+def test_dashboard_ventas_qbo_usd_convierte_a_xcg(app, logged_client, monkeypatch):
+    """QBO/USD debe convertirse a XCG cuando incluye exchange_rate válido."""
+    import app as app_module
+
+    tz_cur = ZoneInfo('America/Curacao')
+    hoy_local = datetime.now(tz_cur).date()
+
+    class DummyResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, json, timeout):
+        return DummyResponse({
+            'transactions': [
+                {
+                    'date': hoy_local.isoformat(),
+                    'invoice_number': 'QB-USD-1001',
+                    'customer': 'Cliente Bonaire',
+                    'product': 'Producto USD',
+                    'currency': 'USD',
+                    'exchange_rate': 1.78,
+                    'amount': 100
+                }
+            ]
+        })
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-sales-usd')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None,
+        'value': None,
+        'expires_at': 0.0,
+        'stale_expires_at': 0.0,
+        'failure_expires_at': 0.0,
+        'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', fake_post)
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 178
+
+
+def test_dashboard_ventas_qbo_usd_tasa_uno_usa_fallback(app, logged_client, monkeypatch):
+    """Si QBO/USD retorna exchange_rate=1, dashboard usa fallback configurable."""
+    import app as app_module
+
+    tz_cur = ZoneInfo('America/Curacao')
+    hoy_local = datetime.now(tz_cur).date()
+
+    class DummyResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, json, timeout):
+        return DummyResponse({
+            'transactions': [
+                {
+                    'date': hoy_local.isoformat(),
+                    'invoice_number': 'QB-USD-1002',
+                    'customer': 'Cliente Bonaire',
+                    'product': 'Producto USD',
+                    'currency': 'USD',
+                    'exchange_rate': 1.0,
+                    'amount': 100
+                }
+            ]
+        })
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-sales-usd-fallback')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, 'DASHBOARD_USD_TO_XCG_FALLBACK_RATE', 1.78)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None,
+        'value': None,
+        'expires_at': 0.0,
+        'stale_expires_at': 0.0,
+        'failure_expires_at': 0.0,
+        'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', fake_post)
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 178
+
+
 def test_dashboard_top_productos_prioriza_lineas_preparacion_facturadas(app, logged_client):
     """Top productos debe usar líneas facturadas (preparación), no línea original."""
     from app import db, Cliente, Producto, Pedido, DetallePedido
