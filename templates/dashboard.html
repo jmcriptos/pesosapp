@@ -837,7 +837,8 @@
     -webkit-overflow-scrolling: touch;
     padding-left: var(--safe-left);
     padding-right: var(--safe-right);
-    padding-bottom: 18px;
+    padding-bottom: calc(80px + var(--safe-bottom));
+    scroll-padding-top: 72px;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     opacity: 0.74;
@@ -1462,6 +1463,10 @@
     .tab-panels {
         padding: 10px 0 0;
     }
+    .tab-panel {
+        padding-bottom: 24px;
+        scroll-padding-top: 0;
+    }
     .chart-wrap { min-height: 320px; padding: 0 16px 16px; }
     .sales-chart-wrap,
     .svc-chart-wrap { min-height: 280px; }
@@ -1546,7 +1551,8 @@
     .tab-panel {
         padding-left: var(--safe-left);
         padding-right: var(--safe-right);
-        padding-bottom: calc(14px + var(--safe-bottom));
+        padding-bottom: calc(80px + var(--safe-bottom));
+        scroll-padding-top: 64px;
     }
     .wow-item { padding: 8px 4px; }
     .wow-val { font-size: 0.8125rem; }

@@ -739,3 +739,162 @@ def test_dashboard_top_productos_prioriza_lineas_preparacion_facturadas(app, log
 
     assert nombre_top == 'Producto B'
     assert monto_top == 500
+
+
+# ═══════════════════════════════════════════════════════════════
+# Bloque 2: Tests de exactitud ventas QBO / fallback
+# ═══════════════════════════════════════════════════════════════
+
+def test_dashboard_ventas_qbo_agregados_usd_sin_moneda_usa_monto_directo(app, logged_client, monkeypatch):
+    """Agregados diarios sin campo moneda asumen XCG (monto directo sin conversión)."""
+    import app as app_module
+    from datetime import date
+
+    class DummyResponse:
+        def raise_for_status(self): pass
+        def json(self):
+            hoy = date.today()
+            return {
+                'daily': [
+                    {'date': hoy.isoformat(), 'amount': 200.0}
+                ]
+            }
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-agg-no-currency')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None, 'value': None, 'expires_at': 0.0,
+        'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    # Sin campo moneda → se asume XCG → monto = 200, no se multiplica
+    assert _ventas_mes_en_html(html) == 200
+
+
+def test_dashboard_ventas_qbo_agregados_usd_con_moneda_convierte(app, logged_client, monkeypatch):
+    """Agregados diarios con currency=USD deben convertir a XCG."""
+    import app as app_module
+    from datetime import date
+
+    class DummyResponse:
+        def raise_for_status(self): pass
+        def json(self):
+            hoy = date.today()
+            return {
+                'daily': [
+                    {'date': hoy.isoformat(), 'amount': 100.0,
+                     'currency': 'USD', 'exchange_rate': 1.78}
+                ]
+            }
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-agg-usd')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None, 'value': None, 'expires_at': 0.0,
+        'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 178
+
+
+def test_dashboard_ventas_qbo_agregados_usd_sin_tasa_usa_fallback(app, logged_client, monkeypatch):
+    """Agregados USD sin exchange_rate deben usar tasa fallback."""
+    import app as app_module
+    from datetime import date
+
+    class DummyResponse:
+        def raise_for_status(self): pass
+        def json(self):
+            hoy = date.today()
+            return {
+                'daily': [
+                    {'date': hoy.isoformat(), 'amount': 100.0, 'currency': 'USD'}
+                ]
+            }
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-agg-usd-no-rate')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, 'DASHBOARD_USD_TO_XCG_FALLBACK_RATE', 1.78)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None, 'value': None, 'expires_at': 0.0,
+        'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    # 100 USD × 1.78 fallback = 178 XCG
+    assert _ventas_mes_en_html(html) == 178
+
+
+def test_dashboard_ventas_qbo_transacciones_con_home_amount_prioriza(app, logged_client, monkeypatch):
+    """Si el payload trae home_amount (ya en XCG), debe usarlo en vez de convertir."""
+    import app as app_module
+    from datetime import date
+
+    class DummyResponse:
+        def raise_for_status(self): pass
+        def json(self):
+            hoy = date.today()
+            return {
+                'transactions': [{
+                    'date': hoy.isoformat(),
+                    'amount': 100.0,
+                    'home_amount': 180.0,
+                    'currency': 'USD',
+                    'exchange_rate': 1.78,
+                    'customer': 'Test',
+                }]
+            }
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-home-amount')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None, 'value': None, 'expires_at': 0.0,
+        'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    # home_amount=180 tiene prioridad sobre amount=100 × 1.78=178
+    assert _ventas_mes_en_html(html) == 180
+
+
+def test_dashboard_ventas_qbo_fallback_timeout_usa_datos_locales(app, logged_client, monkeypatch):
+    """Cuando QBO hace timeout sin cache, debe usar datos locales (0 sin pedidos)."""
+    import app as app_module
+    import requests as req_lib
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-timeout')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 1)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None, 'value': None, 'expires_at': 0.0,
+        'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    })
+
+    def fake_post_timeout(url, json, timeout):
+        raise req_lib.Timeout('Simulated timeout')
+
+    monkeypatch.setattr(app_module.requests, 'post', fake_post_timeout)
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    # Dashboard debe cargar sin error, usando datos locales
+    html = resp.data.decode('utf-8')
+    assert 'Ventas del Mes' in html

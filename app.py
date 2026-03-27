@@ -694,13 +694,23 @@ def _monto_qb_a_xcg(row):
         ['currency', 'currency_code', 'currency_ref', 'currencyref', 'moneda']
     ))
     if moneda == 'USD':
-        tasa = _coerce_float(_pick_row_value(
+        tasa_original = _coerce_float(_pick_row_value(
             row,
             ['exchange_rate', 'exchangeRate', 'fx_rate', 'rate', 'tipo_cambio']
         ), None)
+        tasa = tasa_original
         if tasa is None or tasa <= 1:
             tasa = DASHBOARD_USD_TO_XCG_FALLBACK_RATE
+            app.logger.debug(
+                f'[QBO→XCG] USD monto={monto:.2f} tasa_original={tasa_original} '
+                f'→ usando fallback {DASHBOARD_USD_TO_XCG_FALLBACK_RATE}'
+            )
         return monto * tasa
+
+    if not moneda:
+        app.logger.debug(
+            f'[QBO→XCG] monto={monto:.2f} sin campo moneda — asumido XCG'
+        )
 
     return monto
 
@@ -716,13 +726,23 @@ def _monto_qb_summary_a_xcg(summary, keys):
         ['currency', 'currency_code', 'currency_ref', 'currencyref', 'moneda']
     ))
     if moneda == 'USD':
-        tasa = _coerce_float(_pick_row_value(
+        tasa_original = _coerce_float(_pick_row_value(
             summary,
             ['exchange_rate', 'exchangeRate', 'fx_rate', 'rate', 'tipo_cambio']
         ), None)
+        tasa = tasa_original
         if tasa is None or tasa <= 1:
             tasa = DASHBOARD_USD_TO_XCG_FALLBACK_RATE
+            app.logger.debug(
+                f'[QBO→XCG] summary USD monto={monto:.2f} tasa_original={tasa_original} '
+                f'→ usando fallback {DASHBOARD_USD_TO_XCG_FALLBACK_RATE}'
+            )
         return monto * tasa
+
+    if not moneda:
+        app.logger.debug(
+            f'[QBO→XCG] summary monto={monto:.2f} sin campo moneda — asumido XCG'
+        )
 
     return monto
 
@@ -1204,6 +1224,18 @@ def _normalizar_metricas_ventas_quickbooks(
     top_clientes = month_rankings.get('top_clientes', top_clientes_fallback)
     top_productos = month_rankings.get('top_productos', top_productos_fallback)
     max_ventas = month_rankings.get('max_ventas', 1)
+
+    fuente = (
+        'transacciones' if filas_procesadas > 0
+        else 'agregados' if ventas_diarias_idx or ventas_semanales_idx
+        else 'summary' if ventas_mes > 0
+        else 'vacío'
+    )
+    app.logger.info(
+        f'[QBO normalizado] fuente={fuente} filas={filas_procesadas} '
+        f'ventas_mes={ventas_mes:.2f} ventas_semana={ventas_semana:.2f} '
+        f'ventas_mes_anterior={ventas_mes_anterior:.2f}'
+    )
 
     return {
         'ventas_mes': round(ventas_mes, 2),
@@ -3333,11 +3365,20 @@ def dashboard():
                 ),
             )
 
+            # Una sola query: pedidos por fecha_pedido O facturados por fecha_facturacion
+            fecha_corte_facturados = inicio_tendencia - timedelta(days=1)
             pedidos_base_list = (
                 Pedido.query.options(*pedido_load_options)
                 .filter(
                     filtro_sin_almacen(),
-                    Pedido.fecha_pedido >= inicio_carga_pedidos
+                    db.or_(
+                        Pedido.fecha_pedido >= inicio_carga_pedidos,
+                        db.and_(
+                            Pedido.estado == 'facturado',
+                            Pedido.fecha_facturacion.isnot(None),
+                            Pedido.fecha_facturacion >= fecha_corte_facturados,
+                        )
+                    )
                 )
                 .all()
             )
@@ -3361,12 +3402,13 @@ def dashboard():
                 if fecha >= pedidos_period_starts['6m']
             ]
 
-            pedidos_facturados_list = Pedido.query.options(*pedido_load_options).filter(
-                filtro_sin_almacen(),
-                Pedido.estado == 'facturado',
-                Pedido.fecha_facturacion.isnot(None),
-                Pedido.fecha_facturacion >= (inicio_tendencia - timedelta(days=1))
-            ).all()
+            pedidos_facturados_list = [
+                p for p in pedidos_base_list
+                if (p.estado or '').strip().lower() == 'facturado'
+                and p.fecha_facturacion is not None
+                and _to_dashboard_date(p.fecha_facturacion) is not None
+                and _to_dashboard_date(p.fecha_facturacion) >= fecha_corte_facturados
+            ]
 
             app.logger.info(
                 f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, "
@@ -3411,18 +3453,16 @@ def dashboard():
             if es_facturado:
                 prep_count_por_producto = {}
                 prep_cajas_por_producto = {}
+                lineas_pedido = []
 
                 for det in pedido.detalles:
                     if det.es_linea_pedido:
-                        continue
-                    if det.producto_id is None:
-                        continue
-                    prep_count_por_producto[det.producto_id] = prep_count_por_producto.get(det.producto_id, 0) + 1
-                    prep_cajas_por_producto[det.producto_id] = prep_cajas_por_producto.get(det.producto_id, 0) + (det.cajas or 0)
+                        lineas_pedido.append(det)
+                    elif det.producto_id is not None:
+                        prep_count_por_producto[det.producto_id] = prep_count_por_producto.get(det.producto_id, 0) + 1
+                        prep_cajas_por_producto[det.producto_id] = prep_cajas_por_producto.get(det.producto_id, 0) + (det.cajas or 0)
 
-                for det in pedido.detalles:
-                    if not det.es_linea_pedido:
-                        continue
+                for det in lineas_pedido:
                     pedidas = det.cajas_pedidas or det.cajas or 0
                     if pedidas <= 0:
                         continue
@@ -3505,11 +3545,11 @@ def dashboard():
 
             pedidos_mes_anterior = len(pedidos_mes_anterior_list)
 
-            # Consulta robusta para pedidos pendientes (excluyendo AL01)
-            pendientes_query = Pedido.query.filter_by(estado='pendiente')
-            if cliente_almacen_id:
-                pendientes_query = pendientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
-            pedidos_pendientes = pendientes_query.count()
+            # Derivar pendientes de pedidos ya cargados (evita query adicional)
+            pedidos_pendientes = sum(
+                1 for p in pedidos_base_list
+                if (p.estado or '').strip().lower() == 'pendiente'
+            )
             
         except Exception as e:
             app.logger.error(f"Error en cálculos de ventas: {e}")
@@ -3686,27 +3726,25 @@ def dashboard():
             })
 
             productos_con_prep = set()
+            lineas_pedido_ranking = []
             for d in p.detalles:
-                if d.es_linea_pedido:
-                    continue
                 if not d.producto or not d.producto.nombre:
                     continue
-                productos_con_prep.add(d.producto_id)
-                ranking_product_rows_local.append({
-                    'date': fecha_fact_local,
-                    'invoice_key': invoice_key,
-                    'product': d.producto.nombre,
-                    'amount': float(d.subtotal or 0),
-                    'quantity': d.cajas or 0,
-                    'weight': d.peso or 0,
-                })
-
-            for d in p.detalles:
                 if not d.es_linea_pedido:
-                    continue
+                    productos_con_prep.add(d.producto_id)
+                    ranking_product_rows_local.append({
+                        'date': fecha_fact_local,
+                        'invoice_key': invoice_key,
+                        'product': d.producto.nombre,
+                        'amount': float(d.subtotal or 0),
+                        'quantity': d.cajas or 0,
+                        'weight': d.peso or 0,
+                    })
+                else:
+                    lineas_pedido_ranking.append(d)
+
+            for d in lineas_pedido_ranking:
                 if d.producto_id in productos_con_prep:
-                    continue
-                if not d.producto or not d.producto.nombre:
                     continue
                 ranking_product_rows_local.append({
                     'date': fecha_fact_local,
