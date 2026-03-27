@@ -553,6 +553,105 @@ def test_dashboard_ventas_qbo_usd_tasa_uno_usa_fallback(app, logged_client, monk
     assert _ventas_mes_en_html(html) == 178
 
 
+def test_dashboard_ventas_qbo_no_sobrescribe_con_summary_sin_convertir(app, logged_client, monkeypatch):
+    """Si hay transactions procesables, summary no debe pisar el total convertido."""
+    import app as app_module
+
+    tz_cur = ZoneInfo('America/Curacao')
+    hoy_local = datetime.now(tz_cur).date()
+
+    class DummyResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, json, timeout):
+        return DummyResponse({
+            'transactions': [
+                {
+                    'date': hoy_local.isoformat(),
+                    'invoice_number': 'QB-USD-2001',
+                    'customer': 'Cliente Bonaire',
+                    'product': 'Producto USD',
+                    'currency': 'USD',
+                    'exchange_rate': 1.78,
+                    'amount': 100
+                }
+            ],
+            'summary': {
+                # Simula summary en USD sin conversión
+                'ventas_mes': 100,
+                'currency': 'USD',
+                'exchange_rate': 1.0
+            }
+        })
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-sales-summary')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None,
+        'value': None,
+        'expires_at': 0.0,
+        'stale_expires_at': 0.0,
+        'failure_expires_at': 0.0,
+        'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', fake_post)
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 178
+
+
+def test_dashboard_ventas_qbo_summary_usd_convierte_cuando_no_hay_filas(app, logged_client, monkeypatch):
+    """Si solo hay summary USD (sin transactions), debe convertir a XCG."""
+    import app as app_module
+
+    class DummyResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, json, timeout):
+        return DummyResponse({
+            'summary': {
+                'ventas_mes': 100,
+                'currency': 'USD',
+                'exchange_rate': 1.78
+            }
+        })
+
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/qb-sales-summary-only')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_TIMEOUT', 7)
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None,
+        'value': None,
+        'expires_at': 0.0,
+        'stale_expires_at': 0.0,
+        'failure_expires_at': 0.0,
+        'last_refresh_attempt': 0.0,
+    })
+    monkeypatch.setattr(app_module.requests, 'post', fake_post)
+
+    resp = logged_client.get('/dashboard')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert _ventas_mes_en_html(html) == 178
+
+
 def test_dashboard_top_productos_prioriza_lineas_preparacion_facturadas(app, logged_client):
     """Top productos debe usar líneas facturadas (preparación), no línea original."""
     from app import db, Cliente, Producto, Pedido, DetallePedido

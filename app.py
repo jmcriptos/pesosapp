@@ -705,6 +705,28 @@ def _monto_qb_a_xcg(row):
     return monto
 
 
+def _monto_qb_summary_a_xcg(summary, keys):
+    """Normaliza montos de summary QBO a XCG usando metadata de moneda/tasa cuando exista."""
+    monto = _coerce_float(_pick_row_value(summary, keys), None)
+    if monto is None:
+        return None
+
+    moneda = _normalizar_codigo_moneda(_pick_row_value(
+        summary,
+        ['currency', 'currency_code', 'currency_ref', 'currencyref', 'moneda']
+    ))
+    if moneda == 'USD':
+        tasa = _coerce_float(_pick_row_value(
+            summary,
+            ['exchange_rate', 'exchangeRate', 'fx_rate', 'rate', 'tipo_cambio']
+        ), None)
+        if tasa is None or tasa <= 1:
+            tasa = DASHBOARD_USD_TO_XCG_FALLBACK_RATE
+        return monto * tasa
+
+    return monto
+
+
 def _parse_dashboard_date_value(value):
     if value is None:
         return None
@@ -1029,7 +1051,9 @@ def _normalizar_metricas_ventas_quickbooks(
             fecha = _parse_dashboard_date_value(_pick_row_value(row, ['date', 'day', 'fecha']))
             if not fecha:
                 continue
-            ventas = _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0)
+            ventas = _monto_qb_a_xcg(row)
+            if ventas is None:
+                ventas = 0.0
             pedidos = _coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)
             ventas_diarias_idx[fecha] = {'ventas': ventas, '_invoices': set(range(pedidos))}
             if fecha >= inicio_mes:
@@ -1048,7 +1072,9 @@ def _normalizar_metricas_ventas_quickbooks(
             ))
             if not semana_inicio:
                 continue
-            ventas = _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0)
+            ventas = _monto_qb_a_xcg(row)
+            if ventas is None:
+                ventas = 0.0
             pedidos = _coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)
             ventas_semanales_idx[semana_inicio] = {'ventas': ventas, '_invoices': set(range(pedidos))}
 
@@ -1057,7 +1083,7 @@ def _normalizar_metricas_ventas_quickbooks(
                 continue
             nombre = str(_pick_row_value(row, ['name', 'customer', 'cliente']) or 'Sin cliente')
             clientes_ventas[nombre] = {
-                'total': _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0),
+                'total': _monto_qb_a_xcg(row) or 0.0,
                 'ultimo_pedido': _parse_dashboard_date_value(_pick_row_value(
                     row,
                     ['last_date', 'last_invoice_date', 'ultimo_pedido']
@@ -1072,25 +1098,36 @@ def _normalizar_metricas_ventas_quickbooks(
             if not nombre:
                 continue
             productos_ventas[nombre] = {
-                'ingresos': _coerce_float(_pick_row_value(row, ['sales', 'total', 'amount', 'ventas']), 0.0),
+                'ingresos': _monto_qb_a_xcg(row) or 0.0,
                 'cajas': _coerce_float(_pick_row_value(row, ['quantity', 'qty', 'cajas', 'cantidad']), 0.0),
                 'peso': _coerce_float(_pick_row_value(row, ['weight', 'peso']), 0.0),
                 '_invoices': set(range(_coerce_int(_pick_row_value(row, ['invoices', 'orders', 'pedidos']), 0)))
             }
 
     summary = raw_data.get('summary') if isinstance(raw_data.get('summary'), dict) else {}
-    ventas_mes = _coerce_float(
-        _pick_row_value(summary, ['ventas_mes', 'sales_month', 'month_sales']),
-        ventas_mes
-    )
-    ventas_semana = _coerce_float(
-        _pick_row_value(summary, ['ventas_semana', 'sales_week', 'week_sales']),
-        ventas_semana
-    )
-    ventas_mes_anterior = _coerce_float(
-        _pick_row_value(summary, ['ventas_mes_anterior', 'sales_previous_month', 'previous_month_sales']),
-        ventas_mes_anterior
-    )
+    # Solo aplicar summary cuando no hay datos procesables en filas/agregados.
+    # Evita sobreescribir montos ya normalizados (ej. filas USD convertidas a XCG).
+    if (
+        filas_procesadas == 0
+        and not ventas_diarias_idx
+        and not ventas_semanales_idx
+        and not clientes_ventas
+        and not productos_ventas
+    ):
+        resumen_mes = _monto_qb_summary_a_xcg(summary, ['ventas_mes', 'sales_month', 'month_sales'])
+        if resumen_mes is not None:
+            ventas_mes = resumen_mes
+
+        resumen_semana = _monto_qb_summary_a_xcg(summary, ['ventas_semana', 'sales_week', 'week_sales'])
+        if resumen_semana is not None:
+            ventas_semana = resumen_semana
+
+        resumen_mes_anterior = _monto_qb_summary_a_xcg(
+            summary,
+            ['ventas_mes_anterior', 'sales_previous_month', 'previous_month_sales']
+        )
+        if resumen_mes_anterior is not None:
+            ventas_mes_anterior = resumen_mes_anterior
 
     # Normalizar buckets para el dashboard (pedidos = facturas únicas)
     for bucket in ventas_diarias_idx.values():
