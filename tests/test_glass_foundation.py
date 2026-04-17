@@ -364,3 +364,12 @@ def test_layout_utilities_defined():
     for sel in ['.stack', '.stack-1', '.stack-4', '.cluster',
                 '.cluster-2', '.grid-auto']:
         assert sel in css
+
+
+def test_skeleton_primitive_defined():
+    css = _read_primitives()
+    assert '.skeleton' in css
+    assert '.skeleton-text' in css
+    assert '.skeleton-title' in css
+    assert '.skeleton-tile' in css
+    assert '@keyframes' in css and 'skeleton' in css  # shimmer keyframe

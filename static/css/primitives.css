@@ -240,3 +240,26 @@
   gap: var(--space-4);
   grid-template-columns: repeat(auto-fit, minmax(var(--grid-min, 240px), 1fr));
 }
+
+/* ─── Skeleton loaders ────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-muted) 0%,
+    var(--color-surface)       50%,
+    var(--color-surface-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s var(--ease-in-out-quart) infinite;
+  border-radius: var(--radius-sm);
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-text  { height: 1em; margin-bottom: 6px; }
+.skeleton-title { height: 1.5em; width: 60%; margin-bottom: 10px; }
+.skeleton-tile  { min-height: 130px; border-radius: var(--radius-xl); }
