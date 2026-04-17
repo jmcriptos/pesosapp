@@ -3,7 +3,7 @@ import calendar
 import secrets
 from dotenv import load_dotenv
 load_dotenv()
-from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash
+from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_, or_, cast, String
 from sqlalchemy.exc import OperationalError
@@ -7623,6 +7623,19 @@ def descargar_plantilla_csv(tipo):
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     
     return response
+
+@app.route('/dev/primitives')
+@login_required
+def dev_primitives():
+    """Admin-only showcase for Phase 1 glass foundation primitives.
+
+    Living reference used by Phases 2-5. Renders every primitive in
+    both light and dark themes (theme comes from the user's system
+    setting via prefers-color-scheme)."""
+    if not isinstance(current_user, Vendedor) or current_user.rol.nombre != 'super_admin':
+        abort(403)
+    return render_template('dev_primitives.html')
+
 
 if __name__ == '__main__':
     # Configuración para desarrollo local

@@ -171,3 +171,71 @@ def test_reduced_motion_override_present():
     rm_block = css[rm_start:rm_start + 1000]
     assert 'animation-duration: 0.01ms' in rm_block
     assert 'transition-duration: 0.01ms' in rm_block
+
+
+# ─── Demo route /dev/primitives ─────────────────────────────────────────
+
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from app import app as flask_app, db as _db
+
+
+@pytest.fixture
+def app():
+    flask_app.config.update(
+        TESTING=True,
+        WTF_CSRF_ENABLED=False,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+    )
+    with flask_app.app_context():
+        _db.create_all()
+        from app import Rol, Territorio, Vendedor
+        rol = Rol(nombre='super_admin', descripcion='Admin')
+        _db.session.add(rol)
+        territorio = Territorio(nombre='test', descripcion='Test')
+        _db.session.add(territorio)
+        _db.session.flush()
+        vendedor = Vendedor(
+            username='admin',
+            email='admin@test.com',
+            nombre_completo='Admin Test',
+            rol_id=rol.id,
+            territorio_id=territorio.id,
+            activo=True,
+        )
+        vendedor.set_password('testpass')
+        _db.session.add(vendedor)
+        _db.session.commit()
+        yield flask_app
+        _db.drop_all()
+
+
+@pytest.fixture
+def logged_client(app):
+    client = app.test_client()
+    client.post('/login', data={
+        'username': 'admin',
+        'password': 'testpass',
+    }, follow_redirects=True)
+    return client
+
+
+def test_dev_primitives_requires_login(app):
+    client = app.test_client()
+    resp = client.get('/dev/primitives', follow_redirects=False)
+    # Should redirect to login (302) or deny (401/403)
+    assert resp.status_code in (302, 401, 403), (
+        f"Expected redirect/deny for anonymous access, got {resp.status_code}"
+    )
+
+
+def test_dev_primitives_renders_for_admin(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    # Scaffold marker — we'll expand this test as primitives land
+    assert 'glass-foundation-demo' in html
+    # The new CSS files must be loaded via base.html
+    assert 'css/tokens.css' in html
+    assert 'css/primitives.css' in html
