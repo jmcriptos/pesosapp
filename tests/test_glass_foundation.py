@@ -161,3 +161,13 @@ def test_dark_mode_shadow_overrides_present():
     # Dark mode should reduce solid shadows (black-on-black loses them)
     assert '--shadow-sm:' in dark_block
     assert '--shadow-md:' in dark_block
+
+
+def test_reduced_motion_override_present():
+    css = _read_tokens()
+    assert '@media (prefers-reduced-motion: reduce)' in css
+    # Must disable animations globally
+    rm_start = css.find('@media (prefers-reduced-motion: reduce)')
+    rm_block = css[rm_start:rm_start + 1000]
+    assert 'animation-duration: 0.01ms' in rm_block
+    assert 'transition-duration: 0.01ms' in rm_block
