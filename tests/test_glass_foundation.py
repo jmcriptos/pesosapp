@@ -239,3 +239,38 @@ def test_dev_primitives_renders_for_admin(logged_client):
     # The new CSS files must be loaded via base.html
     assert 'css/tokens.css' in html
     assert 'css/primitives.css' in html
+
+
+# ─── Primitives ─────────────────────────────────────────────────────────
+
+def _read_primitives():
+    return PRIMITIVES_CSS.read_text(encoding='utf-8')
+
+
+def test_btn_primitive_defined():
+    css = _read_primitives()
+    # Base
+    assert '.btn {' in css or '.btn{' in css
+    # Variants
+    assert '.btn-primary' in css
+    assert '.btn-ghost' in css
+    assert '.btn-danger' in css
+    # Sizes
+    assert '.btn-sm' in css
+    assert '.btn-lg' in css
+    # Modifiers
+    assert '.btn-block' in css
+    assert '.btn-icon' in css
+    # Must use tokens (not hardcoded color)
+    assert 'var(--color-primary)' in css
+    # iOS touch target
+    assert 'min-height: 44px' in css or 'min-height:44px' in css
+
+
+def test_dev_primitives_renders_btn_variants(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    # At minimum the showcase has examples of each variant
+    for cls in ['btn-primary', 'btn-ghost', 'btn-danger',
+                'btn-sm', 'btn-lg', 'btn-block']:
+        assert cls in html, f"missing {cls} in /dev/primitives"

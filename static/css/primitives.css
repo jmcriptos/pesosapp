@@ -2,3 +2,69 @@
    PesosApp · Primitive Components · Phase 1 Glass Foundation
    See docs/superpowers/specs/2026-04-17-glass-foundation-design.md
    ============================================================================= */
+
+/* ─── .btn ───────────────────────────────────────────────────────────── */
+.btn {
+  --btn-bg: var(--color-surface);
+  --btn-fg: var(--color-text);
+  --btn-border: var(--color-border);
+  --btn-shadow: var(--shadow-xs);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: var(--btn-shadow);
+  cursor: pointer;
+  user-select: none;
+  min-height: 44px;           /* iOS touch target */
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-out-quart),
+    transform var(--duration-fast) var(--ease-spring),
+    box-shadow var(--duration-base) var(--ease-out-quart);
+}
+.btn:hover  { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Variants */
+.btn-primary {
+  --btn-bg: var(--color-primary);
+  --btn-fg: var(--color-primary-fg);
+  --btn-border: transparent;
+  --btn-shadow: var(--shadow-glass-sm);
+}
+.btn-primary:hover { --btn-bg: var(--color-primary-hover); }
+
+.btn-ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--color-primary-soft-fg);
+  --btn-border: transparent;
+  --btn-shadow: none;
+}
+.btn-ghost:hover { --btn-bg: var(--color-primary-soft); }
+
+.btn-danger {
+  --btn-bg: var(--color-danger);
+  --btn-fg: var(--color-danger-fg);
+  --btn-border: transparent;
+}
+
+/* Sizes */
+.btn-sm { padding: var(--space-1) var(--space-3); min-height: 36px; font-size: var(--text-xs); }
+.btn-lg { padding: var(--space-3) var(--space-6); min-height: 52px; font-size: var(--text-md); }
+
+/* Modifiers */
+.btn-block { width: 100%; }
+.btn-icon  { width: 44px; padding: 0; aspect-ratio: 1; }

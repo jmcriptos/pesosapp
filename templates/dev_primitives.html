@@ -14,8 +14,22 @@
   </p>
 
   {# Primitive sections will be appended here in subsequent tasks. #}
-  <section data-section="placeholder" style="margin-top: var(--space-8, 32px); color: var(--color-text-subtle, #64748b);">
-    Primitives will be added here in Tasks 7-16.
+  <section data-section="btn" style="margin-top: var(--space-8, 32px);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.btn — Button</h2>
+    <div style="display:flex; flex-wrap:wrap; gap: var(--space-2); margin-top: var(--space-3);">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn">Secondary</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-danger">Danger</button>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap: var(--space-2); margin-top: var(--space-3);">
+      <button class="btn btn-primary btn-sm">Small</button>
+      <button class="btn btn-primary">Medium</button>
+      <button class="btn btn-primary btn-lg">Large</button>
+      <button class="btn btn-primary btn-icon" aria-label="Confirm">✓</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" style="margin-top: var(--space-3);">Block button (mobile)</button>
   </section>
 </main>
 {% endblock %}
