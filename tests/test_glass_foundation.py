@@ -116,3 +116,48 @@ def test_typography_tokens_present():
     # Tracking
     assert '--tracking-tight:' in css
     assert '--tracking-widest:' in css
+
+
+# ─── Spacing / radii / shadows / motion / z-index / blur ────────────────
+
+def test_structural_tokens_present():
+    css = _read_tokens()
+    # Spacing
+    for t in ['--space-0', '--space-1', '--space-2', '--space-3', '--space-4',
+              '--space-5', '--space-6', '--space-8', '--space-10',
+              '--space-12', '--space-16', '--space-20']:
+        assert f'{t}:' in css
+    assert '--space-4: 16px' in css  # base
+    # Radii
+    for t in ['--radius-xs', '--radius-sm', '--radius-md', '--radius-lg',
+              '--radius-xl', '--radius-2xl', '--radius-full']:
+        assert f'{t}:' in css
+    # Shadows
+    for t in ['--shadow-xs', '--shadow-sm', '--shadow-md', '--shadow-lg',
+              '--shadow-xl', '--shadow-glass-sm', '--shadow-glass-md',
+              '--shadow-glass-lg']:
+        assert f'{t}:' in css
+    # Motion
+    assert '--duration-fast: 120ms' in css
+    assert '--duration-base: 200ms' in css
+    assert '--ease-out-quart:' in css
+    assert '--ease-spring:' in css
+    # Z-index
+    for t in ['--z-base', '--z-raised', '--z-sticky',
+              '--z-overlay', '--z-modal', '--z-toast', '--z-tooltip']:
+        assert f'{t}:' in css
+    # Blur
+    for t in ['--blur-sm', '--blur-md', '--blur-lg', '--blur-xl']:
+        assert f'{t}:' in css
+
+
+def test_dark_mode_shadow_overrides_present():
+    css = _read_tokens()
+    dark_start = css.find('@media (prefers-color-scheme: dark)')
+    dark_end_candidates = [css.find('@media', dark_start + 1)]
+    dark_end = min(i for i in dark_end_candidates if i != -1) if any(
+        i != -1 for i in dark_end_candidates) else len(css)
+    dark_block = css[dark_start:dark_end]
+    # Dark mode should reduce solid shadows (black-on-black loses them)
+    assert '--shadow-sm:' in dark_block
+    assert '--shadow-md:' in dark_block

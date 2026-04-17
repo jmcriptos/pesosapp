@@ -164,6 +164,16 @@
     --color-info-soft-fg: var(--sky-400);
 
     --focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.45);
+
+    /* Shadow overrides for dark mode */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.35);
+    --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.4);
+    --shadow-lg: 0 10px 20px -5px rgba(0,0,0,0.5);
+    --shadow-xl: 0 20px 40px -12px rgba(0,0,0,0.6);
+    --shadow-glass-sm: 0 4px 14px -4px rgba(129,140,248,0.25);
+    --shadow-glass-md: 0 20px 40px -12px rgba(129,140,248,0.3), 0 2px 6px rgba(0,0,0,0.3);
+    --shadow-glass-lg: 0 30px 60px -15px rgba(129,140,248,0.4);
   }
 }
 
@@ -205,4 +215,77 @@
   --tracking-normal:   0;
   --tracking-wide:     0.04em;
   --tracking-widest:   0.1em;
+}
+
+/* ─── Spacing (4-based scale) ─────────────────────────────────────────── */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;   /* base */
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+}
+
+/* ─── Radii ───────────────────────────────────────────────────────────── */
+:root {
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+}
+
+/* ─── Shadows (solid + glass — LIGHT defaults) ────────────────────────── */
+:root {
+  --shadow-xs: 0 1px 2px rgba(15,23,42,0.05);
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0 4px 12px -2px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.04);
+  --shadow-lg: 0 10px 20px -5px rgba(15,23,42,0.10), 0 4px 8px rgba(15,23,42,0.04);
+  --shadow-xl: 0 20px 40px -12px rgba(15,23,42,0.14), 0 8px 16px rgba(15,23,42,0.04);
+
+  --shadow-glass-sm: 0 4px 14px -4px rgba(99,102,241,0.18);
+  --shadow-glass-md: 0 20px 40px -12px rgba(99,102,241,0.22), 0 2px 6px rgba(15,23,42,0.04);
+  --shadow-glass-lg: 0 30px 60px -15px rgba(99,102,241,0.28), 0 4px 10px rgba(15,23,42,0.05);
+}
+
+/* ─── Motion ─────────────────────────────────────────────────────────── */
+:root {
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-slower: 480ms;
+
+  --ease-linear: linear;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-overshoot: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ─── Z-index (named layers) ─────────────────────────────────────────── */
+:root {
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-overlay: 500;
+  --z-modal: 1000;
+  --z-toast: 1500;
+  --z-tooltip: 2000;
+}
+
+/* ─── Blur ───────────────────────────────────────────────────────────── */
+:root {
+  --blur-sm: 8px;
+  --blur-md: 18px;  /* default glass */
+  --blur-lg: 28px;
+  --blur-xl: 40px;
 }
