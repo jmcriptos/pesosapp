@@ -36,3 +36,57 @@ def test_base_html_loads_tokens_before_primitives_before_legacy_css():
         f"Expected order: tokens.css ({tokens_idx}) < primitives.css ({primitives_idx}) "
         f"< styles.min.css ({legacy_idx})"
     )
+
+
+# ─── Color tokens ───────────────────────────────────────────────────────
+
+def _read_tokens():
+    return TOKENS_CSS.read_text(encoding='utf-8')
+
+
+def test_color_primitives_layer1_present():
+    css = _read_tokens()
+    # Representative primitives — if these are here the rest of the scale is too
+    assert '--gray-50: #f8fafc' in css
+    assert '--gray-900: #0f172a' in css
+    assert '--gray-950: #020617' in css
+    assert '--indigo-500: #6366f1' in css  # brand primary
+    assert '--indigo-700: #4338ca' in css
+    assert '--violet-500: #8b5cf6' in css
+    assert '--emerald-500: #10b981' in css
+    assert '--amber-500: #f59e0b' in css
+    assert '--rose-500: #f43f5e' in css
+    assert '--sky-500: #0ea5e9' in css
+
+
+def test_color_semantic_light_references_primitives():
+    css = _read_tokens()
+    assert '--color-primary: var(--indigo-500)' in css
+    assert '--color-text: var(--gray-900)' in css
+    assert '--color-success: var(--emerald-500)' in css
+    assert '--color-danger: var(--rose-500)' in css
+    # Glass tokens
+    assert '--glass-bg: rgba(255, 255, 255, 0.72)' in css
+    assert '--glass-blur:' in css
+    # Ambient gradient
+    assert '--bg-ambient:' in css and 'linear-gradient' in css
+    # Focus ring
+    assert '--focus-ring:' in css
+
+
+def test_dark_mode_media_query_overrides_semantic_tokens():
+    css = _read_tokens()
+    # The dark block must be present
+    assert '@media (prefers-color-scheme: dark)' in css
+    # Find the dark block content
+    dark_start = css.find('@media (prefers-color-scheme: dark)')
+    dark_end = css.find('@media', dark_start + 1)
+    if dark_end == -1:
+        dark_end = len(css)
+    dark_block = css[dark_start:dark_end]
+    # Key dark overrides
+    assert '--color-bg:' in dark_block
+    assert '--color-text:' in dark_block
+    assert '--color-surface:' in dark_block
+    assert '--glass-bg:' in dark_block
+    assert '--color-primary:' in dark_block
