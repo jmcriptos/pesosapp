@@ -32,6 +32,7 @@ import locale
 import traceback
 from decimal import Decimal
 from time import perf_counter
+import threading
 # from models.extensions import db  # Comentado para evitar conflictos
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -134,9 +135,9 @@ try:
 except (TypeError, ValueError):
     N8N_QB_REFRESH_THROTTLE_SEC = 30
 try:
-    N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 60))
+    N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 300))
 except (TypeError, ValueError):
-    N8N_QB_CACHE_TTL = 60
+    N8N_QB_CACHE_TTL = 300
 try:
     N8N_QB_FAILURE_CACHE_TTL = int(os.environ.get('N8N_QB_FAILURE_CACHE_TTL', 30))
 except (TypeError, ValueError):
@@ -157,6 +158,8 @@ _qb_sales_cache = {
     'failure_expires_at': 0.0,
     'last_refresh_attempt': 0.0,
 }
+_qb_sales_cache_lock = threading.Lock()
+_qb_sales_refresh_inflight = False
 
 # SQLAlchemy ya inicializado arriba
 
@@ -978,6 +981,11 @@ def _normalizar_metricas_ventas_quickbooks(
         filas = []
 
     filas_procesadas = 0
+    filas_descartadas_sin_fecha = 0
+    filas_descartadas_fuera_rango = 0
+    filas_descartadas_sin_monto = 0
+    monto_bruto_mes = 0.0
+    invoices_mes = set()
     for row in filas:
         if not isinstance(row, dict):
             continue
@@ -987,14 +995,26 @@ def _normalizar_metricas_ventas_quickbooks(
             ['date', 'invoice_date', 'transaction_date', 'fecha', 'fecha_facturacion']
         ))
         if not fecha:
+            filas_descartadas_sin_fecha += 1
             continue
         if fecha < inicio_tendencia or fecha > hoy:
+            filas_descartadas_fuera_rango += 1
             continue
 
         monto = _monto_qb_a_xcg(row)
         if monto is None:
+            filas_descartadas_sin_monto += 1
             continue
         filas_procesadas += 1
+
+        if fecha >= inicio_mes:
+            monto_bruto_mes += monto
+            invoice_key_for_count = _pick_row_value(
+                row,
+                ['invoice_id', 'invoice_number', 'invoice_no', 'num', 'numero_factura', 'id']
+            )
+            if invoice_key_for_count:
+                invoices_mes.add(str(invoice_key_for_count))
 
         invoice_key = str(_pick_row_value(
             row,
@@ -1236,11 +1256,32 @@ def _normalizar_metricas_ventas_quickbooks(
         else 'summary' if ventas_mes > 0
         else 'vacío'
     )
+    summary_ventas_mes = _monto_qb_summary_a_xcg(
+        summary, ['ventas_mes', 'sales_month', 'month_sales']
+    ) if isinstance(summary, dict) else None
     app.logger.info(
         f'[QBO normalizado] fuente={fuente} filas={filas_procesadas} '
+        f'descartes(sin_fecha={filas_descartadas_sin_fecha},'
+        f'fuera_rango={filas_descartadas_fuera_rango},'
+        f'sin_monto={filas_descartadas_sin_monto}) '
         f'ventas_mes={ventas_mes:.2f} ventas_semana={ventas_semana:.2f} '
         f'ventas_mes_anterior={ventas_mes_anterior:.2f}'
     )
+    if filas_procesadas > 0:
+        app.logger.info(
+            f'[QBO diagnóstico mes] monto_bruto_filas_mes={monto_bruto_mes:.2f} '
+            f'invoices_mes_unicas={len(invoices_mes)} '
+            f'summary_ventas_mes={summary_ventas_mes}'
+        )
+        if (
+            summary_ventas_mes is not None
+            and abs(summary_ventas_mes - ventas_mes) > 0.5
+        ):
+            app.logger.warning(
+                f'[QBO diagnóstico mes] DELTA filas={ventas_mes:.2f} vs '
+                f'summary={summary_ventas_mes:.2f} '
+                f'(delta={summary_ventas_mes - ventas_mes:+.2f})'
+            )
 
     return {
         'ventas_mes': round(ventas_mes, 2),
@@ -1255,6 +1296,97 @@ def _normalizar_metricas_ventas_quickbooks(
     }
 
 
+def _qb_sales_fetch_and_cache(
+    payload,
+    cache_key,
+    timeout,
+    has_stale_value,
+    date_args,
+):
+    """Hace el POST a n8n, normaliza, y actualiza el cache. Usado sync y en background."""
+    global _qb_sales_cache
+    try:
+        qb_fetch_start = perf_counter()
+        resp = requests.post(
+            N8N_QB_SALES_WEBHOOK_URL,
+            json=payload,
+            timeout=timeout
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, dict):
+            app.logger.warning('Respuesta QuickBooks inválida: se esperaba JSON objeto')
+            return None
+        normalized = _normalizar_metricas_ventas_quickbooks(data, **date_args)
+        cache_now = datetime.now(timezone.utc).timestamp()
+        with _qb_sales_cache_lock:
+            _qb_sales_cache = {
+                'key': cache_key,
+                'value': normalized,
+                'expires_at': cache_now + N8N_QB_CACHE_TTL if N8N_QB_CACHE_TTL > 0 else 0.0,
+                'stale_expires_at': cache_now + N8N_QB_STALE_CACHE_TTL if N8N_QB_STALE_CACHE_TTL > 0 else 0.0,
+                'failure_expires_at': 0.0,
+                'last_refresh_attempt': cache_now,
+            }
+        qb_elapsed_ms = (perf_counter() - qb_fetch_start) * 1000
+        if qb_elapsed_ms >= 1000:
+            app.logger.info(
+                f'QuickBooks ventas respondió en {qb_elapsed_ms:.0f}ms '
+                f'(timeout {timeout:.2f}s)'
+            )
+        return normalized
+    except requests.Timeout:
+        app.logger.warning(
+            f'Timeout obteniendo ventas de QuickBooks ({timeout:.2f}s). '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
+    except requests.RequestException as e:
+        app.logger.warning(
+            f'Error consultando ventas QuickBooks: {e}. '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
+    except ValueError:
+        app.logger.warning(
+            f'Error parseando JSON de ventas QuickBooks. '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
+    except Exception as e:
+        app.logger.warning(
+            f'Error inesperado ventas QuickBooks: {e}. '
+            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
+        )
+
+    if N8N_QB_FAILURE_CACHE_TTL > 0:
+        with _qb_sales_cache_lock:
+            prev_stale_expires = _qb_sales_cache.get('stale_expires_at', 0.0) if has_stale_value else 0.0
+            prev_value = _qb_sales_cache.get('value') if has_stale_value else None
+            _qb_sales_cache = {
+                'key': cache_key,
+                'value': prev_value,
+                'expires_at': 0.0,
+                'stale_expires_at': prev_stale_expires,
+                'failure_expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_FAILURE_CACHE_TTL,
+                'last_refresh_attempt': datetime.now(timezone.utc).timestamp(),
+            }
+    return None
+
+
+def _qb_sales_refresh_background(payload, cache_key, date_args):
+    """Refresca el cache QBO en background. No bloquea el dashboard."""
+    global _qb_sales_refresh_inflight
+    try:
+        _qb_sales_fetch_and_cache(
+            payload=payload,
+            cache_key=cache_key,
+            timeout=float(N8N_QB_SALES_TIMEOUT),
+            has_stale_value=True,
+            date_args=date_args,
+        )
+    finally:
+        with _qb_sales_cache_lock:
+            _qb_sales_refresh_inflight = False
+
+
 def _obtener_metricas_ventas_quickbooks(
     hoy,
     inicio_mes,
@@ -1264,7 +1396,7 @@ def _obtener_metricas_ventas_quickbooks(
     inicio_tendencia,
     inicio_ultimos_7_dias,
 ):
-    global _qb_sales_cache
+    global _qb_sales_refresh_inflight
 
     if not _quickbooks_sales_enabled():
         return None
@@ -1287,34 +1419,69 @@ def _obtener_metricas_ventas_quickbooks(
         payload['to_date'],
         payload['timezone'],
     )
-    now_ts = datetime.now(timezone.utc).timestamp()
-    cache_hit_for_key = _qb_sales_cache.get('key') == cache_key
-    cached_value = _qb_sales_cache.get('value')
-    has_stale_value = (
-        cache_hit_for_key
-        and cached_value is not None
-        and _qb_sales_cache.get('stale_expires_at', 0.0) > now_ts
+    date_args = dict(
+        hoy=hoy,
+        inicio_mes=inicio_mes,
+        inicio_semana=inicio_semana,
+        inicio_mes_anterior=inicio_mes_anterior,
+        fin_mes_anterior=fin_mes_anterior,
+        inicio_tendencia=inicio_tendencia,
+        inicio_ultimos_7_dias=inicio_ultimos_7_dias,
     )
 
-    if (
-        N8N_QB_CACHE_TTL > 0
-        and cache_hit_for_key
-        and _qb_sales_cache.get('expires_at', 0.0) > now_ts
-    ):
-        return _qb_sales_cache.get('value')
-    if (
-        N8N_QB_FAILURE_CACHE_TTL > 0
-        and cache_hit_for_key
-        and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
-    ):
-        return cached_value if has_stale_value else None
-    if (
-        has_stale_value
-        and N8N_QB_REFRESH_THROTTLE_SEC > 0
-        and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
-    ):
+    now_ts = datetime.now(timezone.utc).timestamp()
+
+    with _qb_sales_cache_lock:
+        cache_hit_for_key = _qb_sales_cache.get('key') == cache_key
+        cached_value = _qb_sales_cache.get('value')
+        has_stale_value = (
+            cache_hit_for_key
+            and cached_value is not None
+            and _qb_sales_cache.get('stale_expires_at', 0.0) > now_ts
+        )
+        is_fresh = (
+            N8N_QB_CACHE_TTL > 0
+            and cache_hit_for_key
+            and _qb_sales_cache.get('expires_at', 0.0) > now_ts
+        )
+        in_failure_window = (
+            N8N_QB_FAILURE_CACHE_TTL > 0
+            and cache_hit_for_key
+            and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
+        )
+        throttled = (
+            N8N_QB_REFRESH_THROTTLE_SEC > 0
+            and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
+        )
+
+    # 1) Cache fresco → servir sin tocar red
+    if is_fresh:
         return cached_value
 
+    # 2) Backoff tras error reciente → servir stale o None, sin red
+    if in_failure_window:
+        return cached_value if has_stale_value else None
+
+    # 3) Hay valor stale usable → servirlo YA y, si no está throttleado,
+    #    lanzar refresh en background para la próxima carga.
+    if has_stale_value:
+        if not throttled:
+            should_spawn = False
+            with _qb_sales_cache_lock:
+                if not _qb_sales_refresh_inflight:
+                    _qb_sales_refresh_inflight = True
+                    _qb_sales_cache['last_refresh_attempt'] = now_ts
+                    should_spawn = True
+            if should_spawn:
+                threading.Thread(
+                    target=_qb_sales_refresh_background,
+                    args=(payload, cache_key, date_args),
+                    daemon=True,
+                    name='qb-sales-refresh',
+                ).start()
+        return cached_value
+
+    # 4) Sin cache → bloquear con timeout corto como antes.
     blocking_timeout = N8N_QB_SALES_TIMEOUT
     if N8N_QB_BLOCKING_TIMEOUT_MS > 0:
         blocking_timeout = min(
@@ -1324,76 +1491,16 @@ def _obtener_metricas_ventas_quickbooks(
     if blocking_timeout <= 0:
         blocking_timeout = float(N8N_QB_SALES_TIMEOUT)
 
-    _qb_sales_cache['last_refresh_attempt'] = now_ts
+    with _qb_sales_cache_lock:
+        _qb_sales_cache['last_refresh_attempt'] = now_ts
 
-    try:
-        qb_fetch_start = perf_counter()
-        resp = requests.post(
-            N8N_QB_SALES_WEBHOOK_URL,
-            json=payload,
-            timeout=blocking_timeout
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if not isinstance(data, dict):
-            app.logger.warning('Respuesta QuickBooks inválida: se esperaba JSON objeto')
-            return cached_value if has_stale_value else None
-        normalized = _normalizar_metricas_ventas_quickbooks(
-            data,
-            hoy=hoy,
-            inicio_mes=inicio_mes,
-            inicio_semana=inicio_semana,
-            inicio_mes_anterior=inicio_mes_anterior,
-            fin_mes_anterior=fin_mes_anterior,
-            inicio_tendencia=inicio_tendencia,
-            inicio_ultimos_7_dias=inicio_ultimos_7_dias,
-        )
-        cache_now = datetime.now(timezone.utc).timestamp()
-        _qb_sales_cache = {
-            'key': cache_key,
-            'value': normalized,
-            'expires_at': cache_now + N8N_QB_CACHE_TTL if N8N_QB_CACHE_TTL > 0 else 0.0,
-            'stale_expires_at': cache_now + N8N_QB_STALE_CACHE_TTL if N8N_QB_STALE_CACHE_TTL > 0 else 0.0,
-            'failure_expires_at': 0.0,
-            'last_refresh_attempt': cache_now,
-        }
-        qb_elapsed_ms = (perf_counter() - qb_fetch_start) * 1000
-        if qb_elapsed_ms >= 1000:
-            app.logger.info(
-                f'QuickBooks ventas respondió en {qb_elapsed_ms:.0f}ms '
-                f'(timeout efectivo {blocking_timeout:.2f}s)'
-            )
-        return normalized
-    except requests.Timeout:
-        app.logger.warning(
-            f'Timeout obteniendo ventas de QuickBooks ({blocking_timeout:.2f}s). '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    except requests.RequestException as e:
-        app.logger.warning(
-            f'Error consultando ventas QuickBooks: {e}. '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    except ValueError:
-        app.logger.warning(
-            f'Error parseando JSON de ventas QuickBooks. '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    except Exception as e:
-        app.logger.warning(
-            f'Error inesperado ventas QuickBooks: {e}. '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    if N8N_QB_FAILURE_CACHE_TTL > 0:
-        _qb_sales_cache = {
-            'key': cache_key,
-            'value': cached_value if has_stale_value else None,
-            'expires_at': 0.0,
-            'stale_expires_at': _qb_sales_cache.get('stale_expires_at', 0.0) if has_stale_value else 0.0,
-            'failure_expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_FAILURE_CACHE_TTL,
-            'last_refresh_attempt': now_ts,
-        }
-    return cached_value if has_stale_value else None
+    return _qb_sales_fetch_and_cache(
+        payload=payload,
+        cache_key=cache_key,
+        timeout=blocking_timeout,
+        has_stale_value=has_stale_value,
+        date_args=date_args,
+    )
 
 
 @app.route('/dashboard_vendedor')
@@ -3941,14 +4048,6 @@ def dashboard():
         except Exception as e:
             app.logger.error(f'Error calculando visual de pedidos: {e}')
 
-        # === PEDIDOS RECIENTES (excluyendo AL01) ===
-        recientes_query = Pedido.query.options(joinedload(Pedido.cliente))
-        if cliente_almacen_id:
-            recientes_query = recientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
-        pedidos_recientes_data = recientes_query.order_by(
-            Pedido.fecha_pedido.desc()
-        ).limit(10).all()
-
         # === OPERACIÓN DE PEDIDOS (TAB PEDIDOS) ===
         pedidos_facturados_hoy = sum(
             1 for p in pedidos_facturados_list
@@ -4027,7 +4126,7 @@ def dashboard():
             pedidos_diarios_periodos=pedidos_diarios_periodos,
             pedidos_resumen_periodos=pedidos_resumen_periodos,
             tendencia_semanal=tendencia_semanal,
-            pedidos_recientes=pedidos_recientes_data,
+            pedidos_recientes=[],
             pedidos_operativos=pedidos_operativos,
             pedidos_vencidos=pedidos_vencidos,
             pedidos_preparados_activos=pedidos_preparados_activos,
