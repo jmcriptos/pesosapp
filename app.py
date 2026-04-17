@@ -580,17 +580,22 @@ def _calcular_venta_pedido(pedido):
     """
     prep_products = set()
     prep_total = 0.0
-    orig_total = 0.0
+    orig_by_product = {}
 
     for d in pedido.detalles:
-        if not d.es_linea_pedido and d.subtotal:
+        if not d.subtotal:
+            continue
+        if d.es_linea_pedido:
+            pid = d.producto_id
+            orig_by_product[pid] = orig_by_product.get(pid, 0.0) + float(d.subtotal)
+        else:
             prep_products.add(d.producto_id)
             prep_total += float(d.subtotal)
 
-    for d in pedido.detalles:
-        if d.es_linea_pedido and d.subtotal and d.producto_id not in prep_products:
-            orig_total += float(d.subtotal)
-
+    orig_total = sum(
+        monto for pid, monto in orig_by_product.items()
+        if pid not in prep_products
+    )
     return prep_total + orig_total
 
 
@@ -3383,32 +3388,41 @@ def dashboard():
                 .all()
             )
 
+            inicio_6m = pedidos_period_starts['6m']
             pedidos_base_with_dates = []
+            pedidos_mes_list = []
+            pedidos_semana_list = []
+            pedidos_30_dias = []
+            pedidos_mes_anterior_list = []
+            pedidos_6m_list = []
+            pedidos_facturados_list = []
+            pedidos_by_month_key = {}
+
             for pedido in pedidos_base_list:
                 fecha_local = _to_dashboard_date(pedido.fecha_pedido)
-                if not fecha_local or fecha_local > hoy:
-                    continue
-                pedidos_base_with_dates.append((pedido, fecha_local))
+                if fecha_local and fecha_local <= hoy:
+                    pedidos_base_with_dates.append((pedido, fecha_local))
+                    if fecha_local >= inicio_mes:
+                        pedidos_mes_list.append(pedido)
+                    if fecha_local >= inicio_semana:
+                        pedidos_semana_list.append(pedido)
+                    if fecha_local >= hace_30_dias:
+                        pedidos_30_dias.append(pedido)
+                    if inicio_mes_anterior <= fecha_local <= fin_mes_anterior:
+                        pedidos_mes_anterior_list.append(pedido)
+                    if fecha_local >= inicio_6m:
+                        pedidos_6m_list.append(pedido)
+                    pedidos_by_month_key.setdefault(
+                        (fecha_local.year, fecha_local.month), []
+                    ).append(pedido)
 
-            pedidos_mes_list = [p for p, fecha in pedidos_base_with_dates if fecha >= inicio_mes]
-            pedidos_semana_list = [p for p, fecha in pedidos_base_with_dates if fecha >= inicio_semana]
-            pedidos_30_dias = [p for p, fecha in pedidos_base_with_dates if fecha >= hace_30_dias]
-            pedidos_mes_anterior_list = [
-                p for p, fecha in pedidos_base_with_dates
-                if inicio_mes_anterior <= fecha <= fin_mes_anterior
-            ]
-            pedidos_6m_list = [
-                p for p, fecha in pedidos_base_with_dates
-                if fecha >= pedidos_period_starts['6m']
-            ]
-
-            pedidos_facturados_list = [
-                p for p in pedidos_base_list
-                if (p.estado or '').strip().lower() == 'facturado'
-                and p.fecha_facturacion is not None
-                and _to_dashboard_date(p.fecha_facturacion) is not None
-                and _to_dashboard_date(p.fecha_facturacion) >= fecha_corte_facturados
-            ]
+                if (
+                    (pedido.estado or '').strip().lower() == 'facturado'
+                    and pedido.fecha_facturacion is not None
+                ):
+                    fecha_fact_local = _to_dashboard_date(pedido.fecha_facturacion)
+                    if fecha_fact_local and fecha_fact_local >= fecha_corte_facturados:
+                        pedidos_facturados_list.append(pedido)
 
             app.logger.info(
                 f"Datos cargados: {len(pedidos_mes_list)} pedidos mes, "
@@ -3652,15 +3666,13 @@ def dashboard():
         kpis_historicos = []
         for months_back in range(5, -1, -1):
             mes_inicio = (inicio_mes - relativedelta(months=months_back)).replace(day=1)
-            if months_back == 0:
-                mes_fin = hoy
-            else:
-                mes_fin = (mes_inicio + relativedelta(months=1)) - timedelta(days=1)
 
-            pedidos_mes_hist = [
-                p for p, fecha_local in pedidos_base_with_dates
-                if mes_inicio <= fecha_local <= mes_fin
-            ]
+            if months_back == 0:
+                pedidos_mes_hist = pedidos_mes_list
+            else:
+                pedidos_mes_hist = pedidos_by_month_key.get(
+                    (mes_inicio.year, mes_inicio.month), []
+                )
 
             kpis = calcular_kpis_periodo(pedidos_mes_hist)
             kpis['mes'] = mes_inicio.strftime('%b %Y')
@@ -3800,11 +3812,78 @@ def dashboard():
                 }
             )
 
-        # === ESTADOS DE PEDIDOS ===
+        # === ESTADOS DE PEDIDOS + OPERACIÓN + TIEMPO RESPUESTA (single pass 30d) ===
         estados_count = {}
+        pedidos_operativos = []
+        pedidos_vencidos = 0
+        pedidos_preparados_activos = 0
+        tiempos_respuesta_cliente = {}
+
+        estado_priority = {
+            'pendiente': 0,
+            'preparado': 1,
+            'facturado': 2,
+        }
+
         for p in pedidos_30_dias:
-            estado = p.estado or 'sin_estado'  # Manejar estados nulos
-            estados_count[estado] = estados_count.get(estado, 0) + 1
+            estado_raw = p.estado or 'sin_estado'
+            estados_count[estado_raw] = estados_count.get(estado_raw, 0) + 1
+
+            pedido_metricas = obtener_metricas_pedido(p)
+            estado = pedido_metricas['estado'] or 'sin_estado'
+            fecha_pedido_local = pedido_metricas['fecha_pedido_local']
+            edad_dias = (hoy - fecha_pedido_local).days if fecha_pedido_local else 0
+            total_xcg = round(pedido_metricas['venta'], 2)
+            cliente_nombre = p.cliente.nombre if p.cliente and p.cliente.nombre else 'Sin cliente'
+
+            es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
+            if es_urgente:
+                pedidos_vencidos += 1
+            if estado == 'preparado':
+                pedidos_preparados_activos += 1
+
+            if estado == 'facturado':
+                sla_text = 'Facturado'
+                sla_class = 'sla-ok'
+            elif edad_dias <= 1:
+                sla_text = 'En tiempo'
+                sla_class = 'sla-ok'
+            elif edad_dias == 2:
+                sla_text = 'Límite hoy'
+                sla_class = 'sla-warn'
+            else:
+                sla_text = f'Vencido {edad_dias - 2}d'
+                sla_class = 'sla-danger'
+
+            pedidos_operativos.append({
+                'id': p.id,
+                'cliente': cliente_nombre,
+                'estado': estado,
+                'fecha_pedido': fecha_pedido_local.strftime('%d/%m') if fecha_pedido_local else 'N/A',
+                'fecha_pedido_full': p.fecha_pedido.strftime('%d/%m %H:%M') if p.fecha_pedido else '',
+                'edad_dias': max(0, edad_dias),
+                'total_xcg': total_xcg,
+                'sla_text': sla_text,
+                'sla_class': sla_class,
+                'es_urgente': es_urgente,
+                'puede_preparar': estado == 'pendiente',
+                'puede_facturar': estado == 'preparado',
+                'puede_editar': estado != 'facturado',
+            })
+
+            if p.cliente and p.fecha_facturacion:
+                tiempo = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
+                tiempos_respuesta_cliente.setdefault(cliente_nombre, []).append(tiempo)
+
+        pedidos_operativos.sort(
+            key=lambda x: (
+                estado_priority.get(x['estado'], 3),
+                -x['edad_dias'],
+                -x['total_xcg'],
+                -x['id']
+            )
+        )
+        pedidos_operativos = pedidos_operativos[:20]
 
         # Asegurar que siempre tengamos datos básicos
         estados_pedidos = {
@@ -3876,69 +3955,6 @@ def dashboard():
             if obtener_metricas_pedido(p)['fecha_fact_local'] == hoy
         )
 
-        pedidos_operativos = []
-        pedidos_vencidos = 0
-        pedidos_preparados_activos = 0
-
-        estado_priority = {
-            'pendiente': 0,
-            'preparado': 1,
-            'facturado': 2,
-        }
-
-        for p in pedidos_30_dias:
-            pedido_metricas = obtener_metricas_pedido(p)
-            estado = pedido_metricas['estado'] or 'sin_estado'
-            fecha_pedido_local = pedido_metricas['fecha_pedido_local']
-            edad_dias = (hoy - fecha_pedido_local).days if fecha_pedido_local else 0
-            total_xcg = round(pedido_metricas['venta'], 2)
-            cliente_nombre = p.cliente.nombre if p.cliente and p.cliente.nombre else 'Sin cliente'
-
-            es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
-            if es_urgente:
-                pedidos_vencidos += 1
-            if estado == 'preparado':
-                pedidos_preparados_activos += 1
-
-            if estado == 'facturado':
-                sla_text = 'Facturado'
-                sla_class = 'sla-ok'
-            elif edad_dias <= 1:
-                sla_text = 'En tiempo'
-                sla_class = 'sla-ok'
-            elif edad_dias == 2:
-                sla_text = 'Límite hoy'
-                sla_class = 'sla-warn'
-            else:
-                sla_text = f'Vencido {edad_dias - 2}d'
-                sla_class = 'sla-danger'
-
-            pedidos_operativos.append({
-                'id': p.id,
-                'cliente': cliente_nombre,
-                'estado': estado,
-                'fecha_pedido': fecha_pedido_local.strftime('%d/%m') if fecha_pedido_local else 'N/A',
-                'fecha_pedido_full': p.fecha_pedido.strftime('%d/%m %H:%M') if p.fecha_pedido else '',
-                'edad_dias': max(0, edad_dias),
-                'total_xcg': total_xcg,
-                'sla_text': sla_text,
-                'sla_class': sla_class,
-                'es_urgente': es_urgente,
-                'puede_preparar': estado == 'pendiente',
-                'puede_facturar': estado == 'preparado',
-                'puede_editar': estado != 'facturado',
-            })
-
-        pedidos_operativos.sort(
-            key=lambda x: (
-                estado_priority.get(x['estado'], 3),
-                -x['edad_dias'],
-                -x['total_xcg'],
-                -x['id']
-            )
-        )
-        pedidos_operativos = pedidos_operativos[:20]
-
         # === VENTAS DIARIAS (excluyendo AL01) ===
         ventas_dias = []
         for i in range(6, -1, -1):
@@ -3967,17 +3983,7 @@ def dashboard():
             proyeccion_ventas = 0
         porcentaje_proyeccion = (proyeccion_ventas / meta_mensual * 100) if meta_mensual > 0 else 0
 
-        # === TIEMPO DE RESPUESTA POR CLIENTE ===
-        tiempos_respuesta_cliente = {}
-        for p in pedidos_30_dias:
-            if p.cliente and p.fecha_facturacion:
-                nombre_cliente = p.cliente.nombre
-                tiempo = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-                if nombre_cliente not in tiempos_respuesta_cliente:
-                    tiempos_respuesta_cliente[nombre_cliente] = []
-                tiempos_respuesta_cliente[nombre_cliente].append(tiempo)
-        
-        # Calcular promedios
+        # === TIEMPO DE RESPUESTA POR CLIENTE (datos recolectados en loop 30d) ===
         tiempo_respuesta_data = []
         for cliente, tiempos in tiempos_respuesta_cliente.items():
             tiempo_respuesta_data.append({
