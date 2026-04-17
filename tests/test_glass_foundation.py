@@ -357,3 +357,10 @@ def test_dev_primitives_renders_surfaces(logged_client):
     html = resp.data.decode('utf-8')
     for cls in ['surface-solid', 'surface-glass', 'surface-sunken']:
         assert cls in html
+
+
+def test_layout_utilities_defined():
+    css = _read_primitives()
+    for sel in ['.stack', '.stack-1', '.stack-4', '.cluster',
+                '.cluster-2', '.grid-auto']:
+        assert sel in css

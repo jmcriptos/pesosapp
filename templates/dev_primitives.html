@@ -108,5 +108,28 @@
       <div class="surface-sunken" style="padding: var(--space-4); text-align:center; font-size: var(--text-sm);">sunken</div>
     </div>
   </section>
+
+  <section data-section="layout" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Layout utilities</h2>
+    <h3 style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-3);">.stack-3 (vertical gap 12px)</h3>
+    <div class="stack stack-3" style="margin-top: var(--space-2);">
+      <div class="surface-solid" style="padding: var(--space-3); font-size: var(--text-sm);">Row 1</div>
+      <div class="surface-solid" style="padding: var(--space-3); font-size: var(--text-sm);">Row 2</div>
+      <div class="surface-solid" style="padding: var(--space-3); font-size: var(--text-sm);">Row 3</div>
+    </div>
+    <h3 style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-4);">.cluster-2 (wrap chips)</h3>
+    <div class="cluster cluster-2" style="margin-top: var(--space-2);">
+      <span class="chip chip-primary">A</span><span class="chip chip-success">B</span>
+      <span class="chip chip-warning">C</span><span class="chip chip-danger">D</span>
+      <span class="chip chip-info">E</span><span class="chip">F</span>
+    </div>
+    <h3 style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-4);">.grid-auto (responsive)</h3>
+    <div class="grid-auto" style="--grid-min: 140px; margin-top: var(--space-2);">
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">1</div>
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">2</div>
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">3</div>
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">4</div>
+    </div>
+  </section>
 </main>
 {% endblock %}
