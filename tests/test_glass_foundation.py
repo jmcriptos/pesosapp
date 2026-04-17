@@ -314,3 +314,18 @@ def test_dev_primitives_renders_card_variants(logged_client):
     assert 'card-glass' in html
     assert 'data-state="success"' in html
     assert 'data-state="danger"' in html
+
+
+def test_chip_primitive_defined():
+    css = _read_primitives()
+    for sel in ['.chip', '.chip-primary', '.chip-success',
+                '.chip-warning', '.chip-danger', '.chip-info']:
+        assert sel in css, f"missing {sel}"
+
+
+def test_dev_primitives_renders_all_chip_variants(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    for cls in ['chip', 'chip-primary', 'chip-success',
+                'chip-warning', 'chip-danger', 'chip-info']:
+        assert cls in html
