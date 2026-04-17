@@ -55,5 +55,25 @@
       </div>
     </div>
   </section>
+
+  <section data-section="card" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.card — Card + variants</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3);">
+      <div class="card">
+        <div class="card-header"><strong>Solid</strong></div>
+        <div class="card-body" style="color: var(--color-text-muted); font-size: var(--text-sm);">Card base con header + body. Shadow-sm.</div>
+      </div>
+      <div class="card-glass">
+        <div class="card-header"><strong>Glass</strong></div>
+        <div class="card-body" style="color: var(--color-text-muted); font-size: var(--text-sm);">Backdrop-filter blur.</div>
+      </div>
+      <div class="card" data-state="success">
+        <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text-muted);">State: success</div>
+      </div>
+      <div class="card" data-state="danger">
+        <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text-muted);">State: danger</div>
+      </div>
+    </div>
+  </section>
 </main>
 {% endblock %}

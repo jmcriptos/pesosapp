@@ -110,3 +110,53 @@
 }
 .field-help  { font-size: var(--text-xs); color: var(--color-text-subtle); }
 .field-error { font-size: var(--text-xs); color: var(--color-danger); }
+
+/* ─── .card (+header, body, footer) + variants ────────────────────────── */
+.card {
+  --card-bg: var(--color-surface);
+  --card-border: var(--color-border);
+  --card-shadow: var(--shadow-sm);
+  --card-radius: var(--radius-lg);
+
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition:
+    box-shadow var(--duration-base) var(--ease-out-quart),
+    transform var(--duration-base) var(--ease-spring);
+}
+.card-interactive { cursor: pointer; }
+.card-interactive:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3);
+}
+.card-body   { padding: var(--space-5); }
+.card-footer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-muted);
+}
+
+/* Glass variant */
+.card-glass {
+  --card-bg: var(--glass-bg);
+  --card-border: var(--glass-border);
+  --card-shadow: var(--shadow-glass-md);
+  --card-radius: var(--radius-xl);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* State-tinted shadows (used by KPI tiles per §9 of spec) */
+.card[data-state="success"] { box-shadow: 0 20px 40px -12px rgba(16,185,129,0.22), var(--shadow-sm); }
+.card[data-state="warning"] { box-shadow: 0 20px 40px -12px rgba(245,158,11,0.22), var(--shadow-sm); }
+.card[data-state="danger"]  { box-shadow: 0 20px 40px -12px rgba(244,63,94,0.22), var(--shadow-sm); }

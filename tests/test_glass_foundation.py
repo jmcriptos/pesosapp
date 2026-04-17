@@ -295,3 +295,22 @@ def test_dev_primitives_renders_input_examples(logged_client):
     assert 'class="input"' in html or "class='input'" in html
     assert 'field-label' in html
     assert 'field-error' in html
+
+
+def test_card_primitive_defined():
+    css = _read_primitives()
+    for sel in ['.card', '.card-header', '.card-body', '.card-footer',
+                '.card-glass', '.card-interactive']:
+        assert sel in css, f"missing selector: {sel}"
+    # State-tinted
+    assert '[data-state="success"]' in css
+    assert '[data-state="warning"]' in css
+    assert '[data-state="danger"]' in css
+
+
+def test_dev_primitives_renders_card_variants(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    assert 'card-glass' in html
+    assert 'data-state="success"' in html
+    assert 'data-state="danger"' in html
