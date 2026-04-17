@@ -90,3 +90,29 @@ def test_dark_mode_media_query_overrides_semantic_tokens():
     assert '--color-surface:' in dark_block
     assert '--glass-bg:' in dark_block
     assert '--color-primary:' in dark_block
+
+
+# ─── Typography ─────────────────────────────────────────────────────────
+
+def test_typography_tokens_present():
+    css = _read_tokens()
+    assert '--font-sans:' in css
+    assert 'SF Pro Display' in css  # iOS-native stack
+    assert '--font-mono:' in css
+    # Size scale
+    for token in ['--text-2xs', '--text-xs', '--text-sm', '--text-base',
+                  '--text-input', '--text-md', '--text-lg', '--text-xl',
+                  '--text-2xl', '--text-3xl', '--text-4xl']:
+        assert f'{token}:' in css, f"missing {token}"
+    # Input must be 16px to prevent iOS zoom
+    assert '--text-input: 16px' in css
+    # Weights
+    for token in ['--weight-regular', '--weight-medium',
+                  '--weight-semibold', '--weight-bold', '--weight-heavy']:
+        assert f'{token}:' in css
+    # Line height
+    assert '--leading-tight:' in css
+    assert '--leading-normal:' in css
+    # Tracking
+    assert '--tracking-tight:' in css
+    assert '--tracking-widest:' in css

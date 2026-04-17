@@ -166,3 +166,43 @@
     --focus-ring: 0 0 0 3px rgba(129, 140, 248, 0.45);
   }
 }
+
+/* ─── Typography ─────────────────────────────────────────────────────── */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+               'SF Pro Text', 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+  --font-numeric: var(--font-sans);
+
+  /* Size scale (mobile base 15px) */
+  --text-2xs:   10px;
+  --text-xs:    11px;
+  --text-sm:    13px;
+  --text-base:  15px;   /* body default */
+  --text-input: 16px;   /* inputs only — prevents iOS Safari zoom on focus */
+  --text-md:    17px;
+  --text-lg:    20px;
+  --text-xl:    24px;
+  --text-2xl:   32px;
+  --text-3xl:   40px;
+  --text-4xl:   52px;
+
+  /* Weights */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-heavy:    800;
+
+  /* Line height */
+  --leading-tight:   1.1;
+  --leading-snug:    1.25;
+  --leading-normal:  1.4;
+  --leading-relaxed: 1.6;
+
+  /* Letter spacing */
+  --tracking-tight:   -0.02em;
+  --tracking-normal:   0;
+  --tracking-wide:     0.04em;
+  --tracking-widest:   0.1em;
+}
