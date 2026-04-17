@@ -393,3 +393,12 @@ def test_dev_primitives_renders_ring_states(logged_client):
     assert 'class="ring"' in html
     # At least one of each state shown
     assert 'data-state="success"' in html or 'data-state=\'success\'' in html
+
+
+def test_typography_utilities_defined():
+    css = _read_primitives()
+    for sel in ['.text-xs', '.text-sm', '.text-base', '.text-lg', '.text-xl',
+                '.font-medium', '.font-semibold', '.font-bold',
+                '.text-muted', '.text-subtle', '.text-primary',
+                '.label', '.tabular']:
+        assert sel in css, f"missing {sel}"
