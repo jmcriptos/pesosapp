@@ -8,3 +8,4 @@ instance/
 context/*.xml
 .bmad-core/web-bundles/*
 backups/
+.superpowers/
