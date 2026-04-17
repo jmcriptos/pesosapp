@@ -898,3 +898,19 @@ def test_dashboard_ventas_qbo_fallback_timeout_usa_datos_locales(app, logged_cli
     # Dashboard debe cargar sin error, usando datos locales
     html = resp.data.decode('utf-8')
     assert 'Ventas del Mes' in html
+
+
+# === Regresión: parseo de fechas de QBO no debe shiftear por timezone ===
+
+def test_parse_dashboard_date_value_pure_date_no_timezone_shift():
+    """Un string de solo-fecha (ej. '2026-04-01') debe mantenerse como esa fecha
+    local, sin ser tratado como UTC y corrido a '2026-03-31' al convertir a
+    America/Curacao. Esto causaba que las ventas del día 1 del mes quedaran
+    excluidas del filtro `fecha >= inicio_mes`."""
+    from app import _parse_dashboard_date_value
+
+    assert _parse_dashboard_date_value('2026-04-01') == date(2026, 4, 1)
+    assert _parse_dashboard_date_value('2026-04-17') == date(2026, 4, 17)
+    assert _parse_dashboard_date_value('04/01/2026') == date(2026, 4, 1)
+    # Datetime con hora explícita sí debe pasar por conversión de timezone
+    assert _parse_dashboard_date_value('2026-04-17T10:30:00Z') == date(2026, 4, 17)

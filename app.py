@@ -759,6 +759,17 @@ def _parse_dashboard_date_value(value):
     if not text:
         return None
 
+    # Strings de solo-fecha (sin componente de hora): interpretar como fecha local
+    # del dashboard. Evita que `datetime.fromisoformat("2026-04-01")` se trate como
+    # UTC y luego se convierta a America/Curacao (UTC-4), corriendo la fecha al día
+    # anterior y excluyendo las ventas del día 1 del mes.
+    if 'T' not in text and ':' not in text:
+        for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%Y/%m/%d', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(text[:10], fmt).date()
+            except ValueError:
+                continue
+
     # ISO datetime/date (con o sin zona horaria)
     try:
         dt = datetime.fromisoformat(text.replace('Z', '+00:00'))
