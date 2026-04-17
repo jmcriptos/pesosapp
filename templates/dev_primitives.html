@@ -31,5 +31,29 @@
     </div>
     <button class="btn btn-primary btn-block btn-lg" style="margin-top: var(--space-3);">Block button (mobile)</button>
   </section>
+
+  <section data-section="input" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.input — Input + .field</h2>
+    <div style="display: grid; gap: var(--space-3); margin-top: var(--space-3);">
+      <div class="field">
+        <label class="field-label" for="demo-cliente">Cliente</label>
+        <input class="input" id="demo-cliente" placeholder="Buscar cliente…">
+        <span class="field-help">Nombre o QBO ID</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="demo-email">Correo</label>
+        <input class="input" id="demo-email" value="jose@jomarfoods.com">
+      </div>
+      <div class="field">
+        <label class="field-label" for="demo-monto">Monto XCG</label>
+        <input class="input" id="demo-monto" value="-450" aria-invalid="true">
+        <span class="field-error">El monto debe ser positivo</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="demo-disabled">Solo lectura</label>
+        <input class="input" id="demo-disabled" value="Bloqueado" disabled>
+      </div>
+    </div>
+  </section>
 </main>
 {% endblock %}

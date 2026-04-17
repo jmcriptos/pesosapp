@@ -274,3 +274,24 @@ def test_dev_primitives_renders_btn_variants(logged_client):
     for cls in ['btn-primary', 'btn-ghost', 'btn-danger',
                 'btn-sm', 'btn-lg', 'btn-block']:
         assert cls in html, f"missing {cls} in /dev/primitives"
+
+
+def test_input_primitive_defined():
+    css = _read_primitives()
+    assert '.input {' in css or '.input{' in css
+    assert '.field' in css
+    assert '.field-label' in css
+    assert '.field-help' in css
+    assert '.field-error' in css
+    # Must use --text-input (16px) to avoid iOS zoom
+    assert 'var(--text-input)' in css
+    # Invalid state binding
+    assert '[aria-invalid="true"]' in css
+
+
+def test_dev_primitives_renders_input_examples(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    assert 'class="input"' in html or "class='input'" in html
+    assert 'field-label' in html
+    assert 'field-error' in html
