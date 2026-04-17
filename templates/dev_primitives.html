@@ -144,5 +144,39 @@
     </div>
     <div class="skeleton skeleton-tile" style="margin-top: var(--space-3);"></div>
   </section>
+
+  <section data-section="ring" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Ring state (KPI progress)</h2>
+    <div style="display:flex; gap: var(--space-4); margin-top: var(--space-3); align-items: center;">
+      <!-- 90% success -->
+      <svg class="ring" data-state="success" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 9.4;"></circle>
+        <text class="ring-text" x="18" y="22">90%</text>
+      </svg>
+      <!-- 78% warning -->
+      <svg class="ring" data-state="warning" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 20.7;"></circle>
+        <text class="ring-text" x="18" y="22">78%</text>
+      </svg>
+      <!-- 55% danger -->
+      <svg class="ring" data-state="danger" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 42.4;"></circle>
+        <text class="ring-text" x="18" y="22">55%</text>
+      </svg>
+      <!-- 100% neutral (default primary) -->
+      <svg class="ring" data-state="neutral" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 0;"></circle>
+        <text class="ring-text" x="18" y="22">100</text>
+      </svg>
+    </div>
+  </section>
 </main>
 {% endblock %}

@@ -373,3 +373,23 @@ def test_skeleton_primitive_defined():
     assert '.skeleton-title' in css
     assert '.skeleton-tile' in css
     assert '@keyframes' in css and 'skeleton' in css  # shimmer keyframe
+
+
+def test_ring_primitive_defined():
+    css = _read_primitives()
+    assert '.ring' in css
+    assert '.ring-bg' in css
+    assert '.ring-fg' in css
+    assert '.ring[data-state="success"]' in css
+    assert '.ring[data-state="warning"]' in css
+    assert '.ring[data-state="danger"]' in css
+    # Uses --ring-color variable internally
+    assert 'var(--ring-color)' in css
+
+
+def test_dev_primitives_renders_ring_states(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    assert 'class="ring"' in html
+    # At least one of each state shown
+    assert 'data-state="success"' in html or 'data-state=\'success\'' in html

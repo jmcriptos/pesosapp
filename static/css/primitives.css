@@ -263,3 +263,40 @@
 .skeleton-text  { height: 1em; margin-bottom: 6px; }
 .skeleton-title { height: 1.5em; width: 60%; margin-bottom: 10px; }
 .skeleton-tile  { min-height: 130px; border-radius: var(--radius-xl); }
+
+/* ─── Ring state primitive (KPI progress rings) ──────────────────────── */
+.ring {
+  --ring-color: var(--color-primary);
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+}
+.ring-bg {
+  fill: none;
+  stroke: var(--glass-border);
+  stroke-width: 4;
+  opacity: 0.5;
+}
+.ring-fg {
+  fill: none;
+  stroke: var(--ring-color);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition:
+    stroke var(--duration-slow) var(--ease-out-quart),
+    stroke-dashoffset var(--duration-slower) var(--ease-out-quart);
+}
+.ring-text {
+  fill: var(--ring-color);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.ring[data-state="success"] { --ring-color: var(--color-success); }
+.ring[data-state="warning"] { --ring-color: var(--color-warning); }
+.ring[data-state="danger"]  { --ring-color: var(--color-danger); }
+.ring[data-state="neutral"] { --ring-color: var(--color-primary); }
