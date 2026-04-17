@@ -329,3 +329,18 @@ def test_dev_primitives_renders_all_chip_variants(logged_client):
     for cls in ['chip', 'chip-primary', 'chip-success',
                 'chip-warning', 'chip-danger', 'chip-info']:
         assert cls in html
+
+
+def test_badge_primitive_defined():
+    css = _read_primitives()
+    assert '.badge' in css
+    assert '.badge-dot' in css
+    # Tabular nums for counts
+    assert 'tabular-nums' in css
+
+
+def test_dev_primitives_renders_badge_examples(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    assert 'class="badge"' in html
+    assert 'badge-dot' in html
