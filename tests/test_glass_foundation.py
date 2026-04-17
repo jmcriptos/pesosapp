@@ -344,3 +344,16 @@ def test_dev_primitives_renders_badge_examples(logged_client):
     html = resp.data.decode('utf-8')
     assert 'class="badge"' in html
     assert 'badge-dot' in html
+
+
+def test_surface_helpers_defined():
+    css = _read_primitives()
+    for sel in ['.surface-solid', '.surface-glass', '.surface-sunken']:
+        assert sel in css
+
+
+def test_dev_primitives_renders_surfaces(logged_client):
+    resp = logged_client.get('/dev/primitives')
+    html = resp.data.decode('utf-8')
+    for cls in ['surface-solid', 'surface-glass', 'surface-sunken']:
+        assert cls in html
