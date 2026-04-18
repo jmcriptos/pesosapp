@@ -57,38 +57,15 @@
 {% set svc_lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
 {% set svc_lt_offset = ring_circ - (svc_lt_pct / 100) * ring_circ %}
 
-<div class="exec-dashboard">
-    <div class="dashboard-subnav-wrap">
-        <div class="dashboard-subnav">
-            <div class="dashboard-carousel-head">
-                <div class="dashboard-carousel-copy">
-                    <span class="dashboard-carousel-kicker">Dashboard</span>
-                    <div class="dashboard-carousel-title-row">
-                        <span class="dashboard-carousel-title" id="dashboardSectionLabel">Ventas</span>
-                        <span class="dashboard-carousel-counter" id="dashboardSectionCounter">1 / 4</span>
-                    </div>
-                </div>
-
-                <div class="dashboard-carousel-controls">
-                    <div class="dashboard-carousel-dots" id="dashboardCarouselDots" aria-label="Páginas del dashboard">
-                        <button class="dashboard-carousel-dot active" type="button" data-panel-target="tendencia" aria-label="Ir a Ventas" aria-pressed="true"></button>
-                        <button class="dashboard-carousel-dot" type="button" data-panel-target="servicio" aria-label="Ir a Servicio" aria-pressed="false"></button>
-                        <button class="dashboard-carousel-dot" type="button" data-panel-target="rankings" aria-label="Ir a Top" aria-pressed="false"></button>
-                        <button class="dashboard-carousel-dot" type="button" data-panel-target="actividad" aria-label="Ir a Pedidos" aria-pressed="false"></button>
-                    </div>
-
-                    <div class="dashboard-carousel-nav">
-                        <button class="dashboard-carousel-btn" id="dashboardPrev" type="button" aria-label="Ir a la sección anterior" disabled>
-                            <i class="fas fa-arrow-left"></i>
-                        </button>
-                        <button class="dashboard-carousel-btn" id="dashboardNext" type="button" aria-label="Ir a la siguiente sección">
-                            <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="exec-dashboard" data-dashboard-tabs>
+    {# ── X-style Tab Bar ── #}
+    <nav class="dash-tabs" role="tablist" aria-label="Secciones del dashboard">
+        <button class="dash-tab is-active" role="tab" data-tab="tendencia" aria-selected="true" aria-controls="panel-tendencia">Ventas</button>
+        <button class="dash-tab" role="tab" data-tab="servicio" aria-selected="false" aria-controls="panel-servicio">Servicio</button>
+        <button class="dash-tab" role="tab" data-tab="rankings" aria-selected="false" aria-controls="panel-rankings">Top</button>
+        <button class="dash-tab" role="tab" data-tab="actividad" aria-selected="false" aria-controls="panel-actividad">Pedidos</button>
+        <span class="dash-tabs-indicator" aria-hidden="true"></span>
+    </nav>
 
     {# ══════ Tab Panels ══════ #}
     <div class="tab-panels" id="dashboardCarousel">
@@ -1594,24 +1571,13 @@ document.addEventListener('DOMContentLoaded', function() {
             ts.textContent = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
         }
 
-        // === DASHBOARD CAROUSEL ===
-        const carousel = document.getElementById('dashboardCarousel');
-        const panels = Array.from(document.querySelectorAll('.tab-panel'));
-        const panelLookup = new Map(panels.map(panel => [panel.dataset.panel, panel]));
-        const carouselDots = Array.from(document.querySelectorAll('.dashboard-carousel-dot'));
-        const sectionLabel = document.getElementById('dashboardSectionLabel');
-        const sectionCounter = document.getElementById('dashboardSectionCounter');
-        const prevBtn = document.getElementById('dashboardPrev');
-        const nextBtn = document.getElementById('dashboardNext');
+        // === CHART STATE (used by lazy init below) ===
         const chartInited = { tendencia: false, servicio: false, actividad: false };
         let salesChart = null;
         let kpiEvolutionChart = null;
         let ordersDailyChart = null;
         let ordersStatusChart = null;
         let activePanelKey = 'tendencia';
-        let scrollAnimationFrame = null;
-        let scrollStopTimer = null;
-        let isCarouselAnimating = false;
 
         // === LAZY CHART INIT ===
         function initChartsFor(tab) {
@@ -1642,179 +1608,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        function cancelCarouselAnimation() {
-            window.clearTimeout(scrollStopTimer);
-            if (scrollAnimationFrame) {
-                window.cancelAnimationFrame(scrollAnimationFrame);
-                scrollAnimationFrame = null;
-            }
-            isCarouselAnimating = false;
-            if (carousel) {
-                carousel.classList.remove('is-animating');
-            }
-        }
-
-        function getCarouselTargetLeft(panel) {
-            if (!carousel || !panel) return 0;
-            const carouselStyles = window.getComputedStyle(carousel);
-            const paddingLeft = parseFloat(carouselStyles.paddingLeft || '0') || 0;
-            return Math.max(0, panel.offsetLeft - paddingLeft);
-        }
-
-        function easeInOutCubic(progress) {
-            return progress < 0.5
-                ? 4 * progress * progress * progress
-                : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-        }
-
-        function animateCarouselTo(panel, duration) {
-            if (!carousel || !panel) return;
-
-            const targetLeft = getCarouselTargetLeft(panel);
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            cancelCarouselAnimation();
-
-            if (prefersReducedMotion) {
-                carousel.scrollLeft = targetLeft;
-                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
-                return;
-            }
-
-            const startLeft = carousel.scrollLeft;
-            const delta = targetLeft - startLeft;
-            if (Math.abs(delta) < 2) {
-                carousel.scrollLeft = targetLeft;
-                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
-                return;
-            }
-
-            const animationDuration = duration || (window.innerWidth >= 1024 ? 480 : 360);
-            const startTime = performance.now();
-            isCarouselAnimating = true;
-            carousel.classList.add('is-animating');
-
-            const step = (now) => {
-                const elapsed = now - startTime;
-                const progress = Math.min(elapsed / animationDuration, 1);
-                const easedProgress = easeInOutCubic(progress);
-                carousel.scrollLeft = startLeft + (delta * easedProgress);
-
-                if (progress < 1) {
-                    scrollAnimationFrame = window.requestAnimationFrame(step);
-                    return;
-                }
-
-                carousel.scrollLeft = targetLeft;
-                scrollAnimationFrame = null;
-                isCarouselAnimating = false;
-                carousel.classList.remove('is-animating');
-                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
+        // Wire DashboardTabs controller to chart lazy-init
+        const dashRoot = document.querySelector('[data-dashboard-tabs]');
+        if (dashRoot && dashRoot._dashboardTabs) {
+            dashRoot._dashboardTabs.onActivate = function(key) {
+                activePanelKey = key;
+                initChartsFor(key);
+                requestAnimationFrame(() => resizeChartsFor(key));
             };
-
-            scrollAnimationFrame = window.requestAnimationFrame(step);
-        }
-
-        function syncCarouselState(panelKey, options = {}) {
-            const panel = panelLookup.get(panelKey);
-            if (!panel) return;
-
-            activePanelKey = panelKey;
-            const panelIndex = panels.findIndex(item => item.dataset.panel === panelKey);
-
-            panels.forEach(item => {
-                const isActive = item.dataset.panel === panelKey;
-                item.classList.toggle('active', isActive);
-                item.setAttribute('aria-hidden', String(!isActive));
-            });
-
-            carouselDots.forEach(dot => {
-                const isActive = dot.dataset.panelTarget === panelKey;
-                dot.classList.toggle('active', isActive);
-                dot.setAttribute('aria-pressed', String(isActive));
-            });
-
-            if (sectionLabel) {
-                sectionLabel.textContent = panel.dataset.panelLabel || '';
-            }
-            if (sectionCounter) {
-                sectionCounter.textContent = `${panelIndex + 1} / ${panels.length}`;
-            }
-            if (prevBtn) {
-                prevBtn.disabled = panelIndex <= 0;
-            }
-            if (nextBtn) {
-                nextBtn.disabled = panelIndex >= panels.length - 1;
-            }
-
-            initChartsFor(panelKey);
-            if (options.scroll === false) {
-                requestAnimationFrame(() => resizeChartsFor(panelKey));
-            } else {
-                animateCarouselTo(panel, options.duration);
-            }
-        }
-
-        function findNearestPanel() {
-            if (!carousel || !panels.length) return activePanelKey;
-
-            const viewportCenter = carousel.scrollLeft + (carousel.clientWidth / 2);
-            let nearestPanel = panels[0];
-            let nearestDistance = Number.POSITIVE_INFINITY;
-
-            panels.forEach(panel => {
-                const panelCenter = panel.offsetLeft + (panel.offsetWidth / 2);
-                const distance = Math.abs(panelCenter - viewportCenter);
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestPanel = panel;
-                }
-            });
-
-            return nearestPanel.dataset.panel;
-        }
-
-        if (carouselDots.length) {
-            carouselDots.forEach(dot => {
-                dot.addEventListener('click', function() {
-                    syncCarouselState(this.dataset.panelTarget, { scroll: true });
-                });
-            });
-        }
-
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function() {
-                const currentIndex = panels.findIndex(panel => panel.dataset.panel === activePanelKey);
-                if (currentIndex > 0) {
-                    syncCarouselState(panels[currentIndex - 1].dataset.panel, { scroll: true });
-                }
-            });
-        }
-
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function() {
-                const currentIndex = panels.findIndex(panel => panel.dataset.panel === activePanelKey);
-                if (currentIndex < panels.length - 1) {
-                    syncCarouselState(panels[currentIndex + 1].dataset.panel, { scroll: true });
-                }
-            });
-        }
-
-        if (carousel) {
-            carousel.addEventListener('scroll', function() {
-                if (isCarouselAnimating) return;
-
-                window.clearTimeout(scrollStopTimer);
-                scrollStopTimer = window.setTimeout(function() {
-                    const nearestPanelKey = findNearestPanel();
-                    if (nearestPanelKey && nearestPanelKey !== activePanelKey) {
-                        syncCarouselState(nearestPanelKey, { scroll: false });
-                    }
-                }, 90);
-            }, { passive: true });
-
-            carousel.addEventListener('pointerdown', cancelCarouselAnimation, { passive: true });
-            carousel.addEventListener('wheel', cancelCarouselAnimation, { passive: true });
         }
 
         // === SALES TREND CHART ===
@@ -2310,7 +2111,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Init default dashboard page
-        syncCarouselState('tendencia', { scroll: false });
+        initChartsFor('tendencia');
         renderRankingsForPeriod('month');
 
     } catch (error) {
