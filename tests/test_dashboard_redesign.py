@@ -212,3 +212,15 @@ def test_pedidos_panel_uses_cards_and_semantic_chips(logged_client):
     assert 'class="card' in panel
     # Overdue orders (vencidos) should use semantic danger styling
     assert 'chip-danger' in panel or 'badge' in panel
+
+
+# ─── Task 10: Swipe gesture + keyboard nav ───────────────────────────────────
+
+def test_dashboard_tabs_js_has_swipe_and_keyboard_nav():
+    js = DASHBOARD_TABS_JS.read_text(encoding='utf-8')
+    # Touch-based swipe detection
+    assert 'touchstart' in js
+    assert 'touchend' in js or 'touchmove' in js
+    # Keyboard nav — arrow keys
+    assert "'ArrowLeft'" in js or '"ArrowLeft"' in js
+    assert "'ArrowRight'" in js or '"ArrowRight"' in js

@@ -36,11 +36,14 @@ class DashboardTabs {
         this.indicator = root.querySelector('.dash-tabs-indicator');
         this.tabs      = Array.from(root.querySelectorAll('.dash-tab'));
         this.panels    = Array.from(root.querySelectorAll('.tab-panel'));
+        this.panelsContainer = root.querySelector('.tab-panels') || root;
         this.onActivate = opts.onActivate || null;   // callback(panelKey)
 
         if (!this.nav || !this.tabs.length) return;
 
         this._bindEvents();
+        this._bindKeyboard();
+        this._bindSwipe();
         // Activate the tab that is pre-selected (aria-selected="true") or the first
         const initial = this.tabs.find(t => t.getAttribute('aria-selected') === 'true')
             || this.tabs[0];
@@ -124,6 +127,61 @@ class DashboardTabs {
                 if (activeTab) this._moveIndicator(activeTab, false);
             }, 120);
         });
+    }
+
+    /** @private — keyboard ← / → navigation within the tab bar */
+    _bindKeyboard() {
+        this.tabs.forEach((tab, i) => {
+            tab.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const nextIdx = Math.min(this.tabs.length - 1, i + 1);
+                    const nextTab = this.tabs[nextIdx];
+                    this.activate(nextTab.dataset.tab);
+                    nextTab.focus();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const prevIdx = Math.max(0, i - 1);
+                    const prevTab = this.tabs[prevIdx];
+                    this.activate(prevTab.dataset.tab);
+                    prevTab.focus();
+                }
+            });
+        });
+    }
+
+    /** @private — horizontal swipe on the panel body advances the adjacent tab */
+    _bindSwipe() {
+        let startX = 0;
+        let startY = 0;
+        let tracking = false;
+        const THRESHOLD = 50;
+
+        this.panelsContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            tracking = true;
+        }, { passive: true });
+
+        this.panelsContainer.addEventListener('touchend', (e) => {
+            if (!tracking) return;
+            tracking = false;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - startX;
+            const dy = t.clientY - startY;
+            // Ignore if mostly vertical (user was scrolling)
+            if (Math.abs(dy) > Math.abs(dx)) return;
+            const activeTab = this.tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
+            const activeIdx = this.tabs.indexOf(activeTab);
+            if (dx <= -THRESHOLD) {
+                const nextTab = this.tabs[Math.min(this.tabs.length - 1, activeIdx + 1)];
+                this.activate(nextTab.dataset.tab);
+            } else if (dx >= THRESHOLD) {
+                const prevTab = this.tabs[Math.max(0, activeIdx - 1)];
+                this.activate(prevTab.dataset.tab);
+            }
+        }, { passive: true });
     }
 }
 
