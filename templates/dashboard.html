@@ -6,6 +6,7 @@
 {% block header_title %}Dashboard{% endblock %}
 
 {% block content %}
+<div class="app-shell">
 
 {# ===== Normalización y defaults seguros ===== #}
 {% set ventas_mes_v = (ventas_mes or 0)|float %}
@@ -57,6 +58,12 @@
 {% set svc_lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
 {% set svc_lt_offset = ring_circ - (svc_lt_pct / 100) * ring_circ %}
 
+<header class="hero">
+  <div class="hero-kicker">Hoy{% if fecha_actual is defined and fecha_actual %} · {{ fecha_actual.strftime('%A %d de %B') }}{% endif %}</div>
+  <h1 class="hero-title">Hola{% if current_user.is_authenticated %}, {{ current_user.username or current_user.email }}{% endif %}</h1>
+  <p class="hero-sub">Panel de ventas y servicio — en vivo.</p>
+</header>
+
 <div class="exec-dashboard">
     <div class="dashboard-subnav-wrap">
         <div class="dashboard-subnav">
@@ -94,11 +101,11 @@
     <div class="tab-panels" id="dashboardCarousel">
 
         {# ── Tab: Ventas ── #}
-        <div class="tab-panel active" id="panel-tendencia" data-panel="tendencia" data-panel-label="Ventas" role="group" aria-roledescription="slide" aria-label="Ventas" aria-hidden="false">
+        <div class="tab-panel gcard active" id="panel-tendencia" data-panel="tendencia" data-panel-label="Ventas" role="group" aria-roledescription="slide" aria-label="Ventas" aria-hidden="false">
             {# — 4 KPI Cards with Progress Rings — #}
             <div class="kpi-grid">
                 {# Tile 1: Ventas del Mes #}
-                <div class="kpi-tile">
+                <div class="kpi-tile kpi">
                     <div class="tile-top">
                         <span class="tile-label">Ventas del Mes</span>
                         <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
@@ -117,7 +124,7 @@
                 </div>
 
                 {# Tile 2: Proyección #}
-                <div class="kpi-tile">
+                <div class="kpi-tile kpi">
                     <div class="tile-top">
                         <span class="tile-label">Proyección</span>
                         <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
@@ -140,7 +147,7 @@
                 </div>
 
                 {# Tile 3: Servicio (OTD) #}
-                <div class="kpi-tile">
+                <div class="kpi-tile kpi">
                     <div class="tile-top">
                         <span class="tile-label">On Time Delivery</span>
                         <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
@@ -159,7 +166,7 @@
                 </div>
 
                 {# Tile 4: Pendientes #}
-                <div class="kpi-tile">
+                <div class="kpi-tile kpi">
                     <div class="tile-top">
                         <span class="tile-label">Pendientes</span>
                         <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
@@ -212,7 +219,7 @@
         </div>
 
         {# ── Tab: Servicio ── #}
-        <div class="tab-panel" id="panel-servicio" data-panel="servicio" data-panel-label="Servicio" role="group" aria-roledescription="slide" aria-label="Servicio" aria-hidden="true">
+        <div class="tab-panel gcard" id="panel-servicio" data-panel="servicio" data-panel-label="Servicio" role="group" aria-roledescription="slide" aria-label="Servicio" aria-hidden="true">
             <div class="svc-grid">
                 {# OTD #}
                 <div class="svc-card">
@@ -354,7 +361,7 @@
         </div>
 
         {# ── Tab: Rankings ── #}
-        <div class="tab-panel" id="panel-rankings" data-panel="rankings" data-panel-label="Top" role="group" aria-roledescription="slide" aria-label="Top" aria-hidden="true">
+        <div class="tab-panel gcard" id="panel-rankings" data-panel="rankings" data-panel-label="Top" role="group" aria-roledescription="slide" aria-label="Top" aria-hidden="true">
             <div class="card" style="margin-bottom:12px">
                 <div class="card-head">
                     <h3><i class="fas fa-filter" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Periodo de Ranking</h3>
@@ -433,7 +440,7 @@
         </div>
 
         {# ── Tab: Actividad ── #}
-        <div class="tab-panel" id="panel-actividad" data-panel="actividad" data-panel-label="Pedidos" role="group" aria-roledescription="slide" aria-label="Pedidos" aria-hidden="true">
+        <div class="tab-panel gcard" id="panel-actividad" data-panel="actividad" data-panel-label="Pedidos" role="group" aria-roledescription="slide" aria-label="Pedidos" aria-hidden="true">
             <div class="card">
                 <div class="card-head">
                     <h3>Pedidos diarios</h3>
@@ -481,6 +488,8 @@
 
     </div>
 </div>
+
+</div>{# /app-shell #}
 {% endblock %}
 
 
@@ -1854,12 +1863,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             label: 'Tendencia de ventas',
                             data: salesTrendValues,
                             type: 'line',
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59,130,246,0.08)',
+                            borderColor: getComputedStyle(document.body).getPropertyValue('--indigo-500').trim() || '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.12)',
                             borderWidth: 2.5,
                             fill: false,
                             tension: 0.35,
-                            pointBackgroundColor: '#3b82f6',
+                            pointBackgroundColor: getComputedStyle(document.body).getPropertyValue('--indigo-500').trim() || '#2563eb',
                             pointBorderColor: '#fff',
                             pointBorderWidth: 2,
                             pointRadius: 3,
