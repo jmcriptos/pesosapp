@@ -57,7 +57,7 @@
 {% set svc_lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
 {% set svc_lt_offset = ring_circ - (svc_lt_pct / 100) * ring_circ %}
 
-<div class="exec-dashboard" data-dashboard-tabs>
+<div class="exec-dashboard" data-dashboard-tabs style="background: var(--bg-ambient)">
     {# ── X-style Tab Bar ── #}
     <nav class="dash-tabs" role="tablist" aria-label="Secciones del dashboard">
         <button class="dash-tab is-active" role="tab" data-tab="tendencia" aria-selected="true" aria-controls="panel-tendencia">Ventas</button>
