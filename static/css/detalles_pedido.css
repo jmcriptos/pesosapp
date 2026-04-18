@@ -329,14 +329,24 @@ body[data-detalles-screen] .mobile-form-control[readonly] {
   cursor: default;
 }
 
-/* Tom Select inherits look */
+/* Tom Select — aggressive overrides to beat dark theme defaults */
 body[data-detalles-screen] .ts-wrapper .ts-control,
 body[data-detalles-screen] .ts-wrapper.single .ts-control {
-  background: var(--color-bg-elevated) !important;
-  color: var(--color-text) !important;
-  border: 1px solid var(--color-border) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 10px !important;
   padding: 9px 12px !important;
+}
+
+body[data-detalles-screen] .ts-wrapper .ts-control input,
+body[data-detalles-screen] .ts-wrapper .ts-control .item {
+  color: #0f172a !important;
+  background: transparent !important;
+}
+
+body[data-detalles-screen] .ts-wrapper .ts-control input::placeholder {
+  color: #94a3b8 !important;
 }
 
 body[data-detalles-screen] .ts-wrapper.focus .ts-control {
@@ -345,15 +355,26 @@ body[data-detalles-screen] .ts-wrapper.focus .ts-control {
 }
 
 body[data-detalles-screen] .ts-dropdown {
-  background: var(--color-surface) !important;
-  color: var(--color-text) !important;
-  border: 1px solid var(--color-border) !important;
-  box-shadow: var(--shadow-card-strong) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 48px -16px rgba(15, 23, 42, 0.18) !important;
 }
 
-body[data-detalles-screen] .ts-dropdown .option.active {
-  background: color-mix(in srgb, var(--indigo-500) 12%, transparent) !important;
-  color: var(--color-text) !important;
+body[data-detalles-screen] .ts-dropdown .ts-dropdown-content,
+body[data-detalles-screen] .ts-dropdown .option,
+body[data-detalles-screen] .ts-dropdown [data-selectable] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  padding: 10px 12px !important;
+}
+
+body[data-detalles-screen] .ts-dropdown .option.active,
+body[data-detalles-screen] .ts-dropdown [data-selectable].active,
+body[data-detalles-screen] .ts-dropdown .option:hover,
+body[data-detalles-screen] .ts-dropdown [data-selectable]:hover {
+  background: color-mix(in srgb, var(--indigo-500) 10%, #ffffff) !important;
+  color: #0f172a !important;
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -918,7 +939,8 @@ body[data-detalles-screen] .mobile-notes-content {
    ──────────────────────────────────────────────────────────── */
 body[data-detalles-screen] .action-bar {
   position: fixed !important;
-  bottom: 0 !important;
+  /* Sit above the mobile tabbar (~63px) on mobile/tablet */
+  bottom: calc(63px + env(safe-area-inset-bottom)) !important;
   left: 0 !important;
   right: 0 !important;
   background: rgba(255, 255, 255, 0.82) !important;
@@ -926,21 +948,24 @@ body[data-detalles-screen] .action-bar {
   backdrop-filter: blur(24px) saturate(1.8) !important;
   -webkit-backdrop-filter: blur(24px) saturate(1.8) !important;
   border-top: 1px solid var(--color-border) !important;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
+  padding: 12px 16px !important;
   display: flex;
   gap: 10px;
-  z-index: 30;
+  z-index: 29;
   box-shadow: 0 -12px 28px -12px rgba(15, 23, 42, 0.1);
   justify-content: center;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
+  /* Desktop: no tabbar, action bar flush, centered with max-width */
   body[data-detalles-screen] .action-bar {
+    bottom: 0 !important;
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%);
     max-width: 720px;
     width: 100%;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
     border-radius: 18px 18px 0 0;
     border-left: 1px solid var(--color-border) !important;
     border-right: 1px solid var(--color-border) !important;

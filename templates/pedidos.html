@@ -86,11 +86,7 @@
       <div class="pc-foot">
         <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
 
-        <div class="pc-actions" onclick="event.preventDefault()">
-          <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-             class="pc-action-btn view" title="Ver detalles" aria-label="Ver pedido #{{ pedido.id }}">
-            <i class="fa fa-eye"></i>
-          </a>
+        <div class="pc-actions" onclick="event.stopPropagation()">
           {% if pedido.estado != 'facturado' %}
           <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
              class="pc-action-btn edit" title="Editar" aria-label="Editar pedido #{{ pedido.id }}">
@@ -298,14 +294,10 @@
                   {% endif %}
                 </div>
               </td>
-              {% set action_count = 1 + (1 if pedido.estado != 'facturado' else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
+              {% set action_count = (1 if pedido.estado != 'facturado' else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
               <td class="pedido-actions-cell">
                 <div class="pedido-row-actions{% if action_count == 1 %} pedido-row-actions-single{% endif %}"
                      role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
-                  <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-                     class="row-action row-action-view" title="Ver pedido #{{ pedido.id }}" aria-label="Ver pedido #{{ pedido.id }}">
-                    <i class="fa-solid fa-eye"></i>
-                  </a>
                   {% if pedido.estado != 'facturado' %}
                   <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
                      class="row-action row-action-edit" title="Editar pedido #{{ pedido.id }}" aria-label="Editar pedido #{{ pedido.id }}">
