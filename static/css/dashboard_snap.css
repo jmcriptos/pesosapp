@@ -1,0 +1,231 @@
+/* =============================================================================
+   Dashboard · Snap Layout + High-Contrast Dark
+   Spec: docs/superpowers/specs/2026-04-18-dashboard-snap-layout-design.md
+
+   Loaded AFTER dashboard_light.css so its rules win by source order.
+   Scope: body[data-dashboard-screen] only — does not affect other pages.
+   Mobile/tablet only (<1024px). Desktop falls back to existing grid layout.
+   ============================================================================= */
+
+@media (max-width: 1023px) {
+
+  /* ── 1. Dark background + opaque glass ───────────────────────────────── */
+
+  body[data-dashboard-screen] .app-content,
+  body[data-dashboard-screen] .app-shell,
+  body[data-dashboard-screen] .app-shell.dash-body,
+  body[data-dashboard-screen] .screen-body {
+    background: #0a0e1f !important;
+    background-image: none !important;
+    color: #f8fafc;
+  }
+
+  /* Re-scope content tokens to dark so descendants pick the right colors. */
+  body[data-dashboard-screen] .app-content,
+  body[data-dashboard-screen] .app-shell.dash-body,
+  body[data-dashboard-screen] .screen-body {
+    --color-bg: #0a0e1f;
+    --color-bg-elevated: #131a30;
+    --color-bg-subtle: #0f1428;
+    --color-surface: #131a30;
+    --color-surface-strong: rgba(15, 23, 42, 0.72);
+    --color-text: #f8fafc;
+    --color-text-muted: #cbd5e1;
+    --color-text-subtle: #94a3b8;
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-subtle: rgba(255, 255, 255, 0.04);
+    --shadow-card: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Hero text on dark */
+  body[data-dashboard-screen] .hero-title { color: #f8fafc !important; }
+  body[data-dashboard-screen] .hero-kicker,
+  body[data-dashboard-screen] .hero-sub   { color: #cbd5e1 !important; }
+
+  /* Segmented tabs container on dark */
+  body[data-dashboard-screen] .dash-seg {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  body[data-dashboard-screen] .dash-seg button {
+    color: #cbd5e1 !important;
+  }
+  body[data-dashboard-screen] .dash-seg button:not(.active):hover {
+    color: #f8fafc !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  /* Glass cards: KPI, chart, week-mini, generic gcard */
+  body[data-dashboard-screen] .kpi,
+  body[data-dashboard-screen] .gcard,
+  body[data-dashboard-screen] .chart-card,
+  body[data-dashboard-screen] .week-mini-card,
+  body[data-dashboard-screen] .svc-kpi-grid .kpi,
+  body[data-dashboard-screen] .dash-panel .gcard,
+  body[data-dashboard-screen] .dash-panel .kpi {
+    background: rgba(15, 23, 42, 0.72) !important;
+    background-image: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(12px) saturate(1.4) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
+  }
+
+  /* Text inside cards */
+  body[data-dashboard-screen] .kpi-label,
+  body[data-dashboard-screen] .week-mini-label,
+  body[data-dashboard-screen] .sec-title {
+    color: #94a3b8 !important;
+  }
+  body[data-dashboard-screen] .kpi-value,
+  body[data-dashboard-screen] .week-mini-val,
+  body[data-dashboard-screen] .chart-big {
+    color: #f8fafc !important;
+  }
+  body[data-dashboard-screen] .kpi-sub,
+  body[data-dashboard-screen] .chart-big small,
+  body[data-dashboard-screen] .chart-legend {
+    color: #cbd5e1 !important;
+  }
+  body[data-dashboard-screen] .ring-label {
+    color: #f8fafc !important;
+  }
+  body[data-dashboard-screen] .kpi .ring-wrap circle:first-child {
+    stroke: rgba(255, 255, 255, 0.12) !important;
+  }
+  body[data-dashboard-screen] .kpi-value small,
+  body[data-dashboard-screen] .week-mini-val small {
+    color: #94a3b8 !important;
+  }
+
+  /* Top/Activity rows borders on dark */
+  body[data-dashboard-screen] .rank-row,
+  body[data-dashboard-screen] .ranking-item,
+  body[data-dashboard-screen] .list-row,
+  body[data-dashboard-screen] .activity-item,
+  body[data-dashboard-screen] .feed-item {
+    color: #f8fafc !important;
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  /* ── 2. Snap layout — Ventas + Servicio panels only ──────────────────── */
+
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"],
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] {
+    /* Snap container: viewport minus topbar (~64px), tabs (~52px), tabbar (~63px) and safe area. */
+    height: calc(100vh - 64px - 52px - 63px - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"]::-webkit-scrollbar,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"]::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Inside snap panels: kill the grid; stack cards vertically */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi-grid,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .svc-kpi-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  /* Snap targets — one per card */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] [data-snap-card],
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] [data-snap-card] {
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin: 0 0 12px;
+  }
+
+  /* Chart gets a taller snap target and bigger canvas */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .chart-card[data-snap-card] {
+    min-height: 90vh;
+  }
+  body[data-dashboard-screen] .trend-chart-wrap {
+    height: 70vh;
+    max-height: 480px; /* landscape sanity */
+    min-height: 320px;
+  }
+  body[data-dashboard-screen] .trend-chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Scale up KPI typography inside snap cards (~1.8×) */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value {
+    font-size: clamp(48px, 14vw, 72px) !important;
+    line-height: 1.05;
+  }
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-label,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
+    font-size: 0.95rem !important;
+    letter-spacing: 0.06em;
+  }
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-sub,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-sub {
+    font-size: 1rem !important;
+    margin-top: 8px;
+  }
+  /* Bigger progress ring inside snap KPI */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .ring-wrap,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .ring-wrap {
+    transform: scale(1.6);
+    transform-origin: top right;
+    margin-bottom: 18px;
+  }
+
+  /* Week-mini grid stays a 3-col grid inside its snap card, just centered */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .week-mini-grid[data-snap-card] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-content: center;
+  }
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .week-mini-grid[data-snap-card] .week-mini-val {
+    font-size: 1.6rem !important;
+  }
+
+  /* ── 3. Snap dots indicator (right edge of viewport) ─────────────────── */
+
+  body[data-dashboard-screen] .snap-dots {
+    position: fixed;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none; /* shown by JS only when its panel is the active tab */
+    flex-direction: column;
+    gap: 8px;
+    z-index: 25;
+    pointer-events: none;
+  }
+  body[data-dashboard-screen] .snap-dots.is-active {
+    display: flex;
+  }
+  body[data-dashboard-screen] .snap-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    transition: background 160ms ease, transform 160ms ease;
+  }
+  body[data-dashboard-screen] .snap-dots span.is-current {
+    background: #f8fafc;
+    transform: scale(1.4);
+  }
+}
+
+/* Desktop (≥1024px): no snap, no dots — fall back to existing grid layout */
+@media (min-width: 1024px) {
+  body[data-dashboard-screen] .snap-dots { display: none !important; }
+}
