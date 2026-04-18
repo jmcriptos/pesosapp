@@ -1,0 +1,102 @@
+<div class="mobile-card">
+  <div class="mobile-card-header">
+    <i class="fas fa-box"></i>
+    Productos ({{ lineas_originales|length }})
+  </div>
+  <div class="mobile-card-body">
+    {% if lineas_originales %}
+      <div class="productos-list-mobile">
+        {% for linea in lineas_originales %}
+          {% set prep = prep_by_producto.get(linea.producto_id) %}
+          {% set es_pesable = linea.producto and linea.producto.se_pesa %}
+          <div class="producto-item-mobile {% if es_pesable %}linea-pesable{% else %}linea-importacion{% endif %}">
+            <div class="producto-item-header">
+              <span class="producto-item-name">
+                {{ linea.producto.nombre if linea.producto else '—' }}
+                {% if es_pesable %}
+                  <span class="badge-pedido badge-pesable">Pesable</span>
+                {% else %}
+                  <span class="badge-pedido badge-import">Importación</span>
+                {% endif %}
+              </span>
+            </div>
+
+            <div class="producto-item-body">
+              <div class="producto-detail">
+                <span class="producto-detail-label">Cajas pedidas</span>
+                <span class="producto-detail-value">{{ linea.cajas_pedidas or linea.cajas }}</span>
+              </div>
+
+              {% if es_pesable %}
+                {# Progreso de pesaje (via CajaPesada) #}
+                <div class="producto-detail">
+                  <span class="producto-detail-label">Pesadas</span>
+                  <span class="producto-detail-value">
+                    {{ linea.cajas_pesadas_count }}/{{ linea.cajas_objetivo }}
+                    {% if linea.pesaje_completo %}
+                      <i class="fas fa-check-circle" style="color: var(--color-success, #10b981); margin-left: 4px;" title="Pesaje completo"></i>
+                    {% endif %}
+                  </span>
+                </div>
+                {% if linea.cajas_pesadas_count > 0 %}
+                <div class="producto-detail">
+                  <span class="producto-detail-label">Peso real</span>
+                  <span class="producto-detail-value">{{ '{:.2f}'.format(linea.peso_real|float) }} kg</span>
+                </div>
+                {% endif %}
+              {% else %}
+                {# Importación: mostrar lote + fecha_exp del prep line auto-creado #}
+                <div class="producto-detail">
+                  <span class="producto-detail-label">Lote</span>
+                  <span class="producto-detail-value">{{ prep.lote if prep and prep.lote else '—' }}</span>
+                </div>
+                <div class="producto-detail">
+                  <span class="producto-detail-label">F. Expiración</span>
+                  <span class="producto-detail-value">{{ prep.fecha_expiracion if prep and prep.fecha_expiracion else '—' }}</span>
+                </div>
+              {% endif %}
+            </div>
+
+            {% if pedido.estado != 'facturado' %}
+            <div class="producto-item-footer">
+              <div class="producto-item-actions">
+                {% if es_pesable %}
+                  <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id, detalle_id=linea.id) }}"
+                     class="mobile-edit-btn"
+                     title="Pesar este producto">
+                    <i class="fas fa-weight-hanging"></i>
+                    <span>Pesar</span>
+                  </a>
+                {% elif prep %}
+                  <button type="button"
+                          class="mobile-edit-btn"
+                          title="Editar fechas y lote"
+                          onclick="openEditModal({{ prep.id }}, {{ prep.producto_id }}, {{ prep.peso or 0 }}, '{{ prep.lote or '' }}', '{{ prep.fecha_fabricacion or '' }}', '{{ prep.fecha_expiracion or '' }}', {{ prep.cajas }}, false)">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Fechas</span>
+                  </button>
+                {% endif %}
+
+                <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=linea.id) }}"
+                      method="POST"
+                      class="form-inline"
+                      data-confirm="¿Eliminar {{ linea.producto.nombre }} del pedido?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="mobile-delete-btn" title="Eliminar línea">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="mobile-empty-state">
+        <i class="fas fa-box-open"></i>
+        <p>No hay productos en este pedido</p>
+      </div>
+    {% endif %}
+  </div>
+</div>

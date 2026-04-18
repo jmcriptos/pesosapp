@@ -1,0 +1,1100 @@
+/* ────────────────────────────────────────────────────────────
+   Detalles del Pedido — Glass reskin overrides (Fase B).
+   All selectors scoped under body[data-detalles-screen] to
+   beat the ~960 lines of hardcoded inline CSS in the template.
+   ──────────────────────────────────────────────────────────── */
+
+html,
+body[data-detalles-screen],
+body[data-detalles-screen] .app-container,
+body[data-detalles-screen] .app-content,
+body[data-detalles-screen] .app-shell {
+  background: #f8fafc !important;
+}
+
+body[data-detalles-screen] .app-container,
+body[data-detalles-screen] .app-content {
+  background-image: none !important;
+}
+
+body[data-detalles-screen] {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-surface-strong: rgba(255, 255, 255, 0.88);
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --color-border-strong: #cbd5e1;
+  --shadow-card: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+  --shadow-card-strong: 0 20px 48px -16px rgba(15, 23, 42, 0.14);
+}
+
+/* ────────────────────────────────────────────────────────────
+   Container + scroll surface
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .mobile-form-container {
+  background: var(--bg-ambient, #f8fafc) !important;
+  padding-top: 16px;
+}
+
+body[data-detalles-screen] .app-shell {
+  background: var(--bg-ambient, #f8fafc) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Hero card — keep the wow gradient but use semantic tokens
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .detail-hero {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  border: 0 !important;
+  border-radius: var(--radius-xl, 20px);
+  box-shadow: 0 18px 40px -18px rgba(99, 102, 241, 0.55);
+  color: #ffffff;
+  padding: 20px;
+  margin: 12px 16px 14px;
+}
+
+body[data-detalles-screen] .detail-hero .dh-id {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-detalles-screen] .detail-hero .dh-client {
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-top: 2px;
+}
+
+body[data-detalles-screen] .detail-hero .dh-meta {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+body[data-detalles-screen] .detail-hero .status-pill {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(8px);
+}
+
+body[data-detalles-screen] .detail-hero .dh-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+body[data-detalles-screen] .detail-hero .dh-stat {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 10px 12px;
+  backdrop-filter: blur(8px);
+}
+
+body[data-detalles-screen] .detail-hero .dh-stat-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+body[data-detalles-screen] .detail-hero .dh-stat-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-detalles-screen] .detail-hero .dh-stat-val small {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-left: 2px;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Timeline — semantic colors + subtle animation
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .timeline.gcard {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-card) !important;
+  padding: 14px;
+  backdrop-filter: none !important;
+}
+
+body[data-detalles-screen] .tl-item {
+  color: var(--color-text);
+}
+
+body[data-detalles-screen] .tl-dot {
+  background: var(--color-border) !important;
+  border: 2px solid var(--color-surface) !important;
+  transition: background 320ms ease, box-shadow 320ms ease, border-color 320ms ease;
+}
+
+body[data-detalles-screen] .tl-dot.done {
+  background: var(--color-success) !important;
+  border-color: var(--color-success) !important;
+}
+
+body[data-detalles-screen] .tl-dot.active {
+  background: var(--indigo-500) !important;
+  border-color: var(--indigo-500) !important;
+  animation: tl-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tl-dot-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--indigo-500) 16%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 9px color-mix(in srgb, var(--indigo-500) 6%, transparent);
+  }
+}
+
+/* Connector line: gradient when step is done */
+body[data-detalles-screen] .tl-item::before {
+  background: var(--color-border) !important;
+  transform-origin: top;
+  transition: background 400ms ease;
+}
+
+body[data-detalles-screen] .tl-item:has(.tl-dot.done)::before {
+  background: linear-gradient(
+    180deg,
+    var(--color-success),
+    color-mix(in srgb, var(--color-success) 70%, var(--indigo-500))
+  ) !important;
+}
+
+/* Fade-in animation on page load */
+body[data-detalles-screen] .tl-item {
+  animation: tl-item-fade 420ms ease-out backwards;
+}
+
+body[data-detalles-screen] .tl-item:nth-child(1) { animation-delay: 80ms; }
+body[data-detalles-screen] .tl-item:nth-child(2) { animation-delay: 180ms; }
+body[data-detalles-screen] .tl-item:nth-child(3) { animation-delay: 280ms; }
+body[data-detalles-screen] .tl-item:nth-child(4) { animation-delay: 380ms; }
+
+@keyframes tl-item-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+body[data-detalles-screen] .tl-title {
+  color: var(--color-text) !important;
+  font-weight: 700;
+}
+
+body[data-detalles-screen] .tl-meta {
+  color: var(--color-text-muted) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Glass card for prep lines
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .gcard:not(.timeline) {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-card) !important;
+  backdrop-filter: none !important;
+}
+
+body[data-detalles-screen] .line-item {
+  background: transparent !important;
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+body[data-detalles-screen] .line-item:last-child {
+  border-bottom: 0;
+}
+
+body[data-detalles-screen] .li-name {
+  color: var(--color-text) !important;
+  font-weight: 600;
+}
+
+body[data-detalles-screen] .li-meta {
+  color: var(--color-text-muted) !important;
+}
+
+body[data-detalles-screen] .li-qty {
+  color: var(--color-text) !important;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-detalles-screen] .li-qty small {
+  color: var(--color-text-subtle);
+  font-weight: 500;
+}
+
+/* ────────────────────────────────────────────────────────────
+   mobile-card system — light glass
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .mobile-card {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-xl, 20px) !important;
+  box-shadow: var(--shadow-card) !important;
+  overflow: hidden;
+  margin: 0 16px 14px;
+}
+
+body[data-detalles-screen] .mobile-card-header {
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 14px 16px;
+  font-weight: 700;
+}
+
+body[data-detalles-screen] .mobile-card-header i {
+  color: var(--indigo-500);
+}
+
+body[data-detalles-screen] .mobile-card-body {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  padding: 14px 16px;
+}
+
+body[data-detalles-screen] .mobile-table-container,
+body[data-detalles-screen] .productos-list-mobile {
+  background: transparent !important;
+  color: var(--color-text) !important;
+}
+
+body[data-detalles-screen] .collapsible-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Form controls — inputs, selects, dates
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .mobile-form-label {
+  color: var(--color-text-muted) !important;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body[data-detalles-screen] .mobile-form-control {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 10px !important;
+  padding: 11px 14px !important;
+  font-size: 0.95rem !important;
+}
+
+body[data-detalles-screen] .mobile-form-control:focus {
+  border-color: var(--indigo-500) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500) 14%, transparent) !important;
+  outline: 0;
+}
+
+body[data-detalles-screen] .mobile-form-control::placeholder {
+  color: var(--color-text-subtle) !important;
+}
+
+body[data-detalles-screen] .mobile-form-control[readonly] {
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+  cursor: default;
+}
+
+/* Tom Select inherits look */
+body[data-detalles-screen] .ts-wrapper .ts-control,
+body[data-detalles-screen] .ts-wrapper.single .ts-control {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 10px !important;
+  padding: 9px 12px !important;
+}
+
+body[data-detalles-screen] .ts-wrapper.focus .ts-control {
+  border-color: var(--indigo-500) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500) 14%, transparent) !important;
+}
+
+body[data-detalles-screen] .ts-dropdown {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-card-strong) !important;
+}
+
+body[data-detalles-screen] .ts-dropdown .option.active {
+  background: color-mix(in srgb, var(--indigo-500) 12%, transparent) !important;
+  color: var(--color-text) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Mobile buttons — primary / success / secondary / delete
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .mobile-btn {
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  border: 0 !important;
+  padding: 12px 18px !important;
+  background-image: none !important;
+}
+
+body[data-detalles-screen] .mobile-btn-primary {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.55) !important;
+}
+
+body[data-detalles-screen] .mobile-btn-success {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px -10px rgba(16, 185, 129, 0.45) !important;
+}
+
+body[data-detalles-screen] .mobile-btn-secondary {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+body[data-detalles-screen] .mobile-btn-preparado {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  color: #ffffff !important;
+}
+
+body[data-detalles-screen] .mobile-edit-btn {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 10px !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+body[data-detalles-screen] .mobile-delete-btn {
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 10%, var(--color-bg-elevated)) !important;
+  color: var(--color-danger, #ef4444) !important;
+  border: 1px solid color-mix(in srgb, var(--color-danger, #ef4444) 22%, transparent) !important;
+  border-radius: 10px !important;
+  padding: 8px 12px !important;
+  font-weight: 600 !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Tabs — Productos / Detalles / Historial
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .detail-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  margin: 0 16px 14px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+}
+
+body[data-detalles-screen] .detail-tab {
+  background: transparent !important;
+  color: var(--color-text-muted) !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  padding: 9px 10px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 160ms ease, color 160ms ease;
+  position: relative;
+}
+
+body[data-detalles-screen] .detail-tab i {
+  font-size: 0.88rem;
+}
+
+body[data-detalles-screen] .detail-tab:hover:not(.is-active) {
+  color: var(--color-text) !important;
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent) !important;
+}
+
+body[data-detalles-screen] .detail-tab.is-active {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  box-shadow: 0 4px 12px -6px rgba(15, 23, 42, 0.14);
+}
+
+body[data-detalles-screen] .detail-tab.is-active i {
+  color: var(--indigo-500);
+}
+
+body[data-detalles-screen] .detail-tab-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: var(--indigo-500);
+  color: #fff;
+  border-radius: 99px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+body[data-detalles-screen] .detail-panel {
+  animation: detail-panel-fade 280ms ease-out;
+}
+
+body[data-detalles-screen] .detail-panel[hidden] {
+  display: none !important;
+}
+
+@keyframes detail-panel-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Detalles tab — key-value card
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .detail-kv-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  margin: 0 16px 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-detalles-screen] .detail-kv-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: 0.88rem;
+}
+
+body[data-detalles-screen] .detail-kv-row:last-child {
+  border-bottom: 0;
+}
+
+body[data-detalles-screen] .detail-kv-label {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  align-self: center;
+}
+
+body[data-detalles-screen] .detail-kv-value {
+  color: var(--color-text);
+  font-weight: 600;
+  align-self: center;
+  word-break: break-word;
+}
+
+body[data-detalles-screen] .detail-kv-mono {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.84rem;
+}
+
+body[data-detalles-screen] .detail-kv-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body[data-detalles-screen] .detail-kv-pill.state-pendiente {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #92400e;
+}
+
+body[data-detalles-screen] .detail-kv-pill.state-preparado {
+  background: color-mix(in srgb, #10b981 18%, transparent);
+  color: #065f46;
+}
+
+body[data-detalles-screen] .detail-kv-pill.state-facturado {
+  background: color-mix(in srgb, var(--indigo-500) 18%, transparent);
+  color: #1e40af;
+}
+
+body[data-detalles-screen] .detail-kv-row-notes {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+body[data-detalles-screen] .detail-kv-notes {
+  font-weight: 500;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, #f59e0b 8%, var(--color-surface));
+  padding: 10px 12px;
+  border-radius: 10px;
+  border-left: 3px solid #f59e0b;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Historial tab — vertical timeline
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .detail-history {
+  margin: 0 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+body[data-detalles-screen] .detail-history::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  background: var(--color-border-subtle);
+  z-index: 0;
+}
+
+body[data-detalles-screen] .detail-history-item {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  position: relative;
+  z-index: 1;
+}
+
+body[data-detalles-screen] .detail-history-dot {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+body[data-detalles-screen] .detail-history-indigo .detail-history-dot {
+  background: var(--indigo-500);
+  border-color: var(--indigo-500);
+  color: #ffffff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500) 14%, transparent);
+}
+
+body[data-detalles-screen] .detail-history-success .detail-history-dot {
+  background: var(--color-success, #10b981);
+  border-color: var(--color-success, #10b981);
+  color: #ffffff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success, #10b981) 14%, transparent);
+}
+
+body[data-detalles-screen] .detail-history-warning .detail-history-dot {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+
+body[data-detalles-screen] .detail-history-danger .detail-history-dot {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+body[data-detalles-screen] .detail-history-muted .detail-history-dot {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+}
+
+body[data-detalles-screen] .detail-history-body {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+
+body[data-detalles-screen] .detail-history-descripcion {
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: -0.01em;
+}
+
+body[data-detalles-screen] .detail-history-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-detalles-screen] .detail-history-meta i {
+  margin-right: 4px;
+  color: var(--color-text-subtle);
+}
+
+body[data-detalles-screen] .detail-history-empty {
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: 14px;
+  margin: 0 16px 14px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+body[data-detalles-screen] .detail-history-empty i {
+  font-size: 2rem;
+  color: var(--color-text-subtle);
+  margin-bottom: 10px;
+  display: block;
+}
+
+body[data-detalles-screen] .detail-history-empty p {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+body[data-detalles-screen] .detail-history-empty small {
+  color: var(--color-text-subtle);
+  font-size: 0.78rem;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Productos summary strip (above the products card)
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .productos-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 16px 10px;
+}
+
+body[data-detalles-screen] .ps-stat {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-detalles-screen] .ps-stat-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+body[data-detalles-screen] .ps-stat-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+body[data-detalles-screen] .ps-stat-val small {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-subtle);
+}
+
+/* ────────────────────────────────────────────────────────────
+   Product item cards (mobile)
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .producto-item-mobile {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-detalles-screen] .producto-item-mobile.linea-pedido-original {
+  background: var(--color-bg-subtle) !important;
+  border-left: 3px solid var(--indigo-500) !important;
+  box-shadow: none;
+}
+
+body[data-detalles-screen] .producto-item-mobile.linea-preparacion {
+  border-left: 3px solid var(--color-success, #10b981) !important;
+}
+
+body[data-detalles-screen] .producto-item-name {
+  color: var(--color-text) !important;
+  font-weight: 700;
+}
+
+body[data-detalles-screen] .producto-item-index {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+
+body[data-detalles-screen] .producto-detail-label {
+  color: var(--color-text-muted) !important;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body[data-detalles-screen] .producto-detail-value {
+  color: var(--color-text) !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-detalles-screen] .badge-pedido {
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent) !important;
+  color: #b45309 !important;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+body[data-detalles-screen] .badge-pedido.badge-pesable {
+  background: color-mix(in srgb, var(--indigo-500) 16%, transparent) !important;
+  color: #3730a3 !important;
+}
+
+body[data-detalles-screen] .badge-pedido.badge-import {
+  background: color-mix(in srgb, var(--color-success, #10b981) 16%, transparent) !important;
+  color: #065f46 !important;
+}
+
+body[data-detalles-screen] .producto-item-mobile.linea-pesable {
+  border-left: 3px solid var(--indigo-500) !important;
+}
+
+body[data-detalles-screen] .producto-item-mobile.linea-importacion {
+  border-left: 3px solid var(--color-success, #10b981) !important;
+}
+
+body[data-detalles-screen] .mobile-edit-btn {
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Desktop table */
+body[data-detalles-screen] .mobile-table {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-collapse: collapse;
+}
+
+body[data-detalles-screen] .mobile-table th,
+body[data-detalles-screen] .mobile-table td {
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  background: transparent !important;
+  color: var(--color-text) !important;
+}
+
+body[data-detalles-screen] .mobile-table thead th {
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body[data-detalles-screen] .mobile-table tr.linea-pedido-original td {
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+}
+
+body[data-detalles-screen] .mobile-empty-state {
+  color: var(--color-text-muted) !important;
+  padding: 24px 16px !important;
+  text-align: center;
+}
+
+body[data-detalles-screen] .mobile-empty-state i {
+  font-size: 1.8rem;
+  color: var(--color-text-subtle);
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Notas section
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .mobile-notes-section {
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 10%, var(--color-surface)) !important;
+  border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 22%, transparent) !important;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0 16px 14px;
+}
+
+body[data-detalles-screen] .mobile-notes-label {
+  color: #b45309 !important;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+body[data-detalles-screen] .mobile-notes-content {
+  color: var(--color-text) !important;
+  font-size: 0.92rem;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Action bar — glass morphism
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .action-bar {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  background-image: none !important;
+  backdrop-filter: blur(24px) saturate(1.8) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.8) !important;
+  border-top: 1px solid var(--color-border) !important;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
+  display: flex;
+  gap: 10px;
+  z-index: 30;
+  box-shadow: 0 -12px 28px -12px rgba(15, 23, 42, 0.1);
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  body[data-detalles-screen] .action-bar {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    max-width: 720px;
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    border-left: 1px solid var(--color-border) !important;
+    border-right: 1px solid var(--color-border) !important;
+  }
+}
+
+body[data-detalles-screen] .action-bar .btn-primary {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  background-image: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  height: 44px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.55);
+}
+
+body[data-detalles-screen] .action-bar .btn-secondary {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 12px !important;
+  height: 44px;
+  padding: 0 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Ensure content doesn't hide behind fixed action bar */
+body[data-detalles-screen] .mobile-form-container {
+  padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Edit modal — glass-ish
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .edit-modal-overlay {
+  background: rgba(15, 23, 42, 0.55) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+body[data-detalles-screen] .edit-modal {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--shadow-card-strong) !important;
+}
+
+body[data-detalles-screen] .edit-modal-header {
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  padding: 14px 18px !important;
+}
+
+body[data-detalles-screen] .edit-modal-title {
+  color: var(--color-text) !important;
+  font-weight: 800;
+}
+
+body[data-detalles-screen] .edit-modal-title i {
+  color: var(--indigo-500);
+}
+
+body[data-detalles-screen] .edit-modal-close {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 10px !important;
+}
+
+body[data-detalles-screen] .edit-modal-body {
+  background: var(--color-surface) !important;
+  padding: 16px 18px !important;
+}
+
+body[data-detalles-screen] .edit-modal-footer {
+  background: var(--color-bg-subtle) !important;
+  border-top: 1px solid var(--color-border-subtle) !important;
+  padding: 12px 18px !important;
+  gap: 10px !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Status bar (legacy, hidden, but defensive)
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] .status-badge-pendiente {
+  background: color-mix(in srgb, #f59e0b 18%, transparent) !important;
+  color: #92400e !important;
+}
+
+body[data-detalles-screen] .status-badge-preparado {
+  background: color-mix(in srgb, #10b981 18%, transparent) !important;
+  color: #065f46 !important;
+}
+
+body[data-detalles-screen] .status-badge-facturado {
+  background: color-mix(in srgb, var(--indigo-500) 18%, transparent) !important;
+  color: #1e40af !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Responsive fix: keep mobile layout until wide desktop.
+   The inline CSS switches to 6-col grid + table at 769px, but
+   our app-shell constrains container width — this causes overflow
+   at 769–1023px. Override to keep stacked mobile layout < 1024px.
+   ──────────────────────────────────────────────────────────── */
+/* Always use the mobile-cards productos layout (we removed the desktop table).
+   The inline CSS hides .productos-list-mobile at ≥769px — override it. */
+body[data-detalles-screen] .mobile-table { display: none !important; }
+body[data-detalles-screen] .productos-list-mobile {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Desktop centering: constrain content width and center it. */
+@media (min-width: 768px) {
+  body[data-detalles-screen] .app-shell,
+  body[data-detalles-screen] .mobile-form-container {
+    max-width: 720px;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Forms — sanitize global dark form wrapper bg (like pesar did)
+   ──────────────────────────────────────────────────────────── */
+body[data-detalles-screen] form {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Etiquetas grid helpers — spacing polish */
+body[data-detalles-screen] .etiquetas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+body[data-detalles-screen] .etiquetas-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  body[data-detalles-screen] .etiquetas-buttons {
+    grid-template-columns: 1fr;
+  }
+}

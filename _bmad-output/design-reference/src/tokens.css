@@ -305,33 +305,3 @@
     scroll-behavior: auto !important;
   }
 }
-
-/* ─── Hue variants (activated via body[data-hue]) ────────────────────── */
-[data-hue="blue"] {
-  --indigo-500: #2563eb;
-  --violet-500: #0ea5e9;
-  --indigo-300: #93c5fd;
-  --color-accent-soft: rgba(37, 99, 235, 0.12);
-  --color-shadow-accent: rgba(37, 99, 235, 0.3);
-}
-[data-hue="teal"] {
-  --indigo-500: #14b8a6;
-  --violet-500: #06b6d4;
-  --indigo-300: #5eead4;
-  --color-accent-soft: rgba(20, 184, 166, 0.12);
-  --color-shadow-accent: rgba(20, 184, 166, 0.25);
-}
-[data-hue="rose"] {
-  --indigo-500: #f43f5e;
-  --violet-500: #ec4899;
-  --indigo-300: #fda4af;
-  --color-accent-soft: rgba(244, 63, 94, 0.12);
-  --color-shadow-accent: rgba(244, 63, 94, 0.25);
-}
-[data-hue="amber"] {
-  --indigo-500: #f59e0b;
-  --violet-500: #f97316;
-  --indigo-300: #fcd34d;
-  --color-accent-soft: rgba(245, 158, 11, 0.12);
-  --color-shadow-accent: rgba(245, 158, 11, 0.25);
-}

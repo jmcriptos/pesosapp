@@ -1,0 +1,70 @@
+<div class="mobile-card">
+    <div class="mobile-card-header collapsible-header" onclick="toggleEtiquetas()">
+        <i class="fas fa-tags"></i>
+        Generar etiquetas
+        <i class="fas fa-chevron-down collapse-icon" id="etiquetas-icon" style="margin-left:auto; transition: transform 0.3s ease;"></i>
+    </div>
+    <div class="mobile-card-body collapsible-body" id="etiquetas-body" style="display:none;">
+        <form id="form-etiquetas-detalle">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mobile-form-group" style="margin-bottom: 16px;">
+                <label class="mobile-form-label">Cliente</label>
+                <input type="text" class="mobile-form-control" value="{{ pedido.cliente.nombre }}" readonly style="background: #e5e7eb;">
+            </div>
+
+            {% set formato_seleccionado = request.args.get('formato', '4x2') %}
+            {% set valid_fechas = [] %}
+            {% for detalle in pedido.detalles %}
+                {% if detalle.fecha_fabricacion %}
+                    {% set _ = valid_fechas.append(detalle.fecha_fabricacion) %}
+                {% endif %}
+            {% endfor %}
+
+            {% if valid_fechas %}
+                {% set f_inicio = valid_fechas|min %}
+                {% set f_fin = valid_fechas|max %}
+            {% else %}
+                {% set f_inicio = '' %}
+                {% set f_fin = '' %}
+            {% endif %}
+
+            <div class="etiquetas-grid">
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="fecha_inicio">Fecha inicio</label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="mobile-form-control" value="{{ f_inicio or '' }}" required>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="fecha_fin">Fecha fin</label>
+                    <input type="date" name="fecha_fin" id="fecha_fin" class="mobile-form-control" value="{{ f_fin or '' }}" required>
+                </div>
+
+                <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="formato_etiqueta">Formato</label>
+                    <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
+                            <option value="4x2" {% if formato_seleccionado != 'a4' %}selected{% endif %}>4" x 2" (Térmica)</option>
+                            <option value="a4" {% if formato_seleccionado == 'a4' %}selected{% endif %}>A4 (2 por página)</option>
+                        </select>
+                </div>
+            </div>
+
+            <div class="etiquetas-buttons">
+                <button type="submit" class="mobile-btn mobile-btn-primary" id="btn-generar-etiquetas">
+                    <i class="fas fa-print"></i>
+                    <span class="btn-text">4x2" Térmica</span>
+                    <span class="btn-loading">
+                        <i class="fas fa-spinner fa-spin"></i> Generando...
+                    </span>
+                </button>
+                <button type="button" class="mobile-btn mobile-btn-success" id="btn-generar-etiquetas-a4">
+                    <i class="fas fa-file-pdf"></i>
+                    <span class="btn-text">A4 (2 por página)</span>
+                    <span class="btn-loading">
+                        <i class="fas fa-spinner fa-spin"></i> Generando...
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

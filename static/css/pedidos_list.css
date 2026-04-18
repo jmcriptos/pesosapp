@@ -1,0 +1,815 @@
+/* ────────────────────────────────────────────────────────────
+   Pedidos (listado) — Glass reskin overrides.
+   Scope: body[data-pedidos-list-screen] to beat global CSS
+   ──────────────────────────────────────────────────────────── */
+
+html,
+body[data-pedidos-list-screen],
+body[data-pedidos-list-screen] .app-container,
+body[data-pedidos-list-screen] .app-content,
+body[data-pedidos-list-screen] .app-shell {
+  background: #f8fafc !important;
+}
+
+body[data-pedidos-list-screen] .app-container,
+body[data-pedidos-list-screen] .app-content {
+  background-image: none !important;
+}
+
+body[data-pedidos-list-screen] {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --shadow-card: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+  --shadow-card-strong: 0 20px 48px -16px rgba(15, 23, 42, 0.14);
+}
+
+body[data-pedidos-list-screen] .app-shell {
+  padding: 16px;
+  min-height: 100vh;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Responsive: show cards on mobile, polished table on desktop
+   ──────────────────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  body[data-pedidos-list-screen] .pedidos-list,
+  body[data-pedidos-list-screen] .pc-foot,
+  body[data-pedidos-list-screen] .pagination-mobile {
+    display: none !important;
+  }
+  body[data-pedidos-list-screen] .pedidos-table-desktop {
+    display: block !important;
+  }
+}
+
+@media (max-width: 899px) {
+  body[data-pedidos-list-screen] .pedidos-table-desktop {
+    display: none !important;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Hero — list variant (light, not gradient)
+   ──────────────────────────────────────────────────────────── */
+body[data-pedidos-list-screen] .hero {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 8px 4px 12px !important;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text) !important;
+}
+
+body[data-pedidos-list-screen] .hero-kicker {
+  color: var(--color-text-muted) !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-pedidos-list-screen] .hero-title {
+  color: var(--color-text) !important;
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em;
+  margin: 2px 0 0 !important;
+}
+
+body[data-pedidos-list-screen] .btn-nuevo-pedido {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  background-image: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  font-weight: 700 !important;
+  font-size: 0.9rem !important;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 10px 24px -10px rgba(16, 185, 129, 0.5);
+  white-space: nowrap;
+}
+
+body[data-pedidos-list-screen] .btn-nuevo-pedido:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px -10px rgba(16, 185, 129, 0.55);
+}
+
+/* ────────────────────────────────────────────────────────────
+   Search pill
+   ──────────────────────────────────────────────────────────── */
+body[data-pedidos-list-screen] .search-pill {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--shadow-card) !important;
+  display: flex;
+  align-items: center;
+  padding: 4px 6px 4px 14px;
+  margin: 10px 0 14px;
+}
+
+body[data-pedidos-list-screen] .search-pill i,
+body[data-pedidos-list-screen] .search-pill svg {
+  color: var(--color-text-subtle) !important;
+}
+
+body[data-pedidos-list-screen] .search-pill input,
+body[data-pedidos-list-screen] .search-pill input[type="text"],
+body[data-pedidos-list-screen] .search-pill input[type="search"] {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--color-text) !important;
+  flex: 1;
+  padding: 10px 8px !important;
+  font-size: 0.95rem !important;
+  outline: none;
+  box-shadow: none !important;
+}
+
+body[data-pedidos-list-screen] .search-pill input::placeholder {
+  color: var(--color-text-subtle) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Filter chips (estado tabs)
+   ──────────────────────────────────────────────────────────── */
+body[data-pedidos-list-screen] .chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+body[data-pedidos-list-screen] .fchip {
+  background: var(--color-surface) !important;
+  color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 99px !important;
+  padding: 8px 14px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 160ms ease;
+  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.05);
+}
+
+body[data-pedidos-list-screen] .fchip:hover:not(.active) {
+  border-color: color-mix(in srgb, var(--indigo-500) 40%, var(--color-border)) !important;
+  color: var(--color-text) !important;
+}
+
+body[data-pedidos-list-screen] .fchip.active {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  background-image: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 20px -8px rgba(99, 102, 241, 0.55) !important;
+}
+
+body[data-pedidos-list-screen] .fchip .fchip-count,
+body[data-pedidos-list-screen] .fchip .count {
+  background: color-mix(in srgb, var(--color-bg-subtle) 80%, transparent);
+  color: inherit;
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  min-width: 18px;
+  text-align: center;
+}
+
+body[data-pedidos-list-screen] .fchip.active .fchip-count,
+body[data-pedidos-list-screen] .fchip.active .count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Pedido cards (mobile)
+   ──────────────────────────────────────────────────────────── */
+body[data-pedidos-list-screen] .pedidos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+body[data-pedidos-list-screen] .pedido-card {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+  color: var(--color-text) !important;
+  text-decoration: none !important;
+  display: block;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+body[data-pedidos-list-screen] .pedido-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--color-border);
+  border-radius: 99px;
+}
+
+body[data-pedidos-list-screen] .pedido-card[data-estado="pendiente"]::before {
+  background: #f59e0b;
+}
+
+body[data-pedidos-list-screen] .pedido-card[data-estado="preparado"]::before {
+  background: var(--indigo-500);
+}
+
+body[data-pedidos-list-screen] .pedido-card[data-estado="facturado"]::before {
+  background: var(--color-success, #10b981);
+}
+
+body[data-pedidos-list-screen] .pedido-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-strong);
+}
+
+body[data-pedidos-list-screen] .pc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+body[data-pedidos-list-screen] .pc-id {
+  color: var(--color-text-muted) !important;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+body[data-pedidos-list-screen] .pc-client {
+  color: var(--color-text) !important;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+body[data-pedidos-list-screen] .pc-amt {
+  color: var(--color-text) !important;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-pedidos-list-screen] .pc-amt small,
+body[data-pedidos-list-screen] .pc-amt .moneda {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--color-text-subtle);
+  margin-left: 2px;
+}
+
+body[data-pedidos-list-screen] .pc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--color-text-muted) !important;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+body[data-pedidos-list-screen] .pc-meta span,
+body[data-pedidos-list-screen] .pc-meta .meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+body[data-pedidos-list-screen] .pc-meta i {
+  color: var(--color-text-subtle);
+  font-size: 0.8rem;
+}
+
+/* .pc-foot is parsed as sibling of .pedido-card (nested <a>/<form> inside
+   <a> triggers HTML5 auto-closure). Style them as a visual continuation. */
+body[data-pedidos-list-screen] .pedido-card {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  margin-bottom: 0;
+}
+
+body[data-pedidos-list-screen] .pc-foot {
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 16px 16px !important;
+  padding: 10px 16px !important;
+  margin: -1px 0 10px !important;
+  box-shadow: var(--shadow-card);
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body[data-pedidos-list-screen] .pc-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Phantom .pedido-card wrapper that HTML5 parser injects around
+   the status pill when it encounters nested <a>/<form> inside <a>.
+   Flatten it so the pill sits naturally in the footer row. */
+body[data-pedidos-list-screen] .pc-foot .pedido-card {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+  display: inline-flex;
+  align-items: center;
+}
+
+body[data-pedidos-list-screen] .pc-foot .pedido-card::before {
+  display: none !important;
+  content: none !important;
+}
+
+body[data-pedidos-list-screen] .pc-foot .pedido-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Status pill colors */
+body[data-pedidos-list-screen] .status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 0 !important;
+  background-image: none !important;
+}
+
+body[data-pedidos-list-screen] .status-pill.pendiente {
+  background: color-mix(in srgb, #f59e0b 18%, transparent) !important;
+  color: #92400e !important;
+}
+
+body[data-pedidos-list-screen] .status-pill.preparado {
+  background: color-mix(in srgb, var(--indigo-500) 18%, transparent) !important;
+  color: #3730a3 !important;
+}
+
+body[data-pedidos-list-screen] .status-pill.facturado {
+  background: color-mix(in srgb, var(--color-success, #10b981) 18%, transparent) !important;
+  color: #065f46 !important;
+}
+
+/* Action buttons (view, edit, invoice, delete) */
+body[data-pedidos-list-screen] .pc-action-btn {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  display: inline-grid !important;
+  place-items: center;
+  background: var(--color-bg-elevated) !important;
+  background-image: none !important;
+  color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border) !important;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 140ms ease;
+  box-shadow: none;
+}
+
+body[data-pedidos-list-screen] .pc-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -6px rgba(15, 23, 42, 0.15);
+}
+
+body[data-pedidos-list-screen] .pc-action-btn.view {
+  color: var(--indigo-500) !important;
+  border-color: color-mix(in srgb, var(--indigo-500) 30%, var(--color-border)) !important;
+}
+
+body[data-pedidos-list-screen] .pc-action-btn.edit {
+  color: #b45309 !important;
+  border-color: color-mix(in srgb, #f59e0b 30%, var(--color-border)) !important;
+}
+
+body[data-pedidos-list-screen] .pc-action-btn.invoice {
+  color: var(--color-success, #10b981) !important;
+  border-color: color-mix(in srgb, var(--color-success, #10b981) 30%, var(--color-border)) !important;
+}
+
+body[data-pedidos-list-screen] .pc-action-btn.danger {
+  color: #ef4444 !important;
+  background: color-mix(in srgb, #ef4444 10%, var(--color-bg-elevated)) !important;
+  border-color: color-mix(in srgb, #ef4444 22%, transparent) !important;
+}
+
+/* Wrapping action forms neutralised */
+body[data-pedidos-list-screen] .pc-action-form,
+body[data-pedidos-list-screen] .inline-form {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex;
+}
+
+/* Invoice ID chip when facturado */
+body[data-pedidos-list-screen] .invoice-id-chip {
+  background: color-mix(in srgb, var(--color-success, #10b981) 12%, var(--color-bg-subtle)) !important;
+  color: #065f46 !important;
+  border: 1px solid color-mix(in srgb, var(--color-success, #10b981) 22%, transparent) !important;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Empty state */
+body[data-pedidos-list-screen] .pedidos-empty {
+  background: var(--color-surface) !important;
+  border: 1px dashed var(--color-border) !important;
+  border-radius: 16px;
+  padding: 40px 20px !important;
+  text-align: center;
+  color: var(--color-text-muted) !important;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-pedidos-list-screen] .pedidos-empty i {
+  font-size: 2.2rem;
+  color: var(--color-text-subtle);
+  margin-bottom: 10px;
+  display: block;
+}
+
+body[data-pedidos-list-screen] .pedidos-empty p {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* Pagination */
+body[data-pedidos-list-screen] .pagination-mobile {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 99px;
+  padding: 6px 10px !important;
+  margin: 10px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-pedidos-list-screen] .pagination-mobile a,
+body[data-pedidos-list-screen] .pagination-mobile button {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+body[data-pedidos-list-screen] .pagination-mobile .page-info,
+body[data-pedidos-list-screen] .pagination-mobile .info {
+  color: var(--color-text-muted) !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Count info under list */
+body[data-pedidos-list-screen] .pedidos-count-info,
+body[data-pedidos-list-screen] .results-count {
+  color: var(--color-text-muted) !important;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Desktop table (≥900px)
+   ──────────────────────────────────────────────────────────── */
+body[data-pedidos-list-screen] .tabla-pedidos-card {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-card) !important;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+/* Header row of the desktop table card (Filtrar + Nuevo buttons) */
+body[data-pedidos-list-screen] .tabla-pedidos-card > :first-child {
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  padding: 12px 16px !important;
+}
+
+/* Hide the duplicate "+ Nuevo Pedido" button in the desktop table header
+   (we already have "+ Nuevo" up in the hero) */
+body[data-pedidos-list-screen] .tabla-pedidos-card .btn-nuevo-pedido {
+  display: none !important;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos thead {
+  background: var(--color-bg-subtle) !important;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos thead th {
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  color: var(--color-text-muted) !important;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  padding: 12px 14px !important;
+  text-align: left;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos tbody tr,
+body[data-pedidos-list-screen] .pedido-row {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos tbody tr:hover,
+body[data-pedidos-list-screen] .pedido-row:hover {
+  background: var(--color-bg-subtle) !important;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos td,
+body[data-pedidos-list-screen] .pedido-row td {
+  color: var(--color-text) !important;
+  background: transparent !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  padding: 12px 14px !important;
+  vertical-align: middle;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+/* Footer (count info) */
+body[data-pedidos-list-screen] .tabla-pedidos-card > :last-child {
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+  padding: 10px 16px !important;
+  font-size: 0.82rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Row action icons (if any in the table) */
+body[data-pedidos-list-screen] .pedido-row-actions,
+body[data-pedidos-list-screen] .pedido-row-actions-single {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* Desktop table title — was white-on-light */
+body[data-pedidos-list-screen] .tabla-pedidos-title {
+  color: var(--color-text) !important;
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos-heading {
+  color: var(--color-text) !important;
+}
+
+/* Filtrar button in table header */
+body[data-pedidos-list-screen] .ops-filter-trigger {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  background-image: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  padding: 9px 16px !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -8px rgba(99, 102, 241, 0.5);
+}
+
+/* Desktop row action buttons — light-theme semantic colors */
+body[data-pedidos-list-screen] .row-action {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  padding: 0 !important;
+  display: inline-grid !important;
+  place-items: center;
+  border-radius: 10px !important;
+  background: var(--color-bg-elevated) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-muted) !important;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 140ms ease;
+  box-shadow: none !important;
+}
+
+body[data-pedidos-list-screen] .row-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -6px rgba(15, 23, 42, 0.15) !important;
+}
+
+body[data-pedidos-list-screen] .row-action.row-action-view {
+  color: var(--indigo-500) !important;
+  border-color: color-mix(in srgb, var(--indigo-500) 30%, var(--color-border)) !important;
+  background: color-mix(in srgb, var(--indigo-500) 6%, var(--color-bg-elevated)) !important;
+}
+
+body[data-pedidos-list-screen] .row-action.row-action-edit {
+  color: #b45309 !important;
+  border-color: color-mix(in srgb, #f59e0b 30%, var(--color-border)) !important;
+  background: color-mix(in srgb, #f59e0b 8%, var(--color-bg-elevated)) !important;
+}
+
+body[data-pedidos-list-screen] .row-action.row-action-invoice {
+  color: var(--color-success, #10b981) !important;
+  border-color: color-mix(in srgb, var(--color-success, #10b981) 30%, var(--color-border)) !important;
+  background: color-mix(in srgb, var(--color-success, #10b981) 8%, var(--color-bg-elevated)) !important;
+}
+
+body[data-pedidos-list-screen] .row-action.row-action-danger {
+  color: #ef4444 !important;
+  border-color: color-mix(in srgb, #ef4444 30%, var(--color-border)) !important;
+  background: color-mix(in srgb, #ef4444 8%, var(--color-bg-elevated)) !important;
+}
+
+/* Estado badge in desktop row */
+body[data-pedidos-list-screen] .estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px !important;
+  border-radius: 99px !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 0 !important;
+  background-image: none !important;
+}
+
+body[data-pedidos-list-screen] .estado-badge.estado-pendiente {
+  background: color-mix(in srgb, #f59e0b 18%, transparent) !important;
+  color: #92400e !important;
+}
+
+body[data-pedidos-list-screen] .estado-badge.estado-preparado {
+  background: color-mix(in srgb, var(--indigo-500) 18%, transparent) !important;
+  color: #3730a3 !important;
+}
+
+body[data-pedidos-list-screen] .estado-badge.estado-facturado {
+  background: color-mix(in srgb, var(--color-success, #10b981) 18%, transparent) !important;
+  color: #065f46 !important;
+}
+
+body[data-pedidos-list-screen] .pedido-client-name {
+  color: var(--color-text) !important;
+  font-weight: 600;
+}
+
+body[data-pedidos-list-screen] .pedido-id-cell {
+  color: var(--color-text-muted) !important;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-pedidos-list-screen] .pedido-date-cell {
+  color: var(--color-text-muted) !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+body[data-pedidos-list-screen] .pedido-total-cell {
+  color: var(--color-text) !important;
+  font-weight: 800;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+body[data-pedidos-list-screen] .pedido-context-cell {
+  color: var(--color-text-subtle) !important;
+  font-size: 0.85rem;
+}
+
+body[data-pedidos-list-screen] .pedido-actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+body[data-pedidos-list-screen] .pedido-actions-cell > * {
+  margin-left: 4px;
+}
+
+body[data-pedidos-list-screen] .estado-badge {
+  border: 0 !important;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Filter popover desktop */
+body[data-pedidos-list-screen] .ops-filter-popover {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-card-strong) !important;
+  color: var(--color-text) !important;
+  border-radius: 14px;
+}
+
+/* Ensure all forms don't inherit dark bg */
+body[data-pedidos-list-screen] form {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}

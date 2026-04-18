@@ -1,0 +1,17 @@
+<div class="detail-tabs" role="tablist" aria-label="Secciones del pedido">
+  <button type="button" class="detail-tab is-active" role="tab" aria-selected="true" data-tab="productos">
+    <i class="fas fa-box"></i>
+    <span>Productos</span>
+  </button>
+  <button type="button" class="detail-tab" role="tab" aria-selected="false" data-tab="detalles">
+    <i class="fas fa-info-circle"></i>
+    <span>Detalles</span>
+  </button>
+  <button type="button" class="detail-tab" role="tab" aria-selected="false" data-tab="historial">
+    <i class="fas fa-clock-rotate-left"></i>
+    <span>Historial</span>
+    {% if eventos and eventos|length > 0 %}
+      <span class="detail-tab-badge">{{ eventos|length }}</span>
+    {% endif %}
+  </button>
+</div>

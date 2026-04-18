@@ -1,0 +1,44 @@
+<header class="detail-hero">
+  <div class="dh-row">
+    <div>
+      <div class="dh-id">PED-{{ pedido.id }}</div>
+      <div class="dh-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
+      <div class="dh-meta">
+        {% if pedido.fecha_pedido %}
+          Pedido: {{ pedido.fecha_pedido.strftime('%A %d de %B') }}
+        {% endif %}
+      </div>
+    </div>
+    <span class="status-pill {{ estado }}"
+          style="background: rgba(255,255,255,0.18); color: white; align-self: flex-start;">
+      {{ pedido.estado|capitalize }}
+    </span>
+  </div>
+  <div class="dh-stats">
+    <div class="dh-stat">
+      <div class="dh-stat-label">Líneas</div>
+      <div class="dh-stat-val">{{ lineas_originales|length if lineas_originales else 0 }}</div>
+    </div>
+    {% set hero_peso_real = 0 %}
+    {% if lineas_originales %}
+      {% set ns = namespace(total=0) %}
+      {% for linea in lineas_originales %}
+        {% if linea.producto and linea.producto.se_pesa %}
+          {% set ns.total = ns.total + linea.peso_real|float %}
+        {% endif %}
+      {% endfor %}
+      {% set hero_peso_real = ns.total %}
+    {% endif %}
+    <div class="dh-stat">
+      <div class="dh-stat-label">Peso real</div>
+      <div class="dh-stat-val">
+        {{ '{:.2f}'.format(hero_peso_real) }}
+        <small>kg</small>
+      </div>
+    </div>
+    <div class="dh-stat">
+      <div class="dh-stat-label">Total</div>
+      <div class="dh-stat-val">{{ '{:,.0f}'.format(pedido.total_calculado or 0) if pedido.total_calculado is defined else '—' }}</div>
+    </div>
+  </div>
+</header>

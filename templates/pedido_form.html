@@ -1,8 +1,14 @@
 {% extends "base.html" %}
 
 {% block title %}
-    {% if pedido %}Editar Pedido{% else %}Nuevo Pedido{% endif %}
+    {% if pedido %}Editar Pedido PED-{{ pedido.id }}{% else %}Nuevo Pedido{% endif %} — PesosApp
 {% endblock %}
+
+{% block body_attrs %}data-theme="light" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pedido-form-screen="1"{% endblock %}
+
+{% block topbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block tabbar %}{% endblock %}
 
 {% block header_title %}
     <span class="fw-700 color-white">
@@ -295,9 +301,23 @@
     }
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form.css') }}">
 {% endblock %}
 
 {% block content %}
+<div class="pedido-form-shell">
+  <div class="pedido-form-topnav">
+    <a href="{% if pedido %}{{ url_for('detalles_pedido', pedido_id=pedido.id) }}{% else %}{{ url_for('lista_pedidos') }}{% endif %}"
+       class="pedido-form-close" aria-label="Cerrar">
+      <i class="fas fa-times"></i>
+    </a>
+    <div class="pedido-form-topnav-title">
+      <div class="pedido-form-topnav-heading">{% if pedido %}Editar PED-{{ pedido.id }}{% else %}Nuevo pedido{% endif %}</div>
+      <div class="pedido-form-topnav-meta">{% if pedido %}{{ pedido.cliente.nombre if pedido.cliente else '—' }}{% else %}Completa los datos del pedido{% endif %}</div>
+    </div>
+    <span class="pedido-form-topnav-placeholder" aria-hidden="true"></span>
+  </div>
+
 <div class="mobile-form-container">
     <form method="POST" id="form-nuevo-pedido" autocomplete="off">
         <!-- US01: hidden CSRF field -->
@@ -418,6 +438,7 @@
         </div>
     </form>
 </div>
+</div><!-- /.pedido-form-shell -->
 {% endblock %}
 
 {% block scripts %}

@@ -1,6 +1,7 @@
 import os
 import calendar
 import secrets
+import json
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
@@ -30,7 +31,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import locale
 import traceback
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from time import perf_counter
 # from models.extensions import db  # Comentado para evitar conflictos
 import requests
@@ -575,15 +576,33 @@ def _calcular_venta_pedido(pedido):
     """
     Venta facturada del pedido:
     - Usa líneas de preparación cuando existen
+    - Para productos se_pesa, usa cajas pesadas si existen
     - Usa línea original solo si no hay preparación para ese producto
     - No aplica tipo_cambio: subtotal ya refleja el monto facturado de la línea
     """
     prep_products = set()
     prep_total = 0.0
     orig_total = 0.0
+    productos_con_cajas = set()
+
+    for d in pedido.detalles:
+        if not d.es_linea_pedido or not getattr(d, 'producto', None) or not d.producto.se_pesa:
+            continue
+        if not d.cajas_pesadas_count:
+            continue
+
+        qty = float(d.peso_real)
+        if qty <= 0:
+            continue
+
+        productos_con_cajas.add(d.producto_id)
+        prep_products.add(d.producto_id)
+        prep_total += float(d.precio_unitario or 0) * qty
 
     for d in pedido.detalles:
         if not d.es_linea_pedido and d.subtotal:
+            if d.producto and d.producto.se_pesa and d.producto_id in productos_con_cajas:
+                continue
             prep_products.add(d.producto_id)
             prep_total += float(d.subtotal)
 
@@ -1920,9 +1939,120 @@ class DetallePedido(db.Model):
     es_linea_pedido = db.Column(db.Boolean, default=True, nullable=False)
     cajas_pedidas   = db.Column(db.Integer, nullable=False, default=0)
 
+    @property
+    def cajas_objetivo(self):
+        return int(self.cajas_pedidas or self.cajas or 0)
+
+    @property
+    def cajas_pesadas_count(self):
+        return len(getattr(self, 'cajas_pesadas', []) or [])
+
+    @property
+    def peso_real(self):
+        if self.cajas_pesadas_count:
+            total = Decimal('0')
+            for caja in self.cajas_pesadas:
+                total += Decimal(str(caja.peso or 0))
+            return total
+        return Decimal(str(self.peso or 0))
+
+    @property
+    def pesaje_completo(self):
+        return self.cajas_pesadas_count >= self.cajas_objetivo
+
+    @property
+    def lote_principal(self):
+        if self.cajas_pesadas_count:
+            lotes = {caja.lote.strip() for caja in self.cajas_pesadas if caja.lote}
+            return next(iter(lotes)) if len(lotes) == 1 else None
+        return self.lote
+
+    @property
+    def fecha_elaboracion_principal(self):
+        if self.cajas_pesadas_count:
+            fechas = {caja.fecha_elaboracion for caja in self.cajas_pesadas if caja.fecha_elaboracion}
+            return next(iter(fechas)) if len(fechas) == 1 else None
+        return self.fecha_fabricacion
+
+    @property
+    def fecha_vencimiento_principal(self):
+        if self.cajas_pesadas_count:
+            fechas = {caja.fecha_vencimiento for caja in self.cajas_pesadas if caja.fecha_vencimiento}
+            return next(iter(fechas)) if len(fechas) == 1 else None
+        return self.fecha_expiracion
+
+    @property
+    def categoria_code(self):
+        return _producto_categoria_code(self.producto) if self.producto else 'RES'
 
     def __repr__(self):
         return f'<DetallePedido {self.id} - Producto {self.producto.nombre} - Peso {self.peso}>'
+
+
+class CajaPesada(db.Model):
+    __tablename__ = 'caja_pesada'
+
+    id = db.Column(db.Integer, primary_key=True)
+    detalle_pedido_id = db.Column(
+        db.Integer,
+        db.ForeignKey('detalle_pedido.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    numero = db.Column(db.Integer, nullable=False)
+    peso = db.Column(db.Numeric(8, 3), nullable=False)
+    lote = db.Column(db.String(50), nullable=False, index=True)
+    fecha_elaboracion = db.Column(db.Date, nullable=False)
+    fecha_vencimiento = db.Column(db.Date, nullable=False)
+    pesado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    pesado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    detalle_pedido = db.relationship(
+        'DetallePedido',
+        backref=db.backref(
+            'cajas_pesadas',
+            cascade='all, delete-orphan',
+            order_by='CajaPesada.numero',
+        ),
+    )
+    pesado_por_vendedor = db.relationship('Vendedor')
+
+    __table_args__ = (
+        db.UniqueConstraint('detalle_pedido_id', 'numero', name='uq_caja_detalle_numero'),
+    )
+
+    def __repr__(self):
+        return f'<CajaPesada {self.id} detalle={self.detalle_pedido_id} numero={self.numero}>'
+
+
+class PedidoEvento(db.Model):
+    __tablename__ = 'pedido_evento'
+
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(
+        db.Integer,
+        db.ForeignKey('pedido.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    tipo = db.Column(db.String(50), nullable=False)
+    descripcion = db.Column(db.String(255), nullable=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    meta = db.Column('metadata_json', db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    pedido = db.relationship(
+        'Pedido',
+        backref=db.backref(
+            'eventos',
+            cascade='all, delete-orphan',
+            order_by='PedidoEvento.created_at.desc()',
+        ),
+    )
+    usuario = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<PedidoEvento {self.id} pedido={self.pedido_id} tipo={self.tipo}>'
 
 ############################################
 # MODELOS MULTI-VENDEDOR (AGREGAR AL FINAL DE APP.PY)
@@ -2311,6 +2441,344 @@ def obtener_precio_default_producto(producto_id, tipo_precio='base'):
         return precio.precio_retail
     return None
 
+
+def _parse_peso_caja(value):
+    raw = str(value or '').strip().replace(',', '.')
+    if not raw:
+        return None, 'El peso es obligatorio'
+    try:
+        peso = Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None, 'Peso inválido'
+
+    if peso <= 0:
+        return None, 'El peso debe ser mayor que cero'
+
+    if abs(peso.as_tuple().exponent) > 3:
+        return None, 'El peso admite máximo 3 decimales'
+
+    return peso.quantize(Decimal('0.001')), None
+
+
+def _parse_iso_date_field(value, label):
+    raw = str(value or '').strip()
+    if not raw:
+        return None, f'{label} es obligatoria'
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date(), None
+    except ValueError:
+        return None, f'{label} inválida'
+
+
+def _date_to_iso(value):
+    if not value:
+        return ''
+    if hasattr(value, 'strftime'):
+        return value.strftime('%Y-%m-%d')
+    return str(value)
+
+
+def _date_like_to_date(value):
+    if value in (None, ''):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.strptime(str(value), '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _producto_categoria_code(producto):
+    nombre = f'{getattr(producto, "nombre", "")} {getattr(producto, "descripcion", "")}'.lower()
+    if 'lomo' in nombre:
+        return 'LOM'
+    if 'falda' in nombre:
+        return 'FAL'
+    if 'pollo' in nombre:
+        return 'POL'
+    if 'molida' in nombre:
+        return 'MOL'
+    if 'cerdo' in nombre or 'chuleta' in nombre or 'pork' in nombre:
+        return 'CER'
+    return 'RES'
+
+
+def _detalle_cajas_por_lote(detalle):
+    grupos = []
+    lookup = {}
+    for caja in detalle.cajas_pesadas:
+        key = (caja.lote, caja.fecha_elaboracion, caja.fecha_vencimiento)
+        grupo = lookup.get(key)
+        if grupo is None:
+            grupo = {
+                'lote': caja.lote,
+                'fecha_elaboracion': caja.fecha_elaboracion,
+                'fecha_vencimiento': caja.fecha_vencimiento,
+                'cajas': [],
+            }
+            lookup[key] = grupo
+            grupos.append(grupo)
+        grupo['cajas'].append(caja)
+    return grupos
+
+
+def _pedido_detalles_pesables(pedido):
+    detalles = [
+        detalle for detalle in pedido.detalles
+        if detalle.es_linea_pedido and detalle.producto and detalle.producto.se_pesa
+    ]
+    return sorted(detalles, key=lambda detalle: (detalle.producto.nombre.lower(), detalle.id))
+
+
+def _legacy_prep_lines_for_producto(pedido, producto_id):
+    return [
+        detalle for detalle in pedido.detalles
+        if not detalle.es_linea_pedido and detalle.producto_id == producto_id
+    ]
+
+
+def _pedido_tiene_productos_pesables(pedido):
+    return any(detalle.producto and detalle.producto.se_pesa for detalle in pedido.detalles if detalle.es_linea_pedido)
+
+
+def _pedido_peso_total(pedido):
+    total = Decimal('0')
+    for detalle in _pedido_detalles_pesables(pedido):
+        total += detalle.peso_real
+    return total
+
+
+def _pedido_cajas_pesadas_total(pedido):
+    return sum(detalle.cajas_pesadas_count for detalle in _pedido_detalles_pesables(pedido))
+
+
+def _pedido_cajas_objetivo_total(pedido):
+    return sum(detalle.cajas_objetivo for detalle in _pedido_detalles_pesables(pedido))
+
+
+def _pedido_can_finalize_pesar(pedido):
+    return len(_validar_preparacion_pedido(pedido)) == 0
+
+
+def _log_pedido_evento(pedido, tipo, descripcion=None, meta=None, commit=False):
+    """Append an audit event to pedido_evento. Does NOT commit by default —
+    callers should commit alongside their own writes."""
+    evento = PedidoEvento(
+        pedido_id=pedido.id,
+        tipo=tipo,
+        descripcion=descripcion,
+        usuario_id=current_user.id if isinstance(current_user, Vendedor) else None,
+        meta=json.dumps(meta, default=str) if meta else None,
+    )
+    db.session.add(evento)
+    if commit:
+        db.session.commit()
+    return evento
+
+
+def _renumerar_cajas_pesadas(detalle):
+    for idx, caja in enumerate(sorted(detalle.cajas_pesadas, key=lambda item: (item.numero, item.id)), start=1):
+        caja.numero = idx
+
+
+def _user_can_manage_pedido(pedido):
+    if not isinstance(current_user, Vendedor):
+        return True
+    if current_user.rol.nombre == 'super_admin':
+        return True
+    return current_user.puede_editar_pedido(pedido)
+
+
+def _caja_pesada_to_label_item(caja):
+    detalle = caja.detalle_pedido
+    producto = detalle.producto if detalle else None
+    return {
+        'producto_nombre': producto.nombre if producto else 'N/A',
+        'temperatura': getattr(producto, 'temperatura', None) or 'N/A',
+        'peso_label': f'{Decimal(str(caja.peso or 0)).quantize(Decimal("0.01")):.2f} kg',
+        'lote': caja.lote or 'N/A',
+        'fecha_fabricacion': _date_to_iso(caja.fecha_elaboracion) or 'N/A',
+        'fecha_expiracion': _date_to_iso(caja.fecha_vencimiento) or 'N/A',
+    }
+
+
+def _detalle_legacy_to_label_item(detalle):
+    peso_float = float(detalle.peso or 0)
+    if peso_float > 0:
+        peso_label = f'{peso_float:.2f} kg'
+    else:
+        peso_label = f'{int(detalle.cajas or 0)} uds'
+
+    return {
+        'producto_nombre': detalle.producto.nombre if getattr(detalle, 'producto', None) else 'N/A',
+        'temperatura': getattr(detalle.producto, 'temperatura', None) or 'N/A',
+        'peso_label': peso_label,
+        'lote': detalle.lote or 'N/A',
+        'fecha_fabricacion': _date_to_iso(detalle.fecha_fabricacion) or 'N/A',
+        'fecha_expiracion': _date_to_iso(detalle.fecha_expiracion) or 'N/A',
+    }
+
+
+def _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin):
+    inicio = _date_like_to_date(fecha_ini)
+    fin = _date_like_to_date(fecha_fin)
+    if not inicio or not fin:
+        return []
+
+    items = []
+    productos_con_cajas = set()
+
+    for detalle in _pedido_detalles_pesables(pedido):
+        if not detalle.cajas_pesadas_count:
+            continue
+        productos_con_cajas.add(detalle.producto_id)
+        for caja in detalle.cajas_pesadas:
+            if not (inicio <= caja.fecha_elaboracion <= fin):
+                continue
+            items.append(_caja_pesada_to_label_item(caja))
+
+    legacy_detalles = (
+        DetallePedido.query
+        .filter_by(pedido_id=pedido.id)
+        .filter(DetallePedido.es_linea_pedido == False)
+        .order_by(DetallePedido.id.asc())
+        .all()
+    )
+    for detalle in legacy_detalles:
+        if detalle.producto and detalle.producto.se_pesa and detalle.producto_id in productos_con_cajas:
+            continue
+        fecha_fab = _date_like_to_date(detalle.fecha_fabricacion)
+        if not fecha_fab or not (inicio <= fecha_fab <= fin):
+            continue
+        items.append(_detalle_legacy_to_label_item(detalle))
+
+    return items
+
+
+def _validar_preparacion_pedido(pedido):
+    errores = []
+    prep_lines_por_producto = {}
+
+    for detalle in pedido.detalles:
+        if detalle.es_linea_pedido:
+            continue
+        prep_lines_por_producto.setdefault(detalle.producto_id, []).append(detalle)
+
+    for detalle in [item for item in pedido.detalles if item.es_linea_pedido]:
+        producto = detalle.producto
+        if not producto:
+            continue
+
+        if producto.se_pesa and detalle.cajas_pesadas_count:
+            if detalle.cajas_pesadas_count < detalle.cajas_objetivo:
+                faltan = detalle.cajas_objetivo - detalle.cajas_pesadas_count
+                errores.append(f'{producto.nombre}: faltan {faltan} cajas por pesar')
+
+            for caja in detalle.cajas_pesadas:
+                campos_faltantes = []
+                if not caja.lote:
+                    campos_faltantes.append('lote')
+                if not caja.fecha_elaboracion:
+                    campos_faltantes.append('fecha elaboración')
+                if not caja.fecha_vencimiento:
+                    campos_faltantes.append('fecha vencimiento')
+                elif caja.fecha_vencimiento < caja.fecha_elaboracion:
+                    campos_faltantes.append('vencimiento anterior a elaboración')
+                if campos_faltantes:
+                    errores.append(
+                        f'{producto.nombre} caja #{caja.numero}: falta {", ".join(campos_faltantes)}'
+                    )
+            continue
+
+        prep_lines = prep_lines_por_producto.get(detalle.producto_id, [])
+        if not prep_lines:
+            tipo = 'peso' if producto.se_pesa else 'cajas'
+            errores.append(f'{producto.nombre}: sin líneas de preparación ({tipo})')
+            continue
+
+        if producto.se_pesa:
+            for prep in prep_lines:
+                campos_faltantes = []
+                if not prep.lote:
+                    campos_faltantes.append('lote')
+                if not prep.fecha_fabricacion:
+                    campos_faltantes.append('fecha fabricación')
+                if not prep.fecha_expiracion:
+                    campos_faltantes.append('fecha expiración')
+                if campos_faltantes:
+                    errores.append(f'{producto.nombre}: falta {", ".join(campos_faltantes)}')
+
+    return errores
+
+
+def _load_pedido_for_pesar(pedido_id):
+    return (
+        Pedido.query.options(
+            joinedload(Pedido.cliente),
+            selectinload(Pedido.detalles).joinedload(DetallePedido.producto),
+            selectinload(Pedido.detalles).selectinload(DetallePedido.cajas_pesadas),
+        )
+        .filter_by(id=pedido_id)
+        .first_or_404()
+    )
+
+
+def _get_active_pesable_detail(pedido, active_detalle_id=None):
+    detalles = _pedido_detalles_pesables(pedido)
+    if not detalles:
+        return None
+
+    if active_detalle_id:
+        for detalle in detalles:
+            if detalle.id == active_detalle_id:
+                return detalle
+
+    for detalle in detalles:
+        if not detalle.pesaje_completo:
+            return detalle
+
+    return detalles[0]
+
+
+def _build_pesar_context(pedido, active_detalle_id=None):
+    detalles = _pedido_detalles_pesables(pedido)
+    active_detalle = _get_active_pesable_detail(pedido, active_detalle_id=active_detalle_id)
+    return {
+        'pedido': pedido,
+        'detalles_pesables': detalles,
+        'active_detalle': active_detalle,
+        'cajas_por_detalle': {detalle.id: _detalle_cajas_por_lote(detalle) for detalle in detalles},
+        'peso_total_pedido': _pedido_peso_total(pedido),
+        'cajas_pesadas_total': _pedido_cajas_pesadas_total(pedido),
+        'cajas_objetivo_total': _pedido_cajas_objetivo_total(pedido),
+        'puede_finalizar_pesar': _pedido_can_finalize_pesar(pedido),
+    }
+
+
+def _render_pesar_cajas_partial(pedido, detalle):
+    return render_template(
+        'partials/pesar_cajas_lista.html',
+        pedido=pedido,
+        detalle=detalle,
+        active_detalle_id=detalle.id,
+        grupos=_detalle_cajas_por_lote(detalle),
+        peso_total_pedido=_pedido_peso_total(pedido),
+        cajas_pesadas_total=_pedido_cajas_pesadas_total(pedido),
+        cajas_objetivo_total=_pedido_cajas_objetivo_total(pedido),
+        puede_finalizar_pesar=_pedido_can_finalize_pesar(pedido),
+        oob_echoes=True,
+    )
+
+
+def _htmx_error_response(message, status=422):
+    response = make_response(message, status)
+    response.headers['HX-Retarget'] = '#pesar-feedback'
+    response.headers['HX-Reswap'] = 'innerHTML'
+    return response
+
 ############################################
 # FUNCIONES Y RUTAS DE PEDIDOS
 ############################################
@@ -2323,10 +2791,40 @@ def obtener_precio_default_producto(producto_id, tipo_precio='base'):
 def pedido_a_json(pedido: Pedido) -> dict:
     lineas = []
     total  = 0
+    productos_con_cajas = set()
+
+    for detalle in _pedido_detalles_pesables(pedido):
+        if not detalle.cajas_pesadas_count:
+            continue
+
+        qty = float(detalle.peso_real)
+        if qty == 0:
+            continue
+
+        productos_con_cajas.add(detalle.producto_id)
+
+        descripcion = detalle.producto.nombre
+        lote = detalle.lote_principal
+        if lote:
+            descripcion += f" (Lote {lote})"
+
+        subtotal = float(detalle.precio_unitario) * qty
+        total += subtotal
+
+        lineas.append({
+            "product_qbo_id": detalle.producto.qbo_id,
+            "descripcion": descripcion,
+            "qty": qty,
+            "unit_price": float(detalle.precio_unitario),
+            "amount": round(subtotal, 2),
+            "tax_rate": detalle.producto.tax_rate
+        })
 
     for d in pedido.detalles:
         # Solo usar líneas de preparación (tanto manufactura como importación)
         if d.es_linea_pedido:
+            continue
+        if d.producto and d.producto.se_pesa and d.producto_id in productos_con_cajas:
             continue
 
         # Omitir líneas con cantidad cero (producto no disponible)
@@ -3374,6 +3872,12 @@ def dashboard():
                     Producto.nombre,
                     Producto.se_pesa,
                 ),
+                selectinload(Pedido.detalles).selectinload(DetallePedido.cajas_pesadas).load_only(
+                    CajaPesada.id,
+                    CajaPesada.detalle_pedido_id,
+                    CajaPesada.numero,
+                    CajaPesada.peso,
+                ),
             )
 
             # Una sola query: pedidos por fecha_pedido O facturados por fecha_facturacion
@@ -3481,7 +3985,7 @@ def dashboard():
                     total_pedidas += pedidas
 
                     if det.producto and det.producto.se_pesa:
-                        entregadas = prep_count_por_producto.get(det.producto_id, 0)
+                        entregadas = det.cajas_pesadas_count or prep_count_por_producto.get(det.producto_id, 0)
                     else:
                         prep_cajas = prep_cajas_por_producto.get(det.producto_id, 0)
                         entregadas = prep_cajas if prep_cajas > 0 else (det.cajas or 0)
@@ -4355,6 +4859,7 @@ def nuevo_pedido():
         pedido = Pedido(cliente_id=cliente_id, notas=notas, tipo_cambio=tipo_cambio)
         db.session.add(pedido)
         db.session.commit()
+        _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
 
         # 2) Detalle (resto del código igual)
         for linea in _extraer_lineas_pedido_form(request.form, cliente_id):
@@ -4629,6 +5134,18 @@ def detalles_pedido(pedido_id):
             es_linea_pedido  = False
         )
         db.session.add(detalle)
+        producto_nombre = producto_obj.nombre if producto_obj else '—'
+        descripcion = (
+            f'Línea agregada: {producto_nombre} ({peso} kg, lote {lote})'
+            if producto_obj and producto_obj.se_pesa
+            else f'Línea agregada: {producto_nombre} ({cajas} cajas)'
+        )
+        _log_pedido_evento(
+            pedido,
+            'linea_agregada',
+            descripcion,
+            meta={'producto_id': producto_id, 'peso': peso, 'cajas': cajas, 'lote': lote},
+        )
         db.session.commit()
 
         flash('Detalle agregado.', 'success')
@@ -4659,13 +5176,290 @@ def detalles_pedido(pedido_id):
 
     saved_detalle_context = session.get(detalle_context_key, {})
 
+    eventos = (
+        PedidoEvento.query
+        .filter_by(pedido_id=pedido.id)
+        .order_by(PedidoEvento.created_at.desc())
+        .all()
+    )
+
+    # Mapeo: producto_id → primera línea de preparación (para importación no-pesable)
+    prep_by_producto = {}
+    for detalle in detalles_ordenados:
+        if not detalle.es_linea_pedido and detalle.producto_id not in prep_by_producto:
+            prep_by_producto[detalle.producto_id] = detalle
+
+    # Sólo líneas originales del pedido (lo que pidió el cliente)
+    lineas_originales = [d for d in detalles_ordenados if d.es_linea_pedido]
+
     return render_template('detalles_pedido.html',
                            pedido   = pedido,
                            productos= productos,
                            saved_detalle_context=saved_detalle_context,
                            conteo_por_producto=conteo_por_producto,
                            indice_detalle=indice_detalle,
-                           detalles_ordenados=detalles_ordenados)
+                           detalles_ordenados=detalles_ordenados,
+                           lineas_originales=lineas_originales,
+                           prep_by_producto=prep_by_producto,
+                           eventos=eventos,
+                           tiene_productos_pesables=_pedido_tiene_productos_pesables(pedido))
+
+
+@app.route('/pedidos/<int:pedido_id>/pesar', methods=['GET'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def pesar_pedido(pedido_id):
+    pedido = _load_pedido_for_pesar(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para pesar este pedido', 'error')
+        return redirect(url_for('lista_pedidos'))
+
+    if pedido.estado == 'facturado':
+        flash('No se puede pesar un pedido facturado', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    if not _pedido_tiene_productos_pesables(pedido):
+        flash('Este pedido no tiene productos que se pesen', 'info')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    active_detalle_id = request.args.get('detalle_id', type=int)
+    return render_template('pesar.html', **_build_pesar_context(pedido, active_detalle_id=active_detalle_id))
+
+
+@app.route('/pedidos/<int:pedido_id>/pesar/caja', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def registrar_caja_pesada(pedido_id):
+    pedido = _load_pedido_for_pesar(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        return _htmx_error_response('No tienes permisos para pesar este pedido', status=403)
+
+    if pedido.estado == 'facturado':
+        return _htmx_error_response('No se puede registrar cajas en un pedido facturado', status=409)
+
+    detalle_id = request.form.get('detalle_pedido_id', type=int)
+    detalle = next((
+        item for item in pedido.detalles
+        if item.id == detalle_id and item.es_linea_pedido and item.producto and item.producto.se_pesa
+    ), None)
+    if detalle is None:
+        return _htmx_error_response('Detalle de pedido inválido', status=404)
+
+    peso, peso_error = _parse_peso_caja(request.form.get('peso'))
+    if peso_error:
+        return _htmx_error_response(peso_error)
+
+    lote = (request.form.get('lote') or '').strip()
+    if not lote or len(lote) > 50:
+        return _htmx_error_response('El lote es obligatorio y debe tener máximo 50 caracteres')
+
+    fecha_elaboracion, fecha_error = _parse_iso_date_field(
+        request.form.get('fecha_elaboracion'),
+        'La fecha de elaboración',
+    )
+    if fecha_error:
+        return _htmx_error_response(fecha_error)
+
+    fecha_vencimiento, fecha_venc_error = _parse_iso_date_field(
+        request.form.get('fecha_vencimiento'),
+        'La fecha de vencimiento',
+    )
+    if fecha_venc_error:
+        return _htmx_error_response(fecha_venc_error)
+
+    if fecha_vencimiento < fecha_elaboracion:
+        return _htmx_error_response('La fecha de vencimiento no puede ser anterior a la elaboración')
+
+    siguiente_numero = max((caja.numero for caja in detalle.cajas_pesadas), default=0) + 1
+    caja = CajaPesada(
+        detalle_pedido_id=detalle.id,
+        numero=siguiente_numero,
+        peso=peso,
+        lote=lote,
+        fecha_elaboracion=fecha_elaboracion,
+        fecha_vencimiento=fecha_vencimiento,
+        pesado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+    )
+    db.session.add(caja)
+    _log_pedido_evento(
+        pedido,
+        'caja_pesada',
+        f'Caja #{siguiente_numero:02d} de {detalle.producto.nombre}: {peso} kg (lote {lote})',
+        meta={'detalle_id': detalle.id, 'numero': siguiente_numero, 'peso': float(peso), 'lote': lote},
+    )
+    db.session.commit()
+
+    pedido = _load_pedido_for_pesar(pedido_id)
+    detalle = next(item for item in pedido.detalles if item.id == detalle_id)
+    return _render_pesar_cajas_partial(pedido, detalle)
+
+
+@app.route('/cajas/<int:caja_id>/edit', methods=['GET'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def editar_caja_pesada_modal(caja_id):
+    caja = (
+        CajaPesada.query.options(
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.pedido),
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.producto),
+        )
+        .filter_by(id=caja_id)
+        .first_or_404()
+    )
+    pedido = caja.detalle_pedido.pedido
+
+    if not _user_can_manage_pedido(pedido):
+        return _htmx_error_response('No tienes permisos para editar esta caja', status=403)
+
+    if pedido.estado == 'facturado':
+        return _htmx_error_response('No se puede editar una caja de un pedido facturado', status=409)
+
+    return render_template(
+        'partials/pesar_caja_edit_modal.html',
+        caja=caja,
+        detalle=caja.detalle_pedido,
+        pedido=pedido,
+    )
+
+
+@app.route('/cajas/<int:caja_id>', methods=['PATCH'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def actualizar_caja_pesada(caja_id):
+    caja = (
+        CajaPesada.query.options(
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.pedido),
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.producto),
+        )
+        .filter_by(id=caja_id)
+        .first_or_404()
+    )
+    pedido = caja.detalle_pedido.pedido
+
+    if not _user_can_manage_pedido(pedido):
+        return _htmx_error_response('No tienes permisos para editar esta caja', status=403)
+
+    if pedido.estado == 'facturado':
+        return _htmx_error_response('No se puede editar una caja de un pedido facturado', status=409)
+
+    peso, peso_error = _parse_peso_caja(request.form.get('peso'))
+    if peso_error:
+        return _htmx_error_response(peso_error)
+
+    lote = (request.form.get('lote') or '').strip()
+    if not lote or len(lote) > 50:
+        return _htmx_error_response('El lote es obligatorio y debe tener máximo 50 caracteres')
+
+    fecha_elaboracion, fecha_error = _parse_iso_date_field(
+        request.form.get('fecha_elaboracion'),
+        'La fecha de elaboración',
+    )
+    if fecha_error:
+        return _htmx_error_response(fecha_error)
+
+    fecha_vencimiento, fecha_venc_error = _parse_iso_date_field(
+        request.form.get('fecha_vencimiento'),
+        'La fecha de vencimiento',
+    )
+    if fecha_venc_error:
+        return _htmx_error_response(fecha_venc_error)
+
+    if fecha_vencimiento < fecha_elaboracion:
+        return _htmx_error_response('La fecha de vencimiento no puede ser anterior a la elaboración')
+
+    caja.peso = peso
+    caja.lote = lote
+    caja.fecha_elaboracion = fecha_elaboracion
+    caja.fecha_vencimiento = fecha_vencimiento
+    _log_pedido_evento(
+        pedido,
+        'caja_editada',
+        f'Caja #{caja.numero:02d} de {caja.detalle_pedido.producto.nombre} editada ({peso} kg, lote {lote})',
+        meta={'caja_id': caja.id, 'numero': caja.numero, 'peso': float(peso), 'lote': lote},
+    )
+    db.session.commit()
+
+    pedido = _load_pedido_for_pesar(pedido.id)
+    detalle = next(item for item in pedido.detalles if item.id == caja.detalle_pedido_id)
+    return _render_pesar_cajas_partial(pedido, detalle)
+
+
+@app.route('/cajas/<int:caja_id>', methods=['DELETE'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def eliminar_caja_pesada(caja_id):
+    caja = (
+        CajaPesada.query.options(
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.pedido),
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.producto),
+        )
+        .filter_by(id=caja_id)
+        .first_or_404()
+    )
+    detalle_id = caja.detalle_pedido_id
+    pedido = caja.detalle_pedido.pedido
+
+    if not _user_can_manage_pedido(pedido):
+        return _htmx_error_response('No tienes permisos para eliminar esta caja', status=403)
+
+    if pedido.estado == 'facturado':
+        return _htmx_error_response('No se puede eliminar una caja de un pedido facturado', status=409)
+
+    detalle = caja.detalle_pedido
+    numero_eliminada = caja.numero
+    producto_nombre = detalle.producto.nombre
+    db.session.delete(caja)
+    db.session.flush()
+    _renumerar_cajas_pesadas(detalle)
+    _log_pedido_evento(
+        pedido,
+        'caja_eliminada',
+        f'Caja #{numero_eliminada:02d} de {producto_nombre} eliminada',
+        meta={'numero': numero_eliminada, 'detalle_id': detalle.id},
+    )
+    db.session.commit()
+
+    pedido = _load_pedido_for_pesar(pedido.id)
+    detalle = next(item for item in pedido.detalles if item.id == detalle_id)
+    return _render_pesar_cajas_partial(pedido, detalle)
+
+
+@app.route('/pedidos/<int:pedido_id>/pesar/finalizar', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def finalizar_pesaje_pedido(pedido_id):
+    pedido = _load_pedido_for_pesar(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para finalizar este pesaje', 'error')
+        return redirect(url_for('lista_pedidos'))
+
+    if pedido.estado == 'facturado':
+        flash('No se puede finalizar el pesaje de un pedido facturado', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    errores = _validar_preparacion_pedido(pedido)
+    if errores:
+        flash('No se puede finalizar el pesaje. Hay datos incompletos:', 'error')
+        for error in errores:
+            flash(error, 'error')
+        return redirect(url_for('pesar_pedido', pedido_id=pedido.id))
+
+    pedido.estado = 'preparado'
+    _log_pedido_evento(
+        pedido,
+        'pesaje_finalizado',
+        'Pesaje finalizado y pedido marcado como preparado',
+        meta={
+            'cajas_pesadas': _pedido_cajas_pesadas_total(pedido),
+            'peso_total': float(_pedido_peso_total(pedido)),
+        },
+    )
+    db.session.commit()
+    flash('Pesaje finalizado y pedido marcado como preparado', 'success')
+    return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
 
 @app.route('/detalles_pedido/<int:detalle_id>/eliminar', methods=['POST'])
@@ -4685,7 +5479,15 @@ def eliminar_detalle_pedido(detalle_id):
         flash('No se puede eliminar un detalle de un pedido facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
+    producto_nombre = detalle.producto.nombre if detalle.producto else '—'
+    detalle_id_save = detalle.id
     db.session.delete(detalle)
+    _log_pedido_evento(
+        pedido,
+        'linea_eliminada',
+        f'Línea eliminada: {producto_nombre}',
+        meta={'detalle_id': detalle_id_save},
+    )
     db.session.commit()
     flash('Detalle eliminado.', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
@@ -4781,16 +5583,9 @@ def generar_etiqueta_detalle(pedido_id):
             flash("Formato de fecha inválido", "danger")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        # Filtrar los detalles (Story 3-0: excluir líneas originales del pedido)
-        detalles = (DetallePedido.query
-                    .filter_by(pedido_id=pedido_id)
-                    .filter(DetallePedido.es_linea_pedido == False)
-                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
-                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
-                    .order_by(DetallePedido.id.asc())
-                    .all())
+        items = _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin)
 
-        if not detalles:
+        if not items:
             error_msg = "No hay detalles en ese rango de fechas"
             if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({"error": error_msg}), 404
@@ -4802,39 +5597,16 @@ def generar_etiqueta_detalle(pedido_id):
         logo_path = get_logo_path(basedir)
         cliente_nombre = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
-        for d in detalles:
-            producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
-            temperatura = getattr(d.producto, "temperatura", None) or "N/A"
-
-            # Formatear peso: usar peso real si existe, sino cajas
-            peso_float = float(d.peso or 0)
-            if peso_float > 0:
-                peso_val = f"{peso_float:.2f} kg"
-            else:
-                peso_val = f"{int(d.cajas or 0)} uds"
-
-            # Formatear fechas
-            f_fab = d.fecha_fabricacion
-            f_exp = d.fecha_expiracion
-            if hasattr(f_fab, "strftime"):
-                f_fab = f_fab.strftime("%Y-%m-%d")
-            if hasattr(f_exp, "strftime"):
-                f_exp = f_exp.strftime("%Y-%m-%d")
-
-            # Null safety para trazabilidad
-            lote = d.lote or "N/A"
-            f_fab = f_fab or "N/A"
-            f_exp = f_exp or "N/A"
-
+        for item in items:
             draw_order_label(
                 c, logo_path,
                 client=cliente_nombre,
-                product=producto_nombre,
-                temperature=temperatura,
-                lot=lote,
-                mfg_date=f_fab,
-                exp_date=f_exp,
-                weight=peso_val
+                product=item['producto_nombre'],
+                temperature=item['temperatura'],
+                lot=item['lote'],
+                mfg_date=item['fecha_fabricacion'],
+                exp_date=item['fecha_expiracion'],
+                weight=item['peso_label']
             )
             c.showPage()
 
@@ -4906,16 +5678,9 @@ def generar_etiqueta_detalle_a4(pedido_id):
             flash("Formato de fecha inválido", "danger")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        # Filtrar los detalles (Story 3-0: excluir líneas originales del pedido)
-        detalles = (DetallePedido.query
-                    .filter_by(pedido_id=pedido_id)
-                    .filter(DetallePedido.es_linea_pedido == False)
-                    .filter(DetallePedido.fecha_fabricacion >= fecha_ini)
-                    .filter(DetallePedido.fecha_fabricacion <= fecha_fin)
-                    .order_by(DetallePedido.id.asc())
-                    .all())
+        items = _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin)
 
-        if not detalles:
+        if not items:
             error_msg = "No hay detalles en ese rango de fechas"
             if request.method == 'GET' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({"error": error_msg}), 404
@@ -4930,36 +5695,13 @@ def generar_etiqueta_detalle_a4(pedido_id):
 
         etiqueta_contador = 0
 
-        for d in detalles:
-            producto_nombre = d.producto.nombre if getattr(d, "producto", None) else "N/A"
-            temperatura = getattr(d.producto, "temperatura", None) or "N/A"
-
-            # Formatear peso: usar peso real si existe, sino cajas
-            peso_float = float(d.peso or 0)
-            if peso_float > 0:
-                peso_val = f"{peso_float:.2f} kg"
-            else:
-                peso_val = f"{int(d.cajas or 0)} uds"
-
-            # Formatear fechas
-            f_fab = d.fecha_fabricacion
-            f_exp = d.fecha_expiracion
-            if hasattr(d.fecha_fabricacion, "strftime"):
-                f_fab = d.fecha_fabricacion.strftime("%Y-%m-%d")
-            if hasattr(d.fecha_expiracion, "strftime"):
-                f_exp = d.fecha_expiracion.strftime("%Y-%m-%d")
-
-            # Null safety para trazabilidad
-            lote = d.lote or "N/A"
-            f_fab = f_fab or "N/A"
-            f_exp = f_exp or "N/A"
-
+        for item in items:
             # Determinar posición (arriba o abajo)
             y_offset = y_top if etiqueta_contador % 2 == 0 else y_bottom
 
             draw_order_label_a4(
-                c, logo_path, cliente_nombre, producto_nombre,
-                temperatura, lote, f_fab, f_exp, peso_val,
+                c, logo_path, cliente_nombre, item['producto_nombre'],
+                item['temperatura'], item['lote'], item['fecha_fabricacion'], item['fecha_expiracion'], item['peso_label'],
                 x_offset, y_offset
             )
 
@@ -5030,36 +5772,7 @@ def marcar_preparado(pedido_id):
         flash('El pedido ya está marcado como preparado', 'info')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
-    errores = []
-    for detalle in pedido.detalles:
-        if detalle.es_linea_pedido:
-            continue
-        # Línea de preparación: trazabilidad completa solo para manufactura
-        if detalle.producto.se_pesa:
-            campos_faltantes = []
-            if not detalle.lote:
-                campos_faltantes.append('lote')
-            if not detalle.fecha_fabricacion:
-                campos_faltantes.append('fecha fabricación')
-            if not detalle.fecha_expiracion:
-                campos_faltantes.append('fecha expiración')
-            if campos_faltantes:
-                errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
-
-    # Verificar que TODOS los productos tengan al menos una línea de preparación
-    productos_pedido = set()
-    productos_preparados = set()
-    for detalle in pedido.detalles:
-        if detalle.es_linea_pedido:
-            productos_pedido.add(detalle.producto_id)
-        else:
-            productos_preparados.add(detalle.producto_id)
-    sin_preparar = productos_pedido - productos_preparados
-    for prod_id in sin_preparar:
-        prod = db.session.get(Producto, prod_id)
-        if prod:
-            tipo = "peso" if prod.se_pesa else "cajas"
-            errores.append(f"{prod.nombre}: sin líneas de preparación ({tipo})")
+    errores = _validar_preparacion_pedido(pedido)
 
     if errores:
         flash('No se puede marcar como preparado. Datos incompletos:', 'error')
@@ -5068,6 +5781,7 @@ def marcar_preparado(pedido_id):
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     pedido.estado = 'preparado'
+    _log_pedido_evento(pedido, 'preparado', 'Pedido marcado como preparado')
     db.session.commit()
     flash('Pedido marcado como preparado', 'success')
     return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
@@ -5089,29 +5803,7 @@ def facturar_pedido(pedido_id):
         flash('El pedido ya está facturado.', 'info')
         return redirect(url_for('lista_pedidos'))
 
-    # ── Verificar que todos los productos tengan líneas de preparación ──
-    traz_errores = []
-    productos_pedido = {d.producto_id for d in pedido.detalles if d.es_linea_pedido}
-    productos_preparados = {d.producto_id for d in pedido.detalles if not d.es_linea_pedido}
-    for prod_id in (productos_pedido - productos_preparados):
-        prod = db.session.get(Producto, prod_id)
-        if prod:
-            traz_errores.append(f"{prod.nombre}: sin líneas de preparación")
-
-    # ── Validación de trazabilidad en líneas de preparación ──
-    for detalle in pedido.detalles:
-        if detalle.es_linea_pedido:
-            continue
-        campos_faltantes = []
-        if detalle.producto.se_pesa:
-            if not detalle.lote:
-                campos_faltantes.append('lote')
-            if not detalle.fecha_fabricacion:
-                campos_faltantes.append('fecha fabricación')
-            if not detalle.fecha_expiracion:
-                campos_faltantes.append('fecha expiración')
-        if campos_faltantes:
-            traz_errores.append(f"{detalle.producto.nombre}: falta {', '.join(campos_faltantes)}")
+    traz_errores = _validar_preparacion_pedido(pedido)
     if traz_errores:
         flash('No se puede facturar. Datos de trazabilidad incompletos:', 'error')
         for err in traz_errores:
@@ -5169,6 +5861,12 @@ def facturar_pedido(pedido_id):
     pedido.estado = 'facturado'
     pedido.invoice_id_qbo = invoice_id
     pedido.fecha_facturacion = datetime.now(timezone.utc)
+    _log_pedido_evento(
+        pedido,
+        'facturado',
+        f'Pedido facturado{(": " + invoice_id) if invoice_id else ""}',
+        meta={'invoice_id_qbo': invoice_id},
+    )
     try:
         db.session.commit()
     except Exception as e:
