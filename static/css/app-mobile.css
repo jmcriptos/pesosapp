@@ -918,6 +918,21 @@ body,
 
 @media (max-width: 1023px) {
   .app-footer { display: none !important; }
+
+  /* Legacy .app-content reserved ~195px of padding-bottom + 85px of margin-bottom for
+     the now-hidden .app-footer. With the fixed .tabbar replacing it, that space showed
+     as a ~280px empty strip below content. Reserve only the tabbar height + safe-area. */
+  .app-content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Pages whose inner shell already pads for tabbar (and sticky bars) shouldn't
+     stack a second clearance on top — that's what produced the visible empty strip. */
+  body[data-pedido-form-screen] .app-content,
+  body[data-pesar-screen] .app-content {
+    padding-bottom: 0 !important;
+  }
 }
 
 @media (min-width: 1024px) {
