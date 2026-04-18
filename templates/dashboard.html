@@ -840,12 +840,14 @@
 <script>
 (function() {
   // ── Data (declared first so it's available when charts initialize) ──
+  // Use raw context vars directly (Jinja {% set %} inside block content
+  // doesn't leak into block scripts scope).
   var tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }};
   var estadosData = {
-    facturados: {{ est_facturado }},
-    preparados: {{ est_preparado }},
-    pendientes: {{ est_pendiente }},
-    vencidos:   {{ pedidos_vencidos_v }}
+    facturados: {{ ((estados_pedidos or {}).get('facturado', 0) or 0)|int }},
+    preparados: {{ ((estados_pedidos or {}).get('preparado', 0) or 0)|int }},
+    pendientes: {{ ((estados_pedidos or {}).get('pendiente', 0) or 0)|int }},
+    vencidos:   {{ (pedidos_vencidos or 0)|int }}
   };
 
   var tabs = document.querySelectorAll('#dash-tabs button');
