@@ -4,11 +4,10 @@
    For each .snap-dots[data-snap-dots-for="<panel>"] container:
    - Find the matching .dash-panel[data-dash-panel="<panel>"]
    - Create one <span> per [data-snap-card] inside that panel
-   - Use IntersectionObserver on the cards to mark the most-visible one as
+   - Use IntersectionObserver to mark the most-visible card's dot as
      .is-current
-   - Show the dot column only when the panel is the active tab (the existing
-     dashboard tab JS toggles a class — we reuse aria-hidden on .dash-panel
-     or fall back to checking which panel is currently translated into view).
+   - Toggle the container's .is-active by reading which #dash-tabs
+     button.active matches its data-snap-dots-for attribute.
 */
 (function () {
   'use strict';
