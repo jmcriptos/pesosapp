@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pesosapp — Prototipo</title>
+<link rel="stylesheet" href="src/tokens.css"/>
+<link rel="stylesheet" href="src/primitives.css"/>
+<link rel="stylesheet" href="src/app.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', system-ui, sans-serif;
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* ===== Stage ===== */
+  .stage {
+    min-height: 100vh;
+    padding: 48px 40px 80px;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 0%, color-mix(in oklab, var(--indigo-500) 10%, transparent), transparent 70%),
+      radial-gradient(ellipse 70% 50% at 90% 20%, color-mix(in oklab, var(--violet-500) 8%, transparent), transparent 70%),
+      var(--color-bg);
+    position: relative;
+  }
+  .stage-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    max-width: 1360px; margin: 0 auto 32px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .brand-mark {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--indigo-500) 0%, var(--violet-500) 100%);
+    display: grid; place-items: center;
+    color: white; font-weight: 800; font-size: 20px; letter-spacing: -0.03em;
+    box-shadow: 0 10px 30px -8px var(--color-shadow-accent), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .brand-text .n { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-text .s { font-size: 12px; color: var(--color-text-muted); margin-top: 1px; }
+
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .hbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 14px;
+    background: var(--color-surface); backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border: 1px solid var(--color-border); border-radius: 10px;
+    font-size: 12.5px; font-weight: 600; color: var(--color-text);
+    cursor: pointer; font-family: inherit; letter-spacing: -0.01em;
+    transition: all 140ms ease;
+  }
+  .hbtn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .hbtn.active {
+    background: linear-gradient(135deg, var(--indigo-500), var(--violet-500));
+    color: white; border-color: transparent;
+    box-shadow: 0 8px 20px -6px var(--color-shadow-accent);
+  }
+
+  .page-title {
+    max-width: 1360px; margin: 0 auto 28px;
+  }
+  .page-title h1 {
+    font-size: clamp(32px, 4vw, 52px); font-weight: 800;
+    letter-spacing: -0.03em; line-height: 1.05;
+    margin: 0 0 10px;
+    background: linear-gradient(135deg, var(--color-text) 0%, var(--color-text-muted) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .page-title p {
+    font-size: 15px; color: var(--color-text-muted); max-width: 620px; line-height: 1.5; margin: 0;
+  }
+
+  /* ===== Phones grid ===== */
+  .phones-grid {
+    max-width: 1360px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    justify-items: center;
+  }
+  @media (max-width: 1100px) {
+    .phones-grid { grid-template-columns: 1fr; gap: 48px; }
+  }
+
+  .phone-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .phone-label {
+    text-align: center;
+  }
+  .phone-label .kicker {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--color-text-subtle); font-weight: 700;
+  }
+  .phone-label .name {
+    font-size: 15px; font-weight: 700; letter-spacing: -0.015em; margin-top: 2px;
+  }
+
+  /* ===== Phone frame ===== */
+  .phone {
+    width: 375px; height: 812px;
+    border-radius: 52px;
+    background: #0a0a0f;
+    padding: 10px;
+    box-shadow:
+      0 50px 100px -20px rgba(15, 23, 42, 0.35),
+      0 30px 60px -30px rgba(99, 102, 241, 0.4),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.04);
+    position: relative;
+  }
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 44px;
+    background: var(--color-bg);
+    overflow: hidden;
+    position: relative;
+  }
+  .phone-screen::before {
+    /* Dynamic Island */
+    content: "";
+    position: absolute; top: 10px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px; border-radius: 20px;
+    background: #000; z-index: 100;
+  }
+
+  /* ===== Tweaks panel ===== */
+  .tweaks-panel {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 280px;
+    background: var(--color-surface-strong);
+    backdrop-filter: blur(30px) saturate(1.8);
+    -webkit-backdrop-filter: blur(30px) saturate(1.8);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-xl);
+    padding: 16px;
+    z-index: 1000;
+    display: none;
+  }
+  .tweaks-panel.open { display: block; }
+  .tweaks-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .tweaks-title {
+    font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tweaks-title::before {
+    content: ""; width: 6px; height: 6px; border-radius: 99px;
+    background: linear-gradient(135deg, var(--indigo-500), var(--violet-500));
+    box-shadow: 0 0 8px var(--indigo-500);
+  }
+  .tweak-row { margin-bottom: 12px; }
+  .tweak-row:last-child { margin-bottom: 0; }
+  .tweak-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--color-text-subtle); font-weight: 700; margin-bottom: 6px;
+  }
+  .tweak-segmented {
+    display: flex; gap: 4px; padding: 3px;
+    background: var(--color-bg-subtle); border-radius: 10px;
+    border: 1px solid var(--color-border-subtle);
+  }
+  .tweak-segmented button {
+    flex: 1; height: 28px; border: none; background: transparent;
+    border-radius: 7px; font-size: 11px; font-weight: 600;
+    color: var(--color-text-muted); cursor: pointer;
+    font-family: inherit; letter-spacing: -0.01em; transition: all 140ms ease;
+  }
+  .tweak-segmented button.active {
+    background: var(--color-bg-elevated); color: var(--color-text);
+    box-shadow: var(--shadow-sm);
+  }
+  .hue-swatches {
+    display: flex; gap: 6px;
+  }
+  .hue-swatches button {
+    flex: 1; height: 28px; border: 2px solid transparent;
+    border-radius: 8px; cursor: pointer; transition: all 140ms ease;
+    font-family: inherit;
+  }
+  .hue-swatches button.active { border-color: var(--color-text); transform: scale(1.05); }
+
+  /* Density variants */
+  [data-density="compact"] .screen-body { padding: 12px 14px; gap: 8px; }
+  [data-density="compact"] .kpi { padding: 12px; }
+  [data-density="compact"] .hero { padding: 14px 0 8px; }
+  [data-density="compact"] .hero-title { font-size: 22px; }
+
+  [data-density="airy"] .screen-body { padding: 20px 18px 120px; gap: 16px; }
+  [data-density="airy"] .kpi { padding: 18px; }
+
+  /* Glass variants */
+  [data-glass="subtle"] .gcard,
+  [data-glass="subtle"] .kpi { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  [data-glass="heavy"] .gcard,
+  [data-glass="heavy"] .kpi {
+    backdrop-filter: blur(40px) saturate(2);
+    -webkit-backdrop-filter: blur(40px) saturate(2);
+    background: color-mix(in srgb, var(--color-bg-elevated) 60%, transparent);
+  }
+
+  /* Hue variants */
+  [data-hue="blue"] { --indigo-500: #2563eb; --violet-500: #0ea5e9; --indigo-300: #93c5fd; --color-accent-soft: rgba(37,99,235,0.12); --color-shadow-accent: rgba(37,99,235,0.3); }
+  [data-hue="teal"] { --indigo-500: #14b8a6; --violet-500: #06b6d4; --indigo-300: #5eead4; --color-accent-soft: rgba(20,184,166,0.12); --color-shadow-accent: rgba(20,184,166,0.25); }
+  [data-hue="rose"] { --indigo-500: #f43f5e; --violet-500: #ec4899; --indigo-300: #fda4af; --color-accent-soft: rgba(244,63,94,0.12); --color-shadow-accent: rgba(244,63,94,0.25); }
+  [data-hue="amber"] { --indigo-500: #f59e0b; --violet-500: #f97316; --indigo-300: #fcd34d; --color-accent-soft: rgba(245,158,11,0.12); --color-shadow-accent: rgba(245,158,11,0.25); }
+
+  /* KPI style variants */
+  [data-kpi-style="bars"] .progress-ring { display: none; }
+  [data-kpi-style="bars"] .kpi::after {
+    content: ""; display: block; height: 4px; margin-top: 8px;
+    background: linear-gradient(90deg, var(--indigo-500) var(--pct, 70%), var(--color-bg-subtle) var(--pct, 70%));
+    border-radius: 99px;
+  }
+  [data-kpi-style="minimal"] .progress-ring { display: none; }
+  [data-kpi-style="minimal"] .kpi-top { margin-bottom: 0; }
+
+  /* Footnote */
+  .footnote {
+    max-width: 1360px; margin: 48px auto 0;
+    padding: 20px 24px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    font-size: 12px; color: var(--color-text-muted);
+    line-height: 1.6;
+    display: flex; gap: 24px; flex-wrap: wrap;
+  }
+  .footnote b { color: var(--color-text); font-weight: 600; }
+
+  /* Tweak toggle button */
+  .tweak-toggle {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--indigo-500), var(--violet-500));
+    border: none; color: white; cursor: pointer;
+    box-shadow: 0 10px 30px -8px var(--color-shadow-accent), inset 0 1px 0 rgba(255,255,255,0.25);
+    display: grid; place-items: center;
+    z-index: 999;
+    font-family: inherit;
+    transition: transform 200ms ease;
+  }
+  .tweak-toggle:hover { transform: scale(1.05) rotate(15deg); }
+  .tweak-toggle.hidden { display: none; }
+</style>
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#6366f1"/>
+        <stop offset="100%" stop-color="#8b5cf6"/>
+      </linearGradient>
+    </defs>
+    <rect width="120" height="120" rx="24" fill="url(#bg)"/>
+    <!-- Scale icon -->
+    <g transform="translate(36 36)" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="10" width="44" height="36" rx="5"/>
+      <path d="M14 10V6a10 10 0 0 1 20 0v4"/>
+      <circle cx="24" cy="28" r="7"/>
+      <path d="M24 24v4l3 2"/>
+    </g>
+  </svg>
+</template>
+</head>
+<body data-theme="light" data-density="default" data-glass="default" data-hue="indigo" data-kpi-style="rings">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="src/data.js"></script>
+<script type="text/babel" src="src/components.jsx"></script>
+<script type="text/babel" src="src/screens/Dashboard.jsx"></script>
+<script type="text/babel" src="src/screens/PedidosList.jsx"></script>
+<script type="text/babel" src="src/screens/PedidoDetail.jsx"></script>
+<script type="text/babel" src="src/screens/PesarScreen.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "dark",
+  "density": "default",
+  "glass": "heavy",
+  "hue": "blue",
+  "kpiStyle": "minimal"
+}/*EDITMODE-END*/;
+
+const SCREENS = {
+  dashboard: { label: 'Dashboard', kicker: 'Inicio' },
+  pedidos:   { label: 'Pedidos',   kicker: 'Lista' },
+  detail:    { label: 'Detalle',   kicker: 'Pedido' },
+  pesar:     { label: 'Pesar',     kicker: 'Báscula' },
+};
+
+function PhoneStage({ screen, onNav, label, kicker }) {
+  return (
+    <div className="phone-col" data-screen-label={`Phone · ${label}`}>
+      <div className="phone-label">
+        <div className="kicker">{kicker}</div>
+        <div className="name">{label}</div>
+      </div>
+      <div className="phone">
+        <div className="phone-screen" data-screen={screen}>
+          <div className="phone-root">
+            {screen === 'dashboard' && <Dashboard onOpenPedidos={() => onNav('pedidos')} />}
+            {screen === 'pedidos' && <PedidosList onBack={() => onNav('dashboard')} onOpen={(id) => onNav('detail', id)} />}
+            {screen === 'detail' && <PedidoDetail pedidoId={window.__selectedPedido} onBack={() => onNav('pedidos')} onPesar={() => onNav('pesar')} />}
+            {screen === 'pesar' && <PesarScreen pedidoId={window.__selectedPedido} onBack={() => onNav('detail')} />}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [state, setState] = React.useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('pesos_tweaks') || 'null');
+      return { ...TWEAK_DEFAULTS, ...(saved || {}) };
+    } catch { return TWEAK_DEFAULTS; }
+  });
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+  const [editMode, setEditMode] = React.useState(false);
+
+  // screens for the three phones (can navigate independently)
+  const [phone1, setPhone1] = React.useState('dashboard');
+  const [phone2, setPhone2] = React.useState('detail');
+  const [phone3, setPhone3] = React.useState('pesar');
+
+  // Apply tweaks to body
+  React.useEffect(() => {
+    const b = document.body;
+    b.dataset.theme = state.theme;
+    b.dataset.density = state.density;
+    b.dataset.glass = state.glass;
+    b.dataset.hue = state.hue;
+    b.dataset.kpiStyle = state.kpiStyle;
+    localStorage.setItem('pesos_tweaks', JSON.stringify(state));
+  }, [state]);
+
+  // Edit mode message protocol
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') { setEditMode(true); setTweaksOpen(true); }
+      if (e.data?.type === '__deactivate_edit_mode') { setEditMode(false); setTweaksOpen(false); }
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const updateState = (k, v) => {
+    setState(s => {
+      const next = { ...s, [k]: v };
+      if (editMode) {
+        window.parent.postMessage({ type: '__edit_mode_set_keys', edits: next }, '*');
+      }
+      return next;
+    });
+  };
+
+  // Set selected pedido on open
+  const handleNav = (phoneSetter) => (screen, id) => {
+    if (id) window.__selectedPedido = id;
+    phoneSetter(screen);
+  };
+
+  React.useEffect(() => {
+    if (!window.__selectedPedido) window.__selectedPedido = window.PESOS_DATA.pedidos[0].id;
+  }, []);
+
+  return (
+    <div className="stage">
+      <div className="stage-header">
+        <div className="brand">
+          <div className="brand-mark">P</div>
+          <div className="brand-text">
+            <div className="n">Pesosapp</div>
+            <div className="s">iOS Premium Glass · Phase 3–4</div>
+          </div>
+        </div>
+        <div className="header-actions">
+          <button className={`hbtn ${state.theme === 'light' ? 'active' : ''}`} onClick={() => updateState('theme', 'light')}>
+            <Icon name="sun" size={14}/> Claro
+          </button>
+          <button className={`hbtn ${state.theme === 'dark' ? 'active' : ''}`} onClick={() => updateState('theme', 'dark')}>
+            <Icon name="moon" size={14}/> Oscuro
+          </button>
+          <button className="hbtn" onClick={() => setTweaksOpen(!tweaksOpen)}>
+            <Icon name="wand" size={14}/> Tweaks
+          </button>
+        </div>
+      </div>
+
+      <div className="page-title">
+        <h1>Un pedido bien pesado.</h1>
+        <p>Flujo completo de la app móvil: dashboard de ventas y servicio, lista de pedidos con SLA, detalle con línea de productos. Todo en el sistema Premium Glass — indigo y violeta sobre superficies traslúcidas, tipografía SF, esquinas generosas, numerales tabulares. Cada pantalla es totalmente interactiva: toca, navega, ajusta.</p>
+      </div>
+
+      <div className="phones-grid">
+        <PhoneStage screen={phone1} onNav={handleNav(setPhone1)} label={SCREENS[phone1].label} kicker={SCREENS[phone1].kicker}/>
+        <PhoneStage screen={phone2} onNav={handleNav(setPhone2)} label={SCREENS[phone2].label} kicker={SCREENS[phone2].kicker}/>
+        <PhoneStage screen={phone3} onNav={handleNav(setPhone3)} label={SCREENS[phone3].label} kicker={SCREENS[phone3].kicker}/>
+      </div>
+
+      <div className="footnote">
+        <div><b>Flujo:</b> Toca la pestaña "Pedidos" en el tabbar del dashboard, o toca una fila de la lista para abrir el detalle.</div>
+        <div><b>Tema:</b> Claro / oscuro en la barra superior.</div>
+        <div><b>Tweaks:</b> Densidad, intensidad de cristal, acento, estilo de KPI.</div>
+        <div><b>Data:</b> Placeholder en XCG (moneda de Curazao), estructura fiel al esquema real.</div>
+      </div>
+
+      {!tweaksOpen && (
+        <button className="tweak-toggle" onClick={() => setTweaksOpen(true)} title="Abrir tweaks">
+          <Icon name="wand" size={20}/>
+        </button>
+      )}
+
+      {tweaksOpen && (
+        <div className="tweaks-panel open">
+          <div className="tweaks-head">
+            <div className="tweaks-title">Tweaks</div>
+            <button onClick={() => setTweaksOpen(false)} style={{ border: 'none', background: 'var(--color-bg-subtle)', borderRadius: 8, width: 24, height: 24, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+              <Icon name="x" size={12}/>
+            </button>
+          </div>
+
+          <div className="tweak-row">
+            <div className="tweak-label">Densidad</div>
+            <div className="tweak-segmented">
+              {['compact','default','airy'].map(v =>
+                <button key={v} className={state.density === v ? 'active' : ''} onClick={() => updateState('density', v)}>
+                  {v === 'compact' ? 'Compacta' : v === 'airy' ? 'Amplia' : 'Normal'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="tweak-row">
+            <div className="tweak-label">Cristal (glass)</div>
+            <div className="tweak-segmented">
+              {['subtle','default','heavy'].map(v =>
+                <button key={v} className={state.glass === v ? 'active' : ''} onClick={() => updateState('glass', v)}>
+                  {v === 'subtle' ? 'Sutil' : v === 'heavy' ? 'Fuerte' : 'Normal'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="tweak-row">
+            <div className="tweak-label">Acento</div>
+            <div className="hue-swatches">
+              {[
+                { id: 'indigo', g: 'linear-gradient(135deg, #6366f1, #8b5cf6)' },
+                { id: 'blue',   g: 'linear-gradient(135deg, #2563eb, #0ea5e9)' },
+                { id: 'teal',   g: 'linear-gradient(135deg, #14b8a6, #06b6d4)' },
+                { id: 'rose',   g: 'linear-gradient(135deg, #f43f5e, #ec4899)' },
+                { id: 'amber',  g: 'linear-gradient(135deg, #f59e0b, #f97316)' },
+              ].map(h =>
+                <button key={h.id} className={state.hue === h.id ? 'active' : ''}
+                        onClick={() => updateState('hue', h.id)}
+                        style={{ background: h.g }} title={h.id}/>
+              )}
+            </div>
+          </div>
+
+          <div className="tweak-row">
+            <div className="tweak-label">Estilo de KPI</div>
+            <div className="tweak-segmented">
+              {['rings','bars','minimal'].map(v =>
+                <button key={v} className={state.kpiStyle === v ? 'active' : ''} onClick={() => updateState('kpiStyle', v)}>
+                  {v === 'rings' ? 'Anillo' : v === 'bars' ? 'Barra' : 'Mínimo'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
