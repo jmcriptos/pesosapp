@@ -139,3 +139,226 @@ body {
   width: 20px;
   height: 20px;
 }
+
+/* ============================================================================
+   Dashboard
+   ============================================================================ */
+
+/* Segmented control (existing carousel nav gets restyled via these classes) */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--color-surface-sunken);
+  border-radius: 12px;
+  margin: 0 16px 12px;
+}
+.segmented button {
+  flex: 1;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  transition: background 140ms ease, color 140ms ease;
+}
+.segmented button.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* KPI grid + tile */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px;
+}
+.kpi {
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px) saturate(2);
+  -webkit-backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg, 16px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.kpi-value small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  margin-left: 3px;
+}
+.kpi-sub {
+  font-size: 11px;
+  color: var(--color-text-subtle);
+}
+.kpi-trend {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--color-success-soft);
+  color: var(--color-success-soft-fg);
+}
+.kpi-trend.down {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-soft-fg);
+}
+
+/* Minimal KPI style (applied globally via body[data-kpi-style="minimal"]) */
+[data-kpi-style="minimal"] .ring-wrap,
+[data-kpi-style="minimal"] .progress-ring {
+  display: none;
+}
+
+/* Progress ring */
+.ring-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.ring-wrap svg { display: block; }
+.ring-wrap .ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section header */
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 8px;
+}
+.sec-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-subtle);
+}
+.sec-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--indigo-500);
+  text-decoration: none;
+}
+
+/* Rank rows (Top productos / clientes) */
+.rank-list { padding: 0 16px; }
+.rank {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.rank:last-child { border-bottom: none; }
+.rank-pos {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500));
+}
+.rank-body { min-width: 0; }
+.rank-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--color-accent-soft, rgba(99,102,241,0.12));
+  margin-top: 6px;
+  overflow: hidden;
+}
+.rank-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--indigo-500), var(--violet-500));
+}
+.rank-amt {
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.rank-amt small {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+}
+
+/* Sparkline chart card */
+.chart-card { padding: 16px; margin: 0 16px; }
+.chart-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.chart-big {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.chart-big small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  margin-left: 3px;
+}
+.chart-legend {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
