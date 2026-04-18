@@ -362,3 +362,200 @@ body {
   align-items: center;
   gap: 8px;
 }
+
+/* ============================================================================
+   Pedidos list
+   ============================================================================ */
+
+.pedidos-list {
+  padding: 0 16px;
+}
+
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 44px;
+  border-radius: 99px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--glass-border);
+  margin: 0 16px 12px;
+  color: var(--color-text-subtle);
+  font-size: 15px;
+}
+.search-pill input {
+  border: none;
+  background: transparent;
+  flex: 1;
+  font-size: 16px;
+  outline: none;
+  color: var(--color-text);
+}
+.search-pill input::placeholder { color: var(--color-text-subtle); }
+
+.chips-row {
+  display: flex;
+  gap: 7px;
+  margin: 0 16px 14px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.chips-row::-webkit-scrollbar { display: none; }
+.fchip {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 99px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fchip .fcount {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 99px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.fchip.active {
+  background: var(--indigo-500);
+  border-color: var(--indigo-500);
+  color: white;
+}
+.fchip.active .fcount {
+  background: rgba(255, 255, 255, 0.22);
+  color: white;
+}
+
+/* Day-group header */
+.day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-subtle);
+}
+.day-head .day-totals {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* Pedido row as card */
+.pedido-card {
+  padding: 14px 14px 12px;
+  border-radius: var(--radius-xl, 20px);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.pedido-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.pc-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.pc-id {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.pc-client {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.pc-amt {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  line-height: 1.1;
+}
+.pc-amt small {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  margin-top: 2px;
+}
+.pc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 6px;
+}
+.pc-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pc-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.status-pill.pendiente { background: var(--color-warning-soft); color: var(--color-warning-soft-fg); }
+.status-pill.preparado { background: var(--color-success-soft); color: var(--color-success-soft-fg); }
+.status-pill.facturado { background: var(--color-info-soft); color: var(--color-info-soft-fg); }
+.status-pill.vencido   { background: var(--color-danger-soft);  color: var(--color-danger-soft-fg); }
+
+.sla {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sla .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--color-success, #10b981); }
+.sla.warn .dot { background: var(--color-warning, #f59e0b); }
+.sla.danger .dot { background: var(--color-danger, #f43f5e); }
