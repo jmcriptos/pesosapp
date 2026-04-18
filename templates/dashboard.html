@@ -57,38 +57,15 @@
 {% set svc_lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
 {% set svc_lt_offset = ring_circ - (svc_lt_pct / 100) * ring_circ %}
 
-<div class="exec-dashboard">
-    <div class="dashboard-subnav-wrap">
-        <div class="dashboard-subnav">
-            <div class="dashboard-carousel-head">
-                <div class="dashboard-carousel-copy">
-                    <span class="dashboard-carousel-kicker">Dashboard</span>
-                    <div class="dashboard-carousel-title-row">
-                        <span class="dashboard-carousel-title" id="dashboardSectionLabel">Ventas</span>
-                        <span class="dashboard-carousel-counter" id="dashboardSectionCounter">1 / 4</span>
-                    </div>
-                </div>
-
-                <div class="dashboard-carousel-controls">
-                    <div class="dashboard-carousel-dots" id="dashboardCarouselDots" aria-label="Páginas del dashboard">
-                        <button class="dashboard-carousel-dot active" type="button" data-panel-target="tendencia" aria-label="Ir a Ventas" aria-pressed="true"></button>
-                        <button class="dashboard-carousel-dot" type="button" data-panel-target="servicio" aria-label="Ir a Servicio" aria-pressed="false"></button>
-                        <button class="dashboard-carousel-dot" type="button" data-panel-target="rankings" aria-label="Ir a Top" aria-pressed="false"></button>
-                        <button class="dashboard-carousel-dot" type="button" data-panel-target="actividad" aria-label="Ir a Pedidos" aria-pressed="false"></button>
-                    </div>
-
-                    <div class="dashboard-carousel-nav">
-                        <button class="dashboard-carousel-btn" id="dashboardPrev" type="button" aria-label="Ir a la sección anterior" disabled>
-                            <i class="fas fa-arrow-left"></i>
-                        </button>
-                        <button class="dashboard-carousel-btn" id="dashboardNext" type="button" aria-label="Ir a la siguiente sección">
-                            <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="exec-dashboard" data-dashboard-tabs style="background: var(--bg-ambient)">
+    {# ── X-style Tab Bar ── #}
+    <nav class="dash-tabs" role="tablist" aria-label="Secciones del dashboard">
+        <button class="dash-tab is-active" role="tab" data-tab="tendencia" aria-selected="true" aria-controls="panel-tendencia">Ventas</button>
+        <button class="dash-tab" role="tab" data-tab="servicio" aria-selected="false" aria-controls="panel-servicio">Servicio</button>
+        <button class="dash-tab" role="tab" data-tab="rankings" aria-selected="false" aria-controls="panel-rankings">Top</button>
+        <button class="dash-tab" role="tab" data-tab="actividad" aria-selected="false" aria-controls="panel-actividad">Pedidos</button>
+        <span class="dash-tabs-indicator" aria-hidden="true"></span>
+    </nav>
 
     {# ══════ Tab Panels ══════ #}
     <div class="tab-panels" id="dashboardCarousel">
@@ -98,83 +75,71 @@
             {# — 4 KPI Cards with Progress Rings — #}
             <div class="kpi-grid">
                 {# Tile 1: Ventas del Mes #}
-                <div class="kpi-tile">
-                    <div class="tile-top">
-                        <span class="tile-label">Ventas del Mes</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if porcentaje_meta_v >= 80 %} c-green
-                                {%- elif porcentaje_meta_v >= 50 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring1_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % porcentaje_meta_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if porcentaje_meta_v >= 85 %}success{% elif porcentaje_meta_v >= 70 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Ventas del Mes</span>
+                            <svg class="ring" data-state="{% if porcentaje_meta_v >= 85 %}success{% elif porcentaje_meta_v >= 70 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring1_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % porcentaje_meta_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '{:,.0f}'.format(ventas_mes_v) }} <span class="text-sm text-subtle font-medium">XCG</span></div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Meta: {{ '{:,.0f}'.format(meta_mensual_v) }} · {{ pedidos_mes_v }} ped</div>
                     </div>
-                    <div class="tile-value">{{ '{:,.0f}'.format(ventas_mes_v) }} <small>XCG</small></div>
-                    <div class="tile-sub">Meta: {{ '{:,.0f}'.format(meta_mensual_v) }} · {{ pedidos_mes_v }} ped</div>
                 </div>
 
                 {# Tile 2: Proyección #}
-                <div class="kpi-tile">
-                    <div class="tile-top">
-                        <span class="tile-label">Proyección</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if porcentaje_proyeccion_v >= 100 %} c-green
-                                {%- elif porcentaje_proyeccion_v >= 80 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring2_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % porcentaje_proyeccion_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if porcentaje_proyeccion_v >= 100 %}success{% elif porcentaje_proyeccion_v >= 80 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Proyección</span>
+                            <svg class="ring" data-state="{% if porcentaje_proyeccion_v >= 100 %}success{% elif porcentaje_proyeccion_v >= 80 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring2_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % porcentaje_proyeccion_v }}%</text>
+                            </svg>
+                        </div>
+                        {% if proyeccion_ventas_v > 0 %}
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '{:,.0f}'.format(proyeccion_ventas_v) }} <span class="text-sm text-subtle font-medium">XCG</span></div>
+                        {% else %}
+                        <div class="text-2xl font-bold text-subtle" style="margin-top: var(--space-2);">Sin datos</div>
+                        {% endif %}
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">{{ '%.0f' % porcentaje_proyeccion_v }}% de meta</div>
                     </div>
-                    {% if proyeccion_ventas_v > 0 %}
-                    <div class="tile-value">{{ '{:,.0f}'.format(proyeccion_ventas_v) }} <small>XCG</small></div>
-                    {% else %}
-                    <div class="tile-value tile-muted">Sin datos</div>
-                    {% endif %}
-                    <div class="tile-sub">{{ '%.0f' % porcentaje_proyeccion_v }}% de meta</div>
                 </div>
 
                 {# Tile 3: Servicio (OTD) #}
-                <div class="kpi-tile">
-                    <div class="tile-top">
-                        <span class="tile-label">On Time Delivery</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if otd_rate_v >= 95 %} c-green
-                                {%- elif otd_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring3_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % otd_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if otd_rate_v >= 95 %}success{% elif otd_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">On Time Delivery</span>
+                            <svg class="ring" data-state="{% if otd_rate_v >= 95 %}success{% elif otd_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring3_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % otd_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.1f' % otd_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">OFR: {{ '%.0f' % order_completion_rate_v }}% · ≤2 días</div>
                     </div>
-                    <div class="tile-value">{{ '%.1f' % otd_rate_v }}%</div>
-                    <div class="tile-sub">OFR: {{ '%.0f' % order_completion_rate_v }}% · ≤2 días</div>
                 </div>
 
                 {# Tile 4: Pendientes #}
-                <div class="kpi-tile">
-                    <div class="tile-top">
-                        <span class="tile-label">Pendientes</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if pedidos_pendientes_v == 0 %} c-green
-                                {%- elif pedidos_pendientes_v <= 3 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring4_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ pedidos_pendientes_v }}</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if pedidos_pendientes_v == 0 %}success{% elif pedidos_pendientes_v <= 3 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Pendientes</span>
+                            <svg class="ring" data-state="{% if pedidos_pendientes_v == 0 %}success{% elif pedidos_pendientes_v <= 3 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ ring4_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ pedidos_pendientes_v }}</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ pedidos_pendientes_v }}</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">{{ 'Requieren atención' if pedidos_pendientes_v > 0 else 'Al día' }}</div>
                     </div>
-                    <div class="tile-value tile-value-big">{{ pedidos_pendientes_v }}</div>
-                    <div class="tile-sub">{{ 'Requieren atención' if pedidos_pendientes_v > 0 else 'Al día' }}</div>
                 </div>
             </div>
 
@@ -215,113 +180,83 @@
         <div class="tab-panel" id="panel-servicio" data-panel="servicio" data-panel-label="Servicio" role="group" aria-roledescription="slide" aria-label="Servicio" aria-hidden="true">
             <div class="svc-grid">
                 {# OTD #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">On Time Delivery</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if otd_rate_v >= 95 %} c-green
-                                {%- elif otd_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_otd_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % otd_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if otd_rate_v >= 95 %}success{% elif otd_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">On Time Delivery</span>
+                            <svg class="ring" data-state="{% if otd_rate_v >= 95 %}success{% elif otd_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_otd_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % otd_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.1f' % otd_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Entregas ≤2 días</div>
                     </div>
-                    <div class="svc-val
-                        {%- if otd_rate_v >= 95 %} c-green
-                        {%- elif otd_rate_v >= 85 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.1f' % otd_rate_v }}%</div>
-                    <div class="svc-desc">Entregas ≤2 días</div>
                 </div>
 
                 {# OFR #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Order Fill Rate</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if order_completion_rate_v >= 95 %} c-green
-                                {%- elif order_completion_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ofr_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % order_completion_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if order_completion_rate_v >= 95 %}success{% elif order_completion_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Order Fill Rate</span>
+                            <svg class="ring" data-state="{% if order_completion_rate_v >= 95 %}success{% elif order_completion_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ofr_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % order_completion_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.1f' % order_completion_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Cajas entregadas vs pedidas</div>
                     </div>
-                    <div class="svc-val
-                        {%- if order_completion_rate_v >= 95 %} c-green
-                        {%- elif order_completion_rate_v >= 85 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.1f' % order_completion_rate_v }}%</div>
-                    <div class="svc-desc">Cajas entregadas vs pedidas</div>
                 </div>
 
                 {# Customer Engagement #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Customer Engagement</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if customer_engagement_v >= 80 %} c-green
-                                {%- elif customer_engagement_v >= 60 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ce_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % customer_engagement_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if customer_engagement_v >= 60 %}success{% elif customer_engagement_v >= 40 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Customer Engagement</span>
+                            <svg class="ring" data-state="{% if customer_engagement_v >= 60 %}success{% elif customer_engagement_v >= 40 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ce_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % customer_engagement_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.0f' % customer_engagement_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Clientes activos del mes</div>
                     </div>
-                    <div class="svc-val
-                        {%- if customer_engagement_v >= 80 %} c-green
-                        {%- elif customer_engagement_v >= 60 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.0f' % customer_engagement_v }}%</div>
-                    <div class="svc-desc">Clientes activos del mes</div>
                 </div>
 
                 {# Perfect Order Rate #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Perfect Order Rate</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if perfect_order_rate_v >= 95 %} c-green
-                                {%- elif perfect_order_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_por_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % perfect_order_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if perfect_order_rate_v >= 95 %}success{% elif perfect_order_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Perfect Order Rate</span>
+                            <svg class="ring" data-state="{% if perfect_order_rate_v >= 95 %}success{% elif perfect_order_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_por_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % perfect_order_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.0f' % perfect_order_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Entregas perfectas</div>
                     </div>
-                    <div class="svc-val
-                        {%- if perfect_order_rate_v >= 95 %} c-green
-                        {%- elif perfect_order_rate_v >= 85 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.0f' % perfect_order_rate_v }}%</div>
-                    <div class="svc-desc">Entregas perfectas</div>
                 </div>
 
                 {# Lead Time #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Lead Time</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if lead_time_promedio_v <= 2 %} c-green
-                                {%- elif lead_time_promedio_v <= 4 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_lt_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ lead_time_promedio_v|round(1) }}d</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if lead_time_promedio_v <= 2 %}success{% elif lead_time_promedio_v <= 4 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Lead Time</span>
+                            <svg class="ring" data-state="{% if lead_time_promedio_v <= 2 %}success{% elif lead_time_promedio_v <= 4 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_lt_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ lead_time_promedio_v|round(1) }}d</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ lead_time_promedio_v|round(1) }} días</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Promedio de procesamiento</div>
                     </div>
-                    <div class="svc-val
-                        {%- if lead_time_promedio_v <= 2 %} c-green
-                        {%- elif lead_time_promedio_v <= 4 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ lead_time_promedio_v|round(1) }} días</div>
-                    <div class="svc-desc">Promedio de procesamiento</div>
                 </div>
             </div>
 
@@ -341,10 +276,10 @@
                     {% for kpi in (kpis_historicos or [])[-3:] %}
                     <div class="kpi-month">
                         <span class="km-label">{{ kpi.mes }}</span>
-                        <span class="km-val {{ 'c-green' if kpi.order_completion_rate >= 80 else 'c-amber' }}">
+                        <span class="chip {% if kpi.order_completion_rate >= 80 %}chip-success{% else %}chip-warning{% endif %}">
                             <i class="fas fa-clipboard-check"></i> {{ kpi.order_completion_rate }}%
                         </span>
-                        <span class="km-val {{ 'c-green' if kpi.otd_rate >= 90 else 'c-amber' }}">
+                        <span class="chip {% if kpi.otd_rate >= 90 %}chip-success{% else %}chip-warning{% endif %}">
                             <i class="fas fa-truck"></i> {{ kpi.otd_rate }}%
                         </span>
                     </div>
@@ -358,11 +293,11 @@
             <div class="card" style="margin-bottom:12px">
                 <div class="card-head">
                     <h3><i class="fas fa-filter" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Periodo de Ranking</h3>
-                    <div class="period-btns ranking-period-btns">
-                        <button class="period-btn ranking-period-btn active" data-ranking-period="month">MES</button>
-                        <button class="period-btn ranking-period-btn" data-ranking-period="6m">6M</button>
-                        <button class="period-btn ranking-period-btn" data-ranking-period="3m">3M</button>
-                        <button class="period-btn ranking-period-btn" data-ranking-period="4w">4S</button>
+                    <div class="period-btns ranking-period-btns" style="display:flex;gap:var(--space-2);">
+                        <button class="chip chip-primary ranking-period-btn" data-ranking-period="month">MES</button>
+                        <button class="chip ranking-period-btn" data-ranking-period="6m">6M</button>
+                        <button class="chip ranking-period-btn" data-ranking-period="3m">3M</button>
+                        <button class="chip ranking-period-btn" data-ranking-period="4w">4S</button>
                     </div>
                 </div>
             </div>
@@ -379,20 +314,24 @@
                     {% set cajas = (producto.cajas or 0)|int %}
                     {% set peso = (producto.peso or 0)|float %}
                     {% set bar_pct = (ingresos / max_ingreso_prod * 100) if max_ingreso_prod > 0 else 0 %}
-                    <div class="rank-row">
-                        <span class="rr-pos rc-{{ loop.index }}">{{ loop.index }}</span>
-                        <div class="rr-body">
-                            <div class="rr-top">
-                                <span class="rr-name">{{ producto.nombre }}</span>
-                                <span class="rr-amount">{{ '{:,.0f}'.format(ingresos) }} <small>XCG</small></span>
+                    <div class="card card-interactive" style="margin-bottom: var(--space-2);">
+                        <div class="card-body">
+                            <div class="cluster cluster-3" style="align-items: center; justify-content: space-between;">
+                                <div class="cluster cluster-3" style="align-items: center;">
+                                    <span class="chip chip-primary">{{ loop.index }}</span>
+                                    <div>
+                                        <div class="text-md font-semibold">{{ producto.nombre }}</div>
+                                        <div class="text-xs text-muted">
+                                            {% if cajas > 0 %}<span><i class="fas fa-boxes-stacked"></i> {{ cajas }} cj</span>{% endif %}
+                                            {% if peso > 0 %}<span style="margin-left:6px"><i class="fas fa-weight-hanging"></i> {{ '{:,.1f}'.format(peso) }} kg</span>{% endif %}
+                                            <span style="margin-left:6px"><i class="fas fa-clipboard-list"></i> {{ producto.pedidos or 0 }} ped</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-lg font-bold tabular">{{ '{:,.0f}'.format(ingresos) }} <span class="text-xs text-subtle">XCG</span></div>
                             </div>
-                            <div class="rr-bar-track">
+                            <div class="rr-bar-track" style="margin-top: var(--space-1);">
                                 <div class="rr-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
-                            </div>
-                            <div class="rr-meta">
-                                {% if cajas > 0 %}<span><i class="fas fa-boxes-stacked"></i> {{ cajas }} cj</span>{% endif %}
-                                {% if peso > 0 %}<span><i class="fas fa-weight-hanging"></i> {{ '{:,.1f}'.format(peso) }} kg</span>{% endif %}
-                                <span><i class="fas fa-clipboard-list"></i> {{ producto.pedidos or 0 }} ped</span>
                             </div>
                         </div>
                     </div>
@@ -411,19 +350,23 @@
                     {% for nombre, datos in (top_clientes or []) %}
                     {% set cliente_total = (datos.total or 0)|float %}
                     {% set bar_pct = (cliente_total / max_total_cli * 100) if max_total_cli > 0 else 0 %}
-                    <div class="rank-row">
-                        <span class="rr-pos rc-{{ loop.index }}">{{ loop.index }}</span>
-                        <div class="rr-body">
-                            <div class="rr-top">
-                                <span class="rr-name">{{ nombre }}</span>
-                                <span class="rr-amount">{{ '{:,.0f}'.format(cliente_total) }} <small>XCG</small></span>
+                    <div class="card card-interactive" style="margin-bottom: var(--space-2);">
+                        <div class="card-body">
+                            <div class="cluster cluster-3" style="align-items: center; justify-content: space-between;">
+                                <div class="cluster cluster-3" style="align-items: center;">
+                                    <span class="chip chip-primary">{{ loop.index }}</span>
+                                    <div>
+                                        <div class="text-md font-semibold">{{ nombre }}</div>
+                                        <div class="text-xs text-muted">
+                                            <span><i class="fas fa-clipboard-list"></i> {{ datos.pedidos or 0 }} pedidos</span>
+                                            <span style="margin-left:6px"><i class="fas fa-calendar"></i> {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-lg font-bold tabular">{{ '{:,.0f}'.format(cliente_total) }} <span class="text-xs text-subtle">XCG</span></div>
                             </div>
-                            <div class="rr-bar-track">
+                            <div class="rr-bar-track" style="margin-top: var(--space-1);">
                                 <div class="rr-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
-                            </div>
-                            <div class="rr-meta">
-                                <span><i class="fas fa-clipboard-list"></i> {{ datos.pedidos or 0 }} pedidos</span>
-                                <span><i class="fas fa-calendar"></i> {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
                             </div>
                         </div>
                     </div>
@@ -434,13 +377,26 @@
 
         {# ── Tab: Actividad ── #}
         <div class="tab-panel" id="panel-actividad" data-panel="actividad" data-panel-label="Pedidos" role="group" aria-roledescription="slide" aria-label="Pedidos" aria-hidden="true">
+
+            {# Vencidos counter — semantic danger highlight #}
+            <div class="card{% if pedidos_vencidos_v > 0 %} card-interactive{% endif %}" style="margin-bottom:12px;" data-state="{% if pedidos_vencidos_v == 0 %}success{% elif pedidos_vencidos_v <= 3 %}warning{% else %}danger{% endif %}">
+                <div class="card-body">
+                    <div class="cluster cluster-2" style="align-items: center; justify-content: space-between;">
+                        <span class="label">Pedidos Vencidos</span>
+                        <span class="badge {% if pedidos_vencidos_v == 0 %}badge-success{% else %}badge-danger{% endif %}">{{ pedidos_vencidos_v }}</span>
+                    </div>
+                    <div class="text-2xl font-bold tabular" style="margin-top: var(--space-2);{% if pedidos_vencidos_v > 0 %}color: var(--color-danger);{% endif %}">{{ pedidos_vencidos_v }}</div>
+                    <div class="text-sm text-muted">{{ 'Requieren atención inmediata' if pedidos_vencidos_v > 0 else 'Sin pedidos vencidos' }}</div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-head">
                     <h3>Pedidos diarios</h3>
-                    <div class="period-btns orders-period-btns" id="ordersPeriodControls">
-                        <button class="period-btn orders-period-btn active" data-orders-period="6m">6M</button>
-                        <button class="period-btn orders-period-btn" data-orders-period="3m">3M</button>
-                        <button class="period-btn orders-period-btn" data-orders-period="4w">4S</button>
+                    <div class="period-btns orders-period-btns" id="ordersPeriodControls" style="display:flex;gap:var(--space-2);">
+                        <button class="chip chip-primary orders-period-btn" data-orders-period="6m">6M</button>
+                        <button class="chip orders-period-btn" data-orders-period="3m">3M</button>
+                        <button class="chip orders-period-btn" data-orders-period="4w">4S</button>
                     </div>
                 </div>
                 <div class="chart-wrap orders-chart-wrap">
@@ -462,17 +418,29 @@
                         </div>
                     </div>
                     <div class="orders-status-cards">
-                        <div class="ops-kpi-card">
-                            <span class="ops-kpi-label">Total pedidos</span>
-                            <span class="ops-kpi-value" id="ordersTotalCount">0</span>
+                        <div class="card">
+                            <div class="card-body">
+                                <span class="label">Total pedidos</span>
+                                <div class="text-2xl font-bold tabular" style="margin-top: var(--space-1);" id="ordersTotalCount">0</div>
+                            </div>
                         </div>
-                        <div class="ops-kpi-card">
-                            <span class="ops-kpi-label">Facturados</span>
-                            <span class="ops-kpi-value c-green" id="ordersFacturadosCount">0</span>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                                    <span class="label">Facturados</span>
+                                    <span class="chip chip-success">activo</span>
+                                </div>
+                                <div class="text-2xl font-bold tabular" style="margin-top: var(--space-1); color: var(--color-success);" id="ordersFacturadosCount">0</div>
+                            </div>
                         </div>
-                        <div class="ops-kpi-card">
-                            <span class="ops-kpi-label">Pendientes</span>
-                            <span class="ops-kpi-value c-amber" id="ordersPendientesCount">0</span>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                                    <span class="label">Pendientes</span>
+                                    <span class="chip chip-warning">pendiente</span>
+                                </div>
+                                <div class="text-2xl font-bold tabular" style="margin-top: var(--space-1); color: var(--color-warning);" id="ordersPendientesCount">0</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1594,24 +1562,13 @@ document.addEventListener('DOMContentLoaded', function() {
             ts.textContent = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
         }
 
-        // === DASHBOARD CAROUSEL ===
-        const carousel = document.getElementById('dashboardCarousel');
-        const panels = Array.from(document.querySelectorAll('.tab-panel'));
-        const panelLookup = new Map(panels.map(panel => [panel.dataset.panel, panel]));
-        const carouselDots = Array.from(document.querySelectorAll('.dashboard-carousel-dot'));
-        const sectionLabel = document.getElementById('dashboardSectionLabel');
-        const sectionCounter = document.getElementById('dashboardSectionCounter');
-        const prevBtn = document.getElementById('dashboardPrev');
-        const nextBtn = document.getElementById('dashboardNext');
+        // === CHART STATE (used by lazy init below) ===
         const chartInited = { tendencia: false, servicio: false, actividad: false };
         let salesChart = null;
         let kpiEvolutionChart = null;
         let ordersDailyChart = null;
         let ordersStatusChart = null;
         let activePanelKey = 'tendencia';
-        let scrollAnimationFrame = null;
-        let scrollStopTimer = null;
-        let isCarouselAnimating = false;
 
         // === LAZY CHART INIT ===
         function initChartsFor(tab) {
@@ -1642,179 +1599,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        function cancelCarouselAnimation() {
-            window.clearTimeout(scrollStopTimer);
-            if (scrollAnimationFrame) {
-                window.cancelAnimationFrame(scrollAnimationFrame);
-                scrollAnimationFrame = null;
-            }
-            isCarouselAnimating = false;
-            if (carousel) {
-                carousel.classList.remove('is-animating');
-            }
-        }
-
-        function getCarouselTargetLeft(panel) {
-            if (!carousel || !panel) return 0;
-            const carouselStyles = window.getComputedStyle(carousel);
-            const paddingLeft = parseFloat(carouselStyles.paddingLeft || '0') || 0;
-            return Math.max(0, panel.offsetLeft - paddingLeft);
-        }
-
-        function easeInOutCubic(progress) {
-            return progress < 0.5
-                ? 4 * progress * progress * progress
-                : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-        }
-
-        function animateCarouselTo(panel, duration) {
-            if (!carousel || !panel) return;
-
-            const targetLeft = getCarouselTargetLeft(panel);
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            cancelCarouselAnimation();
-
-            if (prefersReducedMotion) {
-                carousel.scrollLeft = targetLeft;
-                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
-                return;
-            }
-
-            const startLeft = carousel.scrollLeft;
-            const delta = targetLeft - startLeft;
-            if (Math.abs(delta) < 2) {
-                carousel.scrollLeft = targetLeft;
-                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
-                return;
-            }
-
-            const animationDuration = duration || (window.innerWidth >= 1024 ? 480 : 360);
-            const startTime = performance.now();
-            isCarouselAnimating = true;
-            carousel.classList.add('is-animating');
-
-            const step = (now) => {
-                const elapsed = now - startTime;
-                const progress = Math.min(elapsed / animationDuration, 1);
-                const easedProgress = easeInOutCubic(progress);
-                carousel.scrollLeft = startLeft + (delta * easedProgress);
-
-                if (progress < 1) {
-                    scrollAnimationFrame = window.requestAnimationFrame(step);
-                    return;
-                }
-
-                carousel.scrollLeft = targetLeft;
-                scrollAnimationFrame = null;
-                isCarouselAnimating = false;
-                carousel.classList.remove('is-animating');
-                requestAnimationFrame(() => resizeChartsFor(activePanelKey));
+        // Wire DashboardTabs controller to chart lazy-init
+        const dashRoot = document.querySelector('[data-dashboard-tabs]');
+        if (dashRoot && dashRoot._dashboardTabs) {
+            dashRoot._dashboardTabs.onActivate = function(key) {
+                activePanelKey = key;
+                initChartsFor(key);
+                requestAnimationFrame(() => resizeChartsFor(key));
             };
-
-            scrollAnimationFrame = window.requestAnimationFrame(step);
-        }
-
-        function syncCarouselState(panelKey, options = {}) {
-            const panel = panelLookup.get(panelKey);
-            if (!panel) return;
-
-            activePanelKey = panelKey;
-            const panelIndex = panels.findIndex(item => item.dataset.panel === panelKey);
-
-            panels.forEach(item => {
-                const isActive = item.dataset.panel === panelKey;
-                item.classList.toggle('active', isActive);
-                item.setAttribute('aria-hidden', String(!isActive));
-            });
-
-            carouselDots.forEach(dot => {
-                const isActive = dot.dataset.panelTarget === panelKey;
-                dot.classList.toggle('active', isActive);
-                dot.setAttribute('aria-pressed', String(isActive));
-            });
-
-            if (sectionLabel) {
-                sectionLabel.textContent = panel.dataset.panelLabel || '';
-            }
-            if (sectionCounter) {
-                sectionCounter.textContent = `${panelIndex + 1} / ${panels.length}`;
-            }
-            if (prevBtn) {
-                prevBtn.disabled = panelIndex <= 0;
-            }
-            if (nextBtn) {
-                nextBtn.disabled = panelIndex >= panels.length - 1;
-            }
-
-            initChartsFor(panelKey);
-            if (options.scroll === false) {
-                requestAnimationFrame(() => resizeChartsFor(panelKey));
-            } else {
-                animateCarouselTo(panel, options.duration);
-            }
-        }
-
-        function findNearestPanel() {
-            if (!carousel || !panels.length) return activePanelKey;
-
-            const viewportCenter = carousel.scrollLeft + (carousel.clientWidth / 2);
-            let nearestPanel = panels[0];
-            let nearestDistance = Number.POSITIVE_INFINITY;
-
-            panels.forEach(panel => {
-                const panelCenter = panel.offsetLeft + (panel.offsetWidth / 2);
-                const distance = Math.abs(panelCenter - viewportCenter);
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestPanel = panel;
-                }
-            });
-
-            return nearestPanel.dataset.panel;
-        }
-
-        if (carouselDots.length) {
-            carouselDots.forEach(dot => {
-                dot.addEventListener('click', function() {
-                    syncCarouselState(this.dataset.panelTarget, { scroll: true });
-                });
-            });
-        }
-
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function() {
-                const currentIndex = panels.findIndex(panel => panel.dataset.panel === activePanelKey);
-                if (currentIndex > 0) {
-                    syncCarouselState(panels[currentIndex - 1].dataset.panel, { scroll: true });
-                }
-            });
-        }
-
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function() {
-                const currentIndex = panels.findIndex(panel => panel.dataset.panel === activePanelKey);
-                if (currentIndex < panels.length - 1) {
-                    syncCarouselState(panels[currentIndex + 1].dataset.panel, { scroll: true });
-                }
-            });
-        }
-
-        if (carousel) {
-            carousel.addEventListener('scroll', function() {
-                if (isCarouselAnimating) return;
-
-                window.clearTimeout(scrollStopTimer);
-                scrollStopTimer = window.setTimeout(function() {
-                    const nearestPanelKey = findNearestPanel();
-                    if (nearestPanelKey && nearestPanelKey !== activePanelKey) {
-                        syncCarouselState(nearestPanelKey, { scroll: false });
-                    }
-                }, 90);
-            }, { passive: true });
-
-            carousel.addEventListener('pointerdown', cancelCarouselAnimation, { passive: true });
-            carousel.addEventListener('wheel', cancelCarouselAnimation, { passive: true });
         }
 
         // === SALES TREND CHART ===
@@ -2310,7 +2102,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Init default dashboard page
-        syncCarouselState('tendencia', { scroll: false });
+        initChartsFor('tendencia');
         renderRankingsForPeriod('month');
 
     } catch (error) {

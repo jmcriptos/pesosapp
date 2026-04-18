@@ -188,21 +188,37 @@ def test_fallback_data_has_proyeccion_keys(app):
 
 
 def _ventas_mes_en_html(html):
+    # Try new glass-card markup (Phase 3 refactor): value is text before <span>XCG</span>
     match = re.search(
-        r'Ventas del Mes</span>.*?<div class="tile-value">([^<]+)<small>XCG</small>',
+        r'Ventas del Mes</span>.*?<div class="text-2xl[^"]*"[^>]*>([\s\S]*?)<span[^>]*>\s*XCG\s*</span>',
         html,
         flags=re.S
     )
+    if match is None:
+        # Fallback to old tile-value markup
+        match = re.search(
+            r'Ventas del Mes</span>.*?<div class="tile-value">([^<]+)<small>XCG</small>',
+            html,
+            flags=re.S
+        )
     assert match is not None
     return int(re.sub(r'[^0-9]', '', match.group(1)) or '0')
 
 
 def _top_producto_1_en_html(html):
+    # Try new card-interactive markup (Phase 3 refactor)
     match = re.search(
-        r'Top Productos.*?<span class="rr-name">([^<]+)</span>\s*<span class="rr-amount">([^<]+)<small>XCG</small>',
+        r'Top Productos.*?<div class="text-md font-semibold">([^<]+)</div>.*?<div class="text-lg font-bold tabular">([\s\S]*?)<span[^>]*>\s*XCG\s*</span>',
         html,
         flags=re.S
     )
+    if match is None:
+        # Fallback to old rr-name / rr-amount markup
+        match = re.search(
+            r'Top Productos.*?<span class="rr-name">([^<]+)</span>\s*<span class="rr-amount">([^<]+)<small>XCG</small>',
+            html,
+            flags=re.S
+        )
     assert match is not None
     nombre = match.group(1).strip()
     monto = int(re.sub(r'[^0-9]', '', match.group(2)) or '0')
