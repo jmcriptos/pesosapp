@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Glass Foundation · Primitives Showcase{% endblock %}
+
+{% block header_title %}Primitives{% endblock %}
+
+{% block content %}
+<main class="glass-foundation-demo" style="padding: var(--space-5, 20px); max-width: 960px; margin: 0 auto;">
+  <h1 style="font-size: var(--text-xl, 24px); font-weight: var(--weight-bold, 700);">
+    Glass Foundation · Primitives
+  </h1>
+  <p style="color: var(--color-text-muted, #475569); font-size: var(--text-sm, 13px); margin-top: 4px;">
+    Living reference for every primitive defined in Phase 1. Switch macOS/iOS between light and dark mode to verify both themes.
+  </p>
+
+  {# Primitive sections will be appended here in subsequent tasks. #}
+  <section data-section="btn" style="margin-top: var(--space-8, 32px);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.btn — Button</h2>
+    <div style="display:flex; flex-wrap:wrap; gap: var(--space-2); margin-top: var(--space-3);">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn">Secondary</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-danger">Danger</button>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap: var(--space-2); margin-top: var(--space-3);">
+      <button class="btn btn-primary btn-sm">Small</button>
+      <button class="btn btn-primary">Medium</button>
+      <button class="btn btn-primary btn-lg">Large</button>
+      <button class="btn btn-primary btn-icon" aria-label="Confirm">✓</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" style="margin-top: var(--space-3);">Block button (mobile)</button>
+  </section>
+
+  <section data-section="input" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.input — Input + .field</h2>
+    <div style="display: grid; gap: var(--space-3); margin-top: var(--space-3);">
+      <div class="field">
+        <label class="field-label" for="demo-cliente">Cliente</label>
+        <input class="input" id="demo-cliente" placeholder="Buscar cliente…">
+        <span class="field-help">Nombre o QBO ID</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="demo-email">Correo</label>
+        <input class="input" id="demo-email" value="jose@jomarfoods.com">
+      </div>
+      <div class="field">
+        <label class="field-label" for="demo-monto">Monto XCG</label>
+        <input class="input" id="demo-monto" value="-450" aria-invalid="true">
+        <span class="field-error">El monto debe ser positivo</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="demo-disabled">Solo lectura</label>
+        <input class="input" id="demo-disabled" value="Bloqueado" disabled>
+      </div>
+    </div>
+  </section>
+
+  <section data-section="card" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.card — Card + variants</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3);">
+      <div class="card">
+        <div class="card-header"><strong>Solid</strong></div>
+        <div class="card-body" style="color: var(--color-text-muted); font-size: var(--text-sm);">Card base con header + body. Shadow-sm.</div>
+      </div>
+      <div class="card-glass">
+        <div class="card-header"><strong>Glass</strong></div>
+        <div class="card-body" style="color: var(--color-text-muted); font-size: var(--text-sm);">Backdrop-filter blur.</div>
+      </div>
+      <div class="card" data-state="success">
+        <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text-muted);">State: success</div>
+      </div>
+      <div class="card" data-state="danger">
+        <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text-muted);">State: danger</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-section="chip" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.chip — Semantic chips</h2>
+    <div style="display:flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3);">
+      <span class="chip">Neutral</span>
+      <span class="chip chip-primary">Primary</span>
+      <span class="chip chip-success">Success</span>
+      <span class="chip chip-warning">Warning</span>
+      <span class="chip chip-danger">Danger</span>
+      <span class="chip chip-info">Info</span>
+    </div>
+  </section>
+
+  <section data-section="badge" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">.badge — Counters &amp; dots</h2>
+    <div style="display:flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); align-items: center;">
+      <button class="btn">Pedidos <span class="badge" style="margin-left: 6px;">12</span></button>
+      <button class="btn">Mensajes <span class="badge" style="margin-left: 6px;">99+</span></button>
+      <span class="chip chip-success">
+        <span class="badge badge-dot" style="background: var(--color-success);"></span>
+        Online
+      </span>
+    </div>
+  </section>
+
+  <section data-section="surface" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Surfaces</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3);">
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center; font-size: var(--text-sm);">solid</div>
+      <div class="surface-glass" style="padding: var(--space-4); text-align:center; font-size: var(--text-sm);">glass</div>
+      <div class="surface-sunken" style="padding: var(--space-4); text-align:center; font-size: var(--text-sm);">sunken</div>
+    </div>
+  </section>
+
+  <section data-section="layout" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Layout utilities</h2>
+    <h3 style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-3);">.stack-3 (vertical gap 12px)</h3>
+    <div class="stack stack-3" style="margin-top: var(--space-2);">
+      <div class="surface-solid" style="padding: var(--space-3); font-size: var(--text-sm);">Row 1</div>
+      <div class="surface-solid" style="padding: var(--space-3); font-size: var(--text-sm);">Row 2</div>
+      <div class="surface-solid" style="padding: var(--space-3); font-size: var(--text-sm);">Row 3</div>
+    </div>
+    <h3 style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-4);">.cluster-2 (wrap chips)</h3>
+    <div class="cluster cluster-2" style="margin-top: var(--space-2);">
+      <span class="chip chip-primary">A</span><span class="chip chip-success">B</span>
+      <span class="chip chip-warning">C</span><span class="chip chip-danger">D</span>
+      <span class="chip chip-info">E</span><span class="chip">F</span>
+    </div>
+    <h3 style="font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-4);">.grid-auto (responsive)</h3>
+    <div class="grid-auto" style="--grid-min: 140px; margin-top: var(--space-2);">
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">1</div>
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">2</div>
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">3</div>
+      <div class="surface-solid" style="padding: var(--space-4); text-align:center;">4</div>
+    </div>
+  </section>
+
+  <section data-section="skeleton" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Skeleton loaders</h2>
+    <div class="card" style="margin-top: var(--space-3);">
+      <div class="card-body">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text" style="width: 85%;"></div>
+        <div class="skeleton skeleton-text" style="width: 50%;"></div>
+      </div>
+    </div>
+    <div class="skeleton skeleton-tile" style="margin-top: var(--space-3);"></div>
+  </section>
+
+  <section data-section="ring" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Ring state (KPI progress)</h2>
+    <div style="display:flex; gap: var(--space-4); margin-top: var(--space-3); align-items: center;">
+      <!-- 90% success -->
+      <svg class="ring" data-state="success" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 9.4;"></circle>
+        <text class="ring-text" x="18" y="22">90%</text>
+      </svg>
+      <!-- 78% warning -->
+      <svg class="ring" data-state="warning" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 20.7;"></circle>
+        <text class="ring-text" x="18" y="22">78%</text>
+      </svg>
+      <!-- 55% danger -->
+      <svg class="ring" data-state="danger" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 42.4;"></circle>
+        <text class="ring-text" x="18" y="22">55%</text>
+      </svg>
+      <!-- 100% neutral (default primary) -->
+      <svg class="ring" data-state="neutral" viewBox="0 0 36 36">
+        <circle class="ring-bg" cx="18" cy="18" r="15"></circle>
+        <circle class="ring-fg" cx="18" cy="18" r="15"
+                style="stroke-dasharray: 94.25; stroke-dashoffset: 0;"></circle>
+        <text class="ring-text" x="18" y="22">100</text>
+      </svg>
+    </div>
+  </section>
+
+  <section data-section="typography" style="margin-top: var(--space-8);">
+    <h2 style="font-size: var(--text-lg); font-weight: var(--weight-bold);">Typography utilities</h2>
+    <div class="surface-solid" style="padding: var(--space-5); margin-top: var(--space-3);">
+      <div class="label">Label uppercase</div>
+      <div class="text-xl font-bold tracking-tight">Título 24 px bold tight</div>
+      <div class="text-sm text-muted" style="margin-top: 6px;">Body muted 13 px</div>
+      <div class="text-xs text-subtle" style="margin-top: 4px;">Subtle 11 px</div>
+      <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-3);">62,483.02</div>
+      <div class="text-xs text-subtle">(tabular-nums aligned)</div>
+    </div>
+  </section>
+</main>
+{% endblock %}

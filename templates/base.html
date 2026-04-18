@@ -15,6 +15,10 @@
     <meta name="apple-mobile-web-app-title" content="PesosApp">
     <meta name="theme-color" content="#0f172a">
     
+    <!-- Phase 1 Glass Foundation — design tokens + primitives (loaded FIRST) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/primitives.css') }}">
+
     <!-- CSS Files - FORZAR MINIFICADOS PARA TESTING -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.min.css') }}">
