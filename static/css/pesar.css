@@ -19,7 +19,10 @@ body[data-pesar-screen] .app-content {
   background-image: none !important;
 }
 
-body[data-pesar-screen] {
+/* Scope tokens to CONTENT only, not body, so topbar/tabbar inherit dark. */
+body[data-pesar-screen] .app-content,
+body[data-pesar-screen] .app-shell,
+body[data-pesar-screen] .pesar-screen {
   --bg-ambient: #f8fafc;
   --color-bg: #ffffff;
   --color-bg-elevated: #ffffff;

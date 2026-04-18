@@ -100,6 +100,21 @@
     /* Theme-toggle icon swap */
     [data-theme="dark"] .theme-icon-light { display: none; }
     [data-theme="light"] .theme-icon-dark { display: none; }
+
+    /* iOS PWA standalone mode: respect safe areas (notch / home indicator)
+       so the topbar and bottom tabbar don't get clipped. */
+    .app-topbar {
+        padding-top: max(10px, env(safe-area-inset-top)) !important;
+    }
+    .tabbar {
+        padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    }
+    @supports (-webkit-touch-callout: none) {
+        /* iOS Safari / WebKit only */
+        body {
+            min-height: -webkit-fill-available;
+        }
+    }
     </style>
 
     {% block extra_css %}{% endblock %}
