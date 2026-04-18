@@ -188,11 +188,19 @@ def test_fallback_data_has_proyeccion_keys(app):
 
 
 def _ventas_mes_en_html(html):
+    # Try new glass-card markup (Phase 3 refactor): value is text before <span>XCG</span>
     match = re.search(
-        r'Ventas del Mes</span>.*?<div class="tile-value">([^<]+)<small>XCG</small>',
+        r'Ventas del Mes</span>.*?<div class="text-2xl[^"]*"[^>]*>([\s\S]*?)<span[^>]*>\s*XCG\s*</span>',
         html,
         flags=re.S
     )
+    if match is None:
+        # Fallback to old tile-value markup
+        match = re.search(
+            r'Ventas del Mes</span>.*?<div class="tile-value">([^<]+)<small>XCG</small>',
+            html,
+            flags=re.S
+        )
     assert match is not None
     return int(re.sub(r'[^0-9]', '', match.group(1)) or '0')
 

@@ -14,6 +14,48 @@ PRIMITIVES_CSS = PROJECT_ROOT / 'static' / 'css' / 'primitives.css'
 BASE_HTML = PROJECT_ROOT / 'templates' / 'base.html'
 DASHBOARD_HTML = PROJECT_ROOT / 'templates' / 'dashboard.html'
 
+from app import app as flask_app, db as _db
+
+
+@pytest.fixture
+def app():
+    flask_app.config.update(
+        TESTING=True,
+        WTF_CSRF_ENABLED=False,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+    )
+    with flask_app.app_context():
+        _db.create_all()
+        from app import Rol, Territorio, Vendedor
+        rol = Rol(nombre='super_admin', descripcion='Admin')
+        _db.session.add(rol)
+        territorio = Territorio(nombre='test', descripcion='Test')
+        _db.session.add(territorio)
+        _db.session.flush()
+        vendedor = Vendedor(
+            username='admin',
+            email='admin@test.com',
+            nombre_completo='Admin Test',
+            rol_id=rol.id,
+            territorio_id=territorio.id,
+            activo=True,
+        )
+        vendedor.set_password('testpass')
+        _db.session.add(vendedor)
+        _db.session.commit()
+        yield flask_app
+        _db.drop_all()
+
+
+@pytest.fixture
+def logged_client(app):
+    client = app.test_client()
+    client.post('/login', data={
+        'username': 'admin',
+        'password': 'testpass',
+    }, follow_redirects=True)
+    return client
+
 
 # ─── Task 1: Scaffold ────────────────────────────────────────────────────────
 
@@ -98,3 +140,25 @@ def test_dashboard_html_has_ambient_background():
     html = DASHBOARD_HTML.read_text(encoding='utf-8')
     assert '--bg-ambient' in html or 'bg-ambient' in html, \
         "--bg-ambient gradient not applied to exec-dashboard in dashboard.html"
+
+
+# ─── Task 6: Ventas panel refresh ────────────────────────────────────────────
+
+def test_ventas_panel_uses_glass_cards_and_ring_primitive(logged_client):
+    resp = logged_client.get('/dashboard')
+    html = resp.data.decode('utf-8')
+    # Extract just the Ventas panel for scoped assertions
+    start = html.find('id="panel-tendencia"')
+    end = html.find('id="panel-servicio"')
+    assert start != -1 and end != -1, "Panel boundaries not found"
+    panel = html[start:end]
+    # New primitive classes replace old .kpi-tile / .progress-ring patterns
+    assert 'card card-glass' in panel, "expected .card.card-glass in Ventas panel"
+    assert 'class="ring"' in panel or "class='ring'" in panel or 'class="ring ' in panel
+    assert 'data-state=' in panel, "rings must carry data-state for semantic color"
+    # Old classes should be gone from this panel
+    assert 'kpi-tile' not in panel
+    assert 'progress-ring' not in panel
+    assert 'c-green' not in panel
+    assert 'c-amber' not in panel
+    assert 'c-red' not in panel
