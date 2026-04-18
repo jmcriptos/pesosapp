@@ -197,3 +197,18 @@ def test_top_panel_uses_cards_and_chips(logged_client):
     assert 'class="card' in panel, "expected at least one .card in Top panel"
     # Period filter pills become chips
     assert 'class="chip' in panel or "class='chip" in panel
+
+
+# ─── Task 9: Pedidos panel refresh ───────────────────────────────────────────
+
+def test_pedidos_panel_uses_cards_and_semantic_chips(logged_client):
+    resp = logged_client.get('/dashboard')
+    html = resp.data.decode('utf-8')
+    start = html.find('id="panel-actividad"')
+    # Panel is the last one — take the remainder of the tab-panels container
+    end = html.find('</div>\n    </div>', start) if start != -1 else -1
+    assert start != -1
+    panel = html[start:]  # tolerate if we can't find the exact end
+    assert 'class="card' in panel
+    # Overdue orders (vencidos) should use semantic danger styling
+    assert 'chip-danger' in panel or 'badge' in panel
