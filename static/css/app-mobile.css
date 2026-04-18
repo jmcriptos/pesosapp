@@ -756,7 +756,7 @@ body {
 /* Sticky bottom action bar (for "Marcar preparado" / "Facturar") */
 .action-bar {
   position: sticky;
-  bottom: 72px;
+  bottom: 0;
   z-index: 40;
   display: flex;
   gap: 10px;
@@ -766,6 +766,10 @@ body {
   -webkit-backdrop-filter: blur(30px) saturate(1.8);
   border-top: 1px solid var(--color-border-subtle);
   margin-top: 14px;
+}
+@media (max-width: 1023px) {
+  /* On mobile, leave room for the tabbar (64-72px) */
+  .action-bar { bottom: 72px; }
 }
 .action-bar .btn-primary,
 .action-bar .btn-secondary {
