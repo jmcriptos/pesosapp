@@ -180,113 +180,83 @@
         <div class="tab-panel" id="panel-servicio" data-panel="servicio" data-panel-label="Servicio" role="group" aria-roledescription="slide" aria-label="Servicio" aria-hidden="true">
             <div class="svc-grid">
                 {# OTD #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">On Time Delivery</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if otd_rate_v >= 95 %} c-green
-                                {%- elif otd_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_otd_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % otd_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if otd_rate_v >= 95 %}success{% elif otd_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">On Time Delivery</span>
+                            <svg class="ring" data-state="{% if otd_rate_v >= 95 %}success{% elif otd_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_otd_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % otd_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.1f' % otd_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Entregas ≤2 días</div>
                     </div>
-                    <div class="svc-val
-                        {%- if otd_rate_v >= 95 %} c-green
-                        {%- elif otd_rate_v >= 85 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.1f' % otd_rate_v }}%</div>
-                    <div class="svc-desc">Entregas ≤2 días</div>
                 </div>
 
                 {# OFR #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Order Fill Rate</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if order_completion_rate_v >= 95 %} c-green
-                                {%- elif order_completion_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ofr_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % order_completion_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if order_completion_rate_v >= 95 %}success{% elif order_completion_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Order Fill Rate</span>
+                            <svg class="ring" data-state="{% if order_completion_rate_v >= 95 %}success{% elif order_completion_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ofr_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % order_completion_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.1f' % order_completion_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Cajas entregadas vs pedidas</div>
                     </div>
-                    <div class="svc-val
-                        {%- if order_completion_rate_v >= 95 %} c-green
-                        {%- elif order_completion_rate_v >= 85 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.1f' % order_completion_rate_v }}%</div>
-                    <div class="svc-desc">Cajas entregadas vs pedidas</div>
                 </div>
 
                 {# Customer Engagement #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Customer Engagement</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if customer_engagement_v >= 80 %} c-green
-                                {%- elif customer_engagement_v >= 60 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ce_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % customer_engagement_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if customer_engagement_v >= 60 %}success{% elif customer_engagement_v >= 40 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Customer Engagement</span>
+                            <svg class="ring" data-state="{% if customer_engagement_v >= 60 %}success{% elif customer_engagement_v >= 40 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_ce_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % customer_engagement_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.0f' % customer_engagement_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Clientes activos del mes</div>
                     </div>
-                    <div class="svc-val
-                        {%- if customer_engagement_v >= 80 %} c-green
-                        {%- elif customer_engagement_v >= 60 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.0f' % customer_engagement_v }}%</div>
-                    <div class="svc-desc">Clientes activos del mes</div>
                 </div>
 
                 {# Perfect Order Rate #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Perfect Order Rate</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if perfect_order_rate_v >= 95 %} c-green
-                                {%- elif perfect_order_rate_v >= 85 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_por_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ '%.0f' % perfect_order_rate_v }}%</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if perfect_order_rate_v >= 95 %}success{% elif perfect_order_rate_v >= 85 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Perfect Order Rate</span>
+                            <svg class="ring" data-state="{% if perfect_order_rate_v >= 95 %}success{% elif perfect_order_rate_v >= 85 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_por_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ '%.0f' % perfect_order_rate_v }}%</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ '%.0f' % perfect_order_rate_v }}%</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Entregas perfectas</div>
                     </div>
-                    <div class="svc-val
-                        {%- if perfect_order_rate_v >= 95 %} c-green
-                        {%- elif perfect_order_rate_v >= 85 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ '%.0f' % perfect_order_rate_v }}%</div>
-                    <div class="svc-desc">Entregas perfectas</div>
                 </div>
 
                 {# Lead Time #}
-                <div class="svc-card">
-                    <div class="svc-top">
-                        <span class="svc-name">Lead Time</span>
-                        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-                            <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}" />
-                            <circle class="ring-fg
-                                {%- if lead_time_promedio_v <= 2 %} c-green
-                                {%- elif lead_time_promedio_v <= 4 %} c-amber
-                                {%- else %} c-red{% endif %}"
-                                cx="24" cy="24" r="{{ ring_r }}"
-                                style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_lt_offset }}" />
-                            <text x="24" y="26" class="ring-text">{{ lead_time_promedio_v|round(1) }}d</text>
-                        </svg>
+                <div class="card card-glass" data-state="{% if lead_time_promedio_v <= 2 %}success{% elif lead_time_promedio_v <= 4 %}warning{% else %}danger{% endif %}">
+                    <div class="card-body">
+                        <div class="cluster cluster-2" style="justify-content: space-between; align-items: center;">
+                            <span class="label">Lead Time</span>
+                            <svg class="ring" data-state="{% if lead_time_promedio_v <= 2 %}success{% elif lead_time_promedio_v <= 4 %}warning{% else %}danger{% endif %}" width="48" height="48" viewBox="0 0 48 48">
+                                <circle class="ring-bg" cx="24" cy="24" r="{{ ring_r }}"/>
+                                <circle class="ring-fg" cx="24" cy="24" r="{{ ring_r }}" style="stroke-dasharray:{{ ring_circ }};stroke-dashoffset:{{ svc_lt_offset }}"/>
+                                <text class="ring-text" x="24" y="26">{{ lead_time_promedio_v|round(1) }}d</text>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold tabular tracking-tight" style="margin-top: var(--space-2);">{{ lead_time_promedio_v|round(1) }} días</div>
+                        <div class="text-sm text-muted" style="margin-top: var(--space-1);">Promedio de procesamiento</div>
                     </div>
-                    <div class="svc-val
-                        {%- if lead_time_promedio_v <= 2 %} c-green
-                        {%- elif lead_time_promedio_v <= 4 %} c-amber
-                        {%- else %} c-red{% endif %}">{{ lead_time_promedio_v|round(1) }} días</div>
-                    <div class="svc-desc">Promedio de procesamiento</div>
                 </div>
             </div>
 
@@ -306,10 +276,10 @@
                     {% for kpi in (kpis_historicos or [])[-3:] %}
                     <div class="kpi-month">
                         <span class="km-label">{{ kpi.mes }}</span>
-                        <span class="km-val {{ 'c-green' if kpi.order_completion_rate >= 80 else 'c-amber' }}">
+                        <span class="chip {% if kpi.order_completion_rate >= 80 %}chip-success{% else %}chip-warning{% endif %}">
                             <i class="fas fa-clipboard-check"></i> {{ kpi.order_completion_rate }}%
                         </span>
-                        <span class="km-val {{ 'c-green' if kpi.otd_rate >= 90 else 'c-amber' }}">
+                        <span class="chip {% if kpi.otd_rate >= 90 %}chip-success{% else %}chip-warning{% endif %}">
                             <i class="fas fa-truck"></i> {{ kpi.otd_rate }}%
                         </span>
                     </div>

@@ -162,3 +162,23 @@ def test_ventas_panel_uses_glass_cards_and_ring_primitive(logged_client):
     assert 'c-green' not in panel
     assert 'c-amber' not in panel
     assert 'c-red' not in panel
+
+
+# ─── Task 7: Servicio panel refresh ──────────────────────────────────────────
+
+def test_servicio_panel_uses_glass_cards_and_rings(logged_client):
+    resp = logged_client.get('/dashboard')
+    html = resp.data.decode('utf-8')
+    start = html.find('id="panel-servicio"')
+    end = html.find('id="panel-rankings"')
+    assert start != -1 and end != -1
+    panel = html[start:end]
+    # OTD, Order Completion, Perfect Order, Customer Engagement — all as ring primitives
+    assert panel.count('class="ring"') + panel.count("class='ring'") >= 3, (
+        "Expected at least 3 ring primitives in Servicio panel"
+    )
+    assert 'card card-glass' in panel
+    # Old patterns removed from this panel
+    assert 'kpi-tile' not in panel
+    assert 'progress-ring' not in panel
+    assert 'c-green' not in panel and 'c-amber' not in panel and 'c-red' not in panel
