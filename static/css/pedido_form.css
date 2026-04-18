@@ -15,7 +15,10 @@ body[data-pedido-form-screen] .app-content {
   background-image: none !important;
 }
 
-body[data-pedido-form-screen] {
+/* Scope tokens to CONTENT only so topbar/tabbar keep their dark theme. */
+body[data-pedido-form-screen] .app-content,
+body[data-pedido-form-screen] .pedido-form-shell,
+body[data-pedido-form-screen] .mobile-form-container {
   --color-bg: #ffffff;
   --color-bg-elevated: #ffffff;
   --color-bg-subtle: #f8fafc;

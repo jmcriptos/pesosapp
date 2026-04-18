@@ -17,7 +17,10 @@ body[data-detalles-screen] .app-content {
   background-image: none !important;
 }
 
-body[data-detalles-screen] {
+/* Scope tokens to CONTENT only so the base topbar/tabbar keep their dark theme. */
+body[data-detalles-screen] .app-content,
+body[data-detalles-screen] .app-shell,
+body[data-detalles-screen] .mobile-form-container {
   --color-bg: #ffffff;
   --color-bg-elevated: #ffffff;
   --color-bg-subtle: #f8fafc;

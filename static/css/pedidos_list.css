@@ -16,7 +16,9 @@ body[data-pedidos-list-screen] .app-content {
   background-image: none !important;
 }
 
-body[data-pedidos-list-screen] {
+/* Scope tokens to CONTENT only so topbar/tabbar keep their dark theme. */
+body[data-pedidos-list-screen] .app-content,
+body[data-pedidos-list-screen] .app-shell {
   --color-bg: #ffffff;
   --color-bg-elevated: #ffffff;
   --color-bg-subtle: #f8fafc;

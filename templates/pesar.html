@@ -2,15 +2,11 @@
 
 {% block title %}Pesar PED-{{ pedido.id }} — PesosApp{% endblock %}
 
-{% block body_attrs %}data-theme="light" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pesar-screen="1"{% endblock %}
+{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pesar-screen="1"{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pesar.css') }}">
 {% endblock %}
-
-{% block topbar %}{% endblock %}
-{% block footer %}{% endblock %}
-{% block tabbar %}{% endblock %}
 
 {% block header_title %}Pesar pedido{% endblock %}
 
