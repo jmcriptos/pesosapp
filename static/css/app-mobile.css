@@ -930,7 +930,10 @@ body,
   /* Pages whose inner shell already pads for tabbar (and sticky bars) shouldn't
      stack a second clearance on top — that's what produced the visible empty strip. */
   body[data-pedido-form-screen] .app-content,
-  body[data-pesar-screen] .app-content {
+  body[data-pesar-screen] .app-content,
+  body[data-detalles-screen] .app-content,
+  body[data-dashboard-screen] .app-content,
+  body[data-pedidos-list-screen] .app-content {
     padding-bottom: 0 !important;
   }
 }

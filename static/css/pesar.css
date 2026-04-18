@@ -39,6 +39,16 @@ body[data-pesar-screen] .pesar-screen {
   --glass-bg-strong: rgba(255, 255, 255, 0.92);
   --glass-border: rgba(15, 23, 42, 0.06);
   --shadow-glass-md: 0 10px 32px -12px rgba(15, 23, 42, 0.12);
+
+  /* Pesar runs on a phone in the warehouse — bump the type scale ~25% so chips,
+     lote, fechas y meta del lote sean legibles a un brazo de distancia. Cascading
+     vars cover every descendant that already references --text-*. */
+  --text-2xs: 12px;
+  --text-xs:  14px;
+  --text-sm:  16px;
+  --text-base: 18px;
+  --text-md:  20px;
+  --text-lg:  24px;
   background: var(--bg-ambient);
 }
 
