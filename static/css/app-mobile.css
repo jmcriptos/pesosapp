@@ -1,0 +1,141 @@
+/* =============================================================================
+   PesosApp · Glass Mobile Reskin
+   Loaded AFTER dark-theme.css so it wins by source order.
+   Scope: body-level layout, glass cards, nav-bar, bottom tabbar, hero.
+   See docs/superpowers/specs/2026-04-17-glass-mobile-reskin-design.md
+   ============================================================================= */
+
+/* Reset and base */
+body {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* The mobile shell — centered narrow on desktop, full-width on mobile */
+.app-shell {
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  position: relative;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, color-mix(in oklab, var(--indigo-500) 10%, transparent), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 90% 20%, color-mix(in oklab, var(--violet-500) 8%, transparent), transparent 70%),
+    var(--color-bg);
+}
+
+/* Glass card — the fundamental surface for panels, KPI tiles, and list groups */
+.gcard {
+  background: var(--glass-bg);
+  backdrop-filter: blur(40px) saturate(2);
+  -webkit-backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg, 16px);
+  padding: 14px;
+}
+
+/* Hero (page title area) */
+.hero {
+  padding: 20px 16px 12px;
+}
+.hero-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-subtle);
+  margin-bottom: 4px;
+}
+.hero-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+.hero-sub {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin-top: 6px;
+}
+
+/* Top nav bar (glass) */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.nav-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  color: var(--color-text);
+  transition: transform 140ms ease;
+}
+.nav-pill:hover { transform: translateY(-1px); }
+.nav-pill[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500));
+  color: white;
+  border-color: transparent;
+}
+
+/* Bottom tabbar (sticky) */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0));
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  border-top: 1px solid var(--color-border-subtle);
+  max-width: 480px;
+  margin: 0 auto;
+}
+.tabbar .tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: 10px;
+  gap: 2px;
+}
+.tabbar .tab.active {
+  color: var(--indigo-500);
+}
+.tabbar .tab i,
+.tabbar .tab svg {
+  font-size: 18px;
+  width: 20px;
+  height: 20px;
+}
