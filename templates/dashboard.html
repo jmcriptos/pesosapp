@@ -595,13 +595,14 @@
   {# ══════════════════════════════════════
      PANEL VENTAS
      ══════════════════════════════════════ #}
+  <div class="snap-dots" data-snap-dots-for="ventas" aria-hidden="true"></div>
   <div class="dash-panel" data-dash-panel="ventas">
 
     {# KPI Grid #}
     <div class="kpi-grid">
 
       {# 1: Ventas del Mes #}
-      <div class="kpi">
+      <div class="kpi" data-snap-card="1">
         <div class="kpi-top">
           <div class="kpi-label">Ventas del Mes</div>
           {{ progress_ring(porcentaje_meta_v, meta_state) }}
@@ -611,7 +612,7 @@
       </div>
 
       {# 2: Proyección #}
-      <div class="kpi">
+      <div class="kpi" data-snap-card="1">
         <div class="kpi-top">
           <div class="kpi-label">Proyección</div>
           {{ progress_ring(porcentaje_proyeccion_v, proy_state) }}
@@ -625,7 +626,7 @@
       </div>
 
       {# 3: On-Time Delivery #}
-      <div class="kpi">
+      <div class="kpi" data-snap-card="1">
         <div class="kpi-top">
           <div class="kpi-label">On-Time Delivery</div>
           {{ progress_ring(otd_rate_v, otd_state) }}
@@ -635,7 +636,7 @@
       </div>
 
       {# 4: Pendientes #}
-      <div class="kpi">
+      <div class="kpi" data-snap-card="1">
         <div class="kpi-top">
           <div class="kpi-label">Pendientes</div>
           {{ progress_ring(pend_pct, pend_state, label=pedidos_pendientes_v) }}
@@ -653,7 +654,7 @@
     </div>
 
     {# Chart card #}
-    <div class="gcard chart-card">
+    <div class="gcard chart-card" data-snap-card="1">
       <div class="chart-head">
         <div>
           <div class="chart-big">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG · esta semana</small></div>
@@ -675,7 +676,7 @@
     <div class="sec-head">
       <h3 class="sec-title">Esta semana</h3>
     </div>
-    <div class="week-mini-grid">
+    <div class="week-mini-grid" data-snap-card="1">
       <div class="week-mini-card">
         <span class="week-mini-label">Ventas</span>
         <span class="week-mini-val">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG</small></span>
@@ -695,6 +696,7 @@
   {# ══════════════════════════════════════
      PANEL SERVICIO
      ══════════════════════════════════════ #}
+  <div class="snap-dots" data-snap-dots-for="servicio" aria-hidden="true"></div>
   <div class="dash-panel" data-dash-panel="servicio">
 
     {% set lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
@@ -710,7 +712,7 @@
 
     <div class="svc-kpi-grid">
       {% for item in svc_items %}
-      <div class="kpi">
+      <div class="kpi" data-snap-card="1">
         <div class="kpi-top">
           <div>
             <div class="kpi-label">{{ item.label }}</div>
