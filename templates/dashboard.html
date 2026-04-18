@@ -41,11 +41,33 @@
   display: flex !important;
 }
 
-/* ── Screen body: scrollable container ── */
+/* ── Screen body: flow container, app-shell handles bottom padding ── */
 .screen-body {
-  padding: 0 0 calc(80px + env(safe-area-inset-bottom, 0px));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  padding: 0;
+}
+
+/* ── Panels carousel (Twitter-style horizontal swipe) ── */
+.panels-viewport {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  transition: height 200ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.panels-track {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  transition: transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  touch-action: pan-y;
+}
+.panels-track.is-dragging { transition: none; }
+.panels-track > .dash-panel {
+  flex: 0 0 100%;
+  min-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Hero ── */
@@ -489,8 +511,8 @@
 .rc-bar-4 { background: linear-gradient(90deg, #8b5cf6aa, #8b5cf6); }
 .rc-bar-5 { background: linear-gradient(90deg, #f43f5eaa, #f43f5e); }
 
-/* ── Dash panel hide/show ── */
-.dash-panel[style*="none"] { display: none; }
+/* ── Dash panel: each panel is a slide in the carousel ── */
+.dash-panel { display: block; }
 </style>
 {% endblock %}
 
@@ -555,6 +577,14 @@
     <button data-panel="top">Top</button>
     <button data-panel="actividad">Actividad</button>
   </div>
+
+  {# ══════════════════════════════════════
+     PANELS CAROUSEL (Twitter-style swipe)
+     All 4 panels live in a horizontal flex track; JS translates the track.
+     Viewport height is animated to the active panel's natural height.
+     ══════════════════════════════════════ #}
+  <div class="panels-viewport" id="dash-viewport">
+    <div class="panels-track" id="dash-track">
 
   {# ══════════════════════════════════════
      PANEL VENTAS
@@ -659,7 +689,7 @@
   {# ══════════════════════════════════════
      PANEL SERVICIO
      ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="servicio" style="display:none">
+  <div class="dash-panel" data-dash-panel="servicio">
 
     {% set lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
     {% set lt_state = 'success' if lead_time_promedio_v <= 2 else ('warning' if lead_time_promedio_v <= 4 else 'danger') %}
@@ -695,7 +725,7 @@
   {# ══════════════════════════════════════
      PANEL TOP
      ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="top" style="display:none">
+  <div class="dash-panel" data-dash-panel="top">
 
     {# Top Productos #}
     <div class="sec-head" style="padding-top:12px;">
@@ -766,7 +796,7 @@
   {# ══════════════════════════════════════
      PANEL ACTIVIDAD
      ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="actividad" style="display:none">
+  <div class="dash-panel" data-dash-panel="actividad">
 
     <div class="sec-head" style="padding-top:12px;">
       <h3 class="sec-title">Pedidos recientes</h3>
@@ -837,6 +867,9 @@
 
   </div>{# /panel actividad #}
 
+    </div>{# /panels-track #}
+  </div>{# /panels-viewport #}
+
 </div>{# /screen-body #}
 </div>{# /app-shell dash-body #}
 {% endblock %}
@@ -857,8 +890,11 @@
   };
 
   var tabs = document.querySelectorAll('#dash-tabs button');
-  var panels = document.querySelectorAll('.dash-panel');
   var panelOrder = ['ventas', 'servicio', 'top', 'actividad'];
+  var viewport = document.getElementById('dash-viewport');
+  var track = document.getElementById('dash-track');
+  var panelEls = track ? track.querySelectorAll('.dash-panel') : [];
+  var currentIdx = 0;
   var salesChart = null;
   var estadosChart = null;
 
@@ -869,62 +905,123 @@
     Chart.defaults.borderColor = 'rgba(31,41,55,0.8)';
   }
 
-  function showPanel(id) {
+  function setViewportHeight(idx) {
+    if (!viewport || !panelEls[idx]) return;
+    // Use offsetHeight of panel content
+    var h = panelEls[idx].offsetHeight;
+    if (h > 0) viewport.style.height = h + 'px';
+  }
+
+  function setPanel(idx, animate) {
+    idx = Math.max(0, Math.min(panelOrder.length - 1, idx));
+    currentIdx = idx;
+    var id = panelOrder[idx];
+
     tabs.forEach(function(t) {
       t.classList.toggle('active', t.dataset.panel === id);
     });
-    panels.forEach(function(p) {
-      p.style.display = (p.dataset.dashPanel === id) ? '' : 'none';
-    });
+
+    if (track) {
+      if (!animate) track.classList.add('is-dragging');
+      else track.classList.remove('is-dragging');
+      track.style.transform = 'translate3d(' + (-idx * 100) + '%, 0, 0)';
+    }
+
     try {
       if (id === 'ventas') initSalesTrend();
       if (id === 'actividad') initEstadosDonut();
     } catch (err) {
       console.warn('[dashboard] chart init failed:', err);
     }
+
+    // Update viewport height after any potential chart render/layout shift
+    requestAnimationFrame(function() { setViewportHeight(idx); });
+    setTimeout(function() { setViewportHeight(idx); }, 380);
   }
 
+  // ── Tab clicks ──
   tabs.forEach(function(t) {
-    t.addEventListener('click', function() { showPanel(t.dataset.panel); });
+    t.addEventListener('click', function() {
+      var id = t.dataset.panel;
+      var idx = panelOrder.indexOf(id);
+      if (idx >= 0) setPanel(idx, true);
+    });
   });
 
-  // ── Swipe gesture for panel navigation ──
-  var touchStartX = null, touchStartY = null, touchStartT = null;
-  var swipeArea = document.querySelector('.dash-body') || document.body;
-  swipeArea.addEventListener('touchstart', function(e) {
-    if (!e.touches || !e.touches[0]) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    touchStartT = Date.now();
-  }, { passive: true });
-  swipeArea.addEventListener('touchend', function(e) {
-    if (touchStartX == null || !e.changedTouches || !e.changedTouches[0]) return;
-    var endX = e.changedTouches[0].clientX;
-    var endY = e.changedTouches[0].clientY;
-    var dx = endX - touchStartX;
-    var dy = endY - touchStartY;
-    var dt = Date.now() - touchStartT;
-    touchStartX = null;
-    // must be: mostly horizontal, > 60px, < 600ms
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
-    var active = document.querySelector('#dash-tabs button.active');
-    if (!active) return;
-    var idx = panelOrder.indexOf(active.dataset.panel);
-    if (idx < 0) return;
-    if (dx < 0 && idx < panelOrder.length - 1) {
-      showPanel(panelOrder[idx + 1]);
-    } else if (dx > 0 && idx > 0) {
-      showPanel(panelOrder[idx - 1]);
-    }
-  }, { passive: true });
+  // ── Twitter-style follow-finger swipe ──
+  var startX = null, startY = null, dragging = false, horizLocked = false;
+  if (track) {
+    track.addEventListener('touchstart', function(e) {
+      if (!e.touches || !e.touches[0]) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dragging = false;
+      horizLocked = false;
+    }, { passive: true });
+
+    track.addEventListener('touchmove', function(e) {
+      if (startX == null || !e.touches || !e.touches[0]) return;
+      var dx = e.touches[0].clientX - startX;
+      var dy = e.touches[0].clientY - startY;
+
+      if (!horizLocked) {
+        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+          // vertical scroll — bail for the rest of this gesture
+          startX = null;
+          return;
+        }
+        if (Math.abs(dx) < 10) return;
+        horizLocked = true;
+        dragging = true;
+        track.classList.add('is-dragging');
+      }
+
+      var w = viewport.offsetWidth || 1;
+      var translatePct = -currentIdx * 100 + (dx / w) * 100;
+      // rubber-band at edges
+      if ((currentIdx === 0 && dx > 0) || (currentIdx === panelOrder.length - 1 && dx < 0)) {
+        translatePct = -currentIdx * 100 + (dx / w) * 30;
+      }
+      track.style.transform = 'translate3d(' + translatePct + '%, 0, 0)';
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    track.addEventListener('touchend', function(e) {
+      if (!dragging || startX == null) {
+        startX = null;
+        if (track) track.classList.remove('is-dragging');
+        return;
+      }
+      var dx = e.changedTouches[0].clientX - startX;
+      var w = viewport.offsetWidth || 1;
+      var threshold = w * 0.20; // commit if dragged ≥ 20% of viewport
+      var newIdx = currentIdx;
+      if (dx < -threshold && currentIdx < panelOrder.length - 1) newIdx = currentIdx + 1;
+      else if (dx > threshold && currentIdx > 0) newIdx = currentIdx - 1;
+      setPanel(newIdx, true);
+      startX = null;
+      dragging = false;
+      horizLocked = false;
+    });
+  }
 
   // ── Initial render ──
-  function startup() { showPanel('ventas'); }
+  function startup() {
+    setPanel(0, false);
+    // After initial layout, update height with animation enabled
+    requestAnimationFrame(function() {
+      setViewportHeight(0);
+    });
+  }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startup);
   } else {
     startup();
   }
+
+  // ── Keep viewport height in sync on resize and after images/fonts load ──
+  window.addEventListener('resize', function() { setViewportHeight(currentIdx); });
+  window.addEventListener('load',   function() { setViewportHeight(currentIdx); });
 
   function buildTrendLine(values, w) {
     w = w || 3;
