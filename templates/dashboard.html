@@ -222,11 +222,50 @@
   background: rgba(244,63,94,0.15);
   color: #f43f5e;
 }
-#chart-tendencia {
+.trend-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  padding: 0 4px;
+}
+#salesTrendChart {
   display: block;
   width: 100% !important;
-  height: 130px !important;
-  padding: 0 8px 12px;
+  height: 100% !important;
+  max-height: 140px;
+}
+.estados-donut-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 240px;
+  height: 200px;
+  margin: 8px auto 4px;
+}
+.estados-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  padding: 8px 20px 4px;
+  font-size: 12px;
+}
+.estados-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted, #94a3b8);
+  font-weight: 600;
+}
+.estados-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+.estados-legend-val {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text, #f1f5f9);
+  font-weight: 700;
 }
 
 /* ── Esta semana mini-cards ── */
@@ -590,7 +629,9 @@
           </div>
         </div>
       </div>
-      <canvas id="salesTrendChart" style="height:130px;display:block;width:100%;padding:0 8px 12px;"></canvas>
+      <div class="trend-chart-wrap">
+        <canvas id="salesTrendChart"></canvas>
+      </div>
     </div>
 
     {# Esta semana #}
@@ -766,26 +807,30 @@
     </div>
 
     <div class="gcard">
-      <div class="estados-wrap">
-        {% set total_est = est_total if est_total > 0 else 1 %}
-        {% set estado_bars = [
-          {'label': 'Facturados',  'val': est_facturado, 'color': 'var(--color-info, #60a5fa)'},
-          {'label': 'Preparados',  'val': est_preparado, 'color': 'var(--color-success, #10b981)'},
-          {'label': 'Pendientes',  'val': est_pendiente, 'color': 'var(--color-warning, #f59e0b)'},
-          {'label': 'Vencidos',    'val': pedidos_vencidos_v, 'color': 'var(--color-danger, #f43f5e)'}
-        ] %}
-        {% for bar in estado_bars %}
-          {% set pct_bar = (bar.val / total_est * 100)|round(0)|int %}
-          <div class="estado-row">
-            <div class="estado-head">
-              <span>{{ bar.label }}</span>
-              <span><b style="color:var(--color-text)">{{ bar.val }}</b> · {{ pct_bar }}%</span>
-            </div>
-            <div class="estado-bar-track">
-              <div class="estado-bar-fill" style="width:{{ pct_bar }}%;background:{{ bar.color }};"></div>
-            </div>
-          </div>
-        {% endfor %}
+      <div class="estados-donut-wrap">
+        <canvas id="estadosDonutChart"></canvas>
+      </div>
+      <div class="estados-legend">
+        <div class="estados-legend-item">
+          <span class="estados-legend-dot" style="background:#60a5fa"></span>
+          <span>Facturados</span>
+          <span class="estados-legend-val">{{ est_facturado }}</span>
+        </div>
+        <div class="estados-legend-item">
+          <span class="estados-legend-dot" style="background:#10b981"></span>
+          <span>Preparados</span>
+          <span class="estados-legend-val">{{ est_preparado }}</span>
+        </div>
+        <div class="estados-legend-item">
+          <span class="estados-legend-dot" style="background:#f59e0b"></span>
+          <span>Pendientes</span>
+          <span class="estados-legend-val">{{ est_pendiente }}</span>
+        </div>
+        <div class="estados-legend-item">
+          <span class="estados-legend-dot" style="background:#f43f5e"></span>
+          <span>Vencidos</span>
+          <span class="estados-legend-val">{{ pedidos_vencidos_v }}</span>
+        </div>
       </div>
     </div>
 
@@ -811,10 +856,13 @@
     panels.forEach(function(p) {
       p.style.display = (p.dataset.dashPanel === id) ? '' : 'none';
     });
-    // lazy-init chart
+    // lazy-init charts
     if (id === 'ventas' && !window._chartInited) {
       window._chartInited = true;
       initSalesTrend();
+    }
+    if (id === 'actividad') {
+      initEstadosDonut();
     }
   }
 
@@ -935,6 +983,56 @@
       }
     });
   }
+
+  // ── Estados donut ──
+  var estadosChart = null;
+  var estadosData = {
+    facturados: {{ est_facturado }},
+    preparados: {{ est_preparado }},
+    pendientes: {{ est_pendiente }},
+    vencidos:   {{ pedidos_vencidos_v }}
+  };
+
+  function initEstadosDonut() {
+    var ctx = document.getElementById('estadosDonutChart');
+    if (!ctx || estadosChart) return;
+    var total = estadosData.facturados + estadosData.preparados + estadosData.pendientes + estadosData.vencidos;
+    if (total === 0) return;
+
+    estadosChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Facturados', 'Preparados', 'Pendientes', 'Vencidos'],
+        datasets: [{
+          data: [estadosData.facturados, estadosData.preparados, estadosData.pendientes, estadosData.vencidos],
+          backgroundColor: ['#60a5fa', '#10b981', '#f59e0b', '#f43f5e'],
+          borderColor: 'rgba(10,10,15,0.8)',
+          borderWidth: 2,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+              label: function(ctx) {
+                var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
 })();
 </script>
 {% endblock %}

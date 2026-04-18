@@ -197,6 +197,9 @@ body {
 @media (max-width: 1023px) {
   .app-topbar .topbar-title:empty,
   .app-topbar .topbar-title { display: none !important; }
+  /* Hide the hamburger on mobile — drawer still accessible via "Más" tab in the bottom tabbar */
+  .app-topbar .topbar-menu,
+  .app-topbar #drawerToggle { display: none !important; }
 }
 
 /* ============================================================================
