@@ -34,6 +34,9 @@
     <!-- Dark Executive Theme (global) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-theme.css') }}">
 
+    <!-- Glass Mobile Reskin — loaded LAST so its rules win by order -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app-mobile.css') }}">
+
     <!-- CSRF Token para AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -93,11 +96,16 @@
             padding-top: 18px;
         }
     }
+
+    /* Theme-toggle icon swap */
+    [data-theme="dark"] .theme-icon-light { display: none; }
+    [data-theme="light"] .theme-icon-dark { display: none; }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal">
+<script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     {% set current_path = request.path or '' %}
     {% set is_dashboard = current_path.startswith('/dashboard') or current_path in ['/', '/home'] %}
     {% set is_pedidos = current_path.startswith('/pedidos') or current_path.startswith('/detalles_pedido') or current_path.startswith('/generar_etiqueta_detalle') %}
@@ -247,6 +255,15 @@
                 </div>
 
                 <div class="desktop-header-actions">
+                    <button type="button"
+                            data-theme-toggle
+                            aria-pressed="true"
+                            class="nav-pill"
+                            title="Alternar tema claro/oscuro"
+                            aria-label="Alternar tema claro/oscuro">
+                      <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
+                      <i class="fas fa-sun theme-icon-light" aria-hidden="true"></i>
+                    </button>
                     <div class="user-menu">
                         <button class="user-menu-toggle desktop-user-toggle" id="userMenuToggle" aria-label="Abrir menú de usuario" aria-haspopup="true" aria-expanded="false">
                             <span class="desktop-user-avatar">{{ user_initials }}</span>
@@ -320,6 +337,25 @@
             {% endblock %}
         </footer>
     </div>
+
+    <nav class="tabbar" aria-label="Navegación principal">
+      <a href="{{ url_for('dashboard') }}" class="tab {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <i class="fas fa-chart-pie" aria-hidden="true"></i>
+        Dashboard
+      </a>
+      <a href="{{ url_for('lista_pedidos') }}" class="tab {% if request.endpoint in ['lista_pedidos', 'detalles_pedido'] %}active{% endif %}">
+        <i class="fas fa-receipt" aria-hidden="true"></i>
+        Pedidos
+      </a>
+      <a href="{{ url_for('productos') }}" class="tab {% if request.endpoint == 'productos' %}active{% endif %}">
+        <i class="fas fa-box" aria-hidden="true"></i>
+        Productos
+      </a>
+      <a href="#" class="tab" onclick="event.preventDefault(); document.getElementById('drawerToggle')?.click();">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+        Más
+      </a>
+    </nav>
 
     <!-- Scripts optimizados - FORZAR MINIFICADOS -->
     {% block scripts %}{% endblock %}
