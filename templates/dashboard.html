@@ -520,6 +520,7 @@
 .dash-panel { display: block; }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_light.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_snap.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -885,6 +886,7 @@
 
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard-snap-dots.js') }}" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function() {
