@@ -589,13 +589,15 @@
      All 4 panels live in a horizontal flex track; JS translates the track.
      Viewport height is animated to the active panel's natural height.
      ══════════════════════════════════════ #}
+  <div class="snap-dots" data-snap-dots-for="ventas" aria-hidden="true"></div>
+  <div class="snap-dots" data-snap-dots-for="servicio" aria-hidden="true"></div>
+
   <div class="panels-viewport" id="dash-viewport">
     <div class="panels-track" id="dash-track">
 
   {# ══════════════════════════════════════
      PANEL VENTAS
      ══════════════════════════════════════ #}
-  <div class="snap-dots" data-snap-dots-for="ventas" aria-hidden="true"></div>
   <div class="dash-panel" data-dash-panel="ventas">
 
     {# KPI Grid #}
@@ -696,7 +698,6 @@
   {# ══════════════════════════════════════
      PANEL SERVICIO
      ══════════════════════════════════════ #}
-  <div class="snap-dots" data-snap-dots-for="servicio" aria-hidden="true"></div>
   <div class="dash-panel" data-dash-panel="servicio">
 
     {% set lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
