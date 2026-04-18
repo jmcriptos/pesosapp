@@ -182,3 +182,18 @@ def test_servicio_panel_uses_glass_cards_and_rings(logged_client):
     assert 'kpi-tile' not in panel
     assert 'progress-ring' not in panel
     assert 'c-green' not in panel and 'c-amber' not in panel and 'c-red' not in panel
+
+
+# ─── Task 8: Top panel refresh ───────────────────────────────────────────────
+
+def test_top_panel_uses_cards_and_chips(logged_client):
+    resp = logged_client.get('/dashboard')
+    html = resp.data.decode('utf-8')
+    start = html.find('id="panel-rankings"')
+    end = html.find('id="panel-actividad"')
+    assert start != -1 and end != -1
+    panel = html[start:end]
+    # Rankings become cards
+    assert 'class="card' in panel, "expected at least one .card in Top panel"
+    # Period filter pills become chips
+    assert 'class="chip' in panel or "class='chip" in panel

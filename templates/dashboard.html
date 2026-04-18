@@ -293,11 +293,11 @@
             <div class="card" style="margin-bottom:12px">
                 <div class="card-head">
                     <h3><i class="fas fa-filter" style="color:var(--dash-text3);margin-right:6px;font-size:0.75rem"></i>Periodo de Ranking</h3>
-                    <div class="period-btns ranking-period-btns">
-                        <button class="period-btn ranking-period-btn active" data-ranking-period="month">MES</button>
-                        <button class="period-btn ranking-period-btn" data-ranking-period="6m">6M</button>
-                        <button class="period-btn ranking-period-btn" data-ranking-period="3m">3M</button>
-                        <button class="period-btn ranking-period-btn" data-ranking-period="4w">4S</button>
+                    <div class="period-btns ranking-period-btns" style="display:flex;gap:var(--space-2);">
+                        <button class="chip chip-primary ranking-period-btn" data-ranking-period="month">MES</button>
+                        <button class="chip ranking-period-btn" data-ranking-period="6m">6M</button>
+                        <button class="chip ranking-period-btn" data-ranking-period="3m">3M</button>
+                        <button class="chip ranking-period-btn" data-ranking-period="4w">4S</button>
                     </div>
                 </div>
             </div>
@@ -314,20 +314,24 @@
                     {% set cajas = (producto.cajas or 0)|int %}
                     {% set peso = (producto.peso or 0)|float %}
                     {% set bar_pct = (ingresos / max_ingreso_prod * 100) if max_ingreso_prod > 0 else 0 %}
-                    <div class="rank-row">
-                        <span class="rr-pos rc-{{ loop.index }}">{{ loop.index }}</span>
-                        <div class="rr-body">
-                            <div class="rr-top">
-                                <span class="rr-name">{{ producto.nombre }}</span>
-                                <span class="rr-amount">{{ '{:,.0f}'.format(ingresos) }} <small>XCG</small></span>
+                    <div class="card card-interactive" style="margin-bottom: var(--space-2);">
+                        <div class="card-body">
+                            <div class="cluster cluster-3" style="align-items: center; justify-content: space-between;">
+                                <div class="cluster cluster-3" style="align-items: center;">
+                                    <span class="chip chip-primary">{{ loop.index }}</span>
+                                    <div>
+                                        <div class="text-md font-semibold">{{ producto.nombre }}</div>
+                                        <div class="text-xs text-muted">
+                                            {% if cajas > 0 %}<span><i class="fas fa-boxes-stacked"></i> {{ cajas }} cj</span>{% endif %}
+                                            {% if peso > 0 %}<span style="margin-left:6px"><i class="fas fa-weight-hanging"></i> {{ '{:,.1f}'.format(peso) }} kg</span>{% endif %}
+                                            <span style="margin-left:6px"><i class="fas fa-clipboard-list"></i> {{ producto.pedidos or 0 }} ped</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-lg font-bold tabular">{{ '{:,.0f}'.format(ingresos) }} <span class="text-xs text-subtle">XCG</span></div>
                             </div>
-                            <div class="rr-bar-track">
+                            <div class="rr-bar-track" style="margin-top: var(--space-1);">
                                 <div class="rr-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
-                            </div>
-                            <div class="rr-meta">
-                                {% if cajas > 0 %}<span><i class="fas fa-boxes-stacked"></i> {{ cajas }} cj</span>{% endif %}
-                                {% if peso > 0 %}<span><i class="fas fa-weight-hanging"></i> {{ '{:,.1f}'.format(peso) }} kg</span>{% endif %}
-                                <span><i class="fas fa-clipboard-list"></i> {{ producto.pedidos or 0 }} ped</span>
                             </div>
                         </div>
                     </div>
@@ -346,19 +350,23 @@
                     {% for nombre, datos in (top_clientes or []) %}
                     {% set cliente_total = (datos.total or 0)|float %}
                     {% set bar_pct = (cliente_total / max_total_cli * 100) if max_total_cli > 0 else 0 %}
-                    <div class="rank-row">
-                        <span class="rr-pos rc-{{ loop.index }}">{{ loop.index }}</span>
-                        <div class="rr-body">
-                            <div class="rr-top">
-                                <span class="rr-name">{{ nombre }}</span>
-                                <span class="rr-amount">{{ '{:,.0f}'.format(cliente_total) }} <small>XCG</small></span>
+                    <div class="card card-interactive" style="margin-bottom: var(--space-2);">
+                        <div class="card-body">
+                            <div class="cluster cluster-3" style="align-items: center; justify-content: space-between;">
+                                <div class="cluster cluster-3" style="align-items: center;">
+                                    <span class="chip chip-primary">{{ loop.index }}</span>
+                                    <div>
+                                        <div class="text-md font-semibold">{{ nombre }}</div>
+                                        <div class="text-xs text-muted">
+                                            <span><i class="fas fa-clipboard-list"></i> {{ datos.pedidos or 0 }} pedidos</span>
+                                            <span style="margin-left:6px"><i class="fas fa-calendar"></i> {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-lg font-bold tabular">{{ '{:,.0f}'.format(cliente_total) }} <span class="text-xs text-subtle">XCG</span></div>
                             </div>
-                            <div class="rr-bar-track">
+                            <div class="rr-bar-track" style="margin-top: var(--space-1);">
                                 <div class="rr-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div>
-                            </div>
-                            <div class="rr-meta">
-                                <span><i class="fas fa-clipboard-list"></i> {{ datos.pedidos or 0 }} pedidos</span>
-                                <span><i class="fas fa-calendar"></i> {{ datos.ultimo_pedido.strftime('%d/%m') if datos.ultimo_pedido else 'N/A' }}</span>
                             </div>
                         </div>
                     </div>
