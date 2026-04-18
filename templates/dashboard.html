@@ -520,6 +520,7 @@
 .dash-panel { display: block; }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_light.css') }}">
+{# dashboard_snap.css MUST load AFTER dashboard_light.css — snap rules override light defaults. #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_snap.css') }}">
 {% endblock %}
 
