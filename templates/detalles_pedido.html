@@ -979,10 +979,117 @@ tr.linea-pedido-original td:first-child {
 {% endblock %}
 
 {% block content %}
+<div class="app-shell">
 <div class="mobile-form-container">
 
-    <!-- Barra de estado -->
-    <div class="status-bar">
+    <!-- Hero de detalle -->
+    {% set estado = (pedido.estado or '')|lower %}
+    <header class="detail-hero">
+      <div class="dh-row">
+        <div>
+          <div class="dh-id">PED-{{ pedido.id }}</div>
+          <div class="dh-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
+          <div class="dh-meta">
+            {% if pedido.fecha_pedido %}
+              Pedido: {{ pedido.fecha_pedido.strftime('%A %d de %B') }}
+            {% endif %}
+          </div>
+        </div>
+        <span class="status-pill {{ estado }}"
+              style="background: rgba(255,255,255,0.18); color: white; align-self: flex-start;">
+          {{ pedido.estado|capitalize }}
+        </span>
+      </div>
+      <div class="dh-stats">
+        <div class="dh-stat">
+          <div class="dh-stat-label">Líneas</div>
+          <div class="dh-stat-val">{{ detalles_ordenados|length if detalles_ordenados else 0 }}</div>
+        </div>
+        <div class="dh-stat">
+          <div class="dh-stat-label">Peso total</div>
+          <div class="dh-stat-val">
+            {{ '{:.1f}'.format(detalles_ordenados|selectattr('es_linea_pedido', 'equalto', False)|sum(attribute='peso') if detalles_ordenados else 0) }}
+            <small>kg</small>
+          </div>
+        </div>
+        <div class="dh-stat">
+          <div class="dh-stat-label">Total</div>
+          <div class="dh-stat-val">{{ '{:,.0f}'.format(pedido.total_calculado or 0) if pedido.total_calculado is defined else '—' }}</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Timeline de estados -->
+    {% set steps = [
+      ('pendiente',  'Pedido creado',  'fa-plus-circle'),
+      ('preparado',  'Preparado',      'fa-box'),
+      ('facturado',  'Facturado',      'fa-file-invoice'),
+      ('entregado',  'Entregado',      'fa-truck'),
+    ] %}
+    {% set active_map = {'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3} %}
+    {% set active_idx = active_map.get(estado, 0) %}
+    <div class="gcard timeline" style="margin: 0 16px 14px;">
+      {% for key, label, icon in steps %}
+        {% set idx = loop.index0 %}
+        <div class="tl-item">
+          <span class="tl-dot {% if idx < active_idx %}done{% elif idx == active_idx %}active{% endif %}"></span>
+          <div class="tl-title">{{ label }}</div>
+          <div class="tl-meta">
+            {% if idx < active_idx %}Completado
+            {% elif idx == active_idx %}En curso
+            {% else %}Pendiente{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Vista glass de líneas de preparación -->
+    <div class="gcard" style="margin: 0 16px 14px; padding: 0;">
+      <div class="line-items">
+        {% if detalles_ordenados %}
+          {% for detalle in detalles_ordenados %}
+            {% if not detalle.es_linea_pedido %}
+            <div class="line-item" data-cat="{{ (detalle.producto.temperatura if detalle.producto and detalle.producto.temperatura else ('pesa' if detalle.producto and detalle.producto.se_pesa else 'caja'))|lower }}">
+              <div class="li-strip"></div>
+              <div class="li-body">
+                <div class="li-name">{{ detalle.producto.nombre if detalle.producto else '—' }}</div>
+                <div class="li-meta">
+                  {% if detalle.producto and detalle.producto.se_pesa %}
+                    {{ detalle.peso }} kg
+                    {% if detalle.lote %} · Lote: {{ detalle.lote }}{% endif %}
+                  {% else %}
+                    {{ detalle.cajas }} cajas
+                    {% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} / {{ detalle.cajas_pedidas }}{% endif %}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="li-qty">
+                {% if detalle.producto and detalle.producto.se_pesa %}
+                  {{ '{:.1f}'.format(detalle.peso) }}<small>kg</small>
+                {% else %}
+                  {{ detalle.cajas }}<small>cajas</small>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+          {% if detalles_ordenados|selectattr('es_linea_pedido', 'equalto', False)|list|length == 0 %}
+            <div style="padding: 20px 16px; color: var(--on-surface-variant, #6b7280); text-align: center; font-size: 0.9rem;">
+              <i class="fas fa-box-open" style="font-size: 1.5rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+              Sin líneas de preparación aún
+            </div>
+          {% endif %}
+        {% else %}
+          <div style="padding: 20px 16px; color: var(--on-surface-variant, #6b7280); text-align: center; font-size: 0.9rem;">
+            <i class="fas fa-box-open" style="font-size: 1.5rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+            No hay productos aún
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Barra de estado (legado — oculta en mobile, visible en desktop para reintentar) -->
+    <div class="status-bar" style="display:none;">
         <span class="status-badge status-badge-{{ pedido.estado }}">
             {% if pedido.estado == 'pendiente' %}<i class="fas fa-clock"></i>{% elif pedido.estado == 'preparado' %}<i class="fas fa-check"></i>{% else %}<i class="fas fa-file-invoice-dollar"></i>{% endif %}
             {{ pedido.estado|capitalize }}
@@ -997,6 +1104,18 @@ tr.linea-pedido-original td:first-child {
         </form>
         {% endif %}
     </div>
+
+    <!-- Botón Reintentar facturación (si está facturado sin QBO ID) -->
+    {% if pedido.estado == 'facturado' and not pedido.invoice_id_qbo %}
+    <div style="margin: 0 16px 14px;">
+      <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-secondary" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <i class="fas fa-redo"></i> Reintentar facturación
+        </button>
+      </form>
+    </div>
+    {% endif %}
 
     <!-- Notas del pedido -->
     {% if pedido.notas %}
@@ -1224,9 +1343,9 @@ tr.linea-pedido-original td:first-child {
         </div>
     </div>
 
-    <!-- Botón Marcar como Preparado (sticky) -->
+    <!-- Botón Marcar como Preparado (sticky legado — oculto, reemplazado por action-bar) -->
     {% if pedido.estado == 'pendiente' %}
-    <div class="sticky-preparado-bar">
+    <div class="sticky-preparado-bar" style="display:none;">
         <form action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}" method="POST" data-confirm="¿Marcar este pedido como preparado? Se validará la trazabilidad de todos los productos.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="mobile-btn mobile-btn-preparado">
@@ -1309,7 +1428,39 @@ tr.linea-pedido-original td:first-child {
         </div>
     </div>
 
+</div><!-- /.mobile-form-container -->
+
+<!-- Action bar sticky -->
+{% if estado in ['pendiente', 'preparado'] %}
+<div class="action-bar">
+  {% if estado == 'pendiente' %}
+    <form method="post"
+          action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}"
+          data-confirm="¿Marcar este pedido como preparado? Se validará la trazabilidad de todos los productos."
+          style="flex:1;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-primary" style="width:100%;">
+        <i class="fas fa-check-circle"></i> Marcar preparado
+      </button>
+    </form>
+  {% elif estado == 'preparado' %}
+    <form method="post"
+          action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
+          style="flex:1;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-primary" style="width:100%;">
+        <i class="fas fa-file-invoice"></i> Facturar
+      </button>
+    </form>
+  {% endif %}
+  <a href="{{ url_for('lista_pedidos') }}" class="btn-secondary"
+     style="display:grid; place-items:center; text-decoration:none; white-space:nowrap;">
+    Volver
+  </a>
 </div>
+{% endif %}
+
+</div><!-- /.app-shell -->
 
 {% if pedido.estado != 'facturado' %}
 <!-- Modal de edición de producto -->
