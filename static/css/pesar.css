@@ -528,12 +528,20 @@ body[data-pesar-screen] .pesar-modal-overlay input {
 
 #pesar-summary {
   position: fixed;
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  /* Sit above the mobile tabbar (~63px) on mobile/tablet */
+  bottom: calc(63px + var(--space-3) + env(safe-area-inset-bottom));
   left: var(--space-4);
   right: var(--space-4);
   z-index: 12;
   max-width: calc(430px - var(--space-4) * 2);
   margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  /* Desktop: no tabbar, summary flush bottom */
+  body[data-pesar-screen] #pesar-summary {
+    bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
 }
 
 .pesar-summary {

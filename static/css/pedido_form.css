@@ -188,14 +188,24 @@ body[data-pedido-form-screen] .mobile-textarea {
   resize: vertical;
 }
 
-/* Tom Select */
+/* Tom Select — aggressive overrides to beat dark theme defaults */
 body[data-pedido-form-screen] .ts-wrapper .ts-control,
 body[data-pedido-form-screen] .ts-wrapper.single .ts-control {
-  background: var(--color-bg-elevated) !important;
-  color: var(--color-text) !important;
-  border: 1px solid var(--color-border) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 10px !important;
   padding: 9px 12px !important;
+}
+
+body[data-pedido-form-screen] .ts-wrapper .ts-control input,
+body[data-pedido-form-screen] .ts-wrapper .ts-control .item {
+  color: #0f172a !important;
+  background: transparent !important;
+}
+
+body[data-pedido-form-screen] .ts-wrapper .ts-control input::placeholder {
+  color: #94a3b8 !important;
 }
 
 body[data-pedido-form-screen] .ts-wrapper.focus .ts-control {
@@ -204,15 +214,36 @@ body[data-pedido-form-screen] .ts-wrapper.focus .ts-control {
 }
 
 body[data-pedido-form-screen] .ts-dropdown {
-  background: var(--color-surface) !important;
-  color: var(--color-text) !important;
-  border: 1px solid var(--color-border) !important;
-  box-shadow: var(--shadow-card-strong) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 48px -16px rgba(15, 23, 42, 0.18) !important;
 }
 
-body[data-pedido-form-screen] .ts-dropdown .option.active {
-  background: color-mix(in srgb, var(--indigo-500) 12%, transparent) !important;
-  color: var(--color-text) !important;
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content,
+body[data-pedido-form-screen] .ts-dropdown .option,
+body[data-pedido-form-screen] .ts-dropdown [data-selectable] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  padding: 10px 12px !important;
+}
+
+body[data-pedido-form-screen] .ts-dropdown .option.active,
+body[data-pedido-form-screen] .ts-dropdown [data-selectable].active {
+  background: color-mix(in srgb, var(--indigo-500) 12%, #ffffff) !important;
+  color: #0f172a !important;
+}
+
+body[data-pedido-form-screen] .ts-dropdown .option:hover,
+body[data-pedido-form-screen] .ts-dropdown [data-selectable]:hover {
+  background: color-mix(in srgb, var(--indigo-500) 8%, #ffffff) !important;
+  color: #0f172a !important;
+}
+
+body[data-pedido-form-screen] .ts-dropdown .no-results,
+body[data-pedido-form-screen] .ts-dropdown .optgroup-header {
+  color: #64748b !important;
+  background: #f8fafc !important;
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -362,7 +393,8 @@ body[data-pedido-form-screen] .mobile-total-amount {
    ──────────────────────────────────────────────────────────── */
 body[data-pedido-form-screen] .sticky-submit-bar {
   position: fixed !important;
-  bottom: 0 !important;
+  /* Sit above the mobile tabbar (~63px + safe-area-bottom) */
+  bottom: calc(63px + env(safe-area-inset-bottom)) !important;
   left: 0 !important;
   right: 0 !important;
   background: rgba(255, 255, 255, 0.85) !important;
@@ -370,23 +402,34 @@ body[data-pedido-form-screen] .sticky-submit-bar {
   backdrop-filter: blur(24px) saturate(1.8) !important;
   -webkit-backdrop-filter: blur(24px) saturate(1.8) !important;
   border-top: 1px solid var(--color-border) !important;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
-  z-index: 30;
+  padding: 12px 16px !important;
+  z-index: 29;
   box-shadow: 0 -12px 28px -12px rgba(15, 23, 42, 0.1);
   display: flex;
   justify-content: stretch;
 }
 
-@media (min-width: 768px) {
+/* Content padding-bottom must accommodate sticky submit (~72px) + tabbar (~63px) */
+body[data-pedido-form-screen] .pedido-form-shell {
+  padding-bottom: calc(72px + 63px + env(safe-area-inset-bottom)) !important;
+}
+
+@media (min-width: 1024px) {
+  /* Desktop: no tabbar, sticky submit flush to bottom, centered */
   body[data-pedido-form-screen] .sticky-submit-bar {
+    bottom: 0 !important;
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%);
     max-width: 640px;
     width: 100%;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
     border-radius: 18px 18px 0 0;
     border-left: 1px solid var(--color-border) !important;
     border-right: 1px solid var(--color-border) !important;
+  }
+  body[data-pedido-form-screen] .pedido-form-shell {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
   }
 }
 
