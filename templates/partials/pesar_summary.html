@@ -1,0 +1,19 @@
+<div class="pesar-summary" {% if oob_summary %}id="pesar-summary" hx-swap-oob="outerHTML"{% endif %}>
+  <div class="pesar-summary-copy">
+    <div class="pesar-summary-label">Total pedido</div>
+    <div class="pesar-summary-value">
+      {{ '{:.2f}'.format(peso_total_pedido|float) }}
+      <small>kg</small>
+      <span class="pesar-summary-sep">·</span>
+      {{ cajas_pesadas_total }}/{{ cajas_objetivo_total }}
+      <small>cajas</small>
+    </div>
+  </div>
+  <form method="POST" action="{{ url_for('finalizar_pesaje_pedido', pedido_id=pedido.id) }}" class="pesar-summary-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="pesar-finish-btn{% if not puede_finalizar_pesar %} is-disabled{% endif %}" {% if not puede_finalizar_pesar %}disabled{% endif %}>
+      <i class="fas fa-check"></i>
+      Finalizar
+    </button>
+  </form>
+</div>

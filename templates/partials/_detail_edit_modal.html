@@ -1,0 +1,72 @@
+{% if pedido.estado != 'facturado' %}
+<!-- Modal de edición de producto -->
+<div class="edit-modal-overlay" id="editModalOverlay">
+    <div class="edit-modal">
+        <div class="edit-modal-header">
+            <div class="edit-modal-title">
+                <i class="fas fa-edit"></i>
+                Editar producto
+            </div>
+            <button type="button" class="edit-modal-close" onclick="closeEditModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="editDetalleForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="edit-modal-body">
+                <div class="mobile-form-grid" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Producto -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_producto_id">Producto</label>
+                        <select name="producto_id" id="edit_producto_id" class="mobile-form-control ts-select" required>
+                                <option value="">Seleccionar...</option>
+                                {% for p in productos|sort(attribute='nombre') %}
+                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                    </div>
+
+                    <!-- Cantidad (peso o cajas según producto) -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_peso" id="edit_cantidad_label">Peso (kg)</label>
+                        <input type="text" inputmode="decimal" name="peso" id="edit_peso"
+                               class="mobile-form-control" placeholder="0.00"
+                               pattern="[0-9]*[.,]?[0-9]*" required>
+                    </div>
+
+                    <!-- Lote -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_lote">Lote</label>
+                        <input type="text" name="lote" id="edit_lote"
+                               class="mobile-form-control" placeholder="Ej: L001" required>
+                    </div>
+
+                    <!-- Fecha Fabricación -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_fecha_fabricacion">F. Fabricación</label>
+                        <input type="date" name="fecha_fabricacion" id="edit_fecha_fabricacion"
+                               class="mobile-form-control" required>
+                    </div>
+
+                    <!-- Fecha Expiración -->
+                    <div class="mobile-form-group">
+                        <label class="mobile-form-label" for="edit_fecha_expiracion">F. Expiración</label>
+                        <input type="date" name="fecha_expiracion" id="edit_fecha_expiracion"
+                               class="mobile-form-control" required>
+                    </div>
+                </div>
+            </div>
+            <div class="edit-modal-footer">
+                <button type="button" class="mobile-btn mobile-btn-secondary" onclick="closeEditModal()">
+                    <i class="fas fa-times"></i>
+                    Cancelar
+                </button>
+                <button type="submit" class="mobile-btn mobile-btn-success">
+                    <i class="fas fa-check"></i>
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}

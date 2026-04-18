@@ -8,8 +8,13 @@
 {% set est_pendiente_tl = (estados_pedidos_tl.get('pendiente', 0) or 0)|int %}
 {% set pedidos_vencidos_tl = (pedidos_vencidos or 0)|int %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard — PesosApp{% endblock %}
 {% block header_title %}Dashboard{% endblock %}
+
+{# Keep data-theme="dark" so the top navbar (brand + nav + user menu) retains its
+   dark-executive styling; data-dashboard-screen enables light-theme overrides
+   scoped to the CONTENT area via static/css/dashboard_light.css #}
+{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-dashboard-screen="1"{% endblock %}
 
 {# ══════════════════════════════════════════════════════════════
    MACRO: Progress Ring (44px SVG, matches prototype ProgressRing)
@@ -514,6 +519,7 @@
 /* ── Dash panel: each panel is a slide in the carousel ── */
 .dash-panel { display: block; }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_light.css') }}">
 {% endblock %}
 
 {% block content %}

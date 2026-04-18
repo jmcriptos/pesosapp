@@ -1,0 +1,419 @@
+/* ────────────────────────────────────────────────────────────
+   Pedido Form — Glass reskin overrides.
+   Scope: body[data-pedido-form-screen] to beat global/inline CSS.
+   ──────────────────────────────────────────────────────────── */
+
+html,
+body[data-pedido-form-screen],
+body[data-pedido-form-screen] .app-container,
+body[data-pedido-form-screen] .app-content {
+  background: #f8fafc !important;
+}
+
+body[data-pedido-form-screen] .app-container,
+body[data-pedido-form-screen] .app-content {
+  background-image: none !important;
+}
+
+body[data-pedido-form-screen] {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-surface-strong: rgba(255, 255, 255, 0.88);
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --shadow-card: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+  --shadow-card-strong: 0 20px 48px -16px rgba(15, 23, 42, 0.14);
+}
+
+/* ────────────────────────────────────────────────────────────
+   Shell + dedicated top nav (takeover replaces base chrome)
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .pedido-form-shell {
+  background: var(--bg-ambient, #f8fafc);
+  min-height: 100vh;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+body[data-pedido-form-screen] .pedido-form-topnav {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body[data-pedido-form-screen] .pedido-form-close {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+body[data-pedido-form-screen] .pedido-form-topnav-title {
+  text-align: center;
+  min-width: 0;
+}
+
+body[data-pedido-form-screen] .pedido-form-topnav-heading {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-pedido-form-screen] .pedido-form-topnav-meta {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-pedido-form-screen] .pedido-form-topnav-placeholder {
+  width: 40px;
+  height: 40px;
+}
+
+body[data-pedido-form-screen] .mobile-form-container {
+  background: var(--bg-ambient, #f8fafc) !important;
+  padding: 16px 0 !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Neutralize global form/button styles
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .pedido-form-shell form {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Mobile cards — light glass
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .mobile-card {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-card) !important;
+  margin: 0 16px 14px !important;
+  overflow: hidden;
+}
+
+body[data-pedido-form-screen] .mobile-card-header {
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  padding: 14px 16px !important;
+  font-weight: 700 !important;
+}
+
+body[data-pedido-form-screen] .mobile-card-header i {
+  color: var(--indigo-500);
+  margin-right: 6px;
+}
+
+body[data-pedido-form-screen] .mobile-card-body {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  padding: 14px 16px !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Form controls
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .mobile-form-label {
+  color: var(--color-text-muted) !important;
+  font-weight: 700 !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body[data-pedido-form-screen] .mobile-form-control {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 10px !important;
+  padding: 11px 14px !important;
+  font-size: 0.95rem !important;
+}
+
+body[data-pedido-form-screen] .mobile-form-control:focus {
+  border-color: var(--indigo-500) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500) 14%, transparent) !important;
+  outline: 0;
+}
+
+body[data-pedido-form-screen] .mobile-form-control::placeholder {
+  color: var(--color-text-subtle) !important;
+}
+
+body[data-pedido-form-screen] .mobile-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* Tom Select */
+body[data-pedido-form-screen] .ts-wrapper .ts-control,
+body[data-pedido-form-screen] .ts-wrapper.single .ts-control {
+  background: var(--color-bg-elevated) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 10px !important;
+  padding: 9px 12px !important;
+}
+
+body[data-pedido-form-screen] .ts-wrapper.focus .ts-control {
+  border-color: var(--indigo-500) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500) 14%, transparent) !important;
+}
+
+body[data-pedido-form-screen] .ts-dropdown {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-card-strong) !important;
+}
+
+body[data-pedido-form-screen] .ts-dropdown .option.active {
+  background: color-mix(in srgb, var(--indigo-500) 12%, transparent) !important;
+  color: var(--color-text) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Buttons
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .mobile-btn {
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  border: 0 !important;
+  padding: 12px 18px !important;
+  background-image: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 160ms ease;
+}
+
+body[data-pedido-form-screen] .mobile-btn:active {
+  transform: translateY(1px);
+}
+
+body[data-pedido-form-screen] .mobile-btn-primary {
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.55) !important;
+}
+
+body[data-pedido-form-screen] .mobile-btn-success {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px -10px rgba(16, 185, 129, 0.45) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Productos list + empty state
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .productos-list {
+  background: transparent !important;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+body[data-pedido-form-screen] .producto-card-item {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 12px !important;
+  color: var(--color-text) !important;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-pedido-form-screen] .mobile-empty-state {
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+  border: 1px dashed var(--color-border) !important;
+  border-radius: 12px;
+  padding: 24px 16px !important;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+body[data-pedido-form-screen] .mobile-empty-state i {
+  font-size: 1.6rem;
+  color: var(--color-text-subtle);
+  display: block;
+  margin-bottom: 8px;
+}
+
+body[data-pedido-form-screen] .mobile-empty-state p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Desktop table */
+body[data-pedido-form-screen] .mobile-table-container {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+body[data-pedido-form-screen] .mobile-table {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+}
+
+body[data-pedido-form-screen] .mobile-table thead {
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+}
+
+body[data-pedido-form-screen] .mobile-table th {
+  color: var(--color-text-muted) !important;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+}
+
+body[data-pedido-form-screen] .mobile-table td {
+  color: var(--color-text) !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Total section
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .mobile-total-section {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--indigo-500) 8%, var(--color-surface)),
+    color-mix(in srgb, var(--violet-500) 6%, var(--color-surface))
+  ) !important;
+  border: 1px solid color-mix(in srgb, var(--indigo-500) 22%, transparent) !important;
+  border-radius: 12px;
+  padding: 14px 16px !important;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body[data-pedido-form-screen] .mobile-total-label {
+  color: var(--color-text-muted) !important;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body[data-pedido-form-screen] .mobile-total-amount {
+  color: var(--color-text) !important;
+  font-weight: 800;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Sticky submit bar — glass
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .sticky-submit-bar {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  background-image: none !important;
+  backdrop-filter: blur(24px) saturate(1.8) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.8) !important;
+  border-top: 1px solid var(--color-border) !important;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
+  z-index: 30;
+  box-shadow: 0 -12px 28px -12px rgba(15, 23, 42, 0.1);
+  display: flex;
+  justify-content: stretch;
+}
+
+@media (min-width: 768px) {
+  body[data-pedido-form-screen] .sticky-submit-bar {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    max-width: 640px;
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    border-left: 1px solid var(--color-border) !important;
+    border-right: 1px solid var(--color-border) !important;
+  }
+}
+
+body[data-pedido-form-screen] .sticky-submit-bar .mobile-btn {
+  width: 100%;
+  height: 48px;
+}
+
+/* Delete / remove buttons inside productos list */
+body[data-pedido-form-screen] .producto-remove-btn {
+  background: color-mix(in srgb, #ef4444 10%, var(--color-bg-elevated)) !important;
+  color: #ef4444 !important;
+  border: 1px solid color-mix(in srgb, #ef4444 22%, transparent) !important;
+  border-radius: 10px !important;
+}
+
+/* Search layout polish */
+body[data-pedido-form-screen] .mobile-search-layout {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--color-bg-subtle);
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+}
+
+body[data-pedido-form-screen] .mobile-search-group,
+body[data-pedido-form-screen] .mobile-add-section {
+  margin-bottom: 10px;
+}
+
+body[data-pedido-form-screen] .mobile-add-section:last-child {
+  margin-bottom: 0;
+}

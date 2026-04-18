@@ -1,0 +1,68 @@
+<div
+  class="pesar-panel-state"
+  data-detalle-id="{{ detalle.id }}"
+  data-count="{{ detalle.cajas_pesadas_count }}"
+  data-target="{{ detalle.cajas_objetivo }}"
+  data-total-weight="{{ '{:.2f}'.format(detalle.peso_real|float) }}"
+  data-product-name="{{ detalle.producto.nombre }}"
+  data-cat="{{ detalle.categoria_code }}"
+></div>
+
+{% if grupos %}
+  <div class="pesar-list-header">
+    <div class="pesar-list-title">Cajas registradas</div>
+    <div class="pesar-list-total">
+      <strong>{{ '{:.2f}'.format(detalle.peso_real|float) }} kg</strong>
+      · {{ detalle.cajas_pesadas_count }}/{{ detalle.cajas_objetivo }}
+    </div>
+  </div>
+
+  <div class="pesar-groups">
+    {% for grupo in grupos %}
+      <section class="pesar-group-card">
+        <header class="pesar-group-header">
+          <div class="pesar-group-meta">
+            <span class="pesar-group-lot">{{ grupo.lote }}</span>
+            <span>Elab. {{ grupo.fecha_elaboracion.strftime('%d/%m/%Y') }}</span>
+            <span class="{% if grupo.fecha_vencimiento and (grupo.fecha_vencimiento - grupo.fecha_elaboracion).days < 30 %}is-warning{% endif %}">
+              Venc. {{ grupo.fecha_vencimiento.strftime('%d/%m/%Y') }}
+            </span>
+          </div>
+          <span class="pesar-group-count">{{ grupo.cajas|length }} caja{% if grupo.cajas|length != 1 %}s{% endif %}</span>
+        </header>
+        <div class="pesar-box-grid">
+          {% for caja in grupo.cajas %}
+            <button
+              type="button"
+              class="pesar-box-chip"
+              hx-get="{{ url_for('editar_caja_pesada_modal', caja_id=caja.id) }}"
+              hx-target="#modal-root"
+              hx-swap="innerHTML"
+              data-delete-url="{{ url_for('eliminar_caja_pesada', caja_id=caja.id) }}"
+            >
+              <span class="pesar-box-index">#{{ '%02d'|format(caja.numero) }}</span>
+              <span class="pesar-box-weight">{{ '{:.2f}'.format(caja.peso|float) }} <small>kg</small></span>
+              <i class="fas fa-pen"></i>
+            </button>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="pesar-empty">
+    <i class="fas fa-weight-hanging"></i>
+    <p>No hay cajas registradas todavía para este producto.</p>
+  </div>
+{% endif %}
+
+{% if oob_echoes %}
+  {% with oob_chip=True %}
+    {% include 'partials/pesar_chip_producto.html' %}
+  {% endwith %}
+  {% with oob_summary=True %}
+    {% include 'partials/pesar_summary.html' %}
+  {% endwith %}
+  <div id="modal-root" hx-swap-oob="innerHTML"></div>
+  <div id="pesar-feedback" class="pesar-feedback" hx-swap-oob="innerHTML"></div>
+{% endif %}

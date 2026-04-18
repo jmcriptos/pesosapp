@@ -1,0 +1,25 @@
+{% set is_active = active_detalle and active_detalle.id == detalle.id %}
+<button
+  type="button"
+  id="pesar-chip-{{ detalle.id }}"
+  {% if oob_chip %}hx-swap-oob="outerHTML"{% endif %}
+  class="pesar-chip{% if is_active %} is-active{% endif %}{% if detalle.pesaje_completo %} is-complete{% endif %}"
+  data-detalle-id="{{ detalle.id }}"
+  data-cat="{{ detalle.categoria_code }}"
+  data-target="{{ detalle.cajas_objetivo }}"
+  data-count="{{ detalle.cajas_pesadas_count }}"
+  data-product-name="{{ detalle.producto.nombre }}"
+>
+  <span class="pesar-chip-status">
+    {% if detalle.pesaje_completo %}
+      <i class="fas fa-check"></i>
+      Listo
+    {% else %}
+      {{ detalle.cajas_pesadas_count }}/{{ detalle.cajas_objetivo }}
+    {% endif %}
+  </span>
+  <span class="pesar-chip-name">{{ detalle.producto.nombre }}</span>
+  <span class="pesar-chip-meta">
+    {{ '{:.2f}'.format(detalle.peso_real|float) }} kg
+  </span>
+</button>

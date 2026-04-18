@@ -104,7 +104,7 @@
 
     {% block extra_css %}{% endblock %}
 </head>
-<body data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal">
+<body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% endblock %}>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     {% set current_path = request.path or '' %}
     {% set is_dashboard = current_path.startswith('/dashboard') or current_path in ['/', '/home'] %}
@@ -178,6 +178,7 @@
         </nav>
 
         <!-- Top bar: hamburguesa + brand + iconos -->
+        {% block topbar %}
         <header class="app-topbar">
             <button class="topbar-menu" id="drawerToggle" aria-label="Abrir menú">
                 <i class="fas fa-bars"></i>
@@ -311,6 +312,7 @@
                 </div>
             </div>
         </header>
+        {% endblock %}
 
         <!-- Contenido principal -->
         <main class="app-content">
@@ -332,8 +334,8 @@
         </main>
 
         <!-- Footer con Navegación Móvil -->
+        {% block footer %}
         <footer class="app-footer">
-            {% block footer %}
             <nav class="mobile-nav">
                 <a href="/dashboard" class="nav-item {{ 'active' if is_dashboard }}">
                     <i class="fas fa-chart-pie"></i>
@@ -352,10 +354,11 @@
                     <span>Etiquetas</span>
                 </a>
             </nav>
-            {% endblock %}
         </footer>
+        {% endblock %}
     </div>
 
+    {% block tabbar %}
     <nav class="tabbar" aria-label="Navegación principal">
       <a href="{{ url_for('dashboard') }}" class="tab {% if request.endpoint == 'dashboard' %}active{% endif %}">
         <i class="fas fa-home" aria-hidden="true"></i>
@@ -378,6 +381,7 @@
         Más
       </a>
     </nav>
+    {% endblock %}
 
     <!-- Scripts optimizados - FORZAR MINIFICADOS -->
     {% block scripts %}{% endblock %}

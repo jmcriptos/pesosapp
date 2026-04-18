@@ -1,0 +1,433 @@
+/* ────────────────────────────────────────────────────────────
+   Dashboard — Light theme reskin overrides.
+   Scope: body[data-dashboard-screen] — keeps topbar/tabbar dark
+   (navigation chrome), migrates content area to light glass.
+   ──────────────────────────────────────────────────────────── */
+
+body[data-dashboard-screen] .app-content,
+body[data-dashboard-screen] .app-shell,
+body[data-dashboard-screen] .app-shell.dash-body,
+body[data-dashboard-screen] .screen-body {
+  background: #f8fafc !important;
+  background-image: none !important;
+}
+
+body[data-dashboard-screen] .app-container {
+  /* Keep container transparent so body bg shows */
+  background: transparent !important;
+}
+
+/* Scope token overrides to the content wrappers only, NOT the body.
+   This keeps topbar/tabbar reading the base dark-theme tokens while the
+   dashboard content area switches to light. */
+body[data-dashboard-screen] .app-content,
+body[data-dashboard-screen] .app-shell.dash-body,
+body[data-dashboard-screen] .screen-body {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-surface-strong: rgba(255, 255, 255, 0.92);
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --shadow-card: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+  --shadow-card-strong: 0 20px 48px -16px rgba(15, 23, 42, 0.14);
+}
+
+/* Content area gets darker text (topbar stays on dark, so we scope carefully) */
+body[data-dashboard-screen] .app-shell.dash-body {
+  color: #0f172a;
+  min-height: calc(100vh - 64px);
+  padding: 16px;
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 900px) {
+  body[data-dashboard-screen] .app-shell.dash-body {
+    max-width: 1100px;
+    margin-inline: auto;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Hero — light variant
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .hero {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  padding: 6px 4px 14px !important;
+}
+
+body[data-dashboard-screen] .hero-kicker {
+  color: #64748b !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-dashboard-screen] .hero-title {
+  color: #0f172a !important;
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em;
+  margin: 4px 0 0 !important;
+}
+
+body[data-dashboard-screen] .hero-sub {
+  color: #64748b !important;
+  font-size: 0.84rem;
+  margin-top: 4px;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Tab segmented control
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .dash-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 14px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+body[data-dashboard-screen] .dash-seg::-webkit-scrollbar {
+  display: none;
+}
+
+body[data-dashboard-screen] .dash-seg button {
+  background: transparent !important;
+  background-image: none !important;
+  color: #64748b !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  padding: 9px 16px !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 160ms ease;
+}
+
+body[data-dashboard-screen] .dash-seg button.active {
+  background: linear-gradient(135deg, var(--indigo-500, #6366f1), var(--violet-500, #8b5cf6)) !important;
+  background-image: linear-gradient(135deg, var(--indigo-500, #6366f1), var(--violet-500, #8b5cf6)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px -8px rgba(99, 102, 241, 0.55) !important;
+}
+
+body[data-dashboard-screen] .dash-seg button:not(.active):hover {
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   KPI cards
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .kpi-grid,
+body[data-dashboard-screen] .svc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 900px) {
+  body[data-dashboard-screen] .kpi-grid,
+  body[data-dashboard-screen] .svc-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+body[data-dashboard-screen] .kpi {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #f1f5f9 !important;
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+  color: #0f172a !important;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-dashboard-screen] .kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+body[data-dashboard-screen] .kpi-label {
+  color: #64748b !important;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-dashboard-screen] .kpi-value {
+  color: #0f172a !important;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+body[data-dashboard-screen] .kpi-value small {
+  color: #94a3b8 !important;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body[data-dashboard-screen] .kpi-sub {
+  color: #64748b !important;
+  font-size: 0.76rem;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+body[data-dashboard-screen] .kpi-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, #10b981 14%, transparent);
+  color: #065f46;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+body[data-dashboard-screen] .kpi-trend.down {
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+  color: #991b1b;
+}
+
+/* Progress ring within KPI — keep color but adapt track */
+body[data-dashboard-screen] .kpi .ring-wrap circle:first-child {
+  stroke: rgba(15, 23, 42, 0.08) !important;
+}
+
+body[data-dashboard-screen] .ring-label {
+  color: #0f172a !important;
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Section headers
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 16px 0 8px;
+  padding: 0 4px;
+}
+
+body[data-dashboard-screen] .sec-title {
+  color: #94a3b8 !important;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+body[data-dashboard-screen] .sec-action {
+  color: var(--indigo-500, #6366f1) !important;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Glass cards (generic + chart)
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .gcard {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #f1f5f9 !important;
+  border-radius: 16px !important;
+  color: #0f172a !important;
+  box-shadow: var(--shadow-card) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 14px 16px;
+}
+
+body[data-dashboard-screen] .chart-card {
+  padding: 14px 16px !important;
+}
+
+body[data-dashboard-screen] .chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+body[data-dashboard-screen] .chart-big {
+  color: #0f172a !important;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+body[data-dashboard-screen] .chart-big small {
+  color: #64748b !important;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+body[data-dashboard-screen] .chart-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: #64748b !important;
+  font-size: 0.82rem;
+}
+
+body[data-dashboard-screen] .trend-chart-wrap {
+  background: transparent;
+  min-height: 180px;
+  padding: 6px 0 0;
+}
+
+body[data-dashboard-screen] .trend-chart-wrap canvas {
+  filter: none;
+}
+
+/* Chart.js text colors (if the chart reads its env) — defensive */
+body[data-dashboard-screen] .chart-legend i {
+  color: inherit;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Week mini cards
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .week-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+body[data-dashboard-screen] .week-mini-card {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #f1f5f9 !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  color: #0f172a !important;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+body[data-dashboard-screen] .week-mini-label {
+  color: #94a3b8 !important;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-dashboard-screen] .week-mini-val {
+  color: #0f172a !important;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+body[data-dashboard-screen] .week-mini-val small {
+  color: #94a3b8 !important;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Other panels (servicio, top, actividad) — generic card support
+   ──────────────────────────────────────────────────────────── */
+body[data-dashboard-screen] .svc-kpi-grid .kpi,
+body[data-dashboard-screen] .dash-panel .gcard,
+body[data-dashboard-screen] .dash-panel .kpi {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #f1f5f9 !important;
+}
+
+/* Top / ranking rows */
+body[data-dashboard-screen] .rank-row,
+body[data-dashboard-screen] .ranking-item,
+body[data-dashboard-screen] .list-row {
+  background: transparent !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+body[data-dashboard-screen] .rank-row:last-child,
+body[data-dashboard-screen] .ranking-item:last-child {
+  border-bottom: 0;
+}
+
+/* Activity feed items */
+body[data-dashboard-screen] .activity-item,
+body[data-dashboard-screen] .feed-item {
+  background: transparent !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Responsive viewport for the swipe carousel */
+body[data-dashboard-screen] .panels-viewport {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+body[data-dashboard-screen] .panels-track {
+  background: transparent !important;
+}
+
+body[data-dashboard-screen] .dash-panel {
+  background: transparent !important;
+}
+
+/* Links generic */
+body[data-dashboard-screen] .app-shell a {
+  color: var(--indigo-500, #6366f1);
+}

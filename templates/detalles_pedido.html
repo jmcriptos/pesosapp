@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Detalles del Pedido{% endblock %}
+{% block title %}Detalles PED-{{ pedido.id }} — PesosApp{% endblock %}
+
+{% block body_attrs %}data-theme="light" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-detalles-screen="1"{% endblock %}
+
+{% block topbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block tabbar %}{% endblock %}
 
 {% block header_title %}
     <span class="fw-700 color-white">
@@ -976,117 +982,26 @@ tr.linea-pedido-original td:first-child {
     }
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/detalles_pedido.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="app-shell">
 <div class="mobile-form-container">
 
-    <!-- Hero de detalle -->
     {% set estado = (pedido.estado or '')|lower %}
-    <header class="detail-hero">
-      <div class="dh-row">
-        <div>
-          <div class="dh-id">PED-{{ pedido.id }}</div>
-          <div class="dh-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
-          <div class="dh-meta">
-            {% if pedido.fecha_pedido %}
-              Pedido: {{ pedido.fecha_pedido.strftime('%A %d de %B') }}
-            {% endif %}
-          </div>
-        </div>
-        <span class="status-pill {{ estado }}"
-              style="background: rgba(255,255,255,0.18); color: white; align-self: flex-start;">
-          {{ pedido.estado|capitalize }}
-        </span>
-      </div>
-      <div class="dh-stats">
-        <div class="dh-stat">
-          <div class="dh-stat-label">Líneas</div>
-          <div class="dh-stat-val">{{ detalles_ordenados|length if detalles_ordenados else 0 }}</div>
-        </div>
-        <div class="dh-stat">
-          <div class="dh-stat-label">Peso total</div>
-          <div class="dh-stat-val">
-            {{ '{:.1f}'.format(detalles_ordenados|selectattr('es_linea_pedido', 'equalto', False)|sum(attribute='peso') if detalles_ordenados else 0) }}
-            <small>kg</small>
-          </div>
-        </div>
-        <div class="dh-stat">
-          <div class="dh-stat-label">Total</div>
-          <div class="dh-stat-val">{{ '{:,.0f}'.format(pedido.total_calculado or 0) if pedido.total_calculado is defined else '—' }}</div>
-        </div>
-      </div>
-    </header>
+
+    <!-- Hero de detalle -->
+    {% include 'partials/_detail_hero.html' %}
 
     <!-- Timeline de estados -->
-    {% set steps = [
-      ('pendiente',  'Pedido creado',  'fa-plus-circle'),
-      ('preparado',  'Preparado',      'fa-box'),
-      ('facturado',  'Facturado',      'fa-file-invoice'),
-      ('entregado',  'Entregado',      'fa-truck'),
-    ] %}
-    {% set active_map = {'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3} %}
-    {% set active_idx = active_map.get(estado, 0) %}
-    <div class="gcard timeline" style="margin: 0 16px 14px;">
-      {% for key, label, icon in steps %}
-        {% set idx = loop.index0 %}
-        <div class="tl-item">
-          <span class="tl-dot {% if idx < active_idx %}done{% elif idx == active_idx %}active{% endif %}"></span>
-          <div class="tl-title">{{ label }}</div>
-          <div class="tl-meta">
-            {% if idx < active_idx %}Completado
-            {% elif idx == active_idx %}En curso
-            {% else %}Pendiente{% endif %}
-          </div>
-        </div>
-      {% endfor %}
-    </div>
+    {% include 'partials/_detail_timeline.html' %}
 
-    <!-- Vista glass de líneas de preparación -->
-    <div class="gcard" style="margin: 0 16px 14px; padding: 0;">
-      <div class="line-items">
-        {% if detalles_ordenados %}
-          {% for detalle in detalles_ordenados %}
-            {% if not detalle.es_linea_pedido %}
-            <div class="line-item" data-cat="{{ (detalle.producto.temperatura if detalle.producto and detalle.producto.temperatura else ('pesa' if detalle.producto and detalle.producto.se_pesa else 'caja'))|lower }}">
-              <div class="li-strip"></div>
-              <div class="li-body">
-                <div class="li-name">{{ detalle.producto.nombre if detalle.producto else '—' }}</div>
-                <div class="li-meta">
-                  {% if detalle.producto and detalle.producto.se_pesa %}
-                    {{ detalle.peso }} kg
-                    {% if detalle.lote %} · Lote: {{ detalle.lote }}{% endif %}
-                  {% else %}
-                    {{ detalle.cajas }} cajas
-                    {% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} / {{ detalle.cajas_pedidas }}{% endif %}
-                  {% endif %}
-                </div>
-              </div>
-              <div class="li-qty">
-                {% if detalle.producto and detalle.producto.se_pesa %}
-                  {{ '{:.1f}'.format(detalle.peso) }}<small>kg</small>
-                {% else %}
-                  {{ detalle.cajas }}<small>cajas</small>
-                {% endif %}
-              </div>
-            </div>
-            {% endif %}
-          {% endfor %}
-          {% if detalles_ordenados|selectattr('es_linea_pedido', 'equalto', False)|list|length == 0 %}
-            <div style="padding: 20px 16px; color: var(--on-surface-variant, #6b7280); text-align: center; font-size: 0.9rem;">
-              <i class="fas fa-box-open" style="font-size: 1.5rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
-              Sin líneas de preparación aún
-            </div>
-          {% endif %}
-        {% else %}
-          <div style="padding: 20px 16px; color: var(--on-surface-variant, #6b7280); text-align: center; font-size: 0.9rem;">
-            <i class="fas fa-box-open" style="font-size: 1.5rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
-            No hay productos aún
-          </div>
-        {% endif %}
-      </div>
-    </div>
+    <!-- Tabs Productos / Detalles / Historial -->
+    {% include 'partials/_detail_tabs.html' %}
+
+    <!-- Panel: Productos (default activo) -->
+    <div class="detail-panel is-active" data-panel="productos">
 
     <!-- Barra de estado (legado — oculta en mobile, visible en desktop para reintentar) -->
     <div class="status-bar" style="display:none;">
@@ -1125,223 +1040,11 @@ tr.linea-pedido-original td:first-child {
     </div>
     {% endif %}
 
-    {% if pedido.estado != 'facturado' %}
-    <!-- Formulario para agregar producto -->
-    <div class="mobile-card">
-        <div class="mobile-card-header">
-            <i class="fas fa-plus-circle"></i>
-            Agregar producto
-        </div>
-        <div class="mobile-card-body">
-            {% set detalle_context = saved_detalle_context or {} %}
-            <form id="form-detalle" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="mobile-form-grid">
-
-                    <!-- Producto -->
-                    <div class="mobile-form-group mobile-form-group-producto">
-                        <label class="mobile-form-label" for="producto_id">Producto</label>
-                        <select name="producto_id" id="producto_id" class="mobile-form-control ts-select" required>
-                                <option value="">Seleccionar...</option>
-                                {% for p in productos|sort(attribute='nombre') %}
-                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}" {% if detalle_context.get('producto_id')|string == p.id|string %}selected{% endif %}>{{ p.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                    </div>
-
-                    <!-- Cantidad (peso o cajas según producto) -->
-                    <div class="mobile-form-group mobile-form-group-cantidad">
-                        <label class="mobile-form-label" for="peso" id="cantidad_label">Peso (kg)</label>
-                        <input type="text" inputmode="decimal" name="peso" id="peso"
-                               class="mobile-form-control" placeholder="0.00"
-                               pattern="[0-9]*[.,]?[0-9]*" required>
-                    </div>
-
-                    <!-- Lote -->
-                    <div class="mobile-form-group mobile-form-group-lote">
-                        <label class="mobile-form-label" for="lote">Lote</label>
-                        <input type="text" name="lote" id="lote"
-                               class="mobile-form-control" placeholder="Ej: L001" value="{{ detalle_context.get('lote', '') }}" required>
-                    </div>
-
-                    <!-- Fecha Fabricación -->
-                    <div class="mobile-form-group mobile-form-group-fab">
-                        <label class="mobile-form-label" for="fecha_fabricacion">F. Fabricación</label>
-                        <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
-                               class="mobile-form-control" value="{{ detalle_context.get('fecha_fabricacion', '') }}" required>
-                    </div>
-
-                    <!-- Fecha Expiración -->
-                    <div class="mobile-form-group mobile-form-group-exp">
-                        <label class="mobile-form-label" for="fecha_expiracion">F. Expiración</label>
-                        <input type="date" name="fecha_expiracion" id="fecha_expiracion"
-                               class="mobile-form-control" value="{{ detalle_context.get('fecha_expiracion', '') }}" required>
-                    </div>
-
-                    <!-- Botón Agregar -->
-                    <div class="mobile-form-group mobile-form-group-btn">
-                        <label class="mobile-form-label mobile-label-hidden">Acción</label>
-                        <button type="submit" class="mobile-btn mobile-btn-success">
-                            <i class="fas fa-plus"></i>
-                            <span>Agregar</span>
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
+    <!-- Summary strip de productos -->
+    {% include 'partials/_detail_productos_summary.html' %}
 
     <!-- Productos agregados -->
-    <div class="mobile-card">
-        <div class="mobile-card-header">
-            <i class="fas fa-box"></i>
-            Productos ({{ detalles_ordenados|length if detalles_ordenados else 0 }})
-        </div>
-        <div class="mobile-card-body">
-            <div class="mobile-table-container">
-
-                <!-- Vista móvil: Cards -->
-                <div class="productos-list-mobile">
-                    {% if detalles_ordenados %}
-                        {% for detalle in detalles_ordenados %}
-                        {% if detalle.es_linea_pedido %}
-                        {# Línea de pedido original: solo nombre + cajas #}
-                        <div class="producto-item-mobile linea-pedido-original">
-                            <div class="producto-item-header">
-                                <span class="producto-item-name">{{ detalle.producto.nombre }} <span class="badge-pedido">Pedido</span></span>
-                            </div>
-                            <div class="producto-item-body">
-                                <div class="producto-detail">
-                                    <span class="producto-detail-label">Cajas pedidas</span>
-                                    <span class="producto-detail-value">{{ detalle.cajas_pedidas or detalle.cajas }} cajas</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% else %}
-                        {# Línea de preparación: detalle completo #}
-                        <div class="producto-item-mobile linea-preparacion">
-                            <div class="producto-item-header">
-                                <span class="producto-item-index">{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</span>
-                                <span class="producto-item-name">{{ detalle.producto.nombre }}</span>
-                            </div>
-                            <div class="producto-item-body">
-                                <div class="producto-detail">
-                                    <span class="producto-detail-label">Cantidad</span>
-                                    <span class="producto-detail-value">{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.6">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</span>
-                                </div>
-                                {% if detalle.producto.se_pesa %}
-                                <div class="producto-detail">
-                                    <span class="producto-detail-label">Lote</span>
-                                    <span class="producto-detail-value">{{ detalle.lote or '—' }}</span>
-                                </div>
-                                <div class="producto-detail">
-                                    <span class="producto-detail-label">F. Fab.</span>
-                                    <span class="producto-detail-value">{{ detalle.fecha_fabricacion or '—' }}</span>
-                                </div>
-                                <div class="producto-detail">
-                                    <span class="producto-detail-label">F. Exp.</span>
-                                    <span class="producto-detail-value">{{ detalle.fecha_expiracion or '—' }}</span>
-                                </div>
-                                {% else %}
-                                <div class="producto-detail">
-                                    <span class="producto-detail-label">F. Exp.</span>
-                                    <span class="producto-detail-value">{{ detalle.fecha_expiracion or '—' }}</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                            <div class="producto-item-footer">
-                                {% if pedido.estado != 'facturado' %}
-                                <div class="producto-item-actions">
-                                    <button type="button" class="mobile-edit-btn"
-                                            onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote or '' }}', '{{ detalle.fecha_fabricacion or '' }}', '{{ detalle.fecha_expiracion or '' }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
-                                        <i class="fas fa-edit"></i>
-                                        <span>Editar</span>
-                                    </button>
-                                    <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto?">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="mobile-delete-btn">
-                                            <i class="fas fa-trash-alt"></i>
-                                            <span>Eliminar</span>
-                                        </button>
-                                    </form>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <div class="mobile-empty-state">
-                            <i class="fas fa-box-open"></i>
-                            <p>No hay productos agregados</p>
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Vista desktop: Tabla -->
-                <table class="mobile-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Lote</th>
-                            <th>F. Fab.</th>
-                            <th>F. Exp.</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if detalles_ordenados %}
-                            {% for detalle in detalles_ordenados %}
-                            {% if detalle.es_linea_pedido %}
-                            <tr class="linea-pedido-original">
-                                <td></td>
-                                <td class="product-name">{{ detalle.producto.nombre }} <span class="badge-pedido">Pedido</span></td>
-                                <td>{{ detalle.cajas_pedidas or detalle.cajas }} cajas</td>
-                                <td>—</td>
-                                <td>—</td>
-                                <td>—</td>
-                                <td></td>
-                            </tr>
-                            {% else %}
-                            <tr class="linea-preparacion">
-                                <td>{{ indice_detalle[detalle.id] }}/{{ conteo_por_producto[detalle.producto_id] }}</td>
-                                <td class="product-name">{{ detalle.producto.nombre }}</td>
-                                <td>{% if detalle.producto.se_pesa %}{{ detalle.peso }} kg{% else %}{{ detalle.cajas }} cajas{% if detalle.cajas_pedidas and detalle.cajas != detalle.cajas_pedidas %} <small style="opacity:0.5">/ {{ detalle.cajas_pedidas }}</small>{% endif %}{% endif %}</td>
-                                <td>{% if detalle.producto.se_pesa %}{{ detalle.lote or '—' }}{% else %}—{% endif %}</td>
-                                <td>{% if detalle.producto.se_pesa %}{{ detalle.fecha_fabricacion or '—' }}{% else %}—{% endif %}</td>
-                                <td>{{ detalle.fecha_expiracion or '—' }}</td>
-                                <td>
-                                    {% if pedido.estado != 'facturado' %}
-                                    <div class="table-actions">
-                                        <button type="button" class="mobile-edit-btn" title="Editar producto"
-                                                onclick="openEditModal({{ detalle.id }}, {{ detalle.producto_id }}, {{ detalle.peso }}, '{{ detalle.lote or '' }}', '{{ detalle.fecha_fabricacion or '' }}', '{{ detalle.fecha_expiracion or '' }}', {{ detalle.cajas }}, {{ 'true' if detalle.producto.se_pesa else 'false' }})">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=detalle.id) }}" method="POST" class="form-inline" data-confirm="¿Eliminar este producto del pedido?">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="mobile-delete-btn" title="Eliminar producto">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="mobile-empty-state">No hay productos agregados al pedido</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    {% include 'partials/_detail_productos_card.html' %}
 
     <!-- Botón Marcar como Preparado (sticky legado — oculto, reemplazado por action-bar) -->
     {% if pedido.estado == 'pendiente' %}
@@ -1357,187 +1060,71 @@ tr.linea-pedido-original td:first-child {
     {% endif %}
 
     <!-- Sección de etiquetas (collapsible) -->
-    <div class="mobile-card">
-        <div class="mobile-card-header collapsible-header" onclick="toggleEtiquetas()">
-            <i class="fas fa-tags"></i>
-            Generar etiquetas
-            <i class="fas fa-chevron-down collapse-icon" id="etiquetas-icon" style="margin-left:auto; transition: transform 0.3s ease;"></i>
-        </div>
-        <div class="mobile-card-body collapsible-body" id="etiquetas-body" style="display:none;">
-            <form id="form-etiquetas-detalle">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% include 'partials/_detail_etiquetas.html' %}
 
-                <div class="mobile-form-group" style="margin-bottom: 16px;">
-                    <label class="mobile-form-label">Cliente</label>
-                    <input type="text" class="mobile-form-control" value="{{ pedido.cliente.nombre }}" readonly style="background: #e5e7eb;">
-                </div>
+    </div><!-- /.detail-panel[productos] -->
 
-                {% set formato_seleccionado = request.args.get('formato', '4x2') %}
-                {% set valid_fechas = [] %}
-                {% for detalle in pedido.detalles %}
-                    {% if detalle.fecha_fabricacion %}
-                        {% set _ = valid_fechas.append(detalle.fecha_fabricacion) %}
-                    {% endif %}
-                {% endfor %}
+    <!-- Panel: Detalles -->
+    <div class="detail-panel" data-panel="detalles" hidden>
+      {% include 'partials/_detail_tab_detalles.html' %}
+    </div>
 
-                {% if valid_fechas %}
-                    {% set f_inicio = valid_fechas|min %}
-                    {% set f_fin = valid_fechas|max %}
-                {% else %}
-                    {% set f_inicio = '' %}
-                    {% set f_fin = '' %}
-                {% endif %}
-
-                <div class="etiquetas-grid">
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="fecha_inicio">Fecha inicio</label>
-                        <input type="date" name="fecha_inicio" id="fecha_inicio" class="mobile-form-control" value="{{ f_inicio or '' }}" required>
-                    </div>
-
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="fecha_fin">Fecha fin</label>
-                        <input type="date" name="fecha_fin" id="fecha_fin" class="mobile-form-control" value="{{ f_fin or '' }}" required>
-                    </div>
-
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="formato_etiqueta">Formato</label>
-                        <select name="formato" id="formato_etiqueta" class="mobile-form-control" required>
-                                <option value="4x2" {% if formato_seleccionado != 'a4' %}selected{% endif %}>4" x 2" (Térmica)</option>
-                                <option value="a4" {% if formato_seleccionado == 'a4' %}selected{% endif %}>A4 (2 por página)</option>
-                            </select>
-                    </div>
-                </div>
-
-                <div class="etiquetas-buttons">
-                    <button type="submit" class="mobile-btn mobile-btn-primary" id="btn-generar-etiquetas">
-                        <i class="fas fa-print"></i>
-                        <span class="btn-text">4x2" Térmica</span>
-                        <span class="btn-loading">
-                            <i class="fas fa-spinner fa-spin"></i> Generando...
-                        </span>
-                    </button>
-                    <button type="button" class="mobile-btn mobile-btn-success" id="btn-generar-etiquetas-a4">
-                        <i class="fas fa-file-pdf"></i>
-                        <span class="btn-text">A4 (2 por página)</span>
-                        <span class="btn-loading">
-                            <i class="fas fa-spinner fa-spin"></i> Generando...
-                        </span>
-                    </button>
-                </div>
-            </form>
-        </div>
+    <!-- Panel: Historial -->
+    <div class="detail-panel" data-panel="historial" hidden>
+      {% include 'partials/_detail_tab_historial.html' %}
     </div>
 
 </div><!-- /.mobile-form-container -->
 
 <!-- Action bar sticky -->
-{% if estado in ['pendiente', 'preparado'] %}
-<div class="action-bar">
-  {% if estado == 'pendiente' %}
-    <form method="post"
-          action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}"
-          data-confirm="¿Marcar este pedido como preparado? Se validará la trazabilidad de todos los productos."
-          style="flex:1;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn-primary" style="width:100%;">
-        <i class="fas fa-check-circle"></i> Marcar preparado
-      </button>
-    </form>
-  {% elif estado == 'preparado' %}
-    <form method="post"
-          action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
-          style="flex:1;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn-primary" style="width:100%;">
-        <i class="fas fa-file-invoice"></i> Facturar
-      </button>
-    </form>
-  {% endif %}
-  <a href="{{ url_for('lista_pedidos') }}" class="btn-secondary"
-     style="display:grid; place-items:center; text-decoration:none; white-space:nowrap;">
-    Volver
-  </a>
-</div>
-{% endif %}
+{% include 'partials/_detail_action_bar.html' %}
 
 </div><!-- /.app-shell -->
 
-{% if pedido.estado != 'facturado' %}
-<!-- Modal de edición de producto -->
-<div class="edit-modal-overlay" id="editModalOverlay">
-    <div class="edit-modal">
-        <div class="edit-modal-header">
-            <div class="edit-modal-title">
-                <i class="fas fa-edit"></i>
-                Editar producto
-            </div>
-            <button type="button" class="edit-modal-close" onclick="closeEditModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="editDetalleForm" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="edit-modal-body">
-                <div class="mobile-form-grid" style="display: flex; flex-direction: column; gap: 16px;">
-                    <!-- Producto -->
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="edit_producto_id">Producto</label>
-                        <select name="producto_id" id="edit_producto_id" class="mobile-form-control ts-select" required>
-                                <option value="">Seleccionar...</option>
-                                {% for p in productos|sort(attribute='nombre') %}
-                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                    </div>
-
-                    <!-- Cantidad (peso o cajas según producto) -->
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="edit_peso" id="edit_cantidad_label">Peso (kg)</label>
-                        <input type="text" inputmode="decimal" name="peso" id="edit_peso"
-                               class="mobile-form-control" placeholder="0.00"
-                               pattern="[0-9]*[.,]?[0-9]*" required>
-                    </div>
-
-                    <!-- Lote -->
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="edit_lote">Lote</label>
-                        <input type="text" name="lote" id="edit_lote"
-                               class="mobile-form-control" placeholder="Ej: L001" required>
-                    </div>
-
-                    <!-- Fecha Fabricación -->
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="edit_fecha_fabricacion">F. Fabricación</label>
-                        <input type="date" name="fecha_fabricacion" id="edit_fecha_fabricacion"
-                               class="mobile-form-control" required>
-                    </div>
-
-                    <!-- Fecha Expiración -->
-                    <div class="mobile-form-group">
-                        <label class="mobile-form-label" for="edit_fecha_expiracion">F. Expiración</label>
-                        <input type="date" name="fecha_expiracion" id="edit_fecha_expiracion"
-                               class="mobile-form-control" required>
-                    </div>
-                </div>
-            </div>
-            <div class="edit-modal-footer">
-                <button type="button" class="mobile-btn mobile-btn-secondary" onclick="closeEditModal()">
-                    <i class="fas fa-times"></i>
-                    Cancelar
-                </button>
-                <button type="submit" class="mobile-btn mobile-btn-success">
-                    <i class="fas fa-check"></i>
-                    Guardar
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endif %}
+{% include 'partials/_detail_edit_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ========================================================================
+// TABS PRODUCTOS / DETALLES / HISTORIAL
+// ========================================================================
+(function () {
+  const tabs = document.querySelectorAll('.detail-tab');
+  const panels = document.querySelectorAll('.detail-panel');
+  if (!tabs.length) return;
+
+  function activate(tabName, { scroll = false } = {}) {
+    tabs.forEach((t) => {
+      const isActive = t.dataset.tab === tabName;
+      t.classList.toggle('is-active', isActive);
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    panels.forEach((p) => {
+      const isActive = p.dataset.panel === tabName;
+      p.classList.toggle('is-active', isActive);
+      if (isActive) {
+        p.removeAttribute('hidden');
+      } else {
+        p.setAttribute('hidden', '');
+      }
+    });
+    try { history.replaceState(null, '', '#' + tabName); } catch (e) { /* ignore */ }
+    if (scroll) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  tabs.forEach((t) => {
+    t.addEventListener('click', () => activate(t.dataset.tab));
+  });
+
+  const initial = (location.hash || '').replace(/^#/, '');
+  if (initial && ['productos', 'detalles', 'historial'].includes(initial)) {
+    activate(initial);
+  }
+})();
+
 // ========================================================================
 // MODAL DE EDICIÓN - FUNCIONES
 // ========================================================================

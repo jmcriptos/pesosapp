@@ -1,0 +1,59 @@
+{% set tipo_icon = {
+  'creado': 'fa-plus-circle',
+  'preparado': 'fa-box',
+  'pesaje_finalizado': 'fa-weight-hanging',
+  'facturado': 'fa-file-invoice',
+  'caja_pesada': 'fa-cube',
+  'caja_editada': 'fa-pen',
+  'caja_eliminada': 'fa-trash-alt',
+  'linea_agregada': 'fa-plus',
+  'linea_eliminada': 'fa-minus',
+  'linea_editada': 'fa-pen',
+} %}
+
+{% set tipo_color = {
+  'creado': 'indigo',
+  'preparado': 'success',
+  'pesaje_finalizado': 'indigo',
+  'facturado': 'success',
+  'caja_pesada': 'indigo',
+  'caja_editada': 'warning',
+  'caja_eliminada': 'danger',
+  'linea_agregada': 'indigo',
+  'linea_eliminada': 'danger',
+  'linea_editada': 'warning',
+} %}
+
+{% if eventos %}
+<div class="detail-history">
+  {% for ev in eventos %}
+    {% set color = tipo_color.get(ev.tipo, 'muted') %}
+    <div class="detail-history-item detail-history-{{ color }}">
+      <div class="detail-history-dot">
+        <i class="fas {{ tipo_icon.get(ev.tipo, 'fa-circle') }}"></i>
+      </div>
+      <div class="detail-history-body">
+        <div class="detail-history-descripcion">{{ ev.descripcion or ev.tipo|replace('_', ' ')|capitalize }}</div>
+        <div class="detail-history-meta">
+          <span class="detail-history-time">
+            <i class="far fa-clock"></i>
+            {{ ev.created_at.strftime('%d/%m/%Y %H:%M') }}
+          </span>
+          {% if ev.usuario %}
+          <span class="detail-history-user">
+            <i class="far fa-user"></i>
+            {{ ev.usuario.nombre_completo or ev.usuario.username }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="detail-history-empty">
+  <i class="fas fa-clock-rotate-left"></i>
+  <p>No hay eventos registrados para este pedido.</p>
+  <small>El historial comenzará a registrarse a partir de la próxima acción.</small>
+</div>
+{% endif %}

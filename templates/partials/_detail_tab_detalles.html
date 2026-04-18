@@ -1,0 +1,67 @@
+<div class="detail-kv-card">
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Folio</div>
+    <div class="detail-kv-value">PED-{{ pedido.id }}</div>
+  </div>
+
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Cliente</div>
+    <div class="detail-kv-value">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
+  </div>
+
+  {% if pedido.cliente and pedido.cliente.qbo_id %}
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">QBO ID Cliente</div>
+    <div class="detail-kv-value detail-kv-mono">{{ pedido.cliente.qbo_id }}</div>
+  </div>
+  {% endif %}
+
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Estado</div>
+    <div class="detail-kv-value">
+      <span class="detail-kv-pill state-{{ estado }}">{{ pedido.estado|capitalize }}</span>
+    </div>
+  </div>
+
+  {% if pedido.fecha_pedido %}
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Fecha pedido</div>
+    <div class="detail-kv-value">{{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}</div>
+  </div>
+  {% endif %}
+
+  {% if pedido.fecha_facturacion %}
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Fecha facturación</div>
+    <div class="detail-kv-value">{{ pedido.fecha_facturacion.strftime('%d/%m/%Y %H:%M') }}</div>
+  </div>
+  {% endif %}
+
+  {% if pedido.cliente and pedido.cliente.moneda %}
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Moneda</div>
+    <div class="detail-kv-value detail-kv-mono">{{ pedido.cliente.moneda }}</div>
+  </div>
+  {% endif %}
+
+  {% if pedido.tipo_cambio %}
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Tipo de cambio</div>
+    <div class="detail-kv-value detail-kv-mono">{{ '{:.4f}'.format(pedido.tipo_cambio|float) }}</div>
+  </div>
+  {% endif %}
+
+  {% if pedido.invoice_id_qbo %}
+  <div class="detail-kv-row">
+    <div class="detail-kv-label">Invoice QBO</div>
+    <div class="detail-kv-value detail-kv-mono">{{ pedido.invoice_id_qbo }}</div>
+  </div>
+  {% endif %}
+
+  {% if pedido.notas %}
+  <div class="detail-kv-row detail-kv-row-notes">
+    <div class="detail-kv-label">Notas</div>
+    <div class="detail-kv-value detail-kv-notes">{{ pedido.notas }}</div>
+  </div>
+  {% endif %}
+</div>

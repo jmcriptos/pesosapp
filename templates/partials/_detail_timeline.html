@@ -1,0 +1,22 @@
+{% set steps = [
+  ('pendiente',  'Pedido creado',  'fa-plus-circle'),
+  ('preparado',  'Preparado',      'fa-box'),
+  ('facturado',  'Facturado',      'fa-file-invoice'),
+  ('entregado',  'Entregado',      'fa-truck'),
+] %}
+{% set active_map = {'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3} %}
+{% set active_idx = active_map.get(estado, 0) %}
+<div class="gcard timeline" style="margin: 0 16px 14px;">
+  {% for key, label, icon in steps %}
+    {% set idx = loop.index0 %}
+    <div class="tl-item">
+      <span class="tl-dot {% if idx < active_idx %}done{% elif idx == active_idx %}active{% endif %}"></span>
+      <div class="tl-title">{{ label }}</div>
+      <div class="tl-meta">
+        {% if idx < active_idx %}Completado
+        {% elif idx == active_idx %}En curso
+        {% else %}Pendiente{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>

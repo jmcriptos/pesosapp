@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Pesar PED-{{ pedido.id }} — PesosApp{% endblock %}
+
+{% block body_attrs %}data-theme="light" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pesar-screen="1"{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pesar.css') }}">
+{% endblock %}
+
+{% block topbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block tabbar %}{% endblock %}
+
+{% block header_title %}Pesar pedido{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+  <div class="pesar-screen" data-pedido-id="{{ pedido.id }}" data-active-detalle-id="{{ active_detalle.id if active_detalle else '' }}">
+    <div id="pesar-feedback" class="pesar-feedback" aria-live="polite"></div>
+
+    {% if active_detalle %}
+      <div class="pesar-frame" data-cat="{{ active_detalle.categoria_code }}">
+        <div class="pesar-nav">
+          <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="pesar-nav-pill" aria-label="Cerrar">
+            <i class="fas fa-times"></i>
+          </a>
+          <div class="pesar-nav-copy">
+            <div class="pesar-nav-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
+            <div class="pesar-nav-meta">
+              <span>PED-{{ pedido.id }}</span>
+              <span>·</span>
+              <span>{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'Hoy' }}</span>
+            </div>
+          </div>
+          <button type="button" id="pesar-undo" class="pesar-nav-pill" aria-label="Deshacer última caja">
+            <i class="fas fa-rotate-left"></i>
+          </button>
+        </div>
+
+        <div class="pesar-chip-row" id="pesar-chip-row">
+          {% for detalle in detalles_pesables %}
+            {% include 'partials/pesar_chip_producto.html' %}
+          {% endfor %}
+        </div>
+
+        <div class="pesar-lote-card">
+          <div class="pesar-lote-head">
+            <span>Lote activo</span>
+            <button type="button" class="pesar-lote-new" id="pesar-nuevo-lote">
+              <i class="fas fa-plus"></i>
+              Nuevo lote
+            </button>
+          </div>
+
+          <form
+            id="pesar-add-form"
+            hx-post="{{ url_for('registrar_caja_pesada', pedido_id=pedido.id) }}"
+            hx-target="#cajas-list-producto-{{ active_detalle.id }}"
+            hx-swap="innerHTML"
+          >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="detalle_pedido_id" id="pesar-detalle-id" value="{{ active_detalle.id }}">
+            <input type="hidden" name="peso" id="pesar-peso-hidden" value="">
+            <input type="hidden" name="fecha_elaboracion" id="pesar-fecha-elab-hidden" value="">
+            <input type="hidden" name="fecha_vencimiento" id="pesar-fecha-venc-hidden" value="">
+
+            <label class="pesar-field">
+              <span>N° Lote</span>
+              <input type="text" name="lote" id="pesar-lote-input" maxlength="50" autocomplete="off" required>
+            </label>
+
+            <div class="pesar-field-grid">
+              <button type="button" class="pesar-date-trigger" data-date-trigger="fecha_elaboracion">
+                <span>Elaboración</span>
+                <strong id="pesar-fecha-elab-display">—</strong>
+              </button>
+              <button type="button" class="pesar-date-trigger" data-date-trigger="fecha_vencimiento">
+                <span>Vencimiento</span>
+                <strong id="pesar-fecha-venc-display">—</strong>
+                <small id="pesar-venc-badge">AUTO</small>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="pesar-keypad-card">
+          <div class="pesar-readout">
+            <div>
+              <div class="pesar-readout-label" id="pesar-readout-box-label">Caja 1 de {{ active_detalle.cajas_objetivo }}</div>
+              <div class="pesar-readout-product" id="pesar-readout-product">{{ active_detalle.producto.nombre }}</div>
+            </div>
+            <div class="pesar-readout-value">
+              <span id="pesar-weight-display">0</span>
+              <small>kg</small>
+            </div>
+          </div>
+
+          <div class="pesar-key-grid">
+            {% for key in ['1','2','3','back','4','5','6','clear','7','8','9','submit','0','.'] %}
+              <button
+                type="button"
+                class="pesar-key{% if key == 'submit' %} is-submit{% endif %}{% if key == '0' %} is-wide{% endif %}"
+                data-key="{{ key }}"
+              >
+                {% if key == 'back' %}
+                  <i class="fas fa-delete-left"></i>
+                {% elif key == 'clear' %}
+                  C
+                {% elif key == 'submit' %}
+                  <i class="fas fa-plus"></i>
+                  <span>Caja</span>
+                {% else %}
+                  {{ key }}
+                {% endif %}
+              </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="pesar-panels">
+          {% for detalle in detalles_pesables %}
+            <section
+              class="pesar-panel{% if active_detalle.id != detalle.id %} is-hidden{% endif %}"
+              data-detalle-id="{{ detalle.id }}"
+            >
+              <div id="cajas-list-producto-{{ detalle.id }}">
+                {% set grupos = cajas_por_detalle[detalle.id] %}
+                {% include 'partials/pesar_cajas_lista.html' %}
+              </div>
+            </section>
+          {% endfor %}
+        </div>
+
+        <div id="pesar-summary">
+          {% include 'partials/pesar_summary.html' %}
+        </div>
+      </div>
+    {% else %}
+      <div class="pesar-empty-screen">
+        <i class="fas fa-weight-scale"></i>
+        <p>No hay productos para pesar en este pedido.</p>
+      </div>
+    {% endif %}
+  </div>
+  <div id="modal-root"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="{{ url_for('static', filename='js/pesar.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,102 @@
+<div class="pesar-modal-overlay" data-pesar-modal>
+  <div class="pesar-modal" data-cat="{{ detalle.categoria_code }}">
+    <div class="pesar-modal-handle"></div>
+
+    <div class="pesar-modal-header">
+      <div>
+        <div class="pesar-modal-kicker">Editar caja #{{ '%02d'|format(caja.numero) }}</div>
+        <div class="pesar-modal-title">{{ detalle.producto.nombre }}</div>
+      </div>
+      <button type="button" class="pesar-modal-close" data-modal-close>
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form
+      id="edit-caja-form-{{ caja.id }}"
+      class="pesar-modal-form"
+      hx-patch="{{ url_for('actualizar_caja_pesada', caja_id=caja.id) }}"
+      hx-target="#cajas-list-producto-{{ detalle.id }}"
+      hx-swap="innerHTML"
+    >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="peso" value="{{ '{:.3f}'.format(caja.peso|float) }}" data-edit-hidden-weight>
+      <input type="hidden" name="fecha_elaboracion" value="{{ caja.fecha_elaboracion.strftime('%Y-%m-%d') }}" data-edit-date-input="fecha_elaboracion">
+      <input type="hidden" name="fecha_vencimiento" value="{{ caja.fecha_vencimiento.strftime('%Y-%m-%d') }}" data-edit-date-input="fecha_vencimiento">
+
+      <div class="pesar-edit-readout">
+        <div class="pesar-edit-label">Peso de la caja</div>
+        <div class="pesar-edit-value">
+          <span data-edit-weight-display>{{ '{:.3f}'.format(caja.peso|float) }}</span>
+          <small>kg</small>
+        </div>
+      </div>
+
+      <div class="pesar-edit-keypad">
+        {% for key in ['1','2','3','back','4','5','6','clear','7','8','9','.','0'] %}
+          <button
+            type="button"
+            class="pesar-edit-key"
+            data-edit-key="{{ key }}"
+            {% if key == '0' %}data-span="wide"{% endif %}
+          >
+            {% if key == 'back' %}
+              <i class="fas fa-delete-left"></i>
+            {% elif key == 'clear' %}
+              C
+            {% else %}
+              {{ key }}
+            {% endif %}
+          </button>
+        {% endfor %}
+      </div>
+
+      <div class="pesar-modal-fields">
+        <label class="pesar-field">
+          <span>N° Lote</span>
+          <input type="text" name="lote" maxlength="50" value="{{ caja.lote }}" required>
+        </label>
+
+        <div class="pesar-field-grid">
+          <button
+            type="button"
+            class="pesar-date-trigger"
+            data-edit-date-trigger="fecha_elaboracion"
+            data-current="{{ caja.fecha_elaboracion.strftime('%Y-%m-%d') }}"
+          >
+            <span>Elaboración</span>
+            <strong data-edit-date-display="fecha_elaboracion">{{ caja.fecha_elaboracion.strftime('%d/%m/%Y') }}</strong>
+          </button>
+
+          <button
+            type="button"
+            class="pesar-date-trigger"
+            data-edit-date-trigger="fecha_vencimiento"
+            data-current="{{ caja.fecha_vencimiento.strftime('%Y-%m-%d') }}"
+          >
+            <span>Vencimiento</span>
+            <strong data-edit-date-display="fecha_vencimiento">{{ caja.fecha_vencimiento.strftime('%d/%m/%Y') }}</strong>
+          </button>
+        </div>
+      </div>
+
+      <div class="pesar-modal-actions">
+        <button
+          type="button"
+          class="pesar-delete-btn"
+          hx-delete="{{ url_for('eliminar_caja_pesada', caja_id=caja.id) }}"
+          hx-target="#cajas-list-producto-{{ detalle.id }}"
+          hx-swap="innerHTML"
+          hx-confirm="¿Eliminar esta caja?"
+        >
+          <i class="fas fa-trash-alt"></i>
+          Eliminar
+        </button>
+        <button type="submit" class="pesar-save-btn">
+          <i class="fas fa-check"></i>
+          Guardar cambios
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+{% set total_productos = lineas_originales|length if lineas_originales else 0 %}
+{% set pesables = lineas_originales|selectattr('producto.se_pesa')|list if lineas_originales else [] %}
+{% set cajas_objetivo = pesables|sum(attribute='cajas_objetivo') if pesables else 0 %}
+{% set cajas_pesadas = pesables|sum(attribute='cajas_pesadas_count') if pesables else 0 %}
+{% set peso_real = pesables|sum(attribute='peso_real') if pesables else 0 %}
+
+{% if total_productos > 0 %}
+<div class="productos-summary">
+  <div class="ps-stat">
+    <div class="ps-stat-label">Productos</div>
+    <div class="ps-stat-val">{{ total_productos }}</div>
+  </div>
+  <div class="ps-stat">
+    <div class="ps-stat-label">Cajas pesadas</div>
+    <div class="ps-stat-val">
+      {{ cajas_pesadas }}{% if cajas_objetivo > 0 %}<small>/{{ cajas_objetivo }}</small>{% endif %}
+    </div>
+  </div>
+  <div class="ps-stat">
+    <div class="ps-stat-label">Peso real</div>
+    <div class="ps-stat-val">{{ '{:.2f}'.format(peso_real|float) }}<small>kg</small></div>
+  </div>
+</div>
+{% endif %}

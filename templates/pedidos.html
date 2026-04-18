@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Pedidos{% endblock %}
+{% block title %}Pedidos — PesosApp{% endblock %}
+
+{% block body_attrs %}data-theme="light" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pedidos-list-screen="1"{% endblock %}
+
+{% block topbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block tabbar %}{% endblock %}
 
 {% block header_title %}Pedidos{% endblock %}
 
@@ -1337,4 +1343,5 @@
     .chips-row { flex-wrap: wrap; }
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedidos_list.css') }}">
 {% endblock %}
