@@ -789,3 +789,57 @@ body {
   color: var(--color-text);
   border: 1px solid var(--color-border);
 }
+
+/* ============================================================================
+   Dark mode overrides — activated via body[data-theme="dark"]
+   Default theme in this app is dark; light is an opt-in toggle.
+   ============================================================================ */
+
+[data-theme="dark"] {
+  --color-bg: #0a0a0f;
+  --color-bg-elevated: #121219;
+  --color-surface: rgba(255, 255, 255, 0.04);
+  --color-surface-sunken: rgba(255, 255, 255, 0.02);
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(18, 18, 25, 0.6);
+  --glass-bg-strong: rgba(10, 10, 15, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .pedido-card,
+[data-theme="dark"] .fchip:not(.active) {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .segmented {
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .segmented button.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+[data-theme="dark"] .search-pill input { color: #fff; }
+
+[data-theme="dark"] .dh-stat {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .nav-pill { color: #fff; }
+
+/* Theme transition animation */
+body,
+.app-shell,
+.gcard,
+.kpi,
+.pedido-card,
+.nav-bar,
+.tabbar {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
