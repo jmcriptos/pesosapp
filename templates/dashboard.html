@@ -1,6 +1,13 @@
 {# templates/dashboard.html — Prototype-faithful rewrite (R2 Glass Mobile Reskin) #}
 {% extends "base.html" %}
 
+{# Top-level sets — accessible from both {% block content %} and {% block scripts %} #}
+{% set estados_pedidos_tl = estados_pedidos or dict() %}
+{% set est_facturado_tl = (estados_pedidos_tl.get('facturado', 0) or 0)|int %}
+{% set est_preparado_tl = (estados_pedidos_tl.get('preparado', 0) or 0)|int %}
+{% set est_pendiente_tl = (estados_pedidos_tl.get('pendiente', 0) or 0)|int %}
+{% set pedidos_vencidos_tl = (pedidos_vencidos or 0)|int %}
+
 {% block title %}Dashboard{% endblock %}
 {% block header_title %}Dashboard{% endblock %}
 
@@ -839,15 +846,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function() {
-  // ── Data (declared first so it's available when charts initialize) ──
-  // Use raw context vars directly (Jinja {% set %} inside block content
-  // doesn't leak into block scripts scope).
+  // Data (declared first so it's available when charts initialize).
+  // Values come from top-level set blocks so they are in scope here.
   var tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }};
   var estadosData = {
-    facturados: {{ ((estados_pedidos or {}).get('facturado', 0) or 0)|int }},
-    preparados: {{ ((estados_pedidos or {}).get('preparado', 0) or 0)|int }},
-    pendientes: {{ ((estados_pedidos or {}).get('pendiente', 0) or 0)|int }},
-    vencidos:   {{ (pedidos_vencidos or 0)|int }}
+    facturados: {{ est_facturado_tl }},
+    preparados: {{ est_preparado_tl }},
+    pendientes: {{ est_pendiente_tl }},
+    vencidos:   {{ pedidos_vencidos_tl }}
   };
 
   var tabs = document.querySelectorAll('#dash-tabs button');
