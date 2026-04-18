@@ -182,6 +182,15 @@
             <button class="topbar-menu" id="drawerToggle" aria-label="Abrir menú">
                 <i class="fas fa-bars"></i>
             </button>
+            <button type="button"
+                    data-theme-toggle
+                    aria-pressed="true"
+                    class="nav-pill"
+                    title="Alternar tema claro/oscuro"
+                    aria-label="Alternar tema claro/oscuro">
+              <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
+              <i class="fas fa-sun theme-icon-light" aria-hidden="true"></i>
+            </button>
             <div class="topbar-title">{% block header %}{% block header_title %}{% endblock %}{% endblock %}</div>
 
             <div class="desktop-header-shell">
@@ -255,15 +264,6 @@
                 </div>
 
                 <div class="desktop-header-actions">
-                    <button type="button"
-                            data-theme-toggle
-                            aria-pressed="true"
-                            class="nav-pill"
-                            title="Alternar tema claro/oscuro"
-                            aria-label="Alternar tema claro/oscuro">
-                      <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
-                      <i class="fas fa-sun theme-icon-light" aria-hidden="true"></i>
-                    </button>
                     <div class="user-menu">
                         <button class="user-menu-toggle desktop-user-toggle" id="userMenuToggle" aria-label="Abrir menú de usuario" aria-haspopup="true" aria-expanded="false">
                             <span class="desktop-user-avatar">{{ user_initials }}</span>

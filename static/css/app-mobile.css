@@ -843,3 +843,17 @@ body,
 .tabbar {
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
+
+/* ============================================================================
+   Tabbar / legacy footer coexistence
+   Mobile: show new .tabbar, hide legacy .app-footer
+   Desktop (≥1024px): hide .tabbar, legacy footer continues as-is
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  .app-footer { display: none !important; }
+}
+
+@media (min-width: 1024px) {
+  .tabbar { display: none; }
+}
