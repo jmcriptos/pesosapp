@@ -126,3 +126,12 @@ class DashboardTabs {
         });
     }
 }
+
+// Auto-init on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    const roots = document.querySelectorAll('[data-dashboard-tabs]');
+    roots.forEach(root => {
+        // Expose instance on the element for external access (e.g. chart callbacks)
+        root._dashboardTabs = new DashboardTabs(root);
+    });
+});
