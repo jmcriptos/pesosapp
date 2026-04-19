@@ -139,35 +139,36 @@
     {% endfor %}
   </div>
 
-  {# Mobile pagination #}
-  {% if pagination and pagination.pages > 1 %}
+  {# Mobile pagination — siempre visible (incluso con 1 página o 0 pedidos)
+     para que el indicador de página sea constante y la fila no desaparezca. #}
+  {% if pagination %}
   <div class="pagination-mobile">
     <div class="pagination-info-mobile">
-      {{ ((pagination.page - 1) * pagination.per_page) + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }}
+      {% if pagination.total > 0 %}
+        {{ ((pagination.page - 1) * pagination.per_page) + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }}
+      {% else %}
+        Sin pedidos
+      {% endif %}
     </div>
     <div class="pagination-controls-mobile">
       {% if pagination.has_prev %}
       <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}"
-         class="pagination-btn-mobile">
+         class="pagination-btn-mobile" aria-label="Página anterior">
         <i class="fa fa-chevron-left"></i>
       </a>
       {% else %}
       <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-left"></i></span>
       {% endif %}
-      <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages }}</span>
+      <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages or 1 }}</span>
       {% if pagination.has_next %}
       <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}"
-         class="pagination-btn-mobile">
+         class="pagination-btn-mobile" aria-label="Página siguiente">
         <i class="fa fa-chevron-right"></i>
       </a>
       {% else %}
       <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-right"></i></span>
       {% endif %}
     </div>
-  </div>
-  {% elif pagination %}
-  <div class="pagination-info-mobile pagination-info-mobile-single">
-    {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }}
   </div>
   {% endif %}
 
