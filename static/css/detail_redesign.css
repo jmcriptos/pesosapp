@@ -381,7 +381,7 @@ body[data-detalles-screen] .detail-product-delete {
   border-radius: 999px !important;
   background: transparent !important;
   background-image: none !important;
-  color: #cbd5e1 !important;
+  color: #dc2626 !important;
   border: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -394,7 +394,6 @@ body[data-detalles-screen] .detail-product-delete {
   appearance: none;
 }
 body[data-detalles-screen] .detail-product-delete:hover {
-  color: #dc2626 !important;
   background: #fef2f2 !important;
 }
 
@@ -526,6 +525,26 @@ body[data-detalles-screen] .action-bar-primary:active {
 @media (min-width: 1024px) {
   body[data-detalles-screen] .action-bar {
     bottom: 0 !important;
+  }
+}
+
+/* ─── Etiquetas form: stack 1-col on mobile so the formato select doesn't
+   overflow with the long "A4 (2 por página)" option text. ──────────────── */
+body[data-detalles-screen] .etiquetas-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+}
+body[data-detalles-screen] .etiquetas-grid .mobile-form-control,
+body[data-detalles-screen] .etiquetas-grid select {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+@media (min-width: 768px) {
+  body[data-detalles-screen] .etiquetas-grid {
+    grid-template-columns: 1fr 1fr 1fr !important;
   }
 }
 

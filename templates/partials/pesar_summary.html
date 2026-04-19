@@ -11,7 +11,7 @@
   </div>
   <form method="POST" action="{{ url_for('finalizar_pesaje_pedido', pedido_id=pedido.id) }}" class="pesar-summary-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="pesar-finish-btn{% if not puede_finalizar_pesar %} is-disabled{% endif %}" {% if not puede_finalizar_pesar %}disabled{% endif %}>
+    <button type="submit" class="pesar-finish-btn{% if not puede_finalizar_pesar %} is-disabled{% endif %}">
       <i class="fas fa-check"></i>
       Finalizar
     </button>
