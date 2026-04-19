@@ -67,15 +67,14 @@
         </div>
 
         <div class="detail-product-side">
-          {% if es_pesable and linea.cajas_pesadas_count > 0 %}
-            <div class="detail-product-weight">{{ '{:.1f}'.format(linea.peso_real|float) }}<small>kg</small></div>
-          {% elif es_pesable %}
-            <div class="detail-product-weight detail-product-weight-pending">—<small>kg</small></div>
+          {% if es_pesable %}
+            <div class="detail-product-weight">{{ linea.cajas_pesadas_count }}/{{ linea.cajas_objetivo }}<small>cajas</small></div>
+            <div class="detail-product-subtotal">{{ '{:.1f}'.format(linea.peso_real|float) }} kg</div>
           {% else %}
             <div class="detail-product-weight">{{ linea.cajas }}<small>cajas</small></div>
-          {% endif %}
-          {% if linea_subtotal > 0 %}
-            <div class="detail-product-subtotal">{{ '{:,.0f}'.format(linea_subtotal) }} XCG</div>
+            {% if prep and prep.peso %}
+              <div class="detail-product-subtotal">{{ '{:.1f}'.format(prep.peso|float) }} kg</div>
+            {% endif %}
           {% endif %}
         </div>
       </article>
