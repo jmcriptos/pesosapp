@@ -19,6 +19,12 @@
     background: #fff;
     border-bottom: 1px solid #e5e7eb;
     flex-shrink: 0;
+    /* Sticky so the status bar (iOS PWA standalone) always overlays the
+       topbar — never the page content underneath. The safe-area-top
+       padding inside this element keeps the brand + icons clear of the
+       notch / dynamic island. */
+    position: sticky;
+    top: 0;
     z-index: 100;
 }
 
