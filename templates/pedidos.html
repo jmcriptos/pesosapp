@@ -4,7 +4,9 @@
 
 {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pedidos-list-screen="1"{% endblock %}
 
-{% block header_title %}Pedidos{% endblock %}
+{# Hero already shows "Operaciones / Pedidos" prominently — leave the
+   topbar title empty so we don't render "Pedidos" twice. #}
+{% block header_title %}{% endblock %}
 
 {% block content %}
 <div class="app-shell">

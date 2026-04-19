@@ -378,11 +378,17 @@
 
 .pagination-current-mobile {
     color: #ffffff;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
-    padding: 0 4px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    min-width: 64px;
+    text-align: center;
+    flex-shrink: 0;
 }
 
 .pagination-controls-mobile {
@@ -910,11 +916,16 @@
         pointer-events: none;
     }
     .pagination-current {
-        padding: 0 8px;
+        padding: 8px 16px;
         color: #ffffff;
         font-weight: 800;
         font-size: 1rem;
         font-variant-numeric: tabular-nums;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        min-width: 120px;
+        text-align: center;
     }
     .pagination-info-single { padding: 0 22px 18px; color: #ffffff; }
 
