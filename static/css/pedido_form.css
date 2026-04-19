@@ -228,7 +228,7 @@ body[data-pedido-form-screen] .ts-wrapper .ts-control .ts-item-clean {
   line-height: 1.3;
 }
 
-body[data-pedido-form-screen] .ts-wrapper.single.focus .ts-control .item {
+body[data-pedido-form-screen] .ts-wrapper.single.dropdown-active .ts-control .item {
   display: none !important;
 }
 

@@ -353,6 +353,9 @@
             maxOptions: 1000,
             closeAfterSelect: true,
             placeholder: el.dataset.tsPlaceholder || 'Buscar…',
+            /* Mountar el dropdown en <body> escapa el overflow:hidden de
+               las tarjetas y evita que las opciones queden clippeadas. */
+            dropdownParent: 'body',
             sortField: { field: 'text', direction: 'asc' },
             onType: function() { this.clear(); }
         });

@@ -315,6 +315,7 @@ const tomProducto = new TomSelect('#producto-select', {
     maxOptions: 1000,                // muestra hasta 1 000 coincidencias
     closeAfterSelect: true,
     placeholder: 'Buscar producto…',
+    dropdownParent: 'body',          // escapa overflow:hidden de las tarjetas
     onType: function() { this.clear(); },  // limpiar selección al escribir
     sortField: { field: 'text', direction: 'asc' },
     render: {
