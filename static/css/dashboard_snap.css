@@ -10,6 +10,57 @@
 
 @media (max-width: 1023px) {
 
+  /* ── Page bg + section title + tab pills (align to detail-redesign) ──── */
+  body[data-dashboard-screen] .app-content,
+  body[data-dashboard-screen] .app-shell,
+  body[data-dashboard-screen] .app-shell.dash-body,
+  body[data-dashboard-screen] .screen-body {
+    background: #f4f6fa !important;
+    background-image: none !important;
+  }
+
+  /* Hero title bigger and tighter — matches "Progreso" treatment in detail */
+  body[data-dashboard-screen] .hero-title {
+    font-size: 1.6rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+    color: #0f172a !important;
+  }
+  body[data-dashboard-screen] .hero-kicker,
+  body[data-dashboard-screen] .hero-sub {
+    color: #64748b !important;
+  }
+
+  /* Tab segmented control → full pill container, white active pill */
+  body[data-dashboard-screen] .dash-seg {
+    background: #eef1f5 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    padding: 5px !important;
+  }
+  body[data-dashboard-screen] .dash-seg button {
+    border-radius: 999px !important;
+    padding: 10px 16px !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+  }
+  body[data-dashboard-screen] .dash-seg button.active {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  /* Cards: align shadow + radius to detail-redesign language */
+  body[data-dashboard-screen] .gcard,
+  body[data-dashboard-screen] .kpi,
+  body[data-dashboard-screen] .chart-card,
+  body[data-dashboard-screen] .week-mini-card {
+    border: 1px solid rgba(15, 23, 42, 0.06) !important;
+    box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
+  }
+
   /* ── Snap layout — Ventas + Servicio panels only ─────────────────────── */
 
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"],

@@ -6,6 +6,8 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pesar.css') }}">
+  {# pesar_redesign.css MUST load AFTER pesar.css — mockup-faithful overrides win by source order. #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pesar_redesign.css') }}">
 {% endblock %}
 
 {% block header_title %}Pesar pedido{% endblock %}

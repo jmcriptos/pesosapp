@@ -1,0 +1,396 @@
+/* =============================================================================
+   Pesar · Redesign (mockup-faithful, matches detail_redesign.css language)
+   Loaded AFTER pesar.css so its rules win by source order.
+   Scope: body[data-pesar-screen] only.
+
+   Goals:
+   - Light slate page bg, white cards with subtle shadow + 22px radius.
+   - Hide the base topbar (brand + notification pills) so only the pesar's
+     own minimal nav shows — matches the mockup's clean PED-XXX header.
+   - Indigo accent for primary actions (date pickers, keypad), green for
+     the +Caja submit, soft category accent on chips.
+   - Larger, readable typography for the warehouse use case.
+   - Don't overlap the +Caja key with the bottom summary.
+   ============================================================================= */
+
+/* ─── Hide base chrome that collides with pesar's own topnav ────────────── */
+body[data-pesar-screen] .app-topbar {
+  display: none !important;
+}
+body[data-pesar-screen] .app-shell {
+  padding-top: 0 !important;
+}
+
+/* ─── Page background ───────────────────────────────────────────────────── */
+body[data-pesar-screen] .app-content,
+body[data-pesar-screen] .app-shell,
+body[data-pesar-screen] .pesar-screen {
+  background: #f4f6fa !important;
+  background-image: none !important;
+}
+
+/* ─── Pesar nav (top): white card with back / title / undo ──────────────── */
+body[data-pesar-screen] .pesar-nav {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
+  padding: 12px 14px !important;
+  margin-top: max(8px, env(safe-area-inset-top, 0px));
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-pesar-screen] .pesar-nav-pill {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+body[data-pesar-screen] .pesar-nav-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+body[data-pesar-screen] .pesar-nav-client {
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.01em;
+}
+
+body[data-pesar-screen] .pesar-nav-meta {
+  margin-top: 2px;
+  font-size: 0.78rem !important;
+  color: #94a3b8 !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Product nav chips: clean white pill with category accent ──────────── */
+body[data-pesar-screen] .pesar-chip-row {
+  padding: 4px 0 6px;
+  margin-top: 6px;
+}
+
+body[data-pesar-screen] .pesar-chip {
+  min-width: 168px !important;
+  padding: 12px 14px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 3px solid var(--cat) !important;
+  border-radius: 16px !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+body[data-pesar-screen] .pesar-chip.is-active {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  border-left-color: var(--cat) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 18%, transparent),
+              0 8px 20px -10px rgba(15, 23, 42, 0.12) !important;
+}
+
+body[data-pesar-screen] .pesar-chip-status {
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cat) !important;
+}
+body[data-pesar-screen] .pesar-chip.is-complete .pesar-chip-status {
+  color: #059669 !important;
+}
+
+body[data-pesar-screen] .pesar-chip-name {
+  font-size: 0.92rem !important;
+  font-weight: 700 !important;
+  line-height: 1.25;
+  color: #0f172a !important;
+  text-align: left;
+}
+
+body[data-pesar-screen] .pesar-chip-meta {
+  font-size: 0.78rem !important;
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+
+/* ─── Lote card: white panel with white inputs ──────────────────────────── */
+body[data-pesar-screen] .pesar-lote-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 22px !important;
+  padding: 18px !important;
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-pesar-screen] .pesar-lote-head {
+  font-size: 0.78rem !important;
+  letter-spacing: 0.12em;
+  color: #94a3b8 !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+body[data-pesar-screen] .pesar-lote-new {
+  background: #eef2ff !important;
+  color: var(--indigo-500, #2563eb) !important;
+  border: 0 !important;
+  height: auto;
+  padding: 6px 12px !important;
+  border-radius: 999px !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+}
+
+body[data-pesar-screen] .pesar-field span {
+  font-size: 0.7rem !important;
+  letter-spacing: 0.12em;
+  color: #94a3b8 !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+body[data-pesar-screen] .pesar-field input {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 14px 16px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  font-family: var(--font-mono);
+  width: 100%;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+body[data-pesar-screen] .pesar-field input:focus {
+  border-color: var(--indigo-500, #2563eb) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500, #2563eb) 14%, transparent) !important;
+}
+
+body[data-pesar-screen] .pesar-date-trigger {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+body[data-pesar-screen] .pesar-date-trigger strong {
+  color: #0f172a !important;
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  font-family: var(--font-mono);
+}
+
+body[data-pesar-screen] .pesar-date-trigger small {
+  color: var(--cat) !important;
+  font-size: 0.6rem !important;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* ─── Keypad card: white panel, clean tile keys, indigo numbers ─────────── */
+body[data-pesar-screen] .pesar-keypad-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+  overflow: hidden;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-pesar-screen] .pesar-readout {
+  padding: 18px 18px 14px !important;
+  border-bottom: 1px dashed #e2e8f0 !important;
+  background: #fafbfc;
+}
+
+body[data-pesar-screen] .pesar-readout-label {
+  color: #94a3b8 !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+}
+
+body[data-pesar-screen] .pesar-readout-product {
+  color: #0f172a !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  margin-top: 4px;
+}
+
+body[data-pesar-screen] .pesar-readout-value span {
+  color: #0f172a !important;
+  font-size: clamp(48px, 14vw, 64px) !important;
+  text-shadow: none !important;
+}
+
+body[data-pesar-screen] .pesar-readout-value small {
+  color: #94a3b8 !important;
+  font-size: 0.95rem !important;
+}
+
+/* Keypad keys: white tiles with subtle borders, indigo numerals */
+body[data-pesar-screen] .pesar-key {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: var(--indigo-500, #2563eb) !important;
+  font-family: var(--font-mono);
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  min-height: 64px !important;
+  border: 0 !important;
+  border-top: 1px solid #f1f5f9 !important;
+  border-left: 1px solid #f1f5f9 !important;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+body[data-pesar-screen] .pesar-key:active {
+  background: #eef2ff !important;
+}
+
+/* Back / Clear keys read as utility, not numeric */
+body[data-pesar-screen] .pesar-key[data-key="back"],
+body[data-pesar-screen] .pesar-key[data-key="clear"] {
+  color: #94a3b8 !important;
+  font-size: 1.1rem !important;
+}
+
+/* +Caja submit — green pill that visually pops out of the keypad grid */
+body[data-pesar-screen] .pesar-key.is-submit {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  background-image: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  margin: 8px !important;
+  box-shadow: 0 10px 22px -8px rgba(16, 185, 129, 0.55) !important;
+  font-size: 0.95rem !important;
+  letter-spacing: 0.02em;
+}
+
+body[data-pesar-screen] .pesar-key.is-submit:disabled {
+  background: linear-gradient(135deg, #cbd5e1, #94a3b8) !important;
+  background-image: linear-gradient(135deg, #cbd5e1, #94a3b8) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+/* ─── Cajas list panel ──────────────────────────────────────────────────── */
+body[data-pesar-screen] .pesar-group-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 4px 14px -8px rgba(15, 23, 42, 0.06) !important;
+}
+
+body[data-pesar-screen] .pesar-group-header {
+  background: #fafbfc !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 12px 14px !important;
+}
+
+body[data-pesar-screen] .pesar-group-lot {
+  color: #0f172a !important;
+  font-weight: 800;
+}
+
+/* ─── Bottom summary bar: don't overlap the keypad ──────────────────────── */
+body[data-pesar-screen] #pesar-summary {
+  bottom: calc(63px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+body[data-pesar-screen] .pesar-summary {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.18) !important;
+  padding: 12px 14px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-pesar-screen] .pesar-summary-value {
+  color: #0f172a !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+}
+
+body[data-pesar-screen] .pesar-summary-value small {
+  color: #94a3b8 !important;
+}
+
+body[data-pesar-screen] .pesar-finish-btn {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  border-radius: 14px !important;
+  height: 44px !important;
+  padding: 0 16px !important;
+  font-weight: 700 !important;
+}
+
+/* Push pesar-screen padding so the keypad isn't hidden under the summary */
+body[data-pesar-screen] .pesar-screen {
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* ─── Date picker sheet (modal) ─────────────────────────────────────────── */
+body[data-pesar-screen] .pesar-date-sheet-panel {
+  background: #ffffff !important;
+  box-shadow: 0 -20px 48px -16px rgba(15, 23, 42, 0.18) !important;
+}
+
+body[data-pesar-screen] .pesar-date-cell {
+  background: transparent !important;
+  color: #0f172a !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 600;
+}
+
+body[data-pesar-screen] .pesar-date-cell.is-selected {
+  background: var(--indigo-500, #2563eb) !important;
+  color: #ffffff !important;
+}
+
+body[data-pesar-screen] .pesar-date-sheet-primary {
+  background: linear-gradient(135deg, var(--indigo-500, #2563eb), var(--violet-500, #4f46e5)) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 12px 18px !important;
+  font-weight: 700 !important;
+}
+
+body[data-pesar-screen] .pesar-date-sheet-secondary {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 12px 18px !important;
+  font-weight: 700 !important;
+}
