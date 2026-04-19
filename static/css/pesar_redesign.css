@@ -655,18 +655,42 @@ body[data-pesar-screen] .pesar-modal-overlay {
   background: rgba(15, 23, 42, 0.45) !important;
   backdrop-filter: blur(8px) saturate(1.4);
   -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  /* The modal is appended to #modal-root, OUTSIDE .pesar-screen. Apply
+     light tokens here so descendants inside the modal inherit white
+     surfaces instead of falling back to the dark theme. */
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  /* Push the panel above the bottom tabbar (~63px + safe-area). */
+  padding-bottom: calc(63px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 body[data-pesar-screen] .pesar-modal {
   background: #ffffff !important;
+  background-image: none !important;
   border-radius: 26px 26px 0 0 !important;
-  padding: 12px 18px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 12px 18px 16px !important;
   box-shadow: 0 -16px 48px -16px rgba(15, 23, 42, 0.25) !important;
-  /* Cap to viewport height (minus safe-area-top breathing) and scroll
+  /* Cap to viewport height (minus tabbar + safe-area-top) and scroll
      internally so the Guardar/Eliminar row never falls below the screen. */
-  max-height: calc(100vh - env(safe-area-inset-top, 0px) - 12px) !important;
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - 63px - env(safe-area-inset-bottom, 0px) - 12px) !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Force the modal form region white so the dark theme doesn't bleed
+   between the keypad tiles. */
+body[data-pesar-screen] .pesar-modal-form,
+body[data-pesar-screen] .pesar-modal-fields,
+body[data-pesar-screen] .pesar-edit-keypad {
+  background: #ffffff !important;
+  background-image: none !important;
 }
 
 body[data-pesar-screen] .pesar-modal-handle {
