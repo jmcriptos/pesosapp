@@ -528,39 +528,49 @@ body[data-detalles-screen] .action-bar-primary:active {
   }
 }
 
-/* ─── Etiquetas form: clamp every input/select to its container width and
-   stack the row 1-col on mobile so nothing escapes the card. ──────────── */
+/* ─── Etiquetas form: nuke every overflow path. The previous fix scoped
+   only #form-etiquetas-detalle and .etiquetas-grid, missing the parent
+   .mobile-card and the .mobile-card-body. iOS native <select> computes
+   intrinsic width from the longest <option> + chevron and can break out
+   even from a 100%-wide parent if any ancestor allows overflow. ──── */
+
+/* 1. Cap every container around the etiquetas form to the viewport. */
+body[data-detalles-screen] .detail-panel,
+body[data-detalles-screen] .detail-panel > *,
+body[data-detalles-screen] .mobile-card,
+body[data-detalles-screen] .mobile-card-body,
+body[data-detalles-screen] .mobile-card-header,
 body[data-detalles-screen] #form-etiquetas-detalle,
-body[data-detalles-screen] #form-etiquetas-detalle * {
-  box-sizing: border-box !important;
+body[data-detalles-screen] #form-etiquetas-detalle .mobile-form-group {
   max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
 }
+
+/* 2. Hard clip inside the etiquetas card so nothing can escape. */
 body[data-detalles-screen] #form-etiquetas-detalle {
-  min-width: 0 !important;
-}
-body[data-detalles-screen] .etiquetas-grid {
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: 12px !important;
+  overflow-x: hidden !important;
   width: 100% !important;
-  min-width: 0 !important;
 }
-body[data-detalles-screen] .etiquetas-grid .mobile-form-control,
-body[data-detalles-screen] .etiquetas-grid select,
-body[data-detalles-screen] .etiquetas-grid input {
+
+/* 3. Every form control inside the etiquetas card snaps to 100% width. */
+body[data-detalles-screen] #form-etiquetas-detalle input,
+body[data-detalles-screen] #form-etiquetas-detalle select,
+body[data-detalles-screen] #form-etiquetas-detalle textarea,
+body[data-detalles-screen] #form-etiquetas-detalle .mobile-form-control {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
+  display: block !important;
 }
-/* Native <select> on iOS computes an intrinsic width based on the
-   longest <option> ("A4 (2 por página)") plus a built-in chevron — that
-   overflow can ignore width:100% if the parent isn't itself locked.
-   Forcing -webkit-appearance:none lets the layout actually clamp, then
-   we paint our own chevron via background SVG with extra right padding. */
-body[data-detalles-screen] .etiquetas-grid select.mobile-form-control,
-body[data-detalles-screen] .etiquetas-grid select {
+
+/* 4. Native <select>: kill the platform widget so width:100% is binding
+   on iOS. Paint our own chevron as a background SVG and ellipsis-truncate
+   long option text. */
+body[data-detalles-screen] #form-etiquetas-detalle select {
   -webkit-appearance: none !important;
+  -moz-appearance: none !important;
   appearance: none !important;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
@@ -571,6 +581,15 @@ body[data-detalles-screen] .etiquetas-grid select {
   text-overflow: ellipsis !important;
   overflow: hidden !important;
   white-space: nowrap !important;
+}
+
+/* 5. Stack 1-col on mobile, 3-col on tablet+. */
+body[data-detalles-screen] .etiquetas-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
 body[data-detalles-screen] .etiquetas-buttons {
   display: grid !important;
