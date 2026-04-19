@@ -463,3 +463,105 @@ body[data-pedido-form-screen] .mobile-add-section {
 body[data-pedido-form-screen] .mobile-add-section:last-child {
   margin-bottom: 0;
 }
+
+/* ────────────────────────────────────────────────────────────
+   High-contrast text overrides
+   The previous palette used --color-text-muted (#475569) for
+   labels and #6b7280 for product card meta — both readable but
+   washed-out on white. Bump every text element on the form to
+   gray-900 / gray-800 / gray-700 for an executive-grade contrast.
+   ──────────────────────────────────────────────────────────── */
+body[data-pedido-form-screen] .mobile-form-label {
+  color: #0f172a !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
+}
+
+body[data-pedido-form-screen] .mobile-form-control,
+body[data-pedido-form-screen] .mobile-form-control:not(:placeholder-shown),
+body[data-pedido-form-screen] input[type="text"],
+body[data-pedido-form-screen] input[type="number"],
+body[data-pedido-form-screen] textarea,
+body[data-pedido-form-screen] select {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+body[data-pedido-form-screen] .mobile-form-control::placeholder,
+body[data-pedido-form-screen] textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+body[data-pedido-form-screen] .mobile-card-header {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+body[data-pedido-form-screen] .producto-card-nombre {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+body[data-pedido-form-screen] .producto-card-meta {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+}
+body[data-pedido-form-screen] .producto-card-meta strong {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+body[data-pedido-form-screen] .producto-card-subtotal {
+  color: #1d4ed8 !important;
+  font-weight: 800 !important;
+}
+
+body[data-pedido-form-screen] .mobile-total-label {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+body[data-pedido-form-screen] .mobile-total-amount {
+  color: #0f172a !important;
+}
+
+body[data-pedido-form-screen] .mobile-empty-state {
+  color: #1f2937 !important;
+}
+body[data-pedido-form-screen] .mobile-empty-state p {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+}
+body[data-pedido-form-screen] .mobile-empty-state i {
+  color: #475569 !important;
+}
+
+/* Tom Select: option list, selected item, search input */
+body[data-pedido-form-screen] .ts-wrapper .ts-control,
+body[data-pedido-form-screen] .ts-wrapper.single .ts-control,
+body[data-pedido-form-screen] .ts-wrapper .ts-control input,
+body[data-pedido-form-screen] .ts-wrapper .ts-control .item,
+body[data-pedido-form-screen] .ts-dropdown,
+body[data-pedido-form-screen] .ts-dropdown .option,
+body[data-pedido-form-screen] .ts-dropdown [data-selectable] {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+body[data-pedido-form-screen] .ts-dropdown .suggestion-name {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+body[data-pedido-form-screen] .ts-dropdown .suggestion-price {
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+}
+body[data-pedido-form-screen] .ts-wrapper .ts-control input::placeholder {
+  color: #64748b !important;
+}
+
+/* Topnav meta inside the pedido form (Editar PED-N · cliente) */
+body[data-pedido-form-screen] .pedido-form-topnav-heading {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+body[data-pedido-form-screen] .pedido-form-topnav-meta {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+}
