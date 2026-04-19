@@ -344,12 +344,15 @@
     <script src="{{ url_for('static', filename='js/base.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <script>
-    /* Auto-init Tom Select en todo select.ts-select */
+    /* Auto-init Tom Select en todo select.ts-select.
+       - data-ts-placeholder="..."  → placeholder del input de búsqueda
+       - allowEmptyOption: false (default) → la opción vacía no aparece
+         como fila en el dropdown (sí queda como valor inicial del form). */
     document.querySelectorAll('select.ts-select').forEach(function(el) {
         new TomSelect(el, {
             maxOptions: 1000,
             closeAfterSelect: true,
-            allowEmptyOption: true,
+            placeholder: el.dataset.tsPlaceholder || 'Buscar…',
             sortField: { field: 'text', direction: 'asc' },
             onType: function() { this.clear(); }
         });

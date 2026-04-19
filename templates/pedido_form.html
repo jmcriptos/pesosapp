@@ -50,8 +50,8 @@
             <div class="mobile-card-body">
                 <div class="mobile-form-group">
                     <label class="mobile-form-label" for="cliente_id">Seleccionar cliente:</label>
-                        <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" required>
-                            <option value="">-- Seleccionar cliente --</option>
+                        <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" required>
+                            <option value=""></option>
                             {% for cliente in clientes|sort(attribute='nombre') %}
                                 <option value="{{ cliente.id }}"
                                         data-moneda="{{ cliente.moneda or 'XCG' }}"
@@ -95,7 +95,7 @@
                     <div class="mobile-search-group">
                         <label class="mobile-form-label" for="producto-select">Seleccionar producto:</label>
                             <select id="producto-select" class="mobile-form-control">
-                                <option value="">-- Seleccionar producto --</option>
+                                <option value=""></option>
                                 <!-- Opciones se cargarán dinámicamente -->
                             </select>
                     </div>
@@ -314,7 +314,7 @@ const tomProducto = new TomSelect('#producto-select', {
     copyClassesToDropdown: true,     // hereda clases para que se vea igual
     maxOptions: 1000,                // muestra hasta 1 000 coincidencias
     closeAfterSelect: true,
-    allowEmptyOption: true,
+    placeholder: 'Buscar producto…',
     onType: function() { this.clear(); },  // limpiar selección al escribir
     sortField: { field: 'text', direction: 'asc' },
     render: {
