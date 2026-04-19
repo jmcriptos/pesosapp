@@ -161,6 +161,13 @@
       overlay.classList.add('is-navigating');
       if (bar) bar.classList.remove('is-loaded');
       if (percentEl) percentEl.textContent = '0%';
+      // Reset el ring al estado vacío. Si el loader anterior llegó al
+      // 100%, finish() escribió strokeDashoffset='0' inline (círculo
+      // lleno). Sin este reset, el snapshot de iOS Safari muestra
+      // "círculo lleno + 0%" durante toda la transición a la próxima
+      // página.
+      var ring = document.querySelector('.app-loading-ring-bar');
+      if (ring) ring.style.strokeDashoffset = '263.89';
       // Safety: si la navegación nunca ocurre (cancelada, red caída),
       // re-ocultar el overlay a los 14s para no dejar al usuario atrapado.
       setTimeout(function () {
