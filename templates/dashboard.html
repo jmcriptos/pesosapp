@@ -606,7 +606,7 @@
     <div class="kpi-grid">
 
       {# 1: Ventas del Mes #}
-      <div class="kpi" data-snap-card="1">
+      <div class="kpi" data-snap-card="1" data-kpi-state="{{ meta_state }}">
         <div class="kpi-top">
           <div class="kpi-label">Ventas del Mes</div>
           {{ progress_ring(porcentaje_meta_v, meta_state) }}
@@ -616,7 +616,7 @@
       </div>
 
       {# 2: Proyección #}
-      <div class="kpi" data-snap-card="1">
+      <div class="kpi" data-snap-card="1" data-kpi-state="{{ proy_state }}">
         <div class="kpi-top">
           <div class="kpi-label">Proyección</div>
           {{ progress_ring(porcentaje_proyeccion_v, proy_state) }}
@@ -630,7 +630,7 @@
       </div>
 
       {# 3: On-Time Delivery #}
-      <div class="kpi" data-snap-card="1">
+      <div class="kpi" data-snap-card="1" data-kpi-state="{{ otd_state }}">
         <div class="kpi-top">
           <div class="kpi-label">On-Time Delivery</div>
           {{ progress_ring(otd_rate_v, otd_state) }}
@@ -640,7 +640,7 @@
       </div>
 
       {# 4: Pendientes #}
-      <div class="kpi" data-snap-card="1">
+      <div class="kpi" data-snap-card="1" data-kpi-state="{{ pend_state }}">
         <div class="kpi-top">
           <div class="kpi-label">Pendientes</div>
           {{ progress_ring(pend_pct, pend_state, label=pedidos_pendientes_v) }}
@@ -715,7 +715,7 @@
 
     <div class="svc-kpi-grid">
       {% for item in svc_items %}
-      <div class="kpi" data-snap-card="1">
+      <div class="kpi" data-snap-card="1" data-kpi-state="{{ item.state }}">
         <div class="kpi-top">
           <div>
             <div class="kpi-label">{{ item.label }}</div>

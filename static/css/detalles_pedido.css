@@ -977,10 +977,22 @@ body[data-detalles-screen] .action-bar .btn-primary {
   background-image: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
   color: #ffffff !important;
   border: 0 !important;
-  border-radius: 12px !important;
-  height: 44px;
+  border-radius: 14px !important;
+  height: 48px;
+  padding: 0 18px;
+  font-size: 0.98rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.55);
+}
+
+body[data-detalles-screen] .action-bar .btn-primary i {
+  font-size: 1.05rem;
 }
 
 body[data-detalles-screen] .action-bar .btn-secondary {

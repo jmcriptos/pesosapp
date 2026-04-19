@@ -50,6 +50,22 @@
     overflow: hidden;
   }
 
+  /* KPI border colored by state (matches the progress ring). 3px stroke
+     so it reads at a glance. The data-kpi-state attribute is set by the
+     dashboard template per KPI from the same state var the ring uses. */
+  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="success"] {
+    border: 3px solid var(--color-success, #10b981) !important;
+  }
+  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="warning"] {
+    border: 3px solid var(--color-warning, #f59e0b) !important;
+  }
+  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="danger"] {
+    border: 3px solid var(--color-danger, #f43f5e) !important;
+  }
+  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="neutral"] {
+    border: 3px solid var(--indigo-500, #6366f1) !important;
+  }
+
   /* Chart gets a taller snap target and bigger canvas */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .chart-card[data-snap-card] {
     min-height: 90vh;
