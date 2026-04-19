@@ -596,6 +596,27 @@
             });
         })();
 
+        // Tabbar tap haptic + immediate visual press class. iOS Safari
+        // currently no-ops navigator.vibrate (silent), Android Chrome
+        // honors the 8ms pulse. The .is-pressing class lingers ~140ms so
+        // the press state is visible even after the finger lifts on a
+        // very fast tap (CSS :active alone is too brief on iOS).
+        document.addEventListener('touchstart', function (event) {
+            var tab = event.target.closest('.tabbar .tab');
+            if (!tab) return;
+            tab.classList.add('is-pressing');
+            try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+        }, { passive: true });
+        document.addEventListener('touchend', function (event) {
+            var tab = event.target.closest('.tabbar .tab');
+            if (!tab) return;
+            setTimeout(function () { tab.classList.remove('is-pressing'); }, 140);
+        }, { passive: true });
+        document.addEventListener('touchcancel', function (event) {
+            var tab = event.target.closest('.tabbar .tab');
+            if (tab) tab.classList.remove('is-pressing');
+        }, { passive: true });
+
         const flashStack = document.querySelector('[data-flash-stack]');
         if (flashStack) {
             window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
