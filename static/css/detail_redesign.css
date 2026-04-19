@@ -481,7 +481,13 @@ body[data-detalles-screen] .action-bar-icon span {
 
 body[data-detalles-screen] .action-bar-form {
   flex: 1 1 auto;
-  margin: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 body[data-detalles-screen] .action-bar-primary {
