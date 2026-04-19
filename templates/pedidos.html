@@ -18,40 +18,28 @@
     </a>
   </header>
 
-  {# Search pill — submits server-side via GET #}
-  <form class="search-pill" method="GET" action="{{ url_for('lista_pedidos') }}" role="search">
-    <i class="fas fa-search" aria-hidden="true"></i>
-    <input type="search" placeholder="Buscar pedido, cliente…" id="pedidos-search"
-           name="q" value="{{ filtros.q }}" autocomplete="off">
-    <input type="hidden" name="estado" value="{{ filtros.estado }}">
+  {# Toolbar: búsqueda + select de estado en una sola fila. Single GET form,
+     se submit cuando el usuario presiona Enter en la búsqueda o cambia
+     el dropdown. #}
+  <form class="filter-bar" method="GET" action="{{ url_for('lista_pedidos') }}" role="search">
+    <div class="search-pill">
+      <i class="fas fa-search" aria-hidden="true"></i>
+      <input type="search" placeholder="Buscar pedido, cliente…" id="pedidos-search"
+             name="q" value="{{ filtros.q }}" autocomplete="off">
+    </div>
+    <div class="estado-select-wrap">
+      <select name="estado" id="pedidos-estado-select"
+              class="estado-select"
+              onchange="this.form.submit()"
+              aria-label="Filtrar por estado">
+        <option value="todos"     {% if filtros.estado == 'todos' %}selected{% endif %}>Todos · {{ status_counts.total }}</option>
+        <option value="pendiente" {% if filtros.estado == 'pendiente' %}selected{% endif %}>Pendientes · {{ status_counts.pendiente }}</option>
+        <option value="preparado" {% if filtros.estado == 'preparado' %}selected{% endif %}>Preparados · {{ status_counts.preparado }}</option>
+        <option value="facturado" {% if filtros.estado == 'facturado' %}selected{% endif %}>Facturados · {{ status_counts.facturado }}</option>
+      </select>
+    </div>
     {% if filtros.solo_notas %}<input type="hidden" name="solo_notas" value="1">{% endif %}
   </form>
-
-  {# Filter chips — server-side estado filter #}
-  <div class="chips-row" role="tablist" aria-label="Filtrar pedidos">
-    <a href="{{ url_for('lista_pedidos', estado='todos', q=filtros.q or None) }}"
-       class="fchip{% if filtros.estado == 'todos' %} active{% endif %}" data-filter="todos">
-      Todos <span class="fcount">{{ status_counts.total }}</span>
-    </a>
-    <a href="{{ url_for('lista_pedidos', estado='pendiente', q=filtros.q or None) }}"
-       class="fchip{% if filtros.estado == 'pendiente' %} active{% endif %}" data-filter="pendiente">
-      Pendientes <span class="fcount">{{ status_counts.pendiente }}</span>
-    </a>
-    <a href="{{ url_for('lista_pedidos', estado='preparado', q=filtros.q or None) }}"
-       class="fchip{% if filtros.estado == 'preparado' %} active{% endif %}" data-filter="preparado">
-      Preparados <span class="fcount">{{ status_counts.preparado }}</span>
-    </a>
-    <a href="{{ url_for('lista_pedidos', estado='facturado', q=filtros.q or None) }}"
-       class="fchip{% if filtros.estado == 'facturado' %} active{% endif %}" data-filter="facturado">
-      Facturados <span class="fcount">{{ status_counts.facturado }}</span>
-    </a>
-    {% if filtros.solo_notas %}
-    <a href="{{ url_for('lista_pedidos', estado=filtros.estado, q=filtros.q or None) }}"
-       class="fchip active" data-filter="solo_notas">
-      <i class="fa-solid fa-note-sticky"></i> Con notas
-    </a>
-    {% endif %}
-  </div>
 
   {# Mobile card list #}
   <div class="pedidos-list">
