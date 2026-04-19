@@ -14,19 +14,29 @@
             </div>
 
             {% set formato_seleccionado = request.args.get('formato', '4x2') %}
+            {# Auto-rango: combina las fechas legacy de los detalles (importación)
+               con las fechas de elaboración de cada caja pesada (productos
+               pesables). Todas se normalizan a 'YYYY-MM-DD' para que min/max
+               trabaje lexicográficamente. #}
             {% set valid_fechas = [] %}
             {% for detalle in pedido.detalles %}
                 {% if detalle.fecha_fabricacion %}
                     {% set _ = valid_fechas.append(detalle.fecha_fabricacion) %}
                 {% endif %}
+                {% for caja in detalle.cajas_pesadas %}
+                    {% if caja.fecha_elaboracion %}
+                        {% set _ = valid_fechas.append(caja.fecha_elaboracion.strftime('%Y-%m-%d')) %}
+                    {% endif %}
+                {% endfor %}
             {% endfor %}
 
             {% if valid_fechas %}
                 {% set f_inicio = valid_fechas|min %}
                 {% set f_fin = valid_fechas|max %}
             {% else %}
-                {% set f_inicio = '' %}
-                {% set f_fin = '' %}
+                {% set today_iso = (pedido.fecha_pedido or now).strftime('%Y-%m-%d') if pedido.fecha_pedido else '' %}
+                {% set f_inicio = today_iso %}
+                {% set f_fin = today_iso %}
             {% endif %}
 
             <div class="etiquetas-grid">
