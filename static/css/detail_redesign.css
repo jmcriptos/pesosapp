@@ -534,6 +534,19 @@ body[data-detalles-screen] .action-bar-primary:active {
    intrinsic width from the longest <option> + chevron and can break out
    even from a 100%-wide parent if any ancestor allows overflow. ──── */
 
+/* 0. Hard-clip the document so nothing inside detalles can scroll
+   horizontally. Backstop in case any descendant ignores max-width. */
+html body[data-detalles-screen],
+html body[data-detalles-screen] .app-container,
+html body[data-detalles-screen] .app-content,
+html body[data-detalles-screen] .app-shell,
+html body[data-detalles-screen] .mobile-form-container {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
 /* 1. Cap every container around the etiquetas form to the viewport. */
 body[data-detalles-screen] .detail-panel,
 body[data-detalles-screen] .detail-panel > *,
