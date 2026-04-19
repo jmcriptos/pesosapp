@@ -4975,22 +4975,42 @@ def editar_pedido(pedido_id):
             detalle.subtotal = linea['precio_unitario'] * _cantidad_detalle_facturable(detalle)
             productos_con_prep.add(detalle.producto_id)
 
-        # Reemplazar únicamente las líneas originales del pedido.
-        DetallePedido.query.filter_by(
-            pedido_id=pedido.id,
-            es_linea_pedido=True,
-        ).delete()
-
-        for linea in lineas_form:
-            detalle = DetallePedido(
+        # Upsert líneas originales — NUNCA delete masivo: la FK
+        # CajaPesada.detalle_pedido_id es ondelete=CASCADE, así que borrar
+        # la línea original elimina en cascada todas las cajas pesadas
+        # asociadas. Mantener el id del detalle preserva los pesos.
+        existing_lineas = {
+            d.producto_id: d
+            for d in DetallePedido.query.filter_by(
                 pedido_id=pedido.id,
-                producto_id=linea['producto_id'],
-                cajas=linea['cajas'],
-                cajas_pedidas=linea['cajas'],
-                precio_unitario=linea['precio_unitario'],
-                subtotal=linea['subtotal']
-            )
-            db.session.add(detalle)
+                es_linea_pedido=True,
+            ).all()
+        }
+
+        # Borra solo las líneas cuyo producto ya no está en el form.
+        for producto_id, detalle in list(existing_lineas.items()):
+            if producto_id not in productos_en_form:
+                db.session.delete(detalle)
+                del existing_lineas[producto_id]
+
+        # Actualiza las que siguen, crea las nuevas.
+        for linea in lineas_form:
+            existente = existing_lineas.get(linea['producto_id'])
+            if existente is not None:
+                existente.cajas = linea['cajas']
+                existente.cajas_pedidas = linea['cajas']
+                existente.precio_unitario = linea['precio_unitario']
+                existente.subtotal = linea['subtotal']
+            else:
+                detalle = DetallePedido(
+                    pedido_id=pedido.id,
+                    producto_id=linea['producto_id'],
+                    cajas=linea['cajas'],
+                    cajas_pedidas=linea['cajas'],
+                    precio_unitario=linea['precio_unitario'],
+                    subtotal=linea['subtotal']
+                )
+                db.session.add(detalle)
 
         # Auto-generar líneas de preparación para productos de importación
         for linea in lineas_form:

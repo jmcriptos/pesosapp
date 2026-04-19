@@ -528,23 +528,50 @@ body[data-detalles-screen] .action-bar-primary:active {
   }
 }
 
-/* ─── Etiquetas form: stack 1-col on mobile so the formato select doesn't
-   overflow with the long "A4 (2 por página)" option text. ──────────────── */
+/* ─── Etiquetas form: clamp every input/select to its container width and
+   stack the row 1-col on mobile so nothing escapes the card. ──────────── */
+body[data-detalles-screen] #form-etiquetas-detalle,
+body[data-detalles-screen] #form-etiquetas-detalle * {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+body[data-detalles-screen] #form-etiquetas-detalle {
+  min-width: 0 !important;
+}
 body[data-detalles-screen] .etiquetas-grid {
   display: grid !important;
   grid-template-columns: 1fr !important;
   gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
 body[data-detalles-screen] .etiquetas-grid .mobile-form-control,
-body[data-detalles-screen] .etiquetas-grid select {
+body[data-detalles-screen] .etiquetas-grid select,
+body[data-detalles-screen] .etiquetas-grid input {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
 }
+body[data-detalles-screen] .etiquetas-buttons {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
 @media (min-width: 768px) {
   body[data-detalles-screen] .etiquetas-grid {
     grid-template-columns: 1fr 1fr 1fr !important;
+  }
+  body[data-detalles-screen] .etiquetas-buttons {
+    grid-template-columns: 1fr 1fr !important;
   }
 }
 
