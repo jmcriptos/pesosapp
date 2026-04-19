@@ -4798,29 +4798,67 @@ def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_raw=None):
     return Decimal('0')
 
 
+class _PedidoFormError(ValueError):
+    """Raised when the pedido form payload contains an invalid line."""
+    pass
+
+
 def _extraer_lineas_pedido_form(form_data, cliente_id):
-    """Normaliza las líneas enviadas desde el formulario de pedido."""
-    lineas = []
+    """Normaliza las líneas enviadas desde el formulario de pedido.
+
+    Validates each line:
+    - producto_id is a positive integer
+    - cajas is an integer between 1 and 9999 (no negative, no zero, no
+      runaway values that would warp subtotals or the QBO payload)
+
+    De-duplicates lines that share a producto_id by summing their cajas
+    so a JS bug or double-submit can't silently drop quantity.
+
+    Raises _PedidoFormError on bad input — callers should catch and
+    flash + redirect rather than 500.
+    """
+    lineas_por_producto = {}
     idx = 0
 
     while f'productos[{idx}][id]' in form_data:
-        prod_id = int(form_data.get(f'productos[{idx}][id]'))
-        cajas = int(form_data.get(f'productos[{idx}][cajas]', 0))
+        try:
+            prod_id = int(form_data.get(f'productos[{idx}][id]'))
+        except (TypeError, ValueError):
+            raise _PedidoFormError(f'Producto inválido en línea {idx + 1}')
+
+        try:
+            cajas = int(form_data.get(f'productos[{idx}][cajas]', 0) or 0)
+        except (TypeError, ValueError):
+            raise _PedidoFormError(f'Cantidad de cajas inválida en línea {idx + 1}')
+
+        if cajas <= 0:
+            raise _PedidoFormError(f'La cantidad de cajas debe ser mayor que 0 (línea {idx + 1})')
+        if cajas > 9999:
+            raise _PedidoFormError(f'La cantidad de cajas no puede exceder 9999 (línea {idx + 1})')
+        if prod_id <= 0:
+            raise _PedidoFormError(f'Producto inválido en línea {idx + 1}')
+
         precio_unitario = _resolver_precio_unitario_pedido(
             cliente_id,
             prod_id,
             form_data.get(f'productos[{idx}][precio]'),
         )
 
-        lineas.append({
-            'producto_id': prod_id,
-            'cajas': cajas,
-            'precio_unitario': precio_unitario,
-            'subtotal': precio_unitario * cajas,
-        })
+        if prod_id in lineas_por_producto:
+            lineas_por_producto[prod_id]['cajas'] += cajas
+            lineas_por_producto[prod_id]['subtotal'] = (
+                precio_unitario * lineas_por_producto[prod_id]['cajas']
+            )
+        else:
+            lineas_por_producto[prod_id] = {
+                'producto_id': prod_id,
+                'cajas': cajas,
+                'precio_unitario': precio_unitario,
+                'subtotal': precio_unitario * cajas,
+            }
         idx += 1
 
-    return lineas
+    return list(lineas_por_producto.values())
 
 
 def _cantidad_detalle_facturable(detalle):
@@ -4869,13 +4907,25 @@ def nuevo_pedido():
         
         notas = request.form.get('notas')
         tipo_cambio = float(request.form.get('tipo_cambio', 1.0) or 1.0)
+
+        # Validate form lines BEFORE creating the pedido row so a bad
+        # payload doesn't leave an orphan empty pedido in the DB.
+        try:
+            lineas_form = _extraer_lineas_pedido_form(request.form, cliente_id)
+        except _PedidoFormError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('nuevo_pedido'))
+        if not lineas_form:
+            flash('Agrega al menos un producto al pedido', 'error')
+            return redirect(url_for('nuevo_pedido'))
+
         pedido = Pedido(cliente_id=cliente_id, notas=notas, tipo_cambio=tipo_cambio)
         db.session.add(pedido)
         db.session.commit()
         _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
 
         # 2) Detalle (resto del código igual)
-        for linea in _extraer_lineas_pedido_form(request.form, cliente_id):
+        for linea in lineas_form:
             detalle = DetallePedido(
                 pedido_id=pedido.id,
                 producto_id=linea['producto_id'],
@@ -4952,13 +5002,23 @@ def editar_pedido(pedido_id):
             flash('No tienes permisos para editar este pedido', 'error')
             return redirect(url_for('lista_pedidos'))
 
+        # Pedidos facturados son inmutables — un cambio aquí divergiría
+        # la DB local del invoice ya enviado a QuickBooks.
+        if pedido.estado == 'facturado':
+            flash('No se puede editar un pedido facturado', 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
         nuevo_cliente_id = int(request.form['cliente_id'])
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             if not current_user.puede_crear_pedido_para_cliente(nuevo_cliente_id):
                 flash('No tienes permisos para reasignar este pedido a ese cliente', 'error')
                 return redirect(url_for('editar_pedido', pedido_id=pedido.id))
 
-        lineas_form = _extraer_lineas_pedido_form(request.form, nuevo_cliente_id)
+        try:
+            lineas_form = _extraer_lineas_pedido_form(request.form, nuevo_cliente_id)
+        except _PedidoFormError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
         if not lineas_form:
             flash('Agrega al menos un producto al pedido', 'error')
             return redirect(url_for('editar_pedido', pedido_id=pedido.id))
@@ -5079,6 +5139,30 @@ def editar_pedido(pedido_id):
 @requiere_permiso_recurso('pedidos', 'eliminar')
 def eliminar_pedido(pedido_id):
     pedido = Pedido.query.get_or_404(pedido_id)
+
+    # IDOR guard: a vendedor with eliminar permission can't wipe
+    # another territory's pedidos. super_admin passes through.
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para eliminar este pedido', 'error')
+        return redirect(url_for('lista_pedidos'))
+
+    # Estado guard: facturado pedidos must not be deleted — the QBO
+    # invoice on the other side would be orphaned and the audit
+    # trail destroyed.
+    if pedido.estado == 'facturado':
+        flash('No se puede eliminar un pedido facturado', 'error')
+        return redirect(url_for('lista_pedidos'))
+
+    # Audit before the cascade kicks in so we can reconstruct what
+    # was lost from the event log.
+    cajas_count = sum(d.cajas_pesadas_count for d in pedido.detalles)
+    _log_pedido_evento(
+        pedido,
+        'eliminado',
+        f'Pedido eliminado (estado={pedido.estado}, líneas={len(pedido.detalles)}, cajas_pesadas={cajas_count})',
+        commit=True,
+    )
+
     db.session.delete(pedido)
     db.session.commit()
     flash('Pedido eliminado.', 'success')
@@ -6695,7 +6779,13 @@ def obtener_productos_api():
 
 @app.route('/productos/<int:producto_id>/eliminar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('productos', 'eliminar')
 def eliminar_producto(producto_id):
+    # The decorator above already filters by role permission. Restrict
+    # further to super_admin since deleting a producto can affect every
+    # cliente's price list and historical pedidos.
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        return jsonify({'error': 'Solo un super administrador puede eliminar productos.'}), 403
     try:
         producto = Producto.query.get_or_404(producto_id)
         db.session.delete(producto)
