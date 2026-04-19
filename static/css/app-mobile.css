@@ -509,14 +509,29 @@ body {
   font-size: 15px;
 }
 .search-pill input {
-  border: none;
-  background: transparent;
+  border: none !important;
+  background: transparent !important;
   flex: 1;
   font-size: 16px;
-  outline: none;
+  outline: none !important;
   color: var(--color-text);
+  box-shadow: none !important;
 }
 .search-pill input::placeholder { color: var(--color-text-subtle); }
+
+/* Tom Select inputs deben heredar el fondo del .ts-control envolvente
+   (blanco en pantallas como pedido_form). Sin esto, el reset global de
+   dark-theme.css `input[type="text"] { background-color: #1a1f2b
+   !important }` les pinta un rectángulo oscuro detrás del placeholder. */
+.ts-wrapper .ts-control input,
+.ts-wrapper.single .ts-control input,
+.ts-wrapper.multi .ts-control input {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
 
 .chips-row {
   display: flex;
