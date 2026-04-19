@@ -1,27 +1,21 @@
 /* =============================================================================
-   Pesar · Redesign (mockup-faithful, matches detail_redesign.css language)
-   Loaded AFTER pesar.css so its rules win by source order.
-   Scope: body[data-pesar-screen] only.
+   Pesar · Mockup-faithful (executive scale)
+   Loaded AFTER pesar.css. Scope: body[data-pesar-screen] only.
 
-   Goals:
-   - Light slate page bg, white cards with subtle shadow + 22px radius.
-   - Hide the base topbar (brand + notification pills) so only the pesar's
-     own minimal nav shows — matches the mockup's clean PED-XXX header.
-   - Indigo accent for primary actions (date pickers, keypad), green for
-     the +Caja submit, soft category accent on chips.
-   - Larger, readable typography for the warehouse use case.
-   - Don't overlap the +Caja key with the bottom summary.
+   Targets the v2 mockup: white nav with centered title, compact product
+   chips with status circle, peach-tinted lote card with orange accent,
+   white date triggers with calendar icon, big readout (CAJA N + product
+   left / huge weight right), white keypad with dark numerals + teal
+   "+ Caja" pill spanning rows 3-4, white CAJAS REGISTRADAS section with
+   orange box chips, bottom summary with TOTAL left + small "Finalizar"
+   pill on the right.
    ============================================================================= */
 
-/* ─── Hide base chrome that collides with pesar's own topnav ────────────── */
-body[data-pesar-screen] .app-topbar {
-  display: none !important;
-}
-body[data-pesar-screen] .app-shell {
-  padding-top: 0 !important;
-}
+/* ─── Hide base topbar; pesar's own nav is the only header ──────────── */
+body[data-pesar-screen] .app-topbar { display: none !important; }
+body[data-pesar-screen] .app-shell { padding-top: 0 !important; }
 
-/* ─── Page background ───────────────────────────────────────────────────── */
+/* ─── Page background ─────────────────────────────────────────────────── */
 body[data-pesar-screen] .app-content,
 body[data-pesar-screen] .app-shell,
 body[data-pesar-screen] .pesar-screen {
@@ -29,14 +23,29 @@ body[data-pesar-screen] .pesar-screen {
   background-image: none !important;
 }
 
-/* ─── Pesar nav (top): white card with back / title / undo ──────────────── */
+body[data-pesar-screen] .pesar-screen {
+  padding: 14px 14px calc(140px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+body[data-pesar-screen] .pesar-frame {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ─── Top nav: white card with centered title + subtitle ─────────────── */
 body[data-pesar-screen] .pesar-nav {
-  background: #ffffff !important;
-  border: 1px solid rgba(15, 23, 42, 0.06) !important;
-  border-radius: 22px !important;
-  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
-  padding: 12px 14px !important;
-  margin-top: max(8px, env(safe-area-inset-top, 0px));
+  display: grid !important;
+  grid-template-columns: 48px 1fr 48px !important;
+  align-items: center;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 8px 0 !important;
+  margin-top: max(6px, env(safe-area-inset-top, 0px));
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -44,7 +53,7 @@ body[data-pesar-screen] .pesar-nav {
 body[data-pesar-screen] .pesar-nav-pill {
   width: 44px !important;
   height: 44px !important;
-  border-radius: 14px !important;
+  border-radius: 999px !important;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   color: #0f172a !important;
@@ -54,32 +63,36 @@ body[data-pesar-screen] .pesar-nav-pill {
   font-size: 1rem;
   cursor: pointer;
   text-decoration: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
-
 body[data-pesar-screen] .pesar-nav-pill:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
+body[data-pesar-screen] .pesar-nav-copy {
+  text-align: center;
+}
 body[data-pesar-screen] .pesar-nav-client {
-  font-size: 1.05rem !important;
+  font-size: 1.1rem !important;
   font-weight: 800 !important;
   color: #0f172a !important;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
 }
-
 body[data-pesar-screen] .pesar-nav-meta {
   margin-top: 2px;
-  font-size: 0.78rem !important;
+  font-size: 0.85rem !important;
   color: #94a3b8 !important;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500 !important;
+  letter-spacing: 0;
 }
 
-/* ─── Product nav chips: clean white pill with category accent ──────────── */
+/* ─── Product chips row ──────────────────────────────────────────────── */
 body[data-pesar-screen] .pesar-chip-row {
-  padding: 4px 0 6px;
-  margin-top: 6px;
+  padding: 0 0 4px;
+  margin: 0 -2px;
+  gap: 10px !important;
 }
 
 body[data-pesar-screen] .pesar-chip {
@@ -87,283 +100,491 @@ body[data-pesar-screen] .pesar-chip {
   padding: 12px 14px !important;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
-  border-left: 3px solid var(--cat) !important;
+  border-left: 1px solid #e2e8f0 !important;
   border-radius: 16px !important;
   color: #0f172a !important;
-  box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
+  gap: 6px;
   align-items: flex-start;
-  gap: 4px;
 }
 
 body[data-pesar-screen] .pesar-chip.is-active {
   background: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  border-left-color: var(--cat) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 18%, transparent),
-              0 8px 20px -10px rgba(15, 23, 42, 0.12) !important;
+  border-color: #fb923c !important;
+  border-width: 2px !important;
+  box-shadow: 0 4px 16px -8px rgba(251, 146, 60, 0.45) !important;
+  padding: 11px 13px !important;
 }
 
 body[data-pesar-screen] .pesar-chip-status {
-  font-size: 0.7rem !important;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem !important;
   font-weight: 800 !important;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--cat) !important;
+  color: #fb923c !important;
+  text-align: left !important;
+}
+body[data-pesar-screen] .pesar-chip-status i {
+  width: 18px; height: 18px;
+  border-radius: 999px;
+  background: #fb923c;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
 }
 body[data-pesar-screen] .pesar-chip.is-complete .pesar-chip-status {
   color: #059669 !important;
 }
+body[data-pesar-screen] .pesar-chip.is-complete .pesar-chip-status i {
+  background: #10b981;
+}
 
 body[data-pesar-screen] .pesar-chip-name {
-  font-size: 0.92rem !important;
+  font-size: 0.95rem !important;
   font-weight: 700 !important;
-  line-height: 1.25;
+  line-height: 1.2;
   color: #0f172a !important;
   text-align: left;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body[data-pesar-screen] .pesar-chip-meta {
-  font-size: 0.78rem !important;
-  color: #94a3b8 !important;
-  font-weight: 500 !important;
+  display: none;
 }
 
-/* ─── Lote card: white panel with white inputs ──────────────────────────── */
+/* ─── Lote card: peach-tinted panel with orange accent ───────────────── */
 body[data-pesar-screen] .pesar-lote-card {
-  background: #ffffff !important;
-  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  background: linear-gradient(180deg, #fff7ed 0%, #fffaf3 100%) !important;
+  border: 1px solid #fed7aa !important;
   border-radius: 22px !important;
   padding: 18px !important;
-  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 body[data-pesar-screen] .pesar-lote-head {
   font-size: 0.78rem !important;
-  letter-spacing: 0.12em;
-  color: #94a3b8 !important;
-  font-weight: 800;
+  letter-spacing: 0.1em !important;
+  color: #ea580c !important;
+  font-weight: 800 !important;
   text-transform: uppercase;
-  margin-bottom: 14px;
+  margin-bottom: 14px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+body[data-pesar-screen] .pesar-lote-head > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-pesar-screen] .pesar-lote-head > span::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 999px;
+  background: #ea580c;
+  display: inline-block;
 }
 
 body[data-pesar-screen] .pesar-lote-new {
-  background: #eef2ff !important;
-  color: var(--indigo-500, #2563eb) !important;
+  background: transparent !important;
+  color: #ea580c !important;
   border: 0 !important;
-  height: auto;
-  padding: 6px 12px !important;
-  border-radius: 999px !important;
-  font-size: 0.78rem !important;
+  height: auto !important;
+  width: auto !important;
+  padding: 4px 0 !important;
+  border-radius: 0 !important;
+  font-size: 0.85rem !important;
   font-weight: 700 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-body[data-pesar-screen] .pesar-field span {
+body[data-pesar-screen] .pesar-field span,
+body[data-pesar-screen] .pesar-date-trigger span {
   font-size: 0.7rem !important;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em !important;
   color: #94a3b8 !important;
-  font-weight: 800;
+  font-weight: 800 !important;
   text-transform: uppercase;
 }
 
 body[data-pesar-screen] .pesar-field input {
   background: #ffffff !important;
   color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid #fed7aa !important;
   border-radius: 14px !important;
   padding: 14px 16px !important;
-  font-size: 1rem !important;
-  font-weight: 600 !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
   font-family: var(--font-mono);
   width: 100%;
   outline: none;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  letter-spacing: 0.02em;
+}
+body[data-pesar-screen] .pesar-field input:focus {
+  border-color: #fb923c !important;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15) !important;
 }
 
-body[data-pesar-screen] .pesar-field input:focus {
-  border-color: var(--indigo-500, #2563eb) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--indigo-500, #2563eb) 14%, transparent) !important;
+body[data-pesar-screen] .pesar-field-grid {
+  margin-top: 12px !important;
+  gap: 10px !important;
 }
 
 body[data-pesar-screen] .pesar-date-trigger {
   background: #ffffff !important;
   color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 16px !important;
-  padding: 14px 16px !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid #fed7aa !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  position: relative;
 }
 
 body[data-pesar-screen] .pesar-date-trigger strong {
   color: #0f172a !important;
-  font-size: 0.95rem !important;
-  font-weight: 800 !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
   font-family: var(--font-mono);
 }
 
 body[data-pesar-screen] .pesar-date-trigger small {
-  color: var(--cat) !important;
+  position: absolute;
+  top: 12px; right: 14px;
+  background: transparent !important;
+  color: #fb923c !important;
   font-size: 0.6rem !important;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
 }
 
-/* ─── Keypad card: white panel, clean tile keys, indigo numbers ─────────── */
+/* Calendar icon on the right side of date triggers */
+body[data-pesar-screen] .pesar-date-trigger::after {
+  content: '\f073';
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free';
+  font-weight: 900;
+  position: absolute;
+  bottom: 12px; right: 14px;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+/* ─── Caja readout: split layout (info left / huge weight right) ─────── */
 body[data-pesar-screen] .pesar-keypad-card {
   background: #ffffff !important;
   border: 1px solid rgba(15, 23, 42, 0.06) !important;
   border-radius: 22px !important;
-  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
   overflow: hidden;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 body[data-pesar-screen] .pesar-readout {
-  padding: 18px 18px 14px !important;
-  border-bottom: 1px dashed #e2e8f0 !important;
-  background: #fafbfc;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 22px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #ffffff;
+  gap: 16px;
 }
-
+body[data-pesar-screen] .pesar-readout > div:first-child {
+  min-width: 0;
+}
 body[data-pesar-screen] .pesar-readout-label {
   color: #94a3b8 !important;
-  font-size: 0.7rem !important;
-  letter-spacing: 0.12em;
-  font-weight: 800;
+  font-size: 0.74rem !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
 }
-
 body[data-pesar-screen] .pesar-readout-product {
-  color: #0f172a !important;
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
+  color: #475569 !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
   margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
+body[data-pesar-screen] .pesar-readout-value {
+  flex-shrink: 0;
+}
 body[data-pesar-screen] .pesar-readout-value span {
   color: #0f172a !important;
-  font-size: clamp(48px, 14vw, 64px) !important;
+  font-size: clamp(64px, 18vw, 96px) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em;
   text-shadow: none !important;
+  font-family: var(--font-sans);
 }
-
 body[data-pesar-screen] .pesar-readout-value small {
   color: #94a3b8 !important;
-  font-size: 0.95rem !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  margin-left: 4px;
 }
 
-/* Keypad keys: white tiles with subtle borders, indigo numerals */
+/* ─── Keypad: clean white, dark numerals, teal +Caja submit ─────────── */
+body[data-pesar-screen] .pesar-key-grid {
+  padding: 6px;
+  gap: 0;
+}
+
 body[data-pesar-screen] .pesar-key {
   background: #ffffff !important;
   background-image: none !important;
-  color: var(--indigo-500, #2563eb) !important;
-  font-family: var(--font-mono);
-  font-size: 1.5rem !important;
+  color: #0f172a !important;
+  font-family: var(--font-sans);
+  font-size: 1.7rem !important;
   font-weight: 700 !important;
-  min-height: 64px !important;
+  min-height: 76px !important;
   border: 0 !important;
-  border-top: 1px solid #f1f5f9 !important;
-  border-left: 1px solid #f1f5f9 !important;
+  border-radius: 14px !important;
   cursor: pointer;
   transition: background 120ms ease;
+  margin: 2px;
 }
-
 body[data-pesar-screen] .pesar-key:active {
-  background: #eef2ff !important;
+  background: #f4f6fa !important;
 }
 
-/* Back / Clear keys read as utility, not numeric */
 body[data-pesar-screen] .pesar-key[data-key="back"],
 body[data-pesar-screen] .pesar-key[data-key="clear"] {
-  color: #94a3b8 !important;
-  font-size: 1.1rem !important;
+  color: #475569 !important;
+  font-size: 1.25rem !important;
 }
 
-/* +Caja submit — green pill that visually pops out of the keypad grid */
+/* +Caja submit — teal/cyan gradient, spans rows 3-4 of column 4 */
 body[data-pesar-screen] .pesar-key.is-submit {
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  background-image: linear-gradient(135deg, #10b981, #059669) !important;
+  background: linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%) !important;
+  background-image: linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%) !important;
   color: #ffffff !important;
   border: 0 !important;
-  border-radius: 16px !important;
-  margin: 8px !important;
-  box-shadow: 0 10px 22px -8px rgba(16, 185, 129, 0.55) !important;
-  font-size: 0.95rem !important;
+  border-radius: 14px !important;
+  margin: 2px !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
   letter-spacing: 0.02em;
+  box-shadow: 0 8px 18px -8px rgba(20, 184, 166, 0.55) !important;
 }
-
+body[data-pesar-screen] .pesar-key.is-submit i { font-size: 1.15rem; }
 body[data-pesar-screen] .pesar-key.is-submit:disabled {
-  background: linear-gradient(135deg, #cbd5e1, #94a3b8) !important;
-  background-image: linear-gradient(135deg, #cbd5e1, #94a3b8) !important;
+  background: linear-gradient(180deg, #cbd5e1, #94a3b8) !important;
+  background-image: linear-gradient(180deg, #cbd5e1, #94a3b8) !important;
   box-shadow: none !important;
   cursor: not-allowed;
 }
 
-/* ─── Cajas list panel ──────────────────────────────────────────────────── */
-body[data-pesar-screen] .pesar-group-card {
+/* ─── Cajas registradas section ──────────────────────────────────────── */
+body[data-pesar-screen] .pesar-panels {
+  padding-bottom: 0 !important;
+}
+
+body[data-pesar-screen] .pesar-panel {
   background: #ffffff !important;
   border: 1px solid rgba(15, 23, 42, 0.06) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 4px 14px -8px rgba(15, 23, 42, 0.06) !important;
+  border-radius: 22px !important;
+  padding: 16px !important;
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
 }
 
-body[data-pesar-screen] .pesar-group-header {
-  background: #fafbfc !important;
-  border-bottom: 1px solid #f1f5f9 !important;
-  padding: 12px 14px !important;
+body[data-pesar-screen] .pesar-list-header {
+  padding: 0 0 12px !important;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 12px;
 }
-
-body[data-pesar-screen] .pesar-group-lot {
+body[data-pesar-screen] .pesar-list-title {
+  font-size: 0.78rem !important;
+  letter-spacing: 0.1em !important;
+  color: #94a3b8 !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+}
+body[data-pesar-screen] .pesar-list-total {
+  font-size: 0.95rem !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+body[data-pesar-screen] .pesar-list-total strong {
   color: #0f172a !important;
-  font-weight: 800;
-}
-
-/* ─── Bottom summary bar: don't overlap the keypad ──────────────────────── */
-body[data-pesar-screen] #pesar-summary {
-  bottom: calc(63px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-body[data-pesar-screen] .pesar-summary {
-  background: #ffffff !important;
-  border: 1px solid rgba(15, 23, 42, 0.06) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.18) !important;
-  padding: 12px 14px !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-body[data-pesar-screen] .pesar-summary-value {
-  color: #0f172a !important;
-  font-size: 1rem !important;
   font-weight: 800 !important;
 }
 
+body[data-pesar-screen] .pesar-group-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-pesar-screen] .pesar-group-header {
+  background: transparent !important;
+  border-bottom: 0 !important;
+  padding: 8px 4px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+body[data-pesar-screen] .pesar-group-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.84rem !important;
+  color: #94a3b8 !important;
+  font-weight: 500;
+}
+body[data-pesar-screen] .pesar-group-lot {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+body[data-pesar-screen] .pesar-group-count {
+  color: #475569 !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+}
+
+body[data-pesar-screen] .pesar-box-grid {
+  padding: 6px 4px 4px !important;
+  gap: 8px !important;
+}
+
+body[data-pesar-screen] .pesar-box-chip {
+  background: #fff7ed !important;
+  border: 1px solid #fed7aa !important;
+  border-left: 1px solid #fed7aa !important;
+  border-radius: 999px !important;
+  padding: 8px 14px !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-pesar-screen] .pesar-box-index {
+  color: #ea580c !important;
+  font-weight: 800 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 0.04em !important;
+  font-family: var(--font-mono);
+}
+body[data-pesar-screen] .pesar-box-weight {
+  color: #0f172a !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  font-family: var(--font-mono);
+}
+body[data-pesar-screen] .pesar-box-weight small {
+  color: #94a3b8 !important;
+  font-size: 0.7rem !important;
+}
+body[data-pesar-screen] .pesar-box-chip i {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+/* ─── Bottom summary bar ─────────────────────────────────────────────── */
+body[data-pesar-screen] #pesar-summary {
+  bottom: calc(63px + env(safe-area-inset-bottom, 0px)) !important;
+  left: 0 !important;
+  right: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+body[data-pesar-screen] .pesar-summary {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+body[data-pesar-screen] .pesar-summary-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+body[data-pesar-screen] .pesar-summary-label {
+  font-size: 0.7rem !important;
+  letter-spacing: 0.1em !important;
+  color: #94a3b8 !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+}
+body[data-pesar-screen] .pesar-summary-value {
+  color: #0f172a !important;
+  font-size: 1.1rem !important;
+  font-weight: 800 !important;
+  font-variant-numeric: tabular-nums;
+}
 body[data-pesar-screen] .pesar-summary-value small {
   color: #94a3b8 !important;
+  font-weight: 600 !important;
+  font-size: 0.78rem !important;
+}
+body[data-pesar-screen] .pesar-summary-sep {
+  color: #cbd5e1 !important;
 }
 
+/* Finalizar — small white pill with check on the right */
 body[data-pesar-screen] .pesar-finish-btn {
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 14px !important;
-  height: 44px !important;
-  padding: 0 16px !important;
+  height: 48px !important;
+  padding: 0 18px !important;
   font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-pesar-screen] .pesar-finish-btn i {
+  color: #10b981;
+}
+body[data-pesar-screen] .pesar-finish-btn:disabled {
+  color: #cbd5e1 !important;
+  border-color: #f1f5f9 !important;
+  cursor: not-allowed;
+}
+body[data-pesar-screen] .pesar-finish-btn:disabled i {
+  color: #cbd5e1;
 }
 
-/* Push pesar-screen padding so the keypad isn't hidden under the summary */
-body[data-pesar-screen] .pesar-screen {
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-/* ─── Date picker sheet (modal) ─────────────────────────────────────────── */
+/* ─── Date picker sheet (modal) ──────────────────────────────────────── */
 body[data-pesar-screen] .pesar-date-sheet-panel {
   background: #ffffff !important;
   box-shadow: 0 -20px 48px -16px rgba(15, 23, 42, 0.18) !important;
 }
-
 body[data-pesar-screen] .pesar-date-cell {
   background: transparent !important;
   color: #0f172a !important;
@@ -371,21 +592,18 @@ body[data-pesar-screen] .pesar-date-cell {
   border-radius: 12px !important;
   font-weight: 600;
 }
-
 body[data-pesar-screen] .pesar-date-cell.is-selected {
-  background: var(--indigo-500, #2563eb) !important;
+  background: #fb923c !important;
   color: #ffffff !important;
 }
-
 body[data-pesar-screen] .pesar-date-sheet-primary {
-  background: linear-gradient(135deg, var(--indigo-500, #2563eb), var(--violet-500, #4f46e5)) !important;
+  background: linear-gradient(135deg, #fb923c, #ea580c) !important;
   color: #ffffff !important;
   border: 0 !important;
   border-radius: 14px !important;
   padding: 12px 18px !important;
   font-weight: 700 !important;
 }
-
 body[data-pesar-screen] .pesar-date-sheet-secondary {
   background: #f1f5f9 !important;
   color: #475569 !important;

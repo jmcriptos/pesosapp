@@ -365,21 +365,37 @@ body[data-detalles-screen] .detail-product-action {
   text-decoration: none;
 }
 body[data-detalles-screen] .detail-product-action i { font-size: 0.78rem; }
-body[data-detalles-screen] .detail-product-delete-form { display: inline-flex; }
+body[data-detalles-screen] .detail-product-delete-form {
+  display: inline-flex;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
 body[data-detalles-screen] .detail-product-delete {
-  width: 30px; height: 30px;
-  border-radius: 999px;
-  background: transparent;
-  color: #cbd5e1;
-  border: 0;
+  width: 30px !important;
+  height: 30px !important;
+  min-height: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  background-image: none !important;
+  color: #cbd5e1 !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  -webkit-appearance: none;
+  appearance: none;
 }
 body[data-detalles-screen] .detail-product-delete:hover {
-  color: #dc2626;
-  background: #fef2f2;
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
 }
 
 /* Right side: vertical divider + weight column */
@@ -442,17 +458,25 @@ body[data-detalles-screen] .action-bar {
 
 body[data-detalles-screen] .action-bar-icon {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   width: 56px; height: 56px;
   border-radius: 18px;
   background: #ffffff;
   color: #0f172a;
   border: 1px solid #e2e8f0;
   text-decoration: none;
-  font-size: 1.1rem;
+  font-size: 1rem;
   flex-shrink: 0;
   box-shadow: 0 4px 12px -6px rgba(15, 23, 42, 0.08);
+}
+body[data-detalles-screen] .action-bar-icon span {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 body[data-detalles-screen] .action-bar-form {
@@ -463,19 +487,34 @@ body[data-detalles-screen] .action-bar-form {
 body[data-detalles-screen] .action-bar-primary {
   width: 100%;
   height: 56px;
-  border: 0;
-  border-radius: 18px;
-  background: linear-gradient(135deg, var(--indigo-500, #2563eb), var(--violet-500, #4f46e5));
-  color: #ffffff;
-  font-size: 1.05rem;
-  font-weight: 700;
+  border: 0 !important;
+  border-radius: 18px !important;
+  /* Hardcoded gradient (no var() fallback) so iOS Safari can't render this
+     as black if the variable resolution fails for any reason. */
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+  background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 12px 28px -10px rgba(37, 99, 235, 0.55);
+  box-shadow: 0 12px 28px -10px rgba(37, 99, 235, 0.55) !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+  text-shadow: none;
+}
+body[data-detalles-screen] .action-bar-primary:hover,
+body[data-detalles-screen] .action-bar-primary:focus,
+body[data-detalles-screen] .action-bar-primary:active {
+  background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+  background-image: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+  background-color: #1d4ed8 !important;
+  color: #ffffff !important;
 }
 
 @media (min-width: 1024px) {
