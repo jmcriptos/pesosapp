@@ -101,6 +101,39 @@
     [data-theme="dark"] .theme-icon-light { display: none; }
     [data-theme="light"] .theme-icon-dark { display: none; }
 
+    /* Top loading bar shown while the page is fetching/parsing.
+       Hidden by base.min.js on the window 'load' event, so it stays visible
+       until ALL dashboard widgets and Chart.js finish rendering. */
+    .app-loading-bar {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            #2563eb 30%,
+            #6366f1 60%,
+            transparent 100%
+        );
+        background-size: 220% 100%;
+        animation: app-loading-shimmer 1.1s linear infinite;
+        z-index: 9999;
+        pointer-events: none;
+        transition: opacity 220ms ease, transform 220ms ease;
+    }
+    .app-loading-bar.is-loaded {
+        opacity: 0;
+        transform: translateY(-3px);
+    }
+    @keyframes app-loading-shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .app-loading-bar { animation: none; background: #2563eb; }
+    }
+
     /* iOS PWA standalone mode: respect safe areas (notch / home indicator)
        so the topbar and bottom tabbar don't get clipped. */
     .app-topbar {
@@ -120,6 +153,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% endblock %}>
+<div class="app-loading-bar" id="appLoadingBar" aria-hidden="true"></div>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     {% set current_path = request.path or '' %}
     {% set is_dashboard = current_path.startswith('/dashboard') or current_path in ['/', '/home'] %}
@@ -417,6 +451,18 @@
     
     <!-- Script de info de optimización -->
     <script>
+        // Hide the top loading bar once everything (CSS, images, charts) is in.
+        // Keep it visible if the load takes >12s (likely server hung) so the
+        // user sees the system is at least trying.
+        window.addEventListener('load', function () {
+            var bar = document.getElementById('appLoadingBar');
+            if (bar) bar.classList.add('is-loaded');
+        });
+        setTimeout(function () {
+            var bar = document.getElementById('appLoadingBar');
+            if (bar && !bar.classList.contains('is-loaded')) bar.classList.add('is-loaded');
+        }, 12000);
+
         const flashStack = document.querySelector('[data-flash-stack]');
         if (flashStack) {
             window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
