@@ -192,7 +192,7 @@
     grid-row: 1;
     grid-column: 1;
     align-self: end;
-    margin-bottom: 24px;
+    margin-bottom: 8px;
   }
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-label,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
@@ -200,6 +200,21 @@
     letter-spacing: 0.18em;
     font-weight: 700;
     color: #94a3b8 !important;
+  }
+
+  /* Servicio: bump the short label (OTD/OFR/POR/CE/LT/PED) and the full-name caption.
+     The full-name div has inline style="font-size:9px"; need !important to override. */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
+    font-size: 1.5rem !important;
+    letter-spacing: 0.06em;
+    color: #f8fafc !important;
+  }
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top > div > div:not(.kpi-label) {
+    font-size: 0.85rem !important;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: #cbd5e1 !important;
+    margin-top: 4px !important;
   }
 
   /* Ring → row 2, scaled 5× to act as halo */
