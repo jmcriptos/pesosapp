@@ -1,16 +1,16 @@
 /* =============================================================================
-   Dashboard · Snap Layout (light theme — matches Pedidos)
-   Spec: docs/superpowers/specs/2026-04-18-dashboard-snap-layout-design.md
+   Dashboard · Mockup-faithful refresh (replaces snap layout)
+   Loaded AFTER dashboard_light.css. Mobile/tablet only (<1024px).
 
-   Loaded AFTER dashboard_light.css. Inherits the light scheme (white cards,
-   slate background) and adds: vertical scroll-snap on Ventas + Servicio,
-   executive halo composition for KPI cards, bigger chart, snap-dot indicator.
-   Mobile/tablet only (<1024px). Desktop falls back to existing grid layout.
+   Keeps the file name for stability of the <link> reference but the design
+   is now a clean 2-col KPI grid with all cards visible at once, a chart
+   card below, and a section header with a "Ver más" action — matches the
+   provided mockup. The snap-dots indicator is hidden everywhere.
    ============================================================================= */
 
 @media (max-width: 1023px) {
 
-  /* ── Page bg + section title + tab pills (align to detail-redesign) ──── */
+  /* ─── Page bg + content tokens ─────────────────────────────────────── */
   body[data-dashboard-screen] .app-content,
   body[data-dashboard-screen] .app-shell,
   body[data-dashboard-screen] .app-shell.dash-body,
@@ -19,31 +19,49 @@
     background-image: none !important;
   }
 
-  /* Hero title bigger and tighter — matches "Progreso" treatment in detail */
+  /* ─── Hero ─────────────────────────────────────────────────────────── */
+  body[data-dashboard-screen] .hero {
+    padding: 14px 18px 18px !important;
+  }
+  body[data-dashboard-screen] .hero-kicker {
+    color: var(--indigo-500, #2563eb) !important;
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
   body[data-dashboard-screen] .hero-title {
-    font-size: 1.6rem !important;
+    color: #0f172a !important;
+    font-size: 1.7rem !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em;
-    color: #0f172a !important;
+    margin: 4px 0 4px !important;
   }
-  body[data-dashboard-screen] .hero-kicker,
   body[data-dashboard-screen] .hero-sub {
     color: #64748b !important;
+    font-size: 0.92rem !important;
+    font-weight: 500;
   }
 
-  /* Tab segmented control → full pill container, white active pill */
+  /* ─── Tab pills ────────────────────────────────────────────────────── */
   body[data-dashboard-screen] .dash-seg {
     background: #eef1f5 !important;
     border: 0 !important;
     border-radius: 999px !important;
     padding: 5px !important;
+    margin: 0 16px 18px !important;
+    overflow: visible;
   }
   body[data-dashboard-screen] .dash-seg button {
     border-radius: 999px !important;
-    padding: 10px 16px !important;
-    font-size: 0.9rem !important;
+    padding: 11px 16px !important;
+    font-size: 0.95rem !important;
     font-weight: 700 !important;
     color: #64748b !important;
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
   }
   body[data-dashboard-screen] .dash-seg button.active {
     background: #ffffff !important;
@@ -52,236 +70,250 @@
     box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.12) !important;
   }
 
-  /* Cards: align shadow + radius to detail-redesign language */
-  body[data-dashboard-screen] .gcard,
-  body[data-dashboard-screen] .kpi,
-  body[data-dashboard-screen] .chart-card,
-  body[data-dashboard-screen] .week-mini-card {
-    border: 1px solid rgba(15, 23, 42, 0.06) !important;
-    box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
+  /* ─── Carousel containers stay flow-based (no snap, no fixed height) ── */
+  body[data-dashboard-screen] .panels-viewport,
+  body[data-dashboard-screen] .panels-track,
+  body[data-dashboard-screen] .dash-panel {
+    height: auto !important;
+    overflow: visible !important;
+    scroll-snap-type: none !important;
   }
-
-  /* ── Snap layout — Ventas + Servicio panels only ─────────────────────── */
-
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"],
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] {
-    /* Snap container: viewport minus topbar (~48px+safe-top), tabs (~52px), tabbar (~68px+safe-bottom). */
-    height: calc(100vh - env(safe-area-inset-top, 0px) - 48px - 52px - 68px - env(safe-area-inset-bottom, 0px));
-    overflow-y: auto;
-    overflow-x: hidden;
-    scroll-snap-type: y mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"]::-webkit-scrollbar,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"]::-webkit-scrollbar {
+  body[data-dashboard-screen] .panels-viewport::-webkit-scrollbar,
+  body[data-dashboard-screen] .dash-panel::-webkit-scrollbar {
     display: none;
   }
 
-  /* Inside snap panels: kill the grid; stack cards vertically */
+  /* ─── KPI grid: clean 2-col layout (Ventas 2x2, Servicio 2x3) ───────── */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi-grid,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .svc-kpi-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin-bottom: 0;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    margin: 0 16px 18px !important;
+    flex-direction: initial !important;
   }
 
-  /* Snap targets — one per card. Always rounded corners (24px on the big cards). */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] [data-snap-card],
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] [data-snap-card] {
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
-    min-height: 80vh;
-    display: flex;
+  /* ─── KPI card: white panel, label+ring on top, big value, sub line ── */
+  body[data-dashboard-screen] .kpi,
+  body[data-dashboard-screen] .dash-panel .kpi,
+  body[data-dashboard-screen] .svc-kpi-grid .kpi {
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 1px solid rgba(15, 23, 42, 0.06) !important;
+    border-radius: 22px !important;
+    padding: 16px 16px 18px !important;
+    color: #0f172a !important;
+    box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    display: flex !important;
     flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  body[data-dashboard-screen] .kpi-top {
+    display: flex !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 2px;
+  }
+
+  body[data-dashboard-screen] .kpi-label {
+    color: #94a3b8 !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Ring stays at native 44px from the macro; just lock its container */
+  body[data-dashboard-screen] .kpi .ring-wrap {
+    width: 48px !important;
+    height: 48px !important;
+    flex-shrink: 0;
+    transform: none !important;
+    margin: 0 !important;
+    position: relative;
+  }
+  body[data-dashboard-screen] .kpi .ring-wrap svg {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  body[data-dashboard-screen] .kpi .ring-wrap circle:first-child {
+    stroke: rgba(15, 23, 42, 0.08) !important;
+  }
+  body[data-dashboard-screen] .ring-label {
+    color: #f97316 !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    line-height: 1;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    margin: 0 0 12px;
-    border-radius: 24px !important;
-    overflow: hidden;
   }
 
-  /* KPI border colored by state (matches the progress ring). 3px stroke
-     so it reads at a glance. The data-kpi-state attribute is set by the
-     dashboard template per KPI from the same state var the ring uses. */
-  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="success"] {
-    border: 3px solid var(--color-success, #10b981) !important;
+  body[data-dashboard-screen] .kpi-value {
+    color: #0f172a !important;
+    font-size: clamp(1.55rem, 6vw, 1.85rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.025em !important;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
   }
-  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="warning"] {
-    border: 3px solid var(--color-warning, #f59e0b) !important;
-  }
-  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="danger"] {
-    border: 3px solid var(--color-danger, #f43f5e) !important;
-  }
-  body[data-dashboard-screen] .kpi[data-snap-card][data-kpi-state="neutral"] {
-    border: 3px solid var(--indigo-500, #6366f1) !important;
+  body[data-dashboard-screen] .kpi-value small {
+    color: #94a3b8 !important;
+    font-size: 0.7rem !important;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
-  /* Chart gets a taller snap target and bigger canvas */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .chart-card[data-snap-card] {
-    min-height: 90vh;
+  body[data-dashboard-screen] .kpi-sub {
+    color: #64748b !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    line-height: 1.35;
+    margin-top: 2px;
   }
+
+  /* ─── Section header (Tendencia · últimos 12 meses) ────────────────── */
+  body[data-dashboard-screen] .sec-head {
+    display: flex !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 22px 16px 12px !important;
+    padding: 0 !important;
+  }
+  body[data-dashboard-screen] .sec-title {
+    margin: 0;
+    color: #0f172a !important;
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.015em;
+    text-transform: none !important;
+  }
+  body[data-dashboard-screen] .sec-action {
+    color: var(--indigo-500, #2563eb) !important;
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* ─── Chart card ────────────────────────────────────────────────────── */
+  body[data-dashboard-screen] .chart-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.06) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
+    margin: 0 16px 18px !important;
+    padding: 18px 18px 12px !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  body[data-dashboard-screen] .chart-head {
+    margin-bottom: 10px;
+  }
+  body[data-dashboard-screen] .chart-big {
+    color: #0f172a !important;
+    font-size: 1.85rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  body[data-dashboard-screen] .chart-big small {
+    color: #94a3b8 !important;
+    font-size: 0.85rem !important;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  body[data-dashboard-screen] .chart-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #94a3b8 !important;
+  }
+  body[data-dashboard-screen] .kpi-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #d1fae5;
+    color: #047857;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  body[data-dashboard-screen] .kpi-trend.down {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
   body[data-dashboard-screen] .trend-chart-wrap {
-    height: 70vh;
-    max-height: 480px; /* landscape sanity */
-    min-height: 320px;
+    height: 180px !important;
+    min-height: 180px !important;
+    max-height: 220px !important;
+    padding: 6px 0 0;
   }
   body[data-dashboard-screen] .trend-chart-wrap canvas {
     display: block;
   }
 
-  /* ── Executive halo composition for KPI snap cards ──
-     Value lives INSIDE the big progress ring; label above (close to ring),
-     sub below, all centered. Achieved via CSS Grid with .kpi-top promoted to
-     display: contents so label and ring become direct grid items, and
-     .kpi-value placed in the same row as the ring (overlapping it as a halo
-     around the value). The ring is the existing 44×44 SVG visually scaled 5×
-     via CSS transform. Row 2 is pinned to 280px so the label sits naturally
-     just above the ring instead of being pushed to the top by 1fr. */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card],
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] {
-    min-height: 76vh;
+  /* ─── Week-mini grid (3 stat cells) ─────────────────────────────────── */
+  body[data-dashboard-screen] .week-mini-grid {
     display: grid !important;
-    grid-template-rows: auto 280px auto;
-    grid-template-columns: 1fr;
-    align-content: center;
-    justify-items: center;
-    text-align: center;
-    padding: 24px 20px !important;
-    gap: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin: 0 16px 24px !important;
   }
-
-  /* Promote .kpi-top children to grid items of .kpi */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-top,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top {
-    display: contents;
-  }
-
-  /* Label slot (in Servicio: a wrapper div with label + full name; in Ventas: the .kpi-label itself) → row 1 */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-top > :not(.ring-wrap),
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top > :not(.ring-wrap) {
-    grid-row: 1;
-    grid-column: 1;
-    align-self: end;
-    margin-bottom: 4px;
-  }
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-label,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
-    font-size: 0.85rem !important;
-    letter-spacing: 0.18em;
-    font-weight: 700;
-    color: #64748b !important;
-  }
-
-  /* Servicio: bump the short label (OTD/OFR/POR/CE/LT/PED) and the full-name caption.
-     The full-name div has inline style="font-size:9px"; need !important to override. */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
-    font-size: 1.5rem !important;
-    letter-spacing: 0.06em;
+  body[data-dashboard-screen] .week-mini-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.06) !important;
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
     color: #0f172a !important;
+    box-shadow: 0 4px 14px -8px rgba(15, 23, 42, 0.08) !important;
   }
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top > div > div:not(.kpi-label) {
-    font-size: 0.85rem !important;
-    letter-spacing: 0.04em;
-    font-weight: 600;
-    color: #475569 !important;
-    margin-top: 4px !important;
+  body[data-dashboard-screen] .week-mini-label {
+    color: #94a3b8 !important;
+    font-size: 0.66rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
-
-  /* Ring → row 2, scaled 5× to act as halo */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .ring-wrap,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .ring-wrap {
-    grid-row: 2;
-    grid-column: 1;
-    align-self: center;
-    justify-self: center;
-    transform: scale(5);
-    transform-origin: center;
-    margin: 0 !important;
-  }
-
-  /* Hide the percentage label inside the ring — the kpi-value will overlay the center. */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .ring-label,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .ring-label {
-    display: none !important;
-  }
-
-  /* Value → ALSO row 2 (stacked over ring), centered. Dark text on light card. */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value {
-    grid-row: 2;
-    grid-column: 1;
-    align-self: center;
-    justify-self: center;
-    z-index: 2;
-    pointer-events: none;
-    flex-direction: column;
-    align-items: center;
-    font-size: clamp(32px, 9vw, 48px) !important;
-    line-height: 1.05;
+  body[data-dashboard-screen] .week-mini-val {
     color: #0f172a !important;
-  }
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value small,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value small {
-    display: block;
-    font-size: 1rem !important;
-    margin-top: 6px;
-    color: #64748b !important;
-    letter-spacing: 0.05em;
+    font-size: 1.2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Sub → row 3, below the ring */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-sub,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-sub {
-    grid-row: 3;
-    grid-column: 1;
-    align-self: start;
-    margin-top: 12px;
-    font-size: 1rem !important;
-    color: #475569 !important;
-  }
-
-  /* Week-mini grid stays a 3-col grid inside its snap card, just centered */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .week-mini-grid[data-snap-card] {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    align-content: center;
-  }
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .week-mini-grid[data-snap-card] .week-mini-val {
-    font-size: 1.6rem !important;
-  }
-
-  /* ── Snap dots indicator (right edge of viewport, dark on light bg) ──── */
-
+  /* ─── Snap dots: hidden everywhere now (no snap behaviour) ──────────── */
   body[data-dashboard-screen] .snap-dots {
-    position: fixed;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: none; /* shown by JS only when its panel is the active tab */
-    flex-direction: column;
-    gap: 8px;
-    z-index: 25;
-    pointer-events: none;
-  }
-  body[data-dashboard-screen] .snap-dots.is-active {
-    display: flex;
-  }
-  body[data-dashboard-screen] .snap-dots span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(15, 23, 42, 0.22);
-    transition: background 160ms ease, transform 160ms ease;
-  }
-  body[data-dashboard-screen] .snap-dots span.is-current {
-    background: #0f172a;
-    transform: scale(1.4);
+    display: none !important;
   }
 }
 
-/* Desktop (≥1024px): no snap, no dots — fall back to existing grid layout */
+/* Desktop (≥1024px): native grid widens to 4 cols (handled by base CSS) */
 @media (min-width: 1024px) {
   body[data-dashboard-screen] .snap-dots { display: none !important; }
 }
