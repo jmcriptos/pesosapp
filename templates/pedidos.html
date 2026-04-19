@@ -103,10 +103,10 @@
             </button>
           </form>
           {% endif %}
-          {% if pedido.estado == 'pendiente' %}
+          {% if pedido.estado in ['pendiente', 'preparado'] %}
           <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form"
-                onsubmit="return confirm('¿Eliminar pedido #{{ pedido.id }}?')"
+                onsubmit="return confirm('{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}')"
                 onclick="event.stopPropagation()">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="pc-action-btn danger" title="Eliminar"
@@ -313,9 +313,9 @@
                     </button>
                   </form>
                   {% endif %}
-                  {% if pedido.estado == 'pendiente' %}
+                  {% if pedido.estado in ['pendiente', 'preparado'] %}
                   <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
-                        onsubmit="return confirm('¿Seguro que quieres eliminar este pedido?');">
+                        onsubmit="return confirm('{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Seguro que quieres eliminar este pedido?{% endif %}');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="row-action row-action-danger"
                             title="Eliminar pedido #{{ pedido.id }}" aria-label="Eliminar pedido #{{ pedido.id }}">
