@@ -83,17 +83,17 @@
     display: none;
   }
 
-  /* ─── KPI grid: clean 2-col layout (Ventas 2x2, Servicio 2x3) ───────── */
+  /* ─── KPI grid: full-width single column for max readability ────────── */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi-grid,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .svc-kpi-grid {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 12px !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
     margin: 0 16px 18px !important;
     flex-direction: initial !important;
   }
 
-  /* ─── KPI card: white panel, label+ring on top, big value, sub line ── */
+  /* ─── KPI card: full-width white panel, label+ring on top, big value ── */
   body[data-dashboard-screen] .kpi,
   body[data-dashboard-screen] .dash-panel .kpi,
   body[data-dashboard-screen] .svc-kpi-grid .kpi {
@@ -101,14 +101,14 @@
     background-image: none !important;
     border: 1px solid rgba(15, 23, 42, 0.06) !important;
     border-radius: 22px !important;
-    padding: 16px 16px 18px !important;
+    padding: 22px 22px 22px !important;
     color: #0f172a !important;
     box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     display: flex !important;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     min-height: 0;
   }
 
@@ -116,25 +116,25 @@
     display: flex !important;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 2px;
+    gap: 14px;
+    margin-bottom: 0;
   }
 
   body[data-dashboard-screen] .kpi-label {
-    color: #94a3b8 !important;
-    font-size: 0.72rem !important;
+    color: #64748b !important;
+    font-size: 0.95rem !important;
     font-weight: 800 !important;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    line-height: 1.2;
+    line-height: 1.25;
     flex: 1;
     min-width: 0;
   }
 
-  /* Ring stays at native 44px from the macro; just lock its container */
+  /* Ring grows to 64px on the wide cards; native 44px scaled via container */
   body[data-dashboard-screen] .kpi .ring-wrap {
-    width: 48px !important;
-    height: 48px !important;
+    width: 64px !important;
+    height: 64px !important;
     flex-shrink: 0;
     transform: none !important;
     margin: 0 !important;
@@ -149,7 +149,7 @@
   }
   body[data-dashboard-screen] .ring-label {
     color: #f97316 !important;
-    font-size: 0.72rem !important;
+    font-size: 0.92rem !important;
     font-weight: 800 !important;
     line-height: 1;
     position: absolute;
@@ -161,26 +161,26 @@
 
   body[data-dashboard-screen] .kpi-value {
     color: #0f172a !important;
-    font-size: clamp(1.55rem, 6vw, 1.85rem) !important;
+    font-size: clamp(2.4rem, 9vw, 3rem) !important;
     font-weight: 800 !important;
-    letter-spacing: -0.025em !important;
-    line-height: 1.1;
+    letter-spacing: -0.03em !important;
+    line-height: 1.05;
     font-variant-numeric: tabular-nums;
     display: inline-flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 6px;
   }
   body[data-dashboard-screen] .kpi-value small {
     color: #94a3b8 !important;
-    font-size: 0.7rem !important;
+    font-size: 0.85rem !important;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
   body[data-dashboard-screen] .kpi-sub {
     color: #64748b !important;
-    font-size: 0.85rem !important;
+    font-size: 1rem !important;
     font-weight: 500 !important;
     line-height: 1.35;
     margin-top: 2px;
