@@ -36,7 +36,16 @@ body[data-pedido-form-screen] .mobile-form-container {
 
 /* ────────────────────────────────────────────────────────────
    Shell + dedicated top nav (takeover replaces base chrome)
+   On mobile the base .app-topbar is hidden — the
+   pedido-form-topnav owns the header zone (close + title) and
+   carries the iOS safe-area-top padding itself. On desktop the
+   global topbar stays visible for cross-section navigation.
    ──────────────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  body[data-pedido-form-screen] .app-topbar { display: none !important; }
+  body[data-pedido-form-screen] .app-shell { padding-top: 0 !important; }
+}
+
 body[data-pedido-form-screen] .pedido-form-shell {
   background: var(--bg-ambient, #f8fafc);
   min-height: 100vh;
@@ -50,7 +59,7 @@ body[data-pedido-form-screen] .pedido-form-topnav {
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border-subtle);
   position: sticky;
@@ -202,6 +211,20 @@ body[data-pedido-form-screen] .ts-wrapper .ts-control input,
 body[data-pedido-form-screen] .ts-wrapper .ts-control .item {
   color: #0f172a !important;
   background: transparent !important;
+}
+
+/* Selected item: keep it on a single line (no float, no extra row).
+   Tom Select applies its `.item` class to the rendered template, so the
+   selected node is `<div class="item ts-item-clean">…</div>`. Truncate
+   with ellipsis instead of wrapping into a second row. */
+body[data-pedido-form-screen] .ts-wrapper .ts-control .item.ts-item-clean,
+body[data-pedido-form-screen] .ts-wrapper .ts-control .ts-item-clean {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.3;
 }
 
 body[data-pedido-form-screen] .ts-wrapper .ts-control input::placeholder {
