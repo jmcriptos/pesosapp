@@ -1,28 +1,39 @@
+{# Bottom sticky action bar: small white edit/pesar pill on the left,
+   primary action button (Marcar preparado / Facturar) filling the rest. #}
 {% if estado in ['pendiente', 'preparado'] %}
 <div class="action-bar">
   {% if tiene_productos_pesables and estado != 'facturado' %}
-    <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}" class="btn-secondary"
-       style="display:grid; place-items:center; text-decoration:none; white-space:nowrap;">
-      <i class="fas fa-weight-hanging"></i> Pesar
+    <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
+       class="action-bar-icon"
+       aria-label="Pesar productos"
+       title="Pesar productos">
+      <i class="fas fa-weight-hanging"></i>
+    </a>
+  {% else %}
+    <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
+       class="action-bar-icon"
+       aria-label="Editar pedido"
+       title="Editar pedido">
+      <i class="fas fa-pen"></i>
     </a>
   {% endif %}
   {% if estado == 'pendiente' %}
     <form method="post"
           action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}"
           data-confirm="¿Marcar este pedido como preparado? Se validará la trazabilidad de todos los productos."
-          style="flex:1;">
+          class="action-bar-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn-primary" style="width:100%;">
-        <i class="fas fa-check-circle"></i> Marcar preparado
+      <button type="submit" class="action-bar-primary">
+        Marcar como preparado
       </button>
     </form>
   {% elif estado == 'preparado' %}
     <form method="post"
           action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
-          style="flex:1;">
+          class="action-bar-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn-primary" style="width:100%;">
-        <i class="fas fa-file-invoice"></i> Facturar
+      <button type="submit" class="action-bar-primary">
+        Facturar
       </button>
     </form>
   {% endif %}

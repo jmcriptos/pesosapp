@@ -979,6 +979,8 @@ tr.linea-pedido-original td:first-child {
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/detalles_pedido.css') }}">
+{# detail_redesign.css MUST load AFTER detalles_pedido.css — mockup-faithful overrides win by source order. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/detail_redesign.css') }}">
 {% endblock %}
 
 {% block content %}

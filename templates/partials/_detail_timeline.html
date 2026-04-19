@@ -1,22 +1,32 @@
+{# Horizontal 4-step progress stepper with section title.
+   Maps pedido.estado to one of: recibido / preparado / facturado / entregado.
+   "Recibido" is the entry state (covers 'pendiente' in the model). #}
+
 {% set steps = [
-  ('pendiente',  'Pedido creado',  'fa-plus-circle'),
-  ('preparado',  'Preparado',      'fa-box'),
-  ('facturado',  'Facturado',      'fa-file-invoice'),
-  ('entregado',  'Entregado',      'fa-truck'),
+  ('recibido',   'Recibido'),
+  ('preparado',  'Preparado'),
+  ('facturado',  'Facturado'),
+  ('entregado',  'Entregado'),
 ] %}
-{% set active_map = {'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3} %}
+{% set active_map = {'pendiente': 0, 'recibido': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3} %}
 {% set active_idx = active_map.get(estado, 0) %}
-<div class="gcard timeline" style="margin: 0 16px 14px;">
-  {% for key, label, icon in steps %}
-    {% set idx = loop.index0 %}
-    <div class="tl-item">
-      <span class="tl-dot {% if idx < active_idx %}done{% elif idx == active_idx %}active{% endif %}"></span>
-      <div class="tl-title">{{ label }}</div>
-      <div class="tl-meta">
-        {% if idx < active_idx %}Completado
-        {% elif idx == active_idx %}En curso
-        {% else %}Pendiente{% endif %}
+
+<h3 class="detail-section-title">Progreso</h3>
+
+<div class="detail-stepper-card">
+  <div class="detail-stepper">
+    {% for key, label in steps %}
+      {% set idx = loop.index0 %}
+      {% set state_class = 'is-done' if idx < active_idx else ('is-current' if idx == active_idx else 'is-pending') %}
+      <div class="detail-stepper-item {{ state_class }}">
+        <span class="detail-stepper-dot">
+          {% if idx <= active_idx %}<i class="fas fa-check"></i>{% endif %}
+        </span>
+        <div class="detail-stepper-label">{{ label }}</div>
       </div>
-    </div>
-  {% endfor %}
+      {% if not loop.last %}
+        <span class="detail-stepper-line {% if idx < active_idx %}is-done{% endif %}"></span>
+      {% endif %}
+    {% endfor %}
+  </div>
 </div>

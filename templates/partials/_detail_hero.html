@@ -1,44 +1,64 @@
-<header class="detail-hero">
-  <div class="dh-row">
-    <div>
-      <div class="dh-id">PED-{{ pedido.id }}</div>
-      <div class="dh-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
-      <div class="dh-meta">
-        {% if pedido.fecha_pedido %}
-          Pedido: {{ pedido.fecha_pedido.strftime('%A %d de %B') }}
-        {% endif %}
-      </div>
-    </div>
-    <span class="status-pill {{ estado }}"
-          style="background: rgba(255,255,255,0.18); color: white; align-self: flex-start;">
+{# Mockup-faithful hero card for pedido detail.
+   Shows: status pill (top-left), creation meta (top-right), client name,
+   territorio (sub), divider, then a 3-stat strip (Cajas / Peso / Total). #}
+
+{% set hero_total_cajas = 0 %}
+{% set hero_total_peso = 0 %}
+{% if lineas_originales %}
+  {% set ns = namespace(cajas=0, peso=0) %}
+  {% for linea in lineas_originales %}
+    {% set ns.cajas = ns.cajas + (linea.cajas_pedidas or linea.cajas or 0) %}
+    {% if linea.producto and linea.producto.se_pesa %}
+      {% set ns.peso = ns.peso + linea.peso_real|float %}
+    {% endif %}
+  {% endfor %}
+  {% set hero_total_cajas = ns.cajas %}
+  {% set hero_total_peso = ns.peso %}
+{% endif %}
+
+<header class="detail-hero-card">
+  <div class="detail-hero-top">
+    <span class="detail-hero-status detail-hero-status-{{ estado }}">
+      {% if estado == 'pendiente' %}<i class="fas fa-clock"></i>
+      {% elif estado == 'preparado' %}<i class="fas fa-check"></i>
+      {% elif estado == 'facturado' %}<i class="fas fa-file-invoice"></i>
+      {% elif estado == 'entregado' %}<i class="fas fa-truck"></i>
+      {% endif %}
       {{ pedido.estado|capitalize }}
     </span>
-  </div>
-  <div class="dh-stats">
-    <div class="dh-stat">
-      <div class="dh-stat-label">Líneas</div>
-      <div class="dh-stat-val">{{ lineas_originales|length if lineas_originales else 0 }}</div>
+    <div class="detail-hero-meta">
+      {% if pedido.fecha_pedido %}
+        <div>Creado {{ pedido.fecha_pedido.strftime('%d/%m · %H:%M') }}</div>
+      {% endif %}
+      {% if pedido.fecha_facturacion %}
+        <div>Facturado {{ pedido.fecha_facturacion.strftime('%d/%m') }}</div>
+      {% endif %}
     </div>
-    {% set hero_peso_real = 0 %}
-    {% if lineas_originales %}
-      {% set ns = namespace(total=0) %}
-      {% for linea in lineas_originales %}
-        {% if linea.producto and linea.producto.se_pesa %}
-          {% set ns.total = ns.total + linea.peso_real|float %}
-        {% endif %}
-      {% endfor %}
-      {% set hero_peso_real = ns.total %}
-    {% endif %}
-    <div class="dh-stat">
-      <div class="dh-stat-label">Peso real</div>
-      <div class="dh-stat-val">
-        {{ '{:.2f}'.format(hero_peso_real) }}
-        <small>kg</small>
+  </div>
+
+  <h2 class="detail-hero-title">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</h2>
+  {% if pedido.cliente and pedido.cliente.territorio %}
+    <div class="detail-hero-sub">{{ pedido.cliente.territorio.nombre }}</div>
+  {% endif %}
+
+  <div class="detail-hero-divider"></div>
+
+  <div class="detail-hero-stats">
+    <div class="detail-hero-stat">
+      <div class="detail-hero-stat-label">CAJAS</div>
+      <div class="detail-hero-stat-value">{{ hero_total_cajas }}</div>
+    </div>
+    <div class="detail-hero-stat">
+      <div class="detail-hero-stat-label">PESO</div>
+      <div class="detail-hero-stat-value">
+        {{ '{:.1f}'.format(hero_total_peso) }}<small>kg</small>
       </div>
     </div>
-    <div class="dh-stat">
-      <div class="dh-stat-label">Total</div>
-      <div class="dh-stat-val">{{ '{:,.0f}'.format(pedido.total_calculado or 0) if pedido.total_calculado is defined else '—' }}</div>
+    <div class="detail-hero-stat">
+      <div class="detail-hero-stat-label">TOTAL</div>
+      <div class="detail-hero-stat-value detail-hero-stat-total">
+        {{ '{:,.0f}'.format(pedido.total_calculado or 0) if pedido.total_calculado is defined else '—' }}<small>XCG</small>
+      </div>
     </div>
   </div>
 </header>
