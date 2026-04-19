@@ -644,22 +644,31 @@ body[data-detalles-screen] .etiquetas-grid {
   width: 100% !important;
   min-width: 0 !important;
 }
+/* Pure flex row (≥768px) so the two buttons share the exact same Y.
+   The previous grid layout was being undermined by the inline rule
+   .etiquetas-buttons { display: flex; flex-direction: column } in
+   detalles_pedido.html which leaked vertical alignment quirks. */
 body[data-detalles-screen] .etiquetas-buttons {
-  display: grid !important;
-  grid-template-columns: 1fr !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
   gap: 10px !important;
   width: 100% !important;
   align-items: stretch !important;
-  justify-items: stretch !important;
+  justify-content: flex-start !important;
 }
-body[data-detalles-screen] .etiquetas-buttons .mobile-btn,
-body[data-detalles-screen] .etiquetas-buttons .mobile-btn span,
-body[data-detalles-screen] .etiquetas-buttons .mobile-btn i {
-  vertical-align: middle !important;
-}
-body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
-  align-self: stretch !important;
-  justify-self: stretch !important;
+@media (min-width: 768px) {
+  body[data-detalles-screen] .etiquetas-buttons {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    align-self: center !important;
+  }
 }
 body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
   width: 100% !important;
