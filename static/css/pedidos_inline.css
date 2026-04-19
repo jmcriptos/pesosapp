@@ -1027,3 +1027,167 @@ body[data-pedidos-list-screen] .estado-select {
     .search-pill { max-width: 420px; }
     .chips-row { flex-wrap: wrap; }
 }
+
+/* =============================================================================
+   Pedidos table — light-aesthetic polish overlay (≥900px desktop view).
+   Wins by source order over the dark legacy rules above. Scoped to
+   body[data-pedidos-list-screen] so it only applies on the listado.
+   ============================================================================= */
+@media (min-width: 900px) {
+    body[data-pedidos-list-screen] .tabla-pedidos-card {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+        overflow: hidden;
+    }
+
+    body[data-pedidos-list-screen] .tabla-pedidos-scroll {
+        padding: 0 !important;
+    }
+
+    body[data-pedidos-list-screen] .tabla-pedidos {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    /* Header row: tinted slate strip with bold tracked labels */
+    body[data-pedidos-list-screen] .tabla-pedidos th {
+        background: #f8fafc !important;
+        color: #475569 !important;
+        font-size: 0.72rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.1em !important;
+        text-transform: uppercase;
+        padding: 14px 18px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        backdrop-filter: none !important;
+        text-align: left;
+    }
+    body[data-pedidos-list-screen] .tabla-pedidos th.text-right { text-align: right; }
+    body[data-pedidos-list-screen] .tabla-pedidos th.sortable i {
+        color: #cbd5e1 !important;
+        font-size: 0.7rem !important;
+        margin-left: 4px;
+    }
+    body[data-pedidos-list-screen] .tabla-pedidos th.sortable.asc i,
+    body[data-pedidos-list-screen] .tabla-pedidos th.sortable.desc i {
+        color: var(--orders-blue, #2563eb) !important;
+    }
+
+    /* Body rows: white with subtle zebra + clear hover */
+    body[data-pedidos-list-screen] .tabla-pedidos td {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        padding: 14px 18px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        font-size: 0.92rem;
+        vertical-align: middle;
+    }
+    body[data-pedidos-list-screen] .pedido-row:nth-child(even) td {
+        background: #fafbfc !important;
+    }
+    body[data-pedidos-list-screen] .pedido-row:hover td {
+        background: rgba(37, 99, 235, 0.06) !important;
+    }
+    body[data-pedidos-list-screen] .pedido-row:last-child td {
+        border-bottom: 0 !important;
+    }
+
+    /* ID — monospace muted slate, # is metadata not the headline */
+    body[data-pedidos-list-screen] .pedido-id-cell {
+        color: #64748b !important;
+        font-family: "SFMono-Regular", "Menlo", monospace !important;
+        font-weight: 700 !important;
+        letter-spacing: 0;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    /* Cliente — bold dark, the main scannable column */
+    body[data-pedidos-list-screen] .pedido-client-name {
+        color: #0f172a !important;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    body[data-pedidos-list-screen] .pedido-client-note {
+        color: #64748b !important;
+        font-size: 0.82rem;
+    }
+
+    /* Date — medium slate, tabular nums for column alignment */
+    body[data-pedidos-list-screen] .pedido-date-cell {
+        color: #475569 !important;
+        font-weight: 600 !important;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Status pills */
+    body[data-pedidos-list-screen] .estado-pendiente,
+    body[data-pedidos-list-screen] .pedido-row .status-pill.pendiente {
+        background: #fef3c7 !important;
+        color: #92400e !important;
+    }
+    body[data-pedidos-list-screen] .estado-preparado,
+    body[data-pedidos-list-screen] .pedido-row .status-pill.preparado {
+        background: #dbeafe !important;
+        color: #1d4ed8 !important;
+    }
+    body[data-pedidos-list-screen] .estado-facturado,
+    body[data-pedidos-list-screen] .pedido-row .status-pill.facturado {
+        background: #dcfce7 !important;
+        color: #15803d !important;
+    }
+
+    /* Total — bold dark, right-aligned, tabular nums */
+    body[data-pedidos-list-screen] .pedido-total-cell {
+        color: #0f172a !important;
+        font-family: "SFMono-Regular", "Menlo", monospace !important;
+        font-weight: 800 !important;
+        font-variant-numeric: tabular-nums !important;
+        text-align: right !important;
+        font-size: 0.95rem;
+    }
+
+    /* Contexto column — "Sin notas" should read as ABSENCE not as a link */
+    body[data-pedidos-list-screen] .pedido-context-empty {
+        color: #94a3b8 !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
+    }
+    body[data-pedidos-list-screen] .pedido-context-chip {
+        background: #f1f5f9 !important;
+        color: #475569 !important;
+    }
+    body[data-pedidos-list-screen] .invoice-id-badge {
+        background: #dcfce7 !important;
+        color: #15803d !important;
+    }
+
+    /* Acciones column: subtle action pills, color-coded but not loud */
+    body[data-pedidos-list-screen] .row-action {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: #f1f5f9 !important;
+        color: #475569 !important;
+        box-shadow: none !important;
+        border: 1px solid #e2e8f0;
+        transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+    }
+    body[data-pedidos-list-screen] .row-action-edit:hover {
+        background: #fef3c7 !important; color: #b45309 !important; border-color: #fcd34d;
+    }
+    body[data-pedidos-list-screen] .row-action-success:hover {
+        background: #dcfce7 !important; color: #15803d !important; border-color: #86efac;
+    }
+    body[data-pedidos-list-screen] .row-action-danger:hover {
+        background: #fee2e2 !important; color: #b91c1c !important; border-color: #fecaca;
+    }
+    body[data-pedidos-list-screen] .pedido-row:hover .row-action {
+        background: #ffffff !important;
+        color: #475569 !important;
+        border-color: #cbd5e1;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    }
+}
