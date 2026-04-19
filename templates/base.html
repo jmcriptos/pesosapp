@@ -72,10 +72,10 @@
       .app-loading-ring-bar {
         fill: none; stroke: #2563eb; stroke-width: 8; stroke-linecap: round;
         stroke-dasharray: 263.89; stroke-dashoffset: 263.89;
-        animation: app-loading-fill 8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        /* Animación conducida por JS para que el porcentaje y el
+           relleno del círculo queden siempre sincronizados. */
       }
       .app-loading-screen.is-loaded .app-loading-ring-bar { stroke-dashoffset: 0; transition: stroke-dashoffset 220ms ease-out; }
-      @keyframes app-loading-fill { to { stroke-dashoffset: 26.39; } }
       .app-loading-percent {
         position: absolute; inset: 0;
         display: flex; align-items: center; justify-content: center;
@@ -496,11 +496,12 @@
     
     <!-- Script de info de optimización -->
     <script>
-        // Loading screen: el porcentaje se LEE del propio círculo SVG
-        // (stroke-dashoffset interpolado por la animación CSS) en lugar
-        // de calcularlo por tiempo. Así no importa el desfase de inicio
-        // ni el easing — el número siempre coincide con lo que se ve.
-        // Snap a 100% al window.load o al safety timer de 14s.
+        // Loading screen: animación conducida por JS — calcula el
+        // porcentaje y el stroke-dashoffset del círculo en el MISMO
+        // frame, garantizando que el número siempre coincide con el
+        // relleno visual (Safari no expone el valor interpolado de
+        // stroke-dashoffset vía getComputedStyle, así que leerlo no
+        // funcionaba). Snap a 100% al window.load o al safety timer.
         (function () {
             var screen = document.getElementById('appLoadingScreen');
             var bar = document.getElementById('appLoadingBar');
@@ -508,29 +509,38 @@
             var ring = document.querySelector('.app-loading-ring-bar');
             if (!screen) return;
 
-            // El círculo va de 263.89 (0% filled) a 26.39 (90% filled).
-            var EMPTY = 263.89;
-            var FULL90 = 26.39;
+            var EMPTY = 263.89;   // círculo vacío
+            var FULL90 = 26.39;   // 90% relleno
+            var DURATION = 8000;
+            var startTs = null;
             var rafId = null;
             var done = false;
 
-            function tick() {
+            // Easing equivalente a CSS cubic-bezier(0.25, 1, 0.5, 1):
+            // arranca rápido, desacelera al final.
+            function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+            function tick(ts) {
                 if (done) return;
-                if (ring && percentEl) {
-                    var offset = parseFloat(getComputedStyle(ring).strokeDashoffset) || EMPTY;
-                    var fillRatio = 1 - (offset - FULL90) / (EMPTY - FULL90);
-                    var pct = Math.max(0, Math.min(90, Math.round(fillRatio * 90)));
-                    percentEl.textContent = pct + '%';
+                if (startTs === null) startTs = ts;
+                var t = Math.min(1, (ts - startTs) / DURATION);
+                var eased = easeOut(t);
+                var pct = Math.round(eased * 90);
+                if (ring) {
+                    ring.style.strokeDashoffset = (EMPTY - (EMPTY - FULL90) * eased).toFixed(2);
                 }
-                rafId = requestAnimationFrame(tick);
+                if (percentEl) percentEl.textContent = pct + '%';
+                if (t < 1) rafId = requestAnimationFrame(tick);
             }
-            tick();
+            rafId = requestAnimationFrame(tick);
 
             function finish() {
                 if (done) return;
                 done = true;
                 if (rafId) cancelAnimationFrame(rafId);
                 if (percentEl) percentEl.textContent = '100%';
+                // Snap ring al 100% en el mismo frame que el texto.
+                if (ring) ring.style.strokeDashoffset = '0';
                 // Brief 100% beat so the user sees completion before fade.
                 setTimeout(function () {
                     screen.classList.add('is-loaded');
