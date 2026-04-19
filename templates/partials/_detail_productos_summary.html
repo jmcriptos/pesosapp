@@ -1,9 +1,9 @@
-{# Single-line summary strip card: productos count · pesados ratio · kg total. #}
+{# Single-line summary strip card: productos count · cajas pesadas/pedidas · kg total. #}
 
 {% set total_productos = lineas_originales|length if lineas_originales else 0 %}
 {% set pesables = lineas_originales|selectattr('producto.se_pesa')|list if lineas_originales else [] %}
-{% set pesables_count = pesables|length %}
-{% set pesables_completos = pesables|selectattr('pesaje_completo')|list|length if pesables else 0 %}
+{% set cajas_pesadas_total = pesables|sum(attribute='cajas_pesadas_count') if pesables else 0 %}
+{% set cajas_objetivo_total = pesables|sum(attribute='cajas_objetivo') if pesables else 0 %}
 {% set peso_real = pesables|sum(attribute='peso_real') if pesables else 0 %}
 
 {% if total_productos > 0 %}
@@ -11,9 +11,9 @@
   <div class="detail-summary-cell">
     <strong>{{ total_productos }}</strong>&nbsp;productos
   </div>
-  {% if pesables_count > 0 %}
+  {% if cajas_objetivo_total > 0 %}
   <div class="detail-summary-cell">
-    <strong>{{ pesables_completos }}/{{ pesables_count }}</strong>&nbsp;pesados
+    <strong>{{ cajas_pesadas_total }}/{{ cajas_objetivo_total }}</strong>&nbsp;cajas
   </div>
   {% endif %}
   <div class="detail-summary-cell">
