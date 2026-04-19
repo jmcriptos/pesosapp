@@ -284,8 +284,12 @@ body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content {
   -webkit-overflow-scrolling: touch;
 }
 
-body[data-pedido-form-screen] .ts-dropdown .option,
-body[data-pedido-form-screen] .ts-dropdown [data-selectable] {
+/* OJO con la especificidad: dark-theme.css tiene reglas como
+   `.ts-dropdown .ts-dropdown-content .option .suggestion-name` (4 clases)
+   con !important. Para ganarles, todas estas reglas también pasan por
+   `.ts-dropdown-content` para igualar/superar la cuenta de clases. */
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option,
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable] {
   background: #ffffff !important;
   color: #0f172a !important;
   padding: 14px 14px !important;
@@ -298,39 +302,49 @@ body[data-pedido-form-screen] .ts-dropdown [data-selectable] {
 
 /* Producto template: contenedor interno con flex para alinear nombre
    a la izquierda y precio a la derecha sin float collapse. */
-body[data-pedido-form-screen] .ts-dropdown .option > div {
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   gap: 10px;
 }
-body[data-pedido-form-screen] .ts-dropdown .option .float-right.suggestion-price {
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .float-right.suggestion-price {
   float: none !important;
   flex: 0 0 auto;
   white-space: nowrap;
 }
-body[data-pedido-form-screen] .ts-dropdown .option .suggestion-name {
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .suggestion-name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .suggestion-price {
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
 }
 
-body[data-pedido-form-screen] .ts-dropdown .option:last-child,
-body[data-pedido-form-screen] .ts-dropdown [data-selectable]:last-child {
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option:last-child,
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable]:last-child {
   border-bottom: 0 !important;
 }
 
-body[data-pedido-form-screen] .ts-dropdown .option.active,
-body[data-pedido-form-screen] .ts-dropdown [data-selectable].active {
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active,
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable].active {
   background: color-mix(in srgb, var(--indigo-500) 12%, #ffffff) !important;
   color: #0f172a !important;
 }
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active .suggestion-name,
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active .suggestion-price {
+  color: #0f172a !important;
+}
 
-body[data-pedido-form-screen] .ts-dropdown .option:hover,
-body[data-pedido-form-screen] .ts-dropdown [data-selectable]:hover {
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option:hover,
+body[data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable]:hover {
   background: color-mix(in srgb, var(--indigo-500) 8%, #ffffff) !important;
   color: #0f172a !important;
 }
