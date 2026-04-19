@@ -57,7 +57,7 @@
     <div class="detail-hero-stat">
       <div class="detail-hero-stat-label">TOTAL</div>
       <div class="detail-hero-stat-value detail-hero-stat-total">
-        {{ '{:,.0f}'.format(pedido.total_calculado or 0) if pedido.total_calculado is defined else '—' }}<small>XCG</small>
+        {{ '{:,.0f}'.format(pedido_total_xcg|float) if pedido_total_xcg else '—' }}<small>XCG</small>
       </div>
     </div>
   </div>

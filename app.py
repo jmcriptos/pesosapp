@@ -5222,6 +5222,7 @@ def detalles_pedido(pedido_id):
                            lineas_originales=lineas_originales,
                            prep_by_producto=prep_by_producto,
                            eventos=eventos,
+                           pedido_total_xcg=_calcular_venta_pedido(pedido),
                            tiene_productos_pesables=_pedido_tiene_productos_pesables(pedido))
 
 

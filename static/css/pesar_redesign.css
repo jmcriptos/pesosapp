@@ -647,6 +647,177 @@ body[data-pesar-screen] .pesar-date-sheet-secondary {
   font-weight: 700 !important;
 }
 
+/* ─── Edit caja modal — match the mockup language: white panel, big
+   teal weight readout with mono digits, clean white keypad, plain
+   inputs, soft red Eliminar + green Guardar. ─────────────────────── */
+
+body[data-pesar-screen] .pesar-modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+}
+
+body[data-pesar-screen] .pesar-modal {
+  background: #ffffff !important;
+  border-radius: 26px 26px 0 0 !important;
+  padding: 14px 18px calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  box-shadow: 0 -16px 48px -16px rgba(15, 23, 42, 0.25) !important;
+}
+
+body[data-pesar-screen] .pesar-modal-handle {
+  width: 44px !important;
+  height: 5px !important;
+  background: #cbd5e1 !important;
+  margin: 0 auto 12px !important;
+}
+
+body[data-pesar-screen] .pesar-modal-header {
+  margin-bottom: 18px !important;
+}
+
+body[data-pesar-screen] .pesar-modal-kicker {
+  color: #ea580c !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.12em !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+}
+
+body[data-pesar-screen] .pesar-modal-title {
+  color: #0f172a !important;
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+  margin-top: 4px;
+}
+
+body[data-pesar-screen] .pesar-modal-close {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 0 !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+}
+
+/* Big teal readout — peso de la caja */
+body[data-pesar-screen] .pesar-edit-readout {
+  background: linear-gradient(135deg, #ecfeff 0%, #f0fdfa 100%) !important;
+  border: 1px solid #99f6e4 !important;
+  border-radius: 18px !important;
+  padding: 18px 20px !important;
+  margin-bottom: 14px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+body[data-pesar-screen] .pesar-edit-label {
+  color: #0f766e !important;
+  font-size: 0.74rem !important;
+  letter-spacing: 0.12em !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+}
+body[data-pesar-screen] .pesar-edit-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-mono);
+}
+body[data-pesar-screen] .pesar-edit-value span {
+  color: #0f172a !important;
+  font-size: 2.4rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1 !important;
+  font-family: var(--font-sans);
+}
+body[data-pesar-screen] .pesar-edit-value small {
+  color: #64748b !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+}
+
+/* Edit keypad */
+body[data-pesar-screen] .pesar-edit-keypad {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 14px !important;
+}
+body[data-pesar-screen] .pesar-edit-key {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  font-family: var(--font-sans);
+  font-size: 1.4rem !important;
+  font-weight: 700 !important;
+  min-height: 56px !important;
+  cursor: pointer;
+  transition: background 120ms ease, transform 90ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+body[data-pesar-screen] .pesar-edit-key:active {
+  background: #f1f5f9 !important;
+  transform: scale(0.96);
+}
+body[data-pesar-screen] .pesar-edit-key[data-edit-key="back"],
+body[data-pesar-screen] .pesar-edit-key[data-edit-key="clear"] {
+  color: #64748b !important;
+  font-size: 1.1rem !important;
+}
+body[data-pesar-screen] .pesar-edit-key[data-span="wide"] {
+  grid-column: span 2;
+}
+
+/* Modal fields container + actions */
+body[data-pesar-screen] .pesar-modal-fields {
+  margin-top: 4px !important;
+  gap: 12px !important;
+}
+
+body[data-pesar-screen] .pesar-modal-actions {
+  margin-top: 18px !important;
+  display: flex;
+  gap: 10px !important;
+}
+body[data-pesar-screen] .pesar-delete-btn {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fecaca !important;
+  border-radius: 14px !important;
+  height: 50px !important;
+  padding: 0 16px !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+body[data-pesar-screen] .pesar-save-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  background-image: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  height: 50px !important;
+  padding: 0 18px !important;
+  flex: 1;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 10px 22px -10px rgba(16, 185, 129, 0.55) !important;
+}
+
 /* Calendar header — month + year, and the chevron nav buttons. The
    default <strong> inherits muted text color from the panel, leaving
    "Abril 2026" pale. Bump to gray-900 with bigger size so the user
