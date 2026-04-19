@@ -650,6 +650,16 @@ body[data-detalles-screen] .etiquetas-buttons {
   gap: 10px !important;
   width: 100% !important;
   align-items: stretch !important;
+  justify-items: stretch !important;
+}
+body[data-detalles-screen] .etiquetas-buttons .mobile-btn,
+body[data-detalles-screen] .etiquetas-buttons .mobile-btn span,
+body[data-detalles-screen] .etiquetas-buttons .mobile-btn i {
+  vertical-align: middle !important;
+}
+body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
+  align-self: stretch !important;
+  justify-self: stretch !important;
 }
 body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
   width: 100% !important;
