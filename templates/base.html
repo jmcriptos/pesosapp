@@ -14,7 +14,67 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
     <meta name="apple-mobile-web-app-title" content="PesosApp">
     <meta name="theme-color" content="#0f172a">
-    
+
+    <!-- Critical CSS: loading screen styles inlined so the overlay paints
+         on the first frame — no need to wait for external stylesheets. -->
+    <style>
+      .app-loading-bar {
+        position: fixed; top: 0; left: 0;
+        width: 100%; height: 3px;
+        background: linear-gradient(90deg, transparent 0%, #2563eb 30%, #6366f1 60%, transparent 100%);
+        background-size: 220% 100%;
+        animation: app-loading-shimmer 1.1s linear infinite;
+        z-index: 9999;
+        pointer-events: none;
+        transition: opacity 220ms ease, transform 220ms ease;
+      }
+      .app-loading-bar.is-loaded { opacity: 0; transform: translateY(-3px); }
+      @keyframes app-loading-shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      .app-loading-screen {
+        position: fixed; inset: 0;
+        z-index: 9998;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(244, 246, 250, 0.96);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        transition: opacity 280ms ease;
+      }
+      .app-loading-screen.is-loaded { opacity: 0; pointer-events: none; }
+      /* Snap-show during in-app navigation: instant opacity 1, no fade. */
+      .app-loading-screen.is-navigating {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        transition: none !important;
+      }
+      .app-loading-card { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+      .app-loading-ring { position: relative; width: 104px; height: 104px; }
+      .app-loading-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+      .app-loading-ring-track { fill: none; stroke: rgba(15, 23, 42, 0.10); stroke-width: 8; }
+      .app-loading-ring-bar {
+        fill: none; stroke: #2563eb; stroke-width: 8; stroke-linecap: round;
+        stroke-dasharray: 263.89; stroke-dashoffset: 263.89;
+        animation: app-loading-fill 8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      }
+      .app-loading-screen.is-loaded .app-loading-ring-bar { stroke-dashoffset: 0; transition: stroke-dashoffset 220ms ease-out; }
+      @keyframes app-loading-fill { to { stroke-dashoffset: 26.39; } }
+      .app-loading-percent {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.15rem; font-weight: 800; color: #0f172a;
+        font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+      }
+      .app-loading-label {
+        font-size: 0.85rem; font-weight: 700; color: #64748b;
+        letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .app-loading-bar { animation: none; background: #2563eb; }
+        .app-loading-ring-bar { animation: none; stroke-dashoffset: 132; }
+      }
+    </style>
+
     <!-- Phase 1 Glass Foundation — design tokens + primitives (loaded FIRST) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/primitives.css') }}">
@@ -61,6 +121,59 @@
     <div class="app-loading-label">Cargando…</div>
   </div>
 </div>
+<script>
+  /* Mostrar el overlay AL INSTANTE cuando el usuario toca un link de
+     navegación interna (menu, tabbar, "+ Nuevo", botones-link). El
+     handler corre antes que cualquier otro porque está inline justo
+     después del markup del overlay y usa fase de captura. La nueva
+     página renderiza con el overlay ya visible (estado inicial) →
+     transición sin "flash en blanco". */
+  (function () {
+    var overlay = document.getElementById('appLoadingScreen');
+    var bar = document.getElementById('appLoadingBar');
+    var percentEl = document.getElementById('appLoadingPercent');
+    if (!overlay) return;
+
+    function showNavOverlay() {
+      overlay.classList.remove('is-loaded');
+      overlay.classList.add('is-navigating');
+      if (bar) bar.classList.remove('is-loaded');
+      if (percentEl) percentEl.textContent = '0%';
+      // Safety: si la navegación nunca ocurre (cancelada, red caída),
+      // re-ocultar el overlay a los 14s para no dejar al usuario atrapado.
+      setTimeout(function () {
+        overlay.classList.remove('is-navigating');
+        overlay.classList.add('is-loaded');
+        if (bar) bar.classList.add('is-loaded');
+      }, 14000);
+    }
+
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('a[href]');
+      if (!link) return;
+      if (link.target === '_blank') return;
+      if (link.hasAttribute('download')) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // open-in-new-tab
+      var href = link.getAttribute('href');
+      if (!href) return;
+      if (href.charAt(0) === '#') return;                            // anchor
+      if (href.indexOf('javascript:') === 0) return;                 // js handler
+      if (href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0) return;
+      if (link.origin && link.origin !== location.origin) return;    // external
+      // Misma página + mismo hash → no es navegación real
+      if (link.href === location.href) return;
+      showNavOverlay();
+    }, true);
+
+    // Submits de formulario también navegan; mostrar overlay también.
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form || form.tagName !== 'FORM') return;
+      if (form.target === '_blank') return;
+      showNavOverlay();
+    }, true);
+  })();
+</script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     {% set current_path = request.path or '' %}
     {% set is_dashboard = current_path.startswith('/dashboard') or current_path in ['/', '/home'] %}
