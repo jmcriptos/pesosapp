@@ -1,121 +1,21 @@
 /* =============================================================================
-   Dashboard · Snap Layout + High-Contrast Dark
+   Dashboard · Snap Layout (light theme — matches Pedidos)
    Spec: docs/superpowers/specs/2026-04-18-dashboard-snap-layout-design.md
 
-   Loaded AFTER dashboard_light.css so its rules win by source order.
-   Scope: body[data-dashboard-screen] only — does not affect other pages.
+   Loaded AFTER dashboard_light.css. Inherits the light scheme (white cards,
+   slate background) and adds: vertical scroll-snap on Ventas + Servicio,
+   executive halo composition for KPI cards, bigger chart, snap-dot indicator.
    Mobile/tablet only (<1024px). Desktop falls back to existing grid layout.
    ============================================================================= */
 
 @media (max-width: 1023px) {
 
-  /* ── 1. Dark background + opaque glass ───────────────────────────────── */
-
-  body[data-dashboard-screen] .app-content,
-  body[data-dashboard-screen] .app-shell,
-  body[data-dashboard-screen] .app-shell.dash-body,
-  body[data-dashboard-screen] .screen-body {
-    background: #0a0e1f !important;
-    background-image: none !important;
-    color: #f8fafc;
-  }
-
-  /* Re-scope content tokens to dark so descendants pick the right colors. */
-  body[data-dashboard-screen] .app-content,
-  body[data-dashboard-screen] .app-shell.dash-body,
-  body[data-dashboard-screen] .screen-body {
-    --color-bg: #0a0e1f;
-    --color-bg-elevated: #131a30;
-    --color-bg-subtle: #0f1428;
-    --color-surface: #131a30;
-    --color-surface-strong: rgba(15, 23, 42, 0.72);
-    --color-text: #f8fafc;
-    --color-text-muted: #cbd5e1;
-    --color-text-subtle: #94a3b8;
-    --color-border: rgba(255, 255, 255, 0.08);
-    --color-border-subtle: rgba(255, 255, 255, 0.04);
-    --shadow-card: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
-  }
-
-  /* Hero text on dark */
-  body[data-dashboard-screen] .hero-title { color: #f8fafc !important; }
-  body[data-dashboard-screen] .hero-kicker,
-  body[data-dashboard-screen] .hero-sub   { color: #cbd5e1 !important; }
-
-  /* Segmented tabs container on dark */
-  body[data-dashboard-screen] .dash-seg {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
-  }
-  body[data-dashboard-screen] .dash-seg button {
-    color: #cbd5e1 !important;
-  }
-  body[data-dashboard-screen] .dash-seg button:not(.active):hover {
-    color: #f8fafc !important;
-    background: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  /* Glass cards: KPI, chart, week-mini, generic gcard */
-  body[data-dashboard-screen] .kpi,
-  body[data-dashboard-screen] .gcard,
-  body[data-dashboard-screen] .chart-card,
-  body[data-dashboard-screen] .week-mini-card,
-  body[data-dashboard-screen] .svc-kpi-grid .kpi,
-  body[data-dashboard-screen] .dash-panel .gcard,
-  body[data-dashboard-screen] .dash-panel .kpi {
-    background: rgba(15, 23, 42, 0.72) !important;
-    background-image: none !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    color: #f8fafc !important;
-    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5) !important;
-    backdrop-filter: blur(12px) saturate(1.4) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(1.4) !important;
-  }
-
-  /* Text inside cards */
-  body[data-dashboard-screen] .kpi-label,
-  body[data-dashboard-screen] .week-mini-label,
-  body[data-dashboard-screen] .sec-title {
-    color: #94a3b8 !important;
-  }
-  body[data-dashboard-screen] .kpi-value,
-  body[data-dashboard-screen] .week-mini-val,
-  body[data-dashboard-screen] .chart-big {
-    color: #f8fafc !important;
-  }
-  body[data-dashboard-screen] .kpi-sub,
-  body[data-dashboard-screen] .chart-big small,
-  body[data-dashboard-screen] .chart-legend {
-    color: #cbd5e1 !important;
-  }
-  body[data-dashboard-screen] .ring-label {
-    color: #f8fafc !important;
-  }
-  body[data-dashboard-screen] .kpi .ring-wrap circle:first-child {
-    stroke: rgba(255, 255, 255, 0.12) !important;
-  }
-  body[data-dashboard-screen] .kpi-value small,
-  body[data-dashboard-screen] .week-mini-val small {
-    color: #94a3b8 !important;
-  }
-
-  /* Top/Activity rows borders on dark */
-  body[data-dashboard-screen] .rank-row,
-  body[data-dashboard-screen] .ranking-item,
-  body[data-dashboard-screen] .list-row,
-  body[data-dashboard-screen] .activity-item,
-  body[data-dashboard-screen] .feed-item {
-    color: #f8fafc !important;
-    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  /* ── 2. Snap layout — Ventas + Servicio panels only ──────────────────── */
+  /* ── Snap layout — Ventas + Servicio panels only ─────────────────────── */
 
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"],
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] {
     /* Snap container: viewport minus topbar (~48px+safe-top), tabs (~52px), tabbar (~68px+safe-bottom). */
     height: calc(100vh - env(safe-area-inset-top, 0px) - 48px - 52px - 68px - env(safe-area-inset-bottom, 0px));
-    /* TODO Task 6: refine after iPhone measurement */
     overflow-y: auto;
     overflow-x: hidden;
     scroll-snap-type: y mandatory;
@@ -136,7 +36,7 @@
     margin-bottom: 0;
   }
 
-  /* Snap targets — one per card */
+  /* Snap targets — one per card. Always rounded corners (24px on the big cards). */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] [data-snap-card],
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] [data-snap-card] {
     scroll-snap-align: center;
@@ -146,6 +46,8 @@
     flex-direction: column;
     justify-content: center;
     margin: 0 0 12px;
+    border-radius: 24px !important;
+    overflow: hidden;
   }
 
   /* Chart gets a taller snap target and bigger canvas */
@@ -162,21 +64,23 @@
   }
 
   /* ── Executive halo composition for KPI snap cards ──
-     Value lives INSIDE the big progress ring; label above, sub below, all centered.
-     Achieved via CSS Grid with .kpi-top promoted to display: contents so label and
-     ring become direct grid items, and .kpi-value placed in the same row as the
-     ring (overlapping it as a "halo around the value"). The ring is the existing
-     44×44 SVG visually scaled 5× via CSS transform. */
+     Value lives INSIDE the big progress ring; label above (close to ring),
+     sub below, all centered. Achieved via CSS Grid with .kpi-top promoted to
+     display: contents so label and ring become direct grid items, and
+     .kpi-value placed in the same row as the ring (overlapping it as a halo
+     around the value). The ring is the existing 44×44 SVG visually scaled 5×
+     via CSS transform. Row 2 is pinned to 280px so the label sits naturally
+     just above the ring instead of being pushed to the top by 1fr. */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card],
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] {
     min-height: 76vh;
     display: grid !important;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 280px auto;
     grid-template-columns: 1fr;
-    align-items: center;
+    align-content: center;
     justify-items: center;
     text-align: center;
-    padding: 32px 20px !important;
+    padding: 24px 20px !important;
     gap: 0;
   }
 
@@ -192,14 +96,14 @@
     grid-row: 1;
     grid-column: 1;
     align-self: end;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-label,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
     font-size: 0.85rem !important;
     letter-spacing: 0.18em;
     font-weight: 700;
-    color: #94a3b8 !important;
+    color: #64748b !important;
   }
 
   /* Servicio: bump the short label (OTD/OFR/POR/CE/LT/PED) and the full-name caption.
@@ -207,13 +111,13 @@
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
     font-size: 1.5rem !important;
     letter-spacing: 0.06em;
-    color: #f8fafc !important;
+    color: #0f172a !important;
   }
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top > div > div:not(.kpi-label) {
     font-size: 0.85rem !important;
     letter-spacing: 0.04em;
     font-weight: 600;
-    color: #cbd5e1 !important;
+    color: #475569 !important;
     margin-top: 4px !important;
   }
 
@@ -235,7 +139,7 @@
     display: none !important;
   }
 
-  /* Value → ALSO row 2 (stacked over ring), centered */
+  /* Value → ALSO row 2 (stacked over ring), centered. Dark text on light card. */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value {
     grid-row: 2;
@@ -248,14 +152,14 @@
     align-items: center;
     font-size: clamp(32px, 9vw, 48px) !important;
     line-height: 1.05;
-    color: #f8fafc !important;
+    color: #0f172a !important;
   }
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value small,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value small {
     display: block;
     font-size: 1rem !important;
     margin-top: 6px;
-    color: #94a3b8 !important;
+    color: #64748b !important;
     letter-spacing: 0.05em;
   }
 
@@ -265,9 +169,9 @@
     grid-row: 3;
     grid-column: 1;
     align-self: start;
-    margin-top: 24px;
+    margin-top: 12px;
     font-size: 1rem !important;
-    color: #cbd5e1 !important;
+    color: #475569 !important;
   }
 
   /* Week-mini grid stays a 3-col grid inside its snap card, just centered */
@@ -281,7 +185,7 @@
     font-size: 1.6rem !important;
   }
 
-  /* ── 3. Snap dots indicator (right edge of viewport) ─────────────────── */
+  /* ── Snap dots indicator (right edge of viewport, dark on light bg) ──── */
 
   body[data-dashboard-screen] .snap-dots {
     position: fixed;
@@ -301,11 +205,11 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(15, 23, 42, 0.22);
     transition: background 160ms ease, transform 160ms ease;
   }
   body[data-dashboard-screen] .snap-dots span.is-current {
-    background: #f8fafc;
+    background: #0f172a;
     transform: scale(1.4);
   }
 }
