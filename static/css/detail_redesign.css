@@ -553,6 +553,25 @@ body[data-detalles-screen] .etiquetas-grid input {
   min-width: 0 !important;
   box-sizing: border-box !important;
 }
+/* Native <select> on iOS computes an intrinsic width based on the
+   longest <option> ("A4 (2 por página)") plus a built-in chevron — that
+   overflow can ignore width:100% if the parent isn't itself locked.
+   Forcing -webkit-appearance:none lets the layout actually clamp, then
+   we paint our own chevron via background SVG with extra right padding. */
+body[data-detalles-screen] .etiquetas-grid select.mobile-form-control,
+body[data-detalles-screen] .etiquetas-grid select {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 8px !important;
+  padding-right: 38px !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
 body[data-detalles-screen] .etiquetas-buttons {
   display: grid !important;
   grid-template-columns: 1fr !important;
@@ -573,6 +592,46 @@ body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
   body[data-detalles-screen] .etiquetas-buttons {
     grid-template-columns: 1fr 1fr !important;
   }
+}
+
+/* ─── Standalone /generar_etiqueta form (form_generar_etiquetas.html) —
+   uses Tom Select on the producto dropdown which can ignore width:100%
+   on its .ts-control wrapper. Lock everything to the card width. ──── */
+body[data-etiquetas-form-screen] .mobile-form-container,
+body[data-etiquetas-form-screen] .mobile-card,
+body[data-etiquetas-form-screen] .mobile-card-body,
+body[data-etiquetas-form-screen] .mobile-form-group,
+body[data-etiquetas-form-screen] form#form-etiquetas {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+body[data-etiquetas-form-screen] .mobile-form-control,
+body[data-etiquetas-form-screen] select,
+body[data-etiquetas-form-screen] input,
+body[data-etiquetas-form-screen] .ts-wrapper,
+body[data-etiquetas-form-screen] .ts-wrapper .ts-control,
+body[data-etiquetas-form-screen] .ts-dropdown {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+body[data-etiquetas-form-screen] .ts-wrapper .ts-control .item {
+  max-width: 100% !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+body[data-etiquetas-form-screen] select.mobile-form-control:not(.ts-select) {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 8px !important;
+  padding-right: 38px !important;
 }
 
 /* ─── Hide legacy timeline / hero / mobile-card chrome on the new partials.
