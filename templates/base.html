@@ -117,6 +117,24 @@
     <!-- CSRF Token para AJAX -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Eruda: DevTools portátil. Se activa solo si la URL incluye
+         ?debug=1 (o si ya quedó habilitado en localStorage en esta
+         sesión). Permite inspeccionar el DOM, ver los estilos
+         computados y leer la consola direct desde el iPhone, sin
+         necesidad del Web Inspector de Mac. -->
+    <script>
+      (function () {
+        var qs = location.search;
+        if (qs.indexOf('debug=1') >= 0) localStorage.setItem('eruda', '1');
+        if (qs.indexOf('debug=0') >= 0) localStorage.removeItem('eruda');
+        if (localStorage.getItem('eruda') !== '1') return;
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        s.onload = function () { if (window.eruda) window.eruda.init(); };
+        document.head.appendChild(s);
+      })();
+    </script>
+
     <!-- Inline-extracted styles (formerly a 191-line <style> block in this file).
          Loaded after the global CSS stack so the loading bar / overlay /
          flash-stack styles win the cascade exactly as they did when inline. -->

@@ -519,25 +519,37 @@ body {
 }
 .search-pill input::placeholder { color: var(--color-text-subtle); }
 
-/* Tom Select inputs deben heredar el fondo del .ts-control envolvente
-   (blanco en pantallas como pedido_form). Sin esto, el reset global de
-   dark-theme.css `input[type="text"] { background-color: #1a1f2b
-   !important }` les pinta un rectángulo oscuro detrás del placeholder.
-   color-scheme: light fuerza al engine de iOS Safari a NO aplicar
-   chrome oscuro automático aunque el sistema esté en dark mode. */
-.ts-wrapper .ts-control input,
-.ts-wrapper.single .ts-control input,
-.ts-wrapper.multi .ts-control input {
+/* Tom Select inputs deben heredar el fondo del .ts-control envolvente.
+   Selectores con prefijo `html body` para máxima especificidad — bate
+   cualquier !important global de dark-theme.css. También limpia
+   background-image (gradientes, dark mode auto-fill) y fuerza
+   color-scheme: light para que iOS Safari no pinte chrome oscuro
+   aunque el sistema esté en dark mode. */
+html body .ts-wrapper .ts-control input,
+html body .ts-wrapper .ts-control input[type="text"],
+html body .ts-wrapper .ts-control input[type="search"],
+html body .ts-wrapper.single .ts-control input,
+html body .ts-wrapper.multi .ts-control input,
+html body .ts-wrapper .ts-control > input {
   background: transparent !important;
   background-color: transparent !important;
+  background-image: none !important;
   border: 0 !important;
   outline: none !important;
   box-shadow: none !important;
-  color-scheme: light;
+  color-scheme: light !important;
   -webkit-text-fill-color: currentColor !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
-.search-pill input {
-  color-scheme: light;
+html body .search-pill input,
+html body .search-pill input[type="search"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color-scheme: light !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
 
 .chips-row {
