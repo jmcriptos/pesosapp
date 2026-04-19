@@ -65,17 +65,41 @@
     flex-shrink: 0;
 }
 
-/* ── Filter bar (search + estado select on the same line) ── */
-.filter-bar {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-    margin: 0 0 14px;
-    width: 100%;
+/* ── Filter bar (search + estado select on the same line) ──
+   The <form> element inherits a dark background from the global form
+   reset (same problem the pedido_form / detalles modals had). Strip
+   every default chrome property so the bar is just a flex row with
+   the white search pill and white select inside. */
+.filter-bar,
+form.filter-bar,
+body[data-pedidos-list-screen] form.filter-bar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin: 0 0 14px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
 }
 
-.filter-bar .search-pill { flex: 1 1 auto; min-width: 0; }
-.filter-bar .estado-select-wrap { flex: 0 0 auto; }
+.filter-bar .search-pill {
+    flex: 1 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 46px;
+    margin: 0;
+}
+.filter-bar .estado-select-wrap {
+    flex: 0 0 auto;
+    height: 46px;
+    display: inline-flex;
+    align-items: stretch;
+}
 
 /* ── Search Pill (light) ── */
 .search-pill {
@@ -118,29 +142,32 @@
     position: relative;
     display: inline-flex;
 }
-.estado-select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    height: 46px;
-    padding: 0 38px 0 16px;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    color: #0f172a;
-    font-size: 0.92rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+.estado-select,
+body[data-pedidos-list-screen] .estado-select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    height: 46px !important;
+    padding: 0 38px 0 16px !important;
+    border-radius: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 0.92rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
     min-width: 180px;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    background-size: 12px 8px;
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 12px 8px !important;
+    line-height: 46px;
     transition: border-color 140ms ease, box-shadow 140ms ease;
+    margin: 0 !important;
 }
 .estado-select:focus {
     outline: 0;
