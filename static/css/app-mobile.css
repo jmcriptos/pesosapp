@@ -519,18 +519,22 @@ body {
 }
 .search-pill input::placeholder { color: var(--color-text-subtle); }
 
-/* Tom Select inputs deben heredar el fondo del .ts-control envolvente.
-   Selectores con prefijo `html body` para máxima especificidad — bate
-   cualquier !important global de dark-theme.css. También limpia
-   background-image (gradientes, dark mode auto-fill) y fuerza
-   color-scheme: light para que iOS Safari no pinte chrome oscuro
-   aunque el sistema esté en dark mode. */
+/* Tom Select v2.2.2 reemplaza el <select> nativo por un input
+   sintético con type="select-one" + role="combobox" — NO usa
+   <input type="text"> dentro de un div.ts-control como suponíamos.
+   Estos selectores apuntan directo al combobox real:
+     - input[type="select-one"]   → el input sintético del combobox
+     - input[role="combobox"]     → fallback por ARIA role
+     - .ts-wrapper > input        → input como hijo directo del wrapper
+     - .ts-wrapper .ts-control input → estructura legacy (aún cubierta)
+   color-scheme: light evita que iOS Safari aplique chrome oscuro
+   automático aunque el sistema esté en dark mode. */
+html body input[type="select-one"],
+html body input[role="combobox"],
+html body .ts-wrapper > input,
 html body .ts-wrapper .ts-control input,
-html body .ts-wrapper .ts-control input[type="text"],
-html body .ts-wrapper .ts-control input[type="search"],
 html body .ts-wrapper.single .ts-control input,
-html body .ts-wrapper.multi .ts-control input,
-html body .ts-wrapper .ts-control > input {
+html body .ts-wrapper.multi .ts-control input {
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
@@ -541,6 +545,14 @@ html body .ts-wrapper .ts-control > input {
   -webkit-text-fill-color: currentColor !important;
   -webkit-appearance: none !important;
   appearance: none !important;
+}
+html body input[type="select-one"]:focus,
+html body input[role="combobox"]:focus,
+html body .ts-wrapper > input:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 html body .search-pill input,
 html body .search-pill input[type="search"] {
