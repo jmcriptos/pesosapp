@@ -131,7 +131,12 @@
     <div class="app-loading-ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle cx="50" cy="50" r="42" class="app-loading-ring-track"></circle>
-        <circle cx="50" cy="50" r="42" class="app-loading-ring-bar"></circle>
+        <!-- stroke-dasharray + stroke-dashoffset como atributos SVG (no
+             solo CSS) para que el estado inicial vacío se respete antes
+             de que cualquier CSS externa cargue. Evita el flash de
+             "círculo lleno" en mobile. -->
+        <circle cx="50" cy="50" r="42" class="app-loading-ring-bar"
+                stroke-dasharray="263.89" stroke-dashoffset="263.89"></circle>
       </svg>
       <div class="app-loading-percent" id="appLoadingPercent">0%</div>
     </div>

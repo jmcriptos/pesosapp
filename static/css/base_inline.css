@@ -150,17 +150,15 @@
         stroke: #2563eb;
         stroke-width: 8;
         stroke-linecap: round;
-        /* 2π·42 = 263.89 — full circumference is "empty", animation fills it */
-        stroke-dasharray: 263.89;
-        stroke-dashoffset: 263.89;
-        animation: app-loading-fill 8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        /* 2π·42 = 263.89 — circunferencia completa = "vacío".
+           El relleno está conducido por JS (ver base.html), no por
+           keyframe CSS, para garantizar que el círculo y el % estén
+           sincronizados. Los atributos stroke-dasharray/dashoffset
+           viven en el <circle> del SVG para evitar flash inicial. */
     }
     .app-loading-screen.is-loaded .app-loading-ring-bar {
         stroke-dashoffset: 0;
         transition: stroke-dashoffset 220ms ease-out;
-    }
-    @keyframes app-loading-fill {
-        to { stroke-dashoffset: 26.39; }  /* 90% filled */
     }
     .app-loading-percent {
         position: absolute;
@@ -182,7 +180,7 @@
         text-transform: uppercase;
     }
     @media (prefers-reduced-motion: reduce) {
-        .app-loading-ring-bar { animation: none; stroke-dashoffset: 132; }
+        .app-loading-ring-bar { stroke-dashoffset: 132; }
     }
 
     /* iOS PWA standalone mode: respect safe areas (notch / home indicator)
