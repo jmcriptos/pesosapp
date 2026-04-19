@@ -50,7 +50,7 @@
             <div class="mobile-card-body">
                 <div class="mobile-form-group">
                     <label class="mobile-form-label" for="cliente_id">Seleccionar cliente:</label>
-                        <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" required>
+                        <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" data-no-auto-ts="1" required>
                             <option value=""></option>
                             {% for cliente in clientes|sort(attribute='nombre') %}
                                 <option value="{{ cliente.id }}"
@@ -176,7 +176,7 @@ const totalSpan = document.getElementById('total-pedido');
 
 /* === Funciones principales === */
 function cargarProductosEnSelect() {
-    productoSelect.innerHTML = '<option value="">-- Seleccionar producto --</option>';
+    productoSelect.innerHTML = '<option value=""></option>';
     
     productos.forEach(producto => {
         const option = document.createElement('option');
@@ -310,6 +310,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     /* ------------ Tom Select (búsqueda inteligente) ------------ */
+const tomCliente = new TomSelect('#cliente_id', {
+    maxOptions: 1000,
+    closeAfterSelect: true,
+    placeholder: 'Buscar cliente…',
+    dropdownParent: 'body',
+    onType: function() { this.clear(); },
+    sortField: { field: 'text', direction: 'asc' },
+    render: {
+        option: (data, escape) => `<div><span class="suggestion-name">${escape(data.text)}</span></div>`,
+        item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
+    }
+});
+
 const tomProducto = new TomSelect('#producto-select', {
     copyClassesToDropdown: true,     // hereda clases para que se vea igual
     maxOptions: 1000,                // muestra hasta 1 000 coincidencias

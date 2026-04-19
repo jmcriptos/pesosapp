@@ -274,6 +274,11 @@ body[data-pedido-form-screen] .ts-dropdown {
      box-shadow que crea pseudo-stacking; subir el dropdown al frente
      para que las opciones queden siempre visibles por encima. */
   z-index: 1000 !important;
+  /* iOS Safari: forzar capa de composición propia evita el bug de
+     pintado donde las opciones aparecen sin color hasta que un scroll
+     dispara un repaint. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* Más alto en mobile: ~55vh deja ver ~6-8 filas y deja respirar el

@@ -346,9 +346,11 @@
     <script>
     /* Auto-init Tom Select en todo select.ts-select.
        - data-ts-placeholder="..."  → placeholder del input de búsqueda
+       - data-no-auto-ts="1"        → opt-out: la pantalla hace su propio init
        - allowEmptyOption: false (default) → la opción vacía no aparece
          como fila en el dropdown (sí queda como valor inicial del form). */
     document.querySelectorAll('select.ts-select').forEach(function(el) {
+        if (el.dataset.noAutoTs) return;
         new TomSelect(el, {
             maxOptions: 1000,
             closeAfterSelect: true,
