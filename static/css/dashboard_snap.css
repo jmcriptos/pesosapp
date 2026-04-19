@@ -141,7 +141,7 @@
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] [data-snap-card] {
     scroll-snap-align: center;
     scroll-snap-stop: always;
-    min-height: 85vh;
+    min-height: 80vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -161,28 +161,98 @@
     display: block;
   }
 
-  /* Scale up KPI typography inside snap cards (~1.8×) */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value {
-    font-size: clamp(48px, 14vw, 72px) !important;
-    line-height: 1.05;
+  /* ── Executive halo composition for KPI snap cards ──
+     Value lives INSIDE the big progress ring; label above, sub below, all centered.
+     Achieved via CSS Grid with .kpi-top promoted to display: contents so label and
+     ring become direct grid items, and .kpi-value placed in the same row as the
+     ring (overlapping it as a "halo around the value"). The ring is the existing
+     44×44 SVG visually scaled 5× via CSS transform. */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card],
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] {
+    min-height: 76vh;
+    display: grid !important;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 1fr;
+    align-items: center;
+    justify-items: center;
+    text-align: center;
+    padding: 32px 20px !important;
+    gap: 0;
+  }
+
+  /* Promote .kpi-top children to grid items of .kpi */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-top,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top {
+    display: contents;
+  }
+
+  /* Label slot (in Servicio: a wrapper div with label + full name; in Ventas: the .kpi-label itself) → row 1 */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-top > :not(.ring-wrap),
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-top > :not(.ring-wrap) {
+    grid-row: 1;
+    grid-column: 1;
+    align-self: end;
+    margin-bottom: 24px;
   }
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-label,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-label {
-    font-size: 0.95rem !important;
-    letter-spacing: 0.06em;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+    color: #94a3b8 !important;
   }
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-sub,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-sub {
-    font-size: 1rem !important;
-    margin-top: 8px;
-  }
-  /* Bigger progress ring inside snap KPI */
+
+  /* Ring → row 2, scaled 5× to act as halo */
   body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .ring-wrap,
   body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .ring-wrap {
-    transform: scale(1.6);
-    transform-origin: top right;
-    margin-bottom: 18px;
+    grid-row: 2;
+    grid-column: 1;
+    align-self: center;
+    justify-self: center;
+    transform: scale(5);
+    transform-origin: center;
+    margin: 0 !important;
+  }
+
+  /* Hide the percentage label inside the ring — the kpi-value will overlay the center. */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .ring-label,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .ring-label {
+    display: none !important;
+  }
+
+  /* Value → ALSO row 2 (stacked over ring), centered */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value {
+    grid-row: 2;
+    grid-column: 1;
+    align-self: center;
+    justify-self: center;
+    z-index: 2;
+    pointer-events: none;
+    flex-direction: column;
+    align-items: center;
+    font-size: clamp(32px, 9vw, 48px) !important;
+    line-height: 1.05;
+    color: #f8fafc !important;
+  }
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-value small,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-value small {
+    display: block;
+    font-size: 1rem !important;
+    margin-top: 6px;
+    color: #94a3b8 !important;
+    letter-spacing: 0.05em;
+  }
+
+  /* Sub → row 3, below the ring */
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi[data-snap-card] .kpi-sub,
+  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .kpi[data-snap-card] .kpi-sub {
+    grid-row: 3;
+    grid-column: 1;
+    align-self: start;
+    margin-top: 24px;
+    font-size: 1rem !important;
+    color: #cbd5e1 !important;
   }
 
   /* Week-mini grid stays a 3-col grid inside its snap card, just centered */
