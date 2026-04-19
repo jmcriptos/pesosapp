@@ -355,7 +355,7 @@
 .pedidos-empty p { margin: 0; font-size: 1rem; }
 .clear-link { color: #9fd0ff; margin-left: 4px; }
 
-/* ── Mobile Pagination — high-contrast against the dark panel ── */
+/* ── Mobile Pagination — light card to match the rest of the screen ── */
 .pagination-mobile {
     display: flex;
     align-items: center;
@@ -364,34 +364,34 @@
     margin-top: 8px;
     padding: 14px 18px;
     border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    background: rgba(10, 16, 28, 0.92);
-    box-shadow: 0 6px 20px -10px rgba(0, 0, 0, 0.5);
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    box-shadow: 0 6px 20px -10px rgba(15, 23, 42, 0.10);
 }
 
 .pagination-info-mobile {
-    color: #ffffff;
+    color: #475569;
     font-size: 0.95rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
 .pagination-current-mobile {
-    color: #ffffff;
+    color: #0f172a;
     font-size: 1.05rem;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
     padding: 8px 16px;
-    /* Solid dark slate with bright border so the page indicator reads
-       at a glance against the dark pagination strip. */
-    background: #1e293b;
+    /* Light pill that matches the page's light/white aesthetic instead
+       of dropping a heavy dark chip into the otherwise airy layout. */
+    background: #ffffff;
     border-radius: 999px;
-    border: 1.5px solid rgba(255, 255, 255, 0.30);
+    border: 1px solid #e2e8f0;
     min-width: 70px;
     text-align: center;
     flex-shrink: 0;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.20);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .pagination-controls-mobile {
@@ -435,7 +435,7 @@
 .pagination-info-mobile-single {
     margin-top: 4px;
     text-align: center;
-    color: #ffffff;
+    color: #475569;
     font-weight: 600;
     font-size: 0.92rem;
 }
@@ -884,7 +884,7 @@
     }
 
     .pagination-info {
-        color: #ffffff;
+        color: #475569;
         font-size: 0.95rem;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
@@ -920,18 +920,18 @@
     }
     .pagination-current {
         padding: 9px 18px;
-        color: #ffffff;
+        color: #0f172a;
         font-weight: 800;
         font-size: 1rem;
         font-variant-numeric: tabular-nums;
-        background: #1e293b;
-        border: 1.5px solid rgba(255, 255, 255, 0.30);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 999px;
         min-width: 140px;
         text-align: center;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.20);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
     }
-    .pagination-info-single { padding: 0 22px 18px; color: #ffffff; }
+    .pagination-info-single { padding: 0 22px 18px; color: #475569; }
 
     .pedidos-empty-desktop {
         min-height: 300px;
