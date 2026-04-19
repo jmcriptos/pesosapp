@@ -4664,7 +4664,12 @@ def lista_pedidos():
     ).outerjoin(
         orig_subq, Pedido.id == orig_subq.c.pedido_id
     ).options(
-        joinedload(Pedido.cliente)
+        joinedload(Pedido.cliente),
+        # Eager-load detalles + cajas_pesadas + producto so the post-query
+        # call to _calcular_venta_pedido(pedido) doesn't fire N+1 queries
+        # for the listed page.
+        selectinload(Pedido.detalles).selectinload(DetallePedido.cajas_pesadas),
+        selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
     ).filter(
         Pedido.estado != 'entregado'
     )
@@ -4741,10 +4746,18 @@ def lista_pedidos():
     # Aplicar paginación manual (offset/limit)
     pedidos_query = base_query.offset((page - 1) * per_page).limit(per_page).all()
 
-    # Agregar el total calculado como atributo a cada pedido
+    # El SQL computa el total como subtotal (cajas pedidas × precio_unitario).
+    # Para reflejar el avance real, sustituimos por _calcular_venta_pedido,
+    # que para productos pesables usa peso_real × precio_unitario y cae a la
+    # línea original solo cuando aún no hay cajas pesadas. La eager-load
+    # de detalles + cajas_pesadas + producto evita el N+1.
     pedidos = []
     for pedido, total in pedidos_query:
-        pedido.total_calculado = float(total)
+        venta_real = _calcular_venta_pedido(pedido)
+        if venta_real and venta_real > 0:
+            pedido.total_calculado = float(venta_real)
+        else:
+            pedido.total_calculado = float(total)
         pedidos.append(pedido)
 
     # Info de paginación para el template
