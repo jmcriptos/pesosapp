@@ -382,13 +382,16 @@
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
-    padding: 6px 14px;
-    background: rgba(255, 255, 255, 0.08);
+    padding: 8px 16px;
+    /* Solid dark slate with bright border so the page indicator reads
+       at a glance against the dark pagination strip. */
+    background: #1e293b;
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    min-width: 64px;
+    border: 1.5px solid rgba(255, 255, 255, 0.30);
+    min-width: 70px;
     text-align: center;
     flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.20);
 }
 
 .pagination-controls-mobile {
@@ -916,16 +919,17 @@
         pointer-events: none;
     }
     .pagination-current {
-        padding: 8px 16px;
+        padding: 9px 18px;
         color: #ffffff;
         font-weight: 800;
         font-size: 1rem;
         font-variant-numeric: tabular-nums;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: #1e293b;
+        border: 1.5px solid rgba(255, 255, 255, 0.30);
         border-radius: 999px;
-        min-width: 120px;
+        min-width: 140px;
         text-align: center;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.20);
     }
     .pagination-info-single { padding: 0 22px 18px; color: #ffffff; }
 

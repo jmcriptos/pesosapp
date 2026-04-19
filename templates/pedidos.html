@@ -175,19 +175,9 @@
   {# Desktop table (hidden on mobile via CSS) #}
   <div class="pedidos-table-desktop">
     <div class="tabla-pedidos-card">
-      <div class="tabla-pedidos-header">
-        <div class="tabla-pedidos-heading">
-          <h2 class="tabla-pedidos-title">Pedidos</h2>
-        </div>
-        <div class="tabla-pedidos-controls">
-          <div class="pedidos-toolbar-actions">
-            <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
-              <i class="fa-solid fa-plus"></i>
-              <span>Nuevo Pedido</span>
-            </a>
-          </div>
-        </div>
-      </div>
+      {# Card header omitted — the hero above already shows "Operaciones / Pedidos"
+         and "+ Nuevo" lives there too, so the duplicate title + button row is
+         redundant chrome on desktop. #}
 
       {% if pedidos %}
       <div class="tabla-pedidos-scroll">
