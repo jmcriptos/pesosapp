@@ -534,6 +534,46 @@ body[data-detalles-screen] .action-bar-primary:active {
    intrinsic width from the longest <option> + chevron and can break out
    even from a 100%-wide parent if any ancestor allows overflow. ──── */
 
+/* The "Generar etiquetas" collapsible card was rendering edge-to-edge
+   with the chevron clipped on the right. Force the same card chrome
+   (lateral margin + rounded corners + border) the other detail cards
+   have, and make sure the header row's chevron stays inside. Targeted
+   via :has(.collapsible-header) so other .mobile-card uses are not
+   affected. iOS Safari 16.4+ supports :has(). */
+body[data-detalles-screen] .mobile-card:has(.collapsible-header) {
+  margin: 0 16px 14px !important;
+  width: auto !important;
+  max-width: calc(100vw - 32px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+body[data-detalles-screen] .mobile-card:has(.collapsible-header) > .collapsible-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 14px 16px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  cursor: pointer;
+}
+body[data-detalles-screen] .mobile-card:has(.collapsible-header) > .collapsible-header > .collapse-icon {
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+  color: #475569 !important;
+  font-size: 0.85rem !important;
+}
+body[data-detalles-screen] .mobile-card:has(.collapsible-header) > .collapsible-header > i:first-child {
+  flex: 0 0 auto !important;
+  color: var(--indigo-500, #2563eb) !important;
+}
+
 /* 0. Hard-clip the document so nothing inside detalles can scroll
    horizontally. Backstop in case any descendant ignores max-width. */
 html body[data-detalles-screen],
