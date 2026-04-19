@@ -660,8 +660,13 @@ body[data-pesar-screen] .pesar-modal-overlay {
 body[data-pesar-screen] .pesar-modal {
   background: #ffffff !important;
   border-radius: 26px 26px 0 0 !important;
-  padding: 14px 18px calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 12px 18px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   box-shadow: 0 -16px 48px -16px rgba(15, 23, 42, 0.25) !important;
+  /* Cap to viewport height (minus safe-area-top breathing) and scroll
+     internally so the Guardar/Eliminar row never falls below the screen. */
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - 12px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 body[data-pesar-screen] .pesar-modal-handle {
@@ -672,7 +677,7 @@ body[data-pesar-screen] .pesar-modal-handle {
 }
 
 body[data-pesar-screen] .pesar-modal-header {
-  margin-bottom: 18px !important;
+  margin-bottom: 12px !important;
 }
 
 body[data-pesar-screen] .pesar-modal-kicker {
@@ -705,8 +710,8 @@ body[data-pesar-screen] .pesar-edit-readout {
   background: linear-gradient(135deg, #ecfeff 0%, #f0fdfa 100%) !important;
   border: 1px solid #99f6e4 !important;
   border-radius: 18px !important;
-  padding: 18px 20px !important;
-  margin-bottom: 14px !important;
+  padding: 14px 18px !important;
+  margin-bottom: 10px !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -743,19 +748,19 @@ body[data-pesar-screen] .pesar-edit-value small {
 body[data-pesar-screen] .pesar-edit-keypad {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 8px !important;
-  margin-bottom: 14px !important;
+  gap: 6px !important;
+  margin-bottom: 10px !important;
 }
 body[data-pesar-screen] .pesar-edit-key {
   background: #ffffff !important;
   background-image: none !important;
   color: #0f172a !important;
   border: 1px solid #e2e8f0 !important;
-  border-radius: 14px !important;
+  border-radius: 12px !important;
   font-family: var(--font-sans);
-  font-size: 1.4rem !important;
+  font-size: 1.25rem !important;
   font-weight: 700 !important;
-  min-height: 56px !important;
+  min-height: 46px !important;
   cursor: pointer;
   transition: background 120ms ease, transform 90ms ease;
   -webkit-tap-highlight-color: transparent;
@@ -777,11 +782,11 @@ body[data-pesar-screen] .pesar-edit-key[data-span="wide"] {
 /* Modal fields container + actions */
 body[data-pesar-screen] .pesar-modal-fields {
   margin-top: 4px !important;
-  gap: 12px !important;
+  gap: 10px !important;
 }
 
 body[data-pesar-screen] .pesar-modal-actions {
-  margin-top: 18px !important;
+  margin-top: 14px !important;
   display: flex;
   gap: 10px !important;
 }
@@ -790,10 +795,10 @@ body[data-pesar-screen] .pesar-delete-btn {
   color: #b91c1c !important;
   border: 1px solid #fecaca !important;
   border-radius: 14px !important;
-  height: 50px !important;
-  padding: 0 16px !important;
+  height: 46px !important;
+  padding: 0 14px !important;
   font-weight: 700 !important;
-  font-size: 0.95rem !important;
+  font-size: 0.92rem !important;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -805,11 +810,11 @@ body[data-pesar-screen] .pesar-save-btn {
   color: #ffffff !important;
   border: 0 !important;
   border-radius: 14px !important;
-  height: 50px !important;
-  padding: 0 18px !important;
+  height: 46px !important;
+  padding: 0 16px !important;
   flex: 1;
   font-weight: 700 !important;
-  font-size: 1rem !important;
+  font-size: 0.95rem !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
