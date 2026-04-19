@@ -496,26 +496,33 @@
     
     <!-- Script de info de optimización -->
     <script>
-        // Loading screen: tick a percentage from 0 → 90 over 8s, snap to
-        // 100% when window.load fires (everything done) or after a 14s
-        // safety timer. Hides the screen with a 280ms fade.
+        // Loading screen: el porcentaje se LEE del propio círculo SVG
+        // (stroke-dashoffset interpolado por la animación CSS) en lugar
+        // de calcularlo por tiempo. Así no importa el desfase de inicio
+        // ni el easing — el número siempre coincide con lo que se ve.
+        // Snap a 100% al window.load o al safety timer de 14s.
         (function () {
             var screen = document.getElementById('appLoadingScreen');
             var bar = document.getElementById('appLoadingBar');
             var percentEl = document.getElementById('appLoadingPercent');
+            var ring = document.querySelector('.app-loading-ring-bar');
             if (!screen) return;
 
-            var startTime = Date.now();
-            var duration = 8000;
+            // El círculo va de 263.89 (0% filled) a 26.39 (90% filled).
+            var EMPTY = 263.89;
+            var FULL90 = 26.39;
             var rafId = null;
             var done = false;
 
             function tick() {
                 if (done) return;
-                var elapsed = Date.now() - startTime;
-                var pct = Math.min(90, Math.round((elapsed / duration) * 90));
-                if (percentEl) percentEl.textContent = pct + '%';
-                if (pct < 90) rafId = requestAnimationFrame(tick);
+                if (ring && percentEl) {
+                    var offset = parseFloat(getComputedStyle(ring).strokeDashoffset) || EMPTY;
+                    var fillRatio = 1 - (offset - FULL90) / (EMPTY - FULL90);
+                    var pct = Math.max(0, Math.min(90, Math.round(fillRatio * 90)));
+                    percentEl.textContent = pct + '%';
+                }
+                rafId = requestAnimationFrame(tick);
             }
             tick();
 
