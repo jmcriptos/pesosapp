@@ -649,6 +649,7 @@ body[data-detalles-screen] .etiquetas-buttons {
   grid-template-columns: 1fr !important;
   gap: 10px !important;
   width: 100% !important;
+  align-items: stretch !important;
 }
 body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
   width: 100% !important;
@@ -656,6 +657,24 @@ body[data-detalles-screen] .etiquetas-buttons .mobile-btn {
   min-width: 0 !important;
   box-sizing: border-box !important;
   white-space: nowrap !important;
+  /* Lock both 4x2" Térmica and A4 (2 por página) to the exact same
+     height. The fa-print vs fa-file-pdf icons render at slightly
+     different intrinsic heights and the existing .mobile-btn rule used
+     vertical padding (18px) which lets line-box variance leak in.
+     Fixed height + line-height: 1 + flex centering removes the variance. */
+  height: 52px !important;
+  min-height: 52px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+}
+body[data-detalles-screen] .etiquetas-buttons .mobile-btn i {
+  font-size: 1rem !important;
+  line-height: 1 !important;
 }
 @media (min-width: 768px) {
   body[data-detalles-screen] .etiquetas-grid {
