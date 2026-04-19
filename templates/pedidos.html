@@ -178,57 +178,6 @@
         </div>
         <div class="tabla-pedidos-controls">
           <div class="pedidos-toolbar-actions">
-            <div class="ops-filter-wrap">
-              <button type="button" class="ops-filter-trigger" data-filter-trigger
-                      aria-haspopup="true" aria-expanded="false">
-                <i class="fa-solid fa-filter"></i>
-                <span>Filtrar</span>
-                {% set active_filter_count = (1 if filtros.estado != 'todos' else 0) + (1 if filtros.solo_notas else 0) %}
-                {% if active_filter_count %}
-                <span class="ops-filter-count">{{ active_filter_count }}</span>
-                {% endif %}
-              </button>
-              <div class="ops-filter-popover" data-filter-popover hidden>
-                <form class="ops-filter-form" method="GET" action="{{ url_for('lista_pedidos') }}">
-                  <input type="hidden" name="q" value="{{ filtros.q }}">
-                  <input type="hidden" name="per_page" value="{{ pagination.per_page if pagination else 20 }}">
-                  <div class="ops-filter-section">
-                    <span class="ops-filter-section-title">Estado del pedido</span>
-                    <label class="ops-filter-option">
-                      <input type="radio" name="estado" value="todos" {% if filtros.estado == 'todos' %}checked{% endif %}>
-                      <span class="ops-filter-option-copy">Todos</span>
-                      <span class="ops-filter-option-count">{{ status_counts.total }}</span>
-                    </label>
-                    <label class="ops-filter-option">
-                      <input type="radio" name="estado" value="pendiente" {% if filtros.estado == 'pendiente' %}checked{% endif %}>
-                      <span class="ops-filter-option-copy">Pendientes</span>
-                      <span class="ops-filter-option-count">{{ status_counts.pendiente }}</span>
-                    </label>
-                    <label class="ops-filter-option">
-                      <input type="radio" name="estado" value="preparado" {% if filtros.estado == 'preparado' %}checked{% endif %}>
-                      <span class="ops-filter-option-copy">Preparados</span>
-                      <span class="ops-filter-option-count">{{ status_counts.preparado }}</span>
-                    </label>
-                    <label class="ops-filter-option">
-                      <input type="radio" name="estado" value="facturado" {% if filtros.estado == 'facturado' %}checked{% endif %}>
-                      <span class="ops-filter-option-copy">Facturados</span>
-                      <span class="ops-filter-option-count">{{ status_counts.facturado }}</span>
-                    </label>
-                  </div>
-                  <div class="ops-filter-section">
-                    <span class="ops-filter-section-title">Contexto</span>
-                    <label class="ops-filter-check">
-                      <input type="checkbox" name="solo_notas" value="1" {% if filtros.solo_notas %}checked{% endif %}>
-                      <span>Solo pedidos con notas</span>
-                    </label>
-                  </div>
-                  <div class="ops-filter-footer">
-                    <a href="{{ url_for('lista_pedidos') }}" class="ops-filter-reset">Limpiar</a>
-                    <button type="submit" class="ops-filter-apply">Aplicar filtros</button>
-                  </div>
-                </form>
-              </div>
-            </div>
             <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
               <i class="fa-solid fa-plus"></i>
               <span>Nuevo Pedido</span>
@@ -397,33 +346,6 @@
     if (searchInput) {
       searchInput.addEventListener('input', applySearch);
     }
-
-    // Filter popover (desktop)
-    var wraps = document.querySelectorAll('.ops-filter-wrap');
-    function closeAll(exceptWrap) {
-      wraps.forEach(function (wrap) {
-        var trigger = wrap.querySelector('[data-filter-trigger]');
-        var popover = wrap.querySelector('[data-filter-popover]');
-        if (!trigger || !popover || wrap === exceptWrap) return;
-        popover.hidden = true;
-        trigger.setAttribute('aria-expanded', 'false');
-      });
-    }
-    wraps.forEach(function (wrap) {
-      var trigger = wrap.querySelector('[data-filter-trigger]');
-      var popover = wrap.querySelector('[data-filter-popover]');
-      if (!trigger || !popover) return;
-      trigger.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var isHidden = popover.hidden;
-        closeAll(wrap);
-        popover.hidden = !isHidden;
-        trigger.setAttribute('aria-expanded', String(isHidden));
-      });
-      popover.addEventListener('click', function (e) { e.stopPropagation(); });
-    });
-    document.addEventListener('click', function () { closeAll(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
 
     // Desktop table: sortable columns
     var table = document.querySelector('.tabla-pedidos');
