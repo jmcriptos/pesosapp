@@ -1051,23 +1051,34 @@ body[data-pedidos-list-screen] .estado-select {
         border-spacing: 0;
     }
 
-    /* Header row: tinted slate strip with bold tracked labels */
+    /* Header row: slate-100 strip con texto slate-900 — más contraste
+       que el muted slate-600 anterior. Sin bordes verticales/top
+       (anula el `th,td { border: 1px solid #ddd }` global de
+       styles.min.css que estaba pintando líneas verticales y rompía
+       la sensación de bordes continuos). */
     body[data-pedidos-list-screen] .tabla-pedidos th {
-        background: #f8fafc !important;
-        color: #475569 !important;
-        font-size: 0.72rem !important;
+        background: #eef2f7 !important;
+        color: #0f172a !important;
+        font-size: 0.74rem !important;
         font-weight: 800 !important;
-        letter-spacing: 0.1em !important;
+        letter-spacing: 0.08em !important;
         text-transform: uppercase;
         padding: 14px 18px !important;
-        border-bottom: 1px solid #e2e8f0 !important;
+        border: 0 !important;
+        border-bottom: 1.5px solid #cbd5e1 !important;
         backdrop-filter: none !important;
         text-align: left;
     }
+    body[data-pedidos-list-screen] .tabla-pedidos th:first-child {
+        border-top-left-radius: 18px;
+    }
+    body[data-pedidos-list-screen] .tabla-pedidos th:last-child {
+        border-top-right-radius: 18px;
+    }
     body[data-pedidos-list-screen] .tabla-pedidos th.text-right { text-align: right; }
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable i {
-        color: #cbd5e1 !important;
-        font-size: 0.7rem !important;
+        color: #94a3b8 !important;
+        font-size: 0.72rem !important;
         margin-left: 4px;
     }
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable.asc i,
@@ -1075,11 +1086,13 @@ body[data-pedidos-list-screen] .estado-select {
         color: var(--orders-blue, #2563eb) !important;
     }
 
-    /* Body rows: white with subtle zebra + clear hover */
+    /* Body rows: white con zebra suave y hover claro. Sin bordes
+       laterales/top — solo divider horizontal entre filas. */
     body[data-pedidos-list-screen] .tabla-pedidos td {
         background: #ffffff !important;
         color: #0f172a !important;
         padding: 14px 18px !important;
+        border: 0 !important;
         border-bottom: 1px solid #f1f5f9 !important;
         font-size: 0.92rem;
         vertical-align: middle;
