@@ -15,10 +15,16 @@ body[data-pedido-form-screen] .app-content {
   background-image: none !important;
 }
 
-/* Scope tokens to CONTENT only so topbar/tabbar keep their dark theme. */
+/* Scope tokens to CONTENT only so topbar/tabbar keep their dark theme.
+   IMPORTANTE: --bg-ambient debe estar redefinida acá. En dark theme
+   tokens.css la pone como gradiente oscuro (#0a0e1f → #0f172a →
+   #1a1033) que asoma entre las tarjetas. Sin override, los `var(--bg-
+   ambient, #f8fafc)` de abajo NUNCA usan el fallback porque la
+   variable existe — solo que es oscura. */
 body[data-pedido-form-screen] .app-content,
 body[data-pedido-form-screen] .pedido-form-shell,
 body[data-pedido-form-screen] .mobile-form-container {
+  --bg-ambient: #f8fafc;
   --color-bg: #ffffff;
   --color-bg-elevated: #ffffff;
   --color-bg-subtle: #f8fafc;
