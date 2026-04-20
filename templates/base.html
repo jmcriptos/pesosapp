@@ -519,6 +519,34 @@
             onType: function() { this.clear(); }
         });
     });
+
+    /* Brute-force fix: iOS Safari pinta fondo oscuro nativo a los
+       <input type="select-one"> de Tom Select aunque el CSS diga
+       background:transparent. Aplicamos inline style con !important
+       desde JS (specificity 1,0,0,0 — la máxima posible) para que
+       gane sobre cualquier regla, incluyendo el chrome nativo del
+       navegador. Re-corre cada vez que un input recibe foco por si
+       algún re-render lo limpia. */
+    function pesosClearTSInputBg() {
+      var inputs = document.querySelectorAll(
+        '.ts-wrapper input, input[role="combobox"], input[type="select-one"], .search-pill input'
+      );
+      for (var i = 0; i < inputs.length; i++) {
+        var el = inputs[i];
+        el.style.setProperty('background', 'transparent', 'important');
+        el.style.setProperty('background-color', 'transparent', 'important');
+        el.style.setProperty('background-image', 'none', 'important');
+        el.style.setProperty('color-scheme', 'light', 'important');
+        el.style.setProperty('-webkit-appearance', 'none', 'important');
+        el.style.setProperty('appearance', 'none', 'important');
+        el.style.setProperty('box-shadow', 'none', 'important');
+      }
+    }
+    pesosClearTSInputBg();
+    // Re-aplicar tras navegación interna o focus (defensivo)
+    document.addEventListener('focusin', pesosClearTSInputBg, true);
+    setTimeout(pesosClearTSInputBg, 200);
+    setTimeout(pesosClearTSInputBg, 800);
     </script>
     
     <!-- Script de info de optimización -->
