@@ -1051,21 +1051,20 @@ body[data-pedidos-list-screen] .estado-select {
         border-spacing: 0;
     }
 
-    /* Header row: slate-100 strip con texto slate-900 — más contraste
-       que el muted slate-600 anterior. Sin bordes verticales/top
-       (anula el `th,td { border: 1px solid #ddd }` global de
-       styles.min.css que estaba pintando líneas verticales y rompía
-       la sensación de bordes continuos). */
+    /* Header row: gradiente indigo vivo con texto blanco — fuerte
+       contraste y alineado con el color de marca (--orders-blue).
+       Sin bordes verticales/top (anula el `th,td { border: 1px solid
+       #ddd }` global de styles.min.css que rompía la continuidad). */
     body[data-pedidos-list-screen] .tabla-pedidos th {
-        background: #eef2f7 !important;
-        color: #0f172a !important;
+        background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+        color: #ffffff !important;
         font-size: 0.74rem !important;
         font-weight: 800 !important;
         letter-spacing: 0.08em !important;
         text-transform: uppercase;
         padding: 14px 18px !important;
         border: 0 !important;
-        border-bottom: 1.5px solid #cbd5e1 !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
         backdrop-filter: none !important;
         text-align: left;
     }
@@ -1076,14 +1075,20 @@ body[data-pedidos-list-screen] .estado-select {
         border-top-right-radius: 18px;
     }
     body[data-pedidos-list-screen] .tabla-pedidos th.text-right { text-align: right; }
+    body[data-pedidos-list-screen] .tabla-pedidos th.sortable {
+        cursor: pointer;
+    }
+    body[data-pedidos-list-screen] .tabla-pedidos th.sortable:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+    }
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable i {
-        color: #94a3b8 !important;
+        color: rgba(255, 255, 255, 0.55) !important;
         font-size: 0.72rem !important;
         margin-left: 4px;
     }
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable.asc i,
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable.desc i {
-        color: var(--orders-blue, #2563eb) !important;
+        color: #ffffff !important;
     }
 
     /* Body rows: white con zebra suave y hover claro. Sin bordes
