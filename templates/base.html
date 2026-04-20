@@ -603,6 +603,23 @@
                 }, 140);
             }
 
+            // Ocultar tan pronto el DOM esté listo + un frame para que
+            // el primer paint termine (≈ 60ms). No esperamos a window.load
+            // porque ese evento se dispara recién cuando TODOS los
+            // recursos cargaron (Font Awesome, Tom Select, Chart.js,
+            // imágenes…) y eso puede tardar varios segundos en mobile
+            // aunque la página ya sea interactiva.
+            function finishWhenReady() {
+                requestAnimationFrame(function () {
+                    setTimeout(finish, 60);
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', finishWhenReady);
+            } else {
+                finishWhenReady();
+            }
+            // Fallbacks defensivos
             window.addEventListener('load', finish);
             setTimeout(finish, 14000);
 
