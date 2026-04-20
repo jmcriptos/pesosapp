@@ -192,6 +192,25 @@
       }, 14000);
     }
 
+    function isHtmxControlled(el) {
+      // htmx intercepta el evento y hace AJAX en lugar de navegar.
+      // Si el elemento (o cualquiera de sus ancestros) tiene un
+      // atributo hx-*, NO mostramos el overlay porque no va a haber
+      // navegación que termine.
+      while (el && el !== document) {
+        if (el.attributes) {
+          for (var i = 0; i < el.attributes.length; i++) {
+            var name = el.attributes[i].name;
+            if (name.indexOf('hx-') === 0 || name.indexOf('data-hx-') === 0) {
+              return true;
+            }
+          }
+        }
+        el = el.parentNode;
+      }
+      return false;
+    }
+
     document.addEventListener('click', function (e) {
       var link = e.target.closest('a[href]');
       if (!link) return;
@@ -206,6 +225,7 @@
       if (link.origin && link.origin !== location.origin) return;    // external
       // Misma página + mismo hash → no es navegación real
       if (link.href === location.href) return;
+      if (isHtmxControlled(link)) return;                            // htmx → no nav
       showNavOverlay();
     }, true);
 
@@ -214,6 +234,7 @@
       var form = e.target;
       if (!form || form.tagName !== 'FORM') return;
       if (form.target === '_blank') return;
+      if (isHtmxControlled(form)) return;                            // htmx → no nav
       showNavOverlay();
     }, true);
   })();
