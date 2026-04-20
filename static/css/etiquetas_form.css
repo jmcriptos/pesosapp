@@ -57,6 +57,25 @@ body[data-etiquetas-form-screen] .etiq-card {
   box-shadow: 0 12px 36px -16px rgba(15, 23, 42, 0.12);
   overflow: visible;
 }
+
+/* dark-theme.css pinta TODO <form> con bg navy + box-shadow oscura
+   y todos los <label> con color claro (#f1f5f9). Anular dentro del
+   scope para que el form se integre limpio en la card blanca. */
+body[data-etiquetas-form-screen] form,
+body[data-etiquetas-form-screen] form#form-etiquetas {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+body[data-etiquetas-form-screen] label,
+body[data-etiquetas-form-screen] .etiq-label {
+  color: #475569 !important;
+}
 body[data-etiquetas-form-screen] .etiq-card-header {
   display: flex;
   align-items: center;
