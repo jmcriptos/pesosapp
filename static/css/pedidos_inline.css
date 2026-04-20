@@ -454,65 +454,74 @@ body[data-pedidos-list-screen] .estado-select {
     box-shadow: 0 6px 20px -10px rgba(15, 23, 42, 0.10);
 }
 
-.pagination-info-mobile {
-    color: #475569;
+/* Mobile pagination — todas las reglas con !important + scope
+   body[data-pedidos-list-screen] para superar dark-theme.css que
+   pinta `.pagination-btn-mobile { background: #1a1f2b !important }`
+   y `.pagination-current-mobile { color: #f1f5f9 !important }`
+   (texto blanco invisible sobre el pill blanco). */
+body[data-pedidos-list-screen] .pagination-info-mobile {
+    color: #475569 !important;
     font-size: 0.95rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
 
-.pagination-current-mobile {
-    color: #0f172a;
-    font-size: 1.05rem;
-    font-weight: 800;
+body[data-pedidos-list-screen] .pagination-current-mobile {
+    color: #1e3a8a !important;        /* indigo-900 */
+    font-size: 1rem;
+    font-weight: 800 !important;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
     padding: 8px 16px;
-    /* Light pill that matches the page's light/white aesthetic instead
-       of dropping a heavy dark chip into the otherwise airy layout. */
-    background: #ffffff;
+    background: #eef2ff !important;   /* indigo-50, conecta con los botones */
     border-radius: 999px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #c7d2fe !important;
     min-width: 70px;
     text-align: center;
     flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.pagination-controls-mobile {
+body[data-pedidos-list-screen] .pagination-controls-mobile {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.pagination-btn-mobile {
+body[data-pedidos-list-screen] .pagination-btn-mobile {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 42px;
     height: 42px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #2563eb, #4f46e5);
-    color: #ffffff;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+    background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+    color: #ffffff !important;
     text-decoration: none;
     font-size: 1rem;
-    box-shadow: 0 6px 16px -6px rgba(37, 99, 235, 0.55);
-    transition: transform 90ms ease, box-shadow 140ms ease, opacity 140ms ease;
+    border: 0 !important;
+    box-shadow: 0 6px 16px -8px rgba(37, 99, 235, 0.45) !important;
+    transition: transform 90ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
-.pagination-btn-mobile:hover {
+body[data-pedidos-list-screen] .pagination-btn-mobile:hover:not(.disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px -8px rgba(37, 99, 235, 0.65);
+    background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+    background-image: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+    box-shadow: 0 10px 22px -10px rgba(37, 99, 235, 0.6) !important;
+    color: #ffffff !important;
 }
 
-.pagination-btn-mobile:active {
+body[data-pedidos-list-screen] .pagination-btn-mobile:active:not(.disabled) {
     transform: scale(0.96);
 }
 
-.pagination-btn-mobile.disabled {
-    background: rgba(148, 163, 184, 0.18);
-    color: rgba(255, 255, 255, 0.45);
-    box-shadow: none;
+body[data-pedidos-list-screen] .pagination-btn-mobile.disabled {
+    background: #f1f5f9 !important;
+    background-image: none !important;
+    color: #cbd5e1 !important;
+    box-shadow: none !important;
     cursor: not-allowed;
     pointer-events: none;
 }
