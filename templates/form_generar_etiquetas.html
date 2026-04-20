@@ -1,97 +1,102 @@
 {% extends "base.html" %}
 
-{% block title %}Generar Etiquetas{% endblock %}
+{% block title %}Generar Etiquetas — PesosApp{% endblock %}
 
 {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-etiquetas-form-screen="1"{% endblock %}
 
-{% block header_title %}
-    <span class="fw-700 color-white">
-        Generar Etiquetas
-    </span>
-    <br>
-    <small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
-        Etiquetas de vencimiento
-    </small>
+{% block header_title %}Etiquetas{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/etiquetas_form.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="mobile-form-container">
+<div class="etiq-shell">
+  <header class="etiq-hero">
+    <h1 class="etiq-hero-title">Generar etiquetas</h1>
+    <p class="etiq-hero-sub">Imprime etiquetas de vencimiento para un lote.</p>
+  </header>
+
+  <section class="etiq-card">
+    <div class="etiq-card-header">
+      <i class="fas fa-tags"></i>
+      Datos de la etiqueta
+    </div>
+
     <form method="POST" id="form-etiquetas" autocomplete="off">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <!-- Producto Card -->
-        <div class="mobile-card">
-            <div class="mobile-card-header">
-                <i class="fas fa-tags"></i>
-                Datos de la etiqueta
-            </div>
-            <div class="mobile-card-body">
-                <div class="mobile-form-group">
-                    <label class="mobile-form-label" for="producto_id">Producto:</label>
-                    <select name="producto_id" id="producto_id" class="mobile-form-control ts-select" required>
-                        <option value="">Seleccione un producto</option>
-                        {% for producto in productos %}
-                        <option value="{{ producto.id }}">{{ producto.nombre }} - {{ producto.codigo }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+      <div class="etiq-card-body">
+        <div class="etiq-form-grid">
+          <div class="etiq-row etiq-row-full">
+            <label class="etiq-label" for="producto_id">Producto</label>
+            <select name="producto_id" id="producto_id"
+                    class="etiq-input ts-select"
+                    data-ts-placeholder="Buscar producto…" required>
+              <option value=""></option>
+              {% for producto in productos %}
+              <option value="{{ producto.id }}">{{ producto.nombre }} — {{ producto.codigo }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-                <div class="mobile-form-group">
-                    <label class="mobile-form-label" for="fecha_fabricacion">Fecha de Fabricación:</label>
-                    <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
-                           class="mobile-form-control" required>
-                </div>
+          <div class="etiq-row">
+            <label class="etiq-label" for="fecha_fabricacion">Fecha de fabricación</label>
+            <input type="date" name="fecha_fabricacion" id="fecha_fabricacion"
+                   class="etiq-input" required>
+          </div>
 
-                <div class="mobile-form-group">
-                    <label class="mobile-form-label" for="lote">Número de Lote:</label>
-                    <input type="text" name="lote" id="lote"
-                           class="mobile-form-control"
-                           placeholder="Ej: LOTE-2025-001" required>
-                </div>
+          <div class="etiq-row">
+            <label class="etiq-label" for="lote">Número de lote</label>
+            <input type="text" name="lote" id="lote"
+                   class="etiq-input"
+                   placeholder="Ej: LOTE-2025-001" required>
+          </div>
 
-                <div class="mobile-form-group">
-                    <label class="mobile-form-label" for="cantidad_etiquetas">Cantidad de etiquetas:</label>
-                    <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas"
-                           class="mobile-form-control"
-                           min="1" max="100" value="1" required>
-                </div>
-            </div>
+          <div class="etiq-row etiq-row-full">
+            <label class="etiq-label" for="cantidad_etiquetas">Cantidad de etiquetas</label>
+            <input type="number" name="cantidad_etiquetas" id="cantidad_etiquetas"
+                   class="etiq-input"
+                   min="1" max="100" value="1" required>
+          </div>
         </div>
+      </div>
 
-        <!-- Botones -->
-        <div class="mobile-form-actions">
-            <a href="{{ url_for('productos') }}" class="mobile-btn mobile-btn-secondary">
-                <i class="fas fa-times"></i>
-                Cancelar
-            </a>
-            <button type="submit" class="mobile-btn mobile-btn-primary">
-                <i class="fas fa-print"></i>
-                Generar Etiquetas
-            </button>
-        </div>
+      <div class="etiq-actions">
+        <a href="{{ url_for('productos') }}" class="etiq-btn etiq-btn-secondary">
+          <i class="fas fa-times"></i>
+          Cancelar
+        </a>
+        <button type="submit" class="etiq-btn etiq-btn-primary">
+          <i class="fas fa-print"></i>
+          Generar etiquetas
+        </button>
+      </div>
     </form>
+  </section>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const cantidadInput = document.getElementById('cantidad_etiquetas');
+document.addEventListener('DOMContentLoaded', function () {
+  const cantidadInput = document.getElementById('cantidad_etiquetas');
+  const form = document.getElementById('form-etiquetas');
 
-    document.getElementById('form-etiquetas').addEventListener('submit', function(e) {
-        const cantidad = parseInt(cantidadInput.value);
-        if (cantidad < 1 || cantidad > 100) {
-            e.preventDefault();
-            alert('La cantidad debe estar entre 1 y 100');
-            cantidadInput.focus();
-        }
-    });
+  form.addEventListener('submit', function (e) {
+    const cantidad = parseInt(cantidadInput.value, 10);
+    if (!cantidad || cantidad < 1 || cantidad > 100) {
+      e.preventDefault();
+      alert('La cantidad debe estar entre 1 y 100');
+      cantidadInput.focus();
+    }
+  });
 
-    cantidadInput.addEventListener('input', function() {
-        const valor = parseInt(this.value);
-        if (valor > 100) this.value = 100;
-        else if (valor < 1) this.value = 1;
-    });
+  cantidadInput.addEventListener('input', function () {
+    const v = parseInt(this.value, 10);
+    if (v > 100) this.value = 100;
+    else if (v < 1) this.value = 1;
+  });
 });
 </script>
 {% endblock %}

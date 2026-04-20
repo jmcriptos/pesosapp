@@ -1,0 +1,259 @@
+/* ────────────────────────────────────────────────────────────
+   Etiquetas Vencimiento — desktop-first light theme.
+   Scope: body[data-etiquetas-form-screen] para no chocar con
+   el resto del stack global.
+   ──────────────────────────────────────────────────────────── */
+
+/* Fondo claro — overridea --bg-ambient para que el gradiente
+   oscuro de tokens.css no asome alrededor de la card. */
+body[data-etiquetas-form-screen],
+body[data-etiquetas-form-screen] .app-container,
+body[data-etiquetas-form-screen] .app-content {
+  background: #f8fafc !important;
+  background-image: none !important;
+}
+body[data-etiquetas-form-screen] .app-content {
+  --bg-ambient: #f8fafc;
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+}
+
+/* ─── Shell + hero ─── */
+body[data-etiquetas-form-screen] .etiq-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+body[data-etiquetas-form-screen] .etiq-hero {
+  padding: 8px 4px 18px;
+}
+body[data-etiquetas-form-screen] .etiq-hero-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.15;
+}
+body[data-etiquetas-form-screen] .etiq-hero-sub {
+  font-size: 0.95rem;
+  color: #475569;
+  margin-top: 6px;
+}
+
+/* ─── Card central ─── */
+body[data-etiquetas-form-screen] .etiq-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 12px 36px -16px rgba(15, 23, 42, 0.12);
+  overflow: visible;
+}
+body[data-etiquetas-form-screen] .etiq-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f1f5f9;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0f172a;
+}
+body[data-etiquetas-form-screen] .etiq-card-header i {
+  color: #6366f1;
+  font-size: 1.05rem;
+}
+body[data-etiquetas-form-screen] .etiq-card-body {
+  padding: 20px 22px 8px;
+  background: #ffffff;
+}
+
+/* ─── Form rows ─── */
+body[data-etiquetas-form-screen] .etiq-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  body[data-etiquetas-form-screen] .etiq-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  body[data-etiquetas-form-screen] .etiq-form-grid .etiq-row-full {
+    grid-column: 1 / -1;
+  }
+}
+
+body[data-etiquetas-form-screen] .etiq-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+body[data-etiquetas-form-screen] .etiq-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+/* ─── Inputs / selects nativos ─── */
+body[data-etiquetas-form-screen] .etiq-input,
+body[data-etiquetas-form-screen] input.etiq-input,
+body[data-etiquetas-form-screen] select.etiq-input {
+  width: 100%;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px;
+  padding: 11px 14px !important;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  box-shadow: none !important;
+  color-scheme: light;
+}
+body[data-etiquetas-form-screen] .etiq-input::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 500;
+  opacity: 1;
+}
+body[data-etiquetas-form-screen] .etiq-input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16) !important;
+  background: #ffffff !important;
+}
+body[data-etiquetas-form-screen] select.etiq-input:not(.ts-select) {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 8px !important;
+  padding-right: 38px !important;
+}
+
+/* ─── Tom Select scoped (mismo lenguaje que pedido_form) ─── */
+body[data-etiquetas-form-screen] .ts-wrapper .ts-control,
+body[data-etiquetas-form-screen] .ts-wrapper.single .ts-control {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 9px 12px !important;
+  min-height: 44px !important;
+}
+body[data-etiquetas-form-screen] .ts-wrapper.focus .ts-control {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16) !important;
+}
+body[data-etiquetas-form-screen] .ts-wrapper .ts-control .item {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+body[data-etiquetas-form-screen] .ts-wrapper.single.dropdown-active .ts-control .item {
+  display: none !important;
+}
+body[data-etiquetas-form-screen] .ts-dropdown {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 48px -16px rgba(15, 23, 42, 0.18) !important;
+  margin-top: 6px !important;
+  z-index: 1000 !important;
+  overflow: hidden !important;
+  transform: translateZ(0);
+}
+body[data-etiquetas-form-screen] .ts-dropdown .ts-dropdown-content {
+  max-height: 55vh !important;
+}
+body[data-etiquetas-form-screen] .ts-dropdown .ts-dropdown-content .option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  padding: 12px 14px !important;
+  font-size: 0.95rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  min-height: 44px !important;
+  display: flex;
+  align-items: center;
+}
+body[data-etiquetas-form-screen] .ts-dropdown .ts-dropdown-content .option:last-child {
+  border-bottom: 0 !important;
+}
+body[data-etiquetas-form-screen] .ts-dropdown .ts-dropdown-content .option.active,
+body[data-etiquetas-form-screen] .ts-dropdown .ts-dropdown-content .option:hover {
+  background: rgba(99, 102, 241, 0.10) !important;
+  color: #0f172a !important;
+}
+
+/* ─── Acciones (footer del card) ─── */
+body[data-etiquetas-form-screen] .etiq-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px 20px;
+  border-top: 1px solid #f1f5f9;
+  background: #ffffff;
+  border-radius: 0 0 18px 18px;
+}
+body[data-etiquetas-form-screen] .etiq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 11px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+body[data-etiquetas-form-screen] .etiq-btn:active {
+  transform: translateY(1px);
+}
+body[data-etiquetas-form-screen] .etiq-btn-secondary {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+body[data-etiquetas-form-screen] .etiq-btn-secondary:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+body[data-etiquetas-form-screen] .etiq-btn-primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #ffffff;
+  box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.55);
+}
+body[data-etiquetas-form-screen] .etiq-btn-primary:hover {
+  color: #ffffff;
+  box-shadow: 0 14px 30px -12px rgba(99, 102, 241, 0.65);
+}
+
+/* ─── Mobile tweaks ≤640px ─── */
+@media (max-width: 640px) {
+  body[data-etiquetas-form-screen] .etiq-shell { padding: 16px 12px 96px; }
+  body[data-etiquetas-form-screen] .etiq-hero-title { font-size: 1.55rem; }
+  body[data-etiquetas-form-screen] .etiq-card-header,
+  body[data-etiquetas-form-screen] .etiq-card-body { padding-left: 16px; padding-right: 16px; }
+  body[data-etiquetas-form-screen] .etiq-actions {
+    padding: 14px 16px 18px;
+    flex-direction: column-reverse;
+  }
+  body[data-etiquetas-form-screen] .etiq-btn { width: 100%; }
+}
