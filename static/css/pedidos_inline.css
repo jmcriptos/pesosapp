@@ -1053,10 +1053,14 @@ body[data-pedidos-list-screen] .estado-select {
 
     /* Header row: gradiente indigo vivo con texto blanco — fuerte
        contraste y alineado con el color de marca (--orders-blue).
-       Sin bordes verticales/top (anula el `th,td { border: 1px solid
-       #ddd }` global de styles.min.css que rompía la continuidad). */
+       NOTA: incluir `thead` en el selector para superar la
+       especificidad de `pedidos_list.css thead th` (0,0,2,3) que
+       de lo contrario pinta `var(--color-bg-subtle)` con
+       `background-image: none !important` matando el gradiente. */
+    body[data-pedidos-list-screen] .tabla-pedidos thead th,
     body[data-pedidos-list-screen] .tabla-pedidos th {
         background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+        background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
         color: #ffffff !important;
         font-size: 0.74rem !important;
         font-weight: 800 !important;
@@ -1068,24 +1072,38 @@ body[data-pedidos-list-screen] .estado-select {
         backdrop-filter: none !important;
         text-align: left;
     }
+    /* También overridear el thead para que no asome la franja gris
+       detrás de los th con border-radius. */
+    body[data-pedidos-list-screen] .tabla-pedidos thead {
+        background: transparent !important;
+    }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th:first-child,
     body[data-pedidos-list-screen] .tabla-pedidos th:first-child {
         border-top-left-radius: 18px;
     }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th:last-child,
     body[data-pedidos-list-screen] .tabla-pedidos th:last-child {
         border-top-right-radius: 18px;
     }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th.text-right,
     body[data-pedidos-list-screen] .tabla-pedidos th.text-right { text-align: right; }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable,
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable {
         cursor: pointer;
     }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable:hover,
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable:hover {
         background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+        background-image: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
     }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable i,
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable i {
         color: rgba(255, 255, 255, 0.55) !important;
         font-size: 0.72rem !important;
         margin-left: 4px;
     }
+    body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable.asc i,
+    body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable.desc i,
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable.asc i,
     body[data-pedidos-list-screen] .tabla-pedidos th.sortable.desc i {
         color: #ffffff !important;
