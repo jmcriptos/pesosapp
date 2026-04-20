@@ -35,7 +35,7 @@
                     data-ts-placeholder="Buscar producto…" required>
               <option value=""></option>
               {% for producto in productos %}
-              <option value="{{ producto.id }}">{{ producto.nombre }} — {{ producto.codigo }}</option>
+              <option value="{{ producto.id }}">{{ producto.nombre }}{% if producto.codigo %} — {{ producto.codigo }}{% endif %}</option>
               {% endfor %}
             </select>
           </div>
