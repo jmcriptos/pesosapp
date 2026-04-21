@@ -238,39 +238,46 @@ function closeEditModal() {
     editForm.reset();
 }
 
-// Cerrar modal al hacer clic fuera
-editModalOverlay.addEventListener('click', function(e) {
-    if (e.target === editModalOverlay) {
-        closeEditModal();
-    }
-});
+// El modal de edición sólo se renderiza para pedidos no facturados
+// (_detail_edit_modal.html). Si no está en el DOM, no registramos los
+// listeners: de lo contrario, .addEventListener sobre null lanzaría
+// TypeError y cortaría el resto del <script> (incluido el handler de
+// generación de etiquetas).
+if (editModalOverlay && editForm && editPesoField) {
+    // Cerrar modal al hacer clic fuera
+    editModalOverlay.addEventListener('click', function(e) {
+        if (e.target === editModalOverlay) {
+            closeEditModal();
+        }
+    });
 
-// Cerrar modal con Escape
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && editModalOverlay.classList.contains('show')) {
-        closeEditModal();
-    }
-});
+    // Cerrar modal con Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && editModalOverlay.classList.contains('show')) {
+            closeEditModal();
+        }
+    });
 
-// Conversión de coma a punto en el modal de edición
-editPesoField.addEventListener('input', function(e) {
-    const cursorPos = this.selectionStart;
-    const hadComma = this.value.includes(',');
-    this.value = this.value.replace(',', '.');
-    if (hadComma) {
-        this.setSelectionRange(cursorPos, cursorPos);
-    }
-    this.value = this.value.replace(/[^0-9.]/g, '');
-    const parts = this.value.split('.');
-    if (parts.length > 2) {
-        this.value = parts[0] + '.' + parts.slice(1).join('');
-    }
-});
+    // Conversión de coma a punto en el modal de edición
+    editPesoField.addEventListener('input', function(e) {
+        const cursorPos = this.selectionStart;
+        const hadComma = this.value.includes(',');
+        this.value = this.value.replace(',', '.');
+        if (hadComma) {
+            this.setSelectionRange(cursorPos, cursorPos);
+        }
+        this.value = this.value.replace(/[^0-9.]/g, '');
+        const parts = this.value.split('.');
+        if (parts.length > 2) {
+            this.value = parts[0] + '.' + parts.slice(1).join('');
+        }
+    });
 
-// Normalizar coma a punto antes de enviar el form de edición
-editForm.addEventListener('submit', function(e) {
-    editPesoField.value = editPesoField.value.replace(',', '.').trim();
-});
+    // Normalizar coma a punto antes de enviar el form de edición
+    editForm.addEventListener('submit', function(e) {
+        editPesoField.value = editPesoField.value.replace(',', '.').trim();
+    });
+}
 
 // ========================================================================
 // CONFIGURACIÓN Y REFERENCIAS
