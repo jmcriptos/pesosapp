@@ -2797,28 +2797,28 @@ def pedido_a_json(pedido: Pedido) -> dict:
         if not detalle.cajas_pesadas_count:
             continue
 
-        qty = float(detalle.peso_real)
-        if qty == 0:
-            continue
-
         productos_con_cajas.add(detalle.producto_id)
 
-        descripcion = detalle.producto.nombre
-        lote = detalle.lote_principal
-        if lote:
-            descripcion += f" (Lote {lote})"
-
-        subtotal = float(detalle.precio_unitario) * qty
-        total += subtotal
-
-        lineas.append({
-            "product_qbo_id": detalle.producto.qbo_id,
-            "descripcion": descripcion,
-            "qty": qty,
-            "unit_price": float(detalle.precio_unitario),
-            "amount": round(subtotal, 2),
-            "tax_rate": detalle.producto.tax_rate
-        })
+        # Una línea del payload por cada CajaPesada: N8N agrupa por
+        # (product_qbo_id, unit_price) y acumula cada qty individual en
+        # descriptions[] para escribirlo en Line.Description de QBO.
+        cajas_ordenadas = sorted(
+            detalle.cajas_pesadas, key=lambda c: (c.numero, c.id)
+        )
+        for caja in cajas_ordenadas:
+            qty = float(caja.peso or 0)
+            if qty == 0:
+                continue
+            subtotal = float(detalle.precio_unitario) * qty
+            total += subtotal
+            lineas.append({
+                "product_qbo_id": detalle.producto.qbo_id,
+                "descripcion": detalle.producto.nombre,
+                "qty": qty,
+                "unit_price": float(detalle.precio_unitario),
+                "amount": round(subtotal, 2),
+                "tax_rate": detalle.producto.tax_rate,
+            })
 
     for d in pedido.detalles:
         # Solo usar líneas de preparación (tanto manufactura como importación)
