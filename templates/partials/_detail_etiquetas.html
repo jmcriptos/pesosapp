@@ -5,7 +5,10 @@
         <i class="fas fa-chevron-down collapse-icon" id="etiquetas-icon" style="margin-left:auto; transition: transform 0.3s ease;"></i>
     </div>
     <div class="mobile-card-body collapsible-body" id="etiquetas-body" style="display:none;">
-        <form id="form-etiquetas-detalle">
+        <form id="form-etiquetas-detalle"
+              method="POST"
+              action="{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}"
+              target="etiquetas-download-frame">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="mobile-form-group" style="margin-bottom: 16px;">
