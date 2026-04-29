@@ -7648,31 +7648,56 @@ def generar_etiqueta():
     except Exception as e:
         return jsonify({"error": "Error interno del servidor"}), 500
 
+def _build_datos_etiqueta_vencimiento(form):
+    """Normaliza el form de etiquetas de vencimiento a (datos, cantidad)."""
+    fecha_fabricacion_date = datetime.strptime(form['fecha_fabricacion'], '%Y-%m-%d')
+    fecha_expiracion = fecha_fabricacion_date + timedelta(days=365)
+    producto = db.session.get(Producto, form['producto_id'])
+    datos = {
+        "nombre_producto": producto.nombre,
+        "lote": form['lote'],
+        "fecha_fabricacion": fecha_fabricacion_date.strftime('%d/%m/%Y'),
+        "fecha_expiracion": fecha_expiracion.strftime('%d/%m/%Y'),
+        "temperatura": producto.temperatura,
+    }
+    return datos, int(form['cantidad_etiquetas'])
+
+
 @app.route('/etiquetas_vencimiento', methods=['GET', 'POST'])
 @login_required
 def etiquetas_vencimiento():
-    """Genera etiquetas de vencimiento para productos."""
+    """Genera etiquetas de vencimiento en formato A4 (2 por página)."""
     if request.method == 'POST':
-        producto_id = request.form['producto_id']
-        fecha_fabricacion = request.form['fecha_fabricacion']
-        lote = request.form['lote']
-        cantidad_etiquetas = int(request.form['cantidad_etiquetas'])
-
-        fecha_fabricacion_date = datetime.strptime(fecha_fabricacion, '%Y-%m-%d')
-        fecha_expiracion = fecha_fabricacion_date + timedelta(days=365)
-        producto = db.session.get(Producto, producto_id)
-
-        datos_producto = {
-            "nombre_producto": producto.nombre,
-            "lote": lote,
-            "fecha_fabricacion": fecha_fabricacion_date.strftime('%d/%m/%Y'),
-            "fecha_expiracion": fecha_expiracion.strftime('%d/%m/%Y'),
-            "temperatura": producto.temperatura
-        }
-        return generar_pdf_etiquetas(datos_producto, cantidad_etiquetas)
+        datos, cantidad = _build_datos_etiqueta_vencimiento(request.form)
+        return generar_pdf_etiquetas(datos, cantidad)
 
     productos = Producto.query.all()
     return render_template('form_generar_etiquetas.html', productos=productos)
+
+
+@app.route('/etiquetas_vencimiento_4x2', methods=['POST'])
+@login_required
+def etiquetas_vencimiento_4x2():
+    """Genera etiquetas de vencimiento en formato 4"x2" (térmica, una por página)."""
+    datos, cantidad = _build_datos_etiqueta_vencimiento(request.form)
+    return generar_pdf_etiquetas_4x2(datos, cantidad)
+
+
+def generar_pdf_etiquetas_4x2(datos, cantidad):
+    """Genera PDF térmico 4"x2" (una etiqueta por página) con datos de vencimiento."""
+    output, c = create_single_label_pdf()
+    logo_path = get_logo_path(basedir)
+    for _ in range(cantidad):
+        draw_expiration_label(c, logo_path, datos, 0, 0)
+        c.showPage()
+    c.save()
+    output.seek(0)
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="etiquetas_vencimiento_4x2.pdf",
+        mimetype='application/pdf',
+    )
 
 
 def generar_pdf_etiquetas(datos, cantidad):

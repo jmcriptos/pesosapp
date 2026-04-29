@@ -23,7 +23,7 @@
       Datos de la etiqueta
     </div>
 
-    <form method="POST" id="form-etiquetas" target="etiquetas-download-frame" autocomplete="off">
+    <form method="POST" id="form-etiquetas" action="{{ url_for('etiquetas_vencimiento') }}" target="etiquetas-download-frame" autocomplete="off">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="etiq-card-body">
@@ -67,9 +67,15 @@
           <i class="fas fa-times"></i>
           Cancelar
         </a>
-        <button type="submit" class="etiq-btn etiq-btn-primary">
+        <button type="submit"
+                formaction="{{ url_for('etiquetas_vencimiento_4x2') }}"
+                class="etiq-btn etiq-btn-primary">
           <i class="fas fa-print"></i>
-          Generar etiquetas
+          4" x 2" Térmica
+        </button>
+        <button type="submit" class="etiq-btn etiq-btn-primary">
+          <i class="fas fa-file-pdf"></i>
+          A4 (2 por página)
         </button>
       </div>
     </form>
