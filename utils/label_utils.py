@@ -4,7 +4,7 @@ Centraliza el código común para etiquetas de pedidos y etiquetas de vencimient
 """
 import os
 from io import BytesIO
-from reportlab.lib.units import inch
+from reportlab.lib.units import inch, mm
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -47,8 +47,12 @@ SEPARATOR_Y = MARGIN + 0.33 * inch
 PRODUCT_Y_MIN = MARGIN + 0.06 * inch
 PRODUCT_Y_MAX = MARGIN + 0.26 * inch
 
+# Margen superior extra para etiquetas de vencimiento. Sin esto el logo
+# queda flush con el borde y la impresión térmica corta el contenido.
+MARGIN_TOP_VENC = 1.5 * mm
+
 # Posiciones Y para etiquetas de vencimiento (sin cliente)
-Y_LOT_VENC = LABEL_HEIGHT - 0.12 * inch
+Y_LOT_VENC = LABEL_HEIGHT - 0.12 * inch - MARGIN_TOP_VENC
 Y_MFG_VENC = Y_LOT_VENC - 0.18 * inch
 Y_EXP_VENC = Y_MFG_VENC - 0.18 * inch
 Y_KEEP_VENC = Y_EXP_VENC - 0.18 * inch
@@ -168,7 +172,11 @@ def draw_logo(canvas_obj, logo_path, x_base=0, y_base=0, use_margin=True):
         use_margin: Si incluir margen superior (True para pedidos, False para vencimiento)
     """
     if os.path.exists(logo_path):
-        logo_y = LABEL_HEIGHT - MARGIN - LOGO_HEIGHT if use_margin else LABEL_HEIGHT - LOGO_HEIGHT
+        logo_y = (
+            LABEL_HEIGHT - MARGIN - LOGO_HEIGHT
+            if use_margin
+            else LABEL_HEIGHT - LOGO_HEIGHT - MARGIN_TOP_VENC
+        )
         canvas_obj.drawImage(
             logo_path,
             x_base + LOGO_X,
