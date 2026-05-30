@@ -2820,9 +2820,18 @@ def pedido_a_json(pedido: Pedido) -> dict:
                 "tax_rate": detalle.producto.tax_rate,
             })
 
+    # Productos que aún tienen línea original (lo que pidió el cliente). Una
+    # línea de preparación sin su línea original es huérfana (el producto fue
+    # eliminado del pedido) y NO debe facturarse.
+    productos_con_linea_original = {
+        d.producto_id for d in pedido.detalles if d.es_linea_pedido
+    }
+
     for d in pedido.detalles:
         # Solo usar líneas de preparación (tanto manufactura como importación)
         if d.es_linea_pedido:
+            continue
+        if d.producto_id not in productos_con_linea_original:
             continue
         if d.producto and d.producto.se_pesa and d.producto_id in productos_con_cajas:
             continue
@@ -5598,13 +5607,23 @@ def eliminar_detalle_pedido(detalle_id):
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     producto_nombre = detalle.producto.nombre if detalle.producto else '—'
-    detalle_id_save = detalle.id
-    db.session.delete(detalle)
+
+    # Eliminar el producto del pedido = borrar TODAS sus filas: la línea
+    # original (es_linea_pedido=True) y la(s) línea(s) de preparación
+    # (es_linea_pedido=False). Si solo se borrara la línea original, la prep
+    # quedaría huérfana y pedido_a_json la seguiría facturando.
+    filas = DetallePedido.query.filter_by(
+        pedido_id=pedido.id,
+        producto_id=detalle.producto_id,
+    ).all()
+    ids_borrados = [d.id for d in filas]
+    for fila in filas:
+        db.session.delete(fila)
     _log_pedido_evento(
         pedido,
         'linea_eliminada',
         f'Línea eliminada: {producto_nombre}',
-        meta={'detalle_id': detalle_id_save},
+        meta={'detalle_ids': ids_borrados},
     )
     db.session.commit()
     flash('Detalle eliminado.', 'success')
@@ -5657,8 +5676,25 @@ def editar_detalle_pedido(detalle_id):
     if producto.se_pesa:
         detalle.peso = peso
     else:
-        detalle.cajas = int(peso)  # el form envía cajas en el campo peso
+        cajas = int(peso)  # el form envía cajas en el campo peso
+        detalle.cajas = cajas
+        detalle.subtotal = (detalle.precio_unitario or 0) * cajas
         detalle.fecha_expiracion = fecha_expiracion if fecha_expiracion else None
+
+        # Sincronizar la línea original (la que muestra la tarjeta y de la que
+        # se calcula el total del pedido) con la nueva cantidad. El modal edita
+        # la línea de preparación; sin esta sincronización la tarjeta seguiría
+        # mostrando la cantidad vieja.
+        if not detalle.es_linea_pedido:
+            original = DetallePedido.query.filter_by(
+                pedido_id=pedido.id,
+                producto_id=producto_id,
+                es_linea_pedido=True,
+            ).first()
+            if original is not None:
+                original.cajas = cajas
+                original.cajas_pedidas = cajas
+                original.subtotal = (original.precio_unitario or 0) * cajas
 
     db.session.commit()
     flash('Detalle actualizado correctamente.', 'success')

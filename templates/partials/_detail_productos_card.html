@@ -47,10 +47,10 @@
             {% elif prep %}
               <button type="button"
                       class="detail-product-action"
-                      title="Editar fechas y lote"
+                      title="Editar cantidad y fechas"
                       onclick="openEditModal({{ prep.id }}, {{ prep.producto_id }}, {{ prep.peso or 0 }}, '{{ prep.lote or '' }}', '{{ prep.fecha_fabricacion or '' }}', '{{ prep.fecha_expiracion or '' }}', {{ prep.cajas }}, false)">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Fechas</span>
+                <i class="fas fa-pen"></i>
+                <span>Editar</span>
               </button>
             {% endif %}
             <form action="{{ url_for('eliminar_detalle_pedido', detalle_id=linea.id) }}"
