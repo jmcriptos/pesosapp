@@ -6,6 +6,17 @@ $(document).ready(function() {
 
     /*** Funciones ***/
 
+    // Escapa texto para insertarlo de forma segura en HTML (previene XSS
+    // almacenado al construir filas de tabla con datos del servidor).
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // Función para mostrar mensajes flash
     function mostrarMensaje(mensaje, tipo) {
         let flashMessage = $('#flash-message');
@@ -61,11 +72,11 @@ $(document).ready(function() {
                         let row = `
                             <tr id="recepcion-${recepcion.id}">
                                 <td>${recepcion.id}</td>
-                                <td>${recepcion.producto}</td>
-                                <td>${recepcion.peso}</td>
-                                <td>${recepcion.recibido_en}</td>
-                                <td>${recepcion.proveedor}</td>
-                                <td>${recepcion.numero_factura}</td>
+                                <td>${escapeHtml(recepcion.producto)}</td>
+                                <td>${escapeHtml(recepcion.peso)}</td>
+                                <td>${escapeHtml(recepcion.recibido_en)}</td>
+                                <td>${escapeHtml(recepcion.proveedor)}</td>
+                                <td>${escapeHtml(recepcion.numero_factura)}</td>
                                 <td><button class="eliminar-recepcion btn btn-danger" data-id="${recepcion.id}">Eliminar</button></td>
                             </tr>`;
                         tbody.append(row);
@@ -136,11 +147,11 @@ $(document).ready(function() {
                     let nuevaFila = `
                         <tr id="recepcion-${recepcion.id}">
                             <td>${recepcion.id}</td>
-                            <td>${recepcion.producto}</td>
-                            <td>${recepcion.peso}</td>
-                            <td>${recepcion.recibido_en}</td>
-                            <td>${recepcion.proveedor}</td>
-                            <td>${recepcion.numero_factura}</td>
+                            <td>${escapeHtml(recepcion.producto)}</td>
+                            <td>${escapeHtml(recepcion.peso)}</td>
+                            <td>${escapeHtml(recepcion.recibido_en)}</td>
+                            <td>${escapeHtml(recepcion.proveedor)}</td>
+                            <td>${escapeHtml(recepcion.numero_factura)}</td>
                             <td><button class="eliminar-recepcion btn btn-danger" data-id="${recepcion.id}">Eliminar</button></td>
                         </tr>
                     `;
@@ -281,7 +292,7 @@ $(document).ready(function() {
                     let nuevaFila = `
                         <tr id="cliente-${cliente.id}">
                             <td>${cliente.id}</td>
-                            <td>${cliente.nombre}</td>
+                            <td>${escapeHtml(cliente.nombre)}</td>
                             <td>
                                 <button class="eliminar-cliente btn btn-danger" data-id="${cliente.id}">Eliminar</button>
                             </td>
@@ -347,13 +358,13 @@ $(document).ready(function() {
                         let row = `
                             <tr id="facturacion-${facturacion.id}">
                                 <td>${facturacion.id}</td>
-                                <td>${facturacion.producto}</td>
-                                <td>${facturacion.peso}</td>
-                                <td>${facturacion.cliente}</td>
-                                <td>${facturacion.lote}</td>
-                                <td>${facturacion.fecha_fabricacion}</td>
-                                <td>${facturacion.fecha_expiracion}</td>
-                                <td>${facturacion.fecha_registro}</td>
+                                <td>${escapeHtml(facturacion.producto)}</td>
+                                <td>${escapeHtml(facturacion.peso)}</td>
+                                <td>${escapeHtml(facturacion.cliente)}</td>
+                                <td>${escapeHtml(facturacion.lote)}</td>
+                                <td>${escapeHtml(facturacion.fecha_fabricacion)}</td>
+                                <td>${escapeHtml(facturacion.fecha_expiracion)}</td>
+                                <td>${escapeHtml(facturacion.fecha_registro)}</td>
                                 <td>
                                     <i class="fas fa-trash-alt eliminar-facturacion" data-id="${facturacion.id}"></i>
                                 </td>
@@ -483,11 +494,11 @@ $(document).ready(function() {
         const fila = `
             <tr id="producto-${producto.id}">
                 <td class="text-center">${producto.id}</td>
-                <td>${producto.nombre}</td>
-                <td>${producto.descripcion}</td>
-                <td class="text-center">${producto.temperatura || '—'}</td>
-                <td class="text-center">${producto.qbo_id || '—'}</td>
-                <td class="text-center">${producto.tax_rate}</td>
+                <td>${escapeHtml(producto.nombre)}</td>
+                <td>${escapeHtml(producto.descripcion)}</td>
+                <td class="text-center">${escapeHtml(producto.temperatura || '—')}</td>
+                <td class="text-center">${escapeHtml(producto.qbo_id || '—')}</td>
+                <td class="text-center">${escapeHtml(producto.tax_rate)}</td>
                 <td class="text-center">
                     <a href="/productos/${producto.id}/editar" class="btn btn-sm btn-primary" title="Editar">
                         <i class="fas fa-edit"></i>

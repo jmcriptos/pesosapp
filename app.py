@@ -2592,6 +2592,16 @@ def _user_can_manage_pedido(pedido):
     return current_user.puede_editar_pedido(pedido)
 
 
+def _user_can_view_cliente(cliente_id):
+    """True si el usuario actual puede ver este cliente (super_admin o usuario
+    legacy ven todo; un Vendedor solo sus clientes asignados)."""
+    if not isinstance(current_user, Vendedor):
+        return True
+    if current_user.rol.nombre == 'super_admin':
+        return True
+    return current_user.puede_ver_cliente(cliente_id)
+
+
 def _caja_pesada_to_label_item(caja):
     detalle = caja.detalle_pedido
     producto = detalle.producto if detalle else None
@@ -4989,6 +4999,12 @@ def nuevo_pedido():
 @requiere_permiso_recurso('pedidos', 'editar')
 def editar_pedido(pedido_id):
     pedido    = Pedido.query.get_or_404(pedido_id)
+
+    # ── Verificación de autorización IDOR (cubre GET y POST) ───
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para editar este pedido', 'error')
+        return redirect(url_for('lista_pedidos'))
+
     clientes  = Cliente.query.all()
     productos = Producto.query.all()
 
@@ -5715,6 +5731,11 @@ def generar_etiqueta_detalle(pedido_id):
     try:
         pedido = Pedido.query.get_or_404(pedido_id)
 
+        # ── Verificación de autorización IDOR ─────────────────────
+        if not _user_can_manage_pedido(pedido):
+            flash('No tienes permisos para ver este pedido', 'error')
+            return redirect(url_for('lista_pedidos'))
+
         # Obtener parámetros desde GET o POST
         fecha_ini = request.args.get('fecha_inicio') if request.method == 'GET' else request.form.get('fecha_inicio')
         fecha_fin = request.args.get('fecha_fin') if request.method == 'GET' else request.form.get('fecha_fin')
@@ -5809,6 +5830,11 @@ def generar_etiqueta_detalle_a4(pedido_id):
     """
     try:
         pedido = Pedido.query.get_or_404(pedido_id)
+
+        # ── Verificación de autorización IDOR ─────────────────────
+        if not _user_can_manage_pedido(pedido):
+            flash('No tienes permisos para ver este pedido', 'error')
+            return redirect(url_for('lista_pedidos'))
 
         # Obtener parámetros desde GET o POST
         fecha_ini = request.args.get('fecha_inicio') if request.method == 'GET' else request.form.get('fecha_inicio')
@@ -5917,6 +5943,11 @@ def marcar_preparado(pedido_id):
     """Valida trazabilidad y marca pedido como preparado (Story 3-0)."""
     pedido = Pedido.query.get_or_404(pedido_id)
 
+    # ── Verificación de autorización IDOR ─────────────────────
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para modificar este pedido', 'error')
+        return redirect(url_for('lista_pedidos'))
+
     # ── Inmutabilidad post-facturación ─────────────────────────
     if pedido.estado == 'facturado':
         flash('No se puede modificar un pedido ya facturado', 'error')
@@ -5951,6 +5982,11 @@ except (ValueError, TypeError):
 @login_required
 def facturar_pedido(pedido_id):
     pedido = Pedido.query.get_or_404(pedido_id)
+
+    # ── Verificación de autorización IDOR ─────────────────────
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para facturar este pedido', 'error')
+        return redirect(url_for('lista_pedidos'))
 
     # Sólo facturar si aún no fue facturado (permitir reintento si no tiene invoice_id)
     if pedido.estado == 'facturado' and pedido.invoice_id_qbo:
@@ -6462,6 +6498,8 @@ def eliminar_precio_cliente_producto(precio_id):
 @login_required
 def api_precio_cliente_producto(cliente_id, producto_id):
     """API para obtener el precio de un producto específico para un cliente"""
+    if not _user_can_view_cliente(cliente_id):
+        return jsonify({'error': 'No autorizado'}), 403
     tipo = request.args.get('tipo', 'jomar')
     if tipo not in ('base', 'jomar', 'retail'):
         return jsonify({'error': 'Tipo de precio no válido'}), 400
@@ -6483,6 +6521,8 @@ def api_precio_cliente_producto(cliente_id, producto_id):
 @login_required
 def api_precios_cliente_productos(cliente_id):
     """API para obtener precios de todos los productos para un cliente específico"""
+    if not _user_can_view_cliente(cliente_id):
+        return jsonify({'error': 'No autorizado'}), 403
     resultado = []
     
     # 1. Primero buscar precios específicos cliente-producto
@@ -6569,7 +6609,9 @@ def api_precios_cliente_productos(cliente_id):
 @login_required
 def debug_precios_cliente(cliente_id):
     """API para debug - mostrar información detallada de precios de un cliente"""
-    
+    if not _user_can_view_cliente(cliente_id):
+        return jsonify({'error': 'No autorizado'}), 403
+
     # Información del cliente
     cliente = Cliente.query.get_or_404(cliente_id)
     
@@ -6653,6 +6695,8 @@ def api_precios_lista(lista_id):
 @login_required
 def api_precios_cliente(cliente_id):
     """API para obtener todos los precios disponibles para un cliente"""
+    if not _user_can_view_cliente(cliente_id):
+        return jsonify({'error': 'No autorizado'}), 403
     resultado = []
     
     # 1. Precios específicos cliente-producto
@@ -6775,6 +6819,7 @@ def productos():
 
 @app.route('/productos/<int:producto_id>/editar', methods=['GET', 'POST'])
 @login_required
+@requiere_permiso_recurso('productos', 'editar')
 def editar_producto(producto_id):
     producto = Producto.query.get_or_404(producto_id)
     if request.method == 'POST':
