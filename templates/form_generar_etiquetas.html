@@ -89,6 +89,15 @@ document.addEventListener('DOMContentLoaded', function () {
   const cantidadInput = document.getElementById('cantidad_etiquetas');
   const form = document.getElementById('form-etiquetas');
 
+  // iOS (incluido Chrome para iPhone, que usa WebKit) NO dispara descargas
+  // desde un iframe oculto. En iOS abrimos el PDF en una pestaña nueva; en
+  // Android/escritorio se mantiene el iframe. Detección por dispositivo.
+  function _esIOS() {
+    return /iP(hone|ad|od)/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  if (_esIOS()) form.target = '_blank';
+
   form.addEventListener('submit', function (e) {
     const cantidad = parseInt(cantidadInput.value, 10);
     if (!cantidad || cantidad < 1 || cantidad > 100) {

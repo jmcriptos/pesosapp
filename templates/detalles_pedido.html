@@ -589,6 +589,18 @@ const btnGenerarA4 = document.getElementById('btn-generar-etiquetas-a4');
 const URL_ETIQ_4X2 = "{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}";
 const URL_ETIQ_A4 = "{{ url_for('generar_etiqueta_detalle_a4', pedido_id=pedido.id) }}";
 
+// iOS (incluido Chrome para iPhone, que usa WebKit) NO dispara descargas
+// desde un iframe oculto. En iOS abrimos el PDF en una pestaña nueva
+// (contexto de nivel superior); en Android/escritorio se mantiene el iframe
+// que ya funciona. La detección es por dispositivo, no por navegador.
+function _esIOS() {
+    return /iP(hone|ad|od)/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+if (formEtiquetas && _esIOS()) {
+    formEtiquetas.target = '_blank';
+}
+
 function _validarFechasEtiquetas() {
     const fechaInicio = document.getElementById('fecha_inicio').value;
     const fechaFin = document.getElementById('fecha_fin').value;
