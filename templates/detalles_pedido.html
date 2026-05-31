@@ -123,6 +123,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
 <script>
 // ========================================================================
 // TABS PRODUCTOS / DETALLES / HISTORIAL
@@ -589,17 +590,10 @@ const btnGenerarA4 = document.getElementById('btn-generar-etiquetas-a4');
 const URL_ETIQ_4X2 = "{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}";
 const URL_ETIQ_A4 = "{{ url_for('generar_etiqueta_detalle_a4', pedido_id=pedido.id) }}";
 
-// iOS (incluido Chrome para iPhone, que usa WebKit) NO dispara descargas
-// desde un iframe oculto. En iOS abrimos el PDF en una pestaña nueva
-// (contexto de nivel superior); en Android/escritorio se mantiene el iframe
-// que ya funciona. La detección es por dispositivo, no por navegador.
-function _esIOS() {
-    return /iP(hone|ad|od)/.test(navigator.userAgent) ||
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-if (formEtiquetas && _esIOS()) {
-    formEtiquetas.target = '_blank';
-}
+// iOS (incluido la app instalada en modo standalone, sin navegador ni
+// pestañas) no puede descargar a un iframe ni abrir pestañas nuevas. Ahí
+// usamos la hoja de compartir nativa (etiquetas_ios_share.js). Android y
+// escritorio mantienen el submit nativo al iframe que ya funciona.
 
 function _validarFechasEtiquetas() {
     const fechaInicio = document.getElementById('fecha_inicio').value;
@@ -620,18 +614,26 @@ function _setBtnLoading(btn, loadingTrue) {
     if (btnLoading) btnLoading.style.display = loadingTrue ? 'inline' : 'none';
 }
 
+const _iosEtiq = (window.esDispositivoIOS && window.esDispositivoIOS());
+
 if (formEtiquetas && btnGenerar) {
     formEtiquetas.addEventListener('submit', function(e) {
-        // Solo intercepto para validar; no llamo preventDefault si todo OK
-        // — el submit nativo al iframe es lo que gatilla la descarga.
         if (!_validarFechasEtiquetas()) {
             e.preventDefault();
             return;
         }
         formEtiquetas.action = URL_ETIQ_4X2;
+        if (_iosEtiq) {
+            // iOS: descargar y abrir la hoja de compartir nativa (in-app).
+            e.preventDefault();
+            _setBtnLoading(btnGenerar, true);
+            const fd = new FormData(formEtiquetas);
+            window.compartirEtiquetaIOS(URL_ETIQ_4X2, fd, 'etiquetas.pdf')
+                .finally(() => _setBtnLoading(btnGenerar, false));
+            return;
+        }
+        // Android/escritorio: submit nativo al iframe.
         _setBtnLoading(btnGenerar, true);
-        // Reset visual tras un margen — no tenemos callback fiable de
-        // descarga completada (el iframe carga la respuesta del PDF).
         setTimeout(() => _setBtnLoading(btnGenerar, false), 4000);
     });
 }
@@ -641,6 +643,14 @@ if (formEtiquetas && btnGenerarA4) {
         e.preventDefault();
         if (!_validarFechasEtiquetas()) return;
         formEtiquetas.action = URL_ETIQ_A4;
+        if (_iosEtiq) {
+            _setBtnLoading(btnGenerarA4, true);
+            const fd = new FormData(formEtiquetas);
+            window.compartirEtiquetaIOS(URL_ETIQ_A4, fd, 'etiquetas_A4.pdf')
+                .finally(() => _setBtnLoading(btnGenerarA4, false));
+            formEtiquetas.action = URL_ETIQ_4X2;
+            return;
+        }
         _setBtnLoading(btnGenerarA4, true);
         formEtiquetas.submit();
         // Restaurar action por defecto para que un submit posterior con el

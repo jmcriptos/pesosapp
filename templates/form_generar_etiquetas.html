@@ -84,26 +84,29 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const cantidadInput = document.getElementById('cantidad_etiquetas');
   const form = document.getElementById('form-etiquetas');
 
-  // iOS (incluido Chrome para iPhone, que usa WebKit) NO dispara descargas
-  // desde un iframe oculto. En iOS abrimos el PDF en una pestaña nueva; en
-  // Android/escritorio se mantiene el iframe. Detección por dispositivo.
-  function _esIOS() {
-    return /iP(hone|ad|od)/.test(navigator.userAgent) ||
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  }
-  if (_esIOS()) form.target = '_blank';
-
+  // iOS (incluida la app en modo standalone, sin navegador) usa la hoja de
+  // compartir nativa en vez de descargar a un iframe. Android/escritorio
+  // mantienen el submit nativo al iframe.
   form.addEventListener('submit', function (e) {
     const cantidad = parseInt(cantidadInput.value, 10);
     if (!cantidad || cantidad < 1 || cantidad > 100) {
       e.preventDefault();
       alert('La cantidad debe estar entre 1 y 100');
       cantidadInput.focus();
+      return;
+    }
+    if (window.esDispositivoIOS && window.esDispositivoIOS()) {
+      e.preventDefault();
+      // El botón 4x2 trae formaction; el A4 usa el action del form.
+      const url = (e.submitter && e.submitter.formAction) ? e.submitter.formAction : form.action;
+      const fd = new FormData(form);
+      window.compartirEtiquetaIOS(url, fd, 'etiquetas_vencimiento.pdf');
     }
   });
 

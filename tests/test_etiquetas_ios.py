@@ -1,9 +1,7 @@
-"""Regresión: en iOS las etiquetas se abren en pestaña nueva, no en el iframe.
-
-iOS (incluido Chrome para iPhone, que usa WebKit) no dispara descargas desde
-un iframe oculto. Ambos formularios deben detectar iOS y poner target=_blank.
-Verificación a nivel de fuente (el comportamiento real de iOS solo se prueba
-en dispositivo).
+"""Regresión: en iOS (incluida la PWA standalone) las etiquetas se entregan
+con la hoja de compartir nativa (Web Share API), no con un iframe ni pestaña
+nueva. El comportamiento real de iOS solo se prueba en dispositivo; aquí se
+verifica el cableado a nivel de fuente + el helper del servidor.
 """
 import os
 
@@ -15,19 +13,27 @@ def _read(rel):
         return fh.read()
 
 
-def test_detalles_pedido_abre_pestana_en_ios():
+def test_existe_helper_web_share():
+    js = _read('static/js/etiquetas_ios_share.js')
+    assert 'esDispositivoIOS' in js
+    assert 'navigator.share' in js
+    assert 'navigator.canShare' in js
+    assert 'iP(hone|ad|od)' in js  # detección por dispositivo (cubre Chrome iOS)
+
+
+def test_detalles_pedido_usa_web_share_en_ios():
     html = _read('templates/detalles_pedido.html')
-    assert '_esIOS' in html, "Falta la detección de iOS en etiquetas de pedido"
-    # Detecta por dispositivo (cubre Chrome iOS = CriOS), no por navegador
-    assert 'iP(hone|ad|od)' in html
-    assert "formEtiquetas.target = '_blank'" in html
+    assert 'etiquetas_ios_share.js' in html, "Falta incluir el helper de compartir"
+    assert 'compartirEtiquetaIOS' in html, "Falta usar la hoja de compartir en iOS"
+    # Ya no debe quedar el intento viejo de pestaña nueva
+    assert "formEtiquetas.target = '_blank'" not in html
 
 
-def test_etiquetas_vencimiento_abre_pestana_en_ios():
+def test_etiquetas_vencimiento_usa_web_share_en_ios():
     html = _read('templates/form_generar_etiquetas.html')
-    assert '_esIOS' in html, "Falta la detección de iOS en etiquetas de vencimiento"
-    assert 'iP(hone|ad|od)' in html
-    assert "form.target = '_blank'" in html
+    assert 'etiquetas_ios_share.js' in html, "Falta incluir el helper de compartir"
+    assert 'compartirEtiquetaIOS' in html, "Falta usar la hoja de compartir en iOS"
+    assert "form.target = '_blank'" not in html
 
 
 # Chrome para iPhone manda 'CriOS' (no 'Safari') pero incluye 'iPhone' en el UA
