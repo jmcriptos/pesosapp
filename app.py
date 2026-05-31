@@ -9444,15 +9444,16 @@ def _parse_producto_limpieza(form):
 
 @app.route('/registros/limpieza/productos')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def productos_limpieza_index():
     productos = ProductoLimpieza.query.order_by(ProductoLimpieza.nombre).all()
-    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/productos_limpieza.html', productos=productos, es_admin=es_admin)
 
 
 @app.route('/registros/limpieza/productos/nuevo', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def producto_limpieza_nuevo():
     nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
     if error:
@@ -9467,7 +9468,7 @@ def producto_limpieza_nuevo():
 
 @app.route('/registros/limpieza/productos/<int:producto_id>/editar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def producto_limpieza_editar(producto_id):
     producto = ProductoLimpieza.query.get_or_404(producto_id)
     nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
@@ -9483,7 +9484,7 @@ def producto_limpieza_editar(producto_id):
 
 @app.route('/registros/limpieza/productos/<int:producto_id>/toggle', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def producto_limpieza_toggle(producto_id):
     producto = ProductoLimpieza.query.get_or_404(producto_id)
     producto.activo = not producto.activo
@@ -9510,7 +9511,7 @@ def _parse_area_limpieza(form):
 
 @app.route('/registros/limpieza/areas')
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def areas_limpieza_list():
     areas = AreaLimpieza.query.options(joinedload(AreaLimpieza.producto)).order_by(AreaLimpieza.nombre).all()
     productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
@@ -9519,7 +9520,7 @@ def areas_limpieza_list():
 
 @app.route('/registros/limpieza/areas/nueva', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_nueva():
     nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
     if error:
@@ -9534,7 +9535,7 @@ def area_limpieza_nueva():
 
 @app.route('/registros/limpieza/areas/<int:area_id>/editar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_editar(area_id):
     area = AreaLimpieza.query.get_or_404(area_id)
     nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
@@ -9550,7 +9551,7 @@ def area_limpieza_editar(area_id):
 
 @app.route('/registros/limpieza/areas/<int:area_id>/toggle', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_toggle(area_id):
     area = AreaLimpieza.query.get_or_404(area_id)
     area.activa = not area.activa
@@ -9574,17 +9575,19 @@ def _areas_con_registro_hoy():
 
 @app.route('/registros/limpieza')
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def limpieza_index():
     areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
              .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
     con_registro_hoy = _areas_con_registro_hoy()
-    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/limpieza.html', areas=areas,
                            con_registro_hoy=con_registro_hoy, es_admin=es_admin)
 
 
 @app.route('/registros/limpieza/registrar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def limpieza_registrar():
     area = AreaLimpieza.query.filter_by(id=request.form.get('area_id', type=int), activa=True).first()
     if area is None:
@@ -9662,10 +9665,11 @@ def _filtrar_registros_limpieza(args):
 
 @app.route('/registros/limpieza/historial')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def limpieza_historial():
     registros = _filtrar_registros_limpieza(request.args)
     areas = AreaLimpieza.query.order_by(AreaLimpieza.nombre).all()
-    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_limpieza_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     return render_template('registros/limpieza_historial.html',
                            registros=registros, areas=areas, filtros=request.args,
@@ -9674,7 +9678,7 @@ def limpieza_historial():
 
 @app.route('/registros/limpieza/revisar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin', 'supervisor'])
+@requiere_permiso_recurso('registros', 'editar')
 def limpieza_revisar():
     fi = request.form.get('fecha_inicio') or None
     ff = request.form.get('fecha_fin') or None
@@ -9802,6 +9806,7 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
 
 @app.route('/registros/limpieza/export', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def limpieza_export():
     registros = _filtrar_registros_limpieza(request.form)
     fi = request.form.get('fecha_inicio') or ''
@@ -9819,7 +9824,7 @@ def limpieza_export():
 
 @app.route('/registros/limpieza/config', methods=['GET', 'POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def limpieza_config():
     cfg = _get_limpieza_config()
     if request.method == 'POST':
@@ -9836,6 +9841,7 @@ def limpieza_config():
 
 @app.route('/registros')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def registros_index():
     return render_template('registros/index.html')
 

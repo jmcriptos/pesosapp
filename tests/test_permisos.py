@@ -120,3 +120,27 @@ def test_temp_config_requiere_editar(app):
     c = _login(app, 'vend')
     resp = c.get('/registros/temperaturas/camaras', follow_redirects=False)
     assert resp.status_code == 302
+
+
+def test_limpieza_registrar_sin_crear_bloqueado(app):
+    with app.app_context():
+        _set_rolpermiso('registros', leer=True, crear=False, editar=False)
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza', follow_redirects=False)
+    assert resp.status_code == 302
+
+
+def test_limpieza_areas_requiere_editar(app):
+    with app.app_context():
+        _set_rolpermiso('registros', leer=True, crear=True, editar=False)
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza/areas', follow_redirects=False)
+    assert resp.status_code == 302
+
+
+def test_registros_hub_requiere_leer(app):
+    with app.app_context():
+        _set_rolpermiso('registros', leer=False, crear=False, editar=False)
+    c = _login(app, 'vend')
+    resp = c.get('/registros', follow_redirects=False)
+    assert resp.status_code == 302
