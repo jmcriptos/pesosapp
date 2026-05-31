@@ -1,108 +1,91 @@
 {% extends "base.html" %}
-{% block title %}Cámaras — Registros{% endblock %}
-{% block header_title %}<span class="fw-700 color-white">Cámaras</span>{% endblock %}
+{% block title %}Cámaras{% endblock %}
+{% block header_title %}Cámaras{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
+
 {% block content %}
-<div class="mobile-form-container reg-wrap">
+<div class="ops-screen" data-accent="temp">
 
-  <div class="reg-toolbar">
-    <a href="{{ url_for('temperaturas_index') }}" class="reg-btn"><i class="fas fa-temperature-half"></i> Temperaturas</a>
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-snowflake"></i></span> Configuración</div>
+    <h1 class="ops-title">Cámaras</h1>
+    <p class="ops-sub">Puntos de control y rangos objetivo</p>
+  </header>
+
+  <div class="ops-toolbar">
+    <a href="{{ url_for('temperaturas_index') }}" class="ops-back"><i class="fas fa-temperature-half"></i> Temperaturas</a>
   </div>
 
-  <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-plus-circle"></i> Nueva cámara</div>
-    <div class="mobile-card-body">
-      <form method="POST" action="{{ url_for('camara_nueva') }}" autocomplete="off">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="nombre">Nombre</label>
-          <input type="text" id="nombre" name="nombre" class="mobile-form-control" placeholder="Ej: Cava PT" required>
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="tipo">Tipo</label>
-          <select id="tipo" name="tipo" class="mobile-form-control" required>
-            <option value="refrigeracion">Refrigeración</option>
-            <option value="congelacion">Congelación</option>
-          </select>
-        </div>
-        <div class="reg-field-row">
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="temp_min">Mín. (°C)</label>
-            <input type="text" inputmode="decimal" data-signed-decimal id="temp_min" name="temp_min" class="mobile-form-control" placeholder="0" required>
-          </div>
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="temp_max">Máx. (°C)</label>
-            <input type="text" inputmode="decimal" data-signed-decimal id="temp_max" name="temp_max" class="mobile-form-control" placeholder="6" required>
-          </div>
-        </div>
-        <div class="mobile-form-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Crear cámara</button>
-        </div>
-      </form>
-    </div>
+  <!-- Nueva cámara -->
+  <div class="ops-card ops-form-card">
+    <div class="ops-form-card-head"><i class="fas fa-circle-plus"></i> Nueva cámara</div>
+    <form method="POST" action="{{ url_for('camara_nueva') }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ops-field"><label for="nombre">Nombre</label>
+        <input type="text" id="nombre" name="nombre" placeholder="Ej: Cava PT" required></div>
+      <div class="ops-field" style="margin-top:10px"><label for="tipo">Tipo</label>
+        <select id="tipo" name="tipo" required>
+          <option value="refrigeracion">Refrigeración</option>
+          <option value="congelacion">Congelación</option>
+        </select></div>
+      <div class="ops-grid-2" style="margin-top:10px">
+        <div class="ops-field"><label for="temp_min">Mín. (°C)</label>
+          <input type="text" inputmode="decimal" data-signed-decimal id="temp_min" name="temp_min" placeholder="0" required></div>
+        <div class="ops-field"><label for="temp_max">Máx. (°C)</label>
+          <input type="text" inputmode="decimal" data-signed-decimal id="temp_max" name="temp_max" placeholder="6" required></div>
+      </div>
+      <div class="ops-form-actions">
+        <button type="submit" class="ops-btn"><i class="fas fa-plus"></i> Crear cámara</button>
+      </div>
+    </form>
   </div>
 
-  <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-list"></i> Cámaras registradas</h3>
-  <div class="reg-list">
+  <div class="ops-section"><h3>Cámaras registradas</h3></div>
+  <div class="ops-list">
     {% for c in camaras %}
-    <article class="reg-card {{ 'is-ok' if c.activa else 'is-muted' }}">
-      <div class="reg-card-head">
-        <div>
-          <div class="reg-name">{{ c.nombre }}</div>
-          <div class="reg-sub">Rango: <strong>{{ c.temp_min }}°C</strong> a <strong>{{ c.temp_max }}°C</strong></div>
+    <article class="ops-card ops-manage {{ '' if c.activa else 'is-inactive' }}" style="{{ '' if c.activa else 'opacity:.6' }}">
+      <div class="ops-manage-head">
+        <div style="min-width:0">
+          <div class="ops-hrow-name">{{ c.nombre }}</div>
+          <div class="ops-hrow-meta">Rango {{ c.temp_min }}° a {{ c.temp_max }}°</div>
         </div>
-        <div class="reg-chips">
-          <span class="reg-pill info">{{ 'Refrigeración' if c.tipo == 'refrigeracion' else 'Congelación' }}</span>
-          <span class="reg-pill {{ 'ok' if c.activa else '' }}">{{ 'Activa' if c.activa else 'Inactiva' }}</span>
+        <div class="ops-manage-chips">
+          <span class="ops-tag info">{{ 'Refrigeración' if c.tipo == 'refrigeracion' else 'Congelación' }}</span>
+          <span class="ops-tag {{ 'ok' if c.activa else 'muted' }}">{{ 'Activa' if c.activa else 'Inactiva' }}</span>
         </div>
       </div>
 
-      <div class="reg-actions">
+      <div class="ops-manage-actions">
         <form method="POST" action="{{ url_for('camara_toggle', camara_id=c.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="reg-btn">
-            <i class="fas fa-{{ 'eye-slash' if c.activa else 'eye' }}"></i> {{ 'Desactivar' if c.activa else 'Activar' }}
-          </button>
+          <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-{{ 'eye-slash' if c.activa else 'eye' }}"></i> {{ 'Desactivar' if c.activa else 'Activar' }}</button>
         </form>
       </div>
 
-      <details class="reg-edit">
+      <details class="ops-details">
         <summary><i class="fas fa-pen"></i> Editar</summary>
-        <div class="reg-edit-body">
+        <div class="ops-details-body">
           <form method="POST" action="{{ url_for('camara_editar', camara_id=c.id) }}" autocomplete="off">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="mobile-form-group">
-              <label class="mobile-form-label">Nombre</label>
-              <input type="text" name="nombre" class="mobile-form-control" value="{{ c.nombre }}" required>
-            </div>
-            <div class="mobile-form-group">
-              <label class="mobile-form-label">Tipo</label>
-              <select name="tipo" class="mobile-form-control" required>
+            <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" value="{{ c.nombre }}" required></div>
+            <div class="ops-field" style="margin-top:10px"><label>Tipo</label>
+              <select name="tipo" required>
                 <option value="refrigeracion" {{ 'selected' if c.tipo == 'refrigeracion' }}>Refrigeración</option>
                 <option value="congelacion" {{ 'selected' if c.tipo == 'congelacion' }}>Congelación</option>
-              </select>
+              </select></div>
+            <div class="ops-grid-2" style="margin-top:10px">
+              <div class="ops-field"><label>Mín. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_min" value="{{ c.temp_min }}" required></div>
+              <div class="ops-field"><label>Máx. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_max" value="{{ c.temp_max }}" required></div>
             </div>
-            <div class="reg-field-row">
-              <div class="mobile-form-group">
-                <label class="mobile-form-label">Mín. (°C)</label>
-                <input type="text" inputmode="decimal" data-signed-decimal name="temp_min" class="mobile-form-control" value="{{ c.temp_min }}" required>
-              </div>
-              <div class="mobile-form-group">
-                <label class="mobile-form-label">Máx. (°C)</label>
-                <input type="text" inputmode="decimal" data-signed-decimal name="temp_max" class="mobile-form-control" value="{{ c.temp_max }}" required>
-              </div>
-            </div>
-            <div class="mobile-form-actions">
-              <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar cambios</button>
-            </div>
+            <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar cambios</button></div>
           </form>
         </div>
       </details>
     </article>
     {% else %}
-    <div class="reg-empty"><i class="fas fa-snowflake"></i>No hay cámaras. Crea la primera arriba.</div>
+    <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-snowflake"></i></div><p>No hay cámaras. Crea la primera arriba.</p></div>
     {% endfor %}
   </div>
 

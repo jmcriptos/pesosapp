@@ -1,92 +1,94 @@
 {% extends "base.html" %}
-{% block title %}Historial limpieza{% endblock %}
-{% block header_title %}<span class="fw-700 color-white">Historial de limpieza</span>{% endblock %}
+{% block title %}Historial de limpieza{% endblock %}
+{% block header_title %}Historial limpieza{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
-{% block content %}
-<div class="mobile-form-container reg-wrap">
 
-  <div class="reg-toolbar">
-    <a href="{{ url_for('limpieza_index') }}" class="reg-btn"><i class="fas fa-soap"></i> Registrar</a>
+{% block content %}
+<div class="ops-screen" data-accent="clean">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-clock-rotate-left"></i></span> Plan de saneamiento</div>
+    <h1 class="ops-title">Historial</h1>
+    <p class="ops-sub">Registros de limpieza por área</p>
+  </header>
+
+  <div class="ops-toolbar">
+    <a href="{{ url_for('limpieza_index') }}" class="ops-back"><i class="fas fa-spray-can-sparkles"></i> Volver a registrar</a>
   </div>
 
-  <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-filter"></i> Filtros</div>
-    <div class="mobile-card-body">
-      <form method="GET" action="{{ url_for('limpieza_historial') }}">
-        <div class="reg-field-row">
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="fecha_inicio">Desde</label>
-            <input type="date" id="fecha_inicio" name="fecha_inicio" class="mobile-form-control" value="{{ filtros.get('fecha_inicio', '') }}">
-          </div>
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="fecha_fin">Hasta</label>
-            <input type="date" id="fecha_fin" name="fecha_fin" class="mobile-form-control" value="{{ filtros.get('fecha_fin', '') }}">
-          </div>
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="area_id">Área / equipo</label>
-          <select id="area_id" name="area_id" class="mobile-form-control">
-            <option value="">Todas</option>
-            {% for a in areas %}
-            <option value="{{ a.id }}" {{ 'selected' if filtros.get('area_id') == a.id|string }}>{{ a.nombre }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mobile-form-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-search"></i> Filtrar</button>
-          <button type="submit" form="export-form" class="mobile-btn mobile-btn-success"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
-        </div>
-      </form>
-      <form id="export-form" method="POST" action="{{ url_for('limpieza_export') }}" target="etiquetas-download-frame">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
-        <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
-        <input type="hidden" name="area_id" value="{{ filtros.get('area_id', '') }}">
-      </form>
-    </div>
+  <!-- Filtros -->
+  <div class="ops-card ops-form-card">
+    <div class="ops-form-card-head"><i class="fas fa-filter"></i> Filtros</div>
+    <form method="GET" action="{{ url_for('limpieza_historial') }}">
+      <div class="ops-grid-2">
+        <div class="ops-field"><label for="fecha_inicio">Desde</label>
+          <input type="date" id="fecha_inicio" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}"></div>
+        <div class="ops-field"><label for="fecha_fin">Hasta</label>
+          <input type="date" id="fecha_fin" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}"></div>
+      </div>
+      <div class="ops-field" style="margin-top:10px"><label for="area_id">Área / equipo</label>
+        <select id="area_id" name="area_id">
+          <option value="">Todas</option>
+          {% for a in areas %}
+          <option value="{{ a.id }}" {{ 'selected' if filtros.get('area_id') == a.id|string }}>{{ a.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ops-form-actions">
+        <button type="submit" class="ops-btn ops-btn-success"><i class="fas fa-magnifying-glass"></i> Filtrar</button>
+        <button type="submit" form="export-form" class="ops-btn ops-btn-ghost"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+      </div>
+    </form>
+    <form id="export-form" method="POST" action="{{ url_for('limpieza_export') }}" target="etiquetas-download-frame">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+      <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+      <input type="hidden" name="area_id" value="{{ filtros.get('area_id', '') }}">
+    </form>
   </div>
 
   {% if revision %}
-  <div class="reg-card is-ok">
-    <div class="reg-name"><i class="fas fa-clipboard-check"></i> Período verificado</div>
-    <div class="reg-sub">Revisado por <strong>{{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }}</strong> el {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+  <div class="ops-card" style="padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+    <span class="ops-tag ok"><i class="fas fa-clipboard-check"></i> Verificado</span>
+    <span style="font-size:12px;color:var(--color-text-muted)">Revisado por <strong>{{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }}</strong> · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</span>
   </div>
   {% endif %}
   {% if puede_verificar %}
-  <form method="POST" action="{{ url_for('limpieza_revisar') }}">
+  <form method="POST" action="{{ url_for('limpieza_revisar') }}" style="margin-bottom:14px">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
     <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
-    <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
+    <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
   </form>
   {% endif %}
-  <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-list"></i> Registros</h3>
-  <div class="reg-list">
+
+  <div class="ops-section"><h3>Registros</h3></div>
+  <div class="ops-list">
     {% for r in registros %}
-    <article class="reg-row {{ 'is-danger' if not r.conforme else '' }}">
-      <div class="reg-row-main">
-        <div class="reg-name">{{ r.area.nombre }}</div>
-        <div class="reg-sub">{{ r.registrado_en.strftime('%Y-%m-%d %H:%M') }}{% if r.registrado_por_vendedor %} · {{ r.registrado_por_vendedor.nombre_completo }}{% endif %}</div>
+    <article class="ops-hrow {{ 'is-bad' if not r.conforme else '' }}">
+      <div class="ops-hrow-main">
+        <div class="ops-hrow-name">{{ r.area.nombre }}</div>
+        <div class="ops-hrow-meta">{{ r.registrado_en.strftime('%Y-%m-%d %H:%M') }}{% if r.registrado_por_vendedor %} · {{ r.registrado_por_vendedor.nombre_completo }}{% endif %}</div>
         {% if r.observacion %}
-        <div class="reg-accion"><i class="fas fa-comment"></i> {{ r.observacion }}</div>
+        <div class="ops-hrow-note"><i class="fas fa-comment"></i> {{ r.observacion }}</div>
         {% endif %}
         {% if not r.conforme and (r.accion_tomada or r.accion_disposicion or r.accion_causa) %}
-        <div class="reg-accion"><i class="fas fa-wrench"></i>
-          {% if r.accion_causa %}<strong>Causa:</strong> {{ r.accion_causa }} · {% endif %}
-          {% if r.accion_tomada %}<strong>Acción:</strong> {{ r.accion_tomada }} · {% endif %}
-          {% if r.accion_responsable %}<strong>Resp.:</strong> {{ r.accion_responsable }} · {% endif %}
-          {% if r.accion_disposicion %}<strong>Disposición:</strong> {{ r.accion_disposicion }}{% endif %}
+        <div class="ops-hrow-note"><i class="fas fa-wrench"></i>
+          {% if r.accion_causa %} <strong>Causa:</strong> {{ r.accion_causa }} ·{% endif %}
+          {% if r.accion_tomada %} <strong>Acción:</strong> {{ r.accion_tomada }} ·{% endif %}
+          {% if r.accion_responsable %} <strong>Resp.:</strong> {{ r.accion_responsable }} ·{% endif %}
+          {% if r.accion_disposicion %} <strong>Disposición:</strong> {{ r.accion_disposicion }}{% endif %}
         </div>
         {% endif %}
       </div>
-      <div style="text-align:right;">
-        {% if not r.conforme %}<span class="reg-pill danger">No conforme</span>{% else %}<span class="reg-pill ok">Conforme</span>{% endif %}
+      <div class="ops-hrow-right">
+        {% if not r.conforme %}<span class="ops-tag bad">No conforme</span>{% else %}<span class="ops-tag ok">Conforme</span>{% endif %}
       </div>
     </article>
     {% else %}
-    <div class="reg-empty"><i class="fas fa-clipboard-list"></i>No hay registros para los filtros seleccionados.</div>
+    <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-clipboard-list"></i></div><p>No hay registros para los filtros seleccionados.</p></div>
     {% endfor %}
   </div>
 

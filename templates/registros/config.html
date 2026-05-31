@@ -1,46 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Configuración del registro{% endblock %}
-{% block header_title %}<span class="fw-700 color-white">Configuración del registro</span>{% endblock %}
+{% block header_title %}Configuración{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
+
 {% block content %}
-<div class="mobile-form-container reg-wrap">
-  <div class="reg-toolbar">
-    <a href="{{ url_for('temperaturas_index') }}" class="reg-btn"><i class="fas fa-temperature-half"></i> Temperaturas</a>
+<div class="ops-screen" data-accent="temp">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-gear"></i></span> Ronda de control</div>
+    <h1 class="ops-title">Configuración</h1>
+    <p class="ops-sub">Documento e instrumento de medición</p>
+  </header>
+
+  <div class="ops-toolbar">
+    <a href="{{ url_for('temperaturas_index') }}" class="ops-back"><i class="fas fa-temperature-half"></i> Temperaturas</a>
   </div>
-  <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-gear"></i> Datos del documento e instrumento</div>
-    <div class="mobile-card-body">
-      <form method="POST" action="{{ url_for('registro_config') }}" autocomplete="off">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="reg-field-row">
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="codigo_documento">Código de documento</label>
-            <input type="text" id="codigo_documento" name="codigo_documento" class="mobile-form-control" value="{{ cfg.codigo_documento }}">
-          </div>
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="version">Versión</label>
-            <input type="text" id="version" name="version" class="mobile-form-control" value="{{ cfg.version }}">
-          </div>
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="frecuencia_texto">Frecuencia de monitoreo</label>
-          <input type="text" id="frecuencia_texto" name="frecuencia_texto" class="mobile-form-control" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: 2 veces al día (mañana y tarde)">
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="termometro">Termómetro / instrumento</label>
-          <input type="text" id="termometro" name="termometro" class="mobile-form-control" value="{{ cfg.termometro or '' }}" placeholder="Ej: Termómetro digital TP-01">
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="termometro_calibrado_en">Última calibración</label>
-          <input type="date" id="termometro_calibrado_en" name="termometro_calibrado_en" class="mobile-form-control" value="{{ cfg.termometro_calibrado_en.isoformat() if cfg.termometro_calibrado_en else '' }}">
-        </div>
-        <div class="mobile-form-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar configuración</button>
-        </div>
-      </form>
-    </div>
+
+  <div class="ops-card ops-form-card">
+    <div class="ops-form-card-head"><i class="fas fa-file-lines"></i> Datos del documento e instrumento</div>
+    <form method="POST" action="{{ url_for('registro_config') }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ops-grid-2">
+        <div class="ops-field"><label for="codigo_documento">Código de documento</label>
+          <input type="text" id="codigo_documento" name="codigo_documento" value="{{ cfg.codigo_documento }}"></div>
+        <div class="ops-field"><label for="version">Versión</label>
+          <input type="text" id="version" name="version" value="{{ cfg.version }}"></div>
+      </div>
+      <div class="ops-field" style="margin-top:10px"><label for="frecuencia_texto">Frecuencia de monitoreo</label>
+        <input type="text" id="frecuencia_texto" name="frecuencia_texto" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: 2 veces al día (mañana y tarde)"></div>
+      <div class="ops-field" style="margin-top:10px"><label for="termometro">Termómetro / instrumento</label>
+        <input type="text" id="termometro" name="termometro" value="{{ cfg.termometro or '' }}" placeholder="Ej: Termómetro digital TP-01"></div>
+      <div class="ops-field" style="margin-top:10px"><label for="termometro_calibrado_en">Última calibración</label>
+        <input type="date" id="termometro_calibrado_en" name="termometro_calibrado_en" value="{{ cfg.termometro_calibrado_en.isoformat() if cfg.termometro_calibrado_en else '' }}"></div>
+      <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar configuración</button></div>
+    </form>
   </div>
+
 </div>
 {% endblock %}

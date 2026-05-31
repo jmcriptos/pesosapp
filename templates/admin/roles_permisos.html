@@ -1,50 +1,56 @@
 {% extends "base.html" %}
 {% block title %}Roles y permisos{% endblock %}
-{% block header_title %}🔐 Roles y permisos{% endblock %}
+{% block header_title %}Roles y permisos{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<style>
+  .ops-perms-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ops-perms-table th, .ops-perms-table td { padding: 9px 8px; text-align: center; border-bottom: 1px solid var(--color-border-subtle); }
+  .ops-perms-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-subtle); }
+  .ops-perms-table th:first-child, .ops-perms-table td:first-child { text-align: left; font-weight: 600; text-transform: capitalize; color: var(--color-text); }
+  .ops-perms-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="admin-container perms-wrap">
-  <p class="perms-intro">Definí qué puede hacer cada rol. <strong>super_admin</strong> siempre tiene acceso total.</p>
+<div class="ops-screen" style="max-width:840px">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-shield-halved"></i></span> Administración</div>
+    <h1 class="ops-title">Roles y permisos</h1>
+    <p class="ops-sub"><strong>super_admin</strong> siempre tiene acceso total</p>
+  </header>
+
+  <div class="ops-toolbar">
+    <a href="{{ url_for('gestionar_vendedores') }}" class="ops-back"><i class="fas fa-users"></i> Usuarios</a>
+  </div>
 
   <form method="POST" action="{{ url_for('gestionar_permisos') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for rol in roles %}
-    <section class="perms-rol">
-      <h3>{{ rol.nombre }}</h3>
-      <table class="perms-table">
-        <thead>
-          <tr><th>Recurso</th>{% for a in acciones %}<th>{{ a }}</th>{% endfor %}</tr>
-        </thead>
-        <tbody>
-          {% for rec in recursos %}
-          <tr>
-            <td class="perms-rec">{{ rec }}</td>
-            {% for a in acciones %}
-            <td>
-              <input type="checkbox" name="perm_{{ rol.id }}_{{ rec }}_{{ a }}"
-                     {{ 'checked' if matriz[rol.id][rec][a] }}>
-            </td>
+    <div class="ops-card" style="padding:16px;margin-bottom:14px">
+      <div class="ops-form-card-head" style="text-transform:capitalize"><i class="fas fa-shield-halved"></i> {{ rol.nombre|replace('_',' ') }}</div>
+      <div style="overflow-x:auto">
+        <table class="ops-perms-table">
+          <thead>
+            <tr><th>Recurso</th>{% for a in acciones %}<th>{{ a }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for rec in recursos %}
+            <tr>
+              <td>{{ rec }}</td>
+              {% for a in acciones %}
+              <td><input type="checkbox" name="perm_{{ rol.id }}_{{ rec }}_{{ a }}" {{ 'checked' if matriz[rol.id][rec][a] }}></td>
+              {% endfor %}
+            </tr>
             {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
+          </tbody>
+        </table>
+      </div>
+    </div>
     {% endfor %}
-    <button type="submit" class="btn-primary-lg"><i class="fas fa-save"></i> Guardar permisos</button>
+    <button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar permisos</button>
   </form>
+
 </div>
-{% endblock %}
-{% block extra_css %}
-{{ super() }}
-<style>
-.perms-wrap{max-width:900px;margin:0 auto}
-.perms-intro{color:#475569;margin-bottom:16px}
-.perms-rol{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px}
-.perms-rol h3{margin:0 0 10px;text-transform:capitalize;color:#0f172a}
-.perms-table{width:100%;border-collapse:collapse;font-size:.9rem}
-.perms-table th,.perms-table td{padding:8px;text-align:center;border-bottom:1px solid #f1f5f9}
-.perms-table th:first-child,.perms-rec{text-align:left;font-weight:600;color:#334155;text-transform:capitalize}
-.btn-primary-lg{background:linear-gradient(135deg,#1877ff,#4dabf7);color:#fff;border:none;
-    padding:12px 28px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
-</style>
 {% endblock %}

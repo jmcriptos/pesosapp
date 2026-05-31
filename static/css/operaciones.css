@@ -5,6 +5,45 @@
    variables nuevas de paleta: compone con var(--color-*).
    ============================================================ */
 
+/* ---- Paleta propia (Premium Glass claro) ----
+   Estos componentes definen su propia paleta para no heredar el tema oscuro
+   global ni los colores de botón de .app-content. Render consistente en
+   cualquier pantalla, igual al mockup de diseño. */
+.ops-screen, .ops-admin, .ops-sheet {
+  --color-bg: #f6f7fb;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e5e9f0;
+  --color-border-subtle: #eef1f6;
+  --color-border-strong: #cbd5e1;
+  --color-primary: #6366f1;
+  --color-primary-soft: #eef2ff;
+  --color-primary-soft-fg: #4f46e5;
+  --color-success: #10b981;
+  --color-success-soft: #d1fae5;
+  --color-success-soft-fg: #047857;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fef3c7;
+  --color-warning-soft-fg: #b45309;
+  --color-danger: #f43f5e;
+  --color-danger-soft: #ffe4e6;
+  --color-danger-soft-fg: #be123c;
+  --sky-500: #0ea5e9;  --sky-600: #0284c7;
+  --indigo-500: #6366f1; --indigo-600: #4f46e5;
+  --violet-500: #8b5cf6;
+  --emerald-400: #34d399; --emerald-500: #10b981; --emerald-600: #059669;
+  --amber-400: #fbbf24; --amber-500: #f59e0b;
+  --rose-400: #fb7185; --rose-500: #f43f5e; --rose-600: #e11d48;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, .10);
+  --shadow-lg: 0 12px 32px -8px rgba(15, 23, 42, .16);
+}
+
 /* ---- Wrapper de pantalla móvil (Temperaturas / Limpieza) ---- */
 .ops-screen {
   --accent: var(--color-primary);
@@ -586,3 +625,105 @@
 @media (prefers-reduced-motion: reduce) {
   .ops-sheet, .ops-sheet-overlay, .ops-bar, .ops-toggle::after { animation: none !important; transition: none !important; }
 }
+
+/* ============================================================
+   Specificity guard — los botones de .app-content reciben un
+   fondo azul global; forzamos aquí el fondo correcto de cada
+   componente de Operaciones (selector raíz + !important).
+   ============================================================ */
+.ops-screen .ops-punto,
+.ops-screen .ops-step,
+.ops-screen .ops-key,
+.ops-sheet .ops-step,
+.ops-sheet .ops-key,
+.ops-sheet .ops-sheet-close,
+.ops-screen .ops-btn-ghost,
+.ops-admin .ops-btn-ghost,
+.ops-sheet .ops-btn-ghost,
+.ops-screen .ops-sheet-close,
+.ops-admin .ops-sheet-close,
+.ops-admin .ops-search,
+.ops-screen .ops-firma-clear { background: var(--color-bg-elevated) !important; }
+
+.ops-screen .ops-tarea,
+.ops-screen .ops-card { background: var(--color-bg-elevated) !important; }
+.ops-screen .ops-punto.is-alert,
+.ops-screen .ops-tarea.is-overdue { background: color-mix(in oklab, var(--color-danger) 8%, #fff) !important; }
+
+.ops-screen .ops-segmented button,
+.ops-admin .ops-chip { background: transparent !important; }
+.ops-screen .ops-segmented button.is-active,
+.ops-admin .ops-chip.is-active { background: var(--color-bg-elevated) !important; }
+
+.ops-screen .ops-btn,
+.ops-sheet .ops-btn,
+.ops-admin .ops-btn { background: var(--accent-grad, var(--accent)) !important; }
+.ops-screen .ops-btn.ops-btn-success,
+.ops-sheet .ops-btn.ops-btn-success { background: linear-gradient(135deg, #10b981, #059669) !important; }
+.ops-screen .ops-btn.ops-btn-danger,
+.ops-sheet .ops-btn.ops-btn-danger { background: linear-gradient(135deg, #f43f5e, #e11d48) !important; }
+.ops-screen .ops-btn.ops-btn-ghost,
+.ops-sheet .ops-btn.ops-btn-ghost,
+.ops-admin .ops-btn.ops-btn-ghost { background: var(--color-bg-elevated) !important; }
+
+.ops-admin .ops-toggle { background: var(--color-border-strong) !important; }
+.ops-admin .ops-toggle.is-on { background: var(--color-success) !important; }
+.ops-admin .ops-perm { background: transparent !important; }
+.ops-admin .ops-perm.is-on { background: var(--pk) !important; }
+
+/* ============================================================
+   Helpers para historiales y pantallas de gestión (registros)
+   ============================================================ */
+.ops-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.ops-back {
+  display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+  font-size: 13px; font-weight: 700; color: var(--color-text-muted);
+  background: var(--color-bg-elevated); border: 1px solid var(--color-border);
+  padding: 8px 13px; border-radius: 10px;
+}
+.ops-back:hover { color: var(--color-text); }
+
+.ops-form-card { padding: 16px; margin-bottom: 14px; }
+.ops-form-card-head {
+  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800;
+  letter-spacing: -0.01em; color: var(--color-text); margin-bottom: 14px;
+}
+.ops-form-card-head i { color: var(--accent, var(--color-primary)); }
+.ops-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ops-form-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.ops-field textarea { resize: vertical; min-height: 56px; }
+
+.ops-hrow {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 13px 14px; border-radius: 14px; background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle); box-shadow: var(--shadow-sm);
+}
+.ops-hrow.is-bad {
+  background: color-mix(in oklab, var(--color-danger) 7%, #fff);
+  border-color: color-mix(in oklab, var(--color-danger) 40%, transparent);
+}
+.ops-hrow-main { min-width: 0; }
+.ops-hrow-name { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--color-text); }
+.ops-hrow-meta { font-size: 11.5px; color: var(--color-text-subtle); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ops-hrow-note {
+  font-size: 11.5px; color: var(--color-text-muted); margin-top: 6px; line-height: 1.4;
+  background: var(--color-surface-muted); border-radius: 10px; padding: 8px 10px;
+}
+.ops-hrow-note i { color: var(--color-text-subtle); }
+.ops-hrow-right { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.ops-hrow-temp { font-size: 18px; font-weight: 800; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--color-text); letter-spacing: -0.02em; }
+
+.ops-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.ops-tag.ok { color: var(--color-success-soft-fg); background: var(--color-success-soft); }
+.ops-tag.bad { color: var(--color-danger-soft-fg); background: var(--color-danger-soft); }
+.ops-tag.info { color: var(--color-primary-soft-fg); background: var(--color-primary-soft); }
+.ops-tag.muted { color: var(--color-text-subtle); background: var(--color-surface-muted); }
+
+.ops-manage { padding: 14px; }
+.ops-manage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ops-manage-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ops-manage-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.ops-details { margin-top: 10px; border-top: 1px solid var(--color-border-subtle); padding-top: 10px; }
+.ops-details > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--accent, var(--color-primary)); list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.ops-details > summary::-webkit-details-marker { display: none; }
+.ops-details-body { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }

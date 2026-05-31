@@ -1,42 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Configuración del registro de limpieza{% endblock %}
-{% block header_title %}<span class="fw-700 color-white">Configuración de limpieza</span>{% endblock %}
+{% block header_title %}Configuración{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
+
 {% block content %}
-<div class="mobile-form-container reg-wrap">
-  <div class="reg-toolbar">
-    <a href="{{ url_for('limpieza_index') }}" class="reg-btn"><i class="fas fa-soap"></i> Registrar limpieza</a>
+<div class="ops-screen" data-accent="clean">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-gear"></i></span> Plan de saneamiento</div>
+    <h1 class="ops-title">Configuración</h1>
+    <p class="ops-sub">Datos del documento</p>
+  </header>
+
+  <div class="ops-toolbar">
+    <a href="{{ url_for('limpieza_index') }}" class="ops-back"><i class="fas fa-spray-can-sparkles"></i> Registrar limpieza</a>
   </div>
-  <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-gear"></i> Datos del documento</div>
-    <div class="mobile-card-body">
-      <form method="POST" action="{{ url_for('limpieza_config') }}" autocomplete="off">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="reg-field-row">
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="codigo_documento">Código de documento</label>
-            <input type="text" id="codigo_documento" name="codigo_documento" class="mobile-form-control" value="{{ cfg.codigo_documento }}">
-          </div>
-          <div class="mobile-form-group">
-            <label class="mobile-form-label" for="version">Versión</label>
-            <input type="text" id="version" name="version" class="mobile-form-control" value="{{ cfg.version }}">
-          </div>
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="frecuencia_texto">Frecuencia de limpieza</label>
-          <input type="text" id="frecuencia_texto" name="frecuencia_texto" class="mobile-form-control" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: Según programa de limpieza">
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="responsable_verificacion">Responsable de verificación</label>
-          <input type="text" id="responsable_verificacion" name="responsable_verificacion" class="mobile-form-control" value="{{ cfg.responsable_verificacion or '' }}" placeholder="Ej: Jefe de calidad">
-        </div>
-        <div class="mobile-form-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar configuración</button>
-        </div>
-      </form>
-    </div>
+
+  <div class="ops-card ops-form-card">
+    <div class="ops-form-card-head"><i class="fas fa-file-lines"></i> Datos del documento</div>
+    <form method="POST" action="{{ url_for('limpieza_config') }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ops-grid-2">
+        <div class="ops-field"><label for="codigo_documento">Código de documento</label>
+          <input type="text" id="codigo_documento" name="codigo_documento" value="{{ cfg.codigo_documento }}"></div>
+        <div class="ops-field"><label for="version">Versión</label>
+          <input type="text" id="version" name="version" value="{{ cfg.version }}"></div>
+      </div>
+      <div class="ops-field" style="margin-top:10px"><label for="frecuencia_texto">Frecuencia de limpieza</label>
+        <input type="text" id="frecuencia_texto" name="frecuencia_texto" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: Según programa de limpieza"></div>
+      <div class="ops-field" style="margin-top:10px"><label for="responsable_verificacion">Responsable de verificación</label>
+        <input type="text" id="responsable_verificacion" name="responsable_verificacion" value="{{ cfg.responsable_verificacion or '' }}" placeholder="Ej: Jefe de calidad"></div>
+      <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar configuración</button></div>
+    </form>
   </div>
+
 </div>
 {% endblock %}
