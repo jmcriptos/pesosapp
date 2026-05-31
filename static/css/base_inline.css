@@ -68,119 +68,25 @@
     [data-theme="dark"] .theme-icon-light { display: none; }
     [data-theme="light"] .theme-icon-dark { display: none; }
 
-    /* Top loading bar shown while the page is fetching/parsing.
-       Hidden by an inline script on the window 'load' event, so it stays
-       visible until CSS, fonts, images, and Chart.js all finish. */
+    /* Barra de carga superior (estilo NProgress). El ancho lo conduce un
+       script inline en base.html; se desvanece al completar. Sin overlay. */
     .app-loading-bar {
         position: fixed;
         top: 0; left: 0;
-        width: 100%;
         height: 3px;
-        background: linear-gradient(
-            90deg,
-            transparent 0%,
-            #2563eb 30%,
-            #6366f1 60%,
-            transparent 100%
-        );
-        background-size: 220% 100%;
-        animation: app-loading-shimmer 1.1s linear infinite;
+        width: 0;
+        background: #2563eb;
+        box-shadow: 0 0 8px rgba(37, 99, 235, 0.7), 0 0 4px rgba(37, 99, 235, 0.5);
         z-index: 9999;
         pointer-events: none;
-        transition: opacity 220ms ease, transform 220ms ease;
+        opacity: 1;
+        transition: width 200ms ease-out, opacity 300ms ease;
     }
     .app-loading-bar.is-loaded {
         opacity: 0;
-        transform: translateY(-3px);
-    }
-    @keyframes app-loading-shimmer {
-        0%   { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
     }
     @media (prefers-reduced-motion: reduce) {
-        .app-loading-bar { animation: none; background: #2563eb; }
-    }
-
-    /* Full-page loading screen with progress ring + numeric percentage.
-       Visible on every initial render (cold start AND after navigation),
-       hidden by JS once window.load fires. JS animates the percentage so
-       the user gets a real sense of progress instead of a frozen spinner.
-       On iOS Safari the snapshot during navigation may pause the
-       animation briefly — the moment the new page's HTML begins rendering
-       this restarts at 0 and the count begins moving. */
-    .app-loading-screen {
-        position: fixed;
-        inset: 0;
-        z-index: 9998;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(244, 246, 250, 0.96);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        transition: opacity 280ms ease;
-    }
-    .app-loading-screen.is-loaded {
-        opacity: 0;
-        pointer-events: none;
-    }
-    .app-loading-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-    }
-    .app-loading-ring {
-        position: relative;
-        width: 104px;
-        height: 104px;
-    }
-    .app-loading-ring svg {
-        width: 100%;
-        height: 100%;
-        transform: rotate(-90deg);
-    }
-    .app-loading-ring-track {
-        fill: none;
-        stroke: rgba(15, 23, 42, 0.10);
-        stroke-width: 8;
-    }
-    .app-loading-ring-bar {
-        fill: none;
-        stroke: #2563eb;
-        stroke-width: 8;
-        stroke-linecap: round;
-        /* 2π·42 = 263.89 — circunferencia completa = "vacío".
-           El relleno está conducido por JS (ver base.html), no por
-           keyframe CSS, para garantizar que el círculo y el % estén
-           sincronizados. Los atributos stroke-dasharray/dashoffset
-           viven en el <circle> del SVG para evitar flash inicial. */
-    }
-    .app-loading-screen.is-loaded .app-loading-ring-bar {
-        stroke-dashoffset: 0;
-        transition: stroke-dashoffset 220ms ease-out;
-    }
-    .app-loading-percent {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.15rem;
-        font-weight: 800;
-        color: #0f172a;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: -0.02em;
-    }
-    .app-loading-label {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #64748b;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-    @media (prefers-reduced-motion: reduce) {
-        .app-loading-ring-bar { stroke-dashoffset: 132; }
+        .app-loading-bar { transition: opacity 200ms ease; box-shadow: none; }
     }
 
     /* iOS PWA standalone mode: respect safe areas (notch / home indicator)
