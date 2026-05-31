@@ -9285,9 +9285,43 @@ def temperaturas_historial():
     puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     hoy = date.today()
+
+    # Gráfico de tendencia: cámara con más excursiones (o la filtrada).
+    candidatas = {}
+    for l in lecturas:
+        candidatas.setdefault(l.camara_id, []).append(l)
+    cam_id = request.args.get('camara_id', type=int)
+    serie_cam = cam_id if (cam_id and cam_id in candidatas) else (
+        max(candidatas, key=lambda k: sum(1 for x in candidatas[k] if x.fuera_de_rango)) if candidatas else None)
+    tendencia = None
+    if serie_cam:
+        cam_obj = next((l.camara for l in lecturas if l.camara_id == serie_cam), None)
+        pts = sorted(candidatas[serie_cam], key=lambda x: x.registrado_en)
+        vals = [float(x.temperatura) for x in pts]
+        cmin = float(cam_obj.temp_min) if cam_obj else min(vals)
+        cmax = float(cam_obj.temp_max) if cam_obj else max(vals)
+        lo = min(cmin, min(vals)) - 1
+        hi = max(cmax, max(vals)) + 1
+        if hi <= lo:
+            hi = lo + 1
+        W, H = 300.0, 110.0
+        n = len(pts)
+        def _x(i):
+            return round((i / (n - 1) * W) if n > 1 else W / 2, 1)
+        def _y(v):
+            return round(H - (v - lo) / (hi - lo) * H, 1)
+        tendencia = {
+            'nombre': cam_obj.nombre if cam_obj else '',
+            'min': cmin, 'max': cmax, 'excursiones': sum(1 for x in pts if x.fuera_de_rango),
+            'W': W, 'H': H,
+            'band_top': _y(cmax), 'band_bot': _y(cmin),
+            'poly': ' '.join(f'{_x(i)},{_y(v)}' for i, v in enumerate(vals)),
+            'dots': [{'x': _x(i), 'y': _y(v), 'f': bool(pts[i].fuera_de_rango)} for i, v in enumerate(vals)],
+        }
+
     return render_template('registros/temperaturas_historial.html',
                            lecturas=lecturas, camaras=camaras, filtros=request.args,
-                           puede_verificar=puede_verificar, revision=revision,
+                           puede_verificar=puede_verificar, revision=revision, tendencia=tendencia,
                            hoy_iso=hoy.isoformat(),
                            fecha_7d=(hoy - timedelta(days=6)).isoformat(),
                            fecha_30d=(hoy - timedelta(days=29)).isoformat())
@@ -9865,6 +9899,61 @@ def limpieza_historial():
                            hoy_iso=hoy.isoformat(),
                            fecha_7d=(hoy - timedelta(days=6)).isoformat(),
                            fecha_30d=(hoy - timedelta(days=29)).isoformat())
+
+
+@app.route('/registros/haccp')
+@login_required
+@requiere_permiso_recurso('registros', 'leer')
+def registros_haccp():
+    """Vista de cumplimiento HACCP (solo lectura) — temperaturas + limpieza."""
+    hoy = date.today()
+    desde = hoy - timedelta(days=6)
+
+    lecturas = (LecturaTemperatura.query
+                .options(joinedload(LecturaTemperatura.camara))
+                .filter(func.date(LecturaTemperatura.registrado_en) >= desde).all())
+    temp_total = len(lecturas)
+    temp_ok = sum(1 for l in lecturas if not l.fuera_de_rango)
+    temp_pct = round(temp_ok / temp_total * 100) if temp_total else 100
+
+    registros = (RegistroLimpieza.query
+                 .options(joinedload(RegistroLimpieza.area))
+                 .filter(func.date(RegistroLimpieza.registrado_en) >= desde).all())
+    limp_total = len(registros)
+    limp_ok = sum(1 for r in registros if r.conforme)
+    limp_pct = round(limp_ok / limp_total * 100) if limp_total else 100
+
+    glob = round((temp_pct + limp_pct) / 2)
+
+    etiquetas = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+    semana = []
+    for i in range(7):
+        d = desde + timedelta(days=i)
+        lt = [l for l in lecturas if l.registrado_en.date() == d]
+        rt = [r for r in registros if r.registrado_en.date() == d]
+        semana.append({
+            'label': etiquetas[d.weekday()],
+            'temp': round(sum(1 for l in lt if not l.fuera_de_rango) / len(lt) * 100) if lt else None,
+            'limp': round(sum(1 for r in rt if r.conforme) / len(rt) * 100) if rt else None,
+        })
+
+    incidencias = []
+    for l in sorted((x for x in lecturas if x.fuera_de_rango), key=lambda x: x.registrado_en, reverse=True)[:6]:
+        incidencias.append({'tipo': 'temp', 'titulo': l.camara.nombre if l.camara else 'Cámara',
+                            'detalle': f'{l.temperatura}°C · fuera de rango',
+                            'accion': l.accion_tomada or l.accion_disposicion,
+                            'cuando': l.registrado_en.strftime('%d/%m · %H:%M')})
+    for r in sorted((x for x in registros if not x.conforme), key=lambda x: x.registrado_en, reverse=True)[:6]:
+        incidencias.append({'tipo': 'limp', 'titulo': r.area.nombre if r.area else 'Área',
+                            'detalle': 'Registro no conforme',
+                            'accion': r.accion_tomada or r.accion_disposicion,
+                            'cuando': r.registrado_en.strftime('%d/%m · %H:%M')})
+    incidencias = incidencias[:8]
+
+    return render_template('registros/haccp.html',
+                           temp_pct=temp_pct, limp_pct=limp_pct, glob=glob,
+                           temp_total=temp_total, limp_total=limp_total,
+                           semana=semana, incidencias=incidencias, hoy=hoy)
 
 
 @app.route('/registros/limpieza/revisar', methods=['POST'])

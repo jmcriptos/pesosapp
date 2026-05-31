@@ -1,99 +1,88 @@
 {% extends "base.html" %}
-{% block title %}Áreas y equipos{% endblock %}
-{% block header_title %}Áreas y equipos{% endblock %}
+{% block title %}Tareas de limpieza{% endblock %}
+{% block header_title %}Tareas de limpieza{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<style>.app-content { background: #f5f6fa !important; } .ops-admin { box-shadow: 0 18px 50px -24px rgba(15,23,42,.25); }</style>
 {% endblock %}
 
+{% set activas = areas|selectattr('activa')|list|length %}
+
 {% block content %}
-<div class="ops-screen" data-accent="clean">
+<div class="ops-admin">
+  {% set haccp_active = 'tareas' %}
+  {% include 'registros/_haccp_sidebar.html' %}
 
-  <header class="ops-hero">
-    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-layer-group"></i></span> Plan de saneamiento</div>
-    <h1 class="ops-title">Áreas y equipos</h1>
-    <p class="ops-sub">Puntos de limpieza y su producto asignado</p>
-  </header>
-
-  <div class="ops-toolbar">
-    <a href="{{ url_for('limpieza_index') }}" class="ops-back"><i class="fas fa-spray-can-sparkles"></i> Registrar limpieza</a>
-    <a href="{{ url_for('productos_limpieza_index') }}" class="ops-back"><i class="fas fa-flask"></i> Productos</a>
-  </div>
-
-  <div class="ops-card ops-form-card">
-    <div class="ops-form-card-head"><i class="fas fa-circle-plus"></i> Nueva área / equipo</div>
-    <form method="POST" action="{{ url_for('area_limpieza_nueva') }}" autocomplete="off">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="ops-field"><label for="nombre">Nombre</label>
-        <input type="text" id="nombre" name="nombre" placeholder="Ej: Sierra de cortar" required></div>
-      <div class="ops-grid-2" style="margin-top:10px">
-        <div class="ops-field"><label for="tipo">Tipo</label>
-          <select id="tipo" name="tipo" required><option value="equipo">Equipo</option><option value="espacio">Espacio</option></select></div>
-        <div class="ops-field"><label for="frecuencia_texto">Frecuencia</label>
-          <input type="text" id="frecuencia_texto" name="frecuencia_texto" placeholder="Ej: Diaria, Por turno"></div>
+  <div class="ops-admin-main">
+    <header class="ops-admin-header">
+      <div>
+        <h1>Tareas de limpieza</h1>
+        <div class="ops-admin-header-sub">Programa tareas, frecuencia y responsable asignado</div>
       </div>
-      <div class="ops-field" style="margin-top:10px"><label for="producto_id">Producto de limpieza</label>
-        <select id="producto_id" name="producto_id">
-          <option value="">— Sin asignar —</option>
-          {% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }} ({{ p.dilucion }})</option>{% endfor %}
-        </select></div>
-      <div class="ops-field" style="margin-top:10px"><label for="metodo">Instrucciones específicas (opcional)</label>
-        <textarea id="metodo" name="metodo" rows="2" placeholder="Detalles propios de esta área"></textarea></div>
-      <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-plus"></i> Crear área</button></div>
-    </form>
-  </div>
+    </header>
 
-  <div class="ops-section"><h3>Áreas y equipos</h3></div>
-  <div class="ops-list">
-    {% for a in areas %}
-    <article class="ops-card ops-manage" style="{{ '' if a.activa else 'opacity:.6' }}">
-      <div class="ops-manage-head">
-        <div style="min-width:0">
-          <div class="ops-hrow-name">{{ a.nombre }}</div>
-          <div class="ops-hrow-meta">{% if a.producto %}Producto: {{ a.producto.nombre }}{% else %}Sin producto asignado{% endif %}{% if a.frecuencia_texto %} · {{ a.frecuencia_texto }}{% endif %}</div>
-        </div>
-        <div class="ops-manage-chips">
-          <span class="ops-tag info">{{ 'Equipo' if a.tipo == 'equipo' else 'Espacio' }}</span>
-          <span class="ops-tag {{ 'ok' if a.activa else 'muted' }}">{{ 'Activa' if a.activa else 'Inactiva' }}</span>
-        </div>
+    <div class="ops-admin-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <div class="ops-admin-header-sub">{{ areas|length }} tareas programadas · {{ activas }} activas</div>
+        <button type="button" class="ops-btn" id="tareaNuevaBtn"><i class="fas fa-plus"></i> Nueva tarea</button>
       </div>
-      {% if a.metodo %}<div class="ops-hrow-note"><i class="fas fa-circle-info"></i> {{ a.metodo }}</div>{% endif %}
 
-      <div class="ops-manage-actions">
-        <form method="POST" action="{{ url_for('area_limpieza_toggle', area_id=a.id) }}">
+      <!-- Crear tarea -->
+      <div class="cfg-section" id="tareaNuevaForm" hidden style="margin-bottom:16px">
+        <div class="cfg-section-head"><i class="fas fa-circle-plus"></i> Nueva tarea / área</div>
+        <form method="POST" action="{{ url_for('area_limpieza_nueva') }}" autocomplete="off">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-{{ 'eye-slash' if a.activa else 'eye' }}"></i> {{ 'Desactivar' if a.activa else 'Activar' }}</button>
+          <div class="ops-grid-2">
+            <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" placeholder="Ej: Limpieza de pisos" required></div>
+            <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="equipo">Equipo</option><option value="espacio">Espacio</option></select></div>
+            <div class="ops-field"><label>Frecuencia</label><input type="text" name="frecuencia_texto" placeholder="Diaria, Cada turno, Semanal"></div>
+            <div class="ops-field"><label>Producto de limpieza</label><select name="producto_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="ops-field" style="margin-top:10px"><label>Instrucciones (opcional)</label><textarea name="metodo" rows="2"></textarea></div>
+          <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Crear tarea</button></div>
         </form>
       </div>
 
-      <details class="ops-details">
-        <summary><i class="fas fa-pen"></i> Editar</summary>
-        <div class="ops-details-body">
-          <form method="POST" action="{{ url_for('area_limpieza_editar', area_id=a.id) }}" autocomplete="off">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" value="{{ a.nombre }}" required></div>
-            <div class="ops-grid-2" style="margin-top:10px">
-              <div class="ops-field"><label>Tipo</label>
-                <select name="tipo" required>
-                  <option value="equipo" {{ 'selected' if a.tipo == 'equipo' }}>Equipo</option>
-                  <option value="espacio" {{ 'selected' if a.tipo == 'espacio' }}>Espacio</option>
-                </select></div>
-              <div class="ops-field"><label>Frecuencia</label><input type="text" name="frecuencia_texto" value="{{ a.frecuencia_texto or '' }}"></div>
-            </div>
-            <div class="ops-field" style="margin-top:10px"><label>Producto de limpieza</label>
-              <select name="producto_id">
-                <option value="">— Sin asignar —</option>
-                {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if a.producto_id == p.id }}>{{ p.nombre }} ({{ p.dilucion }})</option>{% endfor %}
-              </select></div>
-            <div class="ops-field" style="margin-top:10px"><label>Instrucciones específicas</label><textarea name="metodo" rows="2">{{ a.metodo or '' }}</textarea></div>
-            <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar cambios</button></div>
-          </form>
+      {% if areas %}
+      <div class="ops-table t-tareas">
+        <div class="ops-thead">
+          <div>Tarea</div><div>Área</div><div>Frecuencia</div><div>Responsable</div><div style="text-align:center">Activa</div>
         </div>
-      </details>
-    </article>
-    {% else %}
-    <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-broom"></i></div><p>No hay áreas. Crea la primera arriba.</p></div>
-    {% endfor %}
+        {% for a in areas %}
+        {% set f = (a.frecuencia_texto or '')|lower %}
+        {% if 'diari' in f %}{% set fc = 'diaria' %}{% elif 'turno' in f %}{% set fc = 'turno' %}{% elif 'semanal' in f %}{% set fc = 'semanal' %}{% else %}{% set fc = 'otra' %}{% endif %}
+        <div class="ops-trow {{ '' if a.activa else 'is-inactive' }}">
+          <div class="ops-user-cell">
+            <span class="ops-tarea-ico"><i class="fas fa-spray-can-sparkles"></i></span>
+            <span class="ops-cell-strong">{{ a.nombre }}</span>
+          </div>
+          <div class="ops-cell-muted">{{ a.producto.nombre if a.producto else ('Equipo' if a.tipo == 'equipo' else 'Espacio') }}</div>
+          <div>{% if a.frecuencia_texto %}<span class="frec-chip {{ fc }}">{{ a.frecuencia_texto }}</span>{% else %}<span class="ops-cell-subtle">—</span>{% endif %}</div>
+          <div class="ops-cell-muted">—</div>
+          <div class="ops-cell-right">
+            <form method="POST" action="{{ url_for('area_limpieza_toggle', area_id=a.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="cam-edit" title="{{ 'Activa' if a.activa else 'Inactiva' }}" style="color:{{ 'var(--color-success)' if a.activa else 'var(--color-text-subtle)' }} !important">
+                <i class="fas {{ 'fa-circle-check' if a.activa else 'fa-circle' }}" style="font-size:18px"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-broom"></i></div><p>No hay tareas. Crea la primera arriba.</p></div>
+      {% endif %}
+    </div>
   </div>
-
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var b = document.getElementById('tareaNuevaBtn'); var f = document.getElementById('tareaNuevaForm');
+  if (b) b.addEventListener('click', function () { f.hidden = !f.hidden; });
+})();
+</script>
 {% endblock %}

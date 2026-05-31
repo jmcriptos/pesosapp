@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Cumplimiento HACCP{% endblock %}
+{% block header_title %}Cumplimiento HACCP{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<style>.app-content { background: #f5f6fa !important; } .ops-admin { box-shadow: 0 18px 50px -24px rgba(15,23,42,.25); }</style>
+{% endblock %}
+
+{% macro ringcls(p) %}{{ 'var(--emerald-500)' if p >= 95 else ('var(--amber-500)' if p >= 85 else 'var(--rose-500)') }}{% endmacro %}
+
+{% block content %}
+<div class="ops-admin">
+  {% set haccp_active = 'haccp' %}
+  {% include 'registros/_haccp_sidebar.html' %}
+
+  <div class="ops-admin-main">
+    <header class="ops-admin-header">
+      <div>
+        <h1>Cumplimiento HACCP</h1>
+        <div class="ops-admin-header-sub">Últimos 7 días · temperaturas y limpieza</div>
+      </div>
+    </header>
+
+    <div class="ops-admin-body">
+      <!-- Cumplimiento -->
+      <div class="haccp-compliance">
+        <div class="haccp-comp-card">
+          <div class="haccp-ring" style="--pct:{{ temp_pct }};--ring:{{ ringcls(temp_pct)|trim }}"><span>{{ temp_pct }}%</span></div>
+          <div><div class="haccp-comp-label">Temperaturas</div><div class="haccp-comp-sub">{{ temp_total }} registro{{ 's' if temp_total != 1 }} · en rango</div></div>
+        </div>
+        <div class="haccp-comp-card">
+          <div class="haccp-ring" style="--pct:{{ limp_pct }};--ring:{{ ringcls(limp_pct)|trim }}"><span>{{ limp_pct }}%</span></div>
+          <div><div class="haccp-comp-label">Limpieza</div><div class="haccp-comp-sub">{{ limp_total }} tarea{{ 's' if limp_total != 1 }} · conforme</div></div>
+        </div>
+        <div class="haccp-comp-card">
+          <div class="haccp-ring" style="--pct:{{ glob }};--ring:{{ ringcls(glob)|trim }}"><span>{{ glob }}%</span></div>
+          <div><div class="haccp-comp-label">Global</div><div class="haccp-comp-sub">Cumplimiento combinado</div></div>
+        </div>
+      </div>
+
+      <!-- Gráfico semanal -->
+      <div class="haccp-trend">
+        <div class="haccp-trend-head">
+          <div class="haccp-trend-title">Cumplimiento semanal</div>
+          <div class="haccp-trend-meta">
+            <span style="color:var(--sky-600,var(--sky-500))">● Temp</span>
+            <span style="color:var(--emerald-600,var(--emerald-500));margin-left:8px">● Limpieza</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:6px">
+          {% for d in semana %}
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+            <div style="width:100%;height:96px;display:flex;align-items:flex-end;justify-content:center;gap:4px">
+              <div title="Temp {{ d.temp if d.temp is not none else '—' }}%" style="width:42%;border-radius:5px;background:linear-gradient(180deg,var(--sky-400,#38bdf8),var(--sky-500,#0ea5e9));height:{{ d.temp if d.temp is not none else 0 }}%"></div>
+              <div title="Limpieza {{ d.limp if d.limp is not none else '—' }}%" style="width:42%;border-radius:5px;background:linear-gradient(180deg,var(--emerald-400,#34d399),var(--emerald-500,#10b981));height:{{ d.limp if d.limp is not none else 0 }}%"></div>
+            </div>
+            <span style="font-size:10px;font-weight:600;color:var(--color-text-subtle)">{{ d.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Incidencias -->
+      <div class="ops-section" style="padding:6px 2px 10px"><h3>Incidencias y acciones correctivas</h3></div>
+      {% if incidencias %}
+      <div class="haccp-inc">
+        {% for i in incidencias %}
+        <div class="haccp-inc-row">
+          <span class="haccp-inc-icon" style="--ic:{{ '#0ea5e9' if i.tipo == 'temp' else '#10b981' }}"><i class="fas {{ 'fa-temperature-half' if i.tipo == 'temp' else 'fa-spray-can-sparkles' }}"></i></span>
+          <div class="haccp-inc-main">
+            <div class="haccp-inc-title">{{ i.titulo }}</div>
+            <div class="haccp-inc-detail">{{ i.detalle }}</div>
+            {% if i.accion %}<div class="haccp-inc-action"><i class="fas fa-wrench" style="opacity:.6"></i> {{ i.accion }}</div>{% endif %}
+          </div>
+          <div class="haccp-inc-when">{{ i.cuando }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-circle-check" style="color:var(--color-success)"></i></div><p>Sin incidencias en los últimos 7 días.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,94 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Cámaras{% endblock %}
-{% block header_title %}Cámaras{% endblock %}
+{% block title %}Cámaras y puntos de control{% endblock %}
+{% block header_title %}Cámaras y puntos{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<style>.app-content { background: #f5f6fa !important; } .ops-admin { box-shadow: 0 18px 50px -24px rgba(15,23,42,.25); }</style>
 {% endblock %}
 
+{% set activas = camaras|selectattr('activa')|list|length %}
+
 {% block content %}
-<div class="ops-screen" data-accent="temp">
+<div class="ops-admin">
+  {% set haccp_active = 'camaras' %}
+  {% include 'registros/_haccp_sidebar.html' %}
 
-  <header class="ops-hero">
-    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-snowflake"></i></span> Configuración</div>
-    <h1 class="ops-title">Cámaras</h1>
-    <p class="ops-sub">Puntos de control y rangos objetivo</p>
-  </header>
-
-  <div class="ops-toolbar">
-    <a href="{{ url_for('temperaturas_index') }}" class="ops-back"><i class="fas fa-temperature-half"></i> Temperaturas</a>
-  </div>
-
-  <!-- Nueva cámara -->
-  <div class="ops-card ops-form-card">
-    <div class="ops-form-card-head"><i class="fas fa-circle-plus"></i> Nueva cámara</div>
-    <form method="POST" action="{{ url_for('camara_nueva') }}" autocomplete="off">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="ops-field"><label for="nombre">Nombre</label>
-        <input type="text" id="nombre" name="nombre" placeholder="Ej: Cava PT" required></div>
-      <div class="ops-field" style="margin-top:10px"><label for="tipo">Tipo</label>
-        <select id="tipo" name="tipo" required>
-          <option value="refrigeracion">Refrigeración</option>
-          <option value="congelacion">Congelación</option>
-        </select></div>
-      <div class="ops-grid-2" style="margin-top:10px">
-        <div class="ops-field"><label for="temp_min">Mín. (°C)</label>
-          <input type="text" inputmode="decimal" data-signed-decimal id="temp_min" name="temp_min" placeholder="0" required></div>
-        <div class="ops-field"><label for="temp_max">Máx. (°C)</label>
-          <input type="text" inputmode="decimal" data-signed-decimal id="temp_max" name="temp_max" placeholder="6" required></div>
+  <div class="ops-admin-main">
+    <header class="ops-admin-header">
+      <div>
+        <h1>Cámaras y puntos de control</h1>
+        <div class="ops-admin-header-sub">Configura rangos, horarios de ronda y responsables</div>
       </div>
-      <div class="ops-form-actions">
-        <button type="submit" class="ops-btn"><i class="fas fa-plus"></i> Crear cámara</button>
-      </div>
-    </form>
-  </div>
+    </header>
 
-  <div class="ops-section"><h3>Cámaras registradas</h3></div>
-  <div class="ops-list">
-    {% for c in camaras %}
-    <article class="ops-card ops-manage {{ '' if c.activa else 'is-inactive' }}" style="{{ '' if c.activa else 'opacity:.6' }}">
-      <div class="ops-manage-head">
-        <div style="min-width:0">
-          <div class="ops-hrow-name">{{ c.nombre }}</div>
-          <div class="ops-hrow-meta">Rango {{ c.temp_min }}° a {{ c.temp_max }}°</div>
-        </div>
-        <div class="ops-manage-chips">
-          <span class="ops-tag info">{{ 'Refrigeración' if c.tipo == 'refrigeracion' else 'Congelación' }}</span>
-          <span class="ops-tag {{ 'ok' if c.activa else 'muted' }}">{{ 'Activa' if c.activa else 'Inactiva' }}</span>
-        </div>
+    <div class="ops-admin-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+        <div class="ops-admin-header-sub">{{ camaras|length }} puntos de control · {{ activas }} activos</div>
+        <button type="button" class="ops-btn" id="camNuevaBtn"><i class="fas fa-plus"></i> Nueva cámara</button>
       </div>
 
-      <div class="ops-manage-actions">
-        <form method="POST" action="{{ url_for('camara_toggle', camara_id=c.id) }}">
+      <!-- Crear cámara -->
+      <div class="cfg-section" id="camNuevaForm" hidden style="margin-bottom:16px">
+        <div class="cfg-section-head"><i class="fas fa-circle-plus"></i> Nueva cámara</div>
+        <form method="POST" action="{{ url_for('camara_nueva') }}" autocomplete="off">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-{{ 'eye-slash' if c.activa else 'eye' }}"></i> {{ 'Desactivar' if c.activa else 'Activar' }}</button>
+          <div class="ops-grid-2">
+            <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" placeholder="Ej: Cava PT" required></div>
+            <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="refrigeracion">Refrigeración</option><option value="congelacion">Congelación</option></select></div>
+            <div class="ops-field"><label>Mín. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_min" placeholder="0" required></div>
+            <div class="ops-field"><label>Máx. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_max" placeholder="6" required></div>
+          </div>
+          <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Crear cámara</button></div>
         </form>
       </div>
 
-      <details class="ops-details">
-        <summary><i class="fas fa-pen"></i> Editar</summary>
-        <div class="ops-details-body">
-          <form method="POST" action="{{ url_for('camara_editar', camara_id=c.id) }}" autocomplete="off">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" value="{{ c.nombre }}" required></div>
-            <div class="ops-field" style="margin-top:10px"><label>Tipo</label>
-              <select name="tipo" required>
-                <option value="refrigeracion" {{ 'selected' if c.tipo == 'refrigeracion' }}>Refrigeración</option>
-                <option value="congelacion" {{ 'selected' if c.tipo == 'congelacion' }}>Congelación</option>
-              </select></div>
-            <div class="ops-grid-2" style="margin-top:10px">
-              <div class="ops-field"><label>Mín. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_min" value="{{ c.temp_min }}" required></div>
-              <div class="ops-field"><label>Máx. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_max" value="{{ c.temp_max }}" required></div>
+      {% if camaras %}
+      <div class="cam-grid">
+        {% for c in camaras %}
+        {% set cong = c.tipo == 'congelacion' %}
+        <article class="cam-card {{ '' if c.activa else 'is-inactive' }}">
+          <div class="cam-card-head">
+            <span class="cam-icon {{ 'is-cong' if cong }}"><i class="fas {{ 'fa-snowflake' if cong else 'fa-temperature-half' }}"></i></span>
+            <div class="cam-card-title">
+              <div class="cam-card-name">{{ c.nombre }}</div>
+              <div class="cam-card-sub">CAM · {{ 'congelado' if cong else 'refrigerado' }}</div>
             </div>
-            <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar cambios</button></div>
-          </form>
-        </div>
-      </details>
-    </article>
-    {% else %}
-    <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-snowflake"></i></div><p>No hay cámaras. Crea la primera arriba.</p></div>
-    {% endfor %}
-  </div>
+            <button type="button" class="cam-edit js-cam-edit" data-target="camedit-{{ c.id }}" aria-label="Editar"><i class="fas fa-pen"></i></button>
+          </div>
+          <div class="cam-fields">
+            <div class="cam-field"><div class="cam-field-label">Rango</div><div class="cam-field-value">{{ c.temp_min }}° a {{ c.temp_max }}°</div></div>
+            <div class="cam-field"><div class="cam-field-label">Responsable</div><div class="cam-field-value">—</div></div>
+            <div class="cam-field"><div class="cam-field-label">Ronda AM</div><div class="cam-field-value">—</div></div>
+            <div class="cam-field"><div class="cam-field-label">Ronda PM</div><div class="cam-field-value">—</div></div>
+          </div>
 
+          <div id="camedit-{{ c.id }}" hidden style="margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border-subtle)">
+            <form method="POST" action="{{ url_for('camara_editar', camara_id=c.id) }}" autocomplete="off">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="ops-grid-2">
+                <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" value="{{ c.nombre }}" required></div>
+                <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="refrigeracion" {{ 'selected' if not cong }}>Refrigeración</option><option value="congelacion" {{ 'selected' if cong }}>Congelación</option></select></div>
+                <div class="ops-field"><label>Mín. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_min" value="{{ c.temp_min }}" required></div>
+                <div class="ops-field"><label>Máx. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_max" value="{{ c.temp_max }}" required></div>
+              </div>
+              <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar</button></div>
+            </form>
+            <form method="POST" action="{{ url_for('camara_toggle', camara_id=c.id) }}" style="margin-top:8px">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-{{ 'eye-slash' if c.activa else 'eye' }}"></i> {{ 'Desactivar' if c.activa else 'Activar' }}</button>
+            </form>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-snowflake"></i></div><p>No hay cámaras. Crea la primera arriba.</p></div>
+      {% endif %}
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
+<script>
+(function () {
+  var nuevaBtn = document.getElementById('camNuevaBtn');
+  var nuevaForm = document.getElementById('camNuevaForm');
+  if (nuevaBtn) nuevaBtn.addEventListener('click', function () { nuevaForm.hidden = !nuevaForm.hidden; });
+  document.querySelectorAll('.js-cam-edit').forEach(function (b) {
+    b.addEventListener('click', function () { var t = document.getElementById(b.dataset.target); if (t) t.hidden = !t.hidden; });
+  });
+})();
+</script>
 {% endblock %}
