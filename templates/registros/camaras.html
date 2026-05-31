@@ -46,6 +46,34 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="mobile-btn mobile-btn-secondary">{{ 'Desactivar' if c.activa else 'Activar' }}</button>
           </form>
+          <details style="margin-top:6px;">
+            <summary style="cursor:pointer; color:#2563eb;">Editar</summary>
+            <form method="POST" action="{{ url_for('camara_editar', camara_id=c.id) }}" autocomplete="off" style="margin-top:8px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="mobile-form-group">
+                <label class="mobile-form-label">Nombre</label>
+                <input type="text" name="nombre" class="mobile-form-control" value="{{ c.nombre }}" required>
+              </div>
+              <div class="mobile-form-group">
+                <label class="mobile-form-label">Tipo</label>
+                <select name="tipo" class="mobile-form-control" required>
+                  <option value="refrigeracion" {{ 'selected' if c.tipo == 'refrigeracion' }}>Refrigeración</option>
+                  <option value="congelacion" {{ 'selected' if c.tipo == 'congelacion' }}>Congelación</option>
+                </select>
+              </div>
+              <div class="mobile-form-group">
+                <label class="mobile-form-label">Temp. mínima (°C)</label>
+                <input type="text" inputmode="decimal" name="temp_min" class="mobile-form-control" value="{{ c.temp_min }}" required>
+              </div>
+              <div class="mobile-form-group">
+                <label class="mobile-form-label">Temp. máxima (°C)</label>
+                <input type="text" inputmode="decimal" name="temp_max" class="mobile-form-control" value="{{ c.temp_max }}" required>
+              </div>
+              <div class="mobile-form-actions">
+                <button type="submit" class="mobile-btn mobile-btn-primary">Guardar cambios</button>
+              </div>
+            </form>
+          </details>
         </div>
       {% else %}
         <p>No hay cámaras. Crea la primera arriba.</p>

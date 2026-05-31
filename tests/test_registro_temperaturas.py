@@ -193,3 +193,16 @@ def test_export_devuelve_pdf(app):
                   follow_redirects=False)
     assert resp.status_code == 200
     assert 'application/pdf' in resp.headers.get('Content-Type', '')
+
+
+def test_camaras_admin_edita(app):
+    from app import Camara
+    from decimal import Decimal
+    c = _login(app, 'admin')
+    c.post(f'/registros/temperaturas/camaras/{IDS["camara"]}/editar',
+           data={'nombre': 'Congelación 1 (editada)', 'tipo': 'congelacion',
+                 'temp_min': '-30', 'temp_max': '-20'}, follow_redirects=True)
+    with app.app_context():
+        cam = _db.session.get(Camara, IDS['camara'])
+        assert cam.nombre == 'Congelación 1 (editada)'
+        assert cam.temp_max == Decimal('-20')

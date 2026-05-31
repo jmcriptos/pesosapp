@@ -8721,10 +8721,16 @@ def camara_toggle(camara_id):
 
 
 def _camaras_con_lectura_hoy():
-    """Set de camara_id que ya tienen al menos una lectura HOY (fecha local)."""
-    hoy = date.today()
+    """Set de camara_id con al menos una lectura HOY (día local de negocio).
+    registrado_en se guarda en UTC; calculamos el rango UTC que corresponde al
+    día local actual para no errar el indicador en horas límite."""
+    ahora_local = datetime.now(DASHBOARD_TIMEZONE)
+    inicio_local = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_utc = inicio_local.astimezone(timezone.utc).replace(tzinfo=None)
+    fin_utc = (inicio_local + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
     filas = db.session.query(LecturaTemperatura.camara_id).filter(
-        func.date(LecturaTemperatura.registrado_en) == hoy
+        LecturaTemperatura.registrado_en >= inicio_utc,
+        LecturaTemperatura.registrado_en < fin_utc,
     ).distinct().all()
     return {row[0] for row in filas}
 
@@ -8777,7 +8783,10 @@ def temperatura_registrar():
 def _filtrar_lecturas(args):
     """Aplica filtros opcionales (fecha_inicio, fecha_fin, camara_id) y
     devuelve las lecturas ordenadas por fecha desc. Acepta request.args o request.form."""
-    q = LecturaTemperatura.query
+    q = LecturaTemperatura.query.options(
+        joinedload(LecturaTemperatura.camara),
+        joinedload(LecturaTemperatura.registrado_por_vendedor),
+    )
     fi = args.get('fecha_inicio')
     ff = args.get('fecha_fin')
     cam = args.get('camara_id', type=int)
