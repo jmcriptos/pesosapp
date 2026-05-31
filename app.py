@@ -9238,6 +9238,73 @@ def producto_limpieza_toggle(producto_id):
     return redirect(url_for('productos_limpieza_index'))
 
 
+def _parse_area_limpieza(form):
+    """Devuelve (nombre, tipo, producto_id, metodo, frecuencia, error)."""
+    nombre = (form.get('nombre') or '').strip()
+    tipo = (form.get('tipo') or '').strip()
+    if not nombre:
+        return None, None, None, None, None, 'El nombre es obligatorio.'
+    if tipo not in _TIPOS_AREA_LIMPIEZA:
+        return None, None, None, None, None, 'Tipo de área no válido.'
+    producto_id = form.get('producto_id', type=int) or None
+    if producto_id and db.session.get(ProductoLimpieza, producto_id) is None:
+        return None, None, None, None, None, 'El producto seleccionado no existe.'
+    metodo = (form.get('metodo') or '').strip() or None
+    frecuencia = (form.get('frecuencia_texto') or '').strip() or None
+    return nombre, tipo, producto_id, metodo, frecuencia, None
+
+
+@app.route('/registros/limpieza/areas')
+@login_required
+@requiere_rol(['super_admin'])
+def areas_limpieza_list():
+    areas = AreaLimpieza.query.options(joinedload(AreaLimpieza.producto)).order_by(AreaLimpieza.nombre).all()
+    productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
+    return render_template('registros/areas_limpieza.html', areas=areas, productos=productos)
+
+
+@app.route('/registros/limpieza/areas/nueva', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def area_limpieza_nueva():
+    nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('areas_limpieza_list'))
+    db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo, producto_id=producto_id,
+                                metodo=metodo, frecuencia_texto=frecuencia, activa=True))
+    db.session.commit()
+    flash('Área creada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
+@app.route('/registros/limpieza/areas/<int:area_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def area_limpieza_editar(area_id):
+    area = AreaLimpieza.query.get_or_404(area_id)
+    nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('areas_limpieza_list'))
+    area.nombre, area.tipo, area.producto_id = nombre, tipo, producto_id
+    area.metodo, area.frecuencia_texto = metodo, frecuencia
+    db.session.commit()
+    flash('Área actualizada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
+@app.route('/registros/limpieza/areas/<int:area_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def area_limpieza_toggle(area_id):
+    area = AreaLimpieza.query.get_or_404(area_id)
+    area.activa = not area.activa
+    db.session.commit()
+    flash('Área actualizada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

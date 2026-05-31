@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Áreas y equipos — Limpieza{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Áreas y equipos</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
+{% block content %}
+<div class="mobile-form-container reg-wrap">
+
+  <div class="reg-toolbar">
+    <a href="/registros/limpieza" class="reg-btn"><i class="fas fa-soap"></i> Registrar limpieza</a>
+    <a href="{{ url_for('productos_limpieza_index') }}" class="reg-btn"><i class="fas fa-flask"></i> Productos</a>
+  </div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-plus-circle"></i> Nueva área / equipo</div>
+    <div class="mobile-card-body">
+      <form method="POST" action="{{ url_for('area_limpieza_nueva') }}" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" class="mobile-form-control" placeholder="Ej: Sierra de cortar" required>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="tipo">Tipo</label>
+          <select id="tipo" name="tipo" class="mobile-form-control" required>
+            <option value="equipo">Equipo</option>
+            <option value="espacio">Espacio</option>
+          </select>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="producto_id">Producto de limpieza</label>
+          <select id="producto_id" name="producto_id" class="mobile-form-control">
+            <option value="">— Sin asignar —</option>
+            {% for p in productos %}
+            <option value="{{ p.id }}">{{ p.nombre }} ({{ p.dilucion }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="frecuencia_texto">Frecuencia</label>
+          <input type="text" id="frecuencia_texto" name="frecuencia_texto" class="mobile-form-control" placeholder="Ej: Diaria, Por turno">
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="metodo">Instrucciones específicas (opcional)</label>
+          <textarea id="metodo" name="metodo" class="mobile-form-control" rows="2" placeholder="Detalles propios de esta área"></textarea>
+        </div>
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Crear área</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-list"></i> Áreas y equipos</h3>
+  <div class="reg-list">
+    {% for a in areas %}
+    <article class="reg-card {{ 'is-ok' if a.activa else 'is-muted' }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name">{{ a.nombre }}</div>
+          <div class="reg-sub">
+            {% if a.producto %}Producto: <strong>{{ a.producto.nombre }}</strong>{% else %}Sin producto asignado{% endif %}
+            {% if a.frecuencia_texto %} · {{ a.frecuencia_texto }}{% endif %}
+          </div>
+        </div>
+        <div class="reg-chips">
+          <span class="reg-pill info">{{ 'Equipo' if a.tipo == 'equipo' else 'Espacio' }}</span>
+          <span class="reg-pill {{ 'ok' if a.activa else '' }}">{{ 'Activa' if a.activa else 'Inactiva' }}</span>
+        </div>
+      </div>
+
+      <div class="reg-actions">
+        <form method="POST" action="{{ url_for('area_limpieza_toggle', area_id=a.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="reg-btn">
+            <i class="fas fa-{{ 'eye-slash' if a.activa else 'eye' }}"></i> {{ 'Desactivar' if a.activa else 'Activar' }}
+          </button>
+        </form>
+      </div>
+
+      <details class="reg-edit">
+        <summary><i class="fas fa-pen"></i> Editar</summary>
+        <div class="reg-edit-body">
+          <form method="POST" action="{{ url_for('area_limpieza_editar', area_id=a.id) }}" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Nombre</label>
+              <input type="text" name="nombre" class="mobile-form-control" value="{{ a.nombre }}" required>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Tipo</label>
+              <select name="tipo" class="mobile-form-control" required>
+                <option value="equipo" {{ 'selected' if a.tipo == 'equipo' }}>Equipo</option>
+                <option value="espacio" {{ 'selected' if a.tipo == 'espacio' }}>Espacio</option>
+              </select>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Producto de limpieza</label>
+              <select name="producto_id" class="mobile-form-control">
+                <option value="">— Sin asignar —</option>
+                {% for p in productos %}
+                <option value="{{ p.id }}" {{ 'selected' if a.producto_id == p.id }}>{{ p.nombre }} ({{ p.dilucion }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Frecuencia</label>
+              <input type="text" name="frecuencia_texto" class="mobile-form-control" value="{{ a.frecuencia_texto or '' }}">
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Instrucciones específicas</label>
+              <textarea name="metodo" class="mobile-form-control" rows="2">{{ a.metodo or '' }}</textarea>
+            </div>
+            <div class="mobile-form-actions">
+              <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </details>
+    </article>
+    {% else %}
+    <div class="reg-empty"><i class="fas fa-broom"></i>No hay áreas. Crea la primera arriba.</div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

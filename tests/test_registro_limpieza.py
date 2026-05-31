@@ -94,3 +94,57 @@ def test_registro_persiste(app):
         assert got.area.nombre == 'Sierra de cortar'
         assert got.area.producto.nombre == 'Sanitizante clorado'
         assert got.registrado_en is not None
+
+
+def test_areas_no_admin_bloqueado(app):
+    from app import AreaLimpieza
+    c = _login(app, 'vend')
+    resp = c.post('/registros/limpieza/areas/nueva',
+                  data={'nombre': 'X', 'tipo': 'equipo'}, follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert AreaLimpieza.query.filter_by(nombre='X').first() is None
+
+
+def test_areas_admin_crea(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    resp = c.post('/registros/limpieza/areas/nueva',
+                  data={'nombre': 'Mesa de empaque', 'tipo': 'espacio',
+                        'producto_id': IDS['producto'], 'frecuencia_texto': 'Por turno'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        a = AreaLimpieza.query.filter_by(nombre='Mesa de empaque').first()
+        assert a is not None
+        assert a.tipo == 'espacio'
+        assert a.producto_id == IDS['producto']
+
+
+def test_areas_tipo_invalido_rechazado(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/areas/nueva',
+           data={'nombre': 'Mala', 'tipo': 'xxx'}, follow_redirects=True)
+    with app.app_context():
+        assert AreaLimpieza.query.filter_by(nombre='Mala').first() is None
+
+
+def test_areas_admin_edita(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    c.post(f'/registros/limpieza/areas/{IDS["area"]}/editar',
+           data={'nombre': 'Sierra (editada)', 'tipo': 'equipo',
+                 'producto_id': '', 'frecuencia_texto': 'Semanal'}, follow_redirects=True)
+    with app.app_context():
+        a = _db.session.get(AreaLimpieza, IDS['area'])
+        assert a.nombre == 'Sierra (editada)'
+        assert a.producto_id is None
+
+
+def test_areas_toggle(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    c.post(f'/registros/limpieza/areas/{IDS["area"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(AreaLimpieza, IDS['area']).activa is False
