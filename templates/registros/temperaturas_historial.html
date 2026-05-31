@@ -57,4 +57,18 @@
   </div>
 
 </div>
+<script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
+<script>
+  (function () {
+    var exportForm = document.getElementById('export-form');
+    if (!exportForm) return;
+    exportForm.addEventListener('submit', function (e) {
+      if (window.esDispositivoIOS && window.esDispositivoIOS()) {
+        e.preventDefault();
+        var fd = new FormData(exportForm);
+        window.compartirEtiquetaIOS(exportForm.action, fd, 'registro_temperaturas.pdf');
+      }
+    });
+  })();
+</script>
 {% endblock %}

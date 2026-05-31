@@ -182,3 +182,14 @@ def test_historial_lista_lecturas(app):
     body = resp.data.decode('utf-8')
     assert 'Congelación 1' in body
     assert '-20' in body
+
+
+def test_export_devuelve_pdf(app):
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '-20'}, follow_redirects=True)
+    resp = c.post('/registros/temperaturas/export',
+                  data={'fecha_inicio': '2000-01-01', 'fecha_fin': '2100-01-01'},
+                  follow_redirects=False)
+    assert resp.status_code == 200
+    assert 'application/pdf' in resp.headers.get('Content-Type', '')

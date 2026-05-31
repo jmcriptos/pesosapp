@@ -8806,12 +8806,64 @@ def temperaturas_historial():
                            filtros=request.args)
 
 
+def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
+    """Construye el PDF tabular del registro de temperaturas. Devuelve BytesIO."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                            leftMargin=0.4 * inch, rightMargin=0.4 * inch,
+                            topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    styles = getSampleStyleSheet()
+    cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
+    elements = [
+        Paragraph('Registro de temperaturas de cámaras', styles['Title']),
+        Paragraph(f'Período: {fecha_inicio or "—"} a {fecha_fin or "—"}', styles['Normal']),
+        Spacer(1, 10),
+    ]
+    encabezados = ['Fecha/Hora', 'Cámara', 'Tipo', 'Rango (°C)', 'Lectura (°C)',
+                   'En rango', 'Responsable', 'Acción correctiva']
+    data = [encabezados]
+    for l in lecturas:
+        data.append([
+            Paragraph(l.registrado_en.strftime('%Y-%m-%d %H:%M'), cell),
+            Paragraph(l.camara.nombre if l.camara else '—', cell),
+            Paragraph('Refrig.' if (l.camara and l.camara.tipo == 'refrigeracion') else 'Congel.', cell),
+            Paragraph(f'{l.camara.temp_min} a {l.camara.temp_max}' if l.camara else '—', cell),
+            Paragraph(str(l.temperatura), cell),
+            Paragraph('NO' if l.fuera_de_rango else 'Sí', cell),
+            Paragraph(l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '—', cell),
+            Paragraph(l.accion_correctiva or '', cell),
+        ])
+    tabla = Table(data, repeatRows=1)
+    estilo = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f2937')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ])
+    for i, l in enumerate(lecturas, start=1):
+        if l.fuera_de_rango:
+            estilo.add('BACKGROUND', (0, i), (-1, i), colors.HexColor('#fee2e2'))
+    tabla.setStyle(estilo)
+    elements.append(tabla)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
 @app.route('/registros/temperaturas/export', methods=['POST'])
 @login_required
 def temperaturas_export():
-    # Stub temporal: la implementación completa (PDF) llega en la siguiente tarea.
-    from flask import Response
-    return Response('pendiente', mimetype='text/plain')
+    lecturas = _filtrar_lecturas(request.form)
+    fi = request.form.get('fecha_inicio') or ''
+    ff = request.form.get('fecha_fin') or ''
+    buffer = _build_temperaturas_pdf(lecturas, fi, ff)
+    filename = f"registro_temperaturas_{fi or 'inicio'}_{ff or 'fin'}.pdf"
+    response = make_response(send_file(buffer, mimetype='application/pdf',
+                                       as_attachment=not _is_ios_request(),
+                                       download_name=filename))
+    response.headers['Content-Type'] = 'application/pdf'
+    return response
 
 
 if __name__ == '__main__':
