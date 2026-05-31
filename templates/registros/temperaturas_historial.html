@@ -48,6 +48,20 @@
     </div>
   </div>
 
+  {% if revision %}
+  <div class="reg-card is-ok">
+    <div class="reg-name"><i class="fas fa-clipboard-check"></i> Período verificado</div>
+    <div class="reg-sub">Revisado por <strong>{{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }}</strong> el {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+  </div>
+  {% endif %}
+  {% if puede_verificar %}
+  <form method="POST" action="{{ url_for('temperatura_revisar') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+    <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+    <button type="submit" class="reg-btn reg-btn-primary"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
+  </form>
+  {% endif %}
   <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-list"></i> Lecturas</h3>
   <div class="reg-list">
     {% for l in lecturas %}
@@ -55,7 +69,15 @@
       <div class="reg-row-main">
         <div class="reg-name">{{ l.camara.nombre }}</div>
         <div class="reg-sub">{{ l.registrado_en.strftime('%Y-%m-%d %H:%M') }}{% if l.registrado_por_vendedor %} · {{ l.registrado_por_vendedor.nombre_completo }}{% endif %}</div>
-        {% if l.accion_correctiva %}<div class="reg-accion"><i class="fas fa-wrench"></i> {{ l.accion_correctiva }}</div>{% endif %}
+        {% if l.accion_tomada or l.accion_disposicion or l.accion_causa or l.accion_correctiva %}
+        <div class="reg-accion"><i class="fas fa-wrench"></i>
+          {% if l.accion_causa %}<strong>Causa:</strong> {{ l.accion_causa }} · {% endif %}
+          {% if l.accion_tomada %}<strong>Acción:</strong> {{ l.accion_tomada }} · {% endif %}
+          {% if l.accion_responsable %}<strong>Resp.:</strong> {{ l.accion_responsable }} · {% endif %}
+          {% if l.accion_disposicion %}<strong>Disposición:</strong> {{ l.accion_disposicion }}{% endif %}
+          {% if not (l.accion_tomada or l.accion_disposicion or l.accion_causa) and l.accion_correctiva %}{{ l.accion_correctiva }}{% endif %}
+        </div>
+        {% endif %}
       </div>
       <div style="text-align:right;">
         <div class="reg-temp">{{ l.temperatura }}°C</div>

@@ -133,3 +133,25 @@ def test_en_rango_ignora_accion(app):
         lec = LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).first()
         assert lec is not None and lec.fuera_de_rango is False
         assert lec.accion_tomada is None
+
+
+def test_revisar_supervisor_crea_revision(app):
+    from app import RevisionRegistro
+    c = _login(app, 'super')
+    resp = c.post('/registros/temperaturas/revisar',
+                  data={'fecha_inicio': '2026-05-01', 'fecha_fin': '2026-05-31'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        assert RevisionRegistro.query.count() == 1
+
+
+def test_revisar_vendedor_bloqueado(app):
+    from app import RevisionRegistro
+    c = _login(app, 'vend')
+    resp = c.post('/registros/temperaturas/revisar',
+                  data={'fecha_inicio': '2026-05-01', 'fecha_fin': '2026-05-31'},
+                  follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert RevisionRegistro.query.count() == 0

@@ -8837,6 +8837,24 @@ def temperatura_registrar():
     return redirect(url_for('temperaturas_index'))
 
 
+def _revision_que_cubre(fi, ff):
+    """RevisionRegistro más reciente que cubre el período [fi, ff] ('YYYY-MM-DD').
+    Si no hay fechas, devuelve la más reciente. None si no existe ninguna."""
+    def _d(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+    d_fi, d_ff = _d(fi), _d(ff)
+    q = RevisionRegistro.query
+    if d_fi and d_ff:
+        q = q.filter(RevisionRegistro.periodo_desde.isnot(None),
+                     RevisionRegistro.periodo_hasta.isnot(None),
+                     RevisionRegistro.periodo_desde <= d_fi,
+                     RevisionRegistro.periodo_hasta >= d_ff)
+    return q.order_by(RevisionRegistro.revisado_en.desc()).first()
+
+
 def _filtrar_lecturas(args):
     """Aplica filtros opcionales (fecha_inicio, fecha_fin, camara_id) y
     devuelve las lecturas ordenadas por fecha desc. Acepta request.args o request.form."""
@@ -8867,9 +8885,31 @@ def _filtrar_lecturas(args):
 def temperaturas_historial():
     lecturas = _filtrar_lecturas(request.args)
     camaras = Camara.query.order_by(Camara.nombre).all()
+    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    revision = _revision_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     return render_template('registros/temperaturas_historial.html',
-                           lecturas=lecturas, camaras=camaras,
-                           filtros=request.args)
+                           lecturas=lecturas, camaras=camaras, filtros=request.args,
+                           puede_verificar=puede_verificar, revision=revision)
+
+
+@app.route('/registros/temperaturas/revisar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin', 'supervisor'])
+def temperatura_revisar():
+    fi = request.form.get('fecha_inicio') or None
+    ff = request.form.get('fecha_fin') or None
+    def _d(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+    db.session.add(RevisionRegistro(
+        revisado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+        periodo_desde=_d(fi), periodo_hasta=_d(ff),
+    ))
+    db.session.commit()
+    flash('Período marcado como revisado.', 'success')
+    return redirect(url_for('temperaturas_historial', fecha_inicio=fi or '', fecha_fin=ff or ''))
 
 
 def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
