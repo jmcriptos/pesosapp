@@ -55,11 +55,17 @@
 .reg-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; min-height: 38px;
-  border: 1px solid var(--color-border); border-radius: 10px;
-  background: var(--color-surface-muted); color: var(--color-text);
+  /* Fondo y borde derivados del color de texto del tema → contraste
+     garantizado en claro y oscuro (no dependemos de surface-muted, que no
+     se invierte en el tema oscuro). */
+  border: 1px solid color-mix(in srgb, var(--color-text) 24%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  color: var(--color-text);
   font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none;
-  transition: filter .15s ease, transform .1s ease;
+  transition: filter .15s ease, transform .1s ease, background .15s ease;
 }
+.reg-btn:hover { background: color-mix(in srgb, var(--color-text) 20%, transparent); }
 .reg-btn:hover  { filter: brightness(1.08); }
 .reg-btn:active { transform: scale(.98); }
 .reg-btn-primary { background: linear-gradient(135deg,#1877ff,#4dabf7); color:#fff; border-color: transparent; }

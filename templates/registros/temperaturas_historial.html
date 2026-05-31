@@ -73,7 +73,17 @@
   (function () {
     var exportForm = document.getElementById('export-form');
     if (!exportForm) return;
+    // Copiar los valores ACTUALES del formulario de filtros al export-form,
+    // para que el PDF use lo que el usuario ve aunque no haya pulsado "Filtrar".
+    function syncFiltros() {
+      ['fecha_inicio', 'fecha_fin', 'camara_id'].forEach(function (name) {
+        var visible = document.getElementById(name);
+        var hidden = exportForm.querySelector('[name="' + name + '"]');
+        if (visible && hidden) hidden.value = visible.value;
+      });
+    }
     exportForm.addEventListener('submit', function (e) {
+      syncFiltros();
       if (window.esDispositivoIOS && window.esDispositivoIOS()) {
         e.preventDefault();
         var fd = new FormData(exportForm);

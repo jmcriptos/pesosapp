@@ -206,3 +206,20 @@ def test_camaras_admin_edita(app):
         cam = _db.session.get(Camara, IDS['camara'])
         assert cam.nombre == 'Congelación 1 (editada)'
         assert cam.temp_max == Decimal('-20')
+
+
+def test_camaras_congelacion_debe_ser_bajo_cero(app):
+    from app import Camara
+    c = _login(app, 'admin')
+    # Congelación con rango positivo (15 a 18) debe rechazarse.
+    c.post('/registros/temperaturas/camaras/nueva',
+           data={'nombre': 'Congel Positiva', 'tipo': 'congelacion',
+                 'temp_min': '15', 'temp_max': '18'}, follow_redirects=True)
+    with app.app_context():
+        assert Camara.query.filter_by(nombre='Congel Positiva').first() is None
+    # Con rango bajo cero sí se crea.
+    c.post('/registros/temperaturas/camaras/nueva',
+           data={'nombre': 'Congel Buena', 'tipo': 'congelacion',
+                 'temp_min': '-25', 'temp_max': '-18'}, follow_redirects=True)
+    with app.app_context():
+        assert Camara.query.filter_by(nombre='Congel Buena').first() is not None

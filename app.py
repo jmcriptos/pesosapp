@@ -8668,6 +8668,9 @@ def _parse_rango_camara(form):
         return None, None, None, None, 'Temperaturas mínima y máxima deben ser números.'
     if temp_min > temp_max:
         return None, None, None, None, 'La temperatura mínima no puede ser mayor que la máxima.'
+    if tipo == 'congelacion' and temp_max >= 0:
+        return None, None, None, None, ('En cámaras de congelación las temperaturas deben ser '
+                                        'bajo cero (la máxima debe ser menor a 0°C).')
     return nombre, tipo, temp_min, temp_max, None
 
 
@@ -8821,13 +8824,39 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                             leftMargin=0.4 * inch, rightMargin=0.4 * inch,
                             topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    styles = getSampleStyleSheet()
     cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
-    elements = [
-        Paragraph('Registro de temperaturas de cámaras', styles['Title']),
-        Paragraph(f'Período: {fecha_inicio or "—"} a {fecha_fin or "—"}', styles['Normal']),
-        Spacer(1, 10),
+    empresa_style = ParagraphStyle(name='reg_empresa', fontSize=10, leading=13,
+                                   fontName='Helvetica-Bold', alignment=TA_LEFT,
+                                   textColor=colors.HexColor('#1877ff'))
+    titulo_style = ParagraphStyle(name='reg_titulo', fontSize=15, leading=18,
+                                  fontName='Helvetica-Bold', alignment=TA_LEFT)
+    sub_style = ParagraphStyle(name='reg_sub', fontSize=9, leading=12,
+                               alignment=TA_LEFT, textColor=colors.HexColor('#475569'))
+
+    if fecha_inicio or fecha_fin:
+        periodo = f'Período: {fecha_inicio or "inicio"} a {fecha_fin or "hoy"}'
+    else:
+        periodo = 'Período: todas las fechas'
+    generado = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%d %H:%M')
+
+    encabezado = [
+        Paragraph('Jomar Foods B.V.', empresa_style),
+        Paragraph('Registro de temperaturas de cámaras', titulo_style),
+        Paragraph(f'{periodo} &middot; Generado: {generado}', sub_style),
     ]
+    logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=52, height=52)
+        head_tbl = Table([[logo, encabezado]], colWidths=[64, None])
+        head_tbl.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        head_tbl.hAlign = 'LEFT'
+        elements = [head_tbl, Spacer(1, 14)]
+    else:
+        elements = encabezado + [Spacer(1, 14)]
     encabezados = ['Fecha/Hora', 'Cámara', 'Tipo', 'Rango (°C)', 'Lectura (°C)',
                    'En rango', 'Responsable', 'Acción correctiva']
     data = [encabezados]
@@ -8835,7 +8864,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
         data.append([
             Paragraph(l.registrado_en.strftime('%Y-%m-%d %H:%M'), cell),
             Paragraph(l.camara.nombre if l.camara else '—', cell),
-            Paragraph('Refrig.' if (l.camara and l.camara.tipo == 'refrigeracion') else 'Congel.', cell),
+            Paragraph('Refrigeración' if (l.camara and l.camara.tipo == 'refrigeracion') else 'Congelación', cell),
             Paragraph(f'{l.camara.temp_min} a {l.camara.temp_max}' if l.camara else '—', cell),
             Paragraph(str(l.temperatura), cell),
             Paragraph('NO' if l.fuera_de_rango else 'Sí', cell),
