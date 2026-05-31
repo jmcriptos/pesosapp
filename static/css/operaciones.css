@@ -69,6 +69,26 @@
   --accent-grad: linear-gradient(135deg, var(--emerald-500), var(--sky-500));
 }
 
+/* Los bottom-sheets se montan fuera de .ops-screen: necesitan su propio acento */
+.ops-sheet {
+  --accent: var(--color-primary);
+  --accent-soft: var(--color-primary-soft);
+  --accent-soft-fg: var(--color-primary-soft-fg);
+  --accent-grad: linear-gradient(135deg, var(--indigo-500), var(--violet-500));
+}
+.ops-sheet[data-accent="temp"] {
+  --accent: var(--sky-500);
+  --accent-soft: color-mix(in oklab, var(--sky-500) 14%, transparent);
+  --accent-soft-fg: var(--sky-600, var(--sky-500));
+  --accent-grad: linear-gradient(135deg, var(--sky-500), var(--indigo-500));
+}
+.ops-sheet[data-accent="clean"] {
+  --accent: var(--emerald-500);
+  --accent-soft: color-mix(in oklab, var(--emerald-500) 14%, transparent);
+  --accent-soft-fg: var(--emerald-600, var(--emerald-500));
+  --accent-grad: linear-gradient(135deg, var(--emerald-500), var(--sky-500));
+}
+
 /* ---- Hero ---- */
 .ops-hero { padding: 8px 4px 14px; }
 .ops-eyebrow {
@@ -670,6 +690,53 @@
 .ops-admin .ops-toggle.is-on { background: var(--color-success) !important; }
 .ops-admin .ops-perm { background: transparent !important; }
 .ops-admin .ops-perm.is-on { background: var(--pk) !important; }
+
+/* ============================================================
+   Contrast guard — estilos globales de .app-content ponen el
+   texto de los botones en blanco (teclado ilegible). Forzamos
+   aquí el color de texto correcto y un relleno legible en inputs.
+   ============================================================ */
+/* Texto oscuro en botones claros (teclado, pasos, ghost, fantasma) */
+.ops-screen .ops-key, .ops-sheet .ops-key,
+.ops-screen .ops-step, .ops-sheet .ops-step,
+.ops-screen .ops-btn-ghost, .ops-sheet .ops-btn-ghost, .ops-admin .ops-btn-ghost { color: var(--color-text) !important; }
+
+/* Texto atenuado en controles secundarios */
+.ops-screen .ops-back, .ops-screen .ops-firma-clear,
+.ops-screen .ops-sheet-close, .ops-sheet .ops-sheet-close, .ops-admin .ops-sheet-close { color: var(--color-text-muted) !important; }
+
+/* Segmented / chips: inactivo atenuado, activo oscuro */
+.ops-screen .ops-segmented button, .ops-sheet .ops-segmented button, .ops-admin .ops-chip { color: var(--color-text-muted) !important; }
+.ops-screen .ops-segmented button.is-active, .ops-sheet .ops-segmented button.is-active, .ops-admin .ops-chip.is-active { color: var(--color-text) !important; }
+
+/* Botones primarios siempre con texto blanco legible */
+.ops-screen .ops-btn, .ops-sheet .ops-btn, .ops-admin .ops-btn { color: #fff !important; }
+.ops-screen .ops-btn.ops-btn-ghost, .ops-sheet .ops-btn.ops-btn-ghost, .ops-admin .ops-btn.ops-btn-ghost { color: var(--color-text) !important; }
+/* El chip "Registrar" mantiene su color de acento */
+.ops-screen .ops-pill-register { color: var(--accent-soft-fg) !important; }
+
+/* Inputs: relleno sutil para distinguirlos de la tarjeta + texto oscuro.
+   Vence cualquier estilo global de <input> de forms.css / tema oscuro. */
+.ops-screen .ops-field input, .ops-screen .ops-field select, .ops-screen .ops-field textarea,
+.ops-sheet .ops-field input, .ops-sheet .ops-field select, .ops-sheet .ops-field textarea,
+.ops-admin .ops-field input, .ops-admin .ops-field select, .ops-admin .ops-field textarea,
+.ops-admin .ops-search input {
+  background: var(--color-surface-muted) !important;
+  color: var(--color-text) !important;
+  -webkit-text-fill-color: var(--color-text);
+  border-color: var(--color-border) !important;
+  color-scheme: light;
+}
+.ops-screen .ops-field input:focus, .ops-screen .ops-field select:focus, .ops-screen .ops-field textarea:focus,
+.ops-sheet .ops-field input:focus, .ops-sheet .ops-field select:focus, .ops-sheet .ops-field textarea:focus,
+.ops-admin .ops-field input:focus, .ops-admin .ops-field select:focus, .ops-admin .ops-field textarea:focus {
+  background: var(--color-bg-elevated) !important;
+  border-color: var(--accent, var(--color-primary)) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent, var(--color-primary)) 18%, transparent);
+}
+.ops-screen .ops-field ::placeholder, .ops-sheet .ops-field ::placeholder,
+.ops-admin .ops-field ::placeholder, .ops-admin .ops-search ::placeholder { color: var(--color-text-subtle); opacity: 1; }
+.ops-admin .ops-search input { background: transparent !important; }
 
 /* ============================================================
    Helpers para historiales y pantallas de gestión (registros)
