@@ -98,3 +98,44 @@ def test_cambiar_password_limpia_flag(app):
         v = _db.session.get(Vendedor, IDS['vend'])
         assert v.debe_cambiar_password is False
         assert v.check_password('NuevaClave9') is True
+
+
+def test_toggle_no_admin_bloqueado(app):
+    from app import Vendedor
+    c = _login(app, 'vend')
+    resp = c.post(f'/admin/vendedores/{IDS["admin"]}/toggle', follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['admin']).activo is True
+
+
+def test_toggle_activa_desactiva(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["vend"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['vend']).activo is False
+    c.post(f'/admin/vendedores/{IDS["vend"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['vend']).activo is True
+
+
+def test_toggle_no_auto_desactivar(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["admin"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['admin']).activo is True
+
+
+def test_toggle_no_desactivar_ultimo_superadmin(app):
+    from app import Vendedor
+    with app.app_context():
+        a2 = Vendedor(username='admin2', email='a2@t.com', nombre_completo='Admin2',
+                      rol_id=IDS['rol_admin'], territorio_id=IDS['terr'], activo=True)
+        a2.set_password('pw'); _db.session.add(a2); _db.session.commit()
+        IDS['admin2'] = a2.id
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["admin2"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['admin2']).activo is False

@@ -3997,6 +3997,28 @@ def actualizar_territorio_vendedor(v_id):
 
     return redirect(url_for('gestionar_vendedores'))
 
+
+@app.route('/admin/vendedores/<int:v_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def toggle_vendedor(v_id):
+    v = Vendedor.query.get_or_404(v_id)
+    if v.id == current_user.id:
+        flash('No podés desactivar tu propia cuenta.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if v.activo and _es_ultimo_super_admin(v):
+        flash('No se puede desactivar al único super_admin activo.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    try:
+        v.activo = not v.activo
+        db.session.commit()
+        flash(f"Usuario {'activado' if v.activo else 'desactivado'}.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al activar/desactivar vendedor {v_id}: {e}')
+        flash('Error al actualizar el usuario. Intente de nuevo.', 'danger')
+    return redirect(url_for('gestionar_vendedores'))
+
 # ===== WEBHOOKS Y INTEGRACIONES =====
 
 @app.route('/webhook/actualizacion-precios', methods=['POST'])
