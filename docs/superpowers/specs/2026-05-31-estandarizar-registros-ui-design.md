@@ -40,6 +40,13 @@ Ambas áreas comparten tokens y los campos de formulario (`.mobile-form-control`
   se mantiene compacto para la fila de navegación.
 - `.reg-pill` y títulos `.reg-name`: ajustes finos de armonización (sin cambios
   estructurales).
+- **Neutralizar el "recuadro" genérico de `<form>`**: `dark-theme.css`/`forms.css`/
+  `styles.min.css` estilan todo `<form>` con fondo + sombra + padding (creando una
+  doble-tarjeta dentro de las tarjetas de Registros). Detalle de Pedidos exime sus
+  formularios; replicamos con `.mobile-form-container.reg-wrap form { background:
+  transparent !important; box-shadow:none; padding:0; border:0; border-radius:0 }`
+  (especificidad suficiente para vencer a `[data-theme="dark"] form` y al
+  `@media(prefers-color-scheme:dark) form`). Descubierto en la verificación visual.
 
 ### B. Plantillas — botones de acción principal a `mobile-btn` (reutilizar, una sola fuente)
 Cambiar el botón primario compacto por el grande de Pedidos (misma clase global,

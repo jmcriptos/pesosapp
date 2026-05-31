@@ -3,6 +3,21 @@
 
 .reg-wrap { display: flex; flex-direction: column; gap: 14px; }
 
+/* Los <form> reciben un "recuadro" genérico (fondo + sombra + padding) desde
+   dark-theme.css y forms.css. Detalle de Pedidos neutraliza ese recuadro para
+   sus formularios; hacemos lo mismo aquí para que los formularios de Registros
+   se vean planos e integrados en la tarjeta, como en Detalle de Pedidos. */
+.reg-wrap form,
+.mobile-form-container.reg-wrap form,
+[data-theme="dark"] .reg-wrap form,
+.dark-mode .reg-wrap form {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
 /* Barra de acciones superior (Historial / Cámaras / Exportar) */
 .reg-toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -13,10 +28,11 @@
   position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg, 16px);
+  border-radius: var(--radius-xl, 20px);
   padding: 14px 16px 14px 20px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  /* Misma elevación que las tarjetas de Detalle de Pedidos (--shadow-card) */
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
 }
 .reg-card::before {
   content: "";
@@ -55,21 +71,19 @@
 .reg-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; min-height: 38px;
-  /* Fondo y borde derivados del color de texto del tema → contraste
-     garantizado en claro y oscuro (no dependemos de surface-muted, que no
-     se invierte en el tema oscuro). */
-  border: 1px solid color-mix(in srgb, var(--color-text) 24%, transparent);
+  /* Botón secundario consistente con Detalle de Pedidos (.mobile-btn-secondary):
+     superficie elevada + borde sutil + sombra leve. */
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  background: var(--color-bg-elevated, var(--color-surface));
   color: var(--color-text);
   font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none;
+  box-shadow: var(--shadow-sm);
   transition: filter .15s ease, transform .1s ease, background .15s ease;
 }
-.reg-btn:hover { background: color-mix(in srgb, var(--color-text) 20%, transparent); }
-.reg-btn:hover  { filter: brightness(1.08); }
+.reg-btn:hover  { filter: brightness(1.04); }
 .reg-btn:active { transform: scale(.98); }
-.reg-btn-primary { background: linear-gradient(135deg,#1877ff,#4dabf7); color:#fff; border-color: transparent; }
-.reg-btn-success { background: linear-gradient(135deg,#28a745,#20c997); color:#fff; border-color: transparent; }
+/* Acción destructiva compacta (p. ej. dentro de listas) */
 .reg-btn-danger  { background: var(--color-danger-soft); color: var(--color-danger-soft-fg); border-color: transparent; }
 
 /* Formulario de edición colapsable dentro de la tarjeta */
@@ -96,8 +110,9 @@
   padding: 12px 14px 12px 18px;
   background: var(--color-surface);
   border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-lg, 16px);
   overflow: hidden;
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
 }
 .reg-row::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
