@@ -455,11 +455,11 @@ def _is_safe_next(target: str) -> bool:
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Si ya está autenticado, respeta 'next' y si no, al dashboard
+    # Si ya está autenticado, respeta 'next' y si no, a la página de inicio (pedidos)
     if current_user.is_authenticated:
         next_url = request.args.get('next')
         if not _is_safe_next(next_url):
-            next_url = url_for('dashboard')
+            next_url = url_for('index')
         return redirect(next_url)
 
     if request.method == 'POST':
@@ -483,7 +483,7 @@ def login():
             login_user(vendedor, remember=remember_me)
             flash(f"¡Bienvenido, {vendedor.nombre_completo}!", "success")
             if not _is_safe_next(next_url):
-                next_url = url_for('dashboard')
+                next_url = url_for('index')
             return redirect(next_url)
 
         # 2) Fallback legacy (usuario por defecto) - SOLO si está explícitamente habilitado
@@ -493,7 +493,7 @@ def login():
             app.logger.warning(f"Legacy user login from IP: {request.remote_addr}")
             flash("Inicio de sesión exitoso (modo compatibilidad). Se recomienda migrar a un usuario Vendedor.", "warning")
             if not _is_safe_next(next_url):
-                next_url = url_for('dashboard')
+                next_url = url_for('index')
             return redirect(next_url)
 
         # 3) Credenciales inválidas
@@ -3011,7 +3011,12 @@ def obtener_ip_servidor():
 @app.route('/')
 @login_required
 def index():
-    return redirect(url_for('dashboard'))
+    # Página de inicio tras login: listado de pedidos.
+    # Si el usuario no tiene permiso para ver pedidos, cae al dashboard
+    # (evita un bucle de redirección con el decorador de lista_pedidos).
+    if isinstance(current_user, Vendedor) and not current_user.tiene_permiso('pedidos', 'leer'):
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('lista_pedidos'))
 
 
 @app.route('/home')
