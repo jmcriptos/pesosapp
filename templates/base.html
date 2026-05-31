@@ -106,7 +106,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/registros_light.css') }}">
     {% endif %}
 </head>
-<body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% if request.path.startswith('/registros') %} data-registros-screen="1"{% endif %}{% endblock %}>
+<body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% if request.path.startswith('/registros') %} data-registros-screen="1" data-ops-shell="1"{% elif request.path.startswith('/admin/vendedores') %} data-ops-shell="1"{% endif %}{% endblock %}>
 <div class="app-loading-bar" id="appLoadingBar" aria-hidden="true"></div>
 <script>
   /* Barra de progreso de navegación (estilo NProgress). Inline para pintar

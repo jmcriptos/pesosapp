@@ -14,6 +14,10 @@
 {% set rol_colors = {'super_admin': '#8b5cf6', 'supervisor': '#6366f1', 'vendedor': '#0ea5e9', 'preparador': '#10b981'} %}
 {% set acc_colors = {'leer': '#0ea5e9', 'crear': '#10b981', 'editar': '#f59e0b', 'eliminar': '#f43f5e'} %}
 {% set acc_letras = {'leer': 'L', 'crear': 'C', 'editar': 'E', 'eliminar': 'D'} %}
+{% set acc_labels = {'leer': 'Ver', 'crear': 'Crear', 'editar': 'Editar', 'eliminar': 'Eliminar'} %}
+{% set acc_icons = {'leer': 'fa-eye', 'crear': 'fa-plus', 'editar': 'fa-pen', 'eliminar': 'fa-trash-can'} %}
+{% set rec_labels = {'productos': 'Productos', 'clientes': 'Clientes', 'pedidos': 'Pedidos', 'precios': 'Precios', 'registros': 'Registros HACCP'} %}
+{% set rec_icons = {'productos': 'fa-boxes-stacked', 'clientes': 'fa-users', 'pedidos': 'fa-clipboard-list', 'precios': 'fa-tags', 'registros': 'fa-clipboard-check'} %}
 {% set activos = vendedores|selectattr('activo')|list|length %}
 
 {% block content %}
@@ -31,7 +35,7 @@
     <div class="ops-admin-navlabel">Gestión</div>
     <nav class="ops-admin-nav">
       <a href="#" class="is-active" data-tab="usuarios"><i class="fas fa-users"></i> Usuarios</a>
-      <a href="#" data-tab="roles"><i class="fas fa-shield-halved"></i> Roles</a>
+      <a href="#" data-tab="roles"><i class="fas fa-user-shield"></i> Roles</a>
       <a href="#" data-tab="permisos"><i class="fas fa-table-cells"></i> Permisos</a>
       <a href="#" data-tab="auditoria"><i class="fas fa-clock-rotate-left"></i> Auditoría</a>
     </nav>
@@ -131,7 +135,7 @@
           {% set cuenta = vendedores|selectattr('rol_id','equalto',r.id)|list|length %}
           <div class="ops-role-card">
             <div class="ops-role-top">
-              <span class="ops-role-icon" style="--rol-c:{{ rc }}"><i class="fas fa-shield-halved"></i></span>
+              <span class="ops-role-icon" style="--rol-c:{{ rc }}"><i class="fas fa-user-shield"></i></span>
               <span class="ops-role-level">Nivel {{ r.nivel_jerarquia }}</span>
             </div>
             <div class="ops-role-name">{{ r.nombre|replace('_',' ')|title }}</div>
@@ -147,17 +151,35 @@
 
       <!-- ===== PERMISOS ===== -->
       <section class="ops-tabpanel" data-panel="permisos" hidden>
-        <form method="POST" action="{{ url_for('gestionar_permisos') }}">
+        <form method="POST" action="{{ url_for('gestionar_permisos') }}" class="ops-permissions">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="ops-matrix-wrap">
-            <div class="ops-matrix-legend">
-              <span style="font-weight:700;color:var(--color-text)">Leyenda:</span>
+
+          <div class="ops-perm-summary">
+            <div class="ops-perm-summary-main">
+              <span class="ops-perm-summary-icon"><i class="fas fa-key"></i></span>
+              <div>
+                <div class="ops-perm-eyebrow">Control de acceso</div>
+                <div class="ops-perm-title">{{ recursos|length }} recursos operativos</div>
+                <div class="ops-perm-sub">{{ roles_matriz|length }} roles editables · Super Admin mantiene acceso total</div>
+              </div>
+            </div>
+            <div class="ops-perm-legend" aria-label="Tipos de permiso">
               {% for acc in acciones %}
-              <span style="display:inline-flex;align-items:center;gap:5px">
-                <span class="ops-legend-key" style="--lk:{{ acc_colors[acc] }}">{{ acc_letras[acc] }}</span>{{ acc|title }}
+              <span class="ops-perm-legend-item" style="--pa:{{ acc_colors[acc] }}">
+                <span class="ops-legend-key" style="--lk:{{ acc_colors[acc] }}"><i class="fas {{ acc_icons[acc] }}"></i></span>
+                <span>{{ acc_labels[acc] }}</span>
               </span>
               {% endfor %}
-              <span style="margin-left:auto;font-style:italic">Toca una celda para alternar · super_admin tiene acceso total</span>
+            </div>
+          </div>
+
+          <div class="ops-matrix-wrap ops-permissions-panel">
+            <div class="ops-matrix-toolbar">
+              <div>
+                <div class="ops-matrix-title">Matriz por recurso</div>
+                <div class="ops-matrix-sub">Roles operativos</div>
+              </div>
+              <button type="submit" class="ops-btn ops-btn-compact"><i class="fas fa-check"></i> Guardar cambios</button>
             </div>
             <div class="ops-matrix-scroll">
               <table class="ops-matrix">
@@ -173,13 +195,23 @@
                 <tbody>
                   {% for rec in recursos %}
                   <tr>
-                    <td class="ops-matrix-rec">{{ rec }}</td>
+                    <td class="ops-matrix-rec">
+                      <span class="ops-resource-cell">
+                        <span class="ops-resource-token"><i class="fas {{ rec_icons.get(rec, 'fa-folder') }}"></i></span>
+                        <span class="ops-resource-copy">
+                          <span class="ops-resource-name">{{ rec_labels.get(rec, rec|replace('_',' ')|title) }}</span>
+                          <span class="ops-resource-meta">Recurso</span>
+                        </span>
+                      </span>
+                    </td>
                     {% for rol in roles_matriz %}
                     <td>
                       <div class="ops-perm-group">
                         {% for acc in acciones %}
-                        <label class="ops-perm js-perm {{ 'is-on' if matriz[rol.id][rec][acc] }}" style="--pk:{{ acc_colors[acc] }}" title="{{ acc|title }}">
-                          <input type="checkbox" name="perm_{{ rol.id }}_{{ rec }}_{{ acc }}" {{ 'checked' if matriz[rol.id][rec][acc] }}>{{ acc_letras[acc] }}
+                        <label class="ops-perm js-perm {{ 'is-on' if matriz[rol.id][rec][acc] }}" style="--pk:{{ acc_colors[acc] }}" title="{{ acc_labels[acc] }}" aria-label="{{ acc_labels[acc] }} {{ rec_labels.get(rec, rec) }} para {{ rol.nombre|replace('_',' ')|title }}">
+                          <input type="checkbox" name="perm_{{ rol.id }}_{{ rec }}_{{ acc }}" {{ 'checked' if matriz[rol.id][rec][acc] }}>
+                          <span class="ops-perm-mark"><i class="fas {{ acc_icons[acc] }}"></i></span>
+                          <span class="ops-perm-label">{{ acc_labels[acc] }}</span>
                         </label>
                         {% endfor %}
                       </div>
@@ -190,9 +222,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-          <div style="margin-top:16px;display:flex;justify-content:flex-end">
-            <button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar cambios</button>
           </div>
         </form>
       </section>

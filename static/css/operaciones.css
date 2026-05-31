@@ -602,33 +602,91 @@
 .ops-role-foot { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-subtle); }
 
 /* matriz permisos */
-.ops-matrix-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; overflow: hidden; }
-.ops-matrix-legend {
-  padding: 12px 18px; border-bottom: 1px solid var(--color-border);
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--color-text-muted);
+.ops-permissions { display: grid; gap: 14px; }
+.ops-perm-summary {
+  display: grid; grid-template-columns: minmax(280px, 1fr) auto; gap: 14px; align-items: stretch;
+}
+.ops-perm-summary-main,
+.ops-perm-legend {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 16px; box-shadow: var(--shadow-sm);
+}
+.ops-perm-summary-main { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+.ops-perm-summary-icon {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  color: var(--color-primary-soft-fg); background: var(--color-primary-soft); font-size: 18px; flex-shrink: 0;
+}
+.ops-perm-eyebrow {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-subtle);
+}
+.ops-perm-title { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; }
+.ops-perm-sub { font-size: 12.5px; color: var(--color-text-muted); margin-top: 3px; }
+.ops-perm-legend {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 14px;
+}
+.ops-perm-legend-item {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 6px 10px;
+  border: 1px solid color-mix(in oklab, var(--pa) 20%, transparent); border-radius: 999px;
+  color: color-mix(in oklab, var(--pa) 70%, #0f172a); background: color-mix(in oklab, var(--pa) 9%, #fff);
+  font-size: 12px; font-weight: 750;
 }
 .ops-legend-key {
-  width: 18px; height: 18px; border-radius: 5px; display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 999px; display: inline-grid; place-items: center;
   font-size: 10px; font-weight: 800; text-transform: uppercase;
-  color: var(--lk); background: color-mix(in oklab, var(--lk) 18%, transparent);
+  color: var(--lk); background: color-mix(in oklab, var(--lk) 16%, transparent);
 }
+.ops-matrix-wrap {
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px;
+  overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.ops-matrix-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 16px 18px; border-bottom: 1px solid var(--color-border);
+}
+.ops-matrix-title { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.ops-matrix-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.ops-btn-compact { min-height: 38px; padding: 0 14px !important; font-size: 13px !important; }
 .ops-matrix-scroll { overflow-x: auto; }
-.ops-matrix { width: 100%; border-collapse: collapse; min-width: 640px; }
+.ops-matrix { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 860px; }
 .ops-matrix th {
-  padding: 12px 14px; background: var(--color-surface-muted); font-size: 11px; font-weight: 700;
-  color: var(--color-text-subtle); text-align: center;
+  padding: 13px 16px; background: var(--color-surface-muted); font-size: 11px; font-weight: 800;
+  color: var(--color-text-subtle); text-align: center; text-transform: uppercase; letter-spacing: .06em;
+  border-bottom: 1px solid var(--color-border);
 }
-.ops-matrix th.ops-matrix-rowhead { text-align: left; text-transform: uppercase; letter-spacing: .05em; }
-.ops-matrix td { padding: 9px 14px; border-top: 1px solid var(--color-border-subtle); text-align: center; }
-.ops-matrix td.ops-matrix-rec { text-align: left; font-size: 13px; font-weight: 600; text-transform: capitalize; }
-.ops-perm-group { display: inline-flex; gap: 4px; }
+.ops-matrix th.ops-matrix-rowhead {
+  position: sticky; left: 0; z-index: 2; text-align: left; min-width: 210px;
+}
+.ops-matrix td {
+  padding: 13px 16px; border-top: 1px solid var(--color-border-subtle); text-align: center; vertical-align: middle;
+}
+.ops-matrix tbody tr:first-child td { border-top: 0; }
+.ops-matrix tbody tr:hover td { background: color-mix(in oklab, var(--color-primary) 3%, #fff); }
+.ops-matrix td.ops-matrix-rec {
+  position: sticky; left: 0; z-index: 1; background: var(--color-surface);
+  text-align: left; font-size: 13px; font-weight: 700; text-transform: none; min-width: 210px;
+}
+.ops-resource-cell {
+  display: flex; align-items: center; gap: 11px; min-width: 0;
+}
+.ops-resource-token {
+  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+  color: var(--color-primary-soft-fg); background: var(--color-primary-soft); flex-shrink: 0;
+}
+.ops-resource-copy { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ops-resource-name { color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ops-resource-meta { font-size: 11px; color: var(--color-text-subtle); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.ops-perm-group { display: inline-grid; grid-template-columns: repeat(4, minmax(78px, 1fr)); gap: 7px; }
 .ops-perm {
-  width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-family: inherit;
-  font-size: 10px; font-weight: 800; text-transform: uppercase;
-  border: 1px solid var(--color-border); background: transparent; color: var(--color-text-subtle);
-  opacity: .55; transition: all .12s;
+  min-width: 78px; height: 36px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  font-size: 11.5px; font-weight: 800; border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated); color: var(--color-text-muted); opacity: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: transform .12s, color .12s, border-color .12s, background .12s;
 }
-.ops-perm.is-on { border-color: transparent; color: #fff; opacity: 1; background: var(--pk); }
+.ops-perm:hover { transform: translateY(-1px); border-color: color-mix(in oklab, var(--pk) 35%, var(--color-border)); }
+.ops-perm.is-on { border-color: transparent; color: #fff; background: var(--pk); box-shadow: 0 6px 14px -9px var(--pk); }
+.ops-perm-mark { font-size: 10px; display: inline-grid; place-items: center; }
+.ops-perm-label { line-height: 1; }
 .ops-perm input { display: none; }
 
 /* auditoría */
@@ -709,7 +767,7 @@
 
 .ops-admin .ops-toggle { background: var(--color-border-strong) !important; }
 .ops-admin .ops-toggle.is-on { background: var(--color-success) !important; }
-.ops-admin .ops-perm { background: transparent !important; }
+.ops-admin .ops-perm { background: var(--color-bg-elevated) !important; }
 .ops-admin .ops-perm.is-on { background: var(--pk) !important; }
 
 /* ============================================================
@@ -760,6 +818,127 @@
 .ops-admin .ops-search input { background: transparent !important; }
 
 /* ============================================================
+   Full-screen operations shell
+   ============================================================ */
+body[data-ops-shell="1"] {
+  background: #f6f7fb !important;
+}
+body[data-ops-shell="1"] .app-topbar,
+body[data-ops-shell="1"] .drawer-overlay,
+body[data-ops-shell="1"] .drawer,
+body[data-ops-shell="1"] .app-footer,
+body[data-ops-shell="1"] .mobile-nav,
+body[data-ops-shell="1"] .tabbar {
+  display: none !important;
+}
+body[data-ops-shell="1"] .app-container {
+  min-height: 100vh;
+  background: #f6f7fb !important;
+}
+body[data-ops-shell="1"] .app-content {
+  min-height: 100vh;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #f6f7fb !important;
+  color: var(--color-text, #0f172a) !important;
+}
+body[data-ops-shell="1"] .ops-admin {
+  min-height: 100vh;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+body[data-ops-shell="1"] .ops-admin-main {
+  background: var(--color-bg);
+}
+body[data-ops-shell="1"] .ops-admin-header {
+  background: var(--color-bg-elevated);
+}
+
+/* Legacy global CSS styles every form/input/button in dark mode. Operations
+   owns its own light shell, so neutralize those inherited wrappers here. */
+body[data-ops-shell="1"] .ops-admin form,
+body[data-ops-shell="1"] .ops-screen form,
+body[data-ops-shell="1"] .ops-sheet form {
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+}
+body[data-ops-shell="1"] .ops-admin .hist-bar {
+  width: 100%;
+  max-width: none;
+}
+body[data-ops-shell="1"] .ops-admin .ops-search input,
+body[data-ops-shell="1"] .ops-admin .hist-pill input[type="date"],
+body[data-ops-shell="1"] .ops-admin .hist-pill select {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-text) !important;
+  -webkit-text-fill-color: var(--color-text) !important;
+}
+body[data-ops-shell="1"] .ops-admin .ops-chips button.ops-chip {
+  padding: 9px 14px !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-text-muted) !important;
+  font-size: 13px !important;
+}
+body[data-ops-shell="1"] .ops-admin .ops-chips button.ops-chip:hover {
+  background: var(--color-surface-muted) !important;
+  background-color: var(--color-surface-muted) !important;
+  color: var(--color-text) !important;
+}
+body[data-ops-shell="1"] .ops-admin .ops-chips button.ops-chip.is-active {
+  background: var(--color-bg-elevated) !important;
+  background-color: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15,23,42,.10)) !important;
+  color: var(--color-text) !important;
+}
+@media (max-width: 720px) {
+  body[data-ops-shell="1"] .ops-admin {
+    align-content: start;
+    grid-auto-rows: max-content;
+  }
+  body[data-ops-shell="1"] .ops-admin-aside {
+    align-items: flex-start;
+    min-height: 0;
+  }
+  body[data-ops-shell="1"] .ops-admin-main {
+    min-height: calc(100vh - 60px);
+  }
+  body[data-ops-shell="1"] .ops-perm-summary {
+    grid-template-columns: 1fr;
+  }
+  body[data-ops-shell="1"] .ops-perm-legend {
+    justify-content: flex-start;
+  }
+  body[data-ops-shell="1"] .ops-matrix-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  body[data-ops-shell="1"] .ops-btn-compact {
+    width: 100%;
+  }
+}
+
+/* ============================================================
    Formularios en mobile — historiales y configuración:
    apilar en una columna, campos y botones cómodos al tacto,
    16px para evitar el zoom automático de iOS al enfocar.
@@ -790,8 +969,24 @@
 
 /* Toggle de estado: pastilla limpia, sin marco oscuro */
 .ops-admin .ops-toggle {
-  border: none !important; padding: 0 !important;
+  width: 52px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 0 !important;
   -webkit-appearance: none; appearance: none;
+  overflow: hidden;
+}
+.ops-admin .ops-toggle::after {
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.ops-admin .ops-toggle.is-on::after {
+  left: 25px;
 }
 .ops-admin .ops-cell-right form { background: transparent !important; border: none !important; box-shadow: none !important; }
 
@@ -800,7 +995,7 @@
 .ops-screen .ops-step, .ops-sheet .ops-step,
 .ops-screen .ops-btn-ghost, .ops-sheet .ops-btn-ghost, .ops-admin .ops-btn-ghost,
 .ops-screen .ops-back, .ops-screen .ops-sheet-close, .ops-sheet .ops-sheet-close, .ops-admin .ops-sheet-close { border: 1px solid var(--color-border) !important; }
-.ops-admin .ops-perm { border: 1px solid var(--color-border) !important; }
+.ops-admin .ops-perm { border-color: var(--color-border) !important; }
 .ops-admin .ops-perm.is-on { border-color: transparent !important; }
 .ops-admin .ops-chip.is-active { box-shadow: var(--shadow-sm, 0 1px 3px rgba(15,23,42,.10)) !important; border: 1px solid var(--color-border) !important; }
 .ops-screen .ops-segmented button.is-active, .ops-sheet .ops-segmented button.is-active { box-shadow: var(--shadow-sm, 0 1px 2px rgba(15,23,42,.08)) !important; }
@@ -1057,6 +1252,87 @@
 .ops-hrow-note {
   font-size: 11.5px; color: var(--color-text-muted); margin-top: 6px; line-height: 1.4;
   background: var(--color-surface-muted); border-radius: 10px; padding: 8px 10px;
+}
+
+/* Last-mile guard for legacy dark-mode selectors emitted by styles.min.css. */
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-matrix-toolbar,
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-matrix-wrap {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-matrix th {
+  background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
+  border-color: #e5e9f0 !important;
+  color: #64748b !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-matrix td {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #eef1f6 !important;
+  color: #0f172a !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-matrix tbody tr:hover td {
+  background: #fbfdff !important;
+  background-color: #fbfdff !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-resource-name {
+  color: #0f172a !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-resource-meta {
+  color: #94a3b8 !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-perm {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-width: 78px !important;
+  height: 36px !important;
+  padding: 0 10px !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #e5e9f0 !important;
+  color: #475569 !important;
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-perm.is-on {
+  background: var(--pk) !important;
+  background-color: var(--pk) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-perm-mark,
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-perm-label {
+  color: inherit !important;
+  font-size: inherit !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin form.hist-bar label.hist-pill input[type="date"],
+html body[data-ops-shell="1"] .app-content .ops-admin form.hist-bar label.hist-pill select,
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-search input[type="text"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  color-scheme: light !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-chips button.ops-chip:not(.is-active) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  color: #475569 !important;
+  padding: 9px 14px !important;
+}
+html body[data-ops-shell="1"] .app-content .ops-admin .ops-chips button.ops-chip.is-active {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e5e9f0 !important;
+  color: #0f172a !important;
 }
 .ops-hrow-note i { color: var(--color-text-subtle); }
 .ops-hrow-right { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
