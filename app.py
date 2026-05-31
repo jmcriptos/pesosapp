@@ -280,7 +280,9 @@ class Vendedor(db.Model, UserMixin):
     activo = db.Column(db.Boolean, default=True)
     ultimo_login = db.Column(db.DateTime)
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    debe_cambiar_password = db.Column(db.Boolean, nullable=False, default=False,
+                                      server_default=db.false())
+
     # Relaciones
     supervisor = db.relationship('Vendedor', remote_side=[id], backref='subordinados')
     clientes_asignados = db.relationship('ClienteVendedor', back_populates='vendedor', 
@@ -538,6 +540,7 @@ def cambiar_password():
             return render_template('cambiar_password.html')
 
         current_user.set_password(nueva)
+        current_user.debe_cambiar_password = False
         db.session.commit()
         app.logger.info(
             f'Contraseña cambiada para usuario {current_user.username} (id={current_user.id})'
@@ -558,7 +561,20 @@ def require_login():
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
-        
+
+@app.before_request
+def forzar_cambio_password():
+    """Si el usuario tiene una contraseña temporal pendiente, lo obliga a cambiarla."""
+    if not current_user.is_authenticated or not isinstance(current_user, Vendedor):
+        return
+    if not getattr(current_user, 'debe_cambiar_password', False):
+        return
+    ep = request.endpoint or ''
+    if ep in ('cambiar_password', 'logout', 'login', 'csrf_ping') or ep.startswith('static'):
+        return
+    flash('Debes establecer una nueva contraseña para continuar.', 'warning')
+    return redirect(url_for('cambiar_password'))
+
 def log_vendedor_action():
     """Registra las acciones de los vendedores para auditoría"""
     if request.method in ['POST', 'PUT', 'DELETE'] and current_user.is_authenticated:
@@ -3115,6 +3131,20 @@ def home():
     return redirect(url_for('index'))
 
 
+def _es_ultimo_super_admin(vendedor):
+    """True si 'vendedor' es super_admin activo y es el único super_admin activo."""
+    if not vendedor.rol or vendedor.rol.nombre != 'super_admin' or not vendedor.activo:
+        return False
+    activos = (Vendedor.query.join(Rol)
+               .filter(Rol.nombre == 'super_admin', Vendedor.activo.is_(True)).count())
+    return activos <= 1
+
+
+def _generar_password_temporal():
+    """Genera una contraseña temporal legible y aleatoria."""
+    return secrets.token_urlsafe(8)
+
+
 @app.route('/admin/vendedores')
 @login_required
 @requiere_rol(['super_admin'])
@@ -3229,7 +3259,8 @@ def crear_vendedor():
                 rol_id=int(rol_id),
                 territorio_id=int(territorio_id) if territorio_id else None,
                 fecha_ingreso=date.today(),
-                activo=True
+                activo=True,
+                debe_cambiar_password=True
             )
             
             # Establecer password hasheado
@@ -3965,6 +3996,96 @@ def actualizar_territorio_vendedor(v_id):
         app.logger.error(f'Error al actualizar territorio del vendedor: {e}')
         flash('Error al actualizar territorio. Intente de nuevo.', 'danger')
 
+    return redirect(url_for('gestionar_vendedores'))
+
+
+@app.route('/admin/vendedores/<int:v_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def toggle_vendedor(v_id):
+    v = Vendedor.query.get_or_404(v_id)
+    if v.id == current_user.id:
+        flash('No podés desactivar tu propia cuenta.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if v.activo and _es_ultimo_super_admin(v):
+        flash('No se puede desactivar al único super_admin activo.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    try:
+        v.activo = not v.activo
+        db.session.commit()
+        flash(f"Usuario {'activado' if v.activo else 'desactivado'}.", 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al activar/desactivar vendedor {v_id}: {e}')
+        flash('Error al actualizar el usuario. Intente de nuevo.', 'danger')
+    return redirect(url_for('gestionar_vendedores'))
+
+
+@app.route('/admin/vendedores/<int:v_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def editar_vendedor(v_id):
+    v = Vendedor.query.get_or_404(v_id)
+    nombre = (request.form.get('nombre_completo') or '').strip()
+    email = (request.form.get('email') or '').strip()
+    telefono = (request.form.get('telefono') or '').strip() or None
+    rol_id = request.form.get('rol_id', type=int)
+    territorio_id = request.form.get('territorio_id', type=int) or None
+
+    if not nombre or not email:
+        flash('Nombre y email son obligatorios.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    rol = db.session.get(Rol, rol_id) if rol_id else None
+    if rol is None:
+        flash('El rol seleccionado no es válido.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if territorio_id and db.session.get(Territorio, territorio_id) is None:
+        flash('El territorio seleccionado no es válido.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    otro = Vendedor.query.filter(Vendedor.email == email, Vendedor.id != v.id).first()
+    if otro:
+        flash('Ese email ya está en uso por otro usuario.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if rol.nombre != 'super_admin' and _es_ultimo_super_admin(v):
+        flash('No se puede quitar el rol super_admin al único administrador activo.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+
+    try:
+        v.nombre_completo = nombre
+        v.email = email
+        v.telefono = telefono
+        v.rol_id = rol.id
+        v.territorio_id = territorio_id
+        db.session.commit()
+        flash('Usuario actualizado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al editar vendedor {v_id}: {e}')
+        flash('Error al actualizar el usuario. Intente de nuevo.', 'danger')
+    return redirect(url_for('gestionar_vendedores'))
+
+
+@app.route('/admin/vendedores/<int:v_id>/reset-password', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def reset_password_vendedor(v_id):
+    v = Vendedor.query.get_or_404(v_id)
+    temp = (request.form.get('password_temporal') or '').strip()
+    if temp and len(temp) < 8:
+        flash('La contraseña temporal debe tener al menos 8 caracteres.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if not temp:
+        temp = _generar_password_temporal()
+    try:
+        v.set_password(temp)
+        v.debe_cambiar_password = True
+        db.session.commit()
+        flash(f'Contraseña temporal de {v.nombre_completo}: {temp} — comunicásela; '
+              f'deberá cambiarla al ingresar.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al resetear contraseña de vendedor {v_id}: {e}')
+        flash('Error al restablecer la contraseña. Intente de nuevo.', 'danger')
     return redirect(url_for('gestionar_vendedores'))
 
 # ===== WEBHOOKS Y INTEGRACIONES =====

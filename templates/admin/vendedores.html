@@ -134,24 +134,72 @@
                     </button>
                 </form>
 
+                <!-- Estado de contraseña -->
+                {% if v.debe_cambiar_password %}
+                <div class="pwd-pending"><i class="fas fa-key"></i> Debe cambiar contraseña</div>
+                {% endif %}
+
                 <!-- Acciones -->
                 <footer class="vendedor-actions">
-                    {% if v.activo %}
-                        <button class="btn-warning-sm"
-                                data-action="toggle-vendedor" data-id="{{ v.id }}" data-enabled="false">
-                            <i class="fas fa-pause"></i> Desactivar
-                        </button>
-                    {% else %}
-                        <button class="btn-success-sm"
-                                data-action="toggle-vendedor" data-id="{{ v.id }}" data-enabled="true">
-                            <i class="fas fa-play"></i> Activar
-                        </button>
-                    {% endif %}
-                    <button class="btn-secondary-sm"
-                            data-action="editar-vendedor" data-id="{{ v.id }}">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
+                    <form method="POST" action="{{ url_for('toggle_vendedor', v_id=v.id) }}"
+                          onsubmit="return confirm('¿Seguro que querés {{ 'desactivar' if v.activo else 'activar' }} este usuario?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% if v.activo %}
+                        <button class="btn-warning-sm"><i class="fas fa-pause"></i> Desactivar</button>
+                        {% else %}
+                        <button class="btn-success-sm"><i class="fas fa-play"></i> Activar</button>
+                        {% endif %}
+                    </form>
                 </footer>
+
+                <details class="vendedor-extra">
+                    <summary><i class="fas fa-edit"></i> Editar</summary>
+                    <form method="POST" action="{{ url_for('editar_vendedor', v_id=v.id) }}" class="extra-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label>Nombre completo
+                            <input name="nombre_completo" value="{{ v.nombre_completo }}" required>
+                        </label>
+                        <label>Email
+                            <input type="email" name="email" value="{{ v.email }}" required>
+                        </label>
+                        <label>Teléfono
+                            <input name="telefono" value="{{ v.telefono or '' }}">
+                        </label>
+                        <label>Rol
+                            <select name="rol_id" required>
+                                {% for rol in roles %}
+                                <option value="{{ rol.id }}" {{ 'selected' if v.rol_id == rol.id }}>{{ rol.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>Territorio
+                            <select name="territorio_id">
+                                <option value="">– Sin territorio –</option>
+                                {% for t in territorios %}
+                                <option value="{{ t.id }}" {{ 'selected' if v.territorio_id == t.id }}>{{ t.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <button class="btn-secondary-sm"><i class="fas fa-save"></i> Guardar cambios</button>
+                    </form>
+                </details>
+
+                <details class="vendedor-extra">
+                    <summary><i class="fas fa-key"></i> Restablecer contraseña</summary>
+                    <form method="POST" action="{{ url_for('reset_password_vendedor', v_id=v.id) }}" class="extra-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label>Contraseña temporal (en blanco = generar)
+                            <input name="password_temporal" id="temp_{{ v.id }}" placeholder="(se genera automáticamente)">
+                        </label>
+                        <div class="reset-actions">
+                            <button type="button" class="btn-secondary-sm"
+                                    onclick="document.getElementById('temp_{{ v.id }}').value = Math.random().toString(36).slice(-10);">
+                                Generar
+                            </button>
+                            <button class="btn-warning-sm"><i class="fas fa-key"></i> Restablecer</button>
+                        </div>
+                    </form>
+                </details>
             </article>
             {% endfor %}
         </div>
@@ -231,25 +279,20 @@
 @media(max-width:768px){
     .form-grid{grid-template-columns:1fr}
 }
+.pwd-pending{
+    font-size:.78rem;color:#b45309;background:#fef3c7;
+    border-radius:8px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px}
+.vendedor-extra{margin-top:8px;border-top:1px solid #ecf0f1;padding-top:8px}
+.vendedor-extra > summary{cursor:pointer;color:#3498db;font-weight:600;font-size:.85rem}
+.extra-form{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.extra-form label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#2c3e50;font-weight:600}
+.extra-form input,.extra-form select{
+    padding:7px 9px;border:1px solid #dcdfe6;border-radius:6px;font-size:.85rem;font-weight:400}
+.reset-actions{display:flex;gap:8px}
 </style>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script>
-function toggleVendedor(id, activar){
-    if(!confirm(`¿Seguro que deseas ${activar?'activar':'desactivar'} este vendedor?`)) return;
-    fetch(`/admin/vendedores/${id}/toggle`,{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({activo:activar})
-    })
-    .then(r=>r.json())
-    .then(d=>d.success?location.reload():alert('Error: '+d.error))
-    .catch(()=>alert('Error de red'));
-}
-function editarVendedor(id){
-    alert('Función de edición en desarrollo');
-}
-</script>
 {% endblock %}
 
