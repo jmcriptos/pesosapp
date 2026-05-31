@@ -432,10 +432,13 @@
 .ops-field { margin-bottom: 8px; }
 .ops-field label { display: block; font-size: 11px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 4px; }
 .ops-field input, .ops-field select, .ops-field textarea {
-  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 14px;
-  padding: 9px 11px; border-radius: 10px; color: var(--color-text);
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px;
+  min-height: 44px; padding: 11px 12px; border-radius: 11px; color: var(--color-text);
   background: var(--color-bg-elevated); border: 1px solid var(--color-border); outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
+.ops-field label { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+  text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 6px; }
 .ops-field input:focus, .ops-field select:focus, .ops-field textarea:focus { border-color: var(--accent); }
 
 /* firma (canvas) */
@@ -749,6 +752,21 @@
 .ops-screen .ops-field ::placeholder, .ops-sheet .ops-field ::placeholder,
 .ops-admin .ops-field ::placeholder, .ops-admin .ops-search ::placeholder { color: var(--color-text-subtle); opacity: 1; }
 .ops-admin .ops-search input { background: transparent !important; }
+
+/* ============================================================
+   Formularios en mobile — historiales y configuración:
+   apilar en una columna, campos y botones cómodos al tacto,
+   16px para evitar el zoom automático de iOS al enfocar.
+   ============================================================ */
+@media (max-width: 560px) {
+  .ops-form-card { padding: 16px 14px; }
+  .ops-grid-2 { grid-template-columns: 1fr; gap: 12px; }
+  .ops-form-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .ops-form-actions .ops-btn { width: 100%; height: 48px; font-size: 14.5px; }
+  .ops-field input, .ops-field select, .ops-field textarea { font-size: 16px; min-height: 48px; }
+  .ops-toolbar { gap: 8px; }
+  .ops-back { flex: 1; justify-content: center; }
+}
 
 /* ============================================================
    Helpers para historiales y pantallas de gestión (registros)
