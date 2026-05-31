@@ -55,6 +55,34 @@ def _login(app, username):
     return c
 
 
+def test_productos_admin_crea(app):
+    from app import ProductoLimpieza
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/productos/nuevo',
+           data={'nombre': 'Detergente alcalino', 'dilucion': '20 ml / 1 L',
+                 'procedimiento': 'Fregar y enjuagar'}, follow_redirects=True)
+    with app.app_context():
+        p = ProductoLimpieza.query.filter_by(nombre='Detergente alcalino').first()
+        assert p is not None
+        assert p.dilucion == '20 ml / 1 L'
+
+
+def test_productos_sin_dilucion_rechazado(app):
+    from app import ProductoLimpieza
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/productos/nuevo',
+           data={'nombre': 'Sin dilucion', 'dilucion': ''}, follow_redirects=True)
+    with app.app_context():
+        assert ProductoLimpieza.query.filter_by(nombre='Sin dilucion').first() is None
+
+
+def test_productos_consulta_visible_para_todos(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza/productos')
+    assert resp.status_code == 200
+    assert 'Sanitizante clorado' in resp.data.decode('utf-8')
+
+
 def test_registro_persiste(app):
     from app import RegistroLimpieza
     with app.app_context():

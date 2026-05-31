@@ -9160,6 +9160,84 @@ def registro_config():
     return render_template('registros/config.html', cfg=cfg)
 
 
+# ───────────────────────── HACCP: Limpieza ─────────────────────────
+# Reservado para la validación de AreaLimpieza.tipo en _parse_area_limpieza.
+_TIPOS_AREA_LIMPIEZA = ('equipo', 'espacio')
+
+
+def _get_limpieza_config():
+    """Devuelve la fila única de LimpiezaConfig; la crea con valores por defecto."""
+    cfg = LimpiezaConfig.query.first()
+    if cfg is None:
+        cfg = LimpiezaConfig()
+        db.session.add(cfg)
+        db.session.commit()
+    return cfg
+
+
+def _parse_producto_limpieza(form):
+    """Devuelve (nombre, dilucion, procedimiento, notas, error)."""
+    nombre = (form.get('nombre') or '').strip()
+    dilucion = (form.get('dilucion') or '').strip()
+    if not nombre:
+        return None, None, None, None, 'El nombre del producto es obligatorio.'
+    if not dilucion:
+        return None, None, None, None, 'La dilución es obligatoria.'
+    procedimiento = (form.get('procedimiento') or '').strip() or None
+    notas = (form.get('notas_seguridad') or '').strip() or None
+    return nombre, dilucion, procedimiento, notas, None
+
+
+@app.route('/registros/limpieza/productos')
+@login_required
+def productos_limpieza_index():
+    productos = ProductoLimpieza.query.order_by(ProductoLimpieza.nombre).all()
+    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    return render_template('registros/productos_limpieza.html', productos=productos, es_admin=es_admin)
+
+
+@app.route('/registros/limpieza/productos/nuevo', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def producto_limpieza_nuevo():
+    nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('productos_limpieza_index'))
+    db.session.add(ProductoLimpieza(nombre=nombre, dilucion=dilucion,
+                                    procedimiento=procedimiento, notas_seguridad=notas, activo=True))
+    db.session.commit()
+    flash('Producto creado.', 'success')
+    return redirect(url_for('productos_limpieza_index'))
+
+
+@app.route('/registros/limpieza/productos/<int:producto_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def producto_limpieza_editar(producto_id):
+    producto = ProductoLimpieza.query.get_or_404(producto_id)
+    nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('productos_limpieza_index'))
+    producto.nombre, producto.dilucion = nombre, dilucion
+    producto.procedimiento, producto.notas_seguridad = procedimiento, notas
+    db.session.commit()
+    flash('Producto actualizado.', 'success')
+    return redirect(url_for('productos_limpieza_index'))
+
+
+@app.route('/registros/limpieza/productos/<int:producto_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def producto_limpieza_toggle(producto_id):
+    producto = ProductoLimpieza.query.get_or_404(producto_id)
+    producto.activo = not producto.activo
+    db.session.commit()
+    flash('Producto actualizado.', 'success')
+    return redirect(url_for('productos_limpieza_index'))
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Productos y diluciones — Limpieza{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Productos y diluciones</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
+{% block content %}
+<div class="mobile-form-container reg-wrap">
+
+  <div class="reg-toolbar">
+    <a href="/registros/limpieza" class="reg-btn"><i class="fas fa-soap"></i> Registrar limpieza</a>
+  </div>
+
+  {% if es_admin %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-plus-circle"></i> Nuevo producto</div>
+    <div class="mobile-card-body">
+      <form method="POST" action="{{ url_for('producto_limpieza_nuevo') }}" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nombre">Nombre del producto</label>
+          <input type="text" id="nombre" name="nombre" class="mobile-form-control" placeholder="Ej: Sanitizante clorado" required>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="dilucion">Dilución correcta</label>
+          <input type="text" id="dilucion" name="dilucion" class="mobile-form-control" placeholder="Ej: 10 ml por 1 L de agua" required>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="procedimiento">Procedimiento</label>
+          <textarea id="procedimiento" name="procedimiento" class="mobile-form-control" rows="3" placeholder="Pasos de aplicación"></textarea>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="notas_seguridad">Notas de seguridad</label>
+          <textarea id="notas_seguridad" name="notas_seguridad" class="mobile-form-control" rows="2" placeholder="EPP, precauciones"></textarea>
+        </div>
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Crear producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-flask"></i> Productos</h3>
+  <div class="reg-list">
+    {% for p in productos %}
+    <article class="reg-card {{ 'is-ok' if p.activo else 'is-muted' }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name">{{ p.nombre }}</div>
+          <div class="reg-sub">Dilución: <strong>{{ p.dilucion }}</strong></div>
+        </div>
+        <span class="reg-pill {{ 'ok' if p.activo else '' }}">{{ 'Activo' if p.activo else 'Inactivo' }}</span>
+      </div>
+      {% if p.procedimiento %}
+      <div class="reg-accion"><i class="fas fa-list-ol"></i> <strong>Procedimiento:</strong> {{ p.procedimiento }}</div>
+      {% endif %}
+      {% if p.notas_seguridad %}
+      <div class="reg-accion"><i class="fas fa-shield-alt"></i> <strong>Seguridad:</strong> {{ p.notas_seguridad }}</div>
+      {% endif %}
+
+      {% if es_admin %}
+      <div class="reg-actions">
+        <form method="POST" action="{{ url_for('producto_limpieza_toggle', producto_id=p.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="reg-btn">
+            <i class="fas fa-{{ 'eye-slash' if p.activo else 'eye' }}"></i> {{ 'Desactivar' if p.activo else 'Activar' }}
+          </button>
+        </form>
+      </div>
+      <details class="reg-edit">
+        <summary><i class="fas fa-pen"></i> Editar</summary>
+        <div class="reg-edit-body">
+          <form method="POST" action="{{ url_for('producto_limpieza_editar', producto_id=p.id) }}" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Nombre</label>
+              <input type="text" name="nombre" class="mobile-form-control" value="{{ p.nombre }}" required>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Dilución</label>
+              <input type="text" name="dilucion" class="mobile-form-control" value="{{ p.dilucion }}" required>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Procedimiento</label>
+              <textarea name="procedimiento" class="mobile-form-control" rows="3">{{ p.procedimiento or '' }}</textarea>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Notas de seguridad</label>
+              <textarea name="notas_seguridad" class="mobile-form-control" rows="2">{{ p.notas_seguridad or '' }}</textarea>
+            </div>
+            <div class="mobile-form-actions">
+              <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </details>
+      {% endif %}
+    </article>
+    {% else %}
+    <div class="reg-empty"><i class="fas fa-flask"></i>No hay productos registrados.{% if es_admin %} Crea el primero arriba.{% endif %}</div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
