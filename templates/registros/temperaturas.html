@@ -1,77 +1,301 @@
 {% extends "base.html" %}
-{% block title %}Temperaturas — Registros{% endblock %}
-{% block header_title %}<span class="fw-700 color-white">Temperaturas de cámaras</span>{% endblock %}
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
-{% endblock %}
-{% block content %}
-<div class="mobile-form-container reg-wrap">
+{% block title %}Registro de Temperaturas{% endblock %}
+{% block header_title %}Temperaturas{% endblock %}
 
-  <div class="reg-toolbar">
-    <a href="{{ url_for('temperaturas_historial') }}" class="reg-btn"><i class="fas fa-clock-rotate-left"></i> Historial</a>
-    {% if es_admin %}
-    <a href="{{ url_for('camaras_list') }}" class="reg-btn"><i class="fas fa-snowflake"></i> Cámaras</a>
-    <a href="{{ url_for('registro_config') }}" class="reg-btn"><i class="fas fa-gear"></i> Configuración</a>
-    {% endif %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ops-screen" data-accent="temp" data-round="am">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow">
+      <span class="ops-eyebrow-mark"><i class="fas fa-temperature-half"></i></span>
+      Ronda de control
+    </div>
+    <h1 class="ops-title">Temperaturas</h1>
+    <p class="ops-sub">{{ hoy.strftime('%d/%m/%Y') }} · 2 rondas diarias{% if es_admin %} ·
+      <a href="{{ url_for('temperaturas_historial') }}" style="color:var(--accent-soft-fg);font-weight:700;text-decoration:none">Historial</a>{% endif %}</p>
+  </header>
+
+  {% if es_admin %}
+  <div class="ops-segmented" style="margin-top:6px">
+    <a class="ops-chip" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px"
+       href="{{ url_for('camaras_list') }}"><i class="fas fa-snowflake"></i> Cámaras</a>
+    <a class="ops-chip" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px"
+       href="{{ url_for('registro_config') }}"><i class="fas fa-gear"></i> Configuración</a>
+    <a class="ops-chip" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px"
+       href="{{ url_for('temperaturas_historial') }}"><i class="fas fa-clock-rotate-left"></i> Historial</a>
+  </div>
+  {% endif %}
+
+  <!-- Toggle de ronda AM / PM -->
+  <div class="ops-segmented" role="tablist" aria-label="Ronda">
+    <button type="button" class="is-active" data-set-round="am"><i class="fas fa-sun"></i> Ronda AM</button>
+    <button type="button" data-set-round="pm"><i class="fas fa-moon"></i> Ronda PM</button>
   </div>
 
-  <div class="reg-list">
-    {% for c in camaras %}
-    <article class="reg-card {{ 'is-ok' if c.id in con_lectura_hoy else 'is-warn' }}">
-      <div class="reg-card-head">
-        <div>
-          <div class="reg-name">{{ c.nombre }}</div>
-          <div class="reg-sub">Rango: <strong>{{ c.temp_min }}°C</strong> a <strong>{{ c.temp_max }}°C</strong></div>
-        </div>
-        {% if c.id in con_lectura_hoy %}
-          <span class="reg-pill ok"><i class="fas fa-check-circle"></i> Hoy</span>
-        {% else %}
-          <span class="reg-pill warn"><i class="fas fa-hourglass-half"></i> Falta hoy</span>
-        {% endif %}
-      </div>
+  {% if not camaras %}
+  <div class="ops-empty">
+    <div class="ops-empty-icon"><i class="fas fa-snowflake"></i></div>
+    <p>No hay cámaras activas todavía.</p>
+    {% if es_admin %}<a href="{{ url_for('camaras_list') }}" class="ops-btn" style="text-decoration:none">Crear la primera cámara</a>{% endif %}
+  </div>
+  {% else %}
 
-      <form method="POST" action="{{ url_for('temperatura_registrar') }}" autocomplete="off" class="reg-inline-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="camara_id" value="{{ c.id }}">
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="temperatura_{{ c.id }}">Temperatura (°C)</label>
-          <input type="text" inputmode="decimal" data-signed-decimal id="temperatura_{{ c.id }}" name="temperatura"
-                 class="mobile-form-control" placeholder="Ej: -20" required>
-        </div>
-        <details class="reg-edit">
-          <summary><i class="fas fa-triangle-exclamation"></i> Acción correctiva (solo si está fuera de rango)</summary>
-          <div class="reg-edit-body">
-            <div class="mobile-form-group">
-              <label class="mobile-form-label">Causa</label>
-              <input type="text" name="accion_causa" class="mobile-form-control" placeholder="¿Por qué se salió de rango?">
-            </div>
-            <div class="mobile-form-group">
-              <label class="mobile-form-label">Acción tomada <small style="font-weight:400; opacity:.8;">(obligatoria si fuera de rango)</small></label>
-              <textarea name="accion_tomada" class="mobile-form-control" rows="2" placeholder="¿Qué se hizo?"></textarea>
-            </div>
-            <div class="mobile-form-group">
-              <label class="mobile-form-label">Responsable de la acción</label>
-              <input type="text" name="accion_responsable" class="mobile-form-control">
-            </div>
-            <div class="mobile-form-group">
-              <label class="mobile-form-label">Disposición del producto <small style="font-weight:400; opacity:.8;">(obligatoria si fuera de rango)</small></label>
-              <textarea name="accion_disposicion" class="mobile-form-control" rows="2" placeholder="¿Qué pasó con el producto afectado?"></textarea>
-            </div>
-          </div>
-        </details>
-        <div class="reg-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Registrar lectura</button>
-        </div>
-      </form>
-    </article>
-    {% else %}
-    <div class="reg-empty">
-      <i class="fas fa-temperature-half"></i>
-      No hay cámaras activas.{% if es_admin %} <a href="{{ url_for('camaras_list') }}">Crea una</a>.{% endif %}
+  <!-- Progreso de la ronda -->
+  <div class="ops-card ops-progress" id="rondaProgress">
+    <div class="ops-ring" id="rondaRing"><span class="ops-ring-label" id="rondaRingLabel">0/{{ camaras|length }}</span></div>
+    <div class="ops-progress-text">
+      <div class="ops-progress-title" id="rondaTitle">Ronda en curso</div>
+      <div class="ops-progress-meta" id="rondaMeta"></div>
     </div>
+  </div>
+
+  <!-- Puntos de control -->
+  <div class="ops-section"><h3>Puntos de control</h3></div>
+  <div class="ops-list">
+    {% for camara in camaras %}
+    {% set info = lecturas_info.get(camara.id, {'am': None, 'pm': None}) %}
+    {% set cong = camara.tipo == 'congelacion' %}
+    <button type="button" class="ops-punto js-open-temp"
+            data-cam-id="{{ camara.id }}"
+            data-cam-nombre="{{ camara.nombre }}"
+            data-cam-min="{{ camara.temp_min }}"
+            data-cam-max="{{ camara.temp_max }}"
+            data-cam-cong="{{ 1 if cong else 0 }}"
+            data-am='{{ info.am|tojson }}'
+            data-pm='{{ info.pm|tojson }}'>
+      <span class="ops-punto-icon {{ 'is-cong' if cong else '' }}">
+        <i class="fas {{ 'fa-snowflake' if cong else 'fa-temperature-half' }}"></i>
+      </span>
+      <span class="ops-punto-info">
+        <span class="ops-punto-name">{{ camara.nombre }}</span>
+        <span class="ops-punto-meta">
+          <span class="ops-code">{{ 'Congelado' if cong else 'Refrigerado' }}</span>
+          <span>·</span>
+          <span>Rango {{ camara.temp_min }}° a {{ camara.temp_max }}°</span>
+        </span>
+      </span>
+      <span class="ops-punto-read" data-read></span>
+    </button>
     {% endfor %}
   </div>
 
+  <!-- Cumplimiento 7 días -->
+  <div class="ops-section">
+    <h3>Cumplimiento · 7 días</h3>
+    {% if cumplimiento_prom is not none %}<span class="ops-section-aside">{{ cumplimiento_prom }}%</span>{% endif %}
+  </div>
+  <div class="ops-card ops-trend">
+    <div class="ops-bars">
+      {% for d in cumplimiento %}
+      <div class="ops-bar-col">
+        <div class="ops-bar-track">
+          <div class="ops-bar {{ 'is-warn' if d.pct is not none and d.pct < 95 and d.pct >= 85 else ('is-bad' if d.pct is not none and d.pct < 85 else '') }}"
+               style="height: {{ d.pct if d.pct is not none else 0 }}%"
+               title="{{ d.pct ~ '%' if d.pct is not none else 'Sin datos' }}"></div>
+        </div>
+        <span class="ops-bar-label">{{ d.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>
-<script src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
+
+<!-- Bottom sheet de registro -->
+<div class="ops-sheet-overlay" id="tempSheet" hidden>
+  <div class="ops-sheet" data-accent="temp" role="dialog" aria-modal="true">
+    <div class="ops-grab"></div>
+    <div class="ops-sheet-head">
+      <div>
+        <div class="ops-sheet-eyebrow" id="tempSheetEyebrow"><i class="fas fa-temperature-half"></i> Ronda AM</div>
+        <div class="ops-sheet-title" id="tempSheetTitle">Cámara</div>
+        <div class="ops-sheet-meta" id="tempSheetMeta"></div>
+      </div>
+      <button type="button" class="ops-sheet-close js-close-temp" aria-label="Cerrar"><i class="fas fa-xmark"></i></button>
+    </div>
+
+    <form method="POST" action="{{ url_for('temperatura_registrar') }}" id="tempForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="camara_id" id="tempCamaraId">
+      <input type="hidden" name="temperatura" id="tempValor">
+
+      <div class="ops-readout" id="tempReadout">
+        <button type="button" class="ops-step" data-step="-0.1" aria-label="Restar"><i class="fas fa-minus"></i></button>
+        <div class="ops-readout-center">
+          <div class="ops-readout-value" id="tempDisplay">––°</div>
+          <div class="ops-readout-hint" id="tempHint">Ingresa la lectura</div>
+        </div>
+        <button type="button" class="ops-step" data-step="0.1" aria-label="Sumar"><i class="fas fa-plus"></i></button>
+      </div>
+
+      <div class="ops-keypad">
+        {% for k in ['1','2','3','4','5','6','7','8','9','-','0','.'] %}
+        <button type="button" class="ops-key" data-key="{{ k }}">{{ k }}</button>
+        {% endfor %}
+      </div>
+      <div class="ops-keypad-row">
+        <button type="button" class="ops-key ops-key-back" data-key="back" aria-label="Borrar"><i class="fas fa-delete-left"></i></button>
+        <button type="submit" class="ops-btn ops-key-save" id="tempSave"><i class="fas fa-check"></i> Guardar lectura</button>
+      </div>
+
+      <!-- Acción correctiva (solo si fuera de rango) -->
+      <div class="ops-corrective" id="tempCorrective" hidden>
+        <p class="ops-corrective-title"><i class="fas fa-triangle-exclamation"></i> Lectura fuera de rango</p>
+        <div class="ops-field"><label>Causa probable</label><input type="text" name="accion_causa"></div>
+        <div class="ops-field"><label>Acción tomada *</label><input type="text" name="accion_tomada"></div>
+        <div class="ops-field"><label>Responsable</label><input type="text" name="accion_responsable"></div>
+        <div class="ops-field"><label>Disposición del producto *</label><input type="text" name="accion_disposicion"></div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var screen = document.querySelector('.ops-screen[data-accent="temp"]');
+  if (!screen) return;
+  var puntos = Array.prototype.slice.call(document.querySelectorAll('.ops-punto'));
+  var round = 'am';
+
+  function parseInfo(btn, r) {
+    try { return JSON.parse(btn.getAttribute('data-' + r)) || null; } catch (e) { return null; }
+  }
+  function fmt(v) { return (v > 0 ? '' : '') + v + '°'; }
+
+  // Render del read-cell y estado por punto para la ronda activa
+  function renderPuntos() {
+    var registrados = 0, alertas = 0;
+    puntos.forEach(function (btn) {
+      var info = parseInfo(btn, round);
+      var cell = btn.querySelector('[data-read]');
+      btn.classList.remove('is-alert');
+      if (info) {
+        registrados++;
+        var alerta = !!info.fuera;
+        if (alerta) { alertas++; btn.classList.add('is-alert'); }
+        cell.innerHTML =
+          '<span class="ops-punto-value ' + (alerta ? 'is-alert' : '') + '">' + fmt(info.valor) + '</span>' +
+          '<span class="ops-punto-status ' + (alerta ? 'is-alert' : '') + '">' +
+            (alerta ? '<i class="fas fa-triangle-exclamation"></i> Fuera'
+                    : '<i class="fas fa-check"></i> ' + info.hora) + '</span>';
+      } else {
+        cell.innerHTML = '<span class="ops-pill-register"><i class="fas fa-plus"></i> Registrar</span>';
+      }
+    });
+    var total = puntos.length;
+    var ring = document.getElementById('rondaRing');
+    var pct = total ? Math.round(registrados / total * 100) : 0;
+    if (ring) {
+      ring.style.setProperty('--pct', pct);
+      ring.classList.toggle('is-danger', alertas > 0);
+      ring.classList.toggle('is-success', alertas === 0 && registrados === total && total > 0);
+      document.getElementById('rondaRingLabel').textContent = registrados + '/' + total;
+    }
+    var title = document.getElementById('rondaTitle');
+    var meta = document.getElementById('rondaMeta');
+    if (title) {
+      if (registrados === total && total > 0) {
+        title.textContent = alertas > 0 ? 'Ronda completa · con alertas' : 'Ronda completa ✓';
+      } else {
+        title.textContent = 'Ronda ' + round.toUpperCase() + ' en curso';
+      }
+    }
+    if (meta) {
+      if (alertas > 0) {
+        meta.innerHTML = '<span class="is-danger">' + alertas + ' cámara' + (alertas > 1 ? 's' : '') + ' fuera de rango</span>';
+      } else {
+        var faltan = total - registrados;
+        meta.innerHTML = faltan ? (faltan + ' punto' + (faltan !== 1 ? 's' : '') + ' por registrar')
+                                : '<span class="is-success">Todo dentro de rango</span>';
+      }
+    }
+  }
+
+  // Toggle AM/PM
+  document.querySelectorAll('[data-set-round]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      round = this.getAttribute('data-set-round');
+      screen.setAttribute('data-round', round);
+      document.querySelectorAll('[data-set-round]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+      renderPuntos();
+    });
+  });
+  renderPuntos();
+
+  // ---- Sheet de registro ----
+  var sheet = document.getElementById('tempSheet');
+  var display = document.getElementById('tempDisplay');
+  var hint = document.getElementById('tempHint');
+  var readout = document.getElementById('tempReadout');
+  var save = document.getElementById('tempSave');
+  var corrective = document.getElementById('tempCorrective');
+  var valorInput = document.getElementById('tempValor');
+  var curMin = null, curMax = null, val = '';
+
+  function refresh() {
+    var num = parseFloat(val);
+    var filled = val !== '' && val !== '-' && !isNaN(num);
+    var ok = filled && num >= curMin && num <= curMax;
+    display.textContent = (val !== '' && val !== '-') ? (val + '°') : '––°';
+    readout.classList.toggle('is-ok', filled && ok);
+    readout.classList.toggle('is-bad', filled && !ok);
+    hint.textContent = !filled ? 'Ingresa la lectura' : (ok ? '✓ En rango' : '⚠ Fuera de rango (' + curMin + '° a ' + curMax + '°)');
+    corrective.hidden = !(filled && !ok);
+    save.disabled = !filled;
+    save.innerHTML = '<i class="fas fa-check"></i> ' + (!filled ? 'Guardar' : (ok ? 'Guardar lectura' : 'Guardar con alerta'));
+    valorInput.value = filled ? num : '';
+  }
+
+  function openSheet(btn) {
+    curMin = parseFloat(btn.dataset.camMin);
+    curMax = parseFloat(btn.dataset.camMax);
+    val = '';
+    document.getElementById('tempCamaraId').value = btn.dataset.camId;
+    document.getElementById('tempSheetTitle').textContent = btn.dataset.camNombre;
+    document.getElementById('tempSheetMeta').textContent = 'Rango objetivo ' + curMin + '° a ' + curMax + '°';
+    var cong = btn.dataset.camCong === '1';
+    document.getElementById('tempSheetEyebrow').innerHTML =
+      '<i class="fas ' + (cong ? 'fa-snowflake' : 'fa-temperature-half') + '"></i> Ronda ' + round.toUpperCase();
+    corrective.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    refresh();
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSheet() { sheet.hidden = true; document.body.style.overflow = ''; }
+
+  puntos.forEach(function (btn) { btn.addEventListener('click', function () { openSheet(btn); }); });
+  document.querySelectorAll('.js-close-temp').forEach(function (el) { el.addEventListener('click', closeSheet); });
+  sheet.addEventListener('click', function (e) { if (e.target === sheet) closeSheet(); });
+
+  document.querySelectorAll('#tempSheet .ops-key').forEach(function (k) {
+    k.addEventListener('click', function () {
+      var key = this.dataset.key;
+      if (key === 'back') { val = val.slice(0, -1); }
+      else if (key === '-') { val = val.charAt(0) === '-' ? val.slice(1) : '-' + val; }
+      else if (key === '.') { if (val.indexOf('.') < 0) val = (val === '' || val === '-') ? val + '0.' : val + '.'; }
+      else { val += key; }
+      refresh();
+    });
+  });
+  document.querySelectorAll('#tempSheet .ops-step').forEach(function (s) {
+    s.addEventListener('click', function () {
+      var n = (parseFloat(val || '0') || 0) + parseFloat(this.dataset.step);
+      val = (Math.round(n * 10) / 10).toString();
+      refresh();
+    });
+  });
+
+  document.getElementById('tempForm').addEventListener('submit', function (e) {
+    var num = parseFloat(val);
+    if (val === '' || val === '-' || isNaN(num)) { e.preventDefault(); return; }
+    valorInput.value = num;
+  });
+})();
+</script>
 {% endblock %}

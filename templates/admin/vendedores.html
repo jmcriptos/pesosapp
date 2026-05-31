@@ -1,305 +1,363 @@
 {% extends "base.html" %}
+{% block title %}Administración de usuarios{% endblock %}
+{% block header_title %}Usuarios{% endblock %}
 
-{% block title %}Gestión de Vendedores{% endblock %}
-
-{% block header_title %}
-🛠️ Administración · Vendedores
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
 
-{% block content %}
-<div class="admin-container">
+{% set rol_colors = {'super_admin': '#8b5cf6', 'supervisor': '#6366f1', 'vendedor': '#0ea5e9', 'preparador': '#10b981'} %}
+{% set acc_colors = {'leer': '#0ea5e9', 'crear': '#10b981', 'editar': '#f59e0b', 'eliminar': '#f43f5e'} %}
+{% set acc_letras = {'leer': 'L', 'crear': 'C', 'editar': 'E', 'eliminar': 'D'} %}
+{% set activos = vendedores|selectattr('activo')|list|length %}
 
-    <!-- ────────── Acceso a roles y permisos ────────── -->
-    <div style="margin-bottom:18px;">
-        <a href="{{ url_for('gestionar_permisos') }}" class="btn-secondary-sm" style="text-decoration:none;">
-            <i class="fas fa-shield-alt"></i> Roles y permisos
-        </a>
+{% block content %}
+<div class="ops-admin" id="adminUsuarios">
+
+  <!-- Sidebar -->
+  <aside class="ops-admin-aside">
+    <div class="ops-admin-brand">
+      <span class="ops-admin-brand-mark">P</span>
+      <div>
+        <div class="ops-admin-brand-name">Pesosapp</div>
+        <div class="ops-admin-brand-sub">Administración</div>
+      </div>
+    </div>
+    <div class="ops-admin-navlabel">Gestión</div>
+    <nav class="ops-admin-nav">
+      <a href="#" class="is-active" data-tab="usuarios"><i class="fas fa-users"></i> Usuarios</a>
+      <a href="#" data-tab="roles"><i class="fas fa-shield-halved"></i> Roles</a>
+      <a href="#" data-tab="permisos"><i class="fas fa-table-cells"></i> Permisos</a>
+      <a href="#" data-tab="auditoria"><i class="fas fa-clock-rotate-left"></i> Auditoría</a>
+    </nav>
+    <div class="ops-admin-user">
+      <span class="ops-admin-user-av">{{ (current_user.username or 'AD')[:2]|upper }}</span>
+      <div style="min-width:0;flex:1">
+        <div class="ops-admin-user-name">{{ current_user.nombre_completo or current_user.username }}</div>
+        <div class="ops-admin-user-role">{{ current_user.rol.nombre if current_user.rol else 'Admin' }}</div>
+      </div>
+      <a href="/logout" title="Salir" style="color:var(--color-text-subtle)"><i class="fas fa-arrow-right-from-bracket"></i></a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="ops-admin-main">
+    <header class="ops-admin-header">
+      <div>
+        <h1 id="adminTitle">Usuarios</h1>
+        <div class="ops-admin-header-sub" id="adminSub">{{ vendedores|length }} usuarios · {{ activos }} activos</div>
+      </div>
+      <a href="{{ url_for('crear_vendedor') }}" class="ops-btn" id="adminAction" style="text-decoration:none">
+        <i class="fas fa-user-plus"></i> Nuevo usuario
+      </a>
+    </header>
+
+    <div class="ops-admin-body">
+
+      <!-- ===== USUARIOS ===== -->
+      <section class="ops-tabpanel" data-panel="usuarios">
+        <div class="ops-admin-toolbar">
+          <div class="ops-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" id="userSearch" placeholder="Buscar usuario, email…">
+          </div>
+          <div class="ops-chips" id="rolFiltros">
+            <button type="button" class="ops-chip is-active" data-rol="todos">Todos</button>
+            {% for r in roles %}
+            <button type="button" class="ops-chip" data-rol="{{ r.nombre }}">{{ r.nombre|replace('_',' ')|title }}</button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="ops-table">
+          <div class="ops-thead">
+            <div>Usuario</div><div>Rol</div><div>Territorio</div><div>Actividad</div>
+            <div style="text-align:right">Estado</div>
+          </div>
+          {% for v in vendedores %}
+          {% set rc = rol_colors.get(v.rol.nombre, '#64748b') if v.rol else '#64748b' %}
+          <div class="ops-trow {{ 'is-inactive' if not v.activo }}"
+               data-nombre="{{ (v.nombre_completo or v.username)|lower }}"
+               data-email="{{ (v.email or '')|lower }}"
+               data-user="{{ v.username|lower }}"
+               data-rol="{{ v.rol.nombre if v.rol else '' }}"
+               data-rol-id="{{ v.rol_id }}"
+               data-terr-id="{{ v.territorio_id or '' }}"
+               data-telefono="{{ v.telefono or '' }}"
+               data-activo="{{ 1 if v.activo else 0 }}"
+               data-nombre-full="{{ v.nombre_completo or '' }}"
+               data-username="{{ v.username }}"
+               data-email-full="{{ v.email or '' }}"
+               data-edit-url="{{ url_for('editar_vendedor', v_id=v.id) }}"
+               data-toggle-url="{{ url_for('toggle_vendedor', v_id=v.id) }}"
+               data-reset-url="{{ url_for('reset_password_vendedor', v_id=v.id) }}">
+            <div class="ops-user-cell js-open-user" role="button" tabindex="0">
+              <span class="ops-avatar" style="--rol-c:{{ rc }};background:color-mix(in oklab,{{ rc }} 18%,transparent);color:{{ rc }}">{{ (v.nombre_completo or v.username)[:2]|upper }}</span>
+              <div style="min-width:0">
+                <div class="ops-user-name">{{ v.nombre_completo or v.username }}</div>
+                <div class="ops-user-mail">{{ v.email or '@' ~ v.username }}</div>
+              </div>
+            </div>
+            <div>
+              {% if v.rol %}
+              <span class="ops-rolbadge" style="--rol-c:{{ rc }}"><span class="ops-dot"></span>{{ v.rol.nombre|replace('_',' ')|title }}</span>
+              {% endif %}
+            </div>
+            <div class="ops-cell-muted">{{ v.territorio.nombre if v.territorio else '—' }}</div>
+            <div class="ops-cell-subtle">{{ ultimo_rel.get(v.id) or 'Nunca' }}</div>
+            <div class="ops-cell-right">
+              <form method="POST" action="{{ url_for('toggle_vendedor', v_id=v.id) }}" onsubmit="return confirm('{{ 'Desactivar' if v.activo else 'Activar' }} a {{ v.nombre_completo or v.username }}?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="ops-toggle {{ 'is-on' if v.activo }}" aria-label="{{ 'Desactivar' if v.activo else 'Activar' }}"></button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- ===== ROLES ===== -->
+      <section class="ops-tabpanel" data-panel="roles" hidden>
+        <div class="ops-roles-grid">
+          {% for r in roles %}
+          {% set rc = rol_colors.get(r.nombre, '#64748b') %}
+          {% set cuenta = vendedores|selectattr('rol_id','equalto',r.id)|list|length %}
+          <div class="ops-role-card">
+            <div class="ops-role-top">
+              <span class="ops-role-icon" style="--rol-c:{{ rc }}"><i class="fas fa-shield-halved"></i></span>
+              <span class="ops-role-level">Nivel {{ r.nivel_jerarquia }}</span>
+            </div>
+            <div class="ops-role-name">{{ r.nombre|replace('_',' ')|title }}</div>
+            <div class="ops-role-count">{{ cuenta }} usuario{{ 's' if cuenta != 1 }} asignado{{ 's' if cuenta != 1 }}</div>
+            {% if r.descripcion %}<div class="ops-role-count" style="margin-top:6px">{{ r.descripcion }}</div>{% endif %}
+            <div class="ops-role-foot">
+              <button type="button" class="ops-btn ops-btn-ghost" style="flex:1" data-goto-tab="permisos"><i class="fas fa-table-cells"></i> Permisos</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- ===== PERMISOS ===== -->
+      <section class="ops-tabpanel" data-panel="permisos" hidden>
+        <form method="POST" action="{{ url_for('gestionar_permisos') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="ops-matrix-wrap">
+            <div class="ops-matrix-legend">
+              <span style="font-weight:700;color:var(--color-text)">Leyenda:</span>
+              {% for acc in acciones %}
+              <span style="display:inline-flex;align-items:center;gap:5px">
+                <span class="ops-legend-key" style="--lk:{{ acc_colors[acc] }}">{{ acc_letras[acc] }}</span>{{ acc|title }}
+              </span>
+              {% endfor %}
+              <span style="margin-left:auto;font-style:italic">Toca una celda para alternar · super_admin tiene acceso total</span>
+            </div>
+            <div class="ops-matrix-scroll">
+              <table class="ops-matrix">
+                <thead>
+                  <tr>
+                    <th class="ops-matrix-rowhead">Recurso</th>
+                    {% for rol in roles_matriz %}
+                    {% set rc = rol_colors.get(rol.nombre, '#64748b') %}
+                    <th><span class="ops-rolbadge" style="--rol-c:{{ rc }}"><span class="ops-dot"></span>{{ rol.nombre|replace('_',' ')|title }}</span></th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for rec in recursos %}
+                  <tr>
+                    <td class="ops-matrix-rec">{{ rec }}</td>
+                    {% for rol in roles_matriz %}
+                    <td>
+                      <div class="ops-perm-group">
+                        {% for acc in acciones %}
+                        <label class="ops-perm js-perm {{ 'is-on' if matriz[rol.id][rec][acc] }}" style="--pk:{{ acc_colors[acc] }}" title="{{ acc|title }}">
+                          <input type="checkbox" name="perm_{{ rol.id }}_{{ rec }}_{{ acc }}" {{ 'checked' if matriz[rol.id][rec][acc] }}>{{ acc_letras[acc] }}
+                        </label>
+                        {% endfor %}
+                      </div>
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style="margin-top:16px;display:flex;justify-content:flex-end">
+            <button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar cambios</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ===== AUDITORÍA ===== -->
+      <section class="ops-tabpanel" data-panel="auditoria" hidden>
+        {% if actividad %}
+        <div class="ops-audit">
+          {% for v in actividad %}
+          {% set rc = rol_colors.get(v.rol.nombre, '#64748b') if v.rol else '#8b5cf6' %}
+          <div class="ops-audit-row">
+            <span class="ops-audit-icon" style="--ak:{{ rc }}"><i class="fas fa-right-to-bracket"></i></span>
+            <div class="ops-audit-main">
+              <div class="ops-audit-title"><b>{{ v.nombre_completo or v.username }}</b> · Último acceso</div>
+              <div class="ops-audit-detail">{{ v.rol.nombre|replace('_',' ')|title if v.rol }}{% if v.territorio %} · {{ v.territorio.nombre }}{% endif %}</div>
+            </div>
+            <div class="ops-audit-time">{{ ultimo_rel.get(v.id) }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="ops-empty">
+          <div class="ops-empty-icon"><i class="fas fa-clock-rotate-left"></i></div>
+          <p>Sin actividad de acceso registrada todavía.</p>
+        </div>
+        {% endif %}
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Slide-over: editar usuario -->
+<div class="ops-sheet-overlay" id="userPanel" hidden style="align-items:stretch;justify-content:flex-end">
+  <div class="ops-sheet" style="width:380px;max-width:90vw;height:100%;max-height:100%;border-radius:0;border-left:1px solid var(--color-border);border-top:none;padding:24px;animation:none" role="dialog" aria-modal="true">
+    <div class="ops-sheet-head">
+      <div class="ops-sheet-eyebrow" style="color:var(--color-primary-soft-fg)"><i class="fas fa-user-pen"></i> Editar usuario</div>
+      <button type="button" class="ops-sheet-close js-close-user" aria-label="Cerrar"><i class="fas fa-xmark"></i></button>
     </div>
 
-    <!-- ────────── Alta de nuevo vendedor ────────── -->
-    <section class="form-section">
-        <h3 class="section-title">
-            <i class="fas fa-user-plus"></i> Crear nuevo vendedor
-        </h3>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px 0 22px">
+      <span class="ops-avatar" id="panelAvatar" style="width:72px;height:72px;font-size:26px">--</span>
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em" id="panelName">Usuario</div>
+        <div style="font-size:12.5px;color:var(--color-text-muted)" id="panelUser">@user</div>
+      </div>
+    </div>
 
-        <form method="POST" action="{{ url_for('crear_vendedor') }}" class="vendedor-form">
-            <!-- US01: hidden CSRF field -->
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-grid">
-                <!-- columna 1 -->
-                <div class="form-group">
-                    <label for="username">Usuario*</label>
-                    <input id="username" name="username" placeholder="carlos_r"
-                           class="form-input" required>
-                </div>
+    <form method="POST" id="panelEditForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ops-field"><label>Nombre completo</label><input type="text" name="nombre_completo" id="panelNombre"></div>
+      <div class="ops-field"><label>Email</label><input type="email" name="email" id="panelEmail"></div>
+      <div class="ops-field"><label>Teléfono</label><input type="text" name="telefono" id="panelTelefono"></div>
+      <div class="ops-field">
+        <label>Rol</label>
+        <select name="rol_id" id="panelRol">
+          {% for r in roles %}<option value="{{ r.id }}">{{ r.nombre|replace('_',' ')|title }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="ops-field">
+        <label>Territorio</label>
+        <select name="territorio_id" id="panelTerr">
+          <option value="">Sin territorio</option>
+          {% for t in territorios %}<option value="{{ t.id }}">{{ t.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="ops-btn" style="width:100%;height:46px;margin-top:6px"><i class="fas fa-check"></i> Guardar cambios</button>
+    </form>
 
-                <div class="form-group">
-                    <label for="nombre_completo">Nombre completo*</label>
-                    <input id="nombre_completo" name="nombre_completo"
-                           placeholder="Carlos Rivera" class="form-input" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Contraseña*</label>
-                    <input id="password" name="password" type="password"
-                           placeholder="Password temporal" class="form-input" required>
-                </div>
-
-                <!-- columna 2 -->
-                <div class="form-group">
-                    <label for="email">Email*</label>
-                    <input id="email" name="email" type="email"
-                           placeholder="carlos@jomarfoods.com" class="form-input" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="telefono">Teléfono</label>
-                    <input id="telefono" name="telefono"
-                           placeholder="+599 9 123 4567" class="form-input">
-                </div>
-
-                <div class="form-group">
-                    <label for="rol_id">Rol*</label>
-                    <select id="rol_id" name="rol_id" class="form-select" required>
-                        {% for rol in roles %}
-                            <option value="{{ rol.id }}">{{ rol.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- columna 3 -->
-                <div class="form-group grid-col-1-1">
-                    <label for="territorio_id">Territorio</label>
-                    <select id="territorio_id" name="territorio_id"
-                            class="form-select">
-                        <option value="">– Sin territorio –</option>
-                        {% for t in territorios %}
-                            <option value="{{ t.id }}">{{ t.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <button class="btn-primary-lg">
-                <i class="fas fa-save"></i> Guardar vendedor
-            </button>
-        </form>
-    </section>
-
-    <!-- ────────── Listado de vendedores ────────── -->
-    <section class="vendedores-section">
-        <h3 class="section-title">
-            <i class="fas fa-users"></i> Vendedores registrados
-        </h3>
-
-        <div class="vendedores-grid">
-            {% for v in vendedores %}
-            <article class="vendedor-card {{ 'active' if v.activo else 'inactive' }}">
-
-                <!-- Header de la tarjeta -->
-                <header class="vendedor-header">
-                    <div class="avatar">{{ v.nombre_completo[:2].upper() }}</div>
-                    <div>
-                        <h4>{{ v.nombre_completo }}</h4>
-                        <small class="username">@{{ v.username }}</small>
-                    </div>
-                    <span class="badge-role">{{ v.rol.nombre }}</span>
-                </header>
-
-                <!-- Datos condensados -->
-                <dl class="vendedor-info">
-                    <dt>Email</dt><dd>{{ v.email }}</dd>
-                    <dt>Teléfono</dt><dd>{{ v.telefono or '—' }}</dd>
-                    <dt>Territorio</dt>
-                        <dd>{{ v.territorio.nombre if v.territorio else '—' }}</dd>
-                    <dt>Ingreso</dt><dd>{{ v.fecha_ingreso.strftime('%d/%m/%Y') }}</dd>
-                    <dt>Último login</dt>
-                        <dd>
-                            {% if v.ultimo_login %}
-                               {{ v.ultimo_login.strftime('%d/%m/%Y %H:%M') }}
-                            {% else %}Nunca{% endif %}
-                        </dd>
-                </dl>
-
-                <!-- Selector rápido de territorio -->
-                <form method="POST" action="{{ url_for('actualizar_territorio_vendedor',
-                                                       v_id=v.id) }}"
-                      class="territorio-switch">
-                    <!-- US01: hidden CSRF field -->
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <select name="territorio_id" class="form-select-sm">
-                        <option value="">Sin territorio</option>
-                        {% for t in territorios %}
-                            <option value="{{ t.id }}"
-                                    {% if v.territorio_id == t.id %}selected{% endif %}>
-                                {{ t.nombre }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button class="icon-btn" title="Guardar">
-                        <i class="fas fa-check"></i>
-                    </button>
-                </form>
-
-                <!-- Estado de contraseña -->
-                {% if v.debe_cambiar_password %}
-                <div class="pwd-pending"><i class="fas fa-key"></i> Debe cambiar contraseña</div>
-                {% endif %}
-
-                <!-- Acciones -->
-                <footer class="vendedor-actions">
-                    <form method="POST" action="{{ url_for('toggle_vendedor', v_id=v.id) }}"
-                          onsubmit="return confirm('¿Seguro que querés {{ 'desactivar' if v.activo else 'activar' }} este usuario?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        {% if v.activo %}
-                        <button class="btn-warning-sm"><i class="fas fa-pause"></i> Desactivar</button>
-                        {% else %}
-                        <button class="btn-success-sm"><i class="fas fa-play"></i> Activar</button>
-                        {% endif %}
-                    </form>
-                </footer>
-
-                <details class="vendedor-extra">
-                    <summary><i class="fas fa-edit"></i> Editar</summary>
-                    <form method="POST" action="{{ url_for('editar_vendedor', v_id=v.id) }}" class="extra-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <label>Nombre completo
-                            <input name="nombre_completo" value="{{ v.nombre_completo }}" required>
-                        </label>
-                        <label>Email
-                            <input type="email" name="email" value="{{ v.email }}" required>
-                        </label>
-                        <label>Teléfono
-                            <input name="telefono" value="{{ v.telefono or '' }}">
-                        </label>
-                        <label>Rol
-                            <select name="rol_id" required>
-                                {% for rol in roles %}
-                                <option value="{{ rol.id }}" {{ 'selected' if v.rol_id == rol.id }}>{{ rol.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
-                        <label>Territorio
-                            <select name="territorio_id">
-                                <option value="">– Sin territorio –</option>
-                                {% for t in territorios %}
-                                <option value="{{ t.id }}" {{ 'selected' if v.territorio_id == t.id }}>{{ t.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
-                        <button class="btn-secondary-sm"><i class="fas fa-save"></i> Guardar cambios</button>
-                    </form>
-                </details>
-
-                <details class="vendedor-extra">
-                    <summary><i class="fas fa-key"></i> Restablecer contraseña</summary>
-                    <form method="POST" action="{{ url_for('reset_password_vendedor', v_id=v.id) }}" class="extra-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <label>Contraseña temporal (en blanco = generar)
-                            <input name="password_temporal" id="temp_{{ v.id }}" placeholder="(se genera automáticamente)">
-                        </label>
-                        <div class="reset-actions">
-                            <button type="button" class="btn-secondary-sm"
-                                    onclick="document.getElementById('temp_{{ v.id }}').value = Math.random().toString(36).slice(-10);">
-                                Generar
-                            </button>
-                            <button class="btn-warning-sm"><i class="fas fa-key"></i> Restablecer</button>
-                        </div>
-                    </form>
-                </details>
-            </article>
-            {% endfor %}
-        </div>
-    </section>
+    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--color-border-subtle);display:flex;flex-direction:column;gap:8px">
+      <form method="POST" id="panelResetForm" style="display:flex;gap:8px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="ops-field" style="flex:1;margin:0" type="text" name="password_temporal" placeholder="Nueva contraseña (opcional)">
+        <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-key"></i> Resetear</button>
+      </form>
+      <form method="POST" id="panelToggleForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="ops-btn ops-btn-ghost" id="panelToggleBtn" style="width:100%;justify-content:flex-start;height:42px"><i class="fas fa-ban"></i> Activar / desactivar cuenta</button>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
-{% block extra_css %}
-{{ super() }}
-<style>
-/* ---------- general ---------- */
-.section-title{color:#2c3e50;font-size:1.35rem;margin-bottom:18px}
-.btn-primary-lg{
-    background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-    color:#fff;border:none;padding:12px 28px;border-radius:10px;
-    font-weight:600;font-size:1rem;display:inline-flex;align-items:center;gap:8px;
-}
-.btn-primary-lg:hover{opacity:.9}
-
-/* ---------- grid contenedores ---------- */
-.vendedores-grid{
-    display:grid;gap:20px;
-    grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
-}
-
-/* ---------- tarjeta de vendedor ---------- */
-.vendedor-card{
-    border:2px solid #ecf0f1;border-radius:14px;
-    background:#fff;padding:22px;display:flex;flex-direction:column;gap:14px;
-    transition:box-shadow .25s;
-}
-.vendedor-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
-.vendedor-card.inactive{opacity:.65}
-
-/* header */
-.vendedor-header{display:flex;align-items:center;gap:14px;position:relative}
-.avatar{
-    width:56px;height:56px;border-radius:50%;
-    background:linear-gradient(135deg,#36d1dc 0%,#5b86e5 100%);
-    display:flex;align-items:center;justify-content:center;
-    color:#fff;font-weight:700;font-size:1.2rem}
-.username{color:#77838f;font-size:.85rem}
-.badge-role{
-    position:absolute;right:0;top:4px;
-    background:#3498db;color:#fff;font-size:.75rem;padding:3px 10px;border-radius:12px;
-}
-
-/* info */
-.vendedor-info{
-    display:grid;grid-template-columns:110px 1fr;row-gap:4px;
-    font-size:.9rem;color:#556677}
-.vendedor-info dt{font-weight:600;color:#2c3e50}
-.vendedor-info dd{margin:0}
-
-/* selector territorio */
-.territorio-switch{
-    display:flex;gap:6px;align-items:center;margin-top:4px}
-.form-select-sm{
-    flex:1;padding:6px 8px;border-radius:6px;border:1px solid #dcdfe6;font-size:.85rem}
-.icon-btn{
-    background:#27ae60;color:#fff;border:none;border-radius:6px;
-    width:34px;height:34px;display:flex;align-items:center;justify-content:center;
-}
-.icon-btn:hover{opacity:.9}
-
-/* acciones */
-.vendedor-actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn-warning-sm,.btn-success-sm,.btn-secondary-sm{
-    border:none;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;
-    color:#fff;display:flex;align-items:center;gap:6px}
-.btn-warning-sm{background:#f39c12}
-.btn-success-sm{background:#27ae60}
-.btn-secondary-sm{background:#3498db}
-.btn-warning-sm:hover,.btn-success-sm:hover,.btn-secondary-sm:hover{opacity:.85}
-
-/* responsive ajustes */
-@media(max-width:768px){
-    .form-grid{grid-template-columns:1fr}
-}
-.pwd-pending{
-    font-size:.78rem;color:#b45309;background:#fef3c7;
-    border-radius:8px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px}
-.vendedor-extra{margin-top:8px;border-top:1px solid #ecf0f1;padding-top:8px}
-.vendedor-extra > summary{cursor:pointer;color:#3498db;font-weight:600;font-size:.85rem}
-.extra-form{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.extra-form label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#2c3e50;font-weight:600}
-.extra-form input,.extra-form select{
-    padding:7px 9px;border:1px solid #dcdfe6;border-radius:6px;font-size:.85rem;font-weight:400}
-.reset-actions{display:flex;gap:8px}
-</style>
-{% endblock %}
-
 {% block scripts %}
-{{ super() }}
-{% endblock %}
+<script>
+(function () {
+  var root = document.getElementById('adminUsuarios');
+  if (!root) return;
+  var totalUsers = {{ vendedores|length }}, activos = {{ activos }};
+  var subInfo = {
+    usuarios: totalUsers + ' usuarios · ' + activos + ' activos',
+    roles: {{ roles|length }} + ' roles definidos',
+    permisos: '{{ recursos|length }} recursos · {{ roles_matriz|length }} roles editables',
+    auditoria: 'Actividad de acceso reciente'
+  };
+  var titles = { usuarios: 'Usuarios', roles: 'Roles', permisos: 'Permisos', auditoria: 'Auditoría' };
 
+  function go(tab) {
+    root.querySelectorAll('.ops-admin-nav a').forEach(function (a) { a.classList.toggle('is-active', a.dataset.tab === tab); });
+    root.querySelectorAll('.ops-tabpanel').forEach(function (p) { p.hidden = p.dataset.panel !== tab; });
+    document.getElementById('adminTitle').textContent = titles[tab];
+    document.getElementById('adminSub').textContent = subInfo[tab];
+    document.getElementById('adminAction').style.display = tab === 'usuarios' ? '' : 'none';
+  }
+  root.querySelectorAll('.ops-admin-nav a').forEach(function (a) {
+    a.addEventListener('click', function (e) { e.preventDefault(); go(a.dataset.tab); });
+  });
+  root.querySelectorAll('[data-goto-tab]').forEach(function (b) {
+    b.addEventListener('click', function () { go(b.dataset.gotoTab); });
+  });
+
+  // Búsqueda + filtro de rol
+  var search = document.getElementById('userSearch');
+  var rows = Array.prototype.slice.call(root.querySelectorAll('.ops-trow'));
+  var rolActivo = 'todos';
+  function applyFilter() {
+    var q = (search.value || '').toLowerCase().trim();
+    rows.forEach(function (r) {
+      var okRol = rolActivo === 'todos' || r.dataset.rol === rolActivo;
+      var okQ = !q || r.dataset.nombre.indexOf(q) >= 0 || r.dataset.email.indexOf(q) >= 0 || r.dataset.user.indexOf(q) >= 0;
+      r.style.display = (okRol && okQ) ? '' : 'none';
+    });
+  }
+  search.addEventListener('input', applyFilter);
+  root.querySelectorAll('#rolFiltros .ops-chip').forEach(function (c) {
+    c.addEventListener('click', function () {
+      rolActivo = c.dataset.rol;
+      root.querySelectorAll('#rolFiltros .ops-chip').forEach(function (x) { x.classList.toggle('is-active', x === c); });
+      applyFilter();
+    });
+  });
+
+  // Matriz de permisos: estado visual al togglear
+  root.querySelectorAll('.js-perm input').forEach(function (inp) {
+    inp.addEventListener('change', function () { inp.closest('.ops-perm').classList.toggle('is-on', inp.checked); });
+  });
+
+  // Slide-over editar usuario
+  var panel = document.getElementById('userPanel');
+  var editForm = document.getElementById('panelEditForm');
+  var resetForm = document.getElementById('panelResetForm');
+  var toggleForm = document.getElementById('panelToggleForm');
+  function openUser(row) {
+    var nombre = row.dataset.nombreFull || row.dataset.username;
+    document.getElementById('panelName').textContent = nombre;
+    document.getElementById('panelUser').textContent = '@' + row.dataset.username;
+    var av = document.getElementById('panelAvatar');
+    av.textContent = nombre.substring(0, 2).toUpperCase();
+    document.getElementById('panelNombre').value = row.dataset.nombreFull;
+    document.getElementById('panelEmail').value = row.dataset.emailFull;
+    document.getElementById('panelTelefono').value = row.dataset.telefono;
+    document.getElementById('panelRol').value = row.dataset.rolId;
+    document.getElementById('panelTerr').value = row.dataset.terrId;
+    editForm.action = row.dataset.editUrl;
+    resetForm.action = row.dataset.resetUrl;
+    toggleForm.action = row.dataset.toggleUrl;
+    var activo = row.dataset.activo === '1';
+    document.getElementById('panelToggleBtn').innerHTML = activo
+      ? '<i class="fas fa-ban"></i> Desactivar cuenta' : '<i class="fas fa-circle-check"></i> Activar cuenta';
+    panel.hidden = false; document.body.style.overflow = 'hidden';
+  }
+  function closeUser() { panel.hidden = true; document.body.style.overflow = ''; }
+  rows.forEach(function (row) {
+    var trigger = row.querySelector('.js-open-user');
+    if (trigger) {
+      trigger.addEventListener('click', function () { openUser(row); });
+      trigger.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openUser(row); } });
+    }
+  });
+  document.querySelectorAll('.js-close-user').forEach(function (el) { el.addEventListener('click', closeUser); });
+  panel.addEventListener('click', function (e) { if (e.target === panel) closeUser(); });
+})();
+</script>
+{% endblock %}

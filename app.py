@@ -3204,11 +3204,51 @@ def gestionar_vendedores():
     vendedores = Vendedor.query.all()
     roles = Rol.query.filter_by(activo=True).all()
     territorios = Territorio.query.filter_by(activo=True).all()
-    
+
+    # Matriz de permisos (mismos roles gestionables que gestionar_permisos).
+    acciones = ['leer', 'crear', 'editar', 'eliminar']
+    roles_matriz = (Rol.query.filter(Rol.nombre.in_(['supervisor', 'vendedor']))
+                    .order_by(Rol.nombre).all())
+    permisos = {p.recurso: p for p in Permiso.query.all()}
+    matriz = {}
+    for rol in roles_matriz:
+        matriz[rol.id] = {}
+        for rec in PERMISOS_RECURSOS:
+            p = permisos.get(rec)
+            rp = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first() if p else None
+            matriz[rol.id][rec] = {
+                a: (getattr(rp, f'puede_{a}') if rp else _permiso_default(rol.nombre, rec, a))
+                for a in acciones
+            }
+
+    # Tiempo relativo de último acceso + actividad reciente (datos reales).
+    def _hace(dt):
+        if not dt:
+            return None
+        seg = (datetime.utcnow() - dt).total_seconds()
+        if seg < 60:
+            return 'Hace instantes'
+        if seg < 3600:
+            return f'Hace {int(seg // 60)} min'
+        if seg < 86400:
+            return f'Hace {int(seg // 3600)} h'
+        dias = int(seg // 86400)
+        return 'Ayer' if dias == 1 else f'Hace {dias} días'
+
+    ultimo_rel = {v.id: _hace(v.ultimo_login) for v in vendedores}
+    actividad = sorted([v for v in vendedores if v.ultimo_login],
+                       key=lambda v: v.ultimo_login, reverse=True)[:8]
+
     return render_template('admin/vendedores.html',
-                         vendedores=vendedores,
-                         roles=roles,
-                         territorios=territorios)
+                           vendedores=vendedores,
+                           roles=roles,
+                           territorios=territorios,
+                           roles_matriz=roles_matriz,
+                           recursos=PERMISOS_RECURSOS,
+                           acciones=acciones,
+                           matriz=matriz,
+                           ultimo_rel=ultimo_rel,
+                           actividad=actividad)
 
 @app.route('/admin/roles-permisos', methods=['GET', 'POST'])
 @login_required
@@ -9096,11 +9136,58 @@ def _camaras_con_lectura_hoy():
 @requiere_permiso_recurso('registros', 'crear')
 def temperaturas_index():
     camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
-    con_lectura_hoy = _camaras_con_lectura_hoy()
+    hoy = date.today()
+
+    # Lecturas de hoy agrupadas por cámara y ronda (AM < 12:00, PM >= 12:00).
+    lecturas_hoy = (LecturaTemperatura.query
+                    .options(joinedload(LecturaTemperatura.registrado_por_vendedor))
+                    .filter(func.date(LecturaTemperatura.registrado_en) == hoy)
+                    .order_by(LecturaTemperatura.registrado_en.asc())
+                    .all())
+    lecturas_info = {cam.id: {'am': None, 'pm': None} for cam in camaras}
+    for lec in lecturas_hoy:
+        if lec.camara_id not in lecturas_info:
+            continue
+        ronda = 'am' if lec.registrado_en.hour < 12 else 'pm'
+        lecturas_info[lec.camara_id][ronda] = {
+            'valor': float(lec.temperatura),
+            'hora': lec.registrado_en.strftime('%H:%M'),
+            'fuera': bool(lec.fuera_de_rango),
+            'por': (lec.registrado_por_vendedor.nombre_completo
+                    if lec.registrado_por_vendedor else None),
+        }
+    con_lectura_hoy = {cid for cid, r in lecturas_info.items() if r['am'] or r['pm']}
+
+    # Cumplimiento de los últimos 7 días (% de lecturas dentro de rango).
+    desde = hoy - timedelta(days=6)
+    lecturas_semana = (LecturaTemperatura.query
+                       .filter(func.date(LecturaTemperatura.registrado_en) >= desde)
+                       .all())
+    por_dia = {}
+    for lec in lecturas_semana:
+        agg = por_dia.setdefault(lec.registrado_en.date(), [0, 0])
+        agg[1] += 1
+        if not lec.fuera_de_rango:
+            agg[0] += 1
+    etiquetas = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+    cumplimiento = []
+    for i in range(7):
+        d = desde + timedelta(days=i)
+        ok, tot = por_dia.get(d, [0, 0])
+        cumplimiento.append({'label': etiquetas[d.weekday()],
+                             'pct': round(ok / tot * 100) if tot else None,
+                             'tot': tot})
+    dias_con = [c['pct'] for c in cumplimiento if c['pct'] is not None]
+    cumplimiento_prom = round(sum(dias_con) / len(dias_con)) if dias_con else None
+
     es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/temperaturas.html',
                            camaras=camaras,
+                           lecturas_info=lecturas_info,
                            con_lectura_hoy=con_lectura_hoy,
+                           cumplimiento=cumplimiento,
+                           cumplimiento_prom=cumplimiento_prom,
+                           hoy=hoy,
                            es_admin=es_admin)
 
 
@@ -9631,10 +9718,54 @@ def _areas_con_registro_hoy():
 def limpieza_index():
     areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
              .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
-    con_registro_hoy = _areas_con_registro_hoy()
+    hoy = date.today()
+
+    # Registros de hoy por área (el más reciente del día gana).
+    regs_hoy = (RegistroLimpieza.query
+                .options(joinedload(RegistroLimpieza.registrado_por_vendedor))
+                .filter(func.date(RegistroLimpieza.registrado_en) == hoy)
+                .order_by(RegistroLimpieza.registrado_en.asc())
+                .all())
+    registros_info = {a.id: None for a in areas}
+    for r in regs_hoy:
+        if r.area_id in registros_info:
+            registros_info[r.area_id] = {
+                'conforme': bool(r.conforme),
+                'hora': r.registrado_en.strftime('%H:%M'),
+                'por': (r.registrado_por_vendedor.nombre_completo
+                        if r.registrado_por_vendedor else None),
+            }
+    con_registro_hoy = {aid for aid, v in registros_info.items() if v}
+
+    # Cumplimiento de los últimos 7 días (% de registros conformes).
+    desde = hoy - timedelta(days=6)
+    regs_semana = (RegistroLimpieza.query
+                   .filter(func.date(RegistroLimpieza.registrado_en) >= desde)
+                   .all())
+    por_dia = {}
+    for r in regs_semana:
+        agg = por_dia.setdefault(r.registrado_en.date(), [0, 0])
+        agg[1] += 1
+        if r.conforme:
+            agg[0] += 1
+    etiquetas = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+    cumplimiento = []
+    for i in range(7):
+        d = desde + timedelta(days=i)
+        ok, tot = por_dia.get(d, [0, 0])
+        cumplimiento.append({'label': etiquetas[d.weekday()],
+                             'pct': round(ok / tot * 100) if tot else None,
+                             'tot': tot})
+    dias_con = [c['pct'] for c in cumplimiento if c['pct'] is not None]
+    cumplimiento_prom = round(sum(dias_con) / len(dias_con)) if dias_con else None
+
     es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/limpieza.html', areas=areas,
-                           con_registro_hoy=con_registro_hoy, es_admin=es_admin)
+                           registros_info=registros_info,
+                           con_registro_hoy=con_registro_hoy,
+                           cumplimiento=cumplimiento,
+                           cumplimiento_prom=cumplimiento_prom,
+                           hoy=hoy, es_admin=es_admin)
 
 
 @app.route('/registros/limpieza/registrar', methods=['POST'])
