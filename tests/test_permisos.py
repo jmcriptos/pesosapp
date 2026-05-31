@@ -144,3 +144,33 @@ def test_registros_hub_requiere_leer(app):
     c = _login(app, 'vend')
     resp = c.get('/registros', follow_redirects=False)
     assert resp.status_code == 302
+
+
+def test_permisos_no_admin_bloqueado(app):
+    c = _login(app, 'vend')
+    resp = c.get('/admin/roles-permisos', follow_redirects=False)
+    assert resp.status_code in (302, 403)
+
+
+def test_permisos_admin_ve_matriz(app):
+    c = _login(app, 'admin')
+    resp = c.get('/admin/roles-permisos')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert 'registros' in body
+    assert f'perm_{IDS["rv"]}_pedidos_editar' in body
+
+
+def test_permisos_post_cambia_acceso(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post('/admin/roles-permisos', data={
+        f'perm_{IDS["rv"]}_pedidos_leer': '1',
+        f'perm_{IDS["rv"]}_pedidos_crear': '1',
+        f'perm_{IDS["rv"]}_registros_leer': '1',
+    }, follow_redirects=True)
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        assert v.tiene_permiso('pedidos', 'crear') is True
+        assert v.tiene_permiso('pedidos', 'editar') is False
+        assert v.tiene_permiso('registros', 'crear') is False

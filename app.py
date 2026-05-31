@@ -3205,10 +3205,52 @@ def gestionar_vendedores():
     roles = Rol.query.filter_by(activo=True).all()
     territorios = Territorio.query.filter_by(activo=True).all()
     
-    return render_template('admin/vendedores.html', 
-                         vendedores=vendedores, 
-                         roles=roles, 
+    return render_template('admin/vendedores.html',
+                         vendedores=vendedores,
+                         roles=roles,
                          territorios=territorios)
+
+@app.route('/admin/roles-permisos', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def gestionar_permisos():
+    acciones = ['leer', 'crear', 'editar', 'eliminar']
+    roles = (Rol.query.filter(Rol.nombre.in_(['supervisor', 'vendedor']))
+             .order_by(Rol.nombre).all())
+    if request.method == 'POST':
+        _sembrar_permisos()  # garantiza filas Permiso
+        permisos = {p.recurso: p for p in Permiso.query.all()}
+        for rol in roles:
+            for rec in PERMISOS_RECURSOS:
+                p = permisos.get(rec)
+                if p is None:
+                    continue
+                rp = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first()
+                if rp is None:
+                    rp = RolPermiso(rol_id=rol.id, permiso_id=p.id)
+                    db.session.add(rp)
+                rp.puede_leer = bool(request.form.get(f'perm_{rol.id}_{rec}_leer'))
+                rp.puede_crear = bool(request.form.get(f'perm_{rol.id}_{rec}_crear'))
+                rp.puede_editar = bool(request.form.get(f'perm_{rol.id}_{rec}_editar'))
+                rp.puede_eliminar = bool(request.form.get(f'perm_{rol.id}_{rec}_eliminar'))
+        db.session.commit()
+        flash('Permisos actualizados.', 'success')
+        return redirect(url_for('gestionar_permisos'))
+
+    permisos = {p.recurso: p for p in Permiso.query.all()}
+    matriz = {}
+    for rol in roles:
+        matriz[rol.id] = {}
+        for rec in PERMISOS_RECURSOS:
+            p = permisos.get(rec)
+            rp = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first() if p else None
+            matriz[rol.id][rec] = {
+                a: (getattr(rp, f'puede_{a}') if rp else _permiso_default(rol.nombre, rec, a))
+                for a in acciones
+            }
+    return render_template('admin/roles_permisos.html',
+                           roles=roles, recursos=PERMISOS_RECURSOS,
+                           acciones=acciones, matriz=matriz)
 
 @app.route('/admin/vendedores/nuevo', methods=['GET', 'POST'])
 @login_required
