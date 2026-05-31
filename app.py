@@ -260,6 +260,87 @@ class DefaultUser(UserMixin):
 from utils.filters import kpi_tag
 app.jinja_env.filters['kpi_tag'] = kpi_tag
 
+_PERMISOS_DEFAULT = {
+    'super_admin': {
+        'productos': ['leer', 'crear', 'editar', 'eliminar'],
+        'clientes': ['leer', 'crear', 'editar', 'eliminar'],
+        'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
+        'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
+        'precios': ['leer', 'crear', 'editar', 'eliminar'],
+        'reportes': ['leer', 'crear', 'editar', 'eliminar'],
+        'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
+        'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
+        'registros': ['leer', 'crear', 'editar', 'eliminar'],
+    },
+    'supervisor': {
+        'productos': ['leer'],
+        'clientes': ['leer', 'editar'],
+        'pedidos': ['leer', 'crear', 'editar'],
+        'vendedores': ['leer'],
+        'precios': ['leer'],
+        'reportes': ['leer'],
+        'importaciones': [],
+        'facturacion': ['leer'],
+        'registros': ['leer', 'crear', 'editar'],
+    },
+    'vendedor': {
+        'productos': ['leer'],
+        'clientes': ['leer', 'editar'],
+        'pedidos': ['leer', 'crear', 'editar'],
+        'vendedores': [],
+        'precios': ['leer'],
+        'reportes': [],
+        'importaciones': [],
+        'facturacion': [],
+        'registros': ['leer', 'crear'],
+    },
+}
+
+
+def _permiso_default(rol_nombre, recurso, accion):
+    """Defaults de permisos (fallback cuando no hay filas en RolPermiso)."""
+    return accion in _PERMISOS_DEFAULT.get(rol_nombre, {}).get(recurso, [])
+
+
+PERMISOS_RECURSOS = ['productos', 'clientes', 'pedidos', 'precios', 'registros']
+
+PERMISOS_DEFAULTS = {
+    'vendedor':    {'productos': ['leer'], 'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'], 'precios': ['leer'],
+                    'registros': ['leer', 'crear']},
+    'supervisor':  {'productos': ['leer'], 'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'], 'precios': ['leer'],
+                    'registros': ['leer', 'crear', 'editar']},
+    'super_admin': {r: ['leer', 'crear', 'editar', 'eliminar'] for r in PERMISOS_RECURSOS},
+}
+
+
+def _sembrar_permisos():
+    """Crea (idempotente, no destructivo) las filas Permiso por recurso y las
+    filas RolPermiso por rol con los defaults. No sobreescribe filas existentes."""
+    for rec in PERMISOS_RECURSOS:
+        if not Permiso.query.filter_by(recurso=rec).first():
+            db.session.add(Permiso(nombre=rec, recurso=rec, categoria='recurso',
+                                   descripcion=f'Recurso {rec}'))
+    db.session.flush()
+    permisos = {p.recurso: p for p in Permiso.query.all()}
+    for rol_nombre, recursos in PERMISOS_DEFAULTS.items():
+        rol = Rol.query.filter_by(nombre=rol_nombre).first()
+        if rol is None:
+            continue
+        for rec, acciones in recursos.items():
+            p = permisos.get(rec)
+            if p is None:
+                continue
+            existe = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first()
+            if existe is None:
+                db.session.add(RolPermiso(
+                    rol_id=rol.id, permiso_id=p.id,
+                    puede_leer='leer' in acciones, puede_crear='crear' in acciones,
+                    puede_editar='editar' in acciones, puede_eliminar='eliminar' in acciones))
+    db.session.commit()
+
+
 class Vendedor(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -295,48 +376,19 @@ class Vendedor(db.Model, UserMixin):
         return check_password_hash(self.password_hash, password)
     
     def tiene_permiso(self, permiso_nombre, tipo_acceso='leer'):
-        """Verifica si el vendedor tiene un permiso específico"""
+        """Verifica un permiso leyendo de RolPermiso; super_admin siempre pasa;
+        si no hay filas sembradas, cae a los defaults (_permiso_default)."""
         if not self.activo:
             return False
-        
-        # Definir permisos específicos por rol
-        permisos_por_rol = {
-                'super_admin': {
-                    'productos': ['leer', 'crear', 'editar', 'eliminar'],
-                    'clientes': ['leer', 'crear', 'editar', 'eliminar'],
-                    'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
-                    'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
-                    'precios': ['leer', 'crear', 'editar', 'eliminar'],
-                    'reportes': ['leer', 'crear', 'editar', 'eliminar'],
-                    'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
-                    'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
-                },
-                'supervisor': {
-                    'productos': ['leer'],
-                    'clientes': ['leer', 'editar'],
-                    'pedidos': ['leer', 'crear', 'editar'],
-                    'vendedores': ['leer'],
-                    'precios': ['leer'],
-                    'reportes': ['leer'],
-                    'importaciones': [],
-                    'facturacion': ['leer'],
-                },
-                'vendedor': {
-                    'productos': ['leer'],
-                    'clientes': ['leer', 'editar'],
-                    'pedidos': ['leer', 'crear', 'editar'],
-                    'vendedores': [],
-                    'precios': ['leer'],
-                    'reportes': [],
-                    'importaciones': [],
-                    'facturacion': [],
-                }
-            }
-        
-        permisos_rol = permisos_por_rol.get(self.rol.nombre, {})
-        permisos_recurso = permisos_rol.get(permiso_nombre, [])
-        
-        return tipo_acceso in permisos_recurso
+        if self.rol and self.rol.nombre == 'super_admin':
+            return True
+        rp = (RolPermiso.query.join(Permiso)
+              .filter(RolPermiso.rol_id == self.rol_id,
+                      Permiso.recurso == permiso_nombre).first())
+        if rp is None:
+            return _permiso_default(self.rol.nombre if self.rol else '', permiso_nombre, tipo_acceso)
+        return bool({'leer': rp.puede_leer, 'crear': rp.puede_crear,
+                     'editar': rp.puede_editar, 'eliminar': rp.puede_eliminar}.get(tipo_acceso, False))
     
     def puede_editar_pedido(self, pedido):
         """Verifica si el vendedor puede editar un pedido específico"""
@@ -3153,10 +3205,52 @@ def gestionar_vendedores():
     roles = Rol.query.filter_by(activo=True).all()
     territorios = Territorio.query.filter_by(activo=True).all()
     
-    return render_template('admin/vendedores.html', 
-                         vendedores=vendedores, 
-                         roles=roles, 
+    return render_template('admin/vendedores.html',
+                         vendedores=vendedores,
+                         roles=roles,
                          territorios=territorios)
+
+@app.route('/admin/roles-permisos', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def gestionar_permisos():
+    acciones = ['leer', 'crear', 'editar', 'eliminar']
+    roles = (Rol.query.filter(Rol.nombre.in_(['supervisor', 'vendedor']))
+             .order_by(Rol.nombre).all())
+    if request.method == 'POST':
+        _sembrar_permisos()  # garantiza filas Permiso
+        permisos = {p.recurso: p for p in Permiso.query.all()}
+        for rol in roles:
+            for rec in PERMISOS_RECURSOS:
+                p = permisos.get(rec)
+                if p is None:
+                    continue
+                rp = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first()
+                if rp is None:
+                    rp = RolPermiso(rol_id=rol.id, permiso_id=p.id)
+                    db.session.add(rp)
+                rp.puede_leer = bool(request.form.get(f'perm_{rol.id}_{rec}_leer'))
+                rp.puede_crear = bool(request.form.get(f'perm_{rol.id}_{rec}_crear'))
+                rp.puede_editar = bool(request.form.get(f'perm_{rol.id}_{rec}_editar'))
+                rp.puede_eliminar = bool(request.form.get(f'perm_{rol.id}_{rec}_eliminar'))
+        db.session.commit()
+        flash('Permisos actualizados.', 'success')
+        return redirect(url_for('gestionar_permisos'))
+
+    permisos = {p.recurso: p for p in Permiso.query.all()}
+    matriz = {}
+    for rol in roles:
+        matriz[rol.id] = {}
+        for rec in PERMISOS_RECURSOS:
+            p = permisos.get(rec)
+            rp = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first() if p else None
+            matriz[rol.id][rec] = {
+                a: (getattr(rp, f'puede_{a}') if rp else _permiso_default(rol.nombre, rec, a))
+                for a in acciones
+            }
+    return render_template('admin/roles_permisos.html',
+                           roles=roles, recursos=PERMISOS_RECURSOS,
+                           acciones=acciones, matriz=matriz)
 
 @app.route('/admin/vendedores/nuevo', methods=['GET', 'POST'])
 @login_required
@@ -8935,7 +9029,7 @@ def _parse_rango_camara(form):
 
 @app.route('/registros/temperaturas/camaras')
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camaras_list():
     camaras = Camara.query.order_by(Camara.nombre).all()
     return render_template('registros/camaras.html', camaras=camaras)
@@ -8943,7 +9037,7 @@ def camaras_list():
 
 @app.route('/registros/temperaturas/camaras/nueva', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camara_nueva():
     nombre, tipo, temp_min, temp_max, error = _parse_rango_camara(request.form)
     if error:
@@ -8958,7 +9052,7 @@ def camara_nueva():
 
 @app.route('/registros/temperaturas/camaras/<int:camara_id>/editar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camara_editar(camara_id):
     camara = Camara.query.get_or_404(camara_id)
     nombre, tipo, temp_min, temp_max, error = _parse_rango_camara(request.form)
@@ -8973,7 +9067,7 @@ def camara_editar(camara_id):
 
 @app.route('/registros/temperaturas/camaras/<int:camara_id>/toggle', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camara_toggle(camara_id):
     camara = Camara.query.get_or_404(camara_id)
     camara.activa = not camara.activa
@@ -8999,10 +9093,11 @@ def _camaras_con_lectura_hoy():
 
 @app.route('/registros/temperaturas')
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def temperaturas_index():
     camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
     con_lectura_hoy = _camaras_con_lectura_hoy()
-    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/temperaturas.html',
                            camaras=camaras,
                            con_lectura_hoy=con_lectura_hoy,
@@ -9011,6 +9106,7 @@ def temperaturas_index():
 
 @app.route('/registros/temperaturas/registrar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def temperatura_registrar():
     camara = Camara.query.filter_by(id=request.form.get('camara_id', type=int), activa=True).first()
     if camara is None:
@@ -9095,10 +9191,11 @@ def _filtrar_lecturas(args):
 
 @app.route('/registros/temperaturas/historial')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def temperaturas_historial():
     lecturas = _filtrar_lecturas(request.args)
     camaras = Camara.query.order_by(Camara.nombre).all()
-    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     return render_template('registros/temperaturas_historial.html',
                            lecturas=lecturas, camaras=camaras, filtros=request.args,
@@ -9107,7 +9204,7 @@ def temperaturas_historial():
 
 @app.route('/registros/temperaturas/revisar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin', 'supervisor'])
+@requiere_permiso_recurso('registros', 'editar')
 def temperatura_revisar():
     fi = request.form.get('fecha_inicio') or None
     ff = request.form.get('fecha_fin') or None
@@ -9321,6 +9418,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision)
 
 @app.route('/registros/temperaturas/export', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def temperaturas_export():
     lecturas = _filtrar_lecturas(request.form)
     fi = request.form.get('fecha_inicio') or ''
@@ -9338,7 +9436,7 @@ def temperaturas_export():
 
 @app.route('/registros/temperaturas/config', methods=['GET', 'POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def registro_config():
     cfg = _get_registro_config()
     if request.method == 'POST':
@@ -9388,15 +9486,16 @@ def _parse_producto_limpieza(form):
 
 @app.route('/registros/limpieza/productos')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def productos_limpieza_index():
     productos = ProductoLimpieza.query.order_by(ProductoLimpieza.nombre).all()
-    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/productos_limpieza.html', productos=productos, es_admin=es_admin)
 
 
 @app.route('/registros/limpieza/productos/nuevo', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def producto_limpieza_nuevo():
     nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
     if error:
@@ -9411,7 +9510,7 @@ def producto_limpieza_nuevo():
 
 @app.route('/registros/limpieza/productos/<int:producto_id>/editar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def producto_limpieza_editar(producto_id):
     producto = ProductoLimpieza.query.get_or_404(producto_id)
     nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
@@ -9427,7 +9526,7 @@ def producto_limpieza_editar(producto_id):
 
 @app.route('/registros/limpieza/productos/<int:producto_id>/toggle', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def producto_limpieza_toggle(producto_id):
     producto = ProductoLimpieza.query.get_or_404(producto_id)
     producto.activo = not producto.activo
@@ -9454,7 +9553,7 @@ def _parse_area_limpieza(form):
 
 @app.route('/registros/limpieza/areas')
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def areas_limpieza_list():
     areas = AreaLimpieza.query.options(joinedload(AreaLimpieza.producto)).order_by(AreaLimpieza.nombre).all()
     productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
@@ -9463,7 +9562,7 @@ def areas_limpieza_list():
 
 @app.route('/registros/limpieza/areas/nueva', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_nueva():
     nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
     if error:
@@ -9478,7 +9577,7 @@ def area_limpieza_nueva():
 
 @app.route('/registros/limpieza/areas/<int:area_id>/editar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_editar(area_id):
     area = AreaLimpieza.query.get_or_404(area_id)
     nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
@@ -9494,7 +9593,7 @@ def area_limpieza_editar(area_id):
 
 @app.route('/registros/limpieza/areas/<int:area_id>/toggle', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_toggle(area_id):
     area = AreaLimpieza.query.get_or_404(area_id)
     area.activa = not area.activa
@@ -9518,17 +9617,19 @@ def _areas_con_registro_hoy():
 
 @app.route('/registros/limpieza')
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def limpieza_index():
     areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
              .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
     con_registro_hoy = _areas_con_registro_hoy()
-    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/limpieza.html', areas=areas,
                            con_registro_hoy=con_registro_hoy, es_admin=es_admin)
 
 
 @app.route('/registros/limpieza/registrar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def limpieza_registrar():
     area = AreaLimpieza.query.filter_by(id=request.form.get('area_id', type=int), activa=True).first()
     if area is None:
@@ -9606,10 +9707,11 @@ def _filtrar_registros_limpieza(args):
 
 @app.route('/registros/limpieza/historial')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def limpieza_historial():
     registros = _filtrar_registros_limpieza(request.args)
     areas = AreaLimpieza.query.order_by(AreaLimpieza.nombre).all()
-    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_limpieza_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     return render_template('registros/limpieza_historial.html',
                            registros=registros, areas=areas, filtros=request.args,
@@ -9618,7 +9720,7 @@ def limpieza_historial():
 
 @app.route('/registros/limpieza/revisar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin', 'supervisor'])
+@requiere_permiso_recurso('registros', 'editar')
 def limpieza_revisar():
     fi = request.form.get('fecha_inicio') or None
     ff = request.form.get('fecha_fin') or None
@@ -9746,6 +9848,7 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
 
 @app.route('/registros/limpieza/export', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def limpieza_export():
     registros = _filtrar_registros_limpieza(request.form)
     fi = request.form.get('fecha_inicio') or ''
@@ -9763,7 +9866,7 @@ def limpieza_export():
 
 @app.route('/registros/limpieza/config', methods=['GET', 'POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def limpieza_config():
     cfg = _get_limpieza_config()
     if request.method == 'POST':
@@ -9780,6 +9883,7 @@ def limpieza_config():
 
 @app.route('/registros')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def registros_index():
     return render_template('registros/index.html')
 
