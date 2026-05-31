@@ -9364,6 +9364,215 @@ def limpieza_registrar():
     return redirect(url_for('limpieza_index'))
 
 
+def _revision_limpieza_que_cubre(fi, ff):
+    """RevisionLimpieza más reciente que cubre el período [fi, ff] ('YYYY-MM-DD')."""
+    def _d(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+    d_fi, d_ff = _d(fi), _d(ff)
+    q = RevisionLimpieza.query
+    if d_fi and d_ff:
+        q = q.filter(RevisionLimpieza.periodo_desde.isnot(None),
+                     RevisionLimpieza.periodo_hasta.isnot(None),
+                     RevisionLimpieza.periodo_desde <= d_fi,
+                     RevisionLimpieza.periodo_hasta >= d_ff)
+    return q.order_by(RevisionLimpieza.revisado_en.desc()).first()
+
+
+def _filtrar_registros_limpieza(args):
+    """Aplica filtros opcionales (fecha_inicio, fecha_fin, area_id) y devuelve
+    los registros ordenados por fecha desc. Acepta request.args o request.form."""
+    q = RegistroLimpieza.query.options(
+        joinedload(RegistroLimpieza.area).joinedload(AreaLimpieza.producto),
+        joinedload(RegistroLimpieza.registrado_por_vendedor),
+    )
+    fi = args.get('fecha_inicio')
+    ff = args.get('fecha_fin')
+    area = args.get('area_id', type=int)
+    if fi:
+        try:
+            q = q.filter(func.date(RegistroLimpieza.registrado_en) >= datetime.strptime(fi, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if ff:
+        try:
+            q = q.filter(func.date(RegistroLimpieza.registrado_en) <= datetime.strptime(ff, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if area:
+        q = q.filter(RegistroLimpieza.area_id == area)
+    return q.order_by(RegistroLimpieza.registrado_en.desc()).all()
+
+
+@app.route('/registros/limpieza/historial')
+@login_required
+def limpieza_historial():
+    registros = _filtrar_registros_limpieza(request.args)
+    areas = AreaLimpieza.query.order_by(AreaLimpieza.nombre).all()
+    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    revision = _revision_limpieza_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
+    return render_template('registros/limpieza_historial.html',
+                           registros=registros, areas=areas, filtros=request.args,
+                           puede_verificar=puede_verificar, revision=revision)
+
+
+@app.route('/registros/limpieza/revisar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin', 'supervisor'])
+def limpieza_revisar():
+    fi = request.form.get('fecha_inicio') or None
+    ff = request.form.get('fecha_fin') or None
+    def _d(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+    db.session.add(RevisionLimpieza(
+        revisado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+        periodo_desde=_d(fi), periodo_hasta=_d(ff),
+    ))
+    db.session.commit()
+    flash('Período marcado como revisado.', 'success')
+    return redirect(url_for('limpieza_historial', fecha_inicio=fi or '', fecha_fin=ff or ''))
+
+
+def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
+    """Construye el PDF tabular audit-ready del registro de limpieza."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                            leftMargin=0.4 * inch, rightMargin=0.4 * inch,
+                            topMargin=0.5 * inch, bottomMargin=0.7 * inch)
+    cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
+    empresa_style = ParagraphStyle(name='reg_empresa', fontSize=10, leading=13,
+                                   fontName='Helvetica-Bold', alignment=TA_LEFT,
+                                   textColor=colors.HexColor('#1877ff'))
+    titulo_style = ParagraphStyle(name='reg_titulo', fontSize=15, leading=18,
+                                  fontName='Helvetica-Bold', alignment=TA_LEFT)
+    sub_style = ParagraphStyle(name='reg_sub', fontSize=9, leading=12,
+                               alignment=TA_LEFT, textColor=colors.HexColor('#475569'))
+
+    if fecha_inicio or fecha_fin:
+        periodo = f'Período: {fecha_inicio or "inicio"} a {fecha_fin or "hoy"}'
+    else:
+        periodo = 'Período: todas las fechas'
+    generado = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%d %H:%M')
+
+    encabezado = [
+        Paragraph('Jomar Foods B.V.', empresa_style),
+        Paragraph('Registro de limpieza y desinfección', titulo_style),
+        Paragraph(f'Documento: {config.codigo_documento} &middot; Versión: {config.version}', sub_style),
+        Paragraph(f'{periodo} &middot; Generado: {generado}', sub_style),
+    ]
+    logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=52, height=52)
+        head_tbl = Table([[logo, encabezado]], colWidths=[64, None])
+        head_tbl.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        head_tbl.hAlign = 'LEFT'
+        elements = [head_tbl, Spacer(1, 14)]
+    else:
+        elements = encabezado + [Spacer(1, 14)]
+
+    def _accion_txt(r):
+        partes = []
+        if r.accion_causa: partes.append(f'Causa: {r.accion_causa}')
+        if r.accion_tomada: partes.append(f'Acción: {r.accion_tomada}')
+        if r.accion_responsable: partes.append(f'Resp.: {r.accion_responsable}')
+        if r.accion_disposicion: partes.append(f'Disposición: {r.accion_disposicion}')
+        return ' | '.join(partes)
+
+    encabezados = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'Resultado',
+                   'Responsable', 'Observación / Acción correctiva']
+    data = [encabezados]
+    for r in registros:
+        accion = _accion_txt(r)
+        if r.observacion and accion:
+            obs_accion = f'Obs.: {r.observacion} | {accion}'
+        else:
+            obs_accion = accion or (r.observacion or '')
+        data.append([
+            Paragraph(r.registrado_en.strftime('%Y-%m-%d %H:%M'), cell),
+            Paragraph(r.area.nombre if r.area else '—', cell),
+            Paragraph('Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio', cell),
+            Paragraph(r.area.producto.nombre if (r.area and r.area.producto) else '—', cell),
+            Paragraph('No conforme' if not r.conforme else 'Conforme', cell),
+            Paragraph(r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—', cell),
+            Paragraph(obs_accion, cell),
+        ])
+    tabla = Table(data, repeatRows=1)
+    estilo = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f2937')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ])
+    for i, r in enumerate(registros, start=1):
+        if not r.conforme:
+            estilo.add('BACKGROUND', (0, i), (-1, i), colors.HexColor('#fee2e2'))
+    tabla.setStyle(estilo)
+    elements.append(tabla)
+
+    elements.append(Spacer(1, 18))
+    if revision:
+        nombre = revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—'
+        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {revision.revisado_en.strftime("%Y-%m-%d %H:%M")}'
+    else:
+        rev_txt = '<b>Verificación:</b> Revisado por: ______________________      Fecha: __________'
+    elements.append(Paragraph(rev_txt, sub_style))
+
+    footer_left = (f'Frecuencia: {config.frecuencia_texto or "N/D"}   |   '
+                   f'Responsable de verificación: {config.responsable_verificacion or "N/D"}')
+    footer_doc = f'{config.codigo_documento} v{config.version}'
+    page_w = landscape(A4)[0]
+
+    class _NumberedCanvas(canvas.Canvas):
+        def __init__(self, *a, **k):
+            canvas.Canvas.__init__(self, *a, **k)
+            self._saved_states = []
+        def showPage(self):
+            self._saved_states.append(dict(self.__dict__))
+            self._startPage()
+        def save(self):
+            total = len(self._saved_states)
+            for st in self._saved_states:
+                self.__dict__.update(st)
+                self.setFont('Helvetica', 7)
+                self.setFillColor(colors.HexColor('#475569'))
+                self.drawString(0.4 * inch, 0.35 * inch, footer_left)
+                self.drawRightString(page_w - 0.4 * inch, 0.35 * inch,
+                                     f'{footer_doc}  ·  Página {self._pageNumber} de {total}')
+                canvas.Canvas.showPage(self)
+            canvas.Canvas.save(self)
+
+    doc.build(elements, canvasmaker=_NumberedCanvas)
+    buffer.seek(0)
+    return buffer
+
+
+@app.route('/registros/limpieza/export', methods=['POST'])
+@login_required
+def limpieza_export():
+    registros = _filtrar_registros_limpieza(request.form)
+    fi = request.form.get('fecha_inicio') or ''
+    ff = request.form.get('fecha_fin') or ''
+    config = _get_limpieza_config()
+    revision = _revision_limpieza_que_cubre(fi, ff)
+    buffer = _build_limpieza_pdf(registros, fi, ff, config, revision)
+    filename = f"registro_limpieza_{fi or 'inicio'}_{ff or 'fin'}.pdf"
+    response = make_response(send_file(buffer, mimetype='application/pdf',
+                                       as_attachment=not _is_ios_request(),
+                                       download_name=filename))
+    response.headers['Content-Type'] = 'application/pdf'
+    return response
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

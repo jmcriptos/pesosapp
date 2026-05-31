@@ -202,3 +202,38 @@ def test_principal_muestra_area(app):
     body = resp.data.decode('utf-8')
     assert 'Sierra de cortar' in body
     assert 'Sanitizante clorado' in body
+
+
+def test_historial_lista_registros(app):
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    resp = c.get('/registros/limpieza/historial')
+    assert resp.status_code == 200
+    assert 'Sierra de cortar' in resp.data.decode('utf-8')
+
+
+def test_revisar_no_admin_bloqueado(app):
+    from app import RevisionLimpieza
+    c = _login(app, 'vend')
+    resp = c.post('/registros/limpieza/revisar',
+                  data={'fecha_inicio': '2026-05-01', 'fecha_fin': '2026-05-31'},
+                  follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert RevisionLimpieza.query.count() == 0
+
+
+def test_revisar_marca_periodo(app):
+    from app import RevisionLimpieza
+    from datetime import date
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/revisar',
+           data={'fecha_inicio': '2026-05-01', 'fecha_fin': '2026-05-31'},
+           follow_redirects=True)
+    with app.app_context():
+        rev = RevisionLimpieza.query.first()
+        assert rev is not None
+        assert rev.revisado_por == IDS['admin']
+        assert rev.periodo_desde == date(2026, 5, 1)
+        assert rev.periodo_hasta == date(2026, 5, 31)
