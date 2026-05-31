@@ -213,3 +213,13 @@ def test_reset_genera_si_blanco(app):
         v = _db.session.get(Vendedor, IDS['vend'])
         assert v.debe_cambiar_password is True
         assert v.check_password('pw') is False  # la contraseña vieja ya no sirve
+
+
+def test_pagina_admin_muestra_formularios(app):
+    c = _login(app, 'admin')
+    resp = c.get('/admin/vendedores')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert f'/admin/vendedores/{IDS["vend"]}/editar' in body
+    assert f'/admin/vendedores/{IDS["vend"]}/toggle' in body
+    assert f'/admin/vendedores/{IDS["vend"]}/reset-password' in body
