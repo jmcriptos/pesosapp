@@ -305,6 +305,9 @@
             <div class="drawer-divider"></div>
 
             <div class="drawer-section">
+                <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
+                    <i class="fas fa-key"></i><span>Cambiar contraseña</span>
+                </a>
                 <a href="/logout" class="drawer-item drawer-item-logout">
                     <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
                 </a>
@@ -436,6 +439,9 @@
                             <div class="dropdown-menu">
                                 <a href="/dashboard" class="dropdown-item">
                                     <i class="fas fa-chart-pie"></i><span>Ir al dashboard</span>
+                                </a>
+                                <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
+                                    <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                                 </a>
                                 <a href="/logout" class="dropdown-item logout-item">
                                     <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
