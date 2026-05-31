@@ -30,11 +30,11 @@
         <div class="reg-field-row">
           <div class="mobile-form-group">
             <label class="mobile-form-label" for="temp_min">Mín. (°C)</label>
-            <input type="text" inputmode="decimal" id="temp_min" name="temp_min" class="mobile-form-control" placeholder="0" required>
+            <input type="text" inputmode="decimal" data-signed-decimal id="temp_min" name="temp_min" class="mobile-form-control" placeholder="0" required>
           </div>
           <div class="mobile-form-group">
             <label class="mobile-form-label" for="temp_max">Máx. (°C)</label>
-            <input type="text" inputmode="decimal" id="temp_max" name="temp_max" class="mobile-form-control" placeholder="6" required>
+            <input type="text" inputmode="decimal" data-signed-decimal id="temp_max" name="temp_max" class="mobile-form-control" placeholder="6" required>
           </div>
         </div>
         <div class="mobile-form-actions">
@@ -87,11 +87,11 @@
             <div class="reg-field-row">
               <div class="mobile-form-group">
                 <label class="mobile-form-label">Mín. (°C)</label>
-                <input type="text" inputmode="decimal" name="temp_min" class="mobile-form-control" value="{{ c.temp_min }}" required>
+                <input type="text" inputmode="decimal" data-signed-decimal name="temp_min" class="mobile-form-control" value="{{ c.temp_min }}" required>
               </div>
               <div class="mobile-form-group">
                 <label class="mobile-form-label">Máx. (°C)</label>
-                <input type="text" inputmode="decimal" name="temp_max" class="mobile-form-control" value="{{ c.temp_max }}" required>
+                <input type="text" inputmode="decimal" data-signed-decimal name="temp_max" class="mobile-form-control" value="{{ c.temp_max }}" required>
               </div>
             </div>
             <div class="mobile-form-actions">
@@ -107,4 +107,5 @@
   </div>
 
 </div>
+<script src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
 {% endblock %}

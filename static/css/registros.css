@@ -116,3 +116,23 @@
 
 .reg-empty { text-align: center; color: var(--color-text-muted); padding: 28px 8px; }
 .reg-empty i { font-size: 1.6rem; opacity: .5; display: block; margin-bottom: 8px; }
+
+/* ── Campo decimal con signo (teclado móvil sin tecla "−") ───── */
+.signed-decimal-wrap { display: flex; align-items: stretch; gap: 8px; }
+.signed-decimal-wrap > .mobile-form-control { flex: 1 1 auto; min-width: 0; }
+.signo-toggle {
+  flex: 0 0 auto;
+  width: 52px;
+  border: 1px solid color-mix(in srgb, var(--color-text) 24%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  color: var(--color-text);
+  font-size: 22px; font-weight: 700; line-height: 1; cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+.signo-toggle:active { transform: scale(.96); }
+/* Resalta en rojo cuando el valor es negativo (bajo cero) */
+.signo-toggle.is-negative {
+  background: var(--color-danger-soft); color: var(--color-danger-soft-fg);
+  border-color: transparent;
+}

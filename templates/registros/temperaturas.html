@@ -35,7 +35,7 @@
         <input type="hidden" name="camara_id" value="{{ c.id }}">
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="temperatura_{{ c.id }}">Temperatura (°C)</label>
-          <input type="text" inputmode="decimal" id="temperatura_{{ c.id }}" name="temperatura"
+          <input type="text" inputmode="decimal" data-signed-decimal id="temperatura_{{ c.id }}" name="temperatura"
                  class="mobile-form-control" placeholder="Ej: -20" required>
         </div>
         <details class="reg-edit">
@@ -73,4 +73,5 @@
   </div>
 
 </div>
+<script src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
 {% endblock %}
