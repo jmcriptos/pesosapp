@@ -806,7 +806,122 @@
 .ops-screen .ops-segmented button.is-active, .ops-sheet .ops-segmented button.is-active { box-shadow: var(--shadow-sm, 0 1px 2px rgba(15,23,42,.08)) !important; }
 
 /* Títulos: el tema oscuro aclara los h1 → forzamos texto legible */
-.ops-admin-header h1, .ops-admin h1, .ops-screen .ops-title { color: var(--color-text) !important; }
+.ops-admin-header h1, .ops-admin h1, .ops-screen .ops-title,
+.ops-screen .cfg-title, .ops-screen .hist-title { color: var(--color-text) !important; }
+
+/* ============================================================
+   CONFIG e HISTORIAL (HACCP) — diseño dedicado
+   ============================================================ */
+/* ---- Topbar con botón volver ---- */
+.cfg-topbar, .hist-topbar { display: flex; align-items: center; gap: 12px; padding: 6px 2px 16px; }
+.cfg-back, .hist-back, .hist-export {
+  width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; cursor: pointer;
+  display: grid; place-items: center; text-decoration: none; font-size: 16px;
+  background: var(--color-bg-elevated) !important; color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important; box-shadow: none !important;
+}
+.hist-export { margin-left: auto; }
+.cfg-eyebrow, .hist-eyebrow { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.cfg-eyebrow.is-temp, .hist-eyebrow.is-temp { color: var(--sky-600, var(--sky-500)); }
+.cfg-eyebrow.is-clean, .hist-eyebrow.is-clean { color: var(--emerald-600, var(--emerald-500)); }
+.cfg-title, .hist-title { margin: 2px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; }
+
+/* ---- Banner guardado ---- */
+.cfg-saved { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-radius: 12px; margin-bottom: 14px;
+  background: var(--color-success-soft); color: var(--color-success-soft-fg); font-weight: 700; font-size: 13.5px; }
+
+/* ---- Secciones ---- */
+.cfg-section { background: var(--color-bg-elevated); border: 1px solid var(--color-border-subtle); border-radius: 16px;
+  padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+.cfg-section-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-muted); margin-bottom: 14px; }
+.cfg-section-head i { color: var(--accent); }
+.cfg-fields { display: flex; flex-direction: column; gap: 12px; }
+.cfg-field-label { display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+  color: var(--color-text-muted); margin-bottom: 6px; }
+.cfg-field-input {
+  width: 100%; box-sizing: border-box; min-height: 46px; padding: 11px 13px; border-radius: 11px;
+  font-size: 15px; font-family: inherit;
+  background: var(--color-surface-muted) !important; color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important; outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.cfg-field-input:focus {
+  background: var(--color-bg-elevated) !important; border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+.cfg-freq { display: flex; flex-wrap: wrap; gap: 8px; }
+.cfg-freq-chip {
+  font-size: 13px; font-weight: 700; padding: 9px 14px; border-radius: 99px; cursor: pointer; font-family: inherit;
+  background: var(--color-surface-muted) !important; color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border) !important; box-shadow: none !important;
+}
+.cfg-freq-chip.active {
+  background: color-mix(in oklab, var(--accent) 12%, #fff) !important; color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.cfg-actions { margin-top: 16px; }
+.cfg-save {
+  width: 100%; height: 50px; border: none !important; border-radius: 14px; color: #fff !important;
+  font-weight: 800; font-size: 15px; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent) !important;
+  box-shadow: 0 10px 24px -10px color-mix(in oklab, var(--accent) 60%, transparent) !important;
+}
+.cfg-save:disabled { filter: grayscale(.4) opacity(.6); cursor: not-allowed; }
+
+/* ---- Historial: KPIs ---- */
+.hist-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.hist-kpi { background: var(--color-bg-elevated); border: 1px solid var(--color-border-subtle); border-radius: 14px;
+  padding: 14px 8px; text-align: center; box-shadow: var(--shadow-sm); }
+.hist-kpi-value { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--color-text); }
+.hist-kpi-value.is-ok { color: var(--emerald-600, var(--emerald-500)); }
+.hist-kpi-value.is-alert { color: var(--rose-600, var(--rose-500)); }
+.hist-kpi-label { font-size: 10.5px; font-weight: 700; color: var(--color-text-subtle); margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* ---- Historial: rango + filtros ---- */
+.hist-rango { display: flex; gap: 4px; padding: 4px; background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-subtle); border-radius: 12px; margin-bottom: 10px; }
+.hist-rango-btn {
+  flex: 1; text-align: center; padding: 9px 8px; border-radius: 9px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; text-decoration: none;
+  background: transparent !important; color: var(--color-text-muted) !important;
+  border: 1px solid transparent !important; box-shadow: none !important;
+}
+.hist-rango-btn.active {
+  background: var(--color-bg-elevated) !important; color: var(--color-text) !important;
+  border-color: var(--color-border) !important; box-shadow: var(--shadow-sm) !important;
+}
+.hist-filtros { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.hist-filtro {
+  font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 99px; cursor: pointer; font-family: inherit;
+  background: var(--color-surface-muted) !important; color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border) !important; box-shadow: none !important;
+}
+.hist-filtro.active { background: var(--accent) !important; color: #fff !important; border-color: transparent !important; }
+
+/* ---- Historial: timeline ---- */
+.hist-timeline { position: relative; }
+.hist-item { position: relative; display: grid; grid-template-columns: 14px 1fr; gap: 14px; padding-bottom: 12px; }
+.hist-item::before { content: ""; position: absolute; left: 6px; top: 20px; bottom: -2px; width: 2px; background: var(--color-border); }
+.hist-item:last-child::before { display: none; }
+.hist-item-dot { width: 12px; height: 12px; border-radius: 99px; margin-top: 19px; position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--color-bg); }
+.hist-item-dot.is-ok { background: var(--emerald-500); }
+.hist-item-dot.is-alert { background: var(--rose-500); }
+.hist-item-card { background: var(--color-bg-elevated); border: 1px solid var(--color-border-subtle); border-radius: 14px;
+  padding: 12px 14px; box-shadow: var(--shadow-sm); }
+.hist-item-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hist-item-punto { font-size: 14px; font-weight: 700; color: var(--color-text); min-width: 0; }
+.hist-item-valor { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hist-item-valor.is-alert { color: var(--rose-600, var(--rose-500)); }
+.hist-item-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--color-text-subtle); margin-top: 5px; }
+.hist-item-accion { margin-top: 9px; font-size: 11.5px; color: var(--color-danger-soft-fg); background: var(--color-danger-soft);
+  border-radius: 10px; padding: 8px 10px; display: flex; align-items: flex-start; gap: 6px; line-height: 1.4; }
+
+@media (max-width: 420px) {
+  .hist-kpi-value { font-size: 21px; }
+  .cfg-title, .hist-title { font-size: 23px; }
+}
 
 /* ============================================================
    Helpers para historiales y pantallas de gestión (registros)

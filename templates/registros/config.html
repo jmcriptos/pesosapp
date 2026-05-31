@@ -1,42 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Configuración del registro{% endblock %}
+{% block title %}Configuración de temperaturas{% endblock %}
 {% block header_title %}Configuración{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="ops-screen" data-accent="temp">
+<div class="ops-screen cfg-screen" data-accent="temp">
 
-  <header class="ops-hero">
-    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-gear"></i></span> Ronda de control</div>
-    <h1 class="ops-title">Configuración</h1>
-    <p class="ops-sub">Documento e instrumento de medición</p>
-  </header>
-
-  <div class="ops-toolbar">
-    <a href="{{ url_for('temperaturas_index') }}" class="ops-back"><i class="fas fa-temperature-half"></i> Temperaturas</a>
+  <div class="cfg-topbar">
+    <a class="cfg-back" href="{{ url_for('temperaturas_index') }}" aria-label="Volver"><i class="fas fa-chevron-left"></i></a>
+    <div>
+      <div class="cfg-eyebrow is-temp">Temperaturas</div>
+      <h1 class="cfg-title">Configuración</h1>
+    </div>
   </div>
 
-  <div class="ops-card ops-form-card">
-    <div class="ops-form-card-head"><i class="fas fa-file-lines"></i> Datos del documento e instrumento</div>
-    <form method="POST" action="{{ url_for('registro_config') }}" autocomplete="off">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="ops-grid-2">
-        <div class="ops-field"><label for="codigo_documento">Código de documento</label>
-          <input type="text" id="codigo_documento" name="codigo_documento" value="{{ cfg.codigo_documento }}"></div>
-        <div class="ops-field"><label for="version">Versión</label>
-          <input type="text" id="version" name="version" value="{{ cfg.version }}"></div>
+  <form method="POST" action="{{ url_for('registro_config') }}" autocomplete="off" id="cfgForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="cfg-section">
+      <div class="cfg-section-head"><i class="fas fa-file-lines"></i> Documento</div>
+      <div class="cfg-fields">
+        <label class="cfg-field"><span class="cfg-field-label">Código del documento</span>
+          <input class="cfg-field-input" type="text" name="codigo_documento" value="{{ cfg.codigo_documento }}" placeholder="HACCP-TEMP-001"></label>
+        <label class="cfg-field"><span class="cfg-field-label">Versión</span>
+          <input class="cfg-field-input" type="text" name="version" value="{{ cfg.version }}" placeholder="v1.0"></label>
       </div>
-      <div class="ops-field" style="margin-top:10px"><label for="frecuencia_texto">Frecuencia de monitoreo</label>
-        <input type="text" id="frecuencia_texto" name="frecuencia_texto" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: 2 veces al día (mañana y tarde)"></div>
-      <div class="ops-field" style="margin-top:10px"><label for="termometro">Termómetro / instrumento</label>
-        <input type="text" id="termometro" name="termometro" value="{{ cfg.termometro or '' }}" placeholder="Ej: Termómetro digital TP-01"></div>
-      <div class="ops-field" style="margin-top:10px"><label for="termometro_calibrado_en">Última calibración</label>
-        <input type="date" id="termometro_calibrado_en" name="termometro_calibrado_en" value="{{ cfg.termometro_calibrado_en.isoformat() if cfg.termometro_calibrado_en else '' }}"></div>
-      <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar configuración</button></div>
-    </form>
-  </div>
+    </div>
 
+    <div class="cfg-section">
+      <div class="cfg-section-head"><i class="fas fa-temperature-half"></i> Instrumento de medición</div>
+      <div class="cfg-fields">
+        <label class="cfg-field"><span class="cfg-field-label">Termómetro / instrumento</span>
+          <input class="cfg-field-input" type="text" name="termometro" value="{{ cfg.termometro or '' }}" placeholder="Termómetro digital — marca y modelo"></label>
+        <label class="cfg-field"><span class="cfg-field-label">Última calibración</span>
+          <input class="cfg-field-input" type="date" name="termometro_calibrado_en" value="{{ cfg.termometro_calibrado_en.isoformat() if cfg.termometro_calibrado_en else '' }}"></label>
+      </div>
+    </div>
+
+    <div class="cfg-section">
+      <div class="cfg-section-head"><i class="fas fa-clock"></i> Frecuencia de registro</div>
+      <div class="cfg-freq" id="cfgFreqChips">
+        {% for f in ['Por turno', 'Diaria', '2 veces al día', 'Semanal'] %}
+        <button type="button" class="cfg-freq-chip {{ 'active' if cfg.frecuencia_texto == f }}" data-freq="{{ f }}">{{ f }}</button>
+        {% endfor %}
+      </div>
+      <label class="cfg-field" style="margin-top:12px"><span class="cfg-field-label">Texto de frecuencia</span>
+        <input class="cfg-field-input" type="text" name="frecuencia_texto" id="cfgFreqInput" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: 2 veces al día (mañana y tarde)"></label>
+    </div>
+
+    <div class="cfg-actions">
+      <button type="submit" class="cfg-save"><i class="fas fa-check"></i> Guardar configuración</button>
+    </div>
+  </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var input = document.getElementById('cfgFreqInput');
+  var chips = document.querySelectorAll('#cfgFreqChips .cfg-freq-chip');
+  function sync() { chips.forEach(function (c) { c.classList.toggle('active', c.dataset.freq === input.value.trim()); }); }
+  chips.forEach(function (c) { c.addEventListener('click', function () { input.value = c.dataset.freq; sync(); }); });
+  input.addEventListener('input', sync);
+})();
+</script>
 {% endblock %}

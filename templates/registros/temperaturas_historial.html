@@ -1,117 +1,139 @@
 {% extends "base.html" %}
 {% block title %}Historial de temperaturas{% endblock %}
-{% block header_title %}Historial temperaturas{% endblock %}
+{% block header_title %}Historial{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
 
+{% set total = lecturas|length %}
+{% set alertas = lecturas|selectattr('fuera_de_rango')|list|length %}
+{% set cumpl = (((total - alertas) / total) * 100)|round|int if total else 100 %}
+
 {% block content %}
-<div class="ops-screen" data-accent="temp">
+<div class="ops-screen hist-screen" data-accent="temp" data-filter="todos">
 
-  <header class="ops-hero">
-    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-clock-rotate-left"></i></span> Registro HACCP</div>
-    <h1 class="ops-title">Historial</h1>
-    <p class="ops-sub">Lecturas de temperatura por cámara</p>
-  </header>
-
-  <div class="ops-toolbar">
-    <a href="{{ url_for('temperaturas_index') }}" class="ops-back"><i class="fas fa-temperature-half"></i> Volver a registrar</a>
+  <div class="hist-topbar">
+    <a class="hist-back" href="{{ url_for('temperaturas_index') }}" aria-label="Volver"><i class="fas fa-chevron-left"></i></a>
+    <div style="flex:1">
+      <div class="hist-eyebrow is-temp">Temperaturas</div>
+      <h1 class="hist-title">Historial</h1>
+    </div>
+    <button type="submit" form="export-form" class="hist-export" aria-label="Exportar PDF" title="Exportar PDF"><i class="fas fa-download"></i></button>
   </div>
 
-  <!-- Filtros -->
-  <div class="ops-card ops-form-card">
-    <div class="ops-form-card-head"><i class="fas fa-filter"></i> Filtros</div>
-    <form method="GET" action="{{ url_for('temperaturas_historial') }}">
-      <div class="ops-grid-2">
-        <div class="ops-field"><label for="fecha_inicio">Desde</label>
-          <input type="date" id="fecha_inicio" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}"></div>
-        <div class="ops-field"><label for="fecha_fin">Hasta</label>
-          <input type="date" id="fecha_fin" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}"></div>
-      </div>
-      <div class="ops-field" style="margin-top:10px"><label for="camara_id">Cámara</label>
-        <select id="camara_id" name="camara_id">
-          <option value="">Todas</option>
-          {% for c in camaras %}
-          <option value="{{ c.id }}" {{ 'selected' if filtros.get('camara_id') == c.id|string }}>{{ c.nombre }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="ops-form-actions">
-        <button type="submit" class="ops-btn"><i class="fas fa-magnifying-glass"></i> Filtrar</button>
-        <button type="submit" form="export-form" class="ops-btn ops-btn-success"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
-      </div>
-    </form>
-    <form id="export-form" method="POST" action="{{ url_for('temperaturas_export') }}" target="etiquetas-download-frame">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
-      <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
-      <input type="hidden" name="camara_id" value="{{ filtros.get('camara_id', '') }}">
-    </form>
+  <div class="hist-kpis">
+    <div class="hist-kpi"><div class="hist-kpi-value">{{ total }}</div><div class="hist-kpi-label">Registros</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-value is-ok">{{ cumpl }}%</div><div class="hist-kpi-label">Cumplimiento</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-value {{ 'is-alert' if alertas }}">{{ alertas }}</div><div class="hist-kpi-label">Alertas</div></div>
   </div>
 
-  {% if revision %}
-  <div class="ops-card" style="padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
-    <span class="ops-tag ok"><i class="fas fa-clipboard-check"></i> Verificado</span>
-    <span style="font-size:12px;color:var(--color-text-muted)">Revisado por <strong>{{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }}</strong> · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</span>
+  {% set cam = filtros.get('camara_id', '') %}
+  <div class="hist-rango">
+    <a class="hist-rango-btn {{ 'active' if not filtros.get('fecha_inicio') }}" href="{{ url_for('temperaturas_historial', camara_id=cam) }}">Todo</a>
+    <a class="hist-rango-btn {{ 'active' if filtros.get('fecha_inicio') == fecha_7d }}" href="{{ url_for('temperaturas_historial', fecha_inicio=fecha_7d, fecha_fin=hoy_iso, camara_id=cam) }}">7 días</a>
+    <a class="hist-rango-btn {{ 'active' if filtros.get('fecha_inicio') == fecha_30d }}" href="{{ url_for('temperaturas_historial', fecha_inicio=fecha_30d, fecha_fin=hoy_iso, camara_id=cam) }}">30 días</a>
   </div>
-  {% endif %}
-  {% if puede_verificar %}
-  <form method="POST" action="{{ url_for('temperatura_revisar') }}" style="margin-bottom:14px">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
-    <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
-    <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
-  </form>
-  {% endif %}
 
-  <div class="ops-section"><h3>Lecturas</h3></div>
-  <div class="ops-list">
-    {% for l in lecturas %}
-    <article class="ops-hrow {{ 'is-bad' if l.fuera_de_rango else '' }}">
-      <div class="ops-hrow-main">
-        <div class="ops-hrow-name">{{ l.camara.nombre }}</div>
-        <div class="ops-hrow-meta">{{ l.registrado_en.strftime('%Y-%m-%d %H:%M') }}{% if l.registrado_por_vendedor %} · {{ l.registrado_por_vendedor.nombre_completo }}{% endif %}</div>
-        {% if l.accion_tomada or l.accion_disposicion or l.accion_causa or l.accion_correctiva %}
-        <div class="ops-hrow-note"><i class="fas fa-wrench"></i>
-          {% if l.accion_causa %} <strong>Causa:</strong> {{ l.accion_causa }} ·{% endif %}
-          {% if l.accion_tomada %} <strong>Acción:</strong> {{ l.accion_tomada }} ·{% endif %}
-          {% if l.accion_responsable %} <strong>Resp.:</strong> {{ l.accion_responsable }} ·{% endif %}
-          {% if l.accion_disposicion %} <strong>Disposición:</strong> {{ l.accion_disposicion }}{% endif %}
-          {% if not (l.accion_tomada or l.accion_disposicion or l.accion_causa) and l.accion_correctiva %} {{ l.accion_correctiva }}{% endif %}
+  <div class="hist-filtros">
+    <button type="button" class="hist-filtro active" data-set-filter="todos">Todos</button>
+    <button type="button" class="hist-filtro" data-set-filter="ok">En rango</button>
+    <button type="button" class="hist-filtro" data-set-filter="alerta">Alertas</button>
+  </div>
+
+  <!-- Filtros avanzados -->
+  <details class="ops-details" style="margin-bottom:14px;border-top:none;padding-top:0">
+    <summary><i class="fas fa-sliders"></i> Filtros avanzados y verificación</summary>
+    <div class="ops-details-body">
+      <form method="GET" action="{{ url_for('temperaturas_historial') }}">
+        <div class="ops-grid-2">
+          <div class="ops-field"><label>Desde</label><input type="date" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}"></div>
+          <div class="ops-field"><label>Hasta</label><input type="date" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}"></div>
         </div>
+        <div class="ops-field" style="margin-top:10px"><label>Cámara</label>
+          <select name="camara_id"><option value="">Todas</option>
+            {% for c in camaras %}<option value="{{ c.id }}" {{ 'selected' if filtros.get('camara_id') == c.id|string }}>{{ c.nombre }}</option>{% endfor %}
+          </select></div>
+        <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-magnifying-glass"></i> Aplicar filtros</button></div>
+      </form>
+      {% if revision %}
+      <div class="cfg-saved" style="margin:12px 0 0"><i class="fas fa-clipboard-check"></i> Verificado por {{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }} · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+      {% endif %}
+      {% if puede_verificar %}
+      <form method="POST" action="{{ url_for('temperatura_revisar') }}" style="margin-top:10px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+        <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+        <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
+      </form>
+      {% endif %}
+    </div>
+  </details>
+
+  <!-- Timeline -->
+  <div class="hist-timeline">
+    {% for l in lecturas %}
+    <div class="hist-item" data-alerta="{{ 1 if l.fuera_de_rango else 0 }}">
+      <span class="hist-item-dot {{ 'is-alert' if l.fuera_de_rango else 'is-ok' }}"></span>
+      <div class="hist-item-card">
+        <div class="hist-item-top">
+          <span class="hist-item-punto">{{ l.camara.nombre }}</span>
+          <span class="hist-item-valor {{ 'is-alert' if l.fuera_de_rango }}">{{ l.temperatura }}°C</span>
+        </div>
+        <div class="hist-item-meta">
+          <span>{{ l.registrado_en.strftime('%d/%m · %H:%M') }}</span>
+          <span>{{ l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '—' }}</span>
+        </div>
+        {% if l.fuera_de_rango and (l.accion_tomada or l.accion_disposicion) %}
+        <div class="hist-item-accion"><i class="fas fa-triangle-exclamation"></i> <span>{{ l.accion_tomada or l.accion_disposicion }}</span></div>
         {% endif %}
       </div>
-      <div class="ops-hrow-right">
-        <div class="ops-hrow-temp" style="{{ 'color:var(--color-danger)' if l.fuera_de_rango else 'color:var(--color-success)' }}">{{ l.temperatura }}°</div>
-        {% if l.fuera_de_rango %}<span class="ops-tag bad">Fuera</span>{% else %}<span class="ops-tag ok">En rango</span>{% endif %}
-      </div>
-    </article>
+    </div>
     {% else %}
     <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-clipboard-list"></i></div><p>No hay lecturas para los filtros seleccionados.</p></div>
     {% endfor %}
   </div>
 
+  <div style="height:30px"></div>
 </div>
+
+<!-- Form de exportación (oculto) -->
+<form id="export-form" method="POST" action="{{ url_for('temperaturas_export') }}" target="etiquetas-download-frame" style="display:none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+  <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+  <input type="hidden" name="camara_id" value="{{ filtros.get('camara_id', '') }}">
+</form>
+{% endblock %}
+
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
 <script>
-  (function () {
-    var exportForm = document.getElementById('export-form');
-    if (!exportForm) return;
-    function syncFiltros() {
-      ['fecha_inicio', 'fecha_fin', 'camara_id'].forEach(function (name) {
-        var visible = document.getElementById(name);
-        var hidden = exportForm.querySelector('[name="' + name + '"]');
-        if (visible && hidden) hidden.value = visible.value;
+(function () {
+  var screen = document.querySelector('.hist-screen');
+  // Filtro por estado (cliente)
+  var items = Array.prototype.slice.call(screen.querySelectorAll('.hist-item'));
+  document.querySelectorAll('[data-set-filter]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-set-filter');
+      document.querySelectorAll('[data-set-filter]').forEach(function (x) { x.classList.toggle('active', x === b); });
+      items.forEach(function (it) {
+        var al = it.getAttribute('data-alerta') === '1';
+        var show = f === 'todos' || (f === 'alerta' && al) || (f === 'ok' && !al);
+        it.style.display = show ? '' : 'none';
       });
-    }
+    });
+  });
+  // Export PDF (iOS share aware)
+  var exportForm = document.getElementById('export-form');
+  if (exportForm) {
     exportForm.addEventListener('submit', function (e) {
-      syncFiltros();
       if (window.esDispositivoIOS && window.esDispositivoIOS()) {
         e.preventDefault();
         var fd = new FormData(exportForm);
         window.compartirEtiquetaIOS(exportForm.action, fd, 'registro_temperaturas.pdf');
       }
     });
-  })();
+  }
+})();
 </script>
 {% endblock %}

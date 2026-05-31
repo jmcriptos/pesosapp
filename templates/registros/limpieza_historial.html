@@ -1,118 +1,140 @@
 {% extends "base.html" %}
 {% block title %}Historial de limpieza{% endblock %}
-{% block header_title %}Historial limpieza{% endblock %}
+{% block header_title %}Historial{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
 
+{% set total = registros|length %}
+{% set alertas = registros|rejectattr('conforme')|list|length %}
+{% set cumpl = (((total - alertas) / total) * 100)|round|int if total else 100 %}
+
 {% block content %}
-<div class="ops-screen" data-accent="clean">
+<div class="ops-screen hist-screen" data-accent="clean" data-filter="todos">
 
-  <header class="ops-hero">
-    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-clock-rotate-left"></i></span> Plan de saneamiento</div>
-    <h1 class="ops-title">Historial</h1>
-    <p class="ops-sub">Registros de limpieza por área</p>
-  </header>
-
-  <div class="ops-toolbar">
-    <a href="{{ url_for('limpieza_index') }}" class="ops-back"><i class="fas fa-spray-can-sparkles"></i> Volver a registrar</a>
+  <div class="hist-topbar">
+    <a class="hist-back" href="{{ url_for('limpieza_index') }}" aria-label="Volver"><i class="fas fa-chevron-left"></i></a>
+    <div style="flex:1">
+      <div class="hist-eyebrow is-clean">Limpieza</div>
+      <h1 class="hist-title">Historial</h1>
+    </div>
+    <button type="submit" form="export-form" class="hist-export" aria-label="Exportar PDF" title="Exportar PDF"><i class="fas fa-download"></i></button>
   </div>
 
-  <!-- Filtros -->
-  <div class="ops-card ops-form-card">
-    <div class="ops-form-card-head"><i class="fas fa-filter"></i> Filtros</div>
-    <form method="GET" action="{{ url_for('limpieza_historial') }}">
-      <div class="ops-grid-2">
-        <div class="ops-field"><label for="fecha_inicio">Desde</label>
-          <input type="date" id="fecha_inicio" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}"></div>
-        <div class="ops-field"><label for="fecha_fin">Hasta</label>
-          <input type="date" id="fecha_fin" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}"></div>
-      </div>
-      <div class="ops-field" style="margin-top:10px"><label for="area_id">Área / equipo</label>
-        <select id="area_id" name="area_id">
-          <option value="">Todas</option>
-          {% for a in areas %}
-          <option value="{{ a.id }}" {{ 'selected' if filtros.get('area_id') == a.id|string }}>{{ a.nombre }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="ops-form-actions">
-        <button type="submit" class="ops-btn ops-btn-success"><i class="fas fa-magnifying-glass"></i> Filtrar</button>
-        <button type="submit" form="export-form" class="ops-btn ops-btn-ghost"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
-      </div>
-    </form>
-    <form id="export-form" method="POST" action="{{ url_for('limpieza_export') }}" target="etiquetas-download-frame">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
-      <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
-      <input type="hidden" name="area_id" value="{{ filtros.get('area_id', '') }}">
-    </form>
+  <div class="hist-kpis">
+    <div class="hist-kpi"><div class="hist-kpi-value">{{ total }}</div><div class="hist-kpi-label">Registros</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-value is-ok">{{ cumpl }}%</div><div class="hist-kpi-label">Conformidad</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-value {{ 'is-alert' if alertas }}">{{ alertas }}</div><div class="hist-kpi-label">No conformes</div></div>
   </div>
 
-  {% if revision %}
-  <div class="ops-card" style="padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
-    <span class="ops-tag ok"><i class="fas fa-clipboard-check"></i> Verificado</span>
-    <span style="font-size:12px;color:var(--color-text-muted)">Revisado por <strong>{{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }}</strong> · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</span>
+  {% set area = filtros.get('area_id', '') %}
+  <div class="hist-rango">
+    <a class="hist-rango-btn {{ 'active' if not filtros.get('fecha_inicio') }}" href="{{ url_for('limpieza_historial', area_id=area) }}">Todo</a>
+    <a class="hist-rango-btn {{ 'active' if filtros.get('fecha_inicio') == fecha_7d }}" href="{{ url_for('limpieza_historial', fecha_inicio=fecha_7d, fecha_fin=hoy_iso, area_id=area) }}">7 días</a>
+    <a class="hist-rango-btn {{ 'active' if filtros.get('fecha_inicio') == fecha_30d }}" href="{{ url_for('limpieza_historial', fecha_inicio=fecha_30d, fecha_fin=hoy_iso, area_id=area) }}">30 días</a>
   </div>
-  {% endif %}
-  {% if puede_verificar %}
-  <form method="POST" action="{{ url_for('limpieza_revisar') }}" style="margin-bottom:14px">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
-    <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
-    <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
-  </form>
-  {% endif %}
 
-  <div class="ops-section"><h3>Registros</h3></div>
-  <div class="ops-list">
-    {% for r in registros %}
-    <article class="ops-hrow {{ 'is-bad' if not r.conforme else '' }}">
-      <div class="ops-hrow-main">
-        <div class="ops-hrow-name">{{ r.area.nombre }}</div>
-        <div class="ops-hrow-meta">{{ r.registrado_en.strftime('%Y-%m-%d %H:%M') }}{% if r.registrado_por_vendedor %} · {{ r.registrado_por_vendedor.nombre_completo }}{% endif %}</div>
-        {% if r.observacion %}
-        <div class="ops-hrow-note"><i class="fas fa-comment"></i> {{ r.observacion }}</div>
-        {% endif %}
-        {% if not r.conforme and (r.accion_tomada or r.accion_disposicion or r.accion_causa) %}
-        <div class="ops-hrow-note"><i class="fas fa-wrench"></i>
-          {% if r.accion_causa %} <strong>Causa:</strong> {{ r.accion_causa }} ·{% endif %}
-          {% if r.accion_tomada %} <strong>Acción:</strong> {{ r.accion_tomada }} ·{% endif %}
-          {% if r.accion_responsable %} <strong>Resp.:</strong> {{ r.accion_responsable }} ·{% endif %}
-          {% if r.accion_disposicion %} <strong>Disposición:</strong> {{ r.accion_disposicion }}{% endif %}
+  <div class="hist-filtros">
+    <button type="button" class="hist-filtro active" data-set-filter="todos">Todos</button>
+    <button type="button" class="hist-filtro" data-set-filter="ok">Conformes</button>
+    <button type="button" class="hist-filtro" data-set-filter="alerta">No conformes</button>
+  </div>
+
+  <!-- Filtros avanzados -->
+  <details class="ops-details" style="margin-bottom:14px;border-top:none;padding-top:0">
+    <summary><i class="fas fa-sliders"></i> Filtros avanzados y verificación</summary>
+    <div class="ops-details-body">
+      <form method="GET" action="{{ url_for('limpieza_historial') }}">
+        <div class="ops-grid-2">
+          <div class="ops-field"><label>Desde</label><input type="date" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}"></div>
+          <div class="ops-field"><label>Hasta</label><input type="date" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}"></div>
         </div>
+        <div class="ops-field" style="margin-top:10px"><label>Área / equipo</label>
+          <select name="area_id"><option value="">Todas</option>
+            {% for a in areas %}<option value="{{ a.id }}" {{ 'selected' if filtros.get('area_id') == a.id|string }}>{{ a.nombre }}</option>{% endfor %}
+          </select></div>
+        <div class="ops-form-actions"><button type="submit" class="ops-btn ops-btn-success"><i class="fas fa-magnifying-glass"></i> Aplicar filtros</button></div>
+      </form>
+      {% if revision %}
+      <div class="cfg-saved" style="margin:12px 0 0"><i class="fas fa-clipboard-check"></i> Verificado por {{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }} · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+      {% endif %}
+      {% if puede_verificar %}
+      <form method="POST" action="{{ url_for('limpieza_revisar') }}" style="margin-top:10px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+        <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+        <button type="submit" class="ops-btn ops-btn-ghost"><i class="fas fa-clipboard-check"></i> Marcar período como revisado</button>
+      </form>
+      {% endif %}
+    </div>
+  </details>
+
+  <!-- Timeline -->
+  <div class="hist-timeline">
+    {% for r in registros %}
+    <div class="hist-item" data-alerta="{{ 0 if r.conforme else 1 }}">
+      <span class="hist-item-dot {{ 'is-ok' if r.conforme else 'is-alert' }}"></span>
+      <div class="hist-item-card">
+        <div class="hist-item-top">
+          <span class="hist-item-punto">{{ r.area.nombre }}</span>
+          <span class="hist-item-valor {{ 'is-alert' if not r.conforme }}">{{ 'Conforme' if r.conforme else 'No conforme' }}</span>
+        </div>
+        <div class="hist-item-meta">
+          <span>{{ r.registrado_en.strftime('%d/%m · %H:%M') }}</span>
+          <span>{{ r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—' }}</span>
+        </div>
+        {% if r.observacion %}
+        <div class="hist-item-meta" style="margin-top:4px"><span><i class="fas fa-comment" style="opacity:.6"></i> {{ r.observacion }}</span></div>
+        {% endif %}
+        {% if not r.conforme and (r.accion_tomada or r.accion_disposicion) %}
+        <div class="hist-item-accion"><i class="fas fa-triangle-exclamation"></i> <span>{{ r.accion_tomada or r.accion_disposicion }}</span></div>
         {% endif %}
       </div>
-      <div class="ops-hrow-right">
-        {% if not r.conforme %}<span class="ops-tag bad">No conforme</span>{% else %}<span class="ops-tag ok">Conforme</span>{% endif %}
-      </div>
-    </article>
+    </div>
     {% else %}
     <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-clipboard-list"></i></div><p>No hay registros para los filtros seleccionados.</p></div>
     {% endfor %}
   </div>
 
+  <div style="height:30px"></div>
 </div>
+
+<!-- Form de exportación (oculto) -->
+<form id="export-form" method="POST" action="{{ url_for('limpieza_export') }}" target="etiquetas-download-frame" style="display:none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+  <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+  <input type="hidden" name="area_id" value="{{ filtros.get('area_id', '') }}">
+</form>
+{% endblock %}
+
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
 <script>
-  (function () {
-    var exportForm = document.getElementById('export-form');
-    if (!exportForm) return;
-    function syncFiltros() {
-      ['fecha_inicio', 'fecha_fin', 'area_id'].forEach(function (name) {
-        var visible = document.getElementById(name);
-        var hidden = exportForm.querySelector('[name="' + name + '"]');
-        if (visible && hidden) hidden.value = visible.value;
+(function () {
+  var screen = document.querySelector('.hist-screen');
+  var items = Array.prototype.slice.call(screen.querySelectorAll('.hist-item'));
+  document.querySelectorAll('[data-set-filter]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-set-filter');
+      document.querySelectorAll('[data-set-filter]').forEach(function (x) { x.classList.toggle('active', x === b); });
+      items.forEach(function (it) {
+        var al = it.getAttribute('data-alerta') === '1';
+        var show = f === 'todos' || (f === 'alerta' && al) || (f === 'ok' && !al);
+        it.style.display = show ? '' : 'none';
       });
-    }
+    });
+  });
+  var exportForm = document.getElementById('export-form');
+  if (exportForm) {
     exportForm.addEventListener('submit', function (e) {
-      syncFiltros();
       if (window.esDispositivoIOS && window.esDispositivoIOS()) {
         e.preventDefault();
         var fd = new FormData(exportForm);
         window.compartirEtiquetaIOS(exportForm.action, fd, 'registro_limpieza.pdf');
       }
     });
-  })();
+  }
+})();
 </script>
 {% endblock %}

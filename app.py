@@ -9284,9 +9284,13 @@ def temperaturas_historial():
     camaras = Camara.query.order_by(Camara.nombre).all()
     puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
+    hoy = date.today()
     return render_template('registros/temperaturas_historial.html',
                            lecturas=lecturas, camaras=camaras, filtros=request.args,
-                           puede_verificar=puede_verificar, revision=revision)
+                           puede_verificar=puede_verificar, revision=revision,
+                           hoy_iso=hoy.isoformat(),
+                           fecha_7d=(hoy - timedelta(days=6)).isoformat(),
+                           fecha_30d=(hoy - timedelta(days=29)).isoformat())
 
 
 @app.route('/registros/temperaturas/revisar', methods=['POST'])
@@ -9854,9 +9858,13 @@ def limpieza_historial():
     areas = AreaLimpieza.query.order_by(AreaLimpieza.nombre).all()
     puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_limpieza_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
+    hoy = date.today()
     return render_template('registros/limpieza_historial.html',
                            registros=registros, areas=areas, filtros=request.args,
-                           puede_verificar=puede_verificar, revision=revision)
+                           puede_verificar=puede_verificar, revision=revision,
+                           hoy_iso=hoy.isoformat(),
+                           fecha_7d=(hoy - timedelta(days=6)).isoformat(),
+                           fecha_30d=(hoy - timedelta(days=29)).isoformat())
 
 
 @app.route('/registros/limpieza/revisar', methods=['POST'])
