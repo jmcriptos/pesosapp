@@ -2639,6 +2639,17 @@ def _user_can_view_cliente(cliente_id):
     return current_user.puede_ver_cliente(cliente_id)
 
 
+def _is_ios_request():
+    """True si la petición viene de un dispositivo iOS (iPhone/iPad/iPod).
+    Cubre TODOS los navegadores de iOS (Safari, Chrome/CriOS, Firefox/FxiOS)
+    porque Apple obliga a usar WebKit. iOS no descarga PDFs con
+    Content-Disposition: attachment desde un visor sin controles, así que los
+    PDFs de etiquetas se sirven 'inline' para que aparezcan en el visor nativo
+    (con opción de compartir/guardar). Android/escritorio reciben 'attachment'."""
+    ua = request.headers.get('User-Agent', '')
+    return ('iPhone' in ua) or ('iPad' in ua) or ('iPod' in ua)
+
+
 def _caja_pesada_to_label_item(caja):
     detalle = caja.detalle_pedido
     producto = detalle.producto if detalle else None
@@ -5836,7 +5847,7 @@ def generar_etiqueta_detalle(pedido_id):
             as_attachment=True,
             download_name=filename
         ))
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Disposition'] = f'{"inline" if _is_ios_request() else "attachment"}; filename="{filename}"'
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
@@ -5947,7 +5958,7 @@ def generar_etiqueta_detalle_a4(pedido_id):
             download_name=filename
         ))
 
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Disposition'] = f'{"inline" if _is_ios_request() else "attachment"}; filename="{filename}"'
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
@@ -7812,7 +7823,7 @@ def generar_pdf_etiquetas_4x2(datos, cantidad):
     output.seek(0)
     return send_file(
         output,
-        as_attachment=True,
+        as_attachment=not _is_ios_request(),
         download_name="etiquetas_vencimiento_4x2.pdf",
         mimetype='application/pdf',
     )
@@ -7846,7 +7857,7 @@ def generar_pdf_etiquetas(datos, cantidad):
 
     c.save()
     output.seek(0)
-    return send_file(output, as_attachment=True, download_name="etiquetas_vencimiento.pdf", mimetype='application/pdf')
+    return send_file(output, as_attachment=not _is_ios_request(), download_name="etiquetas_vencimiento.pdf", mimetype='application/pdf')
 
 
 try:
