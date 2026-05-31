@@ -1,0 +1,80 @@
+/* ────────────────────────────────────────────────────────────
+   Registros (HACCP) — Light content reskin.
+   Espejo de dashboard_light.css / pedidos_list.css: el tema global es
+   oscuro (dark-theme.css, override incondicional con !important); aquí
+   re-aclaramos SOLO el área de contenido de las pantallas de Registros,
+   dejando la barra de navegación oscura. Scope: body[data-registros-screen].
+   Carga después de dark-theme.css y registros.css para ganar en la cascada.
+   ──────────────────────────────────────────────────────────── */
+
+/* 1. Fondo del área de contenido (revierte dark-theme .mobile-form-container) */
+body[data-registros-screen] .app-content,
+body[data-registros-screen] .mobile-form-container.reg-wrap {
+  background: #f8fafc !important;
+  background-image: none !important;
+}
+
+/* 2. Tokens claros scopeados al contenido → todos los componentes reg-* y
+   mobile-* que usan var(--color-*) cambian a claro automáticamente. */
+body[data-registros-screen] .reg-wrap {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-strong: rgba(255, 255, 255, 0.92);
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #eef2f7;
+  --color-success-soft: #dcfce7; --color-success-soft-fg: #166534;
+  --color-warning-soft: #fef9c3; --color-warning-soft-fg: #854d0e;
+  --color-danger-soft:  #fee2e2; --color-danger-soft-fg:  #991b1b;
+  --color-info-soft:    #e0f2fe; --color-info-soft-fg:    #075985;
+  color: #0f172a;
+}
+
+/* 3. Tarjetas mobile-card (formularios de crear) — revierte dark-theme */
+body[data-registros-screen] .mobile-card {
+  background: #ffffff !important;
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid #e2e8f0 !important;
+}
+body[data-registros-screen] .mobile-card-body { color: #0f172a !important; }
+body[data-registros-screen] .mobile-card-header {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* 4. Campos de formulario — revierte dark-theme inputs/select/textarea */
+body[data-registros-screen] .mobile-form-control,
+body[data-registros-screen] .reg-wrap input,
+body[data-registros-screen] .reg-wrap select,
+body[data-registros-screen] .reg-wrap textarea {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+body[data-registros-screen] .reg-wrap input::placeholder,
+body[data-registros-screen] .reg-wrap textarea::placeholder { color: #94a3b8 !important; }
+body[data-registros-screen] .mobile-form-control:focus,
+body[data-registros-screen] .reg-wrap input:focus,
+body[data-registros-screen] .reg-wrap select:focus,
+body[data-registros-screen] .reg-wrap textarea:focus {
+  background: #ffffff !important;
+  border-color: #1877ff !important;
+  box-shadow: 0 0 0 3px rgba(24, 119, 255, 0.14) !important;
+}
+
+/* 5. Etiquetas — revierte dark-theme (label/.mobile-form-label en claro) */
+body[data-registros-screen] .reg-wrap label,
+body[data-registros-screen] .mobile-form-label { color: #475569 !important; }
+
+/* 6. Botón secundario (por si dark-theme fuerza .mobile-btn-secondary) */
+body[data-registros-screen] .mobile-btn-secondary {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+}

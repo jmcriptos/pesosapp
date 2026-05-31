@@ -99,8 +99,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base_inline.css') }}">
 
     {% block extra_css %}{% endblock %}
+
+    {# Reskin claro del contenido para las pantallas de Registros (HACCP),
+       consistente con Dashboard/Pedidos. Se carga al final para ganar la cascada. #}
+    {% if request.path.startswith('/registros') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/registros_light.css') }}">
+    {% endif %}
 </head>
-<body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% endblock %}>
+<body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% if request.path.startswith('/registros') %} data-registros-screen="1"{% endif %}{% endblock %}>
 <div class="app-loading-bar" id="appLoadingBar" aria-hidden="true"></div>
 <script>
   /* Barra de progreso de navegación (estilo NProgress). Inline para pintar
