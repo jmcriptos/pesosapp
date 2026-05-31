@@ -28,7 +28,7 @@ import socket
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Image, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import locale
 import traceback
 from decimal import Decimal, InvalidOperation
@@ -9004,13 +9004,98 @@ def temperatura_revisar():
     return redirect(url_for('temperaturas_historial', fecha_inicio=fi or '', fecha_fin=ff or ''))
 
 
+def _pdf_xe(s):
+    """Escapa caracteres XML para insertar texto dinámico en un Paragraph."""
+    return str(s if s is not None else '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+
+def _registro_pdf_tabla(headers, aligns, widths, estado_col, filas):
+    """Tabla flowable estandarizada para los PDF de registros HACCP.
+
+    - headers: list[str] — encabezados de columna
+    - aligns:  list['L'|'R'|'C'] — alineación por columna
+    - widths:  list[float] — anchos en puntos
+    - estado_col: índice de la columna de estado (Sí/NO · Conforme/No conforme)
+    - filas: list[dict] con:
+        'cols'    : list[str] — valor por columna (texto plano; el de estado_col
+                    es el texto del estado)
+        'desvio'  : bool — fuera de rango / no conforme → rojo + sub-fila de alerta
+        'detalle' : str|None — markup opcional; si existe, se agrega una sub-fila
+                    de ancho completo (acción correctiva / observación)
+
+    Zebra, grilla mínima (solo líneas horizontales), estado en color y filas
+    normales de altura pareja (el texto largo va a la sub-fila).
+    """
+    NAVY = colors.HexColor('#1f2937')
+    ZEBRA = colors.HexColor('#f8fafc')
+    DESVIO = colors.HexColor('#fee2e2')
+    LINE = colors.HexColor('#e2e8f0')
+    DARK = colors.HexColor('#0f172a')
+    amap = {'L': TA_LEFT, 'R': TA_RIGHT, 'C': TA_CENTER}
+
+    base = {a: ParagraphStyle('c_' + a, fontSize=8, leading=11, alignment=amap[a],
+                              textColor=DARK) for a in amap}
+    head = {a: ParagraphStyle('h_' + a, fontSize=8, leading=10, fontName='Helvetica-Bold',
+                              textColor=colors.white, alignment=amap[a]) for a in amap}
+    ok_ps = ParagraphStyle('estado_ok', fontSize=8, leading=11, alignment=TA_CENTER,
+                           fontName='Helvetica-Bold', textColor=colors.HexColor('#15803d'))
+    no_ps = ParagraphStyle('estado_no', fontSize=8, leading=11, alignment=TA_CENTER,
+                           fontName='Helvetica-Bold', textColor=colors.HexColor('#b91c1c'))
+    sub_ps = ParagraphStyle('sub_detalle', fontSize=7.5, leading=10, alignment=TA_LEFT,
+                            textColor=colors.HexColor('#475569'))
+
+    ncols = len(headers)
+    data = [[Paragraph(_pdf_xe(h), head[aligns[i]]) for i, h in enumerate(headers)]]
+    cmds = [
+        ('BACKGROUND', (0, 0), (-1, 0), NAVY),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, 0), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 7),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 7),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, NAVY),
+    ]
+    r = 1
+    for idx, fila in enumerate(filas):
+        row = []
+        for i, val in enumerate(fila['cols']):
+            if i == estado_col:
+                row.append(Paragraph(_pdf_xe(val), no_ps if fila['desvio'] else ok_ps))
+            else:
+                row.append(Paragraph(_pdf_xe(val), base[aligns[i]]))
+        data.append(row)
+        bg = DESVIO if fila['desvio'] else (ZEBRA if idx % 2 else colors.white)
+        cmds += [
+            ('BACKGROUND', (0, r), (-1, r), bg),
+            ('VALIGN', (0, r), (-1, r), 'MIDDLE'),
+            ('TOPPADDING', (0, r), (-1, r), 5),
+            ('BOTTOMPADDING', (0, r), (-1, r), 5),
+        ]
+        r += 1
+        detalle = fila.get('detalle')
+        if detalle:
+            data.append([Paragraph(detalle, sub_ps)] + [''] * (ncols - 1))
+            cmds += [
+                ('SPAN', (0, r), (-1, r)),
+                ('BACKGROUND', (0, r), (-1, r), DESVIO if fila['desvio'] else ZEBRA),
+                ('LEFTPADDING', (0, r), (0, r), 16),
+                ('TOPPADDING', (0, r), (-1, r), 1),
+                ('BOTTOMPADDING', (0, r), (-1, r), 6),
+            ]
+            r += 1
+        cmds.append(('LINEBELOW', (0, r - 1), (-1, r - 1), 0.5, LINE))
+
+    tabla = Table(data, repeatRows=1, colWidths=widths)
+    tabla.setStyle(TableStyle(cmds))
+    return tabla
+
+
 def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision):
     """Construye el PDF tabular audit-ready del registro de temperaturas."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                             leftMargin=0.4 * inch, rightMargin=0.4 * inch,
                             topMargin=0.5 * inch, bottomMargin=0.7 * inch)
-    cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
     empresa_style = ParagraphStyle(name='reg_empresa', fontSize=10, leading=13,
                                    fontName='Helvetica-Bold', alignment=TA_LEFT,
                                    textColor=colors.HexColor('#1877ff'))
@@ -9045,43 +9130,35 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision)
     else:
         elements = encabezado + [Spacer(1, 14)]
 
-    def _accion_txt(l):
-        if l.accion_tomada or l.accion_disposicion or l.accion_causa or l.accion_responsable:
-            partes = []
-            if l.accion_causa: partes.append(f'Causa: {l.accion_causa}')
-            if l.accion_tomada: partes.append(f'Acción: {l.accion_tomada}')
-            if l.accion_responsable: partes.append(f'Resp.: {l.accion_responsable}')
-            if l.accion_disposicion: partes.append(f'Disposición: {l.accion_disposicion}')
-            return ' | '.join(partes)
-        return l.accion_correctiva or ''
+    def _detalle(l):
+        partes = []
+        if l.accion_causa: partes.append(f'Causa: {_pdf_xe(l.accion_causa)}')
+        if l.accion_tomada: partes.append(f'Acción: {_pdf_xe(l.accion_tomada)}')
+        if l.accion_responsable: partes.append(f'Resp.: {_pdf_xe(l.accion_responsable)}')
+        if l.accion_disposicion: partes.append(f'Disposición: {_pdf_xe(l.accion_disposicion)}')
+        cuerpo = ' · '.join(partes) or (_pdf_xe(l.accion_correctiva) if l.accion_correctiva else '')
+        return f'<b>Acción correctiva</b> — {cuerpo}' if cuerpo else None
 
-    encabezados = ['Fecha/Hora', 'Cámara', 'Tipo', 'Límite crítico (°C)', 'Lectura (°C)',
-                   'En rango', 'Responsable', 'Acción correctiva']
-    data = [encabezados]
+    headers = ['Fecha/Hora', 'Cámara', 'Tipo', 'Límite crítico (°C)', 'Lectura (°C)',
+               'En rango', 'Responsable']
+    aligns = ['L', 'L', 'L', 'R', 'R', 'C', 'L']
+    widths = [88, 118, 92, 96, 78, 66, 242]
+    filas = []
     for l in lecturas:
-        data.append([
-            Paragraph(l.registrado_en.strftime('%Y-%m-%d %H:%M'), cell),
-            Paragraph(l.camara.nombre if l.camara else '—', cell),
-            Paragraph('Refrigeración' if (l.camara and l.camara.tipo == 'refrigeracion') else 'Congelación', cell),
-            Paragraph(f'{l.camara.temp_min} a {l.camara.temp_max}' if l.camara else '—', cell),
-            Paragraph(str(l.temperatura), cell),
-            Paragraph('NO' if l.fuera_de_rango else 'Sí', cell),
-            Paragraph(l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '—', cell),
-            Paragraph(_accion_txt(l), cell),
-        ])
-    tabla = Table(data, repeatRows=1)
-    estilo = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f2937')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTSIZE', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ])
-    for i, l in enumerate(lecturas, start=1):
-        if l.fuera_de_rango:
-            estilo.add('BACKGROUND', (0, i), (-1, i), colors.HexColor('#fee2e2'))
-    tabla.setStyle(estilo)
-    elements.append(tabla)
+        filas.append({
+            'cols': [
+                l.registrado_en.strftime('%Y-%m-%d %H:%M'),
+                l.camara.nombre if l.camara else '—',
+                'Refrigeración' if (l.camara and l.camara.tipo == 'refrigeracion') else 'Congelación',
+                f'{l.camara.temp_min} a {l.camara.temp_max}' if l.camara else '—',
+                str(l.temperatura),
+                'NO' if l.fuera_de_rango else 'Sí',
+                l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '—',
+            ],
+            'desvio': bool(l.fuera_de_rango),
+            'detalle': _detalle(l) if l.fuera_de_rango else None,
+        })
+    elements.append(_registro_pdf_tabla(headers, aligns, widths, 5, filas))
 
     elements.append(Spacer(1, 18))
     if revision:
@@ -9444,7 +9521,6 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                             leftMargin=0.4 * inch, rightMargin=0.4 * inch,
                             topMargin=0.5 * inch, bottomMargin=0.7 * inch)
-    cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
     empresa_style = ParagraphStyle(name='reg_empresa', fontSize=10, leading=13,
                                    fontName='Helvetica-Bold', alignment=TA_LEFT,
                                    textColor=colors.HexColor('#1877ff'))
@@ -9479,45 +9555,36 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
     else:
         elements = encabezado + [Spacer(1, 14)]
 
-    def _accion_txt(r):
+    def _detalle(r):
         partes = []
-        if r.accion_causa: partes.append(f'Causa: {r.accion_causa}')
-        if r.accion_tomada: partes.append(f'Acción: {r.accion_tomada}')
-        if r.accion_responsable: partes.append(f'Resp.: {r.accion_responsable}')
-        if r.accion_disposicion: partes.append(f'Disposición: {r.accion_disposicion}')
-        return ' | '.join(partes)
+        if r.accion_causa: partes.append(f'Causa: {_pdf_xe(r.accion_causa)}')
+        if r.accion_tomada: partes.append(f'Acción: {_pdf_xe(r.accion_tomada)}')
+        if r.accion_responsable: partes.append(f'Resp.: {_pdf_xe(r.accion_responsable)}')
+        if r.accion_disposicion: partes.append(f'Disposición: {_pdf_xe(r.accion_disposicion)}')
+        accion = ' · '.join(partes)
+        bits = []
+        if r.observacion: bits.append(f'<b>Obs.:</b> {_pdf_xe(r.observacion)}')
+        if accion: bits.append(f'<b>Acción correctiva</b> — {accion}')
+        return '   ·   '.join(bits) if bits else None
 
-    encabezados = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'Resultado',
-                   'Responsable', 'Observación / Acción correctiva']
-    data = [encabezados]
+    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'Resultado', 'Responsable']
+    aligns = ['L', 'L', 'L', 'L', 'C', 'L']
+    widths = [92, 150, 78, 168, 96, 196]
+    filas = []
     for r in registros:
-        accion = _accion_txt(r)
-        if r.observacion and accion:
-            obs_accion = f'Obs.: {r.observacion} | {accion}'
-        else:
-            obs_accion = accion or (r.observacion or '')
-        data.append([
-            Paragraph(r.registrado_en.strftime('%Y-%m-%d %H:%M'), cell),
-            Paragraph(r.area.nombre if r.area else '—', cell),
-            Paragraph('Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio', cell),
-            Paragraph(r.area.producto.nombre if (r.area and r.area.producto) else '—', cell),
-            Paragraph('No conforme' if not r.conforme else 'Conforme', cell),
-            Paragraph(r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—', cell),
-            Paragraph(obs_accion, cell),
-        ])
-    tabla = Table(data, repeatRows=1)
-    estilo = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f2937')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTSIZE', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ])
-    for i, r in enumerate(registros, start=1):
-        if not r.conforme:
-            estilo.add('BACKGROUND', (0, i), (-1, i), colors.HexColor('#fee2e2'))
-    tabla.setStyle(estilo)
-    elements.append(tabla)
+        filas.append({
+            'cols': [
+                r.registrado_en.strftime('%Y-%m-%d %H:%M'),
+                r.area.nombre if r.area else '—',
+                'Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio',
+                r.area.producto.nombre if (r.area and r.area.producto) else '—',
+                'No conforme' if not r.conforme else 'Conforme',
+                r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—',
+            ],
+            'desvio': not r.conforme,
+            'detalle': _detalle(r),
+        })
+    elements.append(_registro_pdf_tabla(headers, aligns, widths, 4, filas))
 
     elements.append(Spacer(1, 18))
     if revision:
