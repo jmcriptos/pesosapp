@@ -56,3 +56,12 @@ def test_is_ios_request_android_es_falso():
     from app import app as flask_app, _is_ios_request
     with flask_app.test_request_context(headers={'User-Agent': _UA_ANDROID}):
         assert _is_ios_request() is False
+
+
+def test_nombre_archivo_etiquetas_estructura():
+    """El PDF de etiquetas de pedido se nombra etiquetas_<cliente>_<pedido_id>."""
+    py = _read('app.py')
+    assert 'f"etiquetas_{nombre_cliente}_{pedido_id}.pdf"' in py
+    html = _read('templates/detalles_pedido.html')
+    assert 'ETIQ_FILENAME' in html
+    assert "'etiquetas_'" in html and 'pedido.id' in html

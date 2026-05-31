@@ -589,6 +589,8 @@ const btnGenerarA4 = document.getElementById('btn-generar-etiquetas-a4');
 
 const URL_ETIQ_4X2 = "{{ url_for('generar_etiqueta_detalle', pedido_id=pedido.id) }}";
 const URL_ETIQ_A4 = "{{ url_for('generar_etiqueta_detalle_a4', pedido_id=pedido.id) }}";
+// Nombre del archivo: etiquetas_<cliente>_<#pedido>.pdf (tojson escapa de forma segura)
+const ETIQ_FILENAME = {{ ('etiquetas_' ~ ((pedido.cliente.nombre if pedido.cliente else 'cliente')|replace(' ', '_')|replace('/', '-')) ~ '_' ~ pedido.id ~ '.pdf')|tojson }};
 
 // iOS (incluido la app instalada en modo standalone, sin navegador ni
 // pestañas) no puede descargar a un iframe ni abrir pestañas nuevas. Ahí
@@ -628,7 +630,7 @@ if (formEtiquetas && btnGenerar) {
             e.preventDefault();
             _setBtnLoading(btnGenerar, true);
             const fd = new FormData(formEtiquetas);
-            window.compartirEtiquetaIOS(URL_ETIQ_4X2, fd, 'etiquetas.pdf')
+            window.compartirEtiquetaIOS(URL_ETIQ_4X2, fd, ETIQ_FILENAME)
                 .finally(() => _setBtnLoading(btnGenerar, false));
             return;
         }
@@ -646,7 +648,7 @@ if (formEtiquetas && btnGenerarA4) {
         if (_iosEtiq) {
             _setBtnLoading(btnGenerarA4, true);
             const fd = new FormData(formEtiquetas);
-            window.compartirEtiquetaIOS(URL_ETIQ_A4, fd, 'etiquetas_A4.pdf')
+            window.compartirEtiquetaIOS(URL_ETIQ_A4, fd, ETIQ_FILENAME)
                 .finally(() => _setBtnLoading(btnGenerarA4, false));
             formEtiquetas.action = URL_ETIQ_4X2;
             return;

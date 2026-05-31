@@ -5838,7 +5838,7 @@ def generar_etiqueta_detalle(pedido_id):
 
         # Nombre del archivo
         nombre_cliente = cliente_nombre.replace(" ", "_").replace("/", "-") or "cliente"
-        filename = f"etiquetas_4x2_pedido_{pedido_id}_{nombre_cliente}.pdf"
+        filename = f"etiquetas_{nombre_cliente}_{pedido_id}.pdf"
 
         # Response con headers optimizados para iOS
         response = make_response(send_file(
@@ -5948,7 +5948,7 @@ def generar_etiqueta_detalle_a4(pedido_id):
 
         # Nombre del archivo
         nombre_cliente = (pedido.cliente.nombre if getattr(pedido, "cliente", None) else "cliente").replace(" ", "_").replace("/", "-")
-        filename = f"etiquetas_A4_pedido_{pedido_id}_{nombre_cliente}.pdf"
+        filename = f"etiquetas_{nombre_cliente}_{pedido_id}.pdf"
 
         # Crear response
         response = make_response(send_file(
