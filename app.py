@@ -8987,7 +8987,7 @@ def _parse_rango_camara(form):
 
 @app.route('/registros/temperaturas/camaras')
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camaras_list():
     camaras = Camara.query.order_by(Camara.nombre).all()
     return render_template('registros/camaras.html', camaras=camaras)
@@ -8995,7 +8995,7 @@ def camaras_list():
 
 @app.route('/registros/temperaturas/camaras/nueva', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camara_nueva():
     nombre, tipo, temp_min, temp_max, error = _parse_rango_camara(request.form)
     if error:
@@ -9010,7 +9010,7 @@ def camara_nueva():
 
 @app.route('/registros/temperaturas/camaras/<int:camara_id>/editar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camara_editar(camara_id):
     camara = Camara.query.get_or_404(camara_id)
     nombre, tipo, temp_min, temp_max, error = _parse_rango_camara(request.form)
@@ -9025,7 +9025,7 @@ def camara_editar(camara_id):
 
 @app.route('/registros/temperaturas/camaras/<int:camara_id>/toggle', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def camara_toggle(camara_id):
     camara = Camara.query.get_or_404(camara_id)
     camara.activa = not camara.activa
@@ -9051,10 +9051,11 @@ def _camaras_con_lectura_hoy():
 
 @app.route('/registros/temperaturas')
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def temperaturas_index():
     camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
     con_lectura_hoy = _camaras_con_lectura_hoy()
-    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     return render_template('registros/temperaturas.html',
                            camaras=camaras,
                            con_lectura_hoy=con_lectura_hoy,
@@ -9063,6 +9064,7 @@ def temperaturas_index():
 
 @app.route('/registros/temperaturas/registrar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'crear')
 def temperatura_registrar():
     camara = Camara.query.filter_by(id=request.form.get('camara_id', type=int), activa=True).first()
     if camara is None:
@@ -9147,10 +9149,11 @@ def _filtrar_lecturas(args):
 
 @app.route('/registros/temperaturas/historial')
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def temperaturas_historial():
     lecturas = _filtrar_lecturas(request.args)
     camaras = Camara.query.order_by(Camara.nombre).all()
-    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     revision = _revision_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     return render_template('registros/temperaturas_historial.html',
                            lecturas=lecturas, camaras=camaras, filtros=request.args,
@@ -9159,7 +9162,7 @@ def temperaturas_historial():
 
 @app.route('/registros/temperaturas/revisar', methods=['POST'])
 @login_required
-@requiere_rol(['super_admin', 'supervisor'])
+@requiere_permiso_recurso('registros', 'editar')
 def temperatura_revisar():
     fi = request.form.get('fecha_inicio') or None
     ff = request.form.get('fecha_fin') or None
@@ -9373,6 +9376,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision)
 
 @app.route('/registros/temperaturas/export', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('registros', 'leer')
 def temperaturas_export():
     lecturas = _filtrar_lecturas(request.form)
     fi = request.form.get('fecha_inicio') or ''
@@ -9390,7 +9394,7 @@ def temperaturas_export():
 
 @app.route('/registros/temperaturas/config', methods=['GET', 'POST'])
 @login_required
-@requiere_rol(['super_admin'])
+@requiere_permiso_recurso('registros', 'editar')
 def registro_config():
     cfg = _get_registro_config()
     if request.method == 'POST':

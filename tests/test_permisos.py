@@ -91,3 +91,32 @@ def test_sembrar_crea_filas_y_es_idempotente(app):
         n_rp = RolPermiso.query.count()
         _sembrar_permisos()
         assert RolPermiso.query.count() == n_rp
+
+
+def _set_rolpermiso(rec, leer=False, crear=False, editar=False, eliminar=False, rol_id=None):
+    from app import Permiso, RolPermiso
+    rol_id = rol_id or IDS['rv']
+    p = Permiso.query.filter_by(recurso=rec).first()
+    if p is None:
+        p = Permiso(nombre=rec, recurso=rec, categoria='recurso'); _db.session.add(p); _db.session.flush()
+    rp = RolPermiso.query.filter_by(rol_id=rol_id, permiso_id=p.id).first()
+    if rp is None:
+        rp = RolPermiso(rol_id=rol_id, permiso_id=p.id); _db.session.add(rp)
+    rp.puede_leer, rp.puede_crear, rp.puede_editar, rp.puede_eliminar = leer, crear, editar, eliminar
+    _db.session.commit()
+
+
+def test_temp_registrar_sin_crear_bloqueado(app):
+    with app.app_context():
+        _set_rolpermiso('registros', leer=True, crear=False, editar=False)
+    c = _login(app, 'vend')
+    resp = c.get('/registros/temperaturas', follow_redirects=False)
+    assert resp.status_code == 302
+
+
+def test_temp_config_requiere_editar(app):
+    with app.app_context():
+        _set_rolpermiso('registros', leer=True, crear=True, editar=False)
+    c = _login(app, 'vend')
+    resp = c.get('/registros/temperaturas/camaras', follow_redirects=False)
+    assert resp.status_code == 302
