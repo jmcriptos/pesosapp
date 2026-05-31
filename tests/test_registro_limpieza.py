@@ -267,3 +267,12 @@ def test_config_admin_guarda(app):
         cfg = LimpiezaConfig.query.first()
         assert cfg.codigo_documento == 'FR-HACCP-LIMP-02'
         assert cfg.responsable_verificacion == 'Jefe de calidad'
+
+
+def test_hub_registros_ok(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert 'Temperaturas' in body
+    assert 'Limpieza' in body

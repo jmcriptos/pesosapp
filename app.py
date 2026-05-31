@@ -9590,6 +9590,12 @@ def limpieza_config():
     return render_template('registros/limpieza_config.html', cfg=cfg)
 
 
+@app.route('/registros')
+@login_required
+def registros_index():
+    return render_template('registros/index.html')
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':
