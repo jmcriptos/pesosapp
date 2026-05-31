@@ -2062,6 +2062,42 @@ class CajaPesada(db.Model):
         return f'<CajaPesada {self.id} detalle={self.detalle_pedido_id} numero={self.numero}>'
 
 
+class Camara(db.Model):
+    __tablename__ = 'camara'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False, default='refrigeracion')  # refrigeracion|congelacion
+    temp_min = db.Column(db.Numeric(5, 2), nullable=False)
+    temp_max = db.Column(db.Numeric(5, 2), nullable=False)
+    activa = db.Column(db.Boolean, nullable=False, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def fuera_de_rango(self, temperatura):
+        """True si la temperatura está fuera del rango aceptable [min, max]."""
+        t = Decimal(str(temperatura))
+        return t < self.temp_min or t > self.temp_max
+
+    def __repr__(self):
+        return f'<Camara {self.id} {self.nombre}>'
+
+
+class LecturaTemperatura(db.Model):
+    __tablename__ = 'lectura_temperatura'
+    id = db.Column(db.Integer, primary_key=True)
+    camara_id = db.Column(db.Integer, db.ForeignKey('camara.id'), nullable=False, index=True)
+    temperatura = db.Column(db.Numeric(5, 2), nullable=False)
+    registrado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    registrado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    fuera_de_rango = db.Column(db.Boolean, nullable=False, default=False)
+    accion_correctiva = db.Column(db.Text, nullable=True)
+
+    camara = db.relationship('Camara')
+    registrado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<LecturaTemperatura {self.id} camara={self.camara_id} {self.temperatura}>'
+
+
 class PedidoEvento(db.Model):
     __tablename__ = 'pedido_evento'
 
