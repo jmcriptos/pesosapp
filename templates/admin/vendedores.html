@@ -4,6 +4,11 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<style>
+  /* Fondo de página claro para que el panel de admin no flote sobre el tema oscuro */
+  .app-content { background: #f5f6fa !important; }
+  .ops-admin { box-shadow: 0 18px 50px -24px rgba(15, 23, 42, .25); }
+</style>
 {% endblock %}
 
 {% set rol_colors = {'super_admin': '#8b5cf6', 'supervisor': '#6366f1', 'vendedor': '#0ea5e9', 'preparador': '#10b981'} %}
