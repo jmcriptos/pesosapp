@@ -280,7 +280,8 @@ class Vendedor(db.Model, UserMixin):
     activo = db.Column(db.Boolean, default=True)
     ultimo_login = db.Column(db.DateTime)
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-    debe_cambiar_password = db.Column(db.Boolean, nullable=False, default=False)
+    debe_cambiar_password = db.Column(db.Boolean, nullable=False, default=False,
+                                      server_default=db.false())
 
     # Relaciones
     supervisor = db.relationship('Vendedor', remote_side=[id], backref='subordinados')
