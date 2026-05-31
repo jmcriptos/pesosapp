@@ -64,7 +64,9 @@
         <div class="ops-admin-toolbar">
           <div class="ops-search">
             <i class="fas fa-magnifying-glass"></i>
-            <input type="text" id="userSearch" placeholder="Buscar usuario, email...">
+            <input type="text" id="userSearch" placeholder="Buscar usuario, email..."
+                   autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore data-bwignore aria-label="Buscar usuario">
+            <i class="fas fa-xmark" id="userSearchClear" hidden style="cursor:pointer;color:var(--color-text-subtle)" aria-label="Limpiar"></i>
           </div>
           <div class="ops-chips" id="rolFiltros">
             <button type="button" class="ops-chip is-active" data-rol="todos">Todos</button>
@@ -315,7 +317,14 @@
       r.style.display = (okRol && okQ) ? '' : 'none';
     });
   }
-  search.addEventListener('input', applyFilter);
+  var searchClear = document.getElementById('userSearchClear');
+  search.addEventListener('input', function () {
+    if (searchClear) searchClear.hidden = !search.value;
+    applyFilter();
+  });
+  if (searchClear) searchClear.addEventListener('click', function () {
+    search.value = ''; searchClear.hidden = true; applyFilter(); search.focus();
+  });
   root.querySelectorAll('#rolFiltros .ops-chip').forEach(function (c) {
     c.addEventListener('click', function () {
       rolActivo = c.dataset.rol;
