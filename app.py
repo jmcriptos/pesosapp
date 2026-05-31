@@ -4063,6 +4063,30 @@ def editar_vendedor(v_id):
         flash('Error al actualizar el usuario. Intente de nuevo.', 'danger')
     return redirect(url_for('gestionar_vendedores'))
 
+
+@app.route('/admin/vendedores/<int:v_id>/reset-password', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def reset_password_vendedor(v_id):
+    v = Vendedor.query.get_or_404(v_id)
+    temp = (request.form.get('password_temporal') or '').strip()
+    if temp and len(temp) < 8:
+        flash('La contraseña temporal debe tener al menos 8 caracteres.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if not temp:
+        temp = _generar_password_temporal()
+    try:
+        v.set_password(temp)
+        v.debe_cambiar_password = True
+        db.session.commit()
+        flash(f'Contraseña temporal de {v.nombre_completo}: {temp} — comunicásela; '
+              f'deberá cambiarla al ingresar.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al resetear contraseña de vendedor {v_id}: {e}')
+        flash('Error al restablecer la contraseña. Intente de nuevo.', 'danger')
+    return redirect(url_for('gestionar_vendedores'))
+
 # ===== WEBHOOKS Y INTEGRACIONES =====
 
 @app.route('/webhook/actualizacion-precios', methods=['POST'])

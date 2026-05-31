@@ -184,3 +184,32 @@ def test_editar_ultimo_superadmin_no_pierde_rol(app):
     }, follow_redirects=True)
     with app.app_context():
         assert _db.session.get(Vendedor, IDS['admin']).rol.nombre == 'super_admin'
+
+
+def test_reset_no_admin_bloqueado(app):
+    c = _login(app, 'vend')
+    resp = c.post(f'/admin/vendedores/{IDS["vend"]}/reset-password',
+                  data={'password_temporal': 'Temporal9'}, follow_redirects=False)
+    assert resp.status_code in (302, 403)
+
+
+def test_reset_con_temporal(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["vend"]}/reset-password',
+           data={'password_temporal': 'Temporal9'}, follow_redirects=True)
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        assert v.debe_cambiar_password is True
+        assert v.check_password('Temporal9') is True
+
+
+def test_reset_genera_si_blanco(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["vend"]}/reset-password',
+           data={'password_temporal': ''}, follow_redirects=True)
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        assert v.debe_cambiar_password is True
+        assert v.check_password('pw') is False  # la contraseña vieja ya no sirve
