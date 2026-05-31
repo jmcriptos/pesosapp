@@ -8720,6 +8720,67 @@ def camara_toggle(camara_id):
     return redirect(url_for('camaras_list'))
 
 
+def _camaras_con_lectura_hoy():
+    """Set de camara_id que ya tienen al menos una lectura HOY (fecha local)."""
+    hoy = date.today()
+    filas = db.session.query(LecturaTemperatura.camara_id).filter(
+        func.date(LecturaTemperatura.registrado_en) == hoy
+    ).distinct().all()
+    return {row[0] for row in filas}
+
+
+@app.route('/registros/temperaturas')
+@login_required
+def temperaturas_index():
+    camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
+    con_lectura_hoy = _camaras_con_lectura_hoy()
+    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    return render_template('registros/temperaturas.html',
+                           camaras=camaras,
+                           con_lectura_hoy=con_lectura_hoy,
+                           es_admin=es_admin)
+
+
+@app.route('/registros/temperaturas/registrar', methods=['POST'])
+@login_required
+def temperatura_registrar():
+    camara = Camara.query.filter_by(id=request.form.get('camara_id', type=int), activa=True).first()
+    if camara is None:
+        flash('Cámara no válida.', 'danger')
+        return redirect(url_for('temperaturas_index'))
+    try:
+        temperatura = Decimal(str(request.form.get('temperatura')).replace(',', '.'))
+    except (InvalidOperation, TypeError, ValueError):
+        flash('La temperatura debe ser un número.', 'danger')
+        return redirect(url_for('temperaturas_index'))
+
+    accion = (request.form.get('accion_correctiva') or '').strip()
+    fuera = camara.fuera_de_rango(temperatura)
+    if fuera and not accion:
+        flash(f'La lectura {temperatura}°C está fuera del rango de {camara.nombre} '
+              f'({camara.temp_min}°C a {camara.temp_max}°C). Describe la acción correctiva.', 'danger')
+        return redirect(url_for('temperaturas_index'))
+
+    db.session.add(LecturaTemperatura(
+        camara_id=camara.id,
+        temperatura=temperatura,
+        registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+        fuera_de_rango=fuera,
+        accion_correctiva=accion or None,
+    ))
+    db.session.commit()
+    flash('Lectura registrada.' + (' (Fuera de rango — registrada con acción correctiva.)' if fuera else ''),
+          'success' if not fuera else 'warning')
+    return redirect(url_for('temperaturas_index'))
+
+
+@app.route('/registros/temperaturas/historial')
+@login_required
+def temperaturas_historial():
+    # Stub temporal: la implementación completa llega en la siguiente tarea.
+    return render_template('registros/temperaturas.html', camaras=[], con_lectura_hoy=set(), es_admin=False)
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

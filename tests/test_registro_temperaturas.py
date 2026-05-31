@@ -117,3 +117,57 @@ def test_camaras_toggle(app):
     c.post(f'/registros/temperaturas/camaras/{IDS["camara"]}/toggle', follow_redirects=True)
     with app.app_context():
         assert _db.session.get(Camara, IDS['camara']).activa is False
+
+
+def test_registrar_requiere_login(app):
+    client = app.test_client()
+    resp = client.post('/registros/temperaturas/registrar',
+                        data={'camara_id': IDS['camara'], 'temperatura': '-20'},
+                        follow_redirects=False)
+    assert resp.status_code == 302
+    assert '/login' in resp.headers.get('Location', '')
+
+
+def test_registrar_en_rango(app):
+    from app import LecturaTemperatura
+    c = _login(app, 'vend')
+    resp = c.post('/registros/temperaturas/registrar',
+                  data={'camara_id': IDS['camara'], 'temperatura': '-20'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        lec = LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).first()
+        assert lec is not None
+        assert lec.fuera_de_rango is False
+        assert lec.registrado_por == IDS['vend']
+
+
+def test_registrar_fuera_de_rango_sin_accion_rechazado(app):
+    from app import LecturaTemperatura
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '-5', 'accion_correctiva': ''},
+           follow_redirects=True)
+    with app.app_context():
+        assert LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).count() == 0
+
+
+def test_registrar_fuera_de_rango_con_accion(app):
+    from app import LecturaTemperatura
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '-5',
+                 'accion_correctiva': 'Se movió el producto a otra cámara'},
+           follow_redirects=True)
+    with app.app_context():
+        lec = LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).first()
+        assert lec is not None
+        assert lec.fuera_de_rango is True
+        assert 'otra cámara' in lec.accion_correctiva
+
+
+def test_principal_muestra_estado(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/temperaturas')
+    assert resp.status_code == 200
+    assert 'Congelación 1' in resp.data.decode('utf-8')

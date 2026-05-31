@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Temperaturas — Registros{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Temperaturas de cámaras</span>{% endblock %}
+{% block content %}
+<div class="mobile-form-container">
+
+  <div class="mobile-form-actions" style="margin-bottom:12px;">
+    <a href="{{ url_for('temperaturas_historial') }}" class="mobile-btn mobile-btn-secondary"><i class="fas fa-clock-rotate-left"></i> Historial</a>
+    {% if es_admin %}
+    <a href="{{ url_for('camaras_list') }}" class="mobile-btn mobile-btn-secondary"><i class="fas fa-snowflake"></i> Cámaras</a>
+    {% endif %}
+  </div>
+
+  {% for c in camaras %}
+  <div class="mobile-card">
+    <div class="mobile-card-header">
+      <i class="fas fa-temperature-half"></i> {{ c.nombre }}
+      {% if c.id in con_lectura_hoy %}
+        <span style="margin-left:auto; color:#16a34a;"><i class="fas fa-check-circle"></i> Hoy ✓</span>
+      {% else %}
+        <span style="margin-left:auto; color:#d97706;"><i class="fas fa-hourglass-half"></i> Falta hoy</span>
+      {% endif %}
+    </div>
+    <div class="mobile-card-body">
+      <small>Rango: {{ c.temp_min }}°C a {{ c.temp_max }}°C</small>
+      <form method="POST" action="{{ url_for('temperatura_registrar') }}" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="camara_id" value="{{ c.id }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="temperatura_{{ c.id }}">Temperatura (°C)</label>
+          <input type="text" inputmode="decimal" id="temperatura_{{ c.id }}" name="temperatura"
+                 class="mobile-form-control" placeholder="Ej: -20" required>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="accion_{{ c.id }}">Acción correctiva <small>(obligatoria si está fuera de rango)</small></label>
+          <textarea id="accion_{{ c.id }}" name="accion_correctiva" class="mobile-form-control" rows="2" placeholder="Solo si la temperatura está fuera de rango"></textarea>
+        </div>
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Registrar lectura</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="mobile-card"><div class="mobile-card-body">
+    <p>No hay cámaras activas.{% if es_admin %} <a href="{{ url_for('camaras_list') }}">Crea una</a>.{% endif %}</p>
+  </div></div>
+  {% endfor %}
+
+</div>
+{% endblock %}
