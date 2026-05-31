@@ -260,6 +260,48 @@ class DefaultUser(UserMixin):
 from utils.filters import kpi_tag
 app.jinja_env.filters['kpi_tag'] = kpi_tag
 
+_PERMISOS_DEFAULT = {
+    'super_admin': {
+        'productos': ['leer', 'crear', 'editar', 'eliminar'],
+        'clientes': ['leer', 'crear', 'editar', 'eliminar'],
+        'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
+        'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
+        'precios': ['leer', 'crear', 'editar', 'eliminar'],
+        'reportes': ['leer', 'crear', 'editar', 'eliminar'],
+        'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
+        'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
+        'registros': ['leer', 'crear', 'editar', 'eliminar'],
+    },
+    'supervisor': {
+        'productos': ['leer'],
+        'clientes': ['leer', 'editar'],
+        'pedidos': ['leer', 'crear', 'editar'],
+        'vendedores': ['leer'],
+        'precios': ['leer'],
+        'reportes': ['leer'],
+        'importaciones': [],
+        'facturacion': ['leer'],
+        'registros': ['leer', 'crear', 'editar'],
+    },
+    'vendedor': {
+        'productos': ['leer'],
+        'clientes': ['leer', 'editar'],
+        'pedidos': ['leer', 'crear', 'editar'],
+        'vendedores': [],
+        'precios': ['leer'],
+        'reportes': [],
+        'importaciones': [],
+        'facturacion': [],
+        'registros': ['leer', 'crear'],
+    },
+}
+
+
+def _permiso_default(rol_nombre, recurso, accion):
+    """Defaults de permisos (fallback cuando no hay filas en RolPermiso)."""
+    return accion in _PERMISOS_DEFAULT.get(rol_nombre, {}).get(recurso, [])
+
+
 class Vendedor(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -295,48 +337,19 @@ class Vendedor(db.Model, UserMixin):
         return check_password_hash(self.password_hash, password)
     
     def tiene_permiso(self, permiso_nombre, tipo_acceso='leer'):
-        """Verifica si el vendedor tiene un permiso específico"""
+        """Verifica un permiso leyendo de RolPermiso; super_admin siempre pasa;
+        si no hay filas sembradas, cae a los defaults (_permiso_default)."""
         if not self.activo:
             return False
-        
-        # Definir permisos específicos por rol
-        permisos_por_rol = {
-                'super_admin': {
-                    'productos': ['leer', 'crear', 'editar', 'eliminar'],
-                    'clientes': ['leer', 'crear', 'editar', 'eliminar'],
-                    'pedidos': ['leer', 'crear', 'editar', 'eliminar'],
-                    'vendedores': ['leer', 'crear', 'editar', 'eliminar'],
-                    'precios': ['leer', 'crear', 'editar', 'eliminar'],
-                    'reportes': ['leer', 'crear', 'editar', 'eliminar'],
-                    'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
-                    'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
-                },
-                'supervisor': {
-                    'productos': ['leer'],
-                    'clientes': ['leer', 'editar'],
-                    'pedidos': ['leer', 'crear', 'editar'],
-                    'vendedores': ['leer'],
-                    'precios': ['leer'],
-                    'reportes': ['leer'],
-                    'importaciones': [],
-                    'facturacion': ['leer'],
-                },
-                'vendedor': {
-                    'productos': ['leer'],
-                    'clientes': ['leer', 'editar'],
-                    'pedidos': ['leer', 'crear', 'editar'],
-                    'vendedores': [],
-                    'precios': ['leer'],
-                    'reportes': [],
-                    'importaciones': [],
-                    'facturacion': [],
-                }
-            }
-        
-        permisos_rol = permisos_por_rol.get(self.rol.nombre, {})
-        permisos_recurso = permisos_rol.get(permiso_nombre, [])
-        
-        return tipo_acceso in permisos_recurso
+        if self.rol and self.rol.nombre == 'super_admin':
+            return True
+        rp = (RolPermiso.query.join(Permiso)
+              .filter(RolPermiso.rol_id == self.rol_id,
+                      Permiso.recurso == permiso_nombre).first())
+        if rp is None:
+            return _permiso_default(self.rol.nombre if self.rol else '', permiso_nombre, tipo_acceso)
+        return bool({'leer': rp.puede_leer, 'crear': rp.puede_crear,
+                     'editar': rp.puede_editar, 'eliminar': rp.puede_eliminar}.get(tipo_acceso, False))
     
     def puede_editar_pedido(self, pedido):
         """Verifica si el vendedor puede editar un pedido específico"""
