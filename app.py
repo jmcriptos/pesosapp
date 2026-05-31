@@ -4019,6 +4019,50 @@ def toggle_vendedor(v_id):
         flash('Error al actualizar el usuario. Intente de nuevo.', 'danger')
     return redirect(url_for('gestionar_vendedores'))
 
+
+@app.route('/admin/vendedores/<int:v_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def editar_vendedor(v_id):
+    v = Vendedor.query.get_or_404(v_id)
+    nombre = (request.form.get('nombre_completo') or '').strip()
+    email = (request.form.get('email') or '').strip()
+    telefono = (request.form.get('telefono') or '').strip() or None
+    rol_id = request.form.get('rol_id', type=int)
+    territorio_id = request.form.get('territorio_id', type=int) or None
+
+    if not nombre or not email:
+        flash('Nombre y email son obligatorios.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    rol = db.session.get(Rol, rol_id) if rol_id else None
+    if rol is None:
+        flash('El rol seleccionado no es válido.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if territorio_id and db.session.get(Territorio, territorio_id) is None:
+        flash('El territorio seleccionado no es válido.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    otro = Vendedor.query.filter(Vendedor.email == email, Vendedor.id != v.id).first()
+    if otro:
+        flash('Ese email ya está en uso por otro usuario.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+    if rol.nombre != 'super_admin' and _es_ultimo_super_admin(v):
+        flash('No se puede quitar el rol super_admin al único administrador activo.', 'danger')
+        return redirect(url_for('gestionar_vendedores'))
+
+    try:
+        v.nombre_completo = nombre
+        v.email = email
+        v.telefono = telefono
+        v.rol_id = rol.id
+        v.territorio_id = territorio_id
+        db.session.commit()
+        flash('Usuario actualizado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al editar vendedor {v_id}: {e}')
+        flash('Error al actualizar el usuario. Intente de nuevo.', 'danger')
+    return redirect(url_for('gestionar_vendedores'))
+
 # ===== WEBHOOKS Y INTEGRACIONES =====
 
 @app.route('/webhook/actualizacion-precios', methods=['POST'])

@@ -139,3 +139,48 @@ def test_toggle_no_desactivar_ultimo_superadmin(app):
     c.post(f'/admin/vendedores/{IDS["admin2"]}/toggle', follow_redirects=True)
     with app.app_context():
         assert _db.session.get(Vendedor, IDS['admin2']).activo is False
+
+
+def test_editar_no_admin_bloqueado(app):
+    from app import Vendedor
+    c = _login(app, 'vend')
+    resp = c.post(f'/admin/vendedores/{IDS["vend"]}/editar',
+                  data={'nombre_completo': 'X', 'email': 'x@t.com', 'rol_id': IDS['rol_vend']},
+                  follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['vend']).nombre_completo == 'Vend'
+
+
+def test_editar_cambia_rol_y_email(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["vend"]}/editar', data={
+        'nombre_completo': 'Vend Editado', 'email': 'nuevo_vend@t.com',
+        'telefono': '123', 'rol_id': IDS['rol_super'], 'territorio_id': IDS['terr'],
+    }, follow_redirects=True)
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        assert v.nombre_completo == 'Vend Editado'
+        assert v.email == 'nuevo_vend@t.com'
+        assert v.rol.nombre == 'supervisor'
+
+
+def test_editar_email_duplicado_rechazado(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["vend"]}/editar', data={
+        'nombre_completo': 'Vend', 'email': 'admin@t.com', 'rol_id': IDS['rol_vend'],
+    }, follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['vend']).email == 'vend@t.com'
+
+
+def test_editar_ultimo_superadmin_no_pierde_rol(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post(f'/admin/vendedores/{IDS["admin"]}/editar', data={
+        'nombre_completo': 'Admin', 'email': 'admin@t.com', 'rol_id': IDS['rol_vend'],
+    }, follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Vendedor, IDS['admin']).rol.nombre == 'super_admin'
