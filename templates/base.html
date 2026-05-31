@@ -278,6 +278,9 @@
             <div class="drawer-divider"></div>
 
             <div class="drawer-section">
+                <a href="{{ url_for('temperaturas_index') }}" class="drawer-item">
+                    <i class="fas fa-temperature-half"></i><span>Registros</span>
+                </a>
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                 </a>
@@ -412,6 +415,9 @@
                             <div class="dropdown-menu">
                                 <a href="/dashboard" class="dropdown-item">
                                     <i class="fas fa-chart-pie"></i><span>Ir al dashboard</span>
+                                </a>
+                                <a href="{{ url_for('temperaturas_index') }}" class="dropdown-item">
+                                    <i class="fas fa-temperature-half"></i><span>Registros</span>
                                 </a>
                                 <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
                                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
