@@ -237,3 +237,14 @@ def test_revisar_marca_periodo(app):
         assert rev.revisado_por == IDS['admin']
         assert rev.periodo_desde == date(2026, 5, 1)
         assert rev.periodo_hasta == date(2026, 5, 31)
+
+
+def test_export_devuelve_pdf(app):
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    resp = c.post('/registros/limpieza/export',
+                  data={'fecha_inicio': '2000-01-01', 'fecha_fin': '2100-01-01'},
+                  follow_redirects=False)
+    assert resp.status_code == 200
+    assert 'application/pdf' in resp.headers.get('Content-Type', '')
