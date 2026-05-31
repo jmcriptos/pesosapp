@@ -35,60 +35,21 @@
     <!-- Critical CSS: loading screen styles inlined so the overlay paints
          on the first frame — no need to wait for external stylesheets. -->
     <style>
+      /* Barra de progreso superior (estilo NProgress). Sin overlay. El
+         ancho lo conduce un script inline; se desvanece al completar. */
       .app-loading-bar {
         position: fixed; top: 0; left: 0;
-        width: 100%; height: 3px;
-        background: linear-gradient(90deg, transparent 0%, #2563eb 30%, #6366f1 60%, transparent 100%);
-        background-size: 220% 100%;
-        animation: app-loading-shimmer 1.1s linear infinite;
+        height: 3px; width: 0;
+        background: #2563eb;
+        box-shadow: 0 0 8px rgba(37, 99, 235, 0.7), 0 0 4px rgba(37, 99, 235, 0.5);
         z-index: 9999;
         pointer-events: none;
-        transition: opacity 220ms ease, transform 220ms ease;
+        opacity: 1;
+        transition: width 200ms ease-out, opacity 300ms ease;
       }
-      .app-loading-bar.is-loaded { opacity: 0; transform: translateY(-3px); }
-      @keyframes app-loading-shimmer {
-        0%   { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-      }
-      .app-loading-screen {
-        position: fixed; inset: 0;
-        z-index: 9998;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(244, 246, 250, 0.96);
-        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-        transition: opacity 280ms ease;
-      }
-      .app-loading-screen.is-loaded { opacity: 0; pointer-events: none; }
-      /* Snap-show during in-app navigation: instant opacity 1, no fade. */
-      .app-loading-screen.is-navigating {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        transition: none !important;
-      }
-      .app-loading-card { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-      .app-loading-ring { position: relative; width: 104px; height: 104px; }
-      .app-loading-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-      .app-loading-ring-track { fill: none; stroke: rgba(15, 23, 42, 0.10); stroke-width: 8; }
-      .app-loading-ring-bar {
-        fill: none; stroke: #2563eb; stroke-width: 8; stroke-linecap: round;
-        stroke-dasharray: 263.89; stroke-dashoffset: 263.89;
-        /* Animación conducida por JS para que el porcentaje y el
-           relleno del círculo queden siempre sincronizados. */
-      }
-      .app-loading-screen.is-loaded .app-loading-ring-bar { stroke-dashoffset: 0; transition: stroke-dashoffset 220ms ease-out; }
-      .app-loading-percent {
-        position: absolute; inset: 0;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.15rem; font-weight: 800; color: #0f172a;
-        font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
-      }
-      .app-loading-label {
-        font-size: 0.85rem; font-weight: 700; color: #64748b;
-        letter-spacing: 0.08em; text-transform: uppercase;
-      }
+      .app-loading-bar.is-loaded { opacity: 0; }
       @media (prefers-reduced-motion: reduce) {
-        .app-loading-bar { animation: none; background: #2563eb; }
-        .app-loading-ring-bar { animation: none; stroke-dashoffset: 132; }
+        .app-loading-bar { transition: opacity 200ms ease; box-shadow: none; }
       }
     </style>
 
@@ -140,102 +101,105 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% endblock %}>
-<div class="app-loading-bar" id="appLoadingBar" aria-hidden="true"></div>
-<div class="app-loading-screen" id="appLoadingScreen" role="status" aria-live="polite" aria-label="Cargando">
-  <div class="app-loading-card">
-    <div class="app-loading-ring">
-      <svg viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="42" class="app-loading-ring-track"></circle>
-        <!-- stroke-dasharray + stroke-dashoffset como atributos SVG (no
-             solo CSS) para que el estado inicial vacío se respete antes
-             de que cualquier CSS externa cargue. Evita el flash de
-             "círculo lleno" en mobile. -->
-        <circle cx="50" cy="50" r="42" class="app-loading-ring-bar"
-                stroke-dasharray="263.89" stroke-dashoffset="263.89"></circle>
-      </svg>
-      <div class="app-loading-percent" id="appLoadingPercent">0%</div>
-    </div>
-    <div class="app-loading-label">Cargando…</div>
-  </div>
-</div>
+<div class="app-loading-bar" id="appLoadingBar" role="status" aria-label="Cargando" aria-hidden="true"></div>
 <script>
-  /* Mostrar el overlay AL INSTANTE cuando el usuario toca un link de
-     navegación interna (menu, tabbar, "+ Nuevo", botones-link). El
-     handler corre antes que cualquier otro porque está inline justo
-     después del markup del overlay y usa fase de captura. La nueva
-     página renderiza con el overlay ya visible (estado inicial) →
-     transición sin "flash en blanco". */
+  /* Barra de progreso de navegación (estilo NProgress). Inline para pintar
+     en el primer frame. Sin overlay a pantalla completa.
+     - Arranca al cargar la página y "gotea" hasta ~90%.
+     - Al estar el DOM listo, salta a 100% y se desvanece.
+     - Se re-muestra al hacer clic en enlaces internos / enviar forms. */
   (function () {
-    var overlay = document.getElementById('appLoadingScreen');
     var bar = document.getElementById('appLoadingBar');
-    var percentEl = document.getElementById('appLoadingPercent');
-    if (!overlay) return;
+    if (!bar) return;
 
-    function showNavOverlay() {
-      overlay.classList.remove('is-loaded');
-      overlay.classList.add('is-navigating');
-      if (bar) bar.classList.remove('is-loaded');
-      if (percentEl) percentEl.textContent = '0%';
-      // Reset el ring al estado vacío. Si el loader anterior llegó al
-      // 100%, finish() escribió strokeDashoffset='0' inline (círculo
-      // lleno). Sin este reset, el snapshot de iOS Safari muestra
-      // "círculo lleno + 0%" durante toda la transición a la próxima
-      // página.
-      var ring = document.querySelector('.app-loading-ring-bar');
-      if (ring) ring.style.strokeDashoffset = '263.89';
-      // Safety: si la navegación nunca ocurre (cancelada, red caída),
-      // re-ocultar el overlay a los 14s para no dejar al usuario atrapado.
-      setTimeout(function () {
-        overlay.classList.remove('is-navigating');
-        overlay.classList.add('is-loaded');
-        if (bar) bar.classList.add('is-loaded');
-      }, 14000);
+    var progress = 0;
+    var trickleTimer = null;
+    var done = false;
+
+    function render() { bar.style.width = (progress * 100).toFixed(1) + '%'; }
+    function set(p) {
+      progress = Math.max(progress, Math.min(p, 0.994));
+      bar.classList.remove('is-loaded');
+      render();
+    }
+    function trickle() {
+      var remaining = 0.9 - progress;
+      if (remaining > 0) set(progress + remaining * 0.12);
+      trickleTimer = setTimeout(trickle, 350);
+    }
+    function start() {
+      if (done) return;
+      if (trickleTimer) return;
+      if (progress === 0) set(0.3);
+      trickle();
+    }
+    function finish() {
+      if (trickleTimer) { clearTimeout(trickleTimer); trickleTimer = null; }
+      done = true;
+      progress = 1;
+      render();
+      setTimeout(function () { bar.classList.add('is-loaded'); }, 120);
     }
 
+    // 1) Arrancar para la carga de ESTA página.
+    start();
+
+    // 2) Completar cuando el DOM esté listo (+1 frame).
+    function finishWhenReady() {
+      requestAnimationFrame(function () { setTimeout(finish, 40); });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', finishWhenReady);
+    } else {
+      finishWhenReady();
+    }
+    window.addEventListener('load', finish);  // fallback
+    setTimeout(finish, 10000);                 // safety
+
+    // 3) bfcache (back/forward): la página vuelve ya cargada → ocultar ya.
+    window.addEventListener('pageshow', function (e) { if (e.persisted) finish(); });
+
+    // 4) Re-mostrar al navegar a otra página (antes de descargar la actual).
     function isHtmxControlled(el) {
-      // htmx intercepta el evento y hace AJAX en lugar de navegar.
-      // Si el elemento (o cualquiera de sus ancestros) tiene un
-      // atributo hx-*, NO mostramos el overlay porque no va a haber
-      // navegación que termine.
       while (el && el !== document) {
         if (el.attributes) {
           for (var i = 0; i < el.attributes.length; i++) {
             var name = el.attributes[i].name;
-            if (name.indexOf('hx-') === 0 || name.indexOf('data-hx-') === 0) {
-              return true;
-            }
+            if (name.indexOf('hx-') === 0 || name.indexOf('data-hx-') === 0) return true;
           }
         }
         el = el.parentNode;
       }
       return false;
     }
-
+    function restartForNav() {
+      done = false;
+      progress = 0;
+      start();
+      setTimeout(finish, 10000); // safety si la navegación se cancela
+    }
     document.addEventListener('click', function (e) {
       var link = e.target.closest('a[href]');
       if (!link) return;
       if (link.target === '_blank') return;
       if (link.hasAttribute('download')) return;
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // open-in-new-tab
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       var href = link.getAttribute('href');
       if (!href) return;
-      if (href.charAt(0) === '#') return;                            // anchor
-      if (href.indexOf('javascript:') === 0) return;                 // js handler
+      if (href.charAt(0) === '#') return;
+      if (href.indexOf('javascript:') === 0) return;
       if (href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0) return;
-      if (link.origin && link.origin !== location.origin) return;    // external
-      // Misma página + mismo hash → no es navegación real
+      if (link.origin && link.origin !== location.origin) return;
       if (link.href === location.href) return;
-      if (isHtmxControlled(link)) return;                            // htmx → no nav
-      showNavOverlay();
+      if (isHtmxControlled(link)) return;
+      restartForNav();
     }, true);
-
-    // Submits de formulario también navegan; mostrar overlay también.
     document.addEventListener('submit', function (e) {
       var form = e.target;
       if (!form || form.tagName !== 'FORM') return;
       if (form.target === '_blank') return;
-      if (isHtmxControlled(form)) return;                            // htmx → no nav
-      showNavOverlay();
+      if (isHtmxControlled(form)) return;
+      restartForNav();
     }, true);
   })();
 </script>
@@ -578,89 +542,6 @@
     
     <!-- Script de info de optimización -->
     <script>
-        // Loading screen: animación conducida por JS — calcula el
-        // porcentaje y el stroke-dashoffset del círculo en el MISMO
-        // frame, garantizando que el número siempre coincide con el
-        // relleno visual (Safari no expone el valor interpolado de
-        // stroke-dashoffset vía getComputedStyle, así que leerlo no
-        // funcionaba). Snap a 100% al window.load o al safety timer.
-        (function () {
-            var screen = document.getElementById('appLoadingScreen');
-            var bar = document.getElementById('appLoadingBar');
-            var percentEl = document.getElementById('appLoadingPercent');
-            var ring = document.querySelector('.app-loading-ring-bar');
-            if (!screen) return;
-
-            var EMPTY = 263.89;   // círculo vacío
-            var FULL90 = 26.39;   // 90% relleno
-            var DURATION = 8000;
-            var startTs = null;
-            var rafId = null;
-            var done = false;
-
-            // Easing equivalente a CSS cubic-bezier(0.25, 1, 0.5, 1):
-            // arranca rápido, desacelera al final.
-            function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
-
-            function tick(ts) {
-                if (done) return;
-                if (startTs === null) startTs = ts;
-                var t = Math.min(1, (ts - startTs) / DURATION);
-                var eased = easeOut(t);
-                var pct = Math.round(eased * 90);
-                if (ring) {
-                    ring.style.strokeDashoffset = (EMPTY - (EMPTY - FULL90) * eased).toFixed(2);
-                }
-                if (percentEl) percentEl.textContent = pct + '%';
-                if (t < 1) rafId = requestAnimationFrame(tick);
-            }
-            rafId = requestAnimationFrame(tick);
-
-            function finish() {
-                if (done) return;
-                done = true;
-                if (rafId) cancelAnimationFrame(rafId);
-                if (percentEl) percentEl.textContent = '100%';
-                // Snap ring al 100% en el mismo frame que el texto.
-                if (ring) ring.style.strokeDashoffset = '0';
-                // Brief 100% beat so the user sees completion before fade.
-                setTimeout(function () {
-                    screen.classList.add('is-loaded');
-                    if (bar) bar.classList.add('is-loaded');
-                }, 140);
-            }
-
-            // Ocultar tan pronto el DOM esté listo + un frame para que
-            // el primer paint termine (≈ 60ms). No esperamos a window.load
-            // porque ese evento se dispara recién cuando TODOS los
-            // recursos cargaron (Font Awesome, Tom Select, Chart.js,
-            // imágenes…) y eso puede tardar varios segundos en mobile
-            // aunque la página ya sea interactiva.
-            function finishWhenReady() {
-                requestAnimationFrame(function () {
-                    setTimeout(finish, 60);
-                });
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', finishWhenReady);
-            } else {
-                finishWhenReady();
-            }
-            // Fallbacks defensivos
-            window.addEventListener('load', finish);
-            setTimeout(finish, 14000);
-
-            // bfcache restore (Back/Forward): the previous page returns
-            // already loaded — skip the loader entirely.
-            window.addEventListener('pageshow', function (event) {
-                if (event.persisted) {
-                    done = true;
-                    screen.classList.add('is-loaded');
-                    if (bar) bar.classList.add('is-loaded');
-                }
-            });
-        })();
-
         // Tabbar tap haptic + immediate visual press class. iOS Safari
         // currently no-ops navigator.vibrate (silent), Android Chrome
         // honors the 8ms pulse. The .is-pressing class lingers ~140ms so
