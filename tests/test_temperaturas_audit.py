@@ -67,3 +67,31 @@ def test_revision_y_columnas_accion_existen(app):
         assert RevisionRegistro.query.count() == 1
         got = LecturaTemperatura.query.get(lec.id)
         assert got.accion_tomada == 'x' and got.accion_disposicion == 'y'
+
+
+def test_config_no_admin_bloqueado(app):
+    c = _login(app, 'vend')
+    resp = c.post('/registros/temperaturas/config',
+                  data={'codigo_documento': 'X', 'version': '9', 'frecuencia_texto': 'f'},
+                  follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    from app import RegistroConfig
+    with app.app_context():
+        cfg = RegistroConfig.query.first()
+        assert cfg is None or cfg.codigo_documento != 'X'
+
+
+def test_config_admin_guarda(app):
+    c = _login(app, 'admin')
+    resp = c.post('/registros/temperaturas/config',
+                  data={'codigo_documento': 'FR-9', 'version': '2',
+                        'frecuencia_texto': '3 veces/día', 'termometro': 'TP-1',
+                        'termometro_calibrado_en': '2026-01-15'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    from app import RegistroConfig
+    with app.app_context():
+        cfg = RegistroConfig.query.first()
+        assert cfg.codigo_documento == 'FR-9'
+        assert cfg.termometro == 'TP-1'
+        assert cfg.termometro_calibrado_en.isoformat() == '2026-01-15'

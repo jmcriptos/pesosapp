@@ -8950,6 +8950,28 @@ def temperaturas_export():
     return response
 
 
+@app.route('/registros/temperaturas/config', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def registro_config():
+    cfg = _get_registro_config()
+    if request.method == 'POST':
+        cfg.codigo_documento = (request.form.get('codigo_documento') or '').strip() or 'FR-HACCP-TEMP-01'
+        cfg.version = (request.form.get('version') or '').strip() or '1'
+        cfg.frecuencia_texto = (request.form.get('frecuencia_texto') or '').strip() or '2 veces al día'
+        cfg.termometro = (request.form.get('termometro') or '').strip() or None
+        cal = (request.form.get('termometro_calibrado_en') or '').strip()
+        try:
+            cfg.termometro_calibrado_en = datetime.strptime(cal, '%Y-%m-%d').date() if cal else None
+        except ValueError:
+            cfg.termometro_calibrado_en = None
+        cfg.actualizado_en = datetime.utcnow()
+        db.session.commit()
+        flash('Configuración guardada.', 'success')
+        return redirect(url_for('registro_config'))
+    return render_template('registros/config.html', cfg=cfg)
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':
