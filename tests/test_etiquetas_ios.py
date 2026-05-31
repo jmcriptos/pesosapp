@@ -19,6 +19,9 @@ def test_existe_helper_web_share():
     assert 'navigator.share' in js
     assert 'navigator.canShare' in js
     assert 'iP(hone|ad|od)' in js  # detección por dispositivo (cubre Chrome iOS)
+    # Compartir SOLO el archivo: un title/text hace que iOS guarde un .txt extra
+    assert 'navigator.share({ files: [file] })' in js
+    assert 'title:' not in js and 'text:' not in js
 
 
 def test_detalles_pedido_usa_web_share_en_ios():

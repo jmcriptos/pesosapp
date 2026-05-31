@@ -47,9 +47,12 @@
     const file = new File([blob], filename, { type: 'application/pdf' });
 
     // Camino principal: hoja de compartir nativa (iOS 15+).
+    // Compartir SOLO el archivo, sin title/text: si se incluye un título, iOS
+    // lo guarda como un archivo de texto aparte ("text", 9 bytes) al "Guardar
+    // en Archivos". Compartir solo files entrega únicamente el PDF.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], title: 'Etiquetas' });
+        await navigator.share({ files: [file] });
       } catch (e) {
         // El usuario canceló la hoja de compartir → no es un error.
       }
