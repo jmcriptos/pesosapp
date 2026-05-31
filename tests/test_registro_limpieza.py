@@ -148,3 +148,57 @@ def test_areas_toggle(app):
     c.post(f'/registros/limpieza/areas/{IDS["area"]}/toggle', follow_redirects=True)
     with app.app_context():
         assert _db.session.get(AreaLimpieza, IDS['area']).activa is False
+
+
+def test_registrar_requiere_login(app):
+    client = app.test_client()
+    resp = client.post('/registros/limpieza/registrar',
+                       data={'area_id': IDS['area'], 'conforme': 'si'},
+                       follow_redirects=False)
+    assert resp.status_code == 302
+    assert '/login' in resp.headers.get('Location', '')
+
+
+def test_registrar_conforme(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    resp = c.post('/registros/limpieza/registrar',
+                  data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        r = RegistroLimpieza.query.filter_by(area_id=IDS['area']).first()
+        assert r is not None
+        assert r.conforme is True
+        assert r.registrado_por == IDS['vend']
+
+
+def test_registrar_no_conforme_sin_accion_rechazado(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'no'}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=IDS['area']).count() == 0
+
+
+def test_registrar_no_conforme_con_accion(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'no',
+                 'accion_tomada': 'Se volvio a limpiar',
+                 'accion_disposicion': 'Quedo conforme'}, follow_redirects=True)
+    with app.app_context():
+        r = RegistroLimpieza.query.filter_by(area_id=IDS['area']).first()
+        assert r is not None
+        assert r.conforme is False
+        assert 'volvio a limpiar' in r.accion_tomada
+
+
+def test_principal_muestra_area(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert 'Sierra de cortar' in body
+    assert 'Sanitizante clorado' in body

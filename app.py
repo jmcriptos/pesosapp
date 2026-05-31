@@ -9305,6 +9305,65 @@ def area_limpieza_toggle(area_id):
     return redirect(url_for('areas_limpieza_list'))
 
 
+def _areas_con_registro_hoy():
+    """Set de area_id con al menos un registro de limpieza HOY (día local de negocio)."""
+    ahora_local = datetime.now(DASHBOARD_TIMEZONE)
+    inicio_local = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_utc = inicio_local.astimezone(timezone.utc).replace(tzinfo=None)
+    fin_utc = (inicio_local + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+    filas = db.session.query(RegistroLimpieza.area_id).filter(
+        RegistroLimpieza.registrado_en >= inicio_utc,
+        RegistroLimpieza.registrado_en < fin_utc,
+    ).distinct().all()
+    return {row[0] for row in filas}
+
+
+@app.route('/registros/limpieza')
+@login_required
+def limpieza_index():
+    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
+             .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
+    con_registro_hoy = _areas_con_registro_hoy()
+    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    return render_template('registros/limpieza.html', areas=areas,
+                           con_registro_hoy=con_registro_hoy, es_admin=es_admin)
+
+
+@app.route('/registros/limpieza/registrar', methods=['POST'])
+@login_required
+def limpieza_registrar():
+    area = AreaLimpieza.query.filter_by(id=request.form.get('area_id', type=int), activa=True).first()
+    if area is None:
+        flash('Área no válida.', 'danger')
+        return redirect(url_for('limpieza_index'))
+    conforme = (request.form.get('conforme') or 'si') != 'no'
+    observacion = (request.form.get('observacion') or '').strip() or None
+    causa = (request.form.get('accion_causa') or '').strip()
+    tomada = (request.form.get('accion_tomada') or '').strip()
+    responsable = (request.form.get('accion_responsable') or '').strip()
+    disposicion = (request.form.get('accion_disposicion') or '').strip()
+
+    if not conforme and (not tomada or not disposicion):
+        flash(f'El registro de {area.nombre} es No conforme. Indica al menos la acción tomada '
+              f'y la disposición.', 'danger')
+        return redirect(url_for('limpieza_index'))
+
+    db.session.add(RegistroLimpieza(
+        area_id=area.id,
+        registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+        conforme=conforme,
+        observacion=observacion,
+        accion_causa=(causa or None) if not conforme else None,
+        accion_tomada=(tomada or None) if not conforme else None,
+        accion_responsable=(responsable or None) if not conforme else None,
+        accion_disposicion=(disposicion or None) if not conforme else None,
+    ))
+    db.session.commit()
+    flash('Limpieza registrada.' + (' (No conforme — registrada con acción correctiva.)' if not conforme else ''),
+          'success' if conforme else 'warning')
+    return redirect(url_for('limpieza_index'))
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

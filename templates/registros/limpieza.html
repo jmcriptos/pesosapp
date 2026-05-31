@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Limpieza — Registros{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Registro de limpieza</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
+{% block content %}
+<div class="mobile-form-container reg-wrap">
+
+  <div class="reg-toolbar">
+    <a href="/registros/limpieza/historial" class="reg-btn"><i class="fas fa-clock-rotate-left"></i> Historial</a>
+    <a href="{{ url_for('productos_limpieza_index') }}" class="reg-btn"><i class="fas fa-flask"></i> Productos y diluciones</a>
+    {% if es_admin %}
+    <a href="{{ url_for('areas_limpieza_list') }}" class="reg-btn"><i class="fas fa-broom"></i> Áreas/equipos</a>
+    <a href="/registros/limpieza/config" class="reg-btn"><i class="fas fa-gear"></i> Configuración</a>
+    {% endif %}
+  </div>
+
+  <div class="reg-list">
+    {% for a in areas %}
+    <article class="reg-card {{ 'is-ok' if a.id in con_registro_hoy else 'is-warn' }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name">{{ a.nombre }}</div>
+          <div class="reg-sub">
+            <span class="reg-pill info">{{ 'Equipo' if a.tipo == 'equipo' else 'Espacio' }}</span>
+            {% if a.frecuencia_texto %} {{ a.frecuencia_texto }}{% endif %}
+          </div>
+        </div>
+        {% if a.id in con_registro_hoy %}
+          <span class="reg-pill ok"><i class="fas fa-check-circle"></i> Hoy</span>
+        {% else %}
+          <span class="reg-pill warn"><i class="fas fa-hourglass-half"></i> Falta hoy</span>
+        {% endif %}
+      </div>
+
+      {% if a.producto %}
+      <div class="reg-accion"><i class="fas fa-flask"></i>
+        <strong>{{ a.producto.nombre }}</strong> · Dilución: {{ a.producto.dilucion }}
+        {% if a.producto.procedimiento %}<br><strong>Procedimiento:</strong> {{ a.producto.procedimiento }}{% endif %}
+      </div>
+      {% endif %}
+      {% if a.metodo %}
+      <div class="reg-accion"><i class="fas fa-circle-info"></i> {{ a.metodo }}</div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('limpieza_registrar') }}" autocomplete="off" class="reg-inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="area_id" value="{{ a.id }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="conforme_{{ a.id }}">Resultado</label>
+          <select id="conforme_{{ a.id }}" name="conforme" class="mobile-form-control">
+            <option value="si">Conforme</option>
+            <option value="no">No conforme</option>
+          </select>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label">Observación (opcional)</label>
+          <input type="text" name="observacion" class="mobile-form-control" placeholder="Notas de la limpieza">
+        </div>
+        <details class="reg-edit">
+          <summary><i class="fas fa-triangle-exclamation"></i> Acción correctiva (solo si es No conforme)</summary>
+          <div class="reg-edit-body">
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Causa</label>
+              <input type="text" name="accion_causa" class="mobile-form-control" placeholder="¿Por qué no quedó conforme?">
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Acción tomada <small style="font-weight:400; opacity:.8;">(obligatoria si No conforme)</small></label>
+              <textarea name="accion_tomada" class="mobile-form-control" rows="2" placeholder="¿Qué se hizo? Ej: se volvió a limpiar"></textarea>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Responsable de la acción</label>
+              <input type="text" name="accion_responsable" class="mobile-form-control">
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Disposición <small style="font-weight:400; opacity:.8;">(obligatoria si No conforme)</small></label>
+              <textarea name="accion_disposicion" class="mobile-form-control" rows="2" placeholder="Resultado tras la corrección"></textarea>
+            </div>
+          </div>
+        </details>
+        <div class="reg-actions">
+          <button type="submit" class="reg-btn reg-btn-primary"><i class="fas fa-save"></i> Registrar limpieza</button>
+        </div>
+      </form>
+    </article>
+    {% else %}
+    <div class="reg-empty">
+      <i class="fas fa-broom"></i>
+      No hay áreas activas.{% if es_admin %} <a href="{{ url_for('areas_limpieza_list') }}">Crea una</a>.{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
