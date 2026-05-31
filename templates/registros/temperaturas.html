@@ -1,29 +1,35 @@
 {% extends "base.html" %}
 {% block title %}Temperaturas — Registros{% endblock %}
 {% block header_title %}<span class="fw-700 color-white">Temperaturas de cámaras</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
 {% block content %}
-<div class="mobile-form-container">
+<div class="mobile-form-container reg-wrap">
 
-  <div class="mobile-form-actions" style="margin-bottom:12px;">
-    <a href="{{ url_for('temperaturas_historial') }}" class="mobile-btn mobile-btn-secondary"><i class="fas fa-clock-rotate-left"></i> Historial</a>
+  <div class="reg-toolbar">
+    <a href="{{ url_for('temperaturas_historial') }}" class="reg-btn"><i class="fas fa-clock-rotate-left"></i> Historial</a>
     {% if es_admin %}
-    <a href="{{ url_for('camaras_list') }}" class="mobile-btn mobile-btn-secondary"><i class="fas fa-snowflake"></i> Cámaras</a>
+    <a href="{{ url_for('camaras_list') }}" class="reg-btn"><i class="fas fa-snowflake"></i> Cámaras</a>
     {% endif %}
   </div>
 
-  {% for c in camaras %}
-  <div class="mobile-card">
-    <div class="mobile-card-header">
-      <i class="fas fa-temperature-half"></i> {{ c.nombre }}
-      {% if c.id in con_lectura_hoy %}
-        <span style="margin-left:auto; color:#16a34a;"><i class="fas fa-check-circle"></i> Hoy ✓</span>
-      {% else %}
-        <span style="margin-left:auto; color:#d97706;"><i class="fas fa-hourglass-half"></i> Falta hoy</span>
-      {% endif %}
-    </div>
-    <div class="mobile-card-body">
-      <small>Rango: {{ c.temp_min }}°C a {{ c.temp_max }}°C</small>
-      <form method="POST" action="{{ url_for('temperatura_registrar') }}" autocomplete="off">
+  <div class="reg-list">
+    {% for c in camaras %}
+    <article class="reg-card {{ 'is-ok' if c.id in con_lectura_hoy else 'is-warn' }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name">{{ c.nombre }}</div>
+          <div class="reg-sub">Rango: <strong>{{ c.temp_min }}°C</strong> a <strong>{{ c.temp_max }}°C</strong></div>
+        </div>
+        {% if c.id in con_lectura_hoy %}
+          <span class="reg-pill ok"><i class="fas fa-check-circle"></i> Hoy</span>
+        {% else %}
+          <span class="reg-pill warn"><i class="fas fa-hourglass-half"></i> Falta hoy</span>
+        {% endif %}
+      </div>
+
+      <form method="POST" action="{{ url_for('temperatura_registrar') }}" autocomplete="off" class="reg-inline-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="camara_id" value="{{ c.id }}">
         <div class="mobile-form-group">
@@ -32,20 +38,21 @@
                  class="mobile-form-control" placeholder="Ej: -20" required>
         </div>
         <div class="mobile-form-group">
-          <label class="mobile-form-label" for="accion_{{ c.id }}">Acción correctiva <small>(obligatoria si está fuera de rango)</small></label>
+          <label class="mobile-form-label" for="accion_{{ c.id }}">Acción correctiva <small style="font-weight:400; opacity:.8;">(obligatoria si está fuera de rango)</small></label>
           <textarea id="accion_{{ c.id }}" name="accion_correctiva" class="mobile-form-control" rows="2" placeholder="Solo si la temperatura está fuera de rango"></textarea>
         </div>
-        <div class="mobile-form-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Registrar lectura</button>
+        <div class="reg-actions">
+          <button type="submit" class="reg-btn reg-btn-primary"><i class="fas fa-save"></i> Registrar lectura</button>
         </div>
       </form>
+    </article>
+    {% else %}
+    <div class="reg-empty">
+      <i class="fas fa-temperature-half"></i>
+      No hay cámaras activas.{% if es_admin %} <a href="{{ url_for('camaras_list') }}">Crea una</a>.{% endif %}
     </div>
+    {% endfor %}
   </div>
-  {% else %}
-  <div class="mobile-card"><div class="mobile-card-body">
-    <p>No hay cámaras activas.{% if es_admin %} <a href="{{ url_for('camaras_list') }}">Crea una</a>.{% endif %}</p>
-  </div></div>
-  {% endfor %}
 
 </div>
 {% endblock %}

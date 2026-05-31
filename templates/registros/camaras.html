@@ -1,17 +1,24 @@
 {% extends "base.html" %}
 {% block title %}Cámaras — Registros{% endblock %}
 {% block header_title %}<span class="fw-700 color-white">Cámaras</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
 {% block content %}
-<div class="mobile-form-container">
+<div class="mobile-form-container reg-wrap">
+
+  <div class="reg-toolbar">
+    <a href="{{ url_for('temperaturas_index') }}" class="reg-btn"><i class="fas fa-temperature-half"></i> Temperaturas</a>
+  </div>
 
   <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-snowflake"></i> Nueva cámara</div>
+    <div class="mobile-card-header"><i class="fas fa-plus-circle"></i> Nueva cámara</div>
     <div class="mobile-card-body">
       <form method="POST" action="{{ url_for('camara_nueva') }}" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="nombre">Nombre</label>
-          <input type="text" id="nombre" name="nombre" class="mobile-form-control" required>
+          <input type="text" id="nombre" name="nombre" class="mobile-form-control" placeholder="Ej: Cava PT" required>
         </div>
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="tipo">Tipo</label>
@@ -20,65 +27,83 @@
             <option value="congelacion">Congelación</option>
           </select>
         </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="temp_min">Temp. mínima (°C)</label>
-          <input type="text" inputmode="decimal" id="temp_min" name="temp_min" class="mobile-form-control" required>
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="temp_max">Temp. máxima (°C)</label>
-          <input type="text" inputmode="decimal" id="temp_max" name="temp_max" class="mobile-form-control" required>
+        <div class="reg-field-row">
+          <div class="mobile-form-group">
+            <label class="mobile-form-label" for="temp_min">Mín. (°C)</label>
+            <input type="text" inputmode="decimal" id="temp_min" name="temp_min" class="mobile-form-control" placeholder="0" required>
+          </div>
+          <div class="mobile-form-group">
+            <label class="mobile-form-label" for="temp_max">Máx. (°C)</label>
+            <input type="text" inputmode="decimal" id="temp_max" name="temp_max" class="mobile-form-control" placeholder="6" required>
+          </div>
         </div>
         <div class="mobile-form-actions">
-          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Crear</button>
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Crear cámara</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-list"></i> Cámaras registradas</div>
-    <div class="mobile-card-body">
-      {% for c in camaras %}
-        <div class="mobile-form-group" style="border-bottom:1px solid #e5e7eb; padding-bottom:8px;">
-          <strong>{{ c.nombre }}</strong> — {{ 'Refrigeración' if c.tipo == 'refrigeracion' else 'Congelación' }}
-          <br><small>Rango: {{ c.temp_min }}°C a {{ c.temp_max }}°C · {{ 'Activa' if c.activa else 'Inactiva' }}</small>
-          <form method="POST" action="{{ url_for('camara_toggle', camara_id=c.id) }}" style="display:inline; margin-left:8px;">
+  <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-list"></i> Cámaras registradas</h3>
+  <div class="reg-list">
+    {% for c in camaras %}
+    <article class="reg-card {{ 'is-ok' if c.activa else 'is-muted' }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name">{{ c.nombre }}</div>
+          <div class="reg-sub">Rango: <strong>{{ c.temp_min }}°C</strong> a <strong>{{ c.temp_max }}°C</strong></div>
+        </div>
+        <div class="reg-chips">
+          <span class="reg-pill info">{{ 'Refrigeración' if c.tipo == 'refrigeracion' else 'Congelación' }}</span>
+          <span class="reg-pill {{ 'ok' if c.activa else '' }}">{{ 'Activa' if c.activa else 'Inactiva' }}</span>
+        </div>
+      </div>
+
+      <div class="reg-actions">
+        <form method="POST" action="{{ url_for('camara_toggle', camara_id=c.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="reg-btn">
+            <i class="fas fa-{{ 'eye-slash' if c.activa else 'eye' }}"></i> {{ 'Desactivar' if c.activa else 'Activar' }}
+          </button>
+        </form>
+      </div>
+
+      <details class="reg-edit">
+        <summary><i class="fas fa-pen"></i> Editar</summary>
+        <div class="reg-edit-body">
+          <form method="POST" action="{{ url_for('camara_editar', camara_id=c.id) }}" autocomplete="off">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="mobile-btn mobile-btn-secondary">{{ 'Desactivar' if c.activa else 'Activar' }}</button>
-          </form>
-          <details style="margin-top:6px;">
-            <summary style="cursor:pointer; color:#2563eb;">Editar</summary>
-            <form method="POST" action="{{ url_for('camara_editar', camara_id=c.id) }}" autocomplete="off" style="margin-top:8px;">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Nombre</label>
+              <input type="text" name="nombre" class="mobile-form-control" value="{{ c.nombre }}" required>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Tipo</label>
+              <select name="tipo" class="mobile-form-control" required>
+                <option value="refrigeracion" {{ 'selected' if c.tipo == 'refrigeracion' }}>Refrigeración</option>
+                <option value="congelacion" {{ 'selected' if c.tipo == 'congelacion' }}>Congelación</option>
+              </select>
+            </div>
+            <div class="reg-field-row">
               <div class="mobile-form-group">
-                <label class="mobile-form-label">Nombre</label>
-                <input type="text" name="nombre" class="mobile-form-control" value="{{ c.nombre }}" required>
-              </div>
-              <div class="mobile-form-group">
-                <label class="mobile-form-label">Tipo</label>
-                <select name="tipo" class="mobile-form-control" required>
-                  <option value="refrigeracion" {{ 'selected' if c.tipo == 'refrigeracion' }}>Refrigeración</option>
-                  <option value="congelacion" {{ 'selected' if c.tipo == 'congelacion' }}>Congelación</option>
-                </select>
-              </div>
-              <div class="mobile-form-group">
-                <label class="mobile-form-label">Temp. mínima (°C)</label>
+                <label class="mobile-form-label">Mín. (°C)</label>
                 <input type="text" inputmode="decimal" name="temp_min" class="mobile-form-control" value="{{ c.temp_min }}" required>
               </div>
               <div class="mobile-form-group">
-                <label class="mobile-form-label">Temp. máxima (°C)</label>
+                <label class="mobile-form-label">Máx. (°C)</label>
                 <input type="text" inputmode="decimal" name="temp_max" class="mobile-form-control" value="{{ c.temp_max }}" required>
               </div>
-              <div class="mobile-form-actions">
-                <button type="submit" class="mobile-btn mobile-btn-primary">Guardar cambios</button>
-              </div>
-            </form>
-          </details>
+            </div>
+            <div class="mobile-form-actions">
+              <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar cambios</button>
+            </div>
+          </form>
         </div>
-      {% else %}
-        <p>No hay cámaras. Crea la primera arriba.</p>
-      {% endfor %}
-    </div>
+      </details>
+    </article>
+    {% else %}
+    <div class="reg-empty"><i class="fas fa-snowflake"></i>No hay cámaras. Crea la primera arriba.</div>
+    {% endfor %}
   </div>
 
 </div>

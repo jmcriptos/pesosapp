@@ -1,20 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Historial temperaturas{% endblock %}
 {% block header_title %}<span class="fw-700 color-white">Historial de temperaturas</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
 {% block content %}
-<div class="mobile-form-container">
+<div class="mobile-form-container reg-wrap">
+
+  <div class="reg-toolbar">
+    <a href="{{ url_for('temperaturas_index') }}" class="reg-btn"><i class="fas fa-temperature-half"></i> Registrar</a>
+  </div>
 
   <div class="mobile-card">
     <div class="mobile-card-header"><i class="fas fa-filter"></i> Filtros</div>
     <div class="mobile-card-body">
       <form method="GET" action="{{ url_for('temperaturas_historial') }}">
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="fecha_inicio">Desde</label>
-          <input type="date" id="fecha_inicio" name="fecha_inicio" class="mobile-form-control" value="{{ filtros.get('fecha_inicio', '') }}">
-        </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="fecha_fin">Hasta</label>
-          <input type="date" id="fecha_fin" name="fecha_fin" class="mobile-form-control" value="{{ filtros.get('fecha_fin', '') }}">
+        <div class="reg-field-row">
+          <div class="mobile-form-group">
+            <label class="mobile-form-label" for="fecha_inicio">Desde</label>
+            <input type="date" id="fecha_inicio" name="fecha_inicio" class="mobile-form-control" value="{{ filtros.get('fecha_inicio', '') }}">
+          </div>
+          <div class="mobile-form-group">
+            <label class="mobile-form-label" for="fecha_fin">Hasta</label>
+            <input type="date" id="fecha_fin" name="fecha_fin" class="mobile-form-control" value="{{ filtros.get('fecha_fin', '') }}">
+          </div>
         </div>
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="camara_id">Cámara</label>
@@ -39,21 +48,23 @@
     </div>
   </div>
 
-  <div class="mobile-card">
-    <div class="mobile-card-header"><i class="fas fa-list"></i> Lecturas</div>
-    <div class="mobile-card-body">
-      {% for l in lecturas %}
-        <div class="mobile-form-group" style="border-bottom:1px solid #e5e7eb; padding-bottom:8px; {% if l.fuera_de_rango %}color:#dc2626;{% endif %}">
-          <strong>{{ l.camara.nombre }}</strong> — {{ l.temperatura }}°C
-          {% if l.fuera_de_rango %}<span style="font-weight:700;"> (FUERA DE RANGO)</span>{% endif %}
-          <br><small>{{ l.registrado_en.strftime('%Y-%m-%d %H:%M') }}
-          {% if l.registrado_por_vendedor %} · {{ l.registrado_por_vendedor.nombre_completo }}{% endif %}</small>
-          {% if l.accion_correctiva %}<br><small>Acción: {{ l.accion_correctiva }}</small>{% endif %}
-        </div>
-      {% else %}
-        <p>No hay lecturas para los filtros seleccionados.</p>
-      {% endfor %}
-    </div>
+  <h3 class="reg-name" style="margin:4px 2px;"><i class="fas fa-list"></i> Lecturas</h3>
+  <div class="reg-list">
+    {% for l in lecturas %}
+    <article class="reg-row {{ 'is-danger' if l.fuera_de_rango else '' }}">
+      <div class="reg-row-main">
+        <div class="reg-name">{{ l.camara.nombre }}</div>
+        <div class="reg-sub">{{ l.registrado_en.strftime('%Y-%m-%d %H:%M') }}{% if l.registrado_por_vendedor %} · {{ l.registrado_por_vendedor.nombre_completo }}{% endif %}</div>
+        {% if l.accion_correctiva %}<div class="reg-accion"><i class="fas fa-wrench"></i> {{ l.accion_correctiva }}</div>{% endif %}
+      </div>
+      <div style="text-align:right;">
+        <div class="reg-temp">{{ l.temperatura }}°C</div>
+        {% if l.fuera_de_rango %}<span class="reg-pill danger">Fuera de rango</span>{% else %}<span class="reg-pill ok">En rango</span>{% endif %}
+      </div>
+    </article>
+    {% else %}
+    <div class="reg-empty"><i class="fas fa-clipboard-list"></i>No hay lecturas para los filtros seleccionados.</div>
+    {% endfor %}
   </div>
 
 </div>
