@@ -2090,12 +2090,47 @@ class LecturaTemperatura(db.Model):
     registrado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     fuera_de_rango = db.Column(db.Boolean, nullable=False, default=False)
     accion_correctiva = db.Column(db.Text, nullable=True)
+    accion_causa = db.Column(db.Text, nullable=True)
+    accion_tomada = db.Column(db.Text, nullable=True)
+    accion_responsable = db.Column(db.String(120), nullable=True)
+    accion_disposicion = db.Column(db.Text, nullable=True)
 
     camara = db.relationship('Camara')
     registrado_por_vendedor = db.relationship('Vendedor')
 
     def __repr__(self):
         return f'<LecturaTemperatura {self.id} camara={self.camara_id} {self.temperatura}>'
+
+
+class RegistroConfig(db.Model):
+    """Configuración (fila única) del registro de temperaturas para el PDF."""
+    __tablename__ = 'registro_config'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo_documento = db.Column(db.String(60), nullable=False, default='FR-HACCP-TEMP-01')
+    version = db.Column(db.String(20), nullable=False, default='1')
+    frecuencia_texto = db.Column(db.String(120), nullable=False, default='2 veces al día')
+    termometro = db.Column(db.String(120), nullable=True)
+    termometro_calibrado_en = db.Column(db.Date, nullable=True)
+    actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<RegistroConfig {self.codigo_documento} v{self.version}>'
+
+
+class RevisionRegistro(db.Model):
+    """Verificación HACCP: un responsable revisa los registros de un período."""
+    __tablename__ = 'revision_registro'
+    id = db.Column(db.Integer, primary_key=True)
+    revisado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    revisado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    periodo_desde = db.Column(db.Date, nullable=True)
+    periodo_hasta = db.Column(db.Date, nullable=True)
+    nota = db.Column(db.Text, nullable=True)
+
+    revisado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<RevisionRegistro {self.id} por={self.revisado_por}>'
 
 
 class PedidoEvento(db.Model):
@@ -8647,6 +8682,17 @@ def dev_primitives():
     if not isinstance(current_user, Vendedor) or current_user.rol.nombre != 'super_admin':
         abort(403)
     return render_template('dev_primitives.html')
+
+
+def _get_registro_config():
+    """Devuelve la fila única de RegistroConfig; la crea con valores por
+    defecto si aún no existe."""
+    cfg = RegistroConfig.query.first()
+    if cfg is None:
+        cfg = RegistroConfig()
+        db.session.add(cfg)
+        db.session.commit()
+    return cfg
 
 
 # ───────────────────────── HACCP: Cámaras ─────────────────────────
