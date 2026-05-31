@@ -511,6 +511,43 @@ def logout():
     flash("Sesión cerrada", "success")
     return redirect(url_for('login'))
 
+@app.route('/mi-cuenta/cambiar-contrasena', methods=['GET', 'POST'])
+@login_required
+def cambiar_password():
+    # Solo para usuarios Vendedor; el usuario legacy usa variable de entorno.
+    if not isinstance(current_user, Vendedor):
+        flash('Esta función no está disponible para el usuario del sistema.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        actual    = request.form.get('actual') or ''
+        nueva     = request.form.get('nueva') or ''
+        confirmar = request.form.get('confirmar') or ''
+
+        if not current_user.check_password(actual):
+            flash('La contraseña actual es incorrecta.', 'error')
+            return render_template('cambiar_password.html')
+        if nueva != confirmar:
+            flash('La nueva contraseña y su confirmación no coinciden.', 'error')
+            return render_template('cambiar_password.html')
+        if len(nueva) < 8:
+            flash('La nueva contraseña debe tener al menos 8 caracteres.', 'error')
+            return render_template('cambiar_password.html')
+        if nueva == actual:
+            flash('La nueva contraseña debe ser distinta de la actual.', 'error')
+            return render_template('cambiar_password.html')
+
+        current_user.set_password(nueva)
+        db.session.commit()
+        app.logger.info(
+            f'Contraseña cambiada para usuario {current_user.username} (id={current_user.id})'
+        )
+        logout_user()
+        flash('Contraseña actualizada. Inicia sesión nuevamente.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('cambiar_password.html')
+
 @app.before_request
 def require_login():
     allowed_endpoints = ['login', 'logout', 'static']
