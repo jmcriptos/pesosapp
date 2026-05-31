@@ -9,6 +9,13 @@
 {% block content %}
 <div class="admin-container">
 
+    <!-- ────────── Acceso a roles y permisos ────────── -->
+    <div style="margin-bottom:18px;">
+        <a href="{{ url_for('gestionar_permisos') }}" class="btn-secondary-sm" style="text-decoration:none;">
+            <i class="fas fa-shield-alt"></i> Roles y permisos
+        </a>
+    </div>
+
     <!-- ────────── Alta de nuevo vendedor ────────── -->
     <section class="form-section">
         <h3 class="section-title">
