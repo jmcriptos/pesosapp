@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Configuración del registro de limpieza{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Configuración de limpieza</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
+{% block content %}
+<div class="mobile-form-container reg-wrap">
+  <div class="reg-toolbar">
+    <a href="{{ url_for('limpieza_index') }}" class="reg-btn"><i class="fas fa-soap"></i> Registrar limpieza</a>
+  </div>
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-gear"></i> Datos del documento</div>
+    <div class="mobile-card-body">
+      <form method="POST" action="{{ url_for('limpieza_config') }}" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="reg-field-row">
+          <div class="mobile-form-group">
+            <label class="mobile-form-label" for="codigo_documento">Código de documento</label>
+            <input type="text" id="codigo_documento" name="codigo_documento" class="mobile-form-control" value="{{ cfg.codigo_documento }}">
+          </div>
+          <div class="mobile-form-group">
+            <label class="mobile-form-label" for="version">Versión</label>
+            <input type="text" id="version" name="version" class="mobile-form-control" value="{{ cfg.version }}">
+          </div>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="frecuencia_texto">Frecuencia de limpieza</label>
+          <input type="text" id="frecuencia_texto" name="frecuencia_texto" class="mobile-form-control" value="{{ cfg.frecuencia_texto }}" placeholder="Ej: Según programa de limpieza">
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="responsable_verificacion">Responsable de verificación</label>
+          <input type="text" id="responsable_verificacion" name="responsable_verificacion" class="mobile-form-control" value="{{ cfg.responsable_verificacion or '' }}" placeholder="Ej: Jefe de calidad">
+        </div>
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Guardar configuración</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -248,3 +248,22 @@ def test_export_devuelve_pdf(app):
                   follow_redirects=False)
     assert resp.status_code == 200
     assert 'application/pdf' in resp.headers.get('Content-Type', '')
+
+
+def test_config_no_admin_bloqueado(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza/config', follow_redirects=False)
+    assert resp.status_code in (302, 403)
+
+
+def test_config_admin_guarda(app):
+    from app import LimpiezaConfig
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/config',
+           data={'codigo_documento': 'FR-HACCP-LIMP-02', 'version': '2',
+                 'frecuencia_texto': 'Diaria', 'responsable_verificacion': 'Jefe de calidad'},
+           follow_redirects=True)
+    with app.app_context():
+        cfg = LimpiezaConfig.query.first()
+        assert cfg.codigo_documento == 'FR-HACCP-LIMP-02'
+        assert cfg.responsable_verificacion == 'Jefe de calidad'

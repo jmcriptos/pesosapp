@@ -9573,6 +9573,23 @@ def limpieza_export():
     return response
 
 
+@app.route('/registros/limpieza/config', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def limpieza_config():
+    cfg = _get_limpieza_config()
+    if request.method == 'POST':
+        cfg.codigo_documento = (request.form.get('codigo_documento') or '').strip() or 'FR-HACCP-LIMP-01'
+        cfg.version = (request.form.get('version') or '').strip() or '1'
+        cfg.frecuencia_texto = (request.form.get('frecuencia_texto') or '').strip() or 'Según programa de limpieza'
+        cfg.responsable_verificacion = (request.form.get('responsable_verificacion') or '').strip() or None
+        cfg.actualizado_en = datetime.utcnow()
+        db.session.commit()
+        flash('Configuración guardada.', 'success')
+        return redirect(url_for('limpieza_config'))
+    return render_template('registros/limpieza_config.html', cfg=cfg)
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

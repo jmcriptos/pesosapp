@@ -12,7 +12,7 @@
     <a href="{{ url_for('productos_limpieza_index') }}" class="reg-btn"><i class="fas fa-flask"></i> Productos y diluciones</a>
     {% if es_admin %}
     <a href="{{ url_for('areas_limpieza_list') }}" class="reg-btn"><i class="fas fa-broom"></i> Áreas/equipos</a>
-    <a href="/registros/limpieza/config" class="reg-btn"><i class="fas fa-gear"></i> Configuración</a>
+    <a href="{{ url_for('limpieza_config') }}" class="reg-btn"><i class="fas fa-gear"></i> Configuración</a>
     {% endif %}
   </div>
 
