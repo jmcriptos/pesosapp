@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Registros HACCP{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Registros HACCP</span>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+{% endblock %}
+{% block content %}
+<div class="mobile-form-container reg-wrap">
+  <div class="reg-list">
+    <a class="reg-card" style="display:block; text-decoration:none;" href="{{ url_for('temperaturas_index') }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name"><i class="fas fa-temperature-half"></i> Temperaturas</div>
+          <div class="reg-sub">Registro de temperaturas de cámaras</div>
+        </div>
+        <i class="fas fa-chevron-right"></i>
+      </div>
+    </a>
+    <a class="reg-card" style="display:block; text-decoration:none;" href="{{ url_for('limpieza_index') }}">
+      <div class="reg-card-head">
+        <div>
+          <div class="reg-name"><i class="fas fa-soap"></i> Limpieza</div>
+          <div class="reg-sub">Registro de limpieza y desinfección</div>
+        </div>
+        <i class="fas fa-chevron-right"></i>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

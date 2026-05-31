@@ -1,0 +1,278 @@
+"""Tests del registro de limpieza (HACCP)."""
+import os
+
+import pytest
+
+os.environ.setdefault('SECRET_KEY', 'test-secret')
+os.environ.setdefault('FLASK_ENV', 'testing')
+os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+
+from app import app as flask_app, db as _db
+
+IDS = {}
+
+
+@pytest.fixture
+def app():
+    flask_app.config.update(
+        TESTING=True,
+        WTF_CSRF_ENABLED=False,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+    )
+    with flask_app.app_context():
+        _db.create_all()
+        from app import Rol, Territorio, Vendedor, ProductoLimpieza, AreaLimpieza
+        rol_admin = Rol(nombre='super_admin', descripcion='Admin')
+        rol_vend = Rol(nombre='vendedor', descripcion='Vendedor')
+        terr = Territorio(nombre='t1', descripcion='T1')
+        _db.session.add_all([rol_admin, rol_vend, terr])
+        _db.session.flush()
+        admin = Vendedor(username='admin', email='a@t.com', nombre_completo='Admin',
+                         rol_id=rol_admin.id, territorio_id=terr.id, activo=True)
+        admin.set_password('pw')
+        vend = Vendedor(username='vend', email='v@t.com', nombre_completo='Vend',
+                        rol_id=rol_vend.id, territorio_id=terr.id, activo=True)
+        vend.set_password('pw')
+        _db.session.add_all([admin, vend])
+        prod = ProductoLimpieza(nombre='Sanitizante clorado', dilucion='10 ml / 1 L', activo=True)
+        _db.session.add(prod)
+        _db.session.flush()
+        area = AreaLimpieza(nombre='Sierra de cortar', tipo='equipo',
+                            producto_id=prod.id, frecuencia_texto='Diaria', activa=True)
+        _db.session.add(area)
+        _db.session.commit()
+        IDS['producto'] = prod.id
+        IDS['area'] = area.id
+        IDS['admin'] = admin.id
+        IDS['vend'] = vend.id
+        yield flask_app
+        _db.drop_all()
+
+
+def _login(app, username):
+    c = app.test_client()
+    c.post('/login', data={'username': username, 'password': 'pw'}, follow_redirects=True)
+    return c
+
+
+def test_productos_admin_crea(app):
+    from app import ProductoLimpieza
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/productos/nuevo',
+           data={'nombre': 'Detergente alcalino', 'dilucion': '20 ml / 1 L',
+                 'procedimiento': 'Fregar y enjuagar'}, follow_redirects=True)
+    with app.app_context():
+        p = ProductoLimpieza.query.filter_by(nombre='Detergente alcalino').first()
+        assert p is not None
+        assert p.dilucion == '20 ml / 1 L'
+
+
+def test_productos_sin_dilucion_rechazado(app):
+    from app import ProductoLimpieza
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/productos/nuevo',
+           data={'nombre': 'Sin dilucion', 'dilucion': ''}, follow_redirects=True)
+    with app.app_context():
+        assert ProductoLimpieza.query.filter_by(nombre='Sin dilucion').first() is None
+
+
+def test_productos_consulta_visible_para_todos(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza/productos')
+    assert resp.status_code == 200
+    assert 'Sanitizante clorado' in resp.data.decode('utf-8')
+
+
+def test_registro_persiste(app):
+    from app import RegistroLimpieza
+    with app.app_context():
+        r = RegistroLimpieza(area_id=IDS['area'], registrado_por=IDS['admin'], conforme=True)
+        _db.session.add(r)
+        _db.session.commit()
+        got = _db.session.get(RegistroLimpieza, r.id)
+        assert got is not None
+        assert got.area.nombre == 'Sierra de cortar'
+        assert got.area.producto.nombre == 'Sanitizante clorado'
+        assert got.registrado_en is not None
+
+
+def test_areas_no_admin_bloqueado(app):
+    from app import AreaLimpieza
+    c = _login(app, 'vend')
+    resp = c.post('/registros/limpieza/areas/nueva',
+                  data={'nombre': 'X', 'tipo': 'equipo'}, follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert AreaLimpieza.query.filter_by(nombre='X').first() is None
+
+
+def test_areas_admin_crea(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    resp = c.post('/registros/limpieza/areas/nueva',
+                  data={'nombre': 'Mesa de empaque', 'tipo': 'espacio',
+                        'producto_id': IDS['producto'], 'frecuencia_texto': 'Por turno'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        a = AreaLimpieza.query.filter_by(nombre='Mesa de empaque').first()
+        assert a is not None
+        assert a.tipo == 'espacio'
+        assert a.producto_id == IDS['producto']
+
+
+def test_areas_tipo_invalido_rechazado(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/areas/nueva',
+           data={'nombre': 'Mala', 'tipo': 'xxx'}, follow_redirects=True)
+    with app.app_context():
+        assert AreaLimpieza.query.filter_by(nombre='Mala').first() is None
+
+
+def test_areas_admin_edita(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    c.post(f'/registros/limpieza/areas/{IDS["area"]}/editar',
+           data={'nombre': 'Sierra (editada)', 'tipo': 'equipo',
+                 'producto_id': '', 'frecuencia_texto': 'Semanal'}, follow_redirects=True)
+    with app.app_context():
+        a = _db.session.get(AreaLimpieza, IDS['area'])
+        assert a.nombre == 'Sierra (editada)'
+        assert a.producto_id is None
+
+
+def test_areas_toggle(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    c.post(f'/registros/limpieza/areas/{IDS["area"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(AreaLimpieza, IDS['area']).activa is False
+
+
+def test_registrar_requiere_login(app):
+    client = app.test_client()
+    resp = client.post('/registros/limpieza/registrar',
+                       data={'area_id': IDS['area'], 'conforme': 'si'},
+                       follow_redirects=False)
+    assert resp.status_code == 302
+    assert '/login' in resp.headers.get('Location', '')
+
+
+def test_registrar_conforme(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    resp = c.post('/registros/limpieza/registrar',
+                  data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        r = RegistroLimpieza.query.filter_by(area_id=IDS['area']).first()
+        assert r is not None
+        assert r.conforme is True
+        assert r.registrado_por == IDS['vend']
+
+
+def test_registrar_no_conforme_sin_accion_rechazado(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'no'}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=IDS['area']).count() == 0
+
+
+def test_registrar_no_conforme_con_accion(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'no',
+                 'accion_tomada': 'Se volvio a limpiar',
+                 'accion_disposicion': 'Quedo conforme'}, follow_redirects=True)
+    with app.app_context():
+        r = RegistroLimpieza.query.filter_by(area_id=IDS['area']).first()
+        assert r is not None
+        assert r.conforme is False
+        assert 'volvio a limpiar' in r.accion_tomada
+
+
+def test_principal_muestra_area(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert 'Sierra de cortar' in body
+    assert 'Sanitizante clorado' in body
+
+
+def test_historial_lista_registros(app):
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    resp = c.get('/registros/limpieza/historial')
+    assert resp.status_code == 200
+    assert 'Sierra de cortar' in resp.data.decode('utf-8')
+
+
+def test_revisar_no_admin_bloqueado(app):
+    from app import RevisionLimpieza
+    c = _login(app, 'vend')
+    resp = c.post('/registros/limpieza/revisar',
+                  data={'fecha_inicio': '2026-05-01', 'fecha_fin': '2026-05-31'},
+                  follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert RevisionLimpieza.query.count() == 0
+
+
+def test_revisar_marca_periodo(app):
+    from app import RevisionLimpieza
+    from datetime import date
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/revisar',
+           data={'fecha_inicio': '2026-05-01', 'fecha_fin': '2026-05-31'},
+           follow_redirects=True)
+    with app.app_context():
+        rev = RevisionLimpieza.query.first()
+        assert rev is not None
+        assert rev.revisado_por == IDS['admin']
+        assert rev.periodo_desde == date(2026, 5, 1)
+        assert rev.periodo_hasta == date(2026, 5, 31)
+
+
+def test_export_devuelve_pdf(app):
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    resp = c.post('/registros/limpieza/export',
+                  data={'fecha_inicio': '2000-01-01', 'fecha_fin': '2100-01-01'},
+                  follow_redirects=False)
+    assert resp.status_code == 200
+    assert 'application/pdf' in resp.headers.get('Content-Type', '')
+
+
+def test_config_no_admin_bloqueado(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros/limpieza/config', follow_redirects=False)
+    assert resp.status_code in (302, 403)
+
+
+def test_config_admin_guarda(app):
+    from app import LimpiezaConfig
+    c = _login(app, 'admin')
+    c.post('/registros/limpieza/config',
+           data={'codigo_documento': 'FR-HACCP-LIMP-02', 'version': '2',
+                 'frecuencia_texto': 'Diaria', 'responsable_verificacion': 'Jefe de calidad'},
+           follow_redirects=True)
+    with app.app_context():
+        cfg = LimpiezaConfig.query.first()
+        assert cfg.codigo_documento == 'FR-HACCP-LIMP-02'
+        assert cfg.responsable_verificacion == 'Jefe de calidad'
+
+
+def test_hub_registros_ok(app):
+    c = _login(app, 'vend')
+    resp = c.get('/registros')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert 'Temperaturas' in body
+    assert 'Limpieza' in body

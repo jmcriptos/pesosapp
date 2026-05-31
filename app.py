@@ -2133,6 +2133,93 @@ class RevisionRegistro(db.Model):
         return f'<RevisionRegistro {self.id} por={self.revisado_por}>'
 
 
+class ProductoLimpieza(db.Model):
+    """Catálogo consultable de productos de limpieza: dilución y procedimiento (SSOP)."""
+    __tablename__ = 'producto_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    dilucion = db.Column(db.String(255), nullable=False)
+    procedimiento = db.Column(db.Text, nullable=True)
+    notas_seguridad = db.Column(db.Text, nullable=True)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<ProductoLimpieza {self.id} {self.nombre}>'
+
+
+class AreaLimpieza(db.Model):
+    """Equipo o espacio a limpiar, con su producto/método/frecuencia (ficha fija)."""
+    __tablename__ = 'area_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False, default='equipo')  # equipo|espacio
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto_limpieza.id'), nullable=True)
+    metodo = db.Column(db.Text, nullable=True)
+    frecuencia_texto = db.Column(db.String(120), nullable=True)
+    activa = db.Column(db.Boolean, nullable=False, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    producto = db.relationship('ProductoLimpieza')
+
+    def __repr__(self):
+        return f'<AreaLimpieza {self.id} {self.nombre}>'
+
+
+class RegistroLimpieza(db.Model):
+    """Registro de una limpieza ejecutada (HACCP/SSOP)."""
+    __tablename__ = 'registro_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    area_id = db.Column(db.Integer, db.ForeignKey('area_limpieza.id'), nullable=False, index=True)
+    registrado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    registrado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    conforme = db.Column(db.Boolean, nullable=False, default=True)
+    observacion = db.Column(db.Text, nullable=True)
+    # Acción correctiva estructurada (cuando conforme=False). A diferencia de
+    # LecturaTemperatura, no hay columna legacy `accion_correctiva`: esta tabla
+    # nace nueva, sin registros antiguos de texto libre que mantener.
+    accion_causa = db.Column(db.Text, nullable=True)
+    accion_tomada = db.Column(db.Text, nullable=True)
+    accion_responsable = db.Column(db.String(120), nullable=True)
+    accion_disposicion = db.Column(db.Text, nullable=True)
+
+    area = db.relationship('AreaLimpieza')
+    registrado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<RegistroLimpieza {self.id} area={self.area_id} conforme={self.conforme}>'
+
+
+class LimpiezaConfig(db.Model):
+    """Configuración (fila única) del registro de limpieza para el PDF."""
+    __tablename__ = 'limpieza_config'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo_documento = db.Column(db.String(60), nullable=False, default='FR-HACCP-LIMP-01')
+    version = db.Column(db.String(20), nullable=False, default='1')
+    frecuencia_texto = db.Column(db.String(120), nullable=False, default='Según programa de limpieza')
+    responsable_verificacion = db.Column(db.String(120), nullable=True)
+    actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<LimpiezaConfig {self.codigo_documento} v{self.version}>'
+
+
+class RevisionLimpieza(db.Model):
+    """Verificación HACCP: un responsable revisa los registros de limpieza de un período."""
+    __tablename__ = 'revision_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    revisado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    revisado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    periodo_desde = db.Column(db.Date, nullable=True)
+    periodo_hasta = db.Column(db.Date, nullable=True)
+    nota = db.Column(db.Text, nullable=True)
+
+    revisado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<RevisionLimpieza {self.id} por={self.revisado_por}>'
+
+
 class PedidoEvento(db.Model):
     __tablename__ = 'pedido_evento'
 
@@ -9071,6 +9158,442 @@ def registro_config():
         flash('Configuración guardada.', 'success')
         return redirect(url_for('registro_config'))
     return render_template('registros/config.html', cfg=cfg)
+
+
+# ───────────────────────── HACCP: Limpieza ─────────────────────────
+# Reservado para la validación de AreaLimpieza.tipo en _parse_area_limpieza.
+_TIPOS_AREA_LIMPIEZA = ('equipo', 'espacio')
+
+
+def _get_limpieza_config():
+    """Devuelve la fila única de LimpiezaConfig; la crea con valores por defecto."""
+    cfg = LimpiezaConfig.query.first()
+    if cfg is None:
+        cfg = LimpiezaConfig()
+        db.session.add(cfg)
+        db.session.commit()
+    return cfg
+
+
+def _parse_producto_limpieza(form):
+    """Devuelve (nombre, dilucion, procedimiento, notas, error)."""
+    nombre = (form.get('nombre') or '').strip()
+    dilucion = (form.get('dilucion') or '').strip()
+    if not nombre:
+        return None, None, None, None, 'El nombre del producto es obligatorio.'
+    if not dilucion:
+        return None, None, None, None, 'La dilución es obligatoria.'
+    procedimiento = (form.get('procedimiento') or '').strip() or None
+    notas = (form.get('notas_seguridad') or '').strip() or None
+    return nombre, dilucion, procedimiento, notas, None
+
+
+@app.route('/registros/limpieza/productos')
+@login_required
+def productos_limpieza_index():
+    productos = ProductoLimpieza.query.order_by(ProductoLimpieza.nombre).all()
+    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    return render_template('registros/productos_limpieza.html', productos=productos, es_admin=es_admin)
+
+
+@app.route('/registros/limpieza/productos/nuevo', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def producto_limpieza_nuevo():
+    nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('productos_limpieza_index'))
+    db.session.add(ProductoLimpieza(nombre=nombre, dilucion=dilucion,
+                                    procedimiento=procedimiento, notas_seguridad=notas, activo=True))
+    db.session.commit()
+    flash('Producto creado.', 'success')
+    return redirect(url_for('productos_limpieza_index'))
+
+
+@app.route('/registros/limpieza/productos/<int:producto_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def producto_limpieza_editar(producto_id):
+    producto = ProductoLimpieza.query.get_or_404(producto_id)
+    nombre, dilucion, procedimiento, notas, error = _parse_producto_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('productos_limpieza_index'))
+    producto.nombre, producto.dilucion = nombre, dilucion
+    producto.procedimiento, producto.notas_seguridad = procedimiento, notas
+    db.session.commit()
+    flash('Producto actualizado.', 'success')
+    return redirect(url_for('productos_limpieza_index'))
+
+
+@app.route('/registros/limpieza/productos/<int:producto_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def producto_limpieza_toggle(producto_id):
+    producto = ProductoLimpieza.query.get_or_404(producto_id)
+    producto.activo = not producto.activo
+    db.session.commit()
+    flash('Producto actualizado.', 'success')
+    return redirect(url_for('productos_limpieza_index'))
+
+
+def _parse_area_limpieza(form):
+    """Devuelve (nombre, tipo, producto_id, metodo, frecuencia, error)."""
+    nombre = (form.get('nombre') or '').strip()
+    tipo = (form.get('tipo') or '').strip()
+    if not nombre:
+        return None, None, None, None, None, 'El nombre es obligatorio.'
+    if tipo not in _TIPOS_AREA_LIMPIEZA:
+        return None, None, None, None, None, 'Tipo de área no válido.'
+    producto_id = form.get('producto_id', type=int) or None
+    if producto_id and db.session.get(ProductoLimpieza, producto_id) is None:
+        return None, None, None, None, None, 'El producto seleccionado no existe.'
+    metodo = (form.get('metodo') or '').strip() or None
+    frecuencia = (form.get('frecuencia_texto') or '').strip() or None
+    return nombre, tipo, producto_id, metodo, frecuencia, None
+
+
+@app.route('/registros/limpieza/areas')
+@login_required
+@requiere_rol(['super_admin'])
+def areas_limpieza_list():
+    areas = AreaLimpieza.query.options(joinedload(AreaLimpieza.producto)).order_by(AreaLimpieza.nombre).all()
+    productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
+    return render_template('registros/areas_limpieza.html', areas=areas, productos=productos)
+
+
+@app.route('/registros/limpieza/areas/nueva', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def area_limpieza_nueva():
+    nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('areas_limpieza_list'))
+    db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo, producto_id=producto_id,
+                                metodo=metodo, frecuencia_texto=frecuencia, activa=True))
+    db.session.commit()
+    flash('Área creada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
+@app.route('/registros/limpieza/areas/<int:area_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def area_limpieza_editar(area_id):
+    area = AreaLimpieza.query.get_or_404(area_id)
+    nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('areas_limpieza_list'))
+    area.nombre, area.tipo, area.producto_id = nombre, tipo, producto_id
+    area.metodo, area.frecuencia_texto = metodo, frecuencia
+    db.session.commit()
+    flash('Área actualizada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
+@app.route('/registros/limpieza/areas/<int:area_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def area_limpieza_toggle(area_id):
+    area = AreaLimpieza.query.get_or_404(area_id)
+    area.activa = not area.activa
+    db.session.commit()
+    flash('Área actualizada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
+def _areas_con_registro_hoy():
+    """Set de area_id con al menos un registro de limpieza HOY (día local de negocio)."""
+    ahora_local = datetime.now(DASHBOARD_TIMEZONE)
+    inicio_local = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_utc = inicio_local.astimezone(timezone.utc).replace(tzinfo=None)
+    fin_utc = (inicio_local + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+    filas = db.session.query(RegistroLimpieza.area_id).filter(
+        RegistroLimpieza.registrado_en >= inicio_utc,
+        RegistroLimpieza.registrado_en < fin_utc,
+    ).distinct().all()
+    return {row[0] for row in filas}
+
+
+@app.route('/registros/limpieza')
+@login_required
+def limpieza_index():
+    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
+             .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
+    con_registro_hoy = _areas_con_registro_hoy()
+    es_admin = isinstance(current_user, Vendedor) and current_user.rol.nombre == 'super_admin'
+    return render_template('registros/limpieza.html', areas=areas,
+                           con_registro_hoy=con_registro_hoy, es_admin=es_admin)
+
+
+@app.route('/registros/limpieza/registrar', methods=['POST'])
+@login_required
+def limpieza_registrar():
+    area = AreaLimpieza.query.filter_by(id=request.form.get('area_id', type=int), activa=True).first()
+    if area is None:
+        flash('Área no válida.', 'danger')
+        return redirect(url_for('limpieza_index'))
+    conforme = (request.form.get('conforme') or 'si') != 'no'
+    observacion = (request.form.get('observacion') or '').strip() or None
+    causa = (request.form.get('accion_causa') or '').strip()
+    tomada = (request.form.get('accion_tomada') or '').strip()
+    responsable = (request.form.get('accion_responsable') or '').strip()
+    disposicion = (request.form.get('accion_disposicion') or '').strip()
+
+    if not conforme and (not tomada or not disposicion):
+        flash(f'El registro de {area.nombre} es No conforme. Indica al menos la acción tomada '
+              f'y la disposición.', 'danger')
+        return redirect(url_for('limpieza_index'))
+
+    db.session.add(RegistroLimpieza(
+        area_id=area.id,
+        registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+        conforme=conforme,
+        observacion=observacion,
+        accion_causa=(causa or None) if not conforme else None,
+        accion_tomada=(tomada or None) if not conforme else None,
+        accion_responsable=(responsable or None) if not conforme else None,
+        accion_disposicion=(disposicion or None) if not conforme else None,
+    ))
+    db.session.commit()
+    flash('Limpieza registrada.' + (' (No conforme — registrada con acción correctiva.)' if not conforme else ''),
+          'success' if conforme else 'warning')
+    return redirect(url_for('limpieza_index'))
+
+
+def _revision_limpieza_que_cubre(fi, ff):
+    """RevisionLimpieza más reciente que cubre el período [fi, ff] ('YYYY-MM-DD')."""
+    def _d(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+    d_fi, d_ff = _d(fi), _d(ff)
+    q = RevisionLimpieza.query
+    if d_fi and d_ff:
+        q = q.filter(RevisionLimpieza.periodo_desde.isnot(None),
+                     RevisionLimpieza.periodo_hasta.isnot(None),
+                     RevisionLimpieza.periodo_desde <= d_fi,
+                     RevisionLimpieza.periodo_hasta >= d_ff)
+    return q.order_by(RevisionLimpieza.revisado_en.desc()).first()
+
+
+def _filtrar_registros_limpieza(args):
+    """Aplica filtros opcionales (fecha_inicio, fecha_fin, area_id) y devuelve
+    los registros ordenados por fecha desc. Acepta request.args o request.form."""
+    q = RegistroLimpieza.query.options(
+        joinedload(RegistroLimpieza.area).joinedload(AreaLimpieza.producto),
+        joinedload(RegistroLimpieza.registrado_por_vendedor),
+    )
+    fi = args.get('fecha_inicio')
+    ff = args.get('fecha_fin')
+    area = args.get('area_id', type=int)
+    if fi:
+        try:
+            q = q.filter(func.date(RegistroLimpieza.registrado_en) >= datetime.strptime(fi, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if ff:
+        try:
+            q = q.filter(func.date(RegistroLimpieza.registrado_en) <= datetime.strptime(ff, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if area:
+        q = q.filter(RegistroLimpieza.area_id == area)
+    return q.order_by(RegistroLimpieza.registrado_en.desc()).all()
+
+
+@app.route('/registros/limpieza/historial')
+@login_required
+def limpieza_historial():
+    registros = _filtrar_registros_limpieza(request.args)
+    areas = AreaLimpieza.query.order_by(AreaLimpieza.nombre).all()
+    puede_verificar = isinstance(current_user, Vendedor) and current_user.rol.nombre in ('super_admin', 'supervisor')
+    revision = _revision_limpieza_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
+    return render_template('registros/limpieza_historial.html',
+                           registros=registros, areas=areas, filtros=request.args,
+                           puede_verificar=puede_verificar, revision=revision)
+
+
+@app.route('/registros/limpieza/revisar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin', 'supervisor'])
+def limpieza_revisar():
+    fi = request.form.get('fecha_inicio') or None
+    ff = request.form.get('fecha_fin') or None
+    def _d(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+    db.session.add(RevisionLimpieza(
+        revisado_por=current_user.id if isinstance(current_user, Vendedor) else None,
+        periodo_desde=_d(fi), periodo_hasta=_d(ff),
+    ))
+    db.session.commit()
+    flash('Período marcado como revisado.', 'success')
+    return redirect(url_for('limpieza_historial', fecha_inicio=fi or '', fecha_fin=ff or ''))
+
+
+def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
+    """Construye el PDF tabular audit-ready del registro de limpieza."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                            leftMargin=0.4 * inch, rightMargin=0.4 * inch,
+                            topMargin=0.5 * inch, bottomMargin=0.7 * inch)
+    cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
+    empresa_style = ParagraphStyle(name='reg_empresa', fontSize=10, leading=13,
+                                   fontName='Helvetica-Bold', alignment=TA_LEFT,
+                                   textColor=colors.HexColor('#1877ff'))
+    titulo_style = ParagraphStyle(name='reg_titulo', fontSize=15, leading=18,
+                                  fontName='Helvetica-Bold', alignment=TA_LEFT)
+    sub_style = ParagraphStyle(name='reg_sub', fontSize=9, leading=12,
+                               alignment=TA_LEFT, textColor=colors.HexColor('#475569'))
+
+    if fecha_inicio or fecha_fin:
+        periodo = f'Período: {fecha_inicio or "inicio"} a {fecha_fin or "hoy"}'
+    else:
+        periodo = 'Período: todas las fechas'
+    generado = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%d %H:%M')
+
+    encabezado = [
+        Paragraph('Jomar Foods B.V.', empresa_style),
+        Paragraph('Registro de limpieza y desinfección', titulo_style),
+        Paragraph(f'Documento: {config.codigo_documento} &middot; Versión: {config.version}', sub_style),
+        Paragraph(f'{periodo} &middot; Generado: {generado}', sub_style),
+    ]
+    logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=52, height=52)
+        head_tbl = Table([[logo, encabezado]], colWidths=[64, None])
+        head_tbl.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        head_tbl.hAlign = 'LEFT'
+        elements = [head_tbl, Spacer(1, 14)]
+    else:
+        elements = encabezado + [Spacer(1, 14)]
+
+    def _accion_txt(r):
+        partes = []
+        if r.accion_causa: partes.append(f'Causa: {r.accion_causa}')
+        if r.accion_tomada: partes.append(f'Acción: {r.accion_tomada}')
+        if r.accion_responsable: partes.append(f'Resp.: {r.accion_responsable}')
+        if r.accion_disposicion: partes.append(f'Disposición: {r.accion_disposicion}')
+        return ' | '.join(partes)
+
+    encabezados = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'Resultado',
+                   'Responsable', 'Observación / Acción correctiva']
+    data = [encabezados]
+    for r in registros:
+        accion = _accion_txt(r)
+        if r.observacion and accion:
+            obs_accion = f'Obs.: {r.observacion} | {accion}'
+        else:
+            obs_accion = accion or (r.observacion or '')
+        data.append([
+            Paragraph(r.registrado_en.strftime('%Y-%m-%d %H:%M'), cell),
+            Paragraph(r.area.nombre if r.area else '—', cell),
+            Paragraph('Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio', cell),
+            Paragraph(r.area.producto.nombre if (r.area and r.area.producto) else '—', cell),
+            Paragraph('No conforme' if not r.conforme else 'Conforme', cell),
+            Paragraph(r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—', cell),
+            Paragraph(obs_accion, cell),
+        ])
+    tabla = Table(data, repeatRows=1)
+    estilo = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f2937')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ])
+    for i, r in enumerate(registros, start=1):
+        if not r.conforme:
+            estilo.add('BACKGROUND', (0, i), (-1, i), colors.HexColor('#fee2e2'))
+    tabla.setStyle(estilo)
+    elements.append(tabla)
+
+    elements.append(Spacer(1, 18))
+    if revision:
+        nombre = revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—'
+        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {revision.revisado_en.strftime("%Y-%m-%d %H:%M")}'
+    else:
+        rev_txt = '<b>Verificación:</b> Revisado por: ______________________      Fecha: __________'
+    elements.append(Paragraph(rev_txt, sub_style))
+
+    footer_left = (f'Frecuencia: {config.frecuencia_texto or "N/D"}   |   '
+                   f'Responsable de verificación: {config.responsable_verificacion or "N/D"}')
+    footer_doc = f'{config.codigo_documento} v{config.version}'
+    page_w = landscape(A4)[0]
+
+    class _NumberedCanvas(canvas.Canvas):
+        def __init__(self, *a, **k):
+            canvas.Canvas.__init__(self, *a, **k)
+            self._saved_states = []
+        def showPage(self):
+            self._saved_states.append(dict(self.__dict__))
+            self._startPage()
+        def save(self):
+            total = len(self._saved_states)
+            for st in self._saved_states:
+                self.__dict__.update(st)
+                self.setFont('Helvetica', 7)
+                self.setFillColor(colors.HexColor('#475569'))
+                self.drawString(0.4 * inch, 0.35 * inch, footer_left)
+                self.drawRightString(page_w - 0.4 * inch, 0.35 * inch,
+                                     f'{footer_doc}  ·  Página {self._pageNumber} de {total}')
+                canvas.Canvas.showPage(self)
+            canvas.Canvas.save(self)
+
+    doc.build(elements, canvasmaker=_NumberedCanvas)
+    buffer.seek(0)
+    return buffer
+
+
+@app.route('/registros/limpieza/export', methods=['POST'])
+@login_required
+def limpieza_export():
+    registros = _filtrar_registros_limpieza(request.form)
+    fi = request.form.get('fecha_inicio') or ''
+    ff = request.form.get('fecha_fin') or ''
+    config = _get_limpieza_config()
+    revision = _revision_limpieza_que_cubre(fi, ff)
+    buffer = _build_limpieza_pdf(registros, fi, ff, config, revision)
+    filename = f"registro_limpieza_{fi or 'inicio'}_{ff or 'fin'}.pdf"
+    response = make_response(send_file(buffer, mimetype='application/pdf',
+                                       as_attachment=not _is_ios_request(),
+                                       download_name=filename))
+    response.headers['Content-Type'] = 'application/pdf'
+    return response
+
+
+@app.route('/registros/limpieza/config', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def limpieza_config():
+    cfg = _get_limpieza_config()
+    if request.method == 'POST':
+        cfg.codigo_documento = (request.form.get('codigo_documento') or '').strip() or 'FR-HACCP-LIMP-01'
+        cfg.version = (request.form.get('version') or '').strip() or '1'
+        cfg.frecuencia_texto = (request.form.get('frecuencia_texto') or '').strip() or 'Según programa de limpieza'
+        cfg.responsable_verificacion = (request.form.get('responsable_verificacion') or '').strip() or None
+        cfg.actualizado_en = datetime.utcnow()
+        db.session.commit()
+        flash('Configuración guardada.', 'success')
+        return redirect(url_for('limpieza_config'))
+    return render_template('registros/limpieza_config.html', cfg=cfg)
+
+
+@app.route('/registros')
+@login_required
+def registros_index():
+    return render_template('registros/index.html')
 
 
 if __name__ == '__main__':
