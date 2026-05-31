@@ -38,10 +38,27 @@
           <input type="text" inputmode="decimal" id="temperatura_{{ c.id }}" name="temperatura"
                  class="mobile-form-control" placeholder="Ej: -20" required>
         </div>
-        <div class="mobile-form-group">
-          <label class="mobile-form-label" for="accion_{{ c.id }}">Acción correctiva <small style="font-weight:400; opacity:.8;">(obligatoria si está fuera de rango)</small></label>
-          <textarea id="accion_{{ c.id }}" name="accion_correctiva" class="mobile-form-control" rows="2" placeholder="Solo si la temperatura está fuera de rango"></textarea>
-        </div>
+        <details class="reg-edit">
+          <summary><i class="fas fa-triangle-exclamation"></i> Acción correctiva (solo si está fuera de rango)</summary>
+          <div class="reg-edit-body">
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Causa</label>
+              <input type="text" name="accion_causa" class="mobile-form-control" placeholder="¿Por qué se salió de rango?">
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Acción tomada <small style="font-weight:400; opacity:.8;">(obligatoria si fuera de rango)</small></label>
+              <textarea name="accion_tomada" class="mobile-form-control" rows="2" placeholder="¿Qué se hizo?"></textarea>
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Responsable de la acción</label>
+              <input type="text" name="accion_responsable" class="mobile-form-control">
+            </div>
+            <div class="mobile-form-group">
+              <label class="mobile-form-label">Disposición del producto <small style="font-weight:400; opacity:.8;">(obligatoria si fuera de rango)</small></label>
+              <textarea name="accion_disposicion" class="mobile-form-control" rows="2" placeholder="¿Qué pasó con el producto afectado?"></textarea>
+            </div>
+          </div>
+        </details>
         <div class="reg-actions">
           <button type="submit" class="reg-btn reg-btn-primary"><i class="fas fa-save"></i> Registrar lectura</button>
         </div>

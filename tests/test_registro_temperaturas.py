@@ -157,13 +157,14 @@ def test_registrar_fuera_de_rango_con_accion(app):
     c = _login(app, 'vend')
     c.post('/registros/temperaturas/registrar',
            data={'camara_id': IDS['camara'], 'temperatura': '-5',
-                 'accion_correctiva': 'Se movió el producto a otra cámara'},
+                 'accion_tomada': 'Se movió el producto a otra cámara',
+                 'accion_disposicion': 'producto OK'},
            follow_redirects=True)
     with app.app_context():
         lec = LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).first()
         assert lec is not None
         assert lec.fuera_de_rango is True
-        assert 'otra cámara' in lec.accion_correctiva
+        assert 'otra cámara' in lec.accion_tomada
 
 
 def test_principal_muestra_estado(app):

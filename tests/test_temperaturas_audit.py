@@ -95,3 +95,41 @@ def test_config_admin_guarda(app):
         assert cfg.codigo_documento == 'FR-9'
         assert cfg.termometro == 'TP-1'
         assert cfg.termometro_calibrado_en.isoformat() == '2026-01-15'
+
+
+def test_fuera_de_rango_sin_obligatorios_rechazado(app):
+    from app import LecturaTemperatura
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '9',
+                 'accion_tomada': '', 'accion_disposicion': ''}, follow_redirects=True)
+    with app.app_context():
+        assert LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).count() == 0
+
+
+def test_fuera_de_rango_con_obligatorios_guarda(app):
+    from app import LecturaTemperatura
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '9',
+                 'accion_causa': 'puerta abierta', 'accion_tomada': 'se cerró',
+                 'accion_responsable': 'Juan', 'accion_disposicion': 'producto OK'},
+           follow_redirects=True)
+    with app.app_context():
+        lec = LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).first()
+        assert lec is not None and lec.fuera_de_rango is True
+        assert lec.accion_tomada == 'se cerró'
+        assert lec.accion_disposicion == 'producto OK'
+        assert lec.accion_causa == 'puerta abierta'
+
+
+def test_en_rango_ignora_accion(app):
+    from app import LecturaTemperatura
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '2',
+                 'accion_tomada': 'no aplica'}, follow_redirects=True)
+    with app.app_context():
+        lec = LecturaTemperatura.query.filter_by(camara_id=IDS['camara']).first()
+        assert lec is not None and lec.fuera_de_rango is False
+        assert lec.accion_tomada is None

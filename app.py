@@ -8809,11 +8809,16 @@ def temperatura_registrar():
         flash('La temperatura debe ser un número.', 'danger')
         return redirect(url_for('temperaturas_index'))
 
-    accion = (request.form.get('accion_correctiva') or '').strip()
     fuera = camara.fuera_de_rango(temperatura)
-    if fuera and not accion:
+    causa = (request.form.get('accion_causa') or '').strip()
+    tomada = (request.form.get('accion_tomada') or '').strip()
+    responsable = (request.form.get('accion_responsable') or '').strip()
+    disposicion = (request.form.get('accion_disposicion') or '').strip()
+
+    if fuera and (not tomada or not disposicion):
         flash(f'La lectura {temperatura}°C está fuera del rango de {camara.nombre} '
-              f'({camara.temp_min}°C a {camara.temp_max}°C). Describe la acción correctiva.', 'danger')
+              f'({camara.temp_min}°C a {camara.temp_max}°C). Indica al menos la acción tomada '
+              f'y la disposición del producto.', 'danger')
         return redirect(url_for('temperaturas_index'))
 
     db.session.add(LecturaTemperatura(
@@ -8821,7 +8826,10 @@ def temperatura_registrar():
         temperatura=temperatura,
         registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
         fuera_de_rango=fuera,
-        accion_correctiva=accion or None,
+        accion_causa=(causa or None) if fuera else None,
+        accion_tomada=(tomada or None) if fuera else None,
+        accion_responsable=(responsable or None) if fuera else None,
+        accion_disposicion=(disposicion or None) if fuera else None,
     ))
     db.session.commit()
     flash('Lectura registrada.' + (' (Fuera de rango — registrada con acción correctiva.)' if fuera else ''),
