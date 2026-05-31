@@ -32,8 +32,8 @@
     <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='icons/splash/splash-iphone-8-750x1334.png') }}" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='icons/splash/splash-iphone-se-640x1136.png') }}" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
 
-    <!-- Critical CSS: loading screen styles inlined so the overlay paints
-         on the first frame — no need to wait for external stylesheets. -->
+    <!-- Critical CSS: barra de carga superior inline para que pinte en el
+         primer frame — sin esperar a las hojas de estilo externas. -->
     <style>
       /* Barra de progreso superior (estilo NProgress). Sin overlay. El
          ancho lo conduce un script inline; se desvanece al completar. */
@@ -101,7 +101,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% endblock %}>
-<div class="app-loading-bar" id="appLoadingBar" role="status" aria-label="Cargando" aria-hidden="true"></div>
+<div class="app-loading-bar" id="appLoadingBar" aria-hidden="true"></div>
 <script>
   /* Barra de progreso de navegación (estilo NProgress). Inline para pintar
      en el primer frame. Sin overlay a pantalla completa.
@@ -114,6 +114,7 @@
 
     var progress = 0;
     var trickleTimer = null;
+    var safetyTimer = null;
     var done = false;
 
     function render() { bar.style.width = (progress * 100).toFixed(1) + '%'; }
@@ -124,8 +125,12 @@
     }
     function trickle() {
       var remaining = 0.9 - progress;
-      if (remaining > 0) set(progress + remaining * 0.12);
-      trickleTimer = setTimeout(trickle, 350);
+      if (remaining > 0.001) {
+        set(progress + remaining * 0.12);
+        trickleTimer = setTimeout(trickle, 350);
+      } else {
+        trickleTimer = null;
+      }
     }
     function start() {
       if (done) return;
@@ -135,6 +140,7 @@
     }
     function finish() {
       if (trickleTimer) { clearTimeout(trickleTimer); trickleTimer = null; }
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
       done = true;
       progress = 1;
       render();
@@ -154,7 +160,7 @@
       finishWhenReady();
     }
     window.addEventListener('load', finish);  // fallback
-    setTimeout(finish, 10000);                 // safety
+    safetyTimer = setTimeout(finish, 10000);   // safety
 
     // 3) bfcache (back/forward): la página vuelve ya cargada → ocultar ya.
     window.addEventListener('pageshow', function (e) { if (e.persisted) finish(); });
@@ -173,10 +179,13 @@
       return false;
     }
     function restartForNav() {
+      if (trickleTimer) { clearTimeout(trickleTimer); trickleTimer = null; }
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
       done = false;
       progress = 0;
       start();
-      setTimeout(finish, 10000); // safety si la navegación se cancela
+      render();
+      safetyTimer = setTimeout(finish, 10000); // safety si la navegación se cancela
     }
     document.addEventListener('click', function (e) {
       var link = e.target.closest('a[href]');
