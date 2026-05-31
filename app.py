@@ -8649,6 +8649,77 @@ def dev_primitives():
     return render_template('dev_primitives.html')
 
 
+# ───────────────────────── HACCP: Cámaras ─────────────────────────
+_TIPOS_CAMARA = ('refrigeracion', 'congelacion')
+
+
+def _parse_rango_camara(form):
+    """Devuelve (nombre, tipo, temp_min, temp_max, error)."""
+    nombre = (form.get('nombre') or '').strip()
+    tipo = (form.get('tipo') or '').strip()
+    if not nombre:
+        return None, None, None, None, 'El nombre es obligatorio.'
+    if tipo not in _TIPOS_CAMARA:
+        return None, None, None, None, 'Tipo de cámara no válido.'
+    try:
+        temp_min = Decimal(str(form.get('temp_min')).replace(',', '.'))
+        temp_max = Decimal(str(form.get('temp_max')).replace(',', '.'))
+    except (InvalidOperation, TypeError, ValueError):
+        return None, None, None, None, 'Temperaturas mínima y máxima deben ser números.'
+    if temp_min > temp_max:
+        return None, None, None, None, 'La temperatura mínima no puede ser mayor que la máxima.'
+    return nombre, tipo, temp_min, temp_max, None
+
+
+@app.route('/registros/temperaturas/camaras')
+@login_required
+@requiere_rol(['super_admin'])
+def camaras_list():
+    camaras = Camara.query.order_by(Camara.nombre).all()
+    return render_template('registros/camaras.html', camaras=camaras)
+
+
+@app.route('/registros/temperaturas/camaras/nueva', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def camara_nueva():
+    nombre, tipo, temp_min, temp_max, error = _parse_rango_camara(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('camaras_list'))
+    db.session.add(Camara(nombre=nombre, tipo=tipo, temp_min=temp_min,
+                          temp_max=temp_max, activa=True))
+    db.session.commit()
+    flash('Cámara creada.', 'success')
+    return redirect(url_for('camaras_list'))
+
+
+@app.route('/registros/temperaturas/camaras/<int:camara_id>/editar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def camara_editar(camara_id):
+    camara = Camara.query.get_or_404(camara_id)
+    nombre, tipo, temp_min, temp_max, error = _parse_rango_camara(request.form)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('camaras_list'))
+    camara.nombre, camara.tipo, camara.temp_min, camara.temp_max = nombre, tipo, temp_min, temp_max
+    db.session.commit()
+    flash('Cámara actualizada.', 'success')
+    return redirect(url_for('camaras_list'))
+
+
+@app.route('/registros/temperaturas/camaras/<int:camara_id>/toggle', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def camara_toggle(camara_id):
+    camara = Camara.query.get_or_404(camara_id)
+    camara.activa = not camara.activa
+    db.session.commit()
+    flash('Cámara actualizada.', 'success')
+    return redirect(url_for('camaras_list'))
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

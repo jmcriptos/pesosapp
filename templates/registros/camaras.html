@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Cámaras — Registros{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Cámaras</span>{% endblock %}
+{% block content %}
+<div class="mobile-form-container">
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-snowflake"></i> Nueva cámara</div>
+    <div class="mobile-card-body">
+      <form method="POST" action="{{ url_for('camara_nueva') }}" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" class="mobile-form-control" required>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="tipo">Tipo</label>
+          <select id="tipo" name="tipo" class="mobile-form-control" required>
+            <option value="refrigeracion">Refrigeración</option>
+            <option value="congelacion">Congelación</option>
+          </select>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="temp_min">Temp. mínima (°C)</label>
+          <input type="text" inputmode="decimal" id="temp_min" name="temp_min" class="mobile-form-control" required>
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="temp_max">Temp. máxima (°C)</label>
+          <input type="text" inputmode="decimal" id="temp_max" name="temp_max" class="mobile-form-control" required>
+        </div>
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-save"></i> Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-list"></i> Cámaras registradas</div>
+    <div class="mobile-card-body">
+      {% for c in camaras %}
+        <div class="mobile-form-group" style="border-bottom:1px solid #e5e7eb; padding-bottom:8px;">
+          <strong>{{ c.nombre }}</strong> — {{ 'Refrigeración' if c.tipo == 'refrigeracion' else 'Congelación' }}
+          <br><small>Rango: {{ c.temp_min }}°C a {{ c.temp_max }}°C · {{ 'Activa' if c.activa else 'Inactiva' }}</small>
+          <form method="POST" action="{{ url_for('camara_toggle', camara_id=c.id) }}" style="display:inline; margin-left:8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="mobile-btn mobile-btn-secondary">{{ 'Desactivar' if c.activa else 'Activar' }}</button>
+          </form>
+        </div>
+      {% else %}
+        <p>No hay cámaras. Crea la primera arriba.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

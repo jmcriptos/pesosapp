@@ -77,3 +77,43 @@ def test_lectura_persiste(app):
         assert got is not None
         assert got.camara.nombre == 'Congelación 1'
         assert got.registrado_en is not None
+
+
+def test_camaras_no_admin_bloqueado(app):
+    from app import Camara
+    c = _login(app, 'vend')
+    resp = c.post('/registros/temperaturas/camaras/nueva',
+                  data={'nombre': 'X', 'tipo': 'refrigeracion', 'temp_min': '0', 'temp_max': '4'},
+                  follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert Camara.query.filter_by(nombre='X').first() is None
+
+
+def test_camaras_admin_crea(app):
+    from app import Camara
+    c = _login(app, 'admin')
+    resp = c.post('/registros/temperaturas/camaras/nueva',
+                  data={'nombre': 'Refri 2', 'tipo': 'refrigeracion', 'temp_min': '0', 'temp_max': '4'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    with app.app_context():
+        assert Camara.query.filter_by(nombre='Refri 2').first() is not None
+
+
+def test_camaras_rango_invalido_rechazado(app):
+    from app import Camara
+    c = _login(app, 'admin')
+    c.post('/registros/temperaturas/camaras/nueva',
+           data={'nombre': 'Mala', 'tipo': 'refrigeracion', 'temp_min': '5', 'temp_max': '1'},
+           follow_redirects=True)
+    with app.app_context():
+        assert Camara.query.filter_by(nombre='Mala').first() is None
+
+
+def test_camaras_toggle(app):
+    from app import Camara
+    c = _login(app, 'admin')
+    c.post(f'/registros/temperaturas/camaras/{IDS["camara"]}/toggle', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(Camara, IDS['camara']).activa is False
