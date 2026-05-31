@@ -280,7 +280,8 @@ class Vendedor(db.Model, UserMixin):
     activo = db.Column(db.Boolean, default=True)
     ultimo_login = db.Column(db.DateTime)
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    debe_cambiar_password = db.Column(db.Boolean, nullable=False, default=False)
+
     # Relaciones
     supervisor = db.relationship('Vendedor', remote_side=[id], backref='subordinados')
     clientes_asignados = db.relationship('ClienteVendedor', back_populates='vendedor', 
@@ -3113,6 +3114,20 @@ def home():
     Ahora redirige a '/'.
     """
     return redirect(url_for('index'))
+
+
+def _es_ultimo_super_admin(vendedor):
+    """True si 'vendedor' es super_admin activo y es el único super_admin activo."""
+    if not vendedor.rol or vendedor.rol.nombre != 'super_admin' or not vendedor.activo:
+        return False
+    activos = (Vendedor.query.join(Rol)
+               .filter(Rol.nombre == 'super_admin', Vendedor.activo.is_(True)).count())
+    return activos <= 1
+
+
+def _generar_password_temporal():
+    """Genera una contraseña temporal legible y aleatoria."""
+    return secrets.token_urlsafe(8)
 
 
 @app.route('/admin/vendedores')
