@@ -302,6 +302,45 @@ def _permiso_default(rol_nombre, recurso, accion):
     return accion in _PERMISOS_DEFAULT.get(rol_nombre, {}).get(recurso, [])
 
 
+PERMISOS_RECURSOS = ['productos', 'clientes', 'pedidos', 'precios', 'registros']
+
+PERMISOS_DEFAULTS = {
+    'vendedor':    {'productos': ['leer'], 'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'], 'precios': ['leer'],
+                    'registros': ['leer', 'crear']},
+    'supervisor':  {'productos': ['leer'], 'clientes': ['leer', 'editar'],
+                    'pedidos': ['leer', 'crear', 'editar'], 'precios': ['leer'],
+                    'registros': ['leer', 'crear', 'editar']},
+    'super_admin': {r: ['leer', 'crear', 'editar', 'eliminar'] for r in PERMISOS_RECURSOS},
+}
+
+
+def _sembrar_permisos():
+    """Crea (idempotente, no destructivo) las filas Permiso por recurso y las
+    filas RolPermiso por rol con los defaults. No sobreescribe filas existentes."""
+    for rec in PERMISOS_RECURSOS:
+        if not Permiso.query.filter_by(recurso=rec).first():
+            db.session.add(Permiso(nombre=rec, recurso=rec, categoria='recurso',
+                                   descripcion=f'Recurso {rec}'))
+    db.session.flush()
+    permisos = {p.recurso: p for p in Permiso.query.all()}
+    for rol_nombre, recursos in PERMISOS_DEFAULTS.items():
+        rol = Rol.query.filter_by(nombre=rol_nombre).first()
+        if rol is None:
+            continue
+        for rec, acciones in recursos.items():
+            p = permisos.get(rec)
+            if p is None:
+                continue
+            existe = RolPermiso.query.filter_by(rol_id=rol.id, permiso_id=p.id).first()
+            if existe is None:
+                db.session.add(RolPermiso(
+                    rol_id=rol.id, permiso_id=p.id,
+                    puede_leer='leer' in acciones, puede_crear='crear' in acciones,
+                    puede_editar='editar' in acciones, puede_eliminar='eliminar' in acciones))
+    db.session.commit()
+
+
 class Vendedor(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)

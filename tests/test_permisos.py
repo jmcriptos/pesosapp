@@ -77,3 +77,17 @@ def test_lee_de_rolpermiso(app):
         v = _db.session.get(Vendedor, IDS['vend'])
         assert v.tiene_permiso('pedidos', 'leer') is True
         assert v.tiene_permiso('pedidos', 'crear') is False
+
+
+def test_sembrar_crea_filas_y_es_idempotente(app):
+    from app import Vendedor, Permiso, RolPermiso, _sembrar_permisos
+    with app.app_context():
+        _sembrar_permisos()
+        assert Permiso.query.filter_by(recurso='registros').first() is not None
+        assert Permiso.query.count() == 5
+        v = _db.session.get(Vendedor, IDS['vend'])
+        assert v.tiene_permiso('registros', 'crear') is True
+        assert v.tiene_permiso('registros', 'editar') is False
+        n_rp = RolPermiso.query.count()
+        _sembrar_permisos()
+        assert RolPermiso.query.count() == n_rp
