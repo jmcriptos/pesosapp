@@ -2133,6 +2133,93 @@ class RevisionRegistro(db.Model):
         return f'<RevisionRegistro {self.id} por={self.revisado_por}>'
 
 
+class ProductoLimpieza(db.Model):
+    """Catálogo consultable de productos de limpieza: dilución y procedimiento (SSOP)."""
+    __tablename__ = 'producto_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    dilucion = db.Column(db.String(255), nullable=False)
+    procedimiento = db.Column(db.Text, nullable=True)
+    notas_seguridad = db.Column(db.Text, nullable=True)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<ProductoLimpieza {self.id} {self.nombre}>'
+
+
+class AreaLimpieza(db.Model):
+    """Equipo o espacio a limpiar, con su producto/método/frecuencia (ficha fija)."""
+    __tablename__ = 'area_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False, default='equipo')  # equipo|espacio
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto_limpieza.id'), nullable=True)
+    metodo = db.Column(db.Text, nullable=True)
+    frecuencia_texto = db.Column(db.String(120), nullable=True)
+    activa = db.Column(db.Boolean, nullable=False, default=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    producto = db.relationship('ProductoLimpieza')
+
+    def __repr__(self):
+        return f'<AreaLimpieza {self.id} {self.nombre}>'
+
+
+class RegistroLimpieza(db.Model):
+    """Registro de una limpieza ejecutada (HACCP/SSOP)."""
+    __tablename__ = 'registro_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    area_id = db.Column(db.Integer, db.ForeignKey('area_limpieza.id'), nullable=False, index=True)
+    registrado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    registrado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    conforme = db.Column(db.Boolean, nullable=False, default=True)
+    observacion = db.Column(db.Text, nullable=True)
+    # Acción correctiva estructurada (cuando conforme=False). A diferencia de
+    # LecturaTemperatura, no hay columna legacy `accion_correctiva`: esta tabla
+    # nace nueva, sin registros antiguos de texto libre que mantener.
+    accion_causa = db.Column(db.Text, nullable=True)
+    accion_tomada = db.Column(db.Text, nullable=True)
+    accion_responsable = db.Column(db.String(120), nullable=True)
+    accion_disposicion = db.Column(db.Text, nullable=True)
+
+    area = db.relationship('AreaLimpieza')
+    registrado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<RegistroLimpieza {self.id} area={self.area_id} conforme={self.conforme}>'
+
+
+class LimpiezaConfig(db.Model):
+    """Configuración (fila única) del registro de limpieza para el PDF."""
+    __tablename__ = 'limpieza_config'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo_documento = db.Column(db.String(60), nullable=False, default='FR-HACCP-LIMP-01')
+    version = db.Column(db.String(20), nullable=False, default='1')
+    frecuencia_texto = db.Column(db.String(120), nullable=False, default='Según programa de limpieza')
+    responsable_verificacion = db.Column(db.String(120), nullable=True)
+    actualizado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<LimpiezaConfig {self.codigo_documento} v{self.version}>'
+
+
+class RevisionLimpieza(db.Model):
+    """Verificación HACCP: un responsable revisa los registros de limpieza de un período."""
+    __tablename__ = 'revision_limpieza'
+    id = db.Column(db.Integer, primary_key=True)
+    revisado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    revisado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    periodo_desde = db.Column(db.Date, nullable=True)
+    periodo_hasta = db.Column(db.Date, nullable=True)
+    nota = db.Column(db.Text, nullable=True)
+
+    revisado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<RevisionLimpieza {self.id} por={self.revisado_por}>'
+
+
 class PedidoEvento(db.Model):
     __tablename__ = 'pedido_evento'
 
