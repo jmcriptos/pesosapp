@@ -57,3 +57,44 @@ def test_columna_debe_cambiar_password(app):
     with app.app_context():
         v = _db.session.get(Vendedor, IDS['vend'])
         assert v.debe_cambiar_password is False
+
+
+def test_nuevo_usuario_nace_con_flag(app):
+    from app import Vendedor
+    c = _login(app, 'admin')
+    c.post('/admin/vendedores/nuevo', data={
+        'username': 'nuevo', 'email': 'nuevo@t.com', 'nombre_completo': 'Nuevo',
+        'password': 'inicial9', 'rol_id': IDS['rol_vend'],
+    }, follow_redirects=True)
+    with app.app_context():
+        v = Vendedor.query.filter_by(username='nuevo').first()
+        assert v is not None
+        assert v.debe_cambiar_password is True
+
+
+def test_flag_fuerza_cambio(app):
+    from app import Vendedor
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        v.debe_cambiar_password = True
+        _db.session.commit()
+    c = _login(app, 'vend')
+    resp = c.get('/registros', follow_redirects=False)
+    assert resp.status_code == 302
+    assert 'cambiar-contrasena' in resp.headers.get('Location', '')
+
+
+def test_cambiar_password_limpia_flag(app):
+    from app import Vendedor
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        v.debe_cambiar_password = True
+        _db.session.commit()
+    c = _login(app, 'vend')
+    c.post('/mi-cuenta/cambiar-contrasena',
+           data={'actual': 'pw', 'nueva': 'NuevaClave9', 'confirmar': 'NuevaClave9'},
+           follow_redirects=True)
+    with app.app_context():
+        v = _db.session.get(Vendedor, IDS['vend'])
+        assert v.debe_cambiar_password is False
+        assert v.check_password('NuevaClave9') is True

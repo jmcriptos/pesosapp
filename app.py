@@ -539,6 +539,7 @@ def cambiar_password():
             return render_template('cambiar_password.html')
 
         current_user.set_password(nueva)
+        current_user.debe_cambiar_password = False
         db.session.commit()
         app.logger.info(
             f'Contraseña cambiada para usuario {current_user.username} (id={current_user.id})'
@@ -559,7 +560,20 @@ def require_login():
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
-        
+
+@app.before_request
+def forzar_cambio_password():
+    """Si el usuario tiene una contraseña temporal pendiente, lo obliga a cambiarla."""
+    if not current_user.is_authenticated or not isinstance(current_user, Vendedor):
+        return
+    if not getattr(current_user, 'debe_cambiar_password', False):
+        return
+    ep = request.endpoint or ''
+    if ep in ('cambiar_password', 'logout', 'login', 'csrf_ping') or ep.startswith('static'):
+        return
+    flash('Debes establecer una nueva contraseña para continuar.', 'warning')
+    return redirect(url_for('cambiar_password'))
+
 def log_vendedor_action():
     """Registra las acciones de los vendedores para auditoría"""
     if request.method in ['POST', 'PUT', 'DELETE'] and current_user.is_authenticated:
@@ -3244,7 +3258,8 @@ def crear_vendedor():
                 rol_id=int(rol_id),
                 territorio_id=int(territorio_id) if territorio_id else None,
                 fecha_ingreso=date.today(),
-                activo=True
+                activo=True,
+                debe_cambiar_password=True
             )
             
             # Establecer password hasheado
