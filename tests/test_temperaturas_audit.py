@@ -155,3 +155,14 @@ def test_revisar_vendedor_bloqueado(app):
     assert resp.status_code in (302, 403)
     with app.app_context():
         assert RevisionRegistro.query.count() == 0
+
+
+def test_export_pdf_audit(app):
+    c = _login(app, 'admin')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '2'}, follow_redirects=True)
+    resp = c.post('/registros/temperaturas/export',
+                  data={'fecha_inicio': '2000-01-01', 'fecha_fin': '2100-01-01'},
+                  follow_redirects=False)
+    assert resp.status_code == 200
+    assert 'application/pdf' in resp.headers.get('Content-Type', '')

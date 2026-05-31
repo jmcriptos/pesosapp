@@ -8912,12 +8912,12 @@ def temperatura_revisar():
     return redirect(url_for('temperaturas_historial', fecha_inicio=fi or '', fecha_fin=ff or ''))
 
 
-def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
-    """Construye el PDF tabular del registro de temperaturas. Devuelve BytesIO."""
+def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision):
+    """Construye el PDF tabular audit-ready del registro de temperaturas."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                             leftMargin=0.4 * inch, rightMargin=0.4 * inch,
-                            topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+                            topMargin=0.5 * inch, bottomMargin=0.7 * inch)
     cell = ParagraphStyle(name='cell', fontSize=8, leading=10, alignment=TA_LEFT)
     empresa_style = ParagraphStyle(name='reg_empresa', fontSize=10, leading=13,
                                    fontName='Helvetica-Bold', alignment=TA_LEFT,
@@ -8936,6 +8936,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
     encabezado = [
         Paragraph('Jomar Foods B.V.', empresa_style),
         Paragraph('Registro de temperaturas de cámaras', titulo_style),
+        Paragraph(f'Documento: {config.codigo_documento} &middot; Versión: {config.version}', sub_style),
         Paragraph(f'{periodo} &middot; Generado: {generado}', sub_style),
     ]
     logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
@@ -8951,7 +8952,18 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
         elements = [head_tbl, Spacer(1, 14)]
     else:
         elements = encabezado + [Spacer(1, 14)]
-    encabezados = ['Fecha/Hora', 'Cámara', 'Tipo', 'Rango (°C)', 'Lectura (°C)',
+
+    def _accion_txt(l):
+        if l.accion_tomada or l.accion_disposicion or l.accion_causa or l.accion_responsable:
+            partes = []
+            if l.accion_causa: partes.append(f'Causa: {l.accion_causa}')
+            if l.accion_tomada: partes.append(f'Acción: {l.accion_tomada}')
+            if l.accion_responsable: partes.append(f'Resp.: {l.accion_responsable}')
+            if l.accion_disposicion: partes.append(f'Disposición: {l.accion_disposicion}')
+            return ' | '.join(partes)
+        return l.accion_correctiva or ''
+
+    encabezados = ['Fecha/Hora', 'Cámara', 'Tipo', 'Límite crítico (°C)', 'Lectura (°C)',
                    'En rango', 'Responsable', 'Acción correctiva']
     data = [encabezados]
     for l in lecturas:
@@ -8963,7 +8975,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
             Paragraph(str(l.temperatura), cell),
             Paragraph('NO' if l.fuera_de_rango else 'Sí', cell),
             Paragraph(l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '—', cell),
-            Paragraph(l.accion_correctiva or '', cell),
+            Paragraph(_accion_txt(l), cell),
         ])
     tabla = Table(data, repeatRows=1)
     estilo = TableStyle([
@@ -8978,7 +8990,41 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin):
             estilo.add('BACKGROUND', (0, i), (-1, i), colors.HexColor('#fee2e2'))
     tabla.setStyle(estilo)
     elements.append(tabla)
-    doc.build(elements)
+
+    elements.append(Spacer(1, 18))
+    if revision:
+        nombre = revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—'
+        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {revision.revisado_en.strftime("%Y-%m-%d %H:%M")}'
+    else:
+        rev_txt = '<b>Verificación:</b> Revisado por: ______________________      Fecha: __________'
+    elements.append(Paragraph(rev_txt, sub_style))
+
+    cal = config.termometro_calibrado_en.strftime('%Y-%m-%d') if config.termometro_calibrado_en else 'N/D'
+    footer_left = (f'Frecuencia: {config.frecuencia_texto or "N/D"}   |   '
+                   f'Instrumento: {config.termometro or "N/D"} (cal.: {cal})')
+    footer_doc = f'{config.codigo_documento} v{config.version}'
+    page_w = landscape(A4)[0]
+
+    class _NumberedCanvas(canvas.Canvas):
+        def __init__(self, *a, **k):
+            canvas.Canvas.__init__(self, *a, **k)
+            self._saved_states = []
+        def showPage(self):
+            self._saved_states.append(dict(self.__dict__))
+            self._startPage()
+        def save(self):
+            total = len(self._saved_states)
+            for st in self._saved_states:
+                self.__dict__.update(st)
+                self.setFont('Helvetica', 7)
+                self.setFillColor(colors.HexColor('#475569'))
+                self.drawString(0.4 * inch, 0.35 * inch, footer_left)
+                self.drawRightString(page_w - 0.4 * inch, 0.35 * inch,
+                                     f'{footer_doc}  ·  Página {self._pageNumber} de {total}')
+                canvas.Canvas.showPage(self)
+            canvas.Canvas.save(self)
+
+    doc.build(elements, canvasmaker=_NumberedCanvas)
     buffer.seek(0)
     return buffer
 
@@ -8989,7 +9035,9 @@ def temperaturas_export():
     lecturas = _filtrar_lecturas(request.form)
     fi = request.form.get('fecha_inicio') or ''
     ff = request.form.get('fecha_fin') or ''
-    buffer = _build_temperaturas_pdf(lecturas, fi, ff)
+    config = _get_registro_config()
+    revision = _revision_que_cubre(fi, ff)
+    buffer = _build_temperaturas_pdf(lecturas, fi, ff, config, revision)
     filename = f"registro_temperaturas_{fi or 'inicio'}_{ff or 'fin'}.pdf"
     response = make_response(send_file(buffer, mimetype='application/pdf',
                                        as_attachment=not _is_ios_request(),
