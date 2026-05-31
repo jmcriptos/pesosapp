@@ -338,7 +338,7 @@
    BOTTOM SHEET (registro de temperatura / firma)
    ============================================================ */
 .ops-sheet-overlay {
-  position: fixed; inset: 0; z-index: 1200;
+  position: fixed; inset: 0; z-index: 5000; /* por encima de la tabbar/footer fijos */
   background: rgba(2,6,23,0.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: flex-end; justify-content: center;
   animation: ops-fade .18s ease;
@@ -402,7 +402,18 @@
   background: var(--color-bg-elevated); border: 1px solid var(--color-border-subtle);
 }
 .ops-key:active { background: var(--color-surface-muted); }
-.ops-keypad-row { display: flex; gap: 8px; margin-bottom: 4px; }
+/* La fila de acción (atrás + guardar) queda fija abajo del sheet para que
+   el botón Guardar siempre sea visible aunque el teclado/acción correctiva
+   empujen el contenido. */
+.ops-keypad-row {
+  display: flex; gap: 8px;
+  position: sticky; bottom: 0;
+  background: var(--color-surface);
+  padding: 10px 0 calc(4px + env(safe-area-inset-bottom));
+  margin-top: 2px;
+  border-top: 1px solid var(--color-border-subtle);
+  z-index: 2;
+}
 .ops-key-back { width: 56px; height: 50px; flex: none; }
 .ops-key-save { flex: 1; height: 50px; }
 
