@@ -171,3 +171,14 @@ def test_principal_muestra_estado(app):
     resp = c.get('/registros/temperaturas')
     assert resp.status_code == 200
     assert 'Congelación 1' in resp.data.decode('utf-8')
+
+
+def test_historial_lista_lecturas(app):
+    c = _login(app, 'vend')
+    c.post('/registros/temperaturas/registrar',
+           data={'camara_id': IDS['camara'], 'temperatura': '-20'}, follow_redirects=True)
+    resp = c.get('/registros/temperaturas/historial')
+    assert resp.status_code == 200
+    body = resp.data.decode('utf-8')
+    assert 'Congelación 1' in body
+    assert '-20' in body

@@ -8774,11 +8774,44 @@ def temperatura_registrar():
     return redirect(url_for('temperaturas_index'))
 
 
+def _filtrar_lecturas(args):
+    """Aplica filtros opcionales (fecha_inicio, fecha_fin, camara_id) y
+    devuelve las lecturas ordenadas por fecha desc. Acepta request.args o request.form."""
+    q = LecturaTemperatura.query
+    fi = args.get('fecha_inicio')
+    ff = args.get('fecha_fin')
+    cam = args.get('camara_id', type=int)
+    if fi:
+        try:
+            q = q.filter(func.date(LecturaTemperatura.registrado_en) >= datetime.strptime(fi, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if ff:
+        try:
+            q = q.filter(func.date(LecturaTemperatura.registrado_en) <= datetime.strptime(ff, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if cam:
+        q = q.filter(LecturaTemperatura.camara_id == cam)
+    return q.order_by(LecturaTemperatura.registrado_en.desc()).all()
+
+
 @app.route('/registros/temperaturas/historial')
 @login_required
 def temperaturas_historial():
-    # Stub temporal: la implementación completa llega en la siguiente tarea.
-    return render_template('registros/temperaturas.html', camaras=[], con_lectura_hoy=set(), es_admin=False)
+    lecturas = _filtrar_lecturas(request.args)
+    camaras = Camara.query.order_by(Camara.nombre).all()
+    return render_template('registros/temperaturas_historial.html',
+                           lecturas=lecturas, camaras=camaras,
+                           filtros=request.args)
+
+
+@app.route('/registros/temperaturas/export', methods=['POST'])
+@login_required
+def temperaturas_export():
+    # Stub temporal: la implementación completa (PDF) llega en la siguiente tarea.
+    from flask import Response
+    return Response('pendiente', mimetype='text/plain')
 
 
 if __name__ == '__main__':

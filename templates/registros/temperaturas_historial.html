@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Historial temperaturas{% endblock %}
+{% block header_title %}<span class="fw-700 color-white">Historial de temperaturas</span>{% endblock %}
+{% block content %}
+<div class="mobile-form-container">
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-filter"></i> Filtros</div>
+    <div class="mobile-card-body">
+      <form method="GET" action="{{ url_for('temperaturas_historial') }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="fecha_inicio">Desde</label>
+          <input type="date" id="fecha_inicio" name="fecha_inicio" class="mobile-form-control" value="{{ filtros.get('fecha_inicio', '') }}">
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="fecha_fin">Hasta</label>
+          <input type="date" id="fecha_fin" name="fecha_fin" class="mobile-form-control" value="{{ filtros.get('fecha_fin', '') }}">
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="camara_id">Cámara</label>
+          <select id="camara_id" name="camara_id" class="mobile-form-control">
+            <option value="">Todas</option>
+            {% for c in camaras %}
+            <option value="{{ c.id }}" {{ 'selected' if filtros.get('camara_id') == c.id|string }}>{{ c.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-search"></i> Filtrar</button>
+          <button type="submit" form="export-form" class="mobile-btn mobile-btn-success"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+        </div>
+      </form>
+      <form id="export-form" method="POST" action="{{ url_for('temperaturas_export') }}" target="etiquetas-download-frame">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio', '') }}">
+        <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin', '') }}">
+        <input type="hidden" name="camara_id" value="{{ filtros.get('camara_id', '') }}">
+      </form>
+    </div>
+  </div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-list"></i> Lecturas</div>
+    <div class="mobile-card-body">
+      {% for l in lecturas %}
+        <div class="mobile-form-group" style="border-bottom:1px solid #e5e7eb; padding-bottom:8px; {% if l.fuera_de_rango %}color:#dc2626;{% endif %}">
+          <strong>{{ l.camara.nombre }}</strong> — {{ l.temperatura }}°C
+          {% if l.fuera_de_rango %}<span style="font-weight:700;"> (FUERA DE RANGO)</span>{% endif %}
+          <br><small>{{ l.registrado_en.strftime('%Y-%m-%d %H:%M') }}
+          {% if l.registrado_por_vendedor %} · {{ l.registrado_por_vendedor.nombre_completo }}{% endif %}</small>
+          {% if l.accion_correctiva %}<br><small>Acción: {{ l.accion_correctiva }}</small>{% endif %}
+        </div>
+      {% else %}
+        <p>No hay lecturas para los filtros seleccionados.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
