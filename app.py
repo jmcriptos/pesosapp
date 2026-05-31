@@ -525,16 +525,16 @@ def cambiar_password():
         confirmar = request.form.get('confirmar') or ''
 
         if not current_user.check_password(actual):
-            flash('La contraseña actual es incorrecta.', 'error')
+            flash('La contraseña actual es incorrecta.', 'danger')
             return render_template('cambiar_password.html')
         if nueva != confirmar:
-            flash('La nueva contraseña y su confirmación no coinciden.', 'error')
+            flash('La nueva contraseña y su confirmación no coinciden.', 'danger')
             return render_template('cambiar_password.html')
         if len(nueva) < 8:
-            flash('La nueva contraseña debe tener al menos 8 caracteres.', 'error')
+            flash('La nueva contraseña debe tener al menos 8 caracteres.', 'danger')
             return render_template('cambiar_password.html')
         if nueva == actual:
-            flash('La nueva contraseña debe ser distinta de la actual.', 'error')
+            flash('La nueva contraseña debe ser distinta de la actual.', 'danger')
             return render_template('cambiar_password.html')
 
         current_user.set_password(nueva)
