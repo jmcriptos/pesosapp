@@ -339,13 +339,14 @@
    ============================================================ */
 .ops-sheet-overlay {
   position: fixed; inset: 0; z-index: 5000; /* por encima de la tabbar/footer fijos */
+  height: 100vh; height: 100dvh; /* dvh: viewport real en iOS (sin contar la barra) */
   background: rgba(2,6,23,0.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   display: flex; align-items: flex-end; justify-content: center;
   animation: ops-fade .18s ease;
 }
 .ops-sheet-overlay[hidden] { display: none; }
 .ops-sheet {
-  width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto;
+  width: 100%; max-width: 540px; max-height: 92vh; max-height: 90dvh; overflow-y: auto;
   background: var(--color-surface); color: var(--color-text);
   border-top-left-radius: 22px; border-top-right-radius: 22px;
   border-top: 1px solid var(--color-border);
