@@ -2206,7 +2206,7 @@ class ProductoLimpieza(db.Model):
     __tablename__ = 'producto_limpieza'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(120), nullable=False)
-    dilucion = db.Column(db.String(255), nullable=False)
+    dilucion = db.Column(db.Text, nullable=False)
     procedimiento = db.Column(db.Text, nullable=True)
     notas_seguridad = db.Column(db.Text, nullable=True)
     activo = db.Column(db.Boolean, nullable=False, default=True)
@@ -9501,10 +9501,15 @@ def producto_limpieza_nuevo():
     if error:
         flash(error, 'danger')
         return redirect(url_for('productos_limpieza_index'))
-    db.session.add(ProductoLimpieza(nombre=nombre, dilucion=dilucion,
-                                    procedimiento=procedimiento, notas_seguridad=notas, activo=True))
-    db.session.commit()
-    flash('Producto creado.', 'success')
+    try:
+        db.session.add(ProductoLimpieza(nombre=nombre, dilucion=dilucion,
+                                        procedimiento=procedimiento, notas_seguridad=notas, activo=True))
+        db.session.commit()
+        flash('Producto creado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al crear producto de limpieza: {e}')
+        flash('No se pudo crear el producto. Revisá los datos e intentá de nuevo.', 'danger')
     return redirect(url_for('productos_limpieza_index'))
 
 
@@ -9519,8 +9524,13 @@ def producto_limpieza_editar(producto_id):
         return redirect(url_for('productos_limpieza_index'))
     producto.nombre, producto.dilucion = nombre, dilucion
     producto.procedimiento, producto.notas_seguridad = procedimiento, notas
-    db.session.commit()
-    flash('Producto actualizado.', 'success')
+    try:
+        db.session.commit()
+        flash('Producto actualizado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error al editar producto de limpieza {producto_id}: {e}')
+        flash('No se pudo actualizar el producto. Revisá los datos e intentá de nuevo.', 'danger')
     return redirect(url_for('productos_limpieza_index'))
 
 

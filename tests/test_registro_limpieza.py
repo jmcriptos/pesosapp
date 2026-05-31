@@ -276,3 +276,23 @@ def test_hub_registros_ok(app):
     body = resp.data.decode('utf-8')
     assert 'Temperaturas' in body
     assert 'Limpieza' in body
+
+
+def test_dilucion_es_texto_sin_limite(app):
+    """dilucion debe ser Text (sin límite) para no romper con textos largos en Postgres."""
+    from app import ProductoLimpieza
+    from sqlalchemy import Text
+    col = ProductoLimpieza.__table__.columns['dilucion']
+    assert isinstance(col.type, Text)
+
+
+def test_crear_producto_dilucion_larga(app):
+    from app import ProductoLimpieza
+    c = _login(app, 'admin')
+    larga = 'x' * 400
+    c.post('/registros/limpieza/productos/nuevo',
+           data={'nombre': 'Prod largo', 'dilucion': larga}, follow_redirects=True)
+    with app.app_context():
+        p = ProductoLimpieza.query.filter_by(nombre='Prod largo').first()
+        assert p is not None
+        assert len(p.dilucion) == 400
