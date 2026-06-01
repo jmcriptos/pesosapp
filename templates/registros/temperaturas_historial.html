@@ -64,7 +64,7 @@
       {% endif %}
 
       {% if revision %}
-      <div class="cfg-saved" style="margin-bottom:12px"><i class="fas fa-clipboard-check"></i> Verificado por {{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }} · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+      <div class="cfg-saved" style="margin-bottom:12px"><i class="fas fa-clipboard-check"></i> Verificado por {{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }} · {{ revision.revisado_en | hora_local }}</div>
       {% endif %}
       {% if puede_verificar %}
       <form method="POST" action="{{ url_for('temperatura_revisar') }}" style="margin-bottom:14px">
@@ -80,7 +80,7 @@
         <div class="ops-thead"><div>Fecha · Hora</div><div>Cámara</div><div>Lectura</div><div>Registró</div><div style="text-align:right">Estado</div></div>
         {% for l in lecturas %}
         <div class="ops-trow {{ 'is-bad' if l.fuera_de_rango }}">
-          <div class="ops-cell-muted ops-cell-mono">{{ l.registrado_en.strftime('%d/%m · %H:%M') }}</div>
+          <div class="ops-cell-muted ops-cell-mono">{{ l.registrado_en | hora_local('%d/%m · %H:%M') }}</div>
           <div class="ops-cell-strong">{{ l.camara.nombre }}</div>
           <div class="ops-cell-strong ops-cell-mono" style="{{ 'color:var(--color-danger)' if l.fuera_de_rango }}">{{ l.temperatura }}°</div>
           <div class="ops-cell-muted">{{ l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '—' }}</div>

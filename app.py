@@ -758,6 +758,22 @@ def _to_dashboard_date(dt):
     return dt.astimezone(DASHBOARD_TIMEZONE).date()
 
 
+def _fmt_local(dt, fmt='%Y-%m-%d %H:%M'):
+    """Formatea un datetime UTC/naive en la hora LOCAL de negocio.
+    Los registros se guardan en UTC; este helper evita mostrarlos en UTC."""
+    if not dt:
+        return ''
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(DASHBOARD_TIMEZONE).strftime(fmt)
+
+
+@app.template_filter('hora_local')
+def _jinja_hora_local(dt, fmt='%Y-%m-%d %H:%M'):
+    """Filtro Jinja: {{ x.registrado_en | hora_local('%d/%m · %H:%M') }}."""
+    return _fmt_local(dt, fmt)
+
+
 def _calcular_venta_pedido(pedido):
     """
     Venta facturada del pedido:
@@ -9667,7 +9683,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision)
     for l in lecturas:
         filas.append({
             'cols': [
-                l.registrado_en.strftime('%Y-%m-%d %H:%M'),
+                _fmt_local(l.registrado_en),
                 l.camara.nombre if l.camara else '—',
                 'Refrigeración' if (l.camara and l.camara.tipo == 'refrigeracion') else 'Congelación',
                 f'{l.camara.temp_min} a {l.camara.temp_max}' if l.camara else '—',
@@ -9683,7 +9699,7 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision)
     elements.append(Spacer(1, 18))
     if revision:
         nombre = revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—'
-        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {revision.revisado_en.strftime("%Y-%m-%d %H:%M")}'
+        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {_fmt_local(revision.revisado_en)}'
     else:
         rev_txt = '<b>Verificación:</b> Revisado por: ______________________      Fecha: __________'
     elements.append(Paragraph(rev_txt, sub_style))
@@ -9759,7 +9775,7 @@ def temperaturas_export():
         headers = ['Fecha', 'Hora', 'Cámara', 'Lectura (°C)', 'Estado', 'Registró',
                    'Causa', 'Acción tomada', 'Responsable acción', 'Disposición']
         rows = [[
-            l.registrado_en.strftime('%Y-%m-%d'), l.registrado_en.strftime('%H:%M'),
+            _fmt_local(l.registrado_en, '%Y-%m-%d'), _fmt_local(l.registrado_en, '%H:%M'),
             l.camara.nombre if l.camara else '', float(l.temperatura),
             'Fuera de rango' if l.fuera_de_rango else 'En rango',
             l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '',
@@ -10112,6 +10128,7 @@ def _filtrar_registros_limpieza(args):
     los registros ordenados por fecha desc. Acepta request.args o request.form."""
     q = RegistroLimpieza.query.options(
         joinedload(RegistroLimpieza.area).joinedload(AreaLimpieza.producto),
+        joinedload(RegistroLimpieza.area).joinedload(AreaLimpieza.sanitizante),
         joinedload(RegistroLimpieza.registrado_por_vendedor),
     )
     fi = args.get('fecha_inicio')
@@ -10246,6 +10263,18 @@ def limpieza_revisar():
     return redirect(url_for('limpieza_historial', fecha_inicio=fi or '', fecha_fin=ff or ''))
 
 
+def _producto_proceso(area):
+    """Texto del proceso de limpieza: 'Pooff → Sani-T-10' (paso 1 → paso 2)."""
+    if not area:
+        return '—'
+    pasos = []
+    if area.producto:
+        pasos.append(area.producto.nombre)
+    if area.sanitizante:
+        pasos.append(area.sanitizante.nombre)
+    return ' → '.join(pasos) if pasos else '—'
+
+
 def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
     """Construye el PDF tabular audit-ready del registro de limpieza."""
     buffer = BytesIO()
@@ -10305,10 +10334,10 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
     for r in registros:
         filas.append({
             'cols': [
-                r.registrado_en.strftime('%Y-%m-%d %H:%M'),
+                _fmt_local(r.registrado_en),
                 r.area.nombre if r.area else '—',
                 'Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio',
-                r.area.producto.nombre if (r.area and r.area.producto) else '—',
+                _producto_proceso(r.area),
                 'No conforme' if not r.conforme else 'Conforme',
                 r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—',
             ],
@@ -10320,7 +10349,7 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
     elements.append(Spacer(1, 18))
     if revision:
         nombre = revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—'
-        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {revision.revisado_en.strftime("%Y-%m-%d %H:%M")}'
+        rev_txt = f'<b>Verificación:</b> Revisado por {nombre} el {_fmt_local(revision.revisado_en)}'
     else:
         rev_txt = '<b>Verificación:</b> Revisado por: ______________________      Fecha: __________'
     elements.append(Paragraph(rev_txt, sub_style))
@@ -10362,11 +10391,12 @@ def limpieza_export():
     fi = request.form.get('fecha_inicio') or ''
     ff = request.form.get('fecha_fin') or ''
     if (request.form.get('formato') or 'pdf').lower() == 'excel':
-        headers = ['Fecha', 'Hora', 'Área / tarea', 'Resultado', 'Registró', 'Observación',
+        headers = ['Fecha', 'Hora', 'Área / tarea', 'Proceso (limpieza → sanitización)', 'Resultado', 'Registró', 'Observación',
                    'Causa', 'Acción tomada', 'Responsable acción', 'Disposición']
         rows = [[
-            r.registrado_en.strftime('%Y-%m-%d'), r.registrado_en.strftime('%H:%M'),
-            r.area.nombre if r.area else '', 'Conforme' if r.conforme else 'No conforme',
+            _fmt_local(r.registrado_en, '%Y-%m-%d'), _fmt_local(r.registrado_en, '%H:%M'),
+            r.area.nombre if r.area else '', _producto_proceso(r.area),
+            'Conforme' if r.conforme else 'No conforme',
             r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '',
             r.observacion or '', r.accion_causa or '', r.accion_tomada or '',
             r.accion_responsable or '', r.accion_disposicion or '',

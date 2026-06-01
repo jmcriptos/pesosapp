@@ -50,7 +50,7 @@
       </div>
 
       {% if revision %}
-      <div class="cfg-saved" style="margin-bottom:12px"><i class="fas fa-clipboard-check"></i> Verificado por {{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }} · {{ revision.revisado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+      <div class="cfg-saved" style="margin-bottom:12px"><i class="fas fa-clipboard-check"></i> Verificado por {{ revision.revisado_por_vendedor.nombre_completo if revision.revisado_por_vendedor else '—' }} · {{ revision.revisado_en | hora_local }}</div>
       {% endif %}
       {% if puede_verificar %}
       <form method="POST" action="{{ url_for('limpieza_revisar') }}" style="margin-bottom:14px">
@@ -63,13 +63,13 @@
 
       <!-- Tabla -->
       <div class="ops-table t-hlimp" id="limpTabla">
-        <div class="ops-thead"><div>Fecha · Hora</div><div>Tarea</div><div>Área</div><div>Responsable</div><div style="text-align:right">Estado</div></div>
+        <div class="ops-thead"><div>Fecha · Hora</div><div>Tarea</div><div>Proceso</div><div>Responsable</div><div style="text-align:right">Estado</div></div>
         {% for r in registros %}
         {% set resp = r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—' %}
         <div class="ops-trow {{ 'is-bad' if not r.conforme }}" data-resp="{{ resp }}">
-          <div class="ops-cell-muted ops-cell-mono">{{ r.registrado_en.strftime('%d/%m · %H:%M') }}</div>
+          <div class="ops-cell-muted ops-cell-mono">{{ r.registrado_en | hora_local('%d/%m · %H:%M') }}</div>
           <div class="ops-cell-strong">{{ r.area.nombre }}</div>
-          <div class="ops-cell-muted">{{ r.area.producto.nombre if r.area and r.area.producto else ('Equipo' if r.area and r.area.tipo == 'equipo' else 'Espacio') }}</div>
+          <div class="ops-cell-muted">{% if r.area and (r.area.producto or r.area.sanitizante) %}{{ r.area.producto.nombre if r.area.producto else '' }}{% if r.area.producto and r.area.sanitizante %} → {% endif %}{{ r.area.sanitizante.nombre if r.area.sanitizante else '' }}{% else %}{{ 'Equipo' if r.area and r.area.tipo == 'equipo' else 'Espacio' }}{% endif %}</div>
           <div class="ops-cell-muted">{{ resp }}{% if r.firma_png %} <img src="{{ r.firma_png }}" alt="firma" style="height:20px;vertical-align:middle;margin-left:6px;border-radius:3px;background:#fff;border:1px solid var(--color-border-subtle)">{% endif %}</div>
           <div class="ops-cell-right">{% if r.conforme %}<span class="estado-chip ok"><i class="fas fa-pen-nib"></i> Firmada</span>{% else %}<span class="estado-chip bad"><i class="fas fa-triangle-exclamation"></i> No conforme</span>{% endif %}</div>
         </div>
