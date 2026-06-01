@@ -9541,6 +9541,36 @@ def _build_temperaturas_pdf(lecturas, fecha_inicio, fecha_fin, config, revision)
     return buffer
 
 
+def _build_xlsx(headers, rows, sheet_name, title):
+    """Construye un .xlsx en memoria con encabezado en negrita y filas de datos.
+    `rows` es una lista de listas de celdas (texto/numero)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name[:31]
+    head_fill = PatternFill('solid', fgColor='1F2937')
+    head_font = Font(bold=True, color='FFFFFF')
+    ws.append([title])
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws.cell(1, 1).font = Font(bold=True, size=14)
+    ws.append(headers)
+    for c in range(1, len(headers) + 1):
+        cell = ws.cell(2, c)
+        cell.fill = head_fill
+        cell.font = head_font
+        cell.alignment = Alignment(horizontal='left')
+    for row in rows:
+        ws.append(row)
+    for i, h in enumerate(headers, start=1):
+        width = max(len(str(h)), *(len(str(r[i - 1])) for r in rows)) if rows else len(str(h))
+        ws.column_dimensions[ws.cell(2, i).column_letter].width = min(max(width + 2, 10), 48)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
 @app.route('/registros/temperaturas/export', methods=['POST'])
 @login_required
 @requiere_permiso_recurso('registros', 'leer')
@@ -9548,6 +9578,20 @@ def temperaturas_export():
     lecturas = _filtrar_lecturas(request.form)
     fi = request.form.get('fecha_inicio') or ''
     ff = request.form.get('fecha_fin') or ''
+    if (request.form.get('formato') or 'pdf').lower() == 'excel':
+        headers = ['Fecha', 'Hora', 'Cámara', 'Lectura (°C)', 'Estado', 'Registró',
+                   'Causa', 'Acción tomada', 'Responsable acción', 'Disposición']
+        rows = [[
+            l.registrado_en.strftime('%Y-%m-%d'), l.registrado_en.strftime('%H:%M'),
+            l.camara.nombre if l.camara else '', float(l.temperatura),
+            'Fuera de rango' if l.fuera_de_rango else 'En rango',
+            l.registrado_por_vendedor.nombre_completo if l.registrado_por_vendedor else '',
+            l.accion_causa or '', l.accion_tomada or '', l.accion_responsable or '', l.accion_disposicion or '',
+        ] for l in lecturas]
+        buffer = _build_xlsx(headers, rows, 'Temperaturas', 'Historial de temperaturas')
+        filename = f"registro_temperaturas_{fi or 'inicio'}_{ff or 'fin'}.xlsx"
+        return make_response(send_file(buffer, as_attachment=True, download_name=filename,
+                                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'))
     config = _get_registro_config()
     revision = _revision_que_cubre(fi, ff)
     buffer = _build_temperaturas_pdf(lecturas, fi, ff, config, revision)
@@ -10091,6 +10135,20 @@ def limpieza_export():
     registros = _filtrar_registros_limpieza(request.form)
     fi = request.form.get('fecha_inicio') or ''
     ff = request.form.get('fecha_fin') or ''
+    if (request.form.get('formato') or 'pdf').lower() == 'excel':
+        headers = ['Fecha', 'Hora', 'Área / tarea', 'Resultado', 'Registró', 'Observación',
+                   'Causa', 'Acción tomada', 'Responsable acción', 'Disposición']
+        rows = [[
+            r.registrado_en.strftime('%Y-%m-%d'), r.registrado_en.strftime('%H:%M'),
+            r.area.nombre if r.area else '', 'Conforme' if r.conforme else 'No conforme',
+            r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '',
+            r.observacion or '', r.accion_causa or '', r.accion_tomada or '',
+            r.accion_responsable or '', r.accion_disposicion or '',
+        ] for r in registros]
+        buffer = _build_xlsx(headers, rows, 'Limpieza', 'Historial de limpieza')
+        filename = f"registro_limpieza_{fi or 'inicio'}_{ff or 'fin'}.xlsx"
+        return make_response(send_file(buffer, as_attachment=True, download_name=filename,
+                                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'))
     config = _get_limpieza_config()
     revision = _revision_limpieza_que_cubre(fi, ff)
     buffer = _build_limpieza_pdf(registros, fi, ff, config, revision)
@@ -10123,7 +10181,38 @@ def limpieza_config():
 @login_required
 @requiere_permiso_recurso('registros', 'leer')
 def registros_index():
-    return render_template('registros/index.html')
+    """Hub HACCP: tarjetas Temperaturas / Limpieza / HACCP con estado de hoy."""
+    hoy = date.today()
+
+    camaras = Camara.query.filter_by(activa=True).all()
+    cam_total = len(camaras)
+    cam_con = len(_camaras_con_lectura_hoy())
+    lec_hoy = (LecturaTemperatura.query
+               .filter(func.date(LecturaTemperatura.registrado_en) == hoy).all())
+    temp_alertas = sum(1 for l in lec_hoy if l.fuera_de_rango)
+
+    areas = AreaLimpieza.query.filter_by(activa=True).all()
+    area_total = len(areas)
+    area_con = len(_areas_con_registro_hoy())
+    reg_hoy = (RegistroLimpieza.query
+               .filter(func.date(RegistroLimpieza.registrado_en) == hoy).all())
+    limp_noconf = sum(1 for r in reg_hoy if not r.conforme)
+
+    # Cumplimiento global 7 días (reusa la lógica de la vista HACCP).
+    desde = hoy - timedelta(days=6)
+    lec_semana = (LecturaTemperatura.query
+                  .filter(func.date(LecturaTemperatura.registrado_en) >= desde).all())
+    reg_semana = (RegistroLimpieza.query
+                  .filter(func.date(RegistroLimpieza.registrado_en) >= desde).all())
+    tp = round(sum(1 for l in lec_semana if not l.fuera_de_rango) / len(lec_semana) * 100) if lec_semana else 100
+    lp = round(sum(1 for r in reg_semana if r.conforme) / len(reg_semana) * 100) if reg_semana else 100
+    haccp_global = round((tp + lp) / 2)
+
+    es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
+    return render_template('registros/index.html',
+                           cam_total=cam_total, cam_con=cam_con, temp_alertas=temp_alertas,
+                           area_total=area_total, area_con=area_con, limp_noconf=limp_noconf,
+                           haccp_global=haccp_global, es_admin=es_admin, hoy=hoy)
 
 
 if __name__ == '__main__':

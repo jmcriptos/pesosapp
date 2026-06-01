@@ -91,7 +91,9 @@
             {% else %}
             <button type="button" class="ops-btn ops-btn-pill {{ 'ops-btn-danger' if estado == 'no-conforme' else 'ops-btn-success' }} js-open-firma"
                     data-area-id="{{ area.id }}" data-area-nombre="{{ area.nombre }}"
-                    data-area-tipo="{{ area.tipo }}"{% if area.producto %} data-area-prod="{{ area.producto.nombre }}"{% endif %}>
+                    data-area-tipo="{{ area.tipo }}"
+                    {% if area.producto %}data-area-prod="{{ area.producto.nombre }}" data-area-dilucion="{{ area.producto.dilucion }}"{% if area.producto.procedimiento %} data-area-proc="{{ area.producto.procedimiento }}"{% endif %}{% endif %}
+                    {% if area.metodo %}data-area-metodo="{{ area.metodo }}"{% endif %}>
               <i class="fas fa-pen-nib"></i> Firmar
             </button>
             {% endif %}
@@ -153,9 +155,18 @@
         <input type="text" name="observacion" placeholder="Opcional">
       </div>
 
+      <!-- Ficha SSOP del producto asignado (dilución / procedimiento) -->
+      <div class="ops-ssop" id="firmaSsop" hidden></div>
+
       <!-- Acción correctiva (no conforme) -->
       <div class="ops-corrective" id="firmaCorrective" hidden>
         <p class="ops-corrective-title"><i class="fas fa-triangle-exclamation"></i> No conforme — acción correctiva</p>
+        <div class="ops-quick" data-quick-for="accion_tomada">
+          <button type="button" class="ops-quick-chip">Se volvió a limpiar</button>
+          <button type="button" class="ops-quick-chip">Se cambió la dilución</button>
+          <button type="button" class="ops-quick-chip">Se aisló el equipo</button>
+          <button type="button" class="ops-quick-chip">Se reportó a supervisión</button>
+        </div>
         <div class="ops-field"><label>Causa probable</label><input type="text" name="accion_causa"></div>
         <div class="ops-field"><label>Acción tomada *</label><input type="text" name="accion_tomada"></div>
         <div class="ops-field"><label>Responsable</label><input type="text" name="accion_responsable"></div>
@@ -294,6 +305,13 @@
     var meta = (btn.dataset.areaTipo === 'equipo' ? 'Equipo' : 'Espacio');
     if (btn.dataset.areaProd) meta += ' · ' + btn.dataset.areaProd;
     document.getElementById('firmaMeta').textContent = meta;
+    // Ficha SSOP (dilución / procedimiento / método)
+    var ssop = document.getElementById('firmaSsop');
+    var html = '';
+    if (btn.dataset.areaProd) html += '<div class="ops-ssop-line"><b>' + btn.dataset.areaProd + '</b>' + (btn.dataset.areaDilucion ? ' · Dilución: ' + btn.dataset.areaDilucion : '') + '</div>';
+    if (btn.dataset.areaProc) html += '<div class="ops-ssop-line"><b>Procedimiento:</b> ' + btn.dataset.areaProc + '</div>';
+    if (btn.dataset.areaMetodo) html += '<div class="ops-ssop-line"><b>Método:</b> ' + btn.dataset.areaMetodo + '</div>';
+    if (html) { ssop.innerHTML = html; ssop.hidden = false; } else { ssop.hidden = true; }
     // reset
     form.reset(); conformeInput.value = 'si'; corrective.hidden = true;
     document.querySelectorAll('[data-set-result]').forEach(function (x, i) { x.classList.toggle('is-active', i === 0); });
@@ -301,6 +319,14 @@
     setupCanvas(); clearSign();
   }
   function closeFirma() { sheet.hidden = true; document.body.style.overflow = ''; }
+
+  // Chips rápidos de acción correctiva
+  document.querySelectorAll('#firmaSheet .ops-quick').forEach(function (grp) {
+    var target = document.querySelector('#firmaSheet [name="' + grp.dataset.quickFor + '"]');
+    grp.querySelectorAll('.ops-quick-chip').forEach(function (c) {
+      c.addEventListener('click', function () { if (target) { target.value = c.textContent.trim(); updateConfirm(); } });
+    });
+  });
 
   document.querySelectorAll('.js-open-firma').forEach(function (b) { b.addEventListener('click', function () { openFirma(b); }); });
   document.querySelectorAll('.js-close-firma').forEach(function (el) { el.addEventListener('click', closeFirma); });

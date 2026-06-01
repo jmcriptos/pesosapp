@@ -135,6 +135,12 @@
       <!-- Acción correctiva (solo si fuera de rango) -->
       <div class="ops-corrective" id="tempCorrective" hidden>
         <p class="ops-corrective-title"><i class="fas fa-triangle-exclamation"></i> Lectura fuera de rango</p>
+        <div class="ops-quick" data-quick-for="accion_tomada">
+          <button type="button" class="ops-quick-chip">Se ajustó termostato</button>
+          <button type="button" class="ops-quick-chip">Se reubicó el producto</button>
+          <button type="button" class="ops-quick-chip">Se cerró bien la puerta</button>
+          <button type="button" class="ops-quick-chip">Se reportó a mantenimiento</button>
+        </div>
         <div class="ops-field"><label>Causa probable</label><input type="text" name="accion_causa"></div>
         <div class="ops-field"><label>Acción tomada *</label><input type="text" name="accion_tomada"></div>
         <div class="ops-field"><label>Responsable</label><input type="text" name="accion_responsable"></div>
@@ -288,6 +294,15 @@
       var n = (parseFloat(val || '0') || 0) + parseFloat(this.dataset.step);
       val = (Math.round(n * 10) / 10).toString();
       refresh();
+    });
+  });
+
+  // Chips rápidos: rellenan el campo destino
+  document.querySelectorAll('#tempSheet .ops-quick').forEach(function (grp) {
+    var target = grp.querySelector('[name="' + grp.dataset.quickFor + '"]') ||
+                 document.querySelector('#tempSheet [name="' + grp.dataset.quickFor + '"]');
+    grp.querySelectorAll('.ops-quick-chip').forEach(function (c) {
+      c.addEventListener('click', function () { if (target) { target.value = c.textContent.trim(); } });
     });
   });
 

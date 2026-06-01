@@ -1,30 +1,69 @@
 {% extends "base.html" %}
-{% block title %}Registros HACCP{% endblock %}
-{% block header_title %}<span class="fw-700 color-white">Registros HACCP</span>{% endblock %}
+{% block title %}HACCP{% endblock %}
+{% block header_title %}HACCP{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registros.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 {% endblock %}
+
 {% block content %}
-<div class="mobile-form-container reg-wrap">
-  <div class="reg-list">
-    <a class="reg-card" style="display:block; text-decoration:none;" href="{{ url_for('temperaturas_index') }}">
-      <div class="reg-card-head">
-        <div>
-          <div class="reg-name"><i class="fas fa-temperature-half"></i> Temperaturas</div>
-          <div class="reg-sub">Registro de temperaturas de cámaras</div>
-        </div>
-        <i class="fas fa-chevron-right"></i>
+<div class="ops-screen" data-accent="temp" style="--accent:var(--color-primary);--accent-grad:linear-gradient(135deg,var(--indigo-500),var(--violet-500))">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-shield-halved"></i></span> Control HACCP</div>
+    <h1 class="ops-title">Registros</h1>
+    <p class="ops-sub">{{ hoy.strftime('%d/%m/%Y') }} · estado de hoy</p>
+  </header>
+
+  <div class="hub-grid">
+    <!-- Temperaturas -->
+    <a class="hub-card" href="{{ url_for('temperaturas_index') }}">
+      <div class="hub-card-top">
+        <span class="hub-icon is-temp"><i class="fas fa-temperature-half"></i></span>
+        {% if temp_alertas %}<span class="hub-flag bad"><i class="fas fa-triangle-exclamation"></i> {{ temp_alertas }}</span>
+        {% elif cam_con >= cam_total and cam_total %}<span class="hub-flag ok"><i class="fas fa-check"></i> Al día</span>{% endif %}
       </div>
+      <div class="hub-name">Temperaturas</div>
+      <div class="hub-sub">Ronda de control de cámaras</div>
+      <div class="hub-stat"><b>{{ cam_con }}/{{ cam_total }}</b> cámaras registradas hoy</div>
+      <div class="hub-bar"><span style="width:{{ (cam_con / cam_total * 100)|round|int if cam_total else 0 }}%;background:var(--sky-500)"></span></div>
     </a>
-    <a class="reg-card" style="display:block; text-decoration:none;" href="{{ url_for('limpieza_index') }}">
-      <div class="reg-card-head">
-        <div>
-          <div class="reg-name"><i class="fas fa-soap"></i> Limpieza</div>
-          <div class="reg-sub">Registro de limpieza y desinfección</div>
-        </div>
-        <i class="fas fa-chevron-right"></i>
+
+    <!-- Limpieza -->
+    <a class="hub-card" href="{{ url_for('limpieza_index') }}">
+      <div class="hub-card-top">
+        <span class="hub-icon is-clean"><i class="fas fa-spray-can-sparkles"></i></span>
+        {% if limp_noconf %}<span class="hub-flag bad"><i class="fas fa-triangle-exclamation"></i> {{ limp_noconf }}</span>
+        {% elif area_con >= area_total and area_total %}<span class="hub-flag ok"><i class="fas fa-check"></i> Al día</span>{% endif %}
       </div>
+      <div class="hub-name">Limpieza</div>
+      <div class="hub-sub">Plan de saneamiento del turno</div>
+      <div class="hub-stat"><b>{{ area_con }}/{{ area_total }}</b> tareas firmadas hoy</div>
+      <div class="hub-bar"><span style="width:{{ (area_con / area_total * 100)|round|int if area_total else 0 }}%;background:var(--emerald-500)"></span></div>
+    </a>
+
+    <!-- HACCP -->
+    <a class="hub-card" href="{{ url_for('registros_haccp') }}">
+      <div class="hub-card-top">
+        <span class="hub-icon is-haccp"><i class="fas fa-shield-halved"></i></span>
+        <span class="hub-flag {{ 'ok' if haccp_global >= 95 else ('warn' if haccp_global >= 85 else 'bad') }}">{{ haccp_global }}%</span>
+      </div>
+      <div class="hub-name">HACCP</div>
+      <div class="hub-sub">Cumplimiento, historial y reportes</div>
+      <div class="hub-stat">Cumplimiento global · 7 días</div>
+      <div class="hub-bar"><span style="width:{{ haccp_global }}%;background:var(--violet-500)"></span></div>
     </a>
   </div>
+
+  {% if es_admin %}
+  <div class="ops-section" style="padding-top:20px"><h3>Configuración y reportes</h3></div>
+  <div class="hub-links">
+    <a class="hub-link" href="{{ url_for('camaras_list') }}"><i class="fas fa-snowflake"></i> Cámaras y puntos</a>
+    <a class="hub-link" href="{{ url_for('areas_limpieza_list') }}"><i class="fas fa-layer-group"></i> Tareas de limpieza</a>
+    <a class="hub-link" href="{{ url_for('temperaturas_historial') }}"><i class="fas fa-clock-rotate-left"></i> Historial temperaturas</a>
+    <a class="hub-link" href="{{ url_for('limpieza_historial') }}"><i class="fas fa-clock-rotate-left"></i> Historial limpieza</a>
+  </div>
+  {% endif %}
+
+  <div style="height:40px"></div>
 </div>
 {% endblock %}

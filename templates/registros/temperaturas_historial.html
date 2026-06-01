@@ -38,7 +38,7 @@
         </label>
         <span class="hist-spacer"></span>
         <button type="submit" form="export-form" class="ops-btn ops-btn-ghost"><i class="fas fa-file-pdf"></i> PDF</button>
-        <button type="submit" form="export-form" class="ops-btn ops-btn-ghost"><i class="fas fa-file-excel"></i> Excel</button>
+        <button type="submit" form="export-form-xlsx" class="ops-btn ops-btn-ghost"><i class="fas fa-file-excel"></i> Excel</button>
       </form>
 
       <!-- KPIs -->
@@ -96,6 +96,13 @@
 
 <form id="export-form" method="POST" action="{{ url_for('temperaturas_export') }}" target="etiquetas-download-frame" style="display:none">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio','') }}">
+  <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin','') }}">
+  <input type="hidden" name="camara_id" value="{{ filtros.get('camara_id','') }}">
+</form>
+<form id="export-form-xlsx" method="POST" action="{{ url_for('temperaturas_export') }}" style="display:none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="formato" value="excel">
   <input type="hidden" name="fecha_inicio" value="{{ filtros.get('fecha_inicio','') }}">
   <input type="hidden" name="fecha_fin" value="{{ filtros.get('fecha_fin','') }}">
   <input type="hidden" name="camara_id" value="{{ filtros.get('camara_id','') }}">

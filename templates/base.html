@@ -397,6 +397,13 @@
                                     <span class="desktop-ops-item-meta">Carga y procesamiento</span>
                                 </span>
                             </a>
+                            <a href="{{ url_for('registros_index') }}" class="desktop-ops-item {{ 'active' if request.path.startswith('/registros') }}">
+                                <i class="fas fa-shield-halved"></i>
+                                <span class="desktop-ops-item-copy">
+                                    <span class="desktop-ops-item-title">HACCP</span>
+                                    <span class="desktop-ops-item-meta">Temperaturas, limpieza y cumplimiento</span>
+                                </span>
+                            </a>
                         </div>
                     </div>
                 </div>
