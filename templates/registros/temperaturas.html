@@ -134,6 +134,12 @@
         <button type="button" class="ops-step" data-step="0.1" aria-label="Sumar"><i class="fas fa-plus"></i></button>
       </div>
 
+      <!-- Fecha y hora del registro (default: ahora; editable para rondas atrasadas) -->
+      <div class="ops-when">
+        <label class="ops-when-label" for="tempWhen"><i class="fas fa-clock"></i> Fecha y hora</label>
+        <input type="datetime-local" id="tempWhen" name="registrado_en" value="{{ ahora_local }}" max="{{ ahora_local }}">
+      </div>
+
       <!-- Acción correctiva (solo si fuera de rango) -->
       <div class="ops-corrective" id="tempCorrective" hidden>
         <p class="ops-corrective-title"><i class="fas fa-triangle-exclamation"></i> Lectura fuera de rango</p>
@@ -271,6 +277,13 @@
     document.getElementById('tempSheetEyebrow').innerHTML =
       '<i class="fas ' + (cong ? 'fa-snowflake' : 'fa-temperature-half') + '"></i> Ronda ' + round.toUpperCase();
     corrective.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    // Resetear la fecha/hora a "ahora" cada vez que se abre (local).
+    var whenEl = document.getElementById('tempWhen');
+    if (whenEl) {
+      var n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset());
+      var v = n.toISOString().slice(0, 16);
+      whenEl.value = v; whenEl.max = v;
+    }
     refresh();
     sheet.hidden = false;
     document.body.style.overflow = 'hidden';

@@ -418,6 +418,21 @@
 .ops-key-back { width: 56px; height: 50px; flex: none; }
 .ops-key-save { flex: 1; height: 50px; }
 
+/* Campo de fecha/hora del registro dentro del sheet */
+.ops-when {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border-radius: 12px; margin-bottom: 12px;
+  background: var(--color-surface-muted); border: 1px solid var(--color-border-subtle);
+}
+.ops-when-label { font-size: 12.5px; font-weight: 700; color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 7px; }
+.ops-when-label i { color: var(--accent, var(--color-primary)); }
+.ops-when input[type="datetime-local"] {
+  font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--color-text) !important;
+  background: var(--color-bg-elevated) !important; border: 1px solid var(--color-border) !important;
+  border-radius: 9px; padding: 7px 10px; outline: none; color-scheme: light;
+}
+.ops-when input[type="datetime-local"]:focus { border-color: var(--accent, var(--color-primary)) !important; }
+
 /* acción correctiva dentro del sheet */
 .ops-corrective {
   margin-top: 4px; padding: 12px; border-radius: 14px;

@@ -159,6 +159,12 @@
         <input type="text" name="observacion" placeholder="Opcional">
       </div>
 
+      <!-- Fecha y hora del registro (default: ahora; editable) -->
+      <div class="ops-when" style="margin-bottom:12px">
+        <label class="ops-when-label" for="firmaWhen"><i class="fas fa-clock"></i> Fecha y hora</label>
+        <input type="datetime-local" id="firmaWhen" name="registrado_en" value="{{ ahora_local }}" max="{{ ahora_local }}">
+      </div>
+
       <!-- Ficha SSOP del producto asignado (dilución / procedimiento) -->
       <div class="ops-ssop" id="firmaSsop" hidden></div>
 
@@ -327,6 +333,9 @@
     // reset
     form.reset(); conformeInput.value = 'si'; corrective.hidden = true;
     document.querySelectorAll('[data-set-result]').forEach(function (x, i) { x.classList.toggle('is-active', i === 0); });
+    // Fecha/hora a "ahora" (local) cada vez que se abre.
+    var whenEl = document.getElementById('firmaWhen');
+    if (whenEl) { var n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset()); var v = n.toISOString().slice(0, 16); whenEl.value = v; whenEl.max = v; }
     sheet.hidden = false; document.body.style.overflow = 'hidden';
     setupCanvas(); clearSign();
   }

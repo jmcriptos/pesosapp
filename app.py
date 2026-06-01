@@ -9193,6 +9193,26 @@ def _parse_rango_camara(form):
     return nombre, tipo, temp_min, temp_max, None
 
 
+def _registrado_en_from_form(form, field='registrado_en'):
+    """Convierte el valor de un <input type="datetime-local"> (en hora local de
+    negocio) a un datetime naive en UTC, para guardarlo igual que `default=utcnow`.
+    Si está vacío o es inválido, devuelve None (→ se usará la hora actual)."""
+    raw = (form.get(field) or '').strip()
+    if not raw:
+        return None
+    for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S'):
+        try:
+            local = datetime.strptime(raw, fmt)
+            break
+        except ValueError:
+            local = None
+    if local is None:
+        return None
+    # Interpretar como hora local de negocio y pasar a UTC naive.
+    local = local.replace(tzinfo=DASHBOARD_TIMEZONE)
+    return local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def _hora_valida(s):
     """Normaliza 'HH:MM' o devuelve None."""
     s = (s or '').strip()
@@ -9328,13 +9348,14 @@ def temperaturas_index():
     cumplimiento_prom = round(sum(dias_con) / len(dias_con)) if dias_con else None
 
     es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
+    ahora_local = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%dT%H:%M')
     return render_template('registros/temperaturas.html',
                            camaras=camaras,
                            lecturas_info=lecturas_info,
                            con_lectura_hoy=con_lectura_hoy,
                            cumplimiento=cumplimiento,
                            cumplimiento_prom=cumplimiento_prom,
-                           hoy=hoy,
+                           hoy=hoy, ahora_local=ahora_local,
                            es_admin=es_admin)
 
 
@@ -9364,7 +9385,8 @@ def temperatura_registrar():
               f'y la disposición del producto.', 'danger')
         return redirect(url_for('temperaturas_index'))
 
-    db.session.add(LecturaTemperatura(
+    momento = _registrado_en_from_form(request.form)
+    lectura = LecturaTemperatura(
         camara_id=camara.id,
         temperatura=temperatura,
         registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
@@ -9373,7 +9395,10 @@ def temperatura_registrar():
         accion_tomada=(tomada or None) if fuera else None,
         accion_responsable=(responsable or None) if fuera else None,
         accion_disposicion=(disposicion or None) if fuera else None,
-    ))
+    )
+    if momento:
+        lectura.registrado_en = momento
+    db.session.add(lectura)
     db.session.commit()
     if fuera:
         _haccp_alerta('temp', f'{camara.nombre} fuera de rango',
@@ -10006,12 +10031,13 @@ def limpieza_index():
     cumplimiento_prom = round(sum(dias_con) / len(dias_con)) if dias_con else None
 
     es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
+    ahora_local = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%dT%H:%M')
     return render_template('registros/limpieza.html', areas=areas,
                            registros_info=registros_info,
                            con_registro_hoy=con_registro_hoy,
                            cumplimiento=cumplimiento,
                            cumplimiento_prom=cumplimiento_prom,
-                           hoy=hoy, es_admin=es_admin)
+                           hoy=hoy, ahora_local=ahora_local, es_admin=es_admin)
 
 
 @app.route('/registros/limpieza/registrar', methods=['POST'])
@@ -10038,7 +10064,8 @@ def limpieza_registrar():
     if firma and (not firma.startswith('data:image/') or len(firma) > 600000):
         firma = None  # descartar payloads inválidos o excesivos
 
-    db.session.add(RegistroLimpieza(
+    momento = _registrado_en_from_form(request.form)
+    registro = RegistroLimpieza(
         area_id=area.id,
         registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
         conforme=conforme,
@@ -10048,7 +10075,10 @@ def limpieza_registrar():
         accion_tomada=(tomada or None) if not conforme else None,
         accion_responsable=(responsable or None) if not conforme else None,
         accion_disposicion=(disposicion or None) if not conforme else None,
-    ))
+    )
+    if momento:
+        registro.registrado_en = momento
+    db.session.add(registro)
     db.session.commit()
     if not conforme:
         _haccp_alerta('clean', f'{area.nombre}: limpieza no conforme',
