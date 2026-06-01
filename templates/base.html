@@ -63,7 +63,7 @@
     
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
     <!-- Tom Select + Forms system -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css">
@@ -290,7 +290,7 @@
                 </a>
                 {% if is_super_admin %}
                 <a href="{{ url_for('gestionar_vendedores') }}" class="drawer-item {{ 'active' if request.path.startswith('/admin/vendedores') or request.path.startswith('/admin/roles') }}">
-                    <i class="fas fa-users-gear"></i><span>Usuarios</span>
+                    <i class="fas fa-user-shield"></i><span>Usuarios</span>
                 </a>
                 {% endif %}
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
@@ -412,7 +412,7 @@
                             </a>
                             {% if is_super_admin %}
                             <a href="{{ url_for('gestionar_vendedores') }}" class="desktop-ops-item {{ 'active' if request.path.startswith('/admin/vendedores') or request.path.startswith('/admin/roles') }}">
-                                <i class="fas fa-users-gear"></i>
+                                <i class="fas fa-user-shield"></i>
                                 <span class="desktop-ops-item-copy">
                                     <span class="desktop-ops-item-title">Usuarios</span>
                                     <span class="desktop-ops-item-meta">Usuarios, roles y permisos</span>
@@ -449,7 +449,7 @@
                                 </a>
                                 {% if is_super_admin %}
                                 <a href="{{ url_for('gestionar_vendedores') }}" class="dropdown-item">
-                                    <i class="fas fa-users-gear"></i><span>Usuarios</span>
+                                    <i class="fas fa-user-shield"></i><span>Usuarios</span>
                                 </a>
                                 {% endif %}
                                 <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
