@@ -14,6 +14,15 @@
     <p class="ops-sub">{{ hoy.strftime('%d/%m/%Y') }} · estado de hoy</p>
   </header>
 
+  <a class="hub-mi-turno" href="{{ url_for('mi_turno') }}">
+    <span class="hub-mi-icon"><i class="fas fa-clipboard-check"></i></span>
+    <span class="hub-mi-copy">
+      <span class="hub-mi-title">Mi turno</span>
+      <span class="hub-mi-sub">Todo lo que falta registrar hoy, en una lista</span>
+    </span>
+    <i class="fas fa-chevron-right" style="color:var(--color-text-subtle)"></i>
+  </a>
+
   <div class="hub-grid">
     <!-- Temperaturas -->
     <a class="hub-card" href="{{ url_for('temperaturas_index') }}">

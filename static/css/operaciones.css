@@ -1249,6 +1249,15 @@ body[data-ops-shell="1"] .ops-admin .ops-chips button.ops-chip.is-active {
 .hub-link:hover { border-color: var(--color-border); background: var(--color-surface-muted); }
 .hub-link i { color: var(--color-primary); width: 18px; text-align: center; }
 @media (max-width: 720px) { .hub-grid, .hub-links { grid-template-columns: 1fr; } }
+.hub-mi-turno {
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; margin-bottom: 14px; text-decoration: none;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--indigo-500) 12%, #fff), color-mix(in oklab, var(--violet-500) 10%, #fff));
+  border: 1px solid color-mix(in oklab, var(--indigo-500) 25%, transparent);
+}
+.hub-mi-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-size: 19px; color: #fff; flex-shrink: 0; background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)); box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+.hub-mi-copy { flex: 1; min-width: 0; }
+.hub-mi-title { display: block; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-text); }
+.hub-mi-sub { display: block; font-size: 12.5px; color: var(--color-text-muted); margin-top: 1px; }
 
 /* Chips rápidos de acción correctiva (en sheets) */
 .ops-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }

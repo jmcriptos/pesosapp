@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Mi turno{% endblock %}
+{% block header_title %}Mi turno{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ops-screen" data-accent="temp" style="--accent:var(--color-primary);--accent-grad:linear-gradient(135deg,var(--indigo-500),var(--violet-500))">
+
+  <header class="ops-hero">
+    <div class="ops-eyebrow"><span class="ops-eyebrow-mark"><i class="fas fa-clipboard-check"></i></span> Pendientes de hoy</div>
+    <h1 class="ops-title">Mi turno</h1>
+    <p class="ops-sub">{{ hoy.strftime('%d/%m/%Y') }}</p>
+  </header>
+
+  <!-- Progreso -->
+  <div class="ops-card ops-progress">
+    <div class="ops-ring {{ 'is-success' if hechas >= total and total }}" style="--pct:{{ (hechas / total * 100)|round|int if total else 100 }}"><span class="ops-ring-label">{{ hechas }}/{{ total }}</span></div>
+    <div class="ops-progress-text">
+      <div class="ops-progress-title">{% if (pend_temp|length + pend_limp|length) == 0 %}Turno completo ✓{% else %}{{ pend_temp|length + pend_limp|length }} pendiente{{ 's' if (pend_temp|length + pend_limp|length) != 1 }}{% endif %}</div>
+      <div class="ops-progress-meta">{% if (pend_temp|length + pend_limp|length) == 0 %}<span class="is-success">Todo registrado hoy</span>{% else %}{{ pend_temp|length }} temperatura{{ 's' if pend_temp|length != 1 }} · {{ pend_limp|length }} limpieza{{ 's' if pend_limp|length != 1 }}{% endif %}</div>
+    </div>
+  </div>
+
+  {% if pend_temp %}
+  <div class="ops-section"><h3>Temperaturas pendientes</h3><a class="ops-section-aside" style="text-decoration:none" href="{{ url_for('temperaturas_index') }}">Registrar →</a></div>
+  <div class="ops-list">
+    {% for c in pend_temp %}
+    <a class="ops-punto" href="{{ url_for('temperaturas_index') }}" style="text-decoration:none">
+      <span class="ops-punto-icon {{ 'is-cong' if c.tipo == 'congelacion' }}"><i class="fas {{ 'fa-snowflake' if c.tipo == 'congelacion' else 'fa-temperature-half' }}"></i></span>
+      <span class="ops-punto-info">
+        <span class="ops-punto-name">{{ c.nombre }}</span>
+        <span class="ops-punto-meta"><span>Rango {{ c.temp_min }}° a {{ c.temp_max }}°</span>{% if c.responsable %}<span>· {{ c.responsable.nombre_completo.split(' ')[0] if c.responsable.nombre_completo else c.responsable.username }}</span>{% endif %}</span>
+      </span>
+      <span class="ops-punto-read"><span class="ops-pill-register"><i class="fas fa-plus"></i> Registrar</span></span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if pend_limp %}
+  <div class="ops-section"><h3>Limpieza pendiente</h3><a class="ops-section-aside" style="text-decoration:none" href="{{ url_for('limpieza_index') }}">Firmar →</a></div>
+  <div class="ops-list">
+    {% for a in pend_limp %}
+    <a class="ops-tarea" href="{{ url_for('limpieza_index') }}" style="display:block;text-decoration:none">
+      <div class="ops-tarea-body">
+        <span class="ops-tarea-check is-pending"><i class="fas fa-circle"></i></span>
+        <div class="ops-tarea-main">
+          <div class="ops-tarea-tags"><span class="ops-badge is-pending">Pendiente</span>{% if a.frecuencia_texto %}<span class="ops-tarea-freq">{{ a.frecuencia_texto }}</span>{% endif %}</div>
+          <div class="ops-tarea-name">{{ a.nombre }}</div>
+          <div class="ops-tarea-area"><i class="fas {{ 'fa-box' if a.tipo == 'equipo' else 'fa-vector-square' }}"></i> {{ 'Equipo' if a.tipo == 'equipo' else 'Espacio' }}{% if a.producto %} · {{ a.producto.nombre }}{% endif %}{% if a.responsable %} · {{ a.responsable.nombre_completo.split(' ')[0] if a.responsable.nombre_completo else a.responsable.username }}{% endif %}</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not pend_temp and not pend_limp %}
+  <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-circle-check" style="color:var(--color-success)"></i></div><p>No queda nada pendiente para hoy. ¡Buen trabajo!</p></div>
+  {% endif %}
+
+  <div style="height:40px"></div>
+</div>
+{% endblock %}

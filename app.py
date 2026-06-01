@@ -10108,6 +10108,28 @@ def limpieza_historial():
                            fecha_30d=(hoy - timedelta(days=29)).isoformat())
 
 
+@app.route('/registros/mi-turno')
+@login_required
+@requiere_permiso_recurso('registros', 'crear')
+def mi_turno():
+    """Vista operativa: todo lo que falta registrar HOY (temperaturas + limpieza),
+    en una sola lista priorizada. Pensada para el operario en planta."""
+    con_lectura = _camaras_con_lectura_hoy()
+    con_registro = _areas_con_registro_hoy()
+    camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
+    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
+             .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
+
+    pend_temp = [c for c in camaras if c.id not in con_lectura]
+    pend_limp = [a for a in areas if a.id not in con_registro]
+    total_pend = len(pend_temp) + len(pend_limp)
+    total = len(camaras) + len(areas)
+    hechas = total - total_pend
+    return render_template('registros/mi_turno.html',
+                           pend_temp=pend_temp, pend_limp=pend_limp,
+                           hechas=hechas, total=total, hoy=date.today())
+
+
 @app.route('/registros/haccp')
 @login_required
 @requiere_permiso_recurso('registros', 'leer')
