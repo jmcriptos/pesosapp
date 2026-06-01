@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Cumplimiento HACCP{% endblock %}
-{% block header_title %}Cumplimiento HACCP{% endblock %}
+{% block title %}HACCP{% endblock %}
+{% block header_title %}HACCP{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 <style>.app-content { background: #f5f6fa !important; } .ops-admin { box-shadow: 0 18px 50px -24px rgba(15,23,42,.25); }</style>
@@ -17,6 +17,7 @@
     <header class="ops-admin-header">
       <div>
         <h1>Cumplimiento HACCP</h1>
+        {# título de página completo; el sidebar lo abrevia a "HACCP" #}
         <div class="ops-admin-header-sub">Últimos 7 días · temperaturas y limpieza</div>
       </div>
     </header>
