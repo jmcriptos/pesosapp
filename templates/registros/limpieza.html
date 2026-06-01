@@ -95,6 +95,7 @@
                     data-area-id="{{ area.id }}" data-area-nombre="{{ area.nombre }}"
                     data-area-tipo="{{ area.tipo }}"
                     {% if area.producto %}data-area-prod="{{ area.producto.nombre }}" data-area-dilucion="{{ area.producto.dilucion }}"{% if area.producto.procedimiento %} data-area-proc="{{ area.producto.procedimiento }}"{% endif %}{% endif %}
+                    {% if area.sanitizante %}data-area-sani="{{ area.sanitizante.nombre }}" data-area-sani-dil="{{ area.sanitizante.dilucion }}"{% if area.sanitizante.procedimiento %} data-area-sani-proc="{{ area.sanitizante.procedimiento }}"{% endif %}{% endif %}
                     {% if area.metodo %}data-area-metodo="{{ area.metodo }}"{% endif %}>
               <i class="fas fa-pen-nib"></i> Firmar
             </button>
@@ -308,12 +309,20 @@
     var meta = (btn.dataset.areaTipo === 'equipo' ? 'Equipo' : 'Espacio');
     if (btn.dataset.areaProd) meta += ' · ' + btn.dataset.areaProd;
     document.getElementById('firmaMeta').textContent = meta;
-    // Ficha SSOP (dilución / procedimiento / método)
+    // Ficha SSOP — proceso de 2 pasos (limpiar → sanitizar)
     var ssop = document.getElementById('firmaSsop');
+    function step(n, cls, name, dil, proc) {
+      var meta = [];
+      if (dil) meta.push('Dilución: ' + dil);
+      if (proc) meta.push(proc);
+      return '<div class="ops-ssop-step"><span class="paso-num ' + cls + '">' + n + '</span><div class="ops-ssop-step-body">' +
+        '<div class="ops-ssop-step-name">' + name + '</div>' +
+        (meta.length ? '<div class="ops-ssop-step-meta">' + meta.join(' · ') + '</div>' : '') + '</div></div>';
+    }
     var html = '';
-    if (btn.dataset.areaProd) html += '<div class="ops-ssop-line"><b>' + btn.dataset.areaProd + '</b>' + (btn.dataset.areaDilucion ? ' · Dilución: ' + btn.dataset.areaDilucion : '') + '</div>';
-    if (btn.dataset.areaProc) html += '<div class="ops-ssop-line"><b>Procedimiento:</b> ' + btn.dataset.areaProc + '</div>';
-    if (btn.dataset.areaMetodo) html += '<div class="ops-ssop-line"><b>Método:</b> ' + btn.dataset.areaMetodo + '</div>';
+    if (btn.dataset.areaProd) html += step('1', '', 'Limpieza · ' + btn.dataset.areaProd, btn.dataset.areaDilucion, btn.dataset.areaProc);
+    if (btn.dataset.areaSani) html += step('2', 'is-2', 'Sanitización · ' + btn.dataset.areaSani, btn.dataset.areaSaniDil, btn.dataset.areaSaniProc);
+    if (btn.dataset.areaMetodo) html += '<div class="ops-ssop-line" style="margin-top:8px"><b>Método:</b> ' + btn.dataset.areaMetodo + '</div>';
     if (html) { ssop.innerHTML = html; ssop.hidden = false; } else { ssop.hidden = true; }
     // reset
     form.reset(); conformeInput.value = 'si'; corrective.hidden = true;

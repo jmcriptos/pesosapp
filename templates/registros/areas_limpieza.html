@@ -36,8 +36,9 @@
             <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" placeholder="Ej: Limpieza de pisos" required></div>
             <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="equipo">Equipo</option><option value="espacio">Espacio</option></select></div>
             <div class="ops-field"><label>Frecuencia</label><input type="text" name="frecuencia_texto" placeholder="Diaria, Cada turno, Semanal"></div>
-            <div class="ops-field"><label>Producto de limpieza</label><select name="producto_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}</select></div>
             <div class="ops-field"><label>Responsable</label><select name="responsable_id"><option value="">— Sin asignar —</option>{% for v in responsables %}<option value="{{ v.id }}">{{ v.nombre_completo or v.username }}</option>{% endfor %}</select></div>
+            <div class="ops-field"><label><span class="paso-num">1</span> Limpieza · detergente</label><select name="producto_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+            <div class="ops-field"><label><span class="paso-num is-2">2</span> Sanitización · sanitizante</label><select name="sanitizante_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}</select></div>
           </div>
           <div class="ops-field" style="margin-top:10px"><label>Instrucciones (opcional)</label><textarea name="metodo" rows="2"></textarea></div>
           <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Crear tarea</button></div>
@@ -55,12 +56,21 @@
         <div class="ops-trow {{ '' if a.activa else 'is-inactive' }}">
           <div class="ops-user-cell">
             <span class="ops-tarea-ico"><i class="fas fa-spray-can-sparkles"></i></span>
-            <span class="ops-cell-strong">{{ a.nombre }}</span>
+            <div style="min-width:0">
+              <span class="ops-cell-strong">{{ a.nombre }}</span>
+              <div class="proceso-pasos">
+                {% if a.producto %}<span class="paso-pill"><span class="paso-num">1</span> {{ a.producto.nombre }}</span>{% endif %}
+                {% if a.producto and a.sanitizante %}<i class="fas fa-arrow-right paso-arrow"></i>{% endif %}
+                {% if a.sanitizante %}<span class="paso-pill"><span class="paso-num is-2">2</span> {{ a.sanitizante.nombre }}</span>{% endif %}
+                {% if not a.producto and not a.sanitizante %}<span class="ops-cell-subtle" style="font-size:11.5px">Sin productos asignados</span>{% endif %}
+              </div>
+            </div>
           </div>
-          <div class="ops-cell-muted">{{ a.producto.nombre if a.producto else ('Equipo' if a.tipo == 'equipo' else 'Espacio') }}</div>
+          <div class="ops-cell-muted">{{ 'Equipo' if a.tipo == 'equipo' else 'Espacio' }}</div>
           <div>{% if a.frecuencia_texto %}<span class="frec-chip {{ fc }}">{{ a.frecuencia_texto }}</span>{% else %}<span class="ops-cell-subtle">—</span>{% endif %}</div>
           <div class="ops-cell-muted">{{ a.responsable.nombre_completo or a.responsable.username if a.responsable else '—' }}</div>
-          <div class="ops-cell-right">
+          <div class="ops-cell-right" style="gap:6px">
+            <button type="button" class="cam-edit js-area-edit" data-target="aedit-{{ a.id }}" title="Editar"><i class="fas fa-pen"></i></button>
             <form method="POST" action="{{ url_for('area_limpieza_toggle', area_id=a.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="cam-edit" title="{{ 'Activa' if a.activa else 'Inactiva' }}" style="color:{{ 'var(--color-success)' if a.activa else 'var(--color-text-subtle)' }} !important">
@@ -68,6 +78,21 @@
               </button>
             </form>
           </div>
+        </div>
+        <div class="ops-trow-edit" id="aedit-{{ a.id }}" hidden>
+          <form method="POST" action="{{ url_for('area_limpieza_editar', area_id=a.id) }}" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="ops-grid-2">
+              <div class="ops-field"><label>Nombre</label><input type="text" name="nombre" value="{{ a.nombre }}" required></div>
+              <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="equipo" {{ 'selected' if a.tipo == 'equipo' }}>Equipo</option><option value="espacio" {{ 'selected' if a.tipo == 'espacio' }}>Espacio</option></select></div>
+              <div class="ops-field"><label>Frecuencia</label><input type="text" name="frecuencia_texto" value="{{ a.frecuencia_texto or '' }}"></div>
+              <div class="ops-field"><label>Responsable</label><select name="responsable_id"><option value="">— Sin asignar —</option>{% for v in responsables %}<option value="{{ v.id }}" {{ 'selected' if a.responsable_id == v.id }}>{{ v.nombre_completo or v.username }}</option>{% endfor %}</select></div>
+              <div class="ops-field"><label><span class="paso-num">1</span> Limpieza · detergente</label><select name="producto_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if a.producto_id == p.id }}>{{ p.nombre }}</option>{% endfor %}</select></div>
+              <div class="ops-field"><label><span class="paso-num is-2">2</span> Sanitización · sanitizante</label><select name="sanitizante_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if a.sanitizante_id == p.id }}>{{ p.nombre }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="ops-field" style="margin-top:10px"><label>Instrucciones (opcional)</label><textarea name="metodo" rows="2">{{ a.metodo or '' }}</textarea></div>
+            <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar cambios</button></div>
+          </form>
         </div>
         {% endfor %}
       </div>
@@ -84,6 +109,9 @@
 (function () {
   var b = document.getElementById('tareaNuevaBtn'); var f = document.getElementById('tareaNuevaForm');
   if (b) b.addEventListener('click', function () { f.hidden = !f.hidden; });
+  document.querySelectorAll('.js-area-edit').forEach(function (btn) {
+    btn.addEventListener('click', function () { var t = document.getElementById(btn.dataset.target); if (t) t.hidden = !t.hidden; });
+  });
 })();
 </script>
 {% endblock %}

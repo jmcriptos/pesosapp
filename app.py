@@ -181,7 +181,7 @@ def _ensure_haccp_columns():
         # Columnas nuevas por tabla -> (nombre, DDL del tipo)
         wanted = {
             'camara': [('responsable_id', 'INTEGER'), ('ronda_am', 'VARCHAR(5)'), ('ronda_pm', 'VARCHAR(5)')],
-            'area_limpieza': [('responsable_id', 'INTEGER')],
+            'area_limpieza': [('responsable_id', 'INTEGER'), ('sanitizante_id', 'INTEGER')],
             'registro_limpieza': [('firma_png', 'TEXT')],
         }
         for tabla, cols in wanted.items():
@@ -2312,10 +2312,14 @@ class AreaLimpieza(db.Model):
     metodo = db.Column(db.Text, nullable=True)
     frecuencia_texto = db.Column(db.String(120), nullable=True)
     responsable_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    # Proceso de inocuidad en 2 pasos: 1) limpiar con detergente (producto),
+    # 2) sanitizar (sanitizante). Ambos opcionales.
+    sanitizante_id = db.Column(db.Integer, db.ForeignKey('producto_limpieza.id'), nullable=True)
     activa = db.Column(db.Boolean, nullable=False, default=True)
     creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    producto = db.relationship('ProductoLimpieza')
+    producto = db.relationship('ProductoLimpieza', foreign_keys=[producto_id])
+    sanitizante = db.relationship('ProductoLimpieza', foreign_keys=[sanitizante_id])
     responsable = db.relationship('Vendedor')
 
     def __repr__(self):
@@ -9863,26 +9867,31 @@ def producto_limpieza_toggle(producto_id):
 
 
 def _parse_area_limpieza(form):
-    """Devuelve (nombre, tipo, producto_id, metodo, frecuencia, error)."""
+    """Devuelve (nombre, tipo, producto_id, sanitizante_id, metodo, frecuencia, error)."""
     nombre = (form.get('nombre') or '').strip()
     tipo = (form.get('tipo') or '').strip()
     if not nombre:
-        return None, None, None, None, None, 'El nombre es obligatorio.'
+        return None, None, None, None, None, None, 'El nombre es obligatorio.'
     if tipo not in _TIPOS_AREA_LIMPIEZA:
-        return None, None, None, None, None, 'Tipo de área no válido.'
+        return None, None, None, None, None, None, 'Tipo de área no válido.'
     producto_id = form.get('producto_id', type=int) or None
     if producto_id and db.session.get(ProductoLimpieza, producto_id) is None:
-        return None, None, None, None, None, 'El producto seleccionado no existe.'
+        return None, None, None, None, None, None, 'El producto de limpieza seleccionado no existe.'
+    sanitizante_id = form.get('sanitizante_id', type=int) or None
+    if sanitizante_id and db.session.get(ProductoLimpieza, sanitizante_id) is None:
+        return None, None, None, None, None, None, 'El sanitizante seleccionado no existe.'
     metodo = (form.get('metodo') or '').strip() or None
     frecuencia = (form.get('frecuencia_texto') or '').strip() or None
-    return nombre, tipo, producto_id, metodo, frecuencia, None
+    return nombre, tipo, producto_id, sanitizante_id, metodo, frecuencia, None
 
 
 @app.route('/registros/limpieza/areas')
 @login_required
 @requiere_permiso_recurso('registros', 'editar')
 def areas_limpieza_list():
-    areas = AreaLimpieza.query.options(joinedload(AreaLimpieza.producto)).order_by(AreaLimpieza.nombre).all()
+    areas = (AreaLimpieza.query
+             .options(joinedload(AreaLimpieza.producto), joinedload(AreaLimpieza.sanitizante))
+             .order_by(AreaLimpieza.nombre).all())
     productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
     responsables = Vendedor.query.filter_by(activo=True).order_by(Vendedor.nombre_completo).all()
     return render_template('registros/areas_limpieza.html', areas=areas, productos=productos, responsables=responsables)
@@ -9892,11 +9901,12 @@ def areas_limpieza_list():
 @login_required
 @requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_nueva():
-    nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
+    nombre, tipo, producto_id, sanitizante_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
     if error:
         flash(error, 'danger')
         return redirect(url_for('areas_limpieza_list'))
     db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo, producto_id=producto_id,
+                                sanitizante_id=sanitizante_id,
                                 metodo=metodo, frecuencia_texto=frecuencia, activa=True,
                                 responsable_id=request.form.get('responsable_id', type=int)))
     db.session.commit()
@@ -9910,11 +9920,12 @@ def area_limpieza_nueva():
 @requiere_permiso_recurso('registros', 'editar')
 def area_limpieza_editar(area_id):
     area = AreaLimpieza.query.get_or_404(area_id)
-    nombre, tipo, producto_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
+    nombre, tipo, producto_id, sanitizante_id, metodo, frecuencia, error = _parse_area_limpieza(request.form)
     if error:
         flash(error, 'danger')
         return redirect(url_for('areas_limpieza_list'))
     area.nombre, area.tipo, area.producto_id = nombre, tipo, producto_id
+    area.sanitizante_id = sanitizante_id
     area.metodo, area.frecuencia_texto = metodo, frecuencia
     area.responsable_id = request.form.get('responsable_id', type=int)
     db.session.commit()
@@ -9951,7 +9962,7 @@ def _areas_con_registro_hoy():
 @login_required
 @requiere_permiso_recurso('registros', 'crear')
 def limpieza_index():
-    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
+    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto), joinedload(AreaLimpieza.sanitizante))
              .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
     hoy = date.today()
 
@@ -10117,7 +10128,7 @@ def mi_turno():
     con_lectura = _camaras_con_lectura_hoy()
     con_registro = _areas_con_registro_hoy()
     camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
-    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto))
+    areas = (AreaLimpieza.query.options(joinedload(AreaLimpieza.producto), joinedload(AreaLimpieza.sanitizante))
              .filter_by(activa=True).order_by(AreaLimpieza.nombre).all())
 
     pend_temp = [c for c in camaras if c.id not in con_lectura]
