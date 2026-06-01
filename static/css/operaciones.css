@@ -830,22 +830,13 @@
 body[data-ops-shell="1"] {
   background: #f6f7fb !important;
 }
-body[data-ops-shell="1"] .app-topbar,
-body[data-ops-shell="1"] .drawer-overlay,
-body[data-ops-shell="1"] .drawer,
-body[data-ops-shell="1"] .app-footer,
-body[data-ops-shell="1"] .mobile-nav,
-body[data-ops-shell="1"] .tabbar {
-  display: none !important;
-}
+/* NOTA: la barra de navegación de la app (topbar + tabbar + drawer + footer)
+   se mantiene VISIBLE aquí. Antes este bloque la ocultaba y el usuario quedaba
+   sin menú ni forma de regresar. */
 body[data-ops-shell="1"] .app-container {
-  min-height: 100vh;
   background: #f6f7fb !important;
 }
 body[data-ops-shell="1"] .app-content {
-  min-height: 100vh;
-  padding: 0 !important;
-  margin: 0 !important;
   background: #f6f7fb !important;
   color: var(--color-text, #0f172a) !important;
 }
