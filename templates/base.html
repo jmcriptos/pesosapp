@@ -284,8 +284,8 @@
             <div class="drawer-divider"></div>
 
             <div class="drawer-section">
-                <a href="{{ url_for('registros_index') }}" class="drawer-item">
-                    <i class="fas fa-clipboard-list"></i><span>Registros</span>
+                <a href="{{ url_for('registros_index') }}" class="drawer-item {{ 'active' if request.path.startswith('/registros') }}">
+                    <i class="fas fa-shield-halved"></i><span>HACCP</span>
                 </a>
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
@@ -430,7 +430,7 @@
                                     <i class="fas fa-chart-pie"></i><span>Ir al dashboard</span>
                                 </a>
                                 <a href="{{ url_for('registros_index') }}" class="dropdown-item">
-                                    <i class="fas fa-clipboard-list"></i><span>Registros</span>
+                                    <i class="fas fa-shield-halved"></i><span>HACCP</span>
                                 </a>
                                 <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
                                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
