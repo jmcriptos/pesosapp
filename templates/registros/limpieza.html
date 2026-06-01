@@ -143,6 +143,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="area_id" id="firmaAreaId">
       <input type="hidden" name="conforme" id="firmaConforme" value="si">
+      <input type="hidden" name="firma_png" id="firmaPngInput">
 
       <!-- Resultado -->
       <div class="ops-segmented" style="margin:0 0 12px">
@@ -333,7 +334,17 @@
   sheet.addEventListener('click', function (e) { if (e.target === sheet) closeFirma(); });
 
   form.addEventListener('submit', function (e) {
-    if (!hasSign || !correctiveValid()) { e.preventDefault(); }
+    if (!hasSign || !correctiveValid()) { e.preventDefault(); return; }
+    // Adjuntar la firma como PNG comprimido (reescala a 360px de ancho).
+    try {
+      var out = document.createElement('canvas');
+      var ratio = canvas.height / canvas.width;
+      out.width = 360; out.height = Math.round(360 * ratio);
+      var octx = out.getContext('2d');
+      octx.fillStyle = '#ffffff'; octx.fillRect(0, 0, out.width, out.height);
+      octx.drawImage(canvas, 0, 0, out.width, out.height);
+      document.getElementById('firmaPngInput').value = out.toDataURL('image/png');
+    } catch (err) { /* si falla, se registra sin imagen */ }
   });
 })();
 </script>

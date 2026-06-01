@@ -37,6 +37,9 @@
             <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="refrigeracion">Refrigeración</option><option value="congelacion">Congelación</option></select></div>
             <div class="ops-field"><label>Mín. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_min" placeholder="0" required></div>
             <div class="ops-field"><label>Máx. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_max" placeholder="6" required></div>
+            <div class="ops-field"><label>Responsable</label><select name="responsable_id"><option value="">— Sin asignar —</option>{% for v in responsables %}<option value="{{ v.id }}">{{ v.nombre_completo or v.username }}</option>{% endfor %}</select></div>
+            <div class="ops-field"><label>Ronda AM</label><input type="time" name="ronda_am" value="06:00"></div>
+            <div class="ops-field"><label>Ronda PM</label><input type="time" name="ronda_pm" value="18:00"></div>
           </div>
           <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Crear cámara</button></div>
         </form>
@@ -57,9 +60,9 @@
           </div>
           <div class="cam-fields">
             <div class="cam-field"><div class="cam-field-label">Rango</div><div class="cam-field-value">{{ c.temp_min }}° a {{ c.temp_max }}°</div></div>
-            <div class="cam-field"><div class="cam-field-label">Responsable</div><div class="cam-field-value">—</div></div>
-            <div class="cam-field"><div class="cam-field-label">Ronda AM</div><div class="cam-field-value">—</div></div>
-            <div class="cam-field"><div class="cam-field-label">Ronda PM</div><div class="cam-field-value">—</div></div>
+            <div class="cam-field"><div class="cam-field-label">Responsable</div><div class="cam-field-value">{{ c.responsable.nombre_completo.split(' ')[0] if c.responsable and c.responsable.nombre_completo else (c.responsable.username if c.responsable else '—') }}</div></div>
+            <div class="cam-field"><div class="cam-field-label">Ronda AM</div><div class="cam-field-value">{{ c.ronda_am or '—' }}</div></div>
+            <div class="cam-field"><div class="cam-field-label">Ronda PM</div><div class="cam-field-value">{{ c.ronda_pm or '—' }}</div></div>
           </div>
 
           <div id="camedit-{{ c.id }}" hidden style="margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border-subtle)">
@@ -70,6 +73,9 @@
                 <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="refrigeracion" {{ 'selected' if not cong }}>Refrigeración</option><option value="congelacion" {{ 'selected' if cong }}>Congelación</option></select></div>
                 <div class="ops-field"><label>Mín. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_min" value="{{ c.temp_min }}" required></div>
                 <div class="ops-field"><label>Máx. (°C)</label><input type="text" inputmode="decimal" data-signed-decimal name="temp_max" value="{{ c.temp_max }}" required></div>
+                <div class="ops-field"><label>Responsable</label><select name="responsable_id"><option value="">— Sin asignar —</option>{% for v in responsables %}<option value="{{ v.id }}" {{ 'selected' if c.responsable_id == v.id }}>{{ v.nombre_completo or v.username }}</option>{% endfor %}</select></div>
+                <div class="ops-field"><label>Ronda AM</label><input type="time" name="ronda_am" value="{{ c.ronda_am or '' }}"></div>
+                <div class="ops-field"><label>Ronda PM</label><input type="time" name="ronda_pm" value="{{ c.ronda_pm or '' }}"></div>
               </div>
               <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Guardar</button></div>
             </form>

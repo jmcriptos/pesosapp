@@ -35,6 +35,7 @@ from decimal import Decimal, InvalidOperation
 from time import perf_counter
 # from models.extensions import db  # Comentado para evitar conflictos
 import requests
+import threading
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -162,6 +163,82 @@ _qb_sales_cache = {
 # SQLAlchemy ya inicializado arriba
 
 migrate = Migrate(app, db)
+
+
+def _ensure_haccp_columns():
+    """Crea tablas/columnas nuevas de HACCP de forma idempotente, en SQLite
+    (local) y Postgres (Heroku), sin depender de `flask db upgrade`.
+    Seguro de ejecutar en cada arranque: solo añade lo que falta."""
+    try:
+        from sqlalchemy import inspect as _sa_inspect, text as _sa_text
+        insp = _sa_inspect(db.engine)
+        existing_tables = set(insp.get_table_names())
+
+        # Tabla nueva: evento_auditoria
+        if 'evento_auditoria' not in existing_tables:
+            EventoAuditoria.__table__.create(bind=db.engine, checkfirst=True)
+
+        # Columnas nuevas por tabla -> (nombre, DDL del tipo)
+        wanted = {
+            'camara': [('responsable_id', 'INTEGER'), ('ronda_am', 'VARCHAR(5)'), ('ronda_pm', 'VARCHAR(5)')],
+            'area_limpieza': [('responsable_id', 'INTEGER')],
+            'registro_limpieza': [('firma_png', 'TEXT')],
+        }
+        for tabla, cols in wanted.items():
+            if tabla not in existing_tables:
+                continue
+            have = {c['name'] for c in insp.get_columns(tabla)}
+            for col, ddl in cols:
+                if col not in have:
+                    with db.engine.begin() as conn:
+                        conn.execute(_sa_text(f'ALTER TABLE {tabla} ADD COLUMN {col} {ddl}'))
+                    app.logger.info(f'[HACCP] columna añadida: {tabla}.{col}')
+    except Exception as e:
+        app.logger.warning(f'[HACCP] no se pudieron asegurar columnas: {e}')
+
+
+N8N_HACCP_ALERT_WEBHOOK_URL = os.environ.get('N8N_HACCP_ALERT_WEBHOOK_URL', '').strip()
+
+
+def _haccp_alerta(tipo, titulo, detalle, accion=None):
+    """Notifica una incidencia HACCP (fuera de rango / no conforme).
+    Registra auditoría siempre y, si hay webhook N8N configurado, lo dispara
+    en background sin bloquear la respuesta."""
+    _audit(tipo, f'ALERTA: {titulo}', detalle)
+    if not N8N_HACCP_ALERT_WEBHOOK_URL:
+        return
+    payload = {
+        'tipo': tipo, 'titulo': titulo, 'detalle': detalle, 'accion': accion,
+        'usuario': (current_user.nombre_completo or current_user.username) if isinstance(current_user, Vendedor) else None,
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+    }
+
+    def _post():
+        try:
+            requests.post(N8N_HACCP_ALERT_WEBHOOK_URL, json=payload, timeout=8)
+        except Exception as e:
+            app.logger.warning(f'[haccp-alert] webhook falló: {e}')
+    try:
+        threading.Thread(target=_post, daemon=True).start()
+    except Exception as e:
+        app.logger.warning(f'[haccp-alert] no se pudo lanzar hilo: {e}')
+
+
+def _audit(tipo, accion, detalle=None):
+    """Registra un evento de auditoría. No interrumpe el flujo si falla."""
+    try:
+        actor = None
+        vid = None
+        if isinstance(current_user, Vendedor):
+            actor = current_user.nombre_completo or current_user.username
+            vid = current_user.id
+        db.session.add(EventoAuditoria(vendedor_id=vid, actor=actor, tipo=tipo,
+                                       accion=accion, detalle=(detalle or None)))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f'[audit] no se pudo registrar evento: {e}')
+
 
 # CSRF (Flask-WTF)
 if CSRFProtect:
@@ -535,6 +612,10 @@ def login():
             vendedor.ultimo_login = datetime.utcnow()
             db.session.commit()
             login_user(vendedor, remember=remember_me)
+            try:
+                _audit('auth', 'Inició sesión')
+            except Exception:
+                pass
             flash(f"¡Bienvenido, {vendedor.nombre_completo}!", "success")
             if not _is_safe_next(next_url):
                 next_url = url_for('index')
@@ -2138,7 +2219,12 @@ class Camara(db.Model):
     temp_min = db.Column(db.Numeric(5, 2), nullable=False)
     temp_max = db.Column(db.Numeric(5, 2), nullable=False)
     activa = db.Column(db.Boolean, nullable=False, default=True)
+    responsable_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    ronda_am = db.Column(db.String(5), nullable=True)   # 'HH:MM'
+    ronda_pm = db.Column(db.String(5), nullable=True)   # 'HH:MM'
     creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    responsable = db.relationship('Vendedor')
 
     def fuera_de_rango(self, temperatura):
         """True si la temperatura está fuera del rango aceptable [min, max]."""
@@ -2225,10 +2311,12 @@ class AreaLimpieza(db.Model):
     producto_id = db.Column(db.Integer, db.ForeignKey('producto_limpieza.id'), nullable=True)
     metodo = db.Column(db.Text, nullable=True)
     frecuencia_texto = db.Column(db.String(120), nullable=True)
+    responsable_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
     activa = db.Column(db.Boolean, nullable=False, default=True)
     creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     producto = db.relationship('ProductoLimpieza')
+    responsable = db.relationship('Vendedor')
 
     def __repr__(self):
         return f'<AreaLimpieza {self.id} {self.nombre}>'
@@ -2250,12 +2338,30 @@ class RegistroLimpieza(db.Model):
     accion_tomada = db.Column(db.Text, nullable=True)
     accion_responsable = db.Column(db.String(120), nullable=True)
     accion_disposicion = db.Column(db.Text, nullable=True)
+    firma_png = db.Column(db.Text, nullable=True)  # data URL PNG de la firma del responsable
 
     area = db.relationship('AreaLimpieza')
     registrado_por_vendedor = db.relationship('Vendedor')
 
     def __repr__(self):
         return f'<RegistroLimpieza {self.id} area={self.area_id} conforme={self.conforme}>'
+
+
+class EventoAuditoria(db.Model):
+    """Log de auditoría real: quién hizo qué y cuándo (HACCP + seguridad)."""
+    __tablename__ = 'evento_auditoria'
+    id = db.Column(db.Integer, primary_key=True)
+    vendedor_id = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    actor = db.Column(db.String(120), nullable=True)   # nombre cacheado
+    tipo = db.Column(db.String(20), nullable=False)     # temp|clean|user|auth|config
+    accion = db.Column(db.String(160), nullable=False)
+    detalle = db.Column(db.String(255), nullable=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<EventoAuditoria {self.id} {self.tipo}:{self.accion}>'
 
 
 class LimpiezaConfig(db.Model):
@@ -3236,8 +3342,21 @@ def gestionar_vendedores():
         return 'Ayer' if dias == 1 else f'Hace {dias} días'
 
     ultimo_rel = {v.id: _hace(v.ultimo_login) for v in vendedores}
-    actividad = sorted([v for v in vendedores if v.ultimo_login],
-                       key=lambda v: v.ultimo_login, reverse=True)[:8]
+
+    # Auditoría real: últimos eventos registrados (con fallback a últimos accesos).
+    eventos = EventoAuditoria.query.order_by(EventoAuditoria.creado_en.desc()).limit(15).all()
+    actividad = [{
+        'actor': e.actor or (e.vendedor.nombre_completo if e.vendedor else 'Sistema'),
+        'accion': e.accion, 'detalle': e.detalle, 'tipo': e.tipo,
+        'hora': _hace(e.creado_en),
+    } for e in eventos]
+    if not actividad:
+        actividad = [{
+            'actor': v.nombre_completo or v.username, 'accion': 'Último acceso',
+            'detalle': (v.rol.nombre.replace('_', ' ').title() if v.rol else None),
+            'tipo': 'auth', 'hora': _hace(v.ultimo_login),
+        } for v in sorted([x for x in vendedores if x.ultimo_login],
+                          key=lambda x: x.ultimo_login, reverse=True)[:8]]
 
     return render_template('admin/vendedores.html',
                            vendedores=vendedores,
@@ -4147,6 +4266,7 @@ def toggle_vendedor(v_id):
     try:
         v.activo = not v.activo
         db.session.commit()
+        _audit('user', f"{'Activó' if v.activo else 'Desactivó'} usuario", v.nombre_completo or v.username)
         flash(f"Usuario {'activado' if v.activo else 'desactivado'}.", 'success')
     except Exception as e:
         db.session.rollback()
@@ -4191,6 +4311,7 @@ def editar_vendedor(v_id):
         v.rol_id = rol.id
         v.territorio_id = territorio_id
         db.session.commit()
+        _audit('user', 'Editó usuario', f'{nombre} → {rol.nombre}')
         flash('Usuario actualizado.', 'success')
     except Exception as e:
         db.session.rollback()
@@ -4214,6 +4335,7 @@ def reset_password_vendedor(v_id):
         v.set_password(temp)
         v.debe_cambiar_password = True
         db.session.commit()
+        _audit('user', 'Reseteó contraseña', v.nombre_completo or v.username)
         flash(f'Contraseña temporal de {v.nombre_completo}: {temp} — comunicásela; '
               f'deberá cambiarla al ingresar.', 'success')
     except Exception as e:
@@ -9067,12 +9189,25 @@ def _parse_rango_camara(form):
     return nombre, tipo, temp_min, temp_max, None
 
 
+def _hora_valida(s):
+    """Normaliza 'HH:MM' o devuelve None."""
+    s = (s or '').strip()
+    if not s:
+        return None
+    try:
+        datetime.strptime(s, '%H:%M')
+        return s
+    except ValueError:
+        return None
+
+
 @app.route('/registros/temperaturas/camaras')
 @login_required
 @requiere_permiso_recurso('registros', 'editar')
 def camaras_list():
     camaras = Camara.query.order_by(Camara.nombre).all()
-    return render_template('registros/camaras.html', camaras=camaras)
+    responsables = Vendedor.query.filter_by(activo=True).order_by(Vendedor.nombre_completo).all()
+    return render_template('registros/camaras.html', camaras=camaras, responsables=responsables)
 
 
 @app.route('/registros/temperaturas/camaras/nueva', methods=['POST'])
@@ -9084,8 +9219,12 @@ def camara_nueva():
         flash(error, 'danger')
         return redirect(url_for('camaras_list'))
     db.session.add(Camara(nombre=nombre, tipo=tipo, temp_min=temp_min,
-                          temp_max=temp_max, activa=True))
+                          temp_max=temp_max, activa=True,
+                          responsable_id=request.form.get('responsable_id', type=int),
+                          ronda_am=_hora_valida(request.form.get('ronda_am')),
+                          ronda_pm=_hora_valida(request.form.get('ronda_pm'))))
     db.session.commit()
+    _audit('config', 'Creó cámara', nombre)
     flash('Cámara creada.', 'success')
     return redirect(url_for('camaras_list'))
 
@@ -9100,7 +9239,11 @@ def camara_editar(camara_id):
         flash(error, 'danger')
         return redirect(url_for('camaras_list'))
     camara.nombre, camara.tipo, camara.temp_min, camara.temp_max = nombre, tipo, temp_min, temp_max
+    camara.responsable_id = request.form.get('responsable_id', type=int)
+    camara.ronda_am = _hora_valida(request.form.get('ronda_am'))
+    camara.ronda_pm = _hora_valida(request.form.get('ronda_pm'))
     db.session.commit()
+    _audit('config', 'Editó cámara', nombre)
     flash('Cámara actualizada.', 'success')
     return redirect(url_for('camaras_list'))
 
@@ -9228,6 +9371,11 @@ def temperatura_registrar():
         accion_disposicion=(disposicion or None) if fuera else None,
     ))
     db.session.commit()
+    if fuera:
+        _haccp_alerta('temp', f'{camara.nombre} fuera de rango',
+                      f'{temperatura}°C (rango {camara.temp_min}° a {camara.temp_max}°)', tomada)
+    else:
+        _audit('temp', 'Registró temperatura', f'{camara.nombre} · {temperatura}°C')
     flash('Lectura registrada.' + (' (Fuera de rango — registrada con acción correctiva.)' if fuera else ''),
           'success' if not fuera else 'warning')
     return redirect(url_for('temperaturas_index'))
@@ -9736,7 +9884,8 @@ def _parse_area_limpieza(form):
 def areas_limpieza_list():
     areas = AreaLimpieza.query.options(joinedload(AreaLimpieza.producto)).order_by(AreaLimpieza.nombre).all()
     productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
-    return render_template('registros/areas_limpieza.html', areas=areas, productos=productos)
+    responsables = Vendedor.query.filter_by(activo=True).order_by(Vendedor.nombre_completo).all()
+    return render_template('registros/areas_limpieza.html', areas=areas, productos=productos, responsables=responsables)
 
 
 @app.route('/registros/limpieza/areas/nueva', methods=['POST'])
@@ -9748,8 +9897,10 @@ def area_limpieza_nueva():
         flash(error, 'danger')
         return redirect(url_for('areas_limpieza_list'))
     db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo, producto_id=producto_id,
-                                metodo=metodo, frecuencia_texto=frecuencia, activa=True))
+                                metodo=metodo, frecuencia_texto=frecuencia, activa=True,
+                                responsable_id=request.form.get('responsable_id', type=int)))
     db.session.commit()
+    _audit('config', 'Creó tarea de limpieza', nombre)
     flash('Área creada.', 'success')
     return redirect(url_for('areas_limpieza_list'))
 
@@ -9765,7 +9916,9 @@ def area_limpieza_editar(area_id):
         return redirect(url_for('areas_limpieza_list'))
     area.nombre, area.tipo, area.producto_id = nombre, tipo, producto_id
     area.metodo, area.frecuencia_texto = metodo, frecuencia
+    area.responsable_id = request.form.get('responsable_id', type=int)
     db.session.commit()
+    _audit('config', 'Editó tarea de limpieza', nombre)
     flash('Área actualizada.', 'success')
     return redirect(url_for('areas_limpieza_list'))
 
@@ -9870,17 +10023,27 @@ def limpieza_registrar():
               f'y la disposición.', 'danger')
         return redirect(url_for('limpieza_index'))
 
+    firma = (request.form.get('firma_png') or '').strip() or None
+    if firma and (not firma.startswith('data:image/') or len(firma) > 600000):
+        firma = None  # descartar payloads inválidos o excesivos
+
     db.session.add(RegistroLimpieza(
         area_id=area.id,
         registrado_por=current_user.id if isinstance(current_user, Vendedor) else None,
         conforme=conforme,
         observacion=observacion,
+        firma_png=firma,
         accion_causa=(causa or None) if not conforme else None,
         accion_tomada=(tomada or None) if not conforme else None,
         accion_responsable=(responsable or None) if not conforme else None,
         accion_disposicion=(disposicion or None) if not conforme else None,
     ))
     db.session.commit()
+    if not conforme:
+        _haccp_alerta('clean', f'{area.nombre}: limpieza no conforme',
+                      observacion or 'Registro marcado no conforme', tomada)
+    else:
+        _audit('clean', 'Firmó tarea de limpieza', area.nombre)
     flash('Limpieza registrada.' + (' (No conforme — registrada con acción correctiva.)' if not conforme else ''),
           'success' if conforme else 'warning')
     return redirect(url_for('limpieza_index'))
@@ -10175,6 +10338,12 @@ def limpieza_config():
         flash('Configuración guardada.', 'success')
         return redirect(url_for('limpieza_config'))
     return render_template('registros/limpieza_config.html', cfg=cfg)
+
+
+# Asegura columnas/tablas nuevas de HACCP en cada arranque (idempotente).
+# Se ejecuta aquí, después de definir todos los modelos.
+with app.app_context():
+    _ensure_haccp_columns()
 
 
 @app.route('/registros')

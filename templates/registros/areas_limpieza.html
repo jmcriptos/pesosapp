@@ -37,6 +37,7 @@
             <div class="ops-field"><label>Tipo</label><select name="tipo" required><option value="equipo">Equipo</option><option value="espacio">Espacio</option></select></div>
             <div class="ops-field"><label>Frecuencia</label><input type="text" name="frecuencia_texto" placeholder="Diaria, Cada turno, Semanal"></div>
             <div class="ops-field"><label>Producto de limpieza</label><select name="producto_id"><option value="">— Sin asignar —</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}</select></div>
+            <div class="ops-field"><label>Responsable</label><select name="responsable_id"><option value="">— Sin asignar —</option>{% for v in responsables %}<option value="{{ v.id }}">{{ v.nombre_completo or v.username }}</option>{% endfor %}</select></div>
           </div>
           <div class="ops-field" style="margin-top:10px"><label>Instrucciones (opcional)</label><textarea name="metodo" rows="2"></textarea></div>
           <div class="ops-form-actions"><button type="submit" class="ops-btn"><i class="fas fa-check"></i> Crear tarea</button></div>
@@ -58,7 +59,7 @@
           </div>
           <div class="ops-cell-muted">{{ a.producto.nombre if a.producto else ('Equipo' if a.tipo == 'equipo' else 'Espacio') }}</div>
           <div>{% if a.frecuencia_texto %}<span class="frec-chip {{ fc }}">{{ a.frecuencia_texto }}</span>{% else %}<span class="ops-cell-subtle">—</span>{% endif %}</div>
-          <div class="ops-cell-muted">—</div>
+          <div class="ops-cell-muted">{{ a.responsable.nombre_completo or a.responsable.username if a.responsable else '—' }}</div>
           <div class="ops-cell-right">
             <form method="POST" action="{{ url_for('area_limpieza_toggle', area_id=a.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -228,24 +228,26 @@
 
       <!-- ===== AUDITORÍA ===== -->
       <section class="ops-tabpanel" data-panel="auditoria" hidden>
+        {% set audit_color = {'temp':'#0ea5e9','clean':'#10b981','user':'#8b5cf6','auth':'#64748b','config':'#6366f1'} %}
+        {% set audit_icon = {'temp':'fa-temperature-half','clean':'fa-spray-can-sparkles','user':'fa-user-pen','auth':'fa-right-to-bracket','config':'fa-gear'} %}
         {% if actividad %}
         <div class="ops-audit">
-          {% for v in actividad %}
-          {% set rc = rol_colors.get(v.rol.nombre, '#64748b') if v.rol else '#8b5cf6' %}
+          {% for e in actividad %}
+          {% set rc = audit_color.get(e.tipo, '#8b5cf6') %}
           <div class="ops-audit-row">
-            <span class="ops-audit-icon" style="--ak:{{ rc }}"><i class="fas fa-right-to-bracket"></i></span>
+            <span class="ops-audit-icon" style="--ak:{{ rc }}"><i class="fas {{ audit_icon.get(e.tipo, 'fa-circle-info') }}"></i></span>
             <div class="ops-audit-main">
-              <div class="ops-audit-title"><b>{{ v.nombre_completo or v.username }}</b> · Último acceso</div>
-              <div class="ops-audit-detail">{{ v.rol.nombre|replace('_',' ')|title if v.rol }}{% if v.territorio %} · {{ v.territorio.nombre }}{% endif %}</div>
+              <div class="ops-audit-title"><b>{{ e.actor }}</b> · {{ e.accion }}</div>
+              {% if e.detalle %}<div class="ops-audit-detail">{{ e.detalle }}</div>{% endif %}
             </div>
-            <div class="ops-audit-time">{{ ultimo_rel.get(v.id) }}</div>
+            <div class="ops-audit-time">{{ e.hora }}</div>
           </div>
           {% endfor %}
         </div>
         {% else %}
         <div class="ops-empty">
           <div class="ops-empty-icon"><i class="fas fa-clock-rotate-left"></i></div>
-          <p>Sin actividad de acceso registrada todavía.</p>
+          <p>Sin actividad registrada todavía.</p>
         </div>
         {% endif %}
       </section>

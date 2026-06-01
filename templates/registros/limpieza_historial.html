@@ -70,7 +70,7 @@
           <div class="ops-cell-muted ops-cell-mono">{{ r.registrado_en.strftime('%d/%m · %H:%M') }}</div>
           <div class="ops-cell-strong">{{ r.area.nombre }}</div>
           <div class="ops-cell-muted">{{ r.area.producto.nombre if r.area and r.area.producto else ('Equipo' if r.area and r.area.tipo == 'equipo' else 'Espacio') }}</div>
-          <div class="ops-cell-muted">{{ resp }}</div>
+          <div class="ops-cell-muted">{{ resp }}{% if r.firma_png %} <img src="{{ r.firma_png }}" alt="firma" style="height:20px;vertical-align:middle;margin-left:6px;border-radius:3px;background:#fff;border:1px solid var(--color-border-subtle)">{% endif %}</div>
           <div class="ops-cell-right">{% if r.conforme %}<span class="estado-chip ok"><i class="fas fa-pen-nib"></i> Firmada</span>{% else %}<span class="estado-chip bad"><i class="fas fa-triangle-exclamation"></i> No conforme</span>{% endif %}</div>
         </div>
         {% else %}
