@@ -232,6 +232,7 @@
     {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion %}
     {% set user_name = current_user.username if current_user and current_user.is_authenticated and current_user.username else 'Usuario' %}
     {% set user_initials = user_name[:2].upper() %}
+    {% set is_super_admin = current_user and current_user.is_authenticated and current_user.__class__.__name__ == 'Vendedor' and current_user.rol and current_user.rol.nombre == 'super_admin' %}
     
     <div class="app-container{% if is_dashboard %} dashboard-shell{% endif %}">
         <!-- Drawer Overlay -->
@@ -287,6 +288,11 @@
                 <a href="{{ url_for('registros_index') }}" class="drawer-item {{ 'active' if request.path.startswith('/registros') }}">
                     <i class="fas fa-shield-halved"></i><span>HACCP</span>
                 </a>
+                {% if is_super_admin %}
+                <a href="{{ url_for('gestionar_vendedores') }}" class="drawer-item {{ 'active' if request.path.startswith('/admin/vendedores') or request.path.startswith('/admin/roles') }}">
+                    <i class="fas fa-users-gear"></i><span>Usuarios</span>
+                </a>
+                {% endif %}
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                 </a>
@@ -404,6 +410,15 @@
                                     <span class="desktop-ops-item-meta">Temperaturas, limpieza y cumplimiento</span>
                                 </span>
                             </a>
+                            {% if is_super_admin %}
+                            <a href="{{ url_for('gestionar_vendedores') }}" class="desktop-ops-item {{ 'active' if request.path.startswith('/admin/vendedores') or request.path.startswith('/admin/roles') }}">
+                                <i class="fas fa-users-gear"></i>
+                                <span class="desktop-ops-item-copy">
+                                    <span class="desktop-ops-item-title">Usuarios</span>
+                                    <span class="desktop-ops-item-meta">Usuarios, roles y permisos</span>
+                                </span>
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -432,6 +447,11 @@
                                 <a href="{{ url_for('registros_index') }}" class="dropdown-item">
                                     <i class="fas fa-shield-halved"></i><span>HACCP</span>
                                 </a>
+                                {% if is_super_admin %}
+                                <a href="{{ url_for('gestionar_vendedores') }}" class="dropdown-item">
+                                    <i class="fas fa-users-gear"></i><span>Usuarios</span>
+                                </a>
+                                {% endif %}
                                 <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
                                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                                 </a>
