@@ -25,13 +25,14 @@
 
   <!-- Sidebar -->
   <aside class="ops-admin-aside">
-    <div class="ops-admin-brand">
+    <a href="{{ url_for('dashboard') }}" class="ops-admin-brand" style="text-decoration:none">
       <span class="ops-admin-brand-mark">P</span>
       <div>
         <div class="ops-admin-brand-name">Pesosapp</div>
         <div class="ops-admin-brand-sub">Administración</div>
       </div>
-    </div>
+    </a>
+    <a href="{{ url_for('dashboard') }}" class="ops-admin-back"><i class="fas fa-arrow-left"></i> Volver a la app</a>
     <div class="ops-admin-navlabel">Gestión</div>
     <nav class="ops-admin-nav">
       <a href="#" class="is-active" data-tab="usuarios"><i class="fas fa-users"></i> Usuarios</a>

@@ -7,6 +7,8 @@
     </div>
   </div>
 
+  <a href="{{ url_for('registros_index') }}" class="ops-admin-back"><i class="fas fa-arrow-left"></i> Volver a HACCP</a>
+
   <div class="ops-admin-navlabel">Configuración</div>
   <nav class="ops-admin-nav">
     <a href="{{ url_for('camaras_list') }}" class="{{ 'is-active' if haccp_active == 'camaras' }}"><i class="fas fa-temperature-half"></i> Cámaras y puntos</a>

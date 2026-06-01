@@ -488,6 +488,13 @@
 }
 .ops-admin-brand-name { font-size: 14px; font-weight: 800; letter-spacing: -0.02em; }
 .ops-admin-brand-sub { font-size: 11px; color: var(--color-text-subtle); }
+.ops-admin-back {
+  display: flex; align-items: center; gap: 9px; margin: 0 0 16px; padding: 9px 11px; border-radius: 10px;
+  font-size: 13px; font-weight: 700; text-decoration: none; color: var(--color-text-muted);
+  background: var(--color-surface-muted); border: 1px solid var(--color-border-subtle);
+}
+.ops-admin-back:hover { color: var(--color-text); background: var(--color-bg-elevated); }
+.ops-admin-back i { font-size: 12px; }
 .ops-admin-navlabel {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
   color: var(--color-text-subtle); padding: 0 10px 8px;
