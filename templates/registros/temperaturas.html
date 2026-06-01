@@ -140,7 +140,14 @@
         <input type="datetime-local" id="tempWhen" name="registrado_en" value="{{ ahora_local }}" max="{{ ahora_local }}">
       </div>
 
-      <!-- Acción correctiva (solo si fuera de rango) -->
+      <div class="ops-keypad">
+        {% for k in ['1','2','3','4','5','6','7','8','9','-','0','.'] %}
+        <button type="button" class="ops-key" data-key="{{ k }}">{{ k }}</button>
+        {% endfor %}
+      </div>
+
+      <!-- Acción correctiva (solo si fuera de rango). Va DEBAJO del teclado para
+           que al aparecer no empuje las teclas y se pierdan los toques. -->
       <div class="ops-corrective" id="tempCorrective" hidden>
         <p class="ops-corrective-title"><i class="fas fa-triangle-exclamation"></i> Lectura fuera de rango</p>
         <div class="ops-quick" data-quick-for="accion_tomada">
@@ -153,12 +160,6 @@
         <div class="ops-field"><label>Acción tomada *</label><input type="text" name="accion_tomada"></div>
         <div class="ops-field"><label>Responsable</label><input type="text" name="accion_responsable"></div>
         <div class="ops-field"><label>Disposición del producto *</label><input type="text" name="accion_disposicion"></div>
-      </div>
-
-      <div class="ops-keypad">
-        {% for k in ['1','2','3','4','5','6','7','8','9','-','0','.'] %}
-        <button type="button" class="ops-key" data-key="{{ k }}">{{ k }}</button>
-        {% endfor %}
       </div>
       <div class="ops-keypad-row">
         <button type="button" class="ops-key ops-key-back" data-key="back" aria-label="Borrar"><i class="fas fa-delete-left"></i></button>
