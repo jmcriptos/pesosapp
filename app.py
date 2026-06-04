@@ -9319,36 +9319,53 @@ def _camaras_con_lectura_hoy():
 @requiere_permiso_recurso('registros', 'crear')
 def temperaturas_index():
     camaras = Camara.query.filter_by(activa=True).order_by(Camara.nombre).all()
-    hoy = date.today()
 
-    # Lecturas de hoy agrupadas por cámara y ronda (AM < 12:00, PM >= 12:00).
+    # registrado_en se guarda en UTC naive; lo pasamos a hora local de negocio
+    # para calcular fecha, ronda (AM/PM) y hora mostrada. Sin esta conversión,
+    # una lectura tomada de mañana (p.ej. 8:00 local = 12:00 UTC) caería en el
+    # bucket PM y no aparecería en la pestaña AM por defecto.
+    def _a_local(dt):
+        return dt.replace(tzinfo=timezone.utc).astimezone(DASHBOARD_TIMEZONE)
+
+    ahora_local_dt = datetime.now(DASHBOARD_TIMEZONE)
+    hoy = ahora_local_dt.date()
+
+    # Ventana UTC que corresponde al día local de hoy (igual que _camaras_con_lectura_hoy).
+    inicio_local = ahora_local_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_utc = inicio_local.astimezone(timezone.utc).replace(tzinfo=None)
+    fin_utc = (inicio_local + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+
+    # Lecturas de hoy agrupadas por cámara y ronda (AM < 12:00, PM >= 12:00, hora local).
     lecturas_hoy = (LecturaTemperatura.query
                     .options(joinedload(LecturaTemperatura.registrado_por_vendedor))
-                    .filter(func.date(LecturaTemperatura.registrado_en) == hoy)
+                    .filter(LecturaTemperatura.registrado_en >= inicio_utc,
+                            LecturaTemperatura.registrado_en < fin_utc)
                     .order_by(LecturaTemperatura.registrado_en.asc())
                     .all())
     lecturas_info = {cam.id: {'am': None, 'pm': None} for cam in camaras}
     for lec in lecturas_hoy:
         if lec.camara_id not in lecturas_info:
             continue
-        ronda = 'am' if lec.registrado_en.hour < 12 else 'pm'
+        local = _a_local(lec.registrado_en)
+        ronda = 'am' if local.hour < 12 else 'pm'
         lecturas_info[lec.camara_id][ronda] = {
             'valor': float(lec.temperatura),
-            'hora': lec.registrado_en.strftime('%H:%M'),
+            'hora': local.strftime('%H:%M'),
             'fuera': bool(lec.fuera_de_rango),
             'por': (lec.registrado_por_vendedor.nombre_completo
                     if lec.registrado_por_vendedor else None),
         }
     con_lectura_hoy = {cid for cid, r in lecturas_info.items() if r['am'] or r['pm']}
 
-    # Cumplimiento de los últimos 7 días (% de lecturas dentro de rango).
+    # Cumplimiento de los últimos 7 días (% de lecturas dentro de rango, por día local).
     desde = hoy - timedelta(days=6)
+    desde_utc = (inicio_local - timedelta(days=6)).astimezone(timezone.utc).replace(tzinfo=None)
     lecturas_semana = (LecturaTemperatura.query
-                       .filter(func.date(LecturaTemperatura.registrado_en) >= desde)
+                       .filter(LecturaTemperatura.registrado_en >= desde_utc)
                        .all())
     por_dia = {}
     for lec in lecturas_semana:
-        agg = por_dia.setdefault(lec.registrado_en.date(), [0, 0])
+        agg = por_dia.setdefault(_a_local(lec.registrado_en).date(), [0, 0])
         agg[1] += 1
         if not lec.fuera_de_rango:
             agg[0] += 1
