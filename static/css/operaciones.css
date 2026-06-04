@@ -839,6 +839,13 @@
 .ops-admin .ops-field ::placeholder, .ops-admin .ops-search ::placeholder { color: var(--color-text-subtle); opacity: 1; }
 .ops-admin .ops-search input { background: transparent !important; }
 
+/* Etiquetas: el tema oscuro define `label { color:#f1f5f9 !important }` de forma
+   global. En los paneles claros .ops-* (p.ej. la acción correctiva o el campo
+   de fecha/hora) eso deja el texto casi blanco sobre fondo claro → invisible.
+   Volvemos a forzar el color muted con la misma especificidad + !important. */
+.ops-screen .ops-field label, .ops-sheet .ops-field label, .ops-admin .ops-field label,
+.ops-screen .ops-when-label, .ops-sheet .ops-when-label { color: var(--color-text-muted) !important; }
+
 /* ============================================================
    Full-screen operations shell
    ============================================================ */
