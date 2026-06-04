@@ -467,6 +467,17 @@
   transition: border-color .2s;
 }
 .ops-firma-pad.has-sign { border-color: var(--color-success); border-style: solid; }
+/* Footer de acción de la firma: fijo abajo del sheet (igual que .ops-keypad-row)
+   para que el botón Guardar siempre sea visible y clicable por encima de la
+   tabbar fija, aunque el formulario (acción correctiva + SSOP + firma) sea largo. */
+.ops-firma-actions {
+  position: sticky; bottom: 0; z-index: 3;
+  background: var(--color-surface);
+  margin-top: 14px;
+  padding: 12px 0 calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border-subtle);
+}
+.ops-firma-actions .ops-btn { width: 100%; height: 50px; margin: 0; }
 .ops-firma-pad canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 .ops-firma-placeholder {
   position: absolute; inset: 0; display: flex; flex-direction: column;
