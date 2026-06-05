@@ -10063,7 +10063,7 @@ def area_limpieza_toggle(area_id):
 
 @app.route('/registros/limpieza/areas/<int:area_id>/eliminar', methods=['POST'])
 @login_required
-@requiere_permiso_recurso('registros', 'editar')
+@requiere_permiso_recurso('registros', 'eliminar')
 def area_limpieza_eliminar(area_id):
     area = AreaLimpieza.query.get_or_404(area_id)
     n = RegistroLimpieza.query.filter_by(area_id=area_id).count()
