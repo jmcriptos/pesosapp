@@ -447,6 +447,90 @@ def test_historial_muestra_ppm_y_verifico(app):
     assert '<div class="ops-cell-muted">Admin' in body   # verificador in row cell
 
 
+def test_area_eliminar_sin_registros(app):
+    from app import AreaLimpieza
+    c = _login(app, 'admin')
+    with app.app_context():
+        a = AreaLimpieza(nombre='Duplicado seed', tipo='equipo', activa=True)
+        _db.session.add(a)
+        _db.session.commit()
+        aid = a.id
+    c.post(f'/registros/limpieza/areas/{aid}/eliminar', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(AreaLimpieza, aid) is None
+
+
+def test_area_eliminar_con_registros_bloqueado(app):
+    from app import AreaLimpieza, RegistroLimpieza
+    c = _login(app, 'admin')
+    with app.app_context():
+        r = RegistroLimpieza(area_id=IDS['area'], registrado_por=IDS['admin'], conforme=True)
+        _db.session.add(r)
+        _db.session.commit()
+    c.post(f'/registros/limpieza/areas/{IDS["area"]}/eliminar', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(AreaLimpieza, IDS['area']) is not None
+
+
+def test_area_eliminar_no_admin_bloqueado(app):
+    from app import AreaLimpieza
+    c = _login(app, 'vend')
+    resp = c.post(f'/registros/limpieza/areas/{IDS["area"]}/eliminar', follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    with app.app_context():
+        assert _db.session.get(AreaLimpieza, IDS['area']) is not None
+
+
+def test_areas_list_muestra_boton_eliminar(app):
+    c = _login(app, 'admin')
+    body = c.get('/registros/limpieza/areas').data.decode('utf-8')
+    assert '/eliminar' in body
+
+
+def test_registro_historial_eliminar_admin(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'admin')
+    with app.app_context():
+        r = RegistroLimpieza(area_id=IDS['area'], registrado_por=IDS['admin'], conforme=True)
+        _db.session.add(r)
+        _db.session.commit()
+        rid = r.id
+    c.post(f'/registros/limpieza/registro/{rid}/eliminar', follow_redirects=True)
+    with app.app_context():
+        assert _db.session.get(RegistroLimpieza, rid) is None
+
+
+def test_registro_historial_eliminar_no_admin_bloqueado(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    with app.app_context():
+        r = RegistroLimpieza(area_id=IDS['area'], registrado_por=IDS['vend'], conforme=True)
+        _db.session.add(r)
+        _db.session.commit()
+        rid = r.id
+    resp = c.post(f'/registros/limpieza/registro/{rid}/eliminar', follow_redirects=False)
+    assert resp.status_code == 302
+    with app.app_context():
+        assert _db.session.get(RegistroLimpieza, rid) is not None
+
+
+def test_historial_boton_eliminar_solo_admin(app):
+    from app import RegistroLimpieza
+    with app.app_context():
+        r = RegistroLimpieza(area_id=IDS['area'], registrado_por=IDS['admin'], conforme=True)
+        _db.session.add(r)
+        _db.session.commit()
+    # Use a single client with explicit logout between users to avoid Flask-Login g cache bleed
+    c = app.test_client()
+    c.post('/login', data={'username': 'admin', 'password': 'pw'}, follow_redirects=False)
+    admin_body = c.get('/registros/limpieza/historial').data.decode('utf-8')
+    c.get('/logout', follow_redirects=False)
+    c.post('/login', data={'username': 'vend', 'password': 'pw'}, follow_redirects=False)
+    vend_body = c.get('/registros/limpieza/historial').data.decode('utf-8')
+    assert 'Eliminar registro' in admin_body
+    assert 'Eliminar registro' not in vend_body
+
+
 def test_seed_catalogo_idempotente(app):
     from app import _seed_catalogo_limpieza, ProductoLimpieza, AreaLimpieza
     with app.app_context():

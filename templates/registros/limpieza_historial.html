@@ -72,7 +72,18 @@
           <div class="ops-cell-muted ops-cell-mono">{{ r.concentracion_ppm if r.concentracion_ppm is not none else '—' }}</div>
           <div class="ops-cell-muted">{{ resp }}{% if r.firma_png %} <img src="{{ r.firma_png }}" alt="firma" style="height:20px;vertical-align:middle;margin-left:6px;border-radius:3px;background:#fff;border:1px solid var(--color-border-subtle)">{% endif %}</div>
           <div class="ops-cell-muted">{{ r.verificado_por_vendedor.nombre_completo if r.verificado_por_vendedor else '—' }}</div>
-          <div class="ops-cell-right">{% if r.conforme %}<span class="estado-chip ok"><i class="fas fa-pen-nib"></i> Firmada</span>{% else %}<span class="estado-chip bad"><i class="fas fa-triangle-exclamation"></i> No conforme</span>{% endif %}</div>
+          <div class="ops-cell-right" style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+            {% if r.conforme %}<span class="estado-chip ok"><i class="fas fa-pen-nib"></i> Firmada</span>{% else %}<span class="estado-chip bad"><i class="fas fa-triangle-exclamation"></i> No conforme</span>{% endif %}
+            {% if puede_eliminar %}
+            <form method="POST" action="{{ url_for('limpieza_registro_eliminar', registro_id=r.id) }}"
+                  onsubmit="return confirm('¿Eliminar este registro de limpieza? No se puede deshacer.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="cam-edit" title="Eliminar registro" style="color:var(--color-danger) !important">
+                <i class="fas fa-trash" style="font-size:14px"></i>
+              </button>
+            </form>
+            {% endif %}
+          </div>
         </div>
         {% else %}
         <div class="ops-empty" style="grid-column:1/-1"><div class="ops-empty-icon"><i class="fas fa-clipboard-list"></i></div><p>No hay registros para los filtros seleccionados.</p></div>
