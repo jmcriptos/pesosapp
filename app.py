@@ -182,7 +182,8 @@ def _ensure_haccp_columns():
         wanted = {
             'camara': [('responsable_id', 'INTEGER'), ('ronda_am', 'VARCHAR(5)'), ('ronda_pm', 'VARCHAR(5)')],
             'area_limpieza': [('responsable_id', 'INTEGER'), ('sanitizante_id', 'INTEGER')],
-            'registro_limpieza': [('firma_png', 'TEXT')],
+            'registro_limpieza': [('firma_png', 'TEXT'), ('concentracion_ppm', 'INTEGER'),
+                                  ('verificado_por', 'INTEGER'), ('metodo_verificacion', 'VARCHAR(20)')],
         }
         for tabla, cols in wanted.items():
             if tabla not in existing_tables:
@@ -2359,9 +2360,15 @@ class RegistroLimpieza(db.Model):
     accion_responsable = db.Column(db.String(120), nullable=True)
     accion_disposicion = db.Column(db.Text, nullable=True)
     firma_png = db.Column(db.Text, nullable=True)  # data URL PNG de la firma del responsable
+    # Ajustes auditoría de inocuidad (FR-HACCP-LIMP-01):
+    concentracion_ppm = db.Column(db.Integer, nullable=True)   # ppm de Sani-T-10 Plus
+    verificado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    metodo_verificacion = db.Column(db.String(20), nullable=True)  # visual|atp|hisopado
 
     area = db.relationship('AreaLimpieza')
-    registrado_por_vendedor = db.relationship('Vendedor')
+    # Dos FKs a vendedor -> foreign_keys explícito en ambas relaciones.
+    registrado_por_vendedor = db.relationship('Vendedor', foreign_keys=[registrado_por])
+    verificado_por_vendedor = db.relationship('Vendedor', foreign_keys=[verificado_por])
 
     def __repr__(self):
         return f'<RegistroLimpieza {self.id} area={self.area_id} conforme={self.conforme}>'

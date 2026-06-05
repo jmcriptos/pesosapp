@@ -278,6 +278,21 @@ def test_hub_registros_ok(app):
     assert 'Limpieza' in body
 
 
+def test_registro_campos_haccp(app):
+    from app import RegistroLimpieza
+    with app.app_context():
+        r = RegistroLimpieza(area_id=IDS['area'], registrado_por=IDS['vend'],
+                             verificado_por=IDS['admin'], conforme=True,
+                             concentracion_ppm=250, metodo_verificacion='visual')
+        _db.session.add(r)
+        _db.session.commit()
+        got = _db.session.get(RegistroLimpieza, r.id)
+        assert got.concentracion_ppm == 250
+        assert got.metodo_verificacion == 'visual'
+        assert got.verificado_por_vendedor.nombre_completo == 'Admin'
+        assert got.registrado_por_vendedor.nombre_completo == 'Vend'
+
+
 def test_dilucion_es_texto_sin_limite(app):
     """dilucion debe ser Text (sin límite) para no romper con textos largos en Postgres."""
     from app import ProductoLimpieza
