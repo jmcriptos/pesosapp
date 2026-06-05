@@ -1216,7 +1216,7 @@ body[data-ops-shell="1"] .ops-admin .ops-chips button.ops-chip.is-active {
 /* --- Columnas por tabla --- */
 .ops-table.t-tareas .ops-thead, .ops-table.t-tareas .ops-trow { grid-template-columns: 2fr 1.4fr 1fr 1.4fr 70px; }
 .ops-table.t-htemp .ops-thead, .ops-table.t-htemp .ops-trow { grid-template-columns: 1.5fr 1.7fr 1fr 1.4fr 110px; }
-.ops-table.t-hlimp .ops-thead, .ops-table.t-hlimp .ops-trow { grid-template-columns: 1.4fr 1.6fr 1.4fr 1.1fr 110px; }
+.ops-table.t-hlimp .ops-thead, .ops-table.t-hlimp .ops-trow { grid-template-columns: 1.4fr 1.8fr 60px 1.2fr 1.2fr 110px; }
 .ops-trow.is-bad { background: color-mix(in oklab, var(--color-danger) 6%, transparent); }
 .ops-tarea-ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0;
   background: var(--color-success-soft); color: var(--color-success-soft-fg); }

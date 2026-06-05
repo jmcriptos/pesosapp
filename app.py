@@ -10446,11 +10446,13 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
         bits = []
         if r.observacion: bits.append(f'<b>Obs.:</b> {_pdf_xe(r.observacion)}')
         if accion: bits.append(f'<b>Acción correctiva</b> — {accion}')
+        if r.metodo_verificacion:
+            bits.append(f'<b>Método verif.:</b> {_pdf_xe(r.metodo_verificacion.capitalize())}')
         return '   ·   '.join(bits) if bits else None
 
-    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'Resultado', 'Responsable']
-    aligns = ['L', 'L', 'L', 'L', 'C', 'L']
-    widths = [92, 150, 78, 168, 96, 196]
+    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'ppm', 'Resultado', 'Responsable', 'Verificó']
+    aligns = ['L', 'L', 'L', 'L', 'C', 'C', 'L', 'L']
+    widths = [80, 120, 55, 130, 40, 75, 122, 122]
     filas = []
     for r in registros:
         filas.append({
@@ -10459,13 +10461,15 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
                 r.area.nombre if r.area else '—',
                 'Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio',
                 _producto_proceso(r.area),
+                str(r.concentracion_ppm) if r.concentracion_ppm is not None else '—',
                 'No conforme' if not r.conforme else 'Conforme',
                 r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—',
+                r.verificado_por_vendedor.nombre_completo if r.verificado_por_vendedor else '—',
             ],
             'desvio': not r.conforme,
             'detalle': _detalle(r),
         })
-    elements.append(_registro_pdf_tabla(headers, aligns, widths, 4, filas))
+    elements.append(_registro_pdf_tabla(headers, aligns, widths, 5, filas))
 
     elements.append(Spacer(1, 18))
     if revision:
@@ -10512,13 +10516,17 @@ def limpieza_export():
     fi = request.form.get('fecha_inicio') or ''
     ff = request.form.get('fecha_fin') or ''
     if (request.form.get('formato') or 'pdf').lower() == 'excel':
-        headers = ['Fecha', 'Hora', 'Área / tarea', 'Proceso (limpieza → sanitización)', 'Resultado', 'Registró', 'Observación',
+        headers = ['Fecha', 'Hora', 'Área / tarea', 'Proceso (limpieza → sanitización)', 'ppm', 'Resultado',
+                   'Registró', 'Verificó', 'Método verif.', 'Observación',
                    'Causa', 'Acción tomada', 'Responsable acción', 'Disposición']
         rows = [[
             _fmt_local(r.registrado_en, '%Y-%m-%d'), _fmt_local(r.registrado_en, '%H:%M'),
             r.area.nombre if r.area else '', _producto_proceso(r.area),
+            r.concentracion_ppm if r.concentracion_ppm is not None else '',
             'Conforme' if r.conforme else 'No conforme',
             r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '',
+            r.verificado_por_vendedor.nombre_completo if r.verificado_por_vendedor else '',
+            (r.metodo_verificacion or '').capitalize(),
             r.observacion or '', r.accion_causa or '', r.accion_tomada or '',
             r.accion_responsable or '', r.accion_disposicion or '',
         ] for r in registros]
