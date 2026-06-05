@@ -1904,13 +1904,15 @@ form.inline-form {
         color: #f8f9fa !important;
     }
     
-    /* Botones - mantener legibilidad */
-    button:not(.btn-chip) {
+    /* Botones - mantener legibilidad. Excluye .cam-edit (botones de ícono de las
+       pantallas ops/HACCP): este bloque vive en un :root sin cerrar (CSS nesting),
+       lo que dispara su especificidad y pintaba los íconos de azul en modo oscuro. */
+    button:not(.btn-chip):not(.cam-edit) {
         background-color: #1877ff !important;
         color: #ffffff !important;
     }
-    
-    button:not(.btn-chip):hover {
+
+    button:not(.btn-chip):not(.cam-edit):hover {
         background-color: #0056b3 !important;
     }
     
