@@ -10160,9 +10160,12 @@ def limpieza_registrar():
         except ValueError:
             flash('La concentración (ppm) debe ser un número entero.', 'danger')
             return redirect(url_for('limpieza_index'))
+    if ppm is not None and ppm <= 0:
+        flash('La concentración (ppm) debe ser un valor positivo.', 'danger')
+        return redirect(url_for('limpieza_index'))
     requiere_ppm = area.sanitizante_id is not None
     if requiere_ppm and ppm is None:
-        flash(f'Indica la concentración (ppm) de Sani-T-10 Plus para {area.nombre}.', 'danger')
+        flash(f'Indica la concentración (ppm) de {area.sanitizante.nombre} para {area.nombre}.', 'danger')
         return redirect(url_for('limpieza_index'))
     if requiere_ppm and conforme and (ppm < 150 or ppm > 400):
         flash(f'ppm fuera de rango (150–400) en {area.nombre}: corrige y vuelve a medir, '
