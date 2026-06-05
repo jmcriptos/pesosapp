@@ -198,6 +198,57 @@ def _ensure_haccp_columns():
         app.logger.warning(f'[HACCP] no se pudieron asegurar columnas: {e}')
 
 
+# Catálogo oficial del programa de limpieza (PG-HACCP-LIMP-01).
+_CAT_LIMP_DETERGENTES = ['Big Punch', 'POOFF']
+_CAT_LIMP_SANITIZANTE = 'Sani-T-10 Plus'
+_CAT_LIMP_EQUIPOS = ['Tanque de salmueras', 'Inyectadora Inject Star', 'Embutidora Vemag',
+                     'Molino Torrey', 'Rebanadora Icone 700', 'Mezclador MPR 400',
+                     'Horno Ahumador', 'Carros para horno']
+_CAT_LIMP_ESPACIOS = ['Sala de Producción', 'Sala de Mezclado', 'Sala de Cocción y Ahumado',
+                      'Almacenes', 'Pisos y drenajes', 'Camión de reparto']
+
+
+def _seed_catalogo_limpieza():
+    """Crea (idempotente) productos y áreas oficiales del programa de limpieza.
+    No borra ni desactiva nada. A los equipos creados aquí les asigna Sani-T-10 Plus
+    como sanitizante (activa el gate de ppm). Seguro de correr en cada arranque."""
+    try:
+        from sqlalchemy import inspect as _sa_inspect, func as _sa_func
+        insp = _sa_inspect(db.engine)
+        tables = set(insp.get_table_names())
+        if 'producto_limpieza' not in tables or 'area_limpieza' not in tables:
+            return
+
+        def _get_or_create_producto(nombre):
+            p = (ProductoLimpieza.query
+                 .filter(_sa_func.lower(ProductoLimpieza.nombre) == nombre.lower()).first())
+            if p is None:
+                p = ProductoLimpieza(nombre=nombre, dilucion='Según ficha técnica', activo=True)
+                db.session.add(p)
+                db.session.flush()
+            return p
+
+        for nombre in _CAT_LIMP_DETERGENTES:
+            _get_or_create_producto(nombre)
+        sani = _get_or_create_producto(_CAT_LIMP_SANITIZANTE)
+
+        def _ensure_area(nombre, tipo, sanitizante_id=None):
+            existe = (AreaLimpieza.query
+                      .filter(_sa_func.lower(AreaLimpieza.nombre) == nombre.lower()).first())
+            if existe is None:
+                db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo,
+                                            sanitizante_id=sanitizante_id, activa=True))
+
+        for nombre in _CAT_LIMP_EQUIPOS:
+            _ensure_area(nombre, 'equipo', sanitizante_id=sani.id)
+        for nombre in _CAT_LIMP_ESPACIOS:
+            _ensure_area(nombre, 'espacio')
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f'[HACCP] no se pudo sembrar catálogo de limpieza: {e}')
+
+
 N8N_HACCP_ALERT_WEBHOOK_URL = os.environ.get('N8N_HACCP_ALERT_WEBHOOK_URL', '').strip()
 
 
@@ -10461,6 +10512,7 @@ def limpieza_config():
 # Se ejecuta aquí, después de definir todos los modelos.
 with app.app_context():
     _ensure_haccp_columns()
+    _seed_catalogo_limpieza()
 
 
 @app.route('/registros')

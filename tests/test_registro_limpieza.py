@@ -311,3 +311,18 @@ def test_crear_producto_dilucion_larga(app):
         p = ProductoLimpieza.query.filter_by(nombre='Prod largo').first()
         assert p is not None
         assert len(p.dilucion) == 400
+
+
+def test_seed_catalogo_idempotente(app):
+    from app import _seed_catalogo_limpieza, ProductoLimpieza, AreaLimpieza
+    with app.app_context():
+        _seed_catalogo_limpieza()
+        _seed_catalogo_limpieza()  # segunda corrida no duplica
+        assert ProductoLimpieza.query.filter_by(nombre='Sani-T-10 Plus').count() == 1
+        assert ProductoLimpieza.query.filter_by(nombre='Big Punch').count() == 1
+        eq = AreaLimpieza.query.filter_by(nombre='Embutidora Vemag').first()
+        assert eq is not None and eq.tipo == 'equipo'
+        assert eq.sanitizante.nombre == 'Sani-T-10 Plus'
+        esp = AreaLimpieza.query.filter_by(nombre='Almacenes').first()
+        assert esp is not None and esp.tipo == 'espacio'
+        assert esp.sanitizante_id is None
