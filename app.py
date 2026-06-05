@@ -10257,7 +10257,10 @@ def limpieza_registro_eliminar(registro_id):
     db.session.commit()
     _audit('clean', 'Eliminó registro de limpieza', f'{nombre} · {cuando}')
     flash('Registro eliminado.', 'success')
-    return redirect(request.referrer or url_for('limpieza_historial'))
+    destino = request.referrer
+    if not destino or urlparse(destino).netloc != urlparse(request.host_url).netloc:
+        destino = url_for('limpieza_historial')
+    return redirect(destino)
 
 
 def _revision_limpieza_que_cubre(fi, ff):

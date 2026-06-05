@@ -509,7 +509,7 @@ def test_registro_historial_eliminar_no_admin_bloqueado(app):
         _db.session.commit()
         rid = r.id
     resp = c.post(f'/registros/limpieza/registro/{rid}/eliminar', follow_redirects=False)
-    assert resp.status_code in (302, 403)
+    assert resp.status_code == 302
     with app.app_context():
         assert _db.session.get(RegistroLimpieza, rid) is not None
 
