@@ -442,8 +442,9 @@ def test_historial_muestra_ppm_y_verifico(app):
            data={'area_id': area_id, 'conforme': 'si', 'concentracion_ppm': '250',
                  'verificado_por': IDS['admin']}, follow_redirects=True)
     body = c.get('/registros/limpieza/historial').data.decode('utf-8')
-    assert '250' in body          # ppm
-    assert 'Admin' in body        # verificó
+    assert '250' in body                       # ppm value in row
+    assert 'Verificó' in body                  # column header
+    assert '<div class="ops-cell-muted">Admin' in body   # verificador in row cell
 
 
 def test_seed_catalogo_idempotente(app):
