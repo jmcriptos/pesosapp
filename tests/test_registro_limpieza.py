@@ -383,6 +383,14 @@ def test_registrar_ppm_fuera_rango_permitido_si_no_conforme(app):
         assert r.concentracion_ppm == 120
 
 
+def test_index_sheet_tiene_campos_nuevos(app):
+    c = _login(app, 'vend')
+    body = c.get('/registros/limpieza').data.decode('utf-8')
+    assert 'name="verificado_por"' in body
+    assert 'name="concentracion_ppm"' in body
+    assert 'name="metodo_verificacion"' in body
+
+
 def test_dilucion_es_texto_sin_limite(app):
     """dilucion debe ser Text (sin límite) para no romper con textos largos en Postgres."""
     from app import ProductoLimpieza

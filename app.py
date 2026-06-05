@@ -10123,12 +10123,16 @@ def limpieza_index():
 
     es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     ahora_local = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%dT%H:%M')
+    vendedores = (Vendedor.query.filter_by(activo=True)
+                  .order_by(Vendedor.nombre_completo).all())
+    operador_id = current_user.id if isinstance(current_user, Vendedor) else None
     return render_template('registros/limpieza.html', areas=areas,
                            registros_info=registros_info,
                            con_registro_hoy=con_registro_hoy,
                            cumplimiento=cumplimiento,
                            cumplimiento_prom=cumplimiento_prom,
-                           hoy=hoy, ahora_local=ahora_local, es_admin=es_admin)
+                           hoy=hoy, ahora_local=ahora_local, es_admin=es_admin,
+                           vendedores=vendedores, operador_id=operador_id)
 
 
 @app.route('/registros/limpieza/registrar', methods=['POST'])

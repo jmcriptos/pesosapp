@@ -1464,3 +1464,6 @@ html body[data-ops-shell="1"] .app-content .ops-admin .ops-chips button.ops-chip
 .ops-details > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--accent, var(--color-primary)); list-style: none; display: inline-flex; align-items: center; gap: 6px; }
 .ops-details > summary::-webkit-details-marker { display: none; }
 .ops-details-body { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ops-ppm-hint { margin-top: 6px; font-size: 12px; color: #94a3b8; }
+.ops-ppm-hint.is-ok { color: #16a34a; }
+.ops-ppm-hint.is-bad { color: #ef4444; }
