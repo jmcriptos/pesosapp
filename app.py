@@ -10151,6 +10151,41 @@ def limpieza_registrar():
               f'y la disposición.', 'danger')
         return redirect(url_for('limpieza_index'))
 
+    # Concentración (ppm): obligatoria solo si el área tiene sanitizante.
+    ppm_raw = (request.form.get('concentracion_ppm') or '').strip()
+    ppm = None
+    if ppm_raw:
+        try:
+            ppm = int(ppm_raw)
+        except ValueError:
+            flash('La concentración (ppm) debe ser un número entero.', 'danger')
+            return redirect(url_for('limpieza_index'))
+    requiere_ppm = area.sanitizante_id is not None
+    if requiere_ppm and ppm is None:
+        flash(f'Indica la concentración (ppm) de Sani-T-10 Plus para {area.nombre}.', 'danger')
+        return redirect(url_for('limpieza_index'))
+    if requiere_ppm and conforme and (ppm < 150 or ppm > 400):
+        flash(f'ppm fuera de rango (150–400) en {area.nombre}: corrige y vuelve a medir, '
+              f'o marca No conforme.', 'danger')
+        return redirect(url_for('limpieza_index'))
+
+    # Verificación independiente: persona distinta del operador.
+    operador_id = current_user.id if isinstance(current_user, Vendedor) else None
+    verificado_por_id = request.form.get('verificado_por', type=int)
+    verificador = (Vendedor.query.filter_by(id=verificado_por_id, activo=True).first()
+                   if verificado_por_id else None)
+    if verificador is None:
+        flash('Selecciona quién verificó la limpieza (persona distinta del operador).', 'danger')
+        return redirect(url_for('limpieza_index'))
+    if operador_id is not None and verificador.id == operador_id:
+        flash('La verificación debe hacerla una persona distinta del operador.', 'danger')
+        return redirect(url_for('limpieza_index'))
+
+    # Método de verificación (opcional): visual | atp | hisopado.
+    metodo = (request.form.get('metodo_verificacion') or '').strip().lower()
+    if metodo not in ('visual', 'atp', 'hisopado'):
+        metodo = None
+
     firma = (request.form.get('firma_png') or '').strip() or None
     if firma and (not firma.startswith('data:image/') or len(firma) > 600000):
         firma = None  # descartar payloads inválidos o excesivos
@@ -10166,14 +10201,18 @@ def limpieza_registrar():
         accion_tomada=(tomada or None) if not conforme else None,
         accion_responsable=(responsable or None) if not conforme else None,
         accion_disposicion=(disposicion or None) if not conforme else None,
+        concentracion_ppm=ppm,
+        verificado_por=verificador.id,
+        metodo_verificacion=metodo,
     )
     if momento:
         registro.registrado_en = momento
     db.session.add(registro)
     db.session.commit()
     if not conforme:
+        detalle_ppm = f' · ppm={ppm}' if ppm is not None else ''
         _haccp_alerta('clean', f'{area.nombre}: limpieza no conforme',
-                      observacion or 'Registro marcado no conforme', tomada)
+                      (observacion or 'Registro marcado no conforme') + detalle_ppm, tomada)
     else:
         _audit('clean', 'Firmó tarea de limpieza', area.nombre)
     flash('Limpieza registrada.' + (' (No conforme — registrada con acción correctiva.)' if not conforme else ''),

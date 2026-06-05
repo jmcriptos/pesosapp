@@ -163,7 +163,8 @@ def test_registrar_conforme(app):
     from app import RegistroLimpieza
     c = _login(app, 'vend')
     resp = c.post('/registros/limpieza/registrar',
-                  data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+                  data={'area_id': IDS['area'], 'conforme': 'si',
+                        'verificado_por': IDS['admin']}, follow_redirects=True)
     assert resp.status_code == 200
     with app.app_context():
         r = RegistroLimpieza.query.filter_by(area_id=IDS['area']).first()
@@ -187,7 +188,8 @@ def test_registrar_no_conforme_con_accion(app):
     c.post('/registros/limpieza/registrar',
            data={'area_id': IDS['area'], 'conforme': 'no',
                  'accion_tomada': 'Se volvio a limpiar',
-                 'accion_disposicion': 'Quedo conforme'}, follow_redirects=True)
+                 'accion_disposicion': 'Quedo conforme',
+                 'verificado_por': IDS['admin']}, follow_redirects=True)
     with app.app_context():
         r = RegistroLimpieza.query.filter_by(area_id=IDS['area']).first()
         assert r is not None
@@ -207,7 +209,8 @@ def test_principal_muestra_area(app):
 def test_historial_lista_registros(app):
     c = _login(app, 'vend')
     c.post('/registros/limpieza/registrar',
-           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+           data={'area_id': IDS['area'], 'conforme': 'si',
+                 'verificado_por': IDS['admin']}, follow_redirects=True)
     resp = c.get('/registros/limpieza/historial')
     assert resp.status_code == 200
     assert 'Sierra de cortar' in resp.data.decode('utf-8')
@@ -242,7 +245,8 @@ def test_revisar_marca_periodo(app):
 def test_export_devuelve_pdf(app):
     c = _login(app, 'vend')
     c.post('/registros/limpieza/registrar',
-           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+           data={'area_id': IDS['area'], 'conforme': 'si',
+                 'verificado_por': IDS['admin']}, follow_redirects=True)
     resp = c.post('/registros/limpieza/export',
                   data={'fecha_inicio': '2000-01-01', 'fecha_fin': '2100-01-01'},
                   follow_redirects=False)
@@ -291,6 +295,92 @@ def test_registro_campos_haccp(app):
         assert got.metodo_verificacion == 'visual'
         assert got.verificado_por_vendedor.nombre_completo == 'Admin'
         assert got.registrado_por_vendedor.nombre_completo == 'Vend'
+
+
+def _crear_area_con_sani(app):
+    from app import AreaLimpieza, ProductoLimpieza
+    with app.app_context():
+        sani = ProductoLimpieza(nombre='Sani-T-10 Plus', dilucion='Según ficha técnica', activo=True)
+        _db.session.add(sani)
+        _db.session.flush()
+        a = AreaLimpieza(nombre='Mesa con sani', tipo='equipo',
+                         sanitizante_id=sani.id, activa=True)
+        _db.session.add(a)
+        _db.session.commit()
+        return a.id
+
+
+def test_registrar_verifico_obligatorio(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'si'}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=IDS['area']).count() == 0
+
+
+def test_registrar_verifico_distinto_operador(app):
+    from app import RegistroLimpieza
+    c = _login(app, 'vend')  # operador = vend
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': IDS['area'], 'conforme': 'si',
+                 'verificado_por': IDS['vend']}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=IDS['area']).count() == 0
+
+
+def test_registrar_ppm_obligatorio_con_sanitizante(app):
+    from app import RegistroLimpieza
+    area_id = _crear_area_con_sani(app)
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': area_id, 'conforme': 'si',
+                 'verificado_por': IDS['admin']}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=area_id).count() == 0
+
+
+def test_registrar_ppm_fuera_rango_bloquea_conforme(app):
+    from app import RegistroLimpieza
+    area_id = _crear_area_con_sani(app)
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': area_id, 'conforme': 'si', 'concentracion_ppm': '120',
+                 'verificado_por': IDS['admin']}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=area_id).count() == 0
+
+
+def test_registrar_ppm_en_rango_conforme_ok(app):
+    from app import RegistroLimpieza
+    area_id = _crear_area_con_sani(app)
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': area_id, 'conforme': 'si', 'concentracion_ppm': '250',
+                 'verificado_por': IDS['admin'], 'metodo_verificacion': 'visual'},
+           follow_redirects=True)
+    with app.app_context():
+        r = RegistroLimpieza.query.filter_by(area_id=area_id).first()
+        assert r is not None
+        assert r.concentracion_ppm == 250
+        assert r.verificado_por == IDS['admin']
+        assert r.metodo_verificacion == 'visual'
+
+
+def test_registrar_ppm_fuera_rango_permitido_si_no_conforme(app):
+    from app import RegistroLimpieza
+    area_id = _crear_area_con_sani(app)
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': area_id, 'conforme': 'no', 'concentracion_ppm': '120',
+                 'verificado_por': IDS['admin'],
+                 'accion_tomada': 'Se reajustó la dilución',
+                 'accion_disposicion': 'Se volvió a medir'}, follow_redirects=True)
+    with app.app_context():
+        r = RegistroLimpieza.query.filter_by(area_id=area_id).first()
+        assert r is not None
+        assert r.conforme is False
+        assert r.concentracion_ppm == 120
 
 
 def test_dilucion_es_texto_sin_limite(app):
