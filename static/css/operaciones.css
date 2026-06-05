@@ -1216,7 +1216,7 @@ body[data-ops-shell="1"] .ops-admin .ops-chips button.ops-chip.is-active {
 /* --- Columnas por tabla --- */
 .ops-table.t-tareas .ops-thead, .ops-table.t-tareas .ops-trow { grid-template-columns: 2fr 1.4fr 1fr 1.4fr 70px; }
 .ops-table.t-htemp .ops-thead, .ops-table.t-htemp .ops-trow { grid-template-columns: 1.5fr 1.7fr 1fr 1.4fr 110px; }
-.ops-table.t-hlimp .ops-thead, .ops-table.t-hlimp .ops-trow { grid-template-columns: 1.4fr 1.6fr 1.4fr 1.1fr 110px; }
+.ops-table.t-hlimp .ops-thead, .ops-table.t-hlimp .ops-trow { grid-template-columns: 1.4fr 1.8fr 60px 1.2fr 1.2fr 110px; }
 .ops-trow.is-bad { background: color-mix(in oklab, var(--color-danger) 6%, transparent); }
 .ops-tarea-ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0;
   background: var(--color-success-soft); color: var(--color-success-soft-fg); }
@@ -1464,3 +1464,6 @@ html body[data-ops-shell="1"] .app-content .ops-admin .ops-chips button.ops-chip
 .ops-details > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--accent, var(--color-primary)); list-style: none; display: inline-flex; align-items: center; gap: 6px; }
 .ops-details > summary::-webkit-details-marker { display: none; }
 .ops-details-body { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ops-ppm-hint { margin-top: 6px; font-size: 12px; color: #94a3b8; }
+.ops-ppm-hint.is-ok { color: #16a34a; }
+.ops-ppm-hint.is-bad { color: #ef4444; }

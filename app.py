@@ -182,7 +182,8 @@ def _ensure_haccp_columns():
         wanted = {
             'camara': [('responsable_id', 'INTEGER'), ('ronda_am', 'VARCHAR(5)'), ('ronda_pm', 'VARCHAR(5)')],
             'area_limpieza': [('responsable_id', 'INTEGER'), ('sanitizante_id', 'INTEGER')],
-            'registro_limpieza': [('firma_png', 'TEXT')],
+            'registro_limpieza': [('firma_png', 'TEXT'), ('concentracion_ppm', 'INTEGER'),
+                                  ('verificado_por', 'INTEGER'), ('metodo_verificacion', 'VARCHAR(20)')],
         }
         for tabla, cols in wanted.items():
             if tabla not in existing_tables:
@@ -195,6 +196,57 @@ def _ensure_haccp_columns():
                     app.logger.info(f'[HACCP] columna añadida: {tabla}.{col}')
     except Exception as e:
         app.logger.warning(f'[HACCP] no se pudieron asegurar columnas: {e}')
+
+
+# Catálogo oficial del programa de limpieza (PG-HACCP-LIMP-01).
+_CAT_LIMP_DETERGENTES = ['Big Punch', 'POOFF']
+_CAT_LIMP_SANITIZANTE = 'Sani-T-10 Plus'
+_CAT_LIMP_EQUIPOS = ['Tanque de salmueras', 'Inyectadora Inject Star', 'Embutidora Vemag',
+                     'Molino Torrey', 'Rebanadora Icone 700', 'Mezclador MPR 400',
+                     'Horno Ahumador', 'Carros para horno']
+_CAT_LIMP_ESPACIOS = ['Sala de Producción', 'Sala de Mezclado', 'Sala de Cocción y Ahumado',
+                      'Almacenes', 'Pisos y drenajes', 'Camión de reparto']
+
+
+def _seed_catalogo_limpieza():
+    """Crea (idempotente) productos y áreas oficiales del programa de limpieza.
+    No borra ni desactiva nada. A los equipos creados aquí les asigna Sani-T-10 Plus
+    como sanitizante (activa el gate de ppm). Seguro de correr en cada arranque."""
+    try:
+        from sqlalchemy import inspect as _sa_inspect
+        insp = _sa_inspect(db.engine)
+        tables = set(insp.get_table_names())
+        if 'producto_limpieza' not in tables or 'area_limpieza' not in tables:
+            return
+
+        def _get_or_create_producto(nombre):
+            p = (ProductoLimpieza.query
+                 .filter(func.lower(ProductoLimpieza.nombre) == nombre.lower()).first())
+            if p is None:
+                p = ProductoLimpieza(nombre=nombre, dilucion='Según ficha técnica', activo=True)
+                db.session.add(p)
+                db.session.flush()
+            return p
+
+        for nombre in _CAT_LIMP_DETERGENTES:
+            _get_or_create_producto(nombre)
+        sani = _get_or_create_producto(_CAT_LIMP_SANITIZANTE)
+
+        def _ensure_area(nombre, tipo, sanitizante_id=None):
+            existe = (AreaLimpieza.query
+                      .filter(func.lower(AreaLimpieza.nombre) == nombre.lower()).first())
+            if existe is None:
+                db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo,
+                                            sanitizante_id=sanitizante_id, activa=True))
+
+        for nombre in _CAT_LIMP_EQUIPOS:
+            _ensure_area(nombre, 'equipo', sanitizante_id=sani.id)
+        for nombre in _CAT_LIMP_ESPACIOS:
+            _ensure_area(nombre, 'espacio')
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f'[HACCP] no se pudo sembrar catálogo de limpieza: {e}')
 
 
 N8N_HACCP_ALERT_WEBHOOK_URL = os.environ.get('N8N_HACCP_ALERT_WEBHOOK_URL', '').strip()
@@ -2359,9 +2411,15 @@ class RegistroLimpieza(db.Model):
     accion_responsable = db.Column(db.String(120), nullable=True)
     accion_disposicion = db.Column(db.Text, nullable=True)
     firma_png = db.Column(db.Text, nullable=True)  # data URL PNG de la firma del responsable
+    # Ajustes auditoría de inocuidad (FR-HACCP-LIMP-01):
+    concentracion_ppm = db.Column(db.Integer, nullable=True)   # ppm de Sani-T-10 Plus
+    verificado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    metodo_verificacion = db.Column(db.String(20), nullable=True)  # visual|atp|hisopado
 
     area = db.relationship('AreaLimpieza')
-    registrado_por_vendedor = db.relationship('Vendedor')
+    # Dos FKs a vendedor -> foreign_keys explícito en ambas relaciones.
+    registrado_por_vendedor = db.relationship('Vendedor', foreign_keys=[registrado_por])
+    verificado_por_vendedor = db.relationship('Vendedor', foreign_keys=[verificado_por])
 
     def __repr__(self):
         return f'<RegistroLimpieza {self.id} area={self.area_id} conforme={self.conforme}>'
@@ -10065,12 +10123,16 @@ def limpieza_index():
 
     es_admin = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
     ahora_local = datetime.now(DASHBOARD_TIMEZONE).strftime('%Y-%m-%dT%H:%M')
+    vendedores = (Vendedor.query.filter_by(activo=True)
+                  .order_by(Vendedor.nombre_completo).all())
+    operador_id = current_user.id if isinstance(current_user, Vendedor) else None
     return render_template('registros/limpieza.html', areas=areas,
                            registros_info=registros_info,
                            con_registro_hoy=con_registro_hoy,
                            cumplimiento=cumplimiento,
                            cumplimiento_prom=cumplimiento_prom,
-                           hoy=hoy, ahora_local=ahora_local, es_admin=es_admin)
+                           hoy=hoy, ahora_local=ahora_local, es_admin=es_admin,
+                           vendedores=vendedores, operador_id=operador_id)
 
 
 @app.route('/registros/limpieza/registrar', methods=['POST'])
@@ -10093,6 +10155,44 @@ def limpieza_registrar():
               f'y la disposición.', 'danger')
         return redirect(url_for('limpieza_index'))
 
+    # Concentración (ppm): obligatoria solo si el área tiene sanitizante.
+    ppm_raw = (request.form.get('concentracion_ppm') or '').strip()
+    ppm = None
+    if ppm_raw:
+        try:
+            ppm = int(ppm_raw)
+        except ValueError:
+            flash('La concentración (ppm) debe ser un número entero.', 'danger')
+            return redirect(url_for('limpieza_index'))
+    if ppm is not None and ppm <= 0:
+        flash('La concentración (ppm) debe ser un valor positivo.', 'danger')
+        return redirect(url_for('limpieza_index'))
+    requiere_ppm = area.sanitizante_id is not None
+    if requiere_ppm and ppm is None:
+        flash(f'Indica la concentración (ppm) de {area.sanitizante.nombre} para {area.nombre}.', 'danger')
+        return redirect(url_for('limpieza_index'))
+    if requiere_ppm and conforme and (ppm < 150 or ppm > 400):
+        flash(f'ppm fuera de rango (150–400) en {area.nombre}: corrige y vuelve a medir, '
+              f'o marca No conforme.', 'danger')
+        return redirect(url_for('limpieza_index'))
+
+    # Verificación independiente: persona distinta del operador.
+    operador_id = current_user.id if isinstance(current_user, Vendedor) else None
+    verificado_por_id = request.form.get('verificado_por', type=int)
+    verificador = (Vendedor.query.filter_by(id=verificado_por_id, activo=True).first()
+                   if verificado_por_id else None)
+    if verificador is None:
+        flash('Selecciona quién verificó la limpieza (persona distinta del operador).', 'danger')
+        return redirect(url_for('limpieza_index'))
+    if operador_id is not None and verificador.id == operador_id:
+        flash('La verificación debe hacerla una persona distinta del operador.', 'danger')
+        return redirect(url_for('limpieza_index'))
+
+    # Método de verificación (opcional): visual | atp | hisopado.
+    metodo = (request.form.get('metodo_verificacion') or '').strip().lower()
+    if metodo not in ('visual', 'atp', 'hisopado'):
+        metodo = None
+
     firma = (request.form.get('firma_png') or '').strip() or None
     if firma and (not firma.startswith('data:image/') or len(firma) > 600000):
         firma = None  # descartar payloads inválidos o excesivos
@@ -10108,14 +10208,18 @@ def limpieza_registrar():
         accion_tomada=(tomada or None) if not conforme else None,
         accion_responsable=(responsable or None) if not conforme else None,
         accion_disposicion=(disposicion or None) if not conforme else None,
+        concentracion_ppm=ppm,
+        verificado_por=verificador.id,
+        metodo_verificacion=metodo,
     )
     if momento:
         registro.registrado_en = momento
     db.session.add(registro)
     db.session.commit()
     if not conforme:
+        detalle_ppm = f' · ppm={ppm}' if ppm is not None else ''
         _haccp_alerta('clean', f'{area.nombre}: limpieza no conforme',
-                      observacion or 'Registro marcado no conforme', tomada)
+                      (observacion or 'Registro marcado no conforme') + detalle_ppm, tomada)
     else:
         _audit('clean', 'Firmó tarea de limpieza', area.nombre)
     flash('Limpieza registrada.' + (' (No conforme — registrada con acción correctiva.)' if not conforme else ''),
@@ -10342,11 +10446,13 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
         bits = []
         if r.observacion: bits.append(f'<b>Obs.:</b> {_pdf_xe(r.observacion)}')
         if accion: bits.append(f'<b>Acción correctiva</b> — {accion}')
+        if r.metodo_verificacion:
+            bits.append(f'<b>Método verif.:</b> {_pdf_xe(r.metodo_verificacion.capitalize())}')
         return '   ·   '.join(bits) if bits else None
 
-    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'Resultado', 'Responsable']
-    aligns = ['L', 'L', 'L', 'L', 'C', 'L']
-    widths = [92, 150, 78, 168, 96, 196]
+    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'ppm', 'Resultado', 'Responsable', 'Verificó']
+    aligns = ['L', 'L', 'L', 'L', 'C', 'C', 'L', 'L']
+    widths = [80, 120, 55, 130, 40, 75, 122, 122]
     filas = []
     for r in registros:
         filas.append({
@@ -10355,13 +10461,15 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
                 r.area.nombre if r.area else '—',
                 'Equipo' if (r.area and r.area.tipo == 'equipo') else 'Espacio',
                 _producto_proceso(r.area),
+                str(r.concentracion_ppm) if r.concentracion_ppm is not None else '—',
                 'No conforme' if not r.conforme else 'Conforme',
                 r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—',
+                r.verificado_por_vendedor.nombre_completo if r.verificado_por_vendedor else '—',
             ],
             'desvio': not r.conforme,
             'detalle': _detalle(r),
         })
-    elements.append(_registro_pdf_tabla(headers, aligns, widths, 4, filas))
+    elements.append(_registro_pdf_tabla(headers, aligns, widths, 5, filas))
 
     elements.append(Spacer(1, 18))
     if revision:
@@ -10408,13 +10516,17 @@ def limpieza_export():
     fi = request.form.get('fecha_inicio') or ''
     ff = request.form.get('fecha_fin') or ''
     if (request.form.get('formato') or 'pdf').lower() == 'excel':
-        headers = ['Fecha', 'Hora', 'Área / tarea', 'Proceso (limpieza → sanitización)', 'Resultado', 'Registró', 'Observación',
+        headers = ['Fecha', 'Hora', 'Área / tarea', 'Proceso (limpieza → sanitización)', 'ppm', 'Resultado',
+                   'Registró', 'Verificó', 'Método verif.', 'Observación',
                    'Causa', 'Acción tomada', 'Responsable acción', 'Disposición']
         rows = [[
             _fmt_local(r.registrado_en, '%Y-%m-%d'), _fmt_local(r.registrado_en, '%H:%M'),
             r.area.nombre if r.area else '', _producto_proceso(r.area),
+            r.concentracion_ppm if r.concentracion_ppm is not None else '',
             'Conforme' if r.conforme else 'No conforme',
             r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '',
+            r.verificado_por_vendedor.nombre_completo if r.verificado_por_vendedor else '',
+            (r.metodo_verificacion or '').capitalize(),
             r.observacion or '', r.accion_causa or '', r.accion_tomada or '',
             r.accion_responsable or '', r.accion_disposicion or '',
         ] for r in registros]
@@ -10454,6 +10566,7 @@ def limpieza_config():
 # Se ejecuta aquí, después de definir todos los modelos.
 with app.app_context():
     _ensure_haccp_columns()
+    _seed_catalogo_limpieza()
 
 
 @app.route('/registros')

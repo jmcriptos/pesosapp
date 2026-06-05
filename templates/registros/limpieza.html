@@ -165,6 +165,36 @@
         <input type="datetime-local" id="firmaWhen" name="registrado_en" value="{{ ahora_local }}" max="{{ ahora_local }}">
       </div>
 
+      <!-- Concentración ppm (solo si el área usa sanitizante) -->
+      <div class="ops-field ops-ppm-field" id="firmaPpmField" hidden style="margin-bottom:12px">
+        <label for="firmaPpm">Concentración Sani-T-10 Plus (ppm) *</label>
+        <input type="number" name="concentracion_ppm" id="firmaPpm"
+               inputmode="numeric" min="1" step="1" placeholder="150–400">
+        <div class="ops-ppm-hint" id="firmaPpmHint"></div>
+      </div>
+
+      <!-- Verificación independiente -->
+      <div class="ops-field" style="margin-bottom:12px">
+        <label for="firmaVerifico">Verificó (otra persona) *</label>
+        <select name="verificado_por" id="firmaVerifico" required>
+          <option value="">Selecciona…</option>
+          {% for v in vendedores %}{% if not (operador_id and v.id == operador_id) %}
+          <option value="{{ v.id }}">{{ v.nombre_completo or v.username }}</option>
+          {% endif %}{% endfor %}
+        </select>
+      </div>
+
+      <!-- Método de verificación (recomendado) -->
+      <div class="ops-field" style="margin-bottom:12px">
+        <label for="firmaMetodo">Método de verificación</label>
+        <select name="metodo_verificacion" id="firmaMetodo">
+          <option value="">—</option>
+          <option value="visual">Visual</option>
+          <option value="atp">ATP</option>
+          <option value="hisopado">Hisopado</option>
+        </select>
+      </div>
+
       <!-- Ficha SSOP del producto asignado (dilución / procedimiento) -->
       <div class="ops-ssop" id="firmaSsop" hidden></div>
 
@@ -294,7 +324,36 @@
     var d = form.querySelector('[name="accion_disposicion"]').value.trim();
     return t && d;
   }
-  function updateConfirm() { confirmBtn.disabled = !(hasSign && correctiveValid()); }
+  var ppmField = document.getElementById('firmaPpmField');
+  var ppmInput = document.getElementById('firmaPpm');
+  var ppmHint = document.getElementById('firmaPpmHint');
+  var verifico = document.getElementById('firmaVerifico');
+
+  function ppmValid() {
+    if (ppmField.hidden) return true;            // área sin sanitizante
+    var raw = ppmInput.value.trim();
+    if (raw === '') return false;
+    var n = parseInt(raw, 10);
+    if (isNaN(n)) return false;
+    if (conformeInput.value === 'no') return true;  // no conforme documenta el desvío
+    return n >= 150 && n <= 400;
+  }
+  function renderPpmHint() {
+    if (ppmField.hidden) { ppmHint.textContent = ''; return; }
+    var raw = ppmInput.value.trim();
+    if (raw === '') { ppmHint.textContent = 'Mide con tira reactiva (150–400 ppm).'; ppmHint.className = 'ops-ppm-hint'; return; }
+    var n = parseInt(raw, 10);
+    if (!isNaN(n) && n >= 150 && n <= 400) { ppmHint.textContent = 'En rango ✓'; ppmHint.className = 'ops-ppm-hint is-ok'; }
+    else { ppmHint.textContent = 'Fuera de rango (150–400): corrige y vuelve a medir, o marca No conforme.'; ppmHint.className = 'ops-ppm-hint is-bad'; }
+  }
+  function verifierValid() { return !!verifico.value; }
+
+  function updateConfirm() {
+    renderPpmHint();
+    confirmBtn.disabled = !(hasSign && correctiveValid() && ppmValid() && verifierValid());
+  }
+  ppmInput.addEventListener('input', updateConfirm);
+  verifico.addEventListener('change', updateConfirm);
 
   canvas.addEventListener('mousedown', start);
   canvas.addEventListener('mousemove', move);
@@ -338,6 +397,11 @@
     if (html) { ssop.innerHTML = html; ssop.hidden = false; } else { ssop.hidden = true; }
     // reset
     form.reset(); conformeInput.value = 'si'; corrective.hidden = true;
+    // ppm visible solo si el área tiene sanitizante (data-area-sani presente).
+    ppmField.hidden = !btn.dataset.areaSani;
+    if (btn.dataset.areaSani) {
+      ppmField.querySelector('label').textContent = 'Concentración ' + btn.dataset.areaSani + ' (ppm) *';
+    }
     document.querySelectorAll('[data-set-result]').forEach(function (x, i) { x.classList.toggle('is-active', i === 0); });
     // Fecha/hora a "ahora" (local) cada vez que se abre.
     var whenEl = document.getElementById('firmaWhen');
@@ -360,7 +424,7 @@
   sheet.addEventListener('click', function (e) { if (e.target === sheet) closeFirma(); });
 
   form.addEventListener('submit', function (e) {
-    if (!hasSign || !correctiveValid()) { e.preventDefault(); return; }
+    if (!hasSign || !correctiveValid() || !ppmValid() || !verifierValid()) { e.preventDefault(); return; }
     // Adjuntar la firma como PNG comprimido (reescala a 360px de ancho).
     try {
       var out = document.createElement('canvas');
