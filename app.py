@@ -10010,7 +10010,8 @@ def areas_limpieza_list():
              .order_by(AreaLimpieza.nombre).all())
     productos = ProductoLimpieza.query.filter_by(activo=True).order_by(ProductoLimpieza.nombre).all()
     responsables = Vendedor.query.filter_by(activo=True).order_by(Vendedor.nombre_completo).all()
-    return render_template('registros/areas_limpieza.html', areas=areas, productos=productos, responsables=responsables)
+    puede_eliminar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'eliminar')
+    return render_template('registros/areas_limpieza.html', areas=areas, productos=productos, responsables=responsables, puede_eliminar=puede_eliminar)
 
 
 @app.route('/registros/limpieza/areas/nueva', methods=['POST'])
@@ -10245,6 +10246,20 @@ def limpieza_registrar():
     return redirect(url_for('limpieza_index'))
 
 
+@app.route('/registros/limpieza/registro/<int:registro_id>/eliminar', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('registros', 'eliminar')
+def limpieza_registro_eliminar(registro_id):
+    registro = RegistroLimpieza.query.get_or_404(registro_id)
+    nombre = registro.area.nombre if registro.area else '—'
+    cuando = _fmt_local(registro.registrado_en)
+    db.session.delete(registro)
+    db.session.commit()
+    _audit('clean', 'Eliminó registro de limpieza', f'{nombre} · {cuando}')
+    flash('Registro eliminado.', 'success')
+    return redirect(request.referrer or url_for('limpieza_historial'))
+
+
 def _revision_limpieza_que_cubre(fi, ff):
     """RevisionLimpieza más reciente que cubre el período [fi, ff] ('YYYY-MM-DD')."""
     def _d(s):
@@ -10295,11 +10310,12 @@ def limpieza_historial():
     registros = _filtrar_registros_limpieza(request.args)
     areas = AreaLimpieza.query.order_by(AreaLimpieza.nombre).all()
     puede_verificar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'editar')
+    puede_eliminar = (not isinstance(current_user, Vendedor)) or current_user.tiene_permiso('registros', 'eliminar')
     revision = _revision_limpieza_que_cubre(request.args.get('fecha_inicio'), request.args.get('fecha_fin'))
     hoy = date.today()
     return render_template('registros/limpieza_historial.html',
                            registros=registros, areas=areas, filtros=request.args,
-                           puede_verificar=puede_verificar, revision=revision,
+                           puede_verificar=puede_verificar, puede_eliminar=puede_eliminar, revision=revision,
                            hoy_iso=hoy.isoformat(),
                            fecha_7d=(hoy - timedelta(days=6)).isoformat(),
                            fecha_30d=(hoy - timedelta(days=29)).isoformat())
