@@ -10446,13 +10446,11 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
         bits = []
         if r.observacion: bits.append(f'<b>Obs.:</b> {_pdf_xe(r.observacion)}')
         if accion: bits.append(f'<b>Acción correctiva</b> — {accion}')
-        if r.metodo_verificacion:
-            bits.append(f'<b>Método verif.:</b> {_pdf_xe(r.metodo_verificacion.capitalize())}')
         return '   ·   '.join(bits) if bits else None
 
-    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'ppm', 'Resultado', 'Responsable', 'Verificó']
-    aligns = ['L', 'L', 'L', 'L', 'C', 'C', 'L', 'L']
-    widths = [80, 120, 55, 130, 40, 75, 122, 122]
+    headers = ['Fecha/Hora', 'Área', 'Tipo', 'Producto', 'ppm', 'Resultado', 'Responsable', 'Verificó', 'Método']
+    aligns = ['L', 'L', 'L', 'L', 'C', 'C', 'L', 'L', 'L']
+    widths = [78, 110, 48, 120, 36, 72, 102, 102, 62]
     filas = []
     for r in registros:
         filas.append({
@@ -10465,6 +10463,7 @@ def _build_limpieza_pdf(registros, fecha_inicio, fecha_fin, config, revision):
                 'No conforme' if not r.conforme else 'Conforme',
                 r.registrado_por_vendedor.nombre_completo if r.registrado_por_vendedor else '—',
                 r.verificado_por_vendedor.nombre_completo if r.verificado_por_vendedor else '—',
+                r.metodo_verificacion.capitalize() if r.metodo_verificacion else '—',
             ],
             'desvio': not r.conforme,
             'detalle': _detalle(r),
