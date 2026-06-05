@@ -213,7 +213,7 @@ def _seed_catalogo_limpieza():
     No borra ni desactiva nada. A los equipos creados aquí les asigna Sani-T-10 Plus
     como sanitizante (activa el gate de ppm). Seguro de correr en cada arranque."""
     try:
-        from sqlalchemy import inspect as _sa_inspect, func as _sa_func
+        from sqlalchemy import inspect as _sa_inspect
         insp = _sa_inspect(db.engine)
         tables = set(insp.get_table_names())
         if 'producto_limpieza' not in tables or 'area_limpieza' not in tables:
@@ -221,7 +221,7 @@ def _seed_catalogo_limpieza():
 
         def _get_or_create_producto(nombre):
             p = (ProductoLimpieza.query
-                 .filter(_sa_func.lower(ProductoLimpieza.nombre) == nombre.lower()).first())
+                 .filter(func.lower(ProductoLimpieza.nombre) == nombre.lower()).first())
             if p is None:
                 p = ProductoLimpieza(nombre=nombre, dilucion='Según ficha técnica', activo=True)
                 db.session.add(p)
@@ -234,7 +234,7 @@ def _seed_catalogo_limpieza():
 
         def _ensure_area(nombre, tipo, sanitizante_id=None):
             existe = (AreaLimpieza.query
-                      .filter(_sa_func.lower(AreaLimpieza.nombre) == nombre.lower()).first())
+                      .filter(func.lower(AreaLimpieza.nombre) == nombre.lower()).first())
             if existe is None:
                 db.session.add(AreaLimpieza(nombre=nombre, tipo=tipo,
                                             sanitizante_id=sanitizante_id, activa=True))
