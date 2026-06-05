@@ -10061,6 +10061,24 @@ def area_limpieza_toggle(area_id):
     return redirect(url_for('areas_limpieza_list'))
 
 
+@app.route('/registros/limpieza/areas/<int:area_id>/eliminar', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('registros', 'editar')
+def area_limpieza_eliminar(area_id):
+    area = AreaLimpieza.query.get_or_404(area_id)
+    n = RegistroLimpieza.query.filter_by(area_id=area_id).count()
+    if n > 0:
+        flash(f'La tarea «{area.nombre}» tiene {n} registro(s) en el historial; no se puede '
+              f'borrar. Desactívala en su lugar.', 'danger')
+        return redirect(url_for('areas_limpieza_list'))
+    nombre = area.nombre
+    db.session.delete(area)
+    db.session.commit()
+    _audit('config', 'Eliminó tarea de limpieza', nombre)
+    flash('Tarea eliminada.', 'success')
+    return redirect(url_for('areas_limpieza_list'))
+
+
 def _areas_con_registro_hoy():
     """Set de area_id con al menos un registro de limpieza HOY (día local de negocio)."""
     ahora_local = datetime.now(DASHBOARD_TIMEZONE)
