@@ -167,15 +167,15 @@
 
       <!-- Concentración ppm (solo si el área usa sanitizante) -->
       <div class="ops-field ops-ppm-field" id="firmaPpmField" hidden style="margin-bottom:12px">
-        <label>Concentración Sani-T-10 Plus (ppm) *</label>
+        <label for="firmaPpm">Concentración Sani-T-10 Plus (ppm) *</label>
         <input type="number" name="concentracion_ppm" id="firmaPpm"
-               inputmode="numeric" min="0" step="1" placeholder="150–400">
+               inputmode="numeric" min="1" step="1" placeholder="150–400">
         <div class="ops-ppm-hint" id="firmaPpmHint"></div>
       </div>
 
       <!-- Verificación independiente -->
       <div class="ops-field" style="margin-bottom:12px">
-        <label>Verificó (otra persona) *</label>
+        <label for="firmaVerifico">Verificó (otra persona) *</label>
         <select name="verificado_por" id="firmaVerifico" required>
           <option value="">Selecciona…</option>
           {% for v in vendedores %}{% if not (operador_id and v.id == operador_id) %}
@@ -186,7 +186,7 @@
 
       <!-- Método de verificación (recomendado) -->
       <div class="ops-field" style="margin-bottom:12px">
-        <label>Método de verificación</label>
+        <label for="firmaMetodo">Método de verificación</label>
         <select name="metodo_verificacion" id="firmaMetodo">
           <option value="">—</option>
           <option value="visual">Visual</option>
@@ -332,7 +332,7 @@
   function ppmValid() {
     if (ppmField.hidden) return true;            // área sin sanitizante
     var raw = ppmInput.value.trim();
-    if (raw === '') { return conformeInput.value === 'no'; }
+    if (raw === '') return false;
     var n = parseInt(raw, 10);
     if (isNaN(n)) return false;
     if (conformeInput.value === 'no') return true;  // no conforme documenta el desvío
@@ -399,6 +399,9 @@
     form.reset(); conformeInput.value = 'si'; corrective.hidden = true;
     // ppm visible solo si el área tiene sanitizante (data-area-sani presente).
     ppmField.hidden = !btn.dataset.areaSani;
+    if (btn.dataset.areaSani) {
+      ppmField.querySelector('label').textContent = 'Concentración ' + btn.dataset.areaSani + ' (ppm) *';
+    }
     document.querySelectorAll('[data-set-result]').forEach(function (x, i) { x.classList.toggle('is-active', i === 0); });
     // Fecha/hora a "ahora" (local) cada vez que se abre.
     var whenEl = document.getElementById('firmaWhen');

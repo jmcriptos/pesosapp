@@ -423,6 +423,18 @@ def test_registrar_ppm_negativo_rechazado(app):
         assert RegistroLimpieza.query.filter_by(area_id=area_id).count() == 0
 
 
+def test_registrar_no_conforme_sin_ppm_rechazado_con_sanitizante(app):
+    from app import RegistroLimpieza
+    area_id = _crear_area_con_sani(app)
+    c = _login(app, 'vend')
+    c.post('/registros/limpieza/registrar',
+           data={'area_id': area_id, 'conforme': 'no',
+                 'verificado_por': IDS['admin'],
+                 'accion_tomada': 'x', 'accion_disposicion': 'y'}, follow_redirects=True)
+    with app.app_context():
+        assert RegistroLimpieza.query.filter_by(area_id=area_id).count() == 0
+
+
 def test_seed_catalogo_idempotente(app):
     from app import _seed_catalogo_limpieza, ProductoLimpieza, AreaLimpieza
     with app.app_context():
