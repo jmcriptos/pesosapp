@@ -207,10 +207,7 @@ $(document).ready(function() {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(res => {
-            if (!res.ok) throw new Error("Fallo al crear producto");
-            return res.json();
-        })
+        .then(res => res.json().catch(() => ({ error: 'Error al crear el producto' })))
         .then(data => {
             if (data.error) {
                 mostrarMensaje(data.error, 'danger');

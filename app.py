@@ -7,7 +7,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_, or_, cast, String
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy.orm import joinedload, selectinload, load_only
 import io
 from flask import make_response
@@ -7465,6 +7465,20 @@ def productos():
             else:
                 flash('Producto creado exitosamente.', 'success')
                 return redirect(url_for('productos'))
+
+        except IntegrityError as e:
+            db.session.rollback()
+            app.logger.warning(f"Producto duplicado al crear: {e}")
+            # qbo_id es la única restricción UNIQUE de la tabla producto.
+            mensaje = 'Ya existe un producto con ese QBO ID.'
+            if qbo_id:
+                existente = Producto.query.filter_by(qbo_id=qbo_id).first()
+                if existente:
+                    mensaje = f'El QBO ID {qbo_id} ya está asignado al producto "{existente.nombre}".'
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({'error': mensaje}), 400
+            flash(mensaje, 'danger')
+            return redirect(url_for('productos'))
 
         except Exception as e:
             db.session.rollback()
