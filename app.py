@@ -334,13 +334,19 @@ csrf = CSRFProtect(app)
 # Configuración de seguridad con Talisman (HSTS, CSP, etc.)
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
-    # script-src usa nonces (sin 'unsafe-inline'): cada <script> inline lleva
-    # nonce="{{ csp_nonce() }}". style-src mantiene 'unsafe-inline' (bajo riesgo,
-    # evita reescribir cientos de estilos inline).
+    # IMPORTANTE: la CSP por nonces es INCOMPATIBLE con Cloudflare Rocket Loader,
+    # que reescribe los <script> y los re-inyecta SIN el nonce (el navegador oculta
+    # el atributo nonce del DOM), así que con 'script-src' estricto quedan bloqueados
+    # y la app deja de ejecutar JS en producción. Mientras Rocket Loader esté activo
+    # mantenemos 'unsafe-inline' y nonce_in=[]. Para migrar a nonces de verdad hay que
+    # desactivar Rocket Loader en Cloudflare (Speed → Optimization → Rocket Loader: Off)
+    # y entonces volver a poner nonce_in=['script-src'] y quitar 'unsafe-inline'.
+    # La infraestructura de nonces en los templates ({{ csp_nonce() }}) queda lista.
     talisman_policy = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
+            "'unsafe-inline'",  # requerido por Cloudflare Rocket Loader (ver nota arriba)
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
@@ -368,7 +374,7 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
     Talisman(
         app,
         content_security_policy=talisman_policy,
-        content_security_policy_nonce_in=['script-src'],
+        content_security_policy_nonce_in=[],
         # Configuración HSTS - forzar HTTPS por 1 año
         strict_transport_security=True,
         strict_transport_security_max_age=31536000,  # 1 año
