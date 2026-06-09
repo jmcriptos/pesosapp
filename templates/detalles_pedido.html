@@ -123,8 +123,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 // ========================================================================
 // TABS PRODUCTOS / DETALLES / HISTORIAL
 // ========================================================================
@@ -170,6 +170,22 @@
 const editModalOverlay = document.getElementById('editModalOverlay');
 const editForm = document.getElementById('editDetalleForm');
 const editPesoField = document.getElementById('edit_peso');
+
+// Handler delegado: lee datos desde data-* (evita inyección de JS en onclick)
+document.addEventListener('click', function(ev) {
+    const btn = ev.target.closest('.js-edit-prep');
+    if (!btn) return;
+    openEditModal(
+        btn.dataset.detalleId,
+        btn.dataset.productoId,
+        btn.dataset.peso,
+        btn.dataset.lote,
+        btn.dataset.fechaFab,
+        btn.dataset.fechaExp,
+        btn.dataset.cajas,
+        false
+    );
+});
 
 function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, cajas, sePesa) {
     // Establecer la URL de acción del formulario
@@ -242,7 +258,7 @@ function closeEditModal() {
 // El modal de edición sólo se renderiza para pedidos no facturados
 // (_detail_edit_modal.html). Si no está en el DOM, no registramos los
 // listeners: de lo contrario, .addEventListener sobre null lanzaría
-// TypeError y cortaría el resto del <script> (incluido el handler de
+// TypeError y cortaría el resto del <script nonce="{{ csp_nonce() }}"> (incluido el handler de
 // generación de etiquetas).
 if (editModalOverlay && editForm && editPesoField) {
     // Cerrar modal al hacer clic fuera

@@ -9,6 +9,9 @@ instance/
 context/*.xml
 .bmad-core/web-bundles/*
 backups/
+outputs/
+*.db
+*.dump
 .superpowers/
 
 # Agent / tool working directories

@@ -524,7 +524,7 @@ def test_historial_boton_eliminar_solo_admin(app):
     c = app.test_client()
     c.post('/login', data={'username': 'admin', 'password': 'pw'}, follow_redirects=False)
     admin_body = c.get('/registros/limpieza/historial').data.decode('utf-8')
-    c.get('/logout', follow_redirects=False)
+    c.post('/logout', follow_redirects=False)
     c.post('/login', data={'username': 'vend', 'password': 'pw'}, follow_redirects=False)
     vend_body = c.get('/registros/limpieza/historial').data.decode('utf-8')
     assert 'Eliminar registro' in admin_body

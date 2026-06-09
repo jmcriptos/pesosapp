@@ -2,8 +2,6 @@ import os
 import re
 
 os.environ.setdefault('SECRET_KEY', 'test-secret')
-os.environ.setdefault('DEFAULT_USERNAME', 'admin')
-os.environ.setdefault('DEFAULT_PASSWORD', 'admin')
 os.environ.setdefault('FLASK_ENV', 'production')
 
 from app import app

@@ -409,9 +409,9 @@
 
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/dashboard-snap-dots.js') }}" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/dashboard-snap-dots.js') }}" defer></script>
+<script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
   // Data (declared first so it's available when charts initialize).
   // Values come from top-level set blocks so they are in scope here.

@@ -56,7 +56,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce() }}">
 console.log('🚀 SCRIPT INICIADO - Funcionando correctamente');
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -162,7 +162,7 @@ async function cargarClientes(vendedorId) {
         datos.forEach(cliente => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${cliente.nombre}</td>
+                <td>${escapeHtml(cliente.nombre)}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-danger" data-action="desasignar" data-id="${cliente.asign_id}" title="Desasignar cliente">
                         <i class="fas fa-unlink"></i> Desasignar

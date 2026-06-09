@@ -1,3 +1,34 @@
+// Escape global para insertar datos del servidor en HTML sin riesgo de XSS.
+window.escapeHtml = function (value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+
+// Logout por POST (anti CSRF): intercepta cualquier enlace a /logout y lo envía
+// como formulario POST con token CSRF.
+document.addEventListener('click', function (ev) {
+    const link = ev.target.closest('a[href$="/logout"], a[href="/logout"]');
+    if (!link) return;
+    ev.preventDefault();
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = link.getAttribute('href');
+    if (token) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrf_token';
+        input.value = token;
+        form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+});
+
 // Configuración global para CSRF en AJAX
 document.addEventListener('DOMContentLoaded', function() {
     // Configurar CSRF token para todas las peticiones AJAX
@@ -277,6 +308,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // CSP-safe: auto-submit del formulario al cambiar (reemplaza onchange="this.form.submit()")
+    document.addEventListener('change', function(e) {
+        const el = e.target.closest('[data-autosubmit]');
+        if (el && el.form) {
+            el.form.submit();
+        }
+    });
+
+    // CSP-safe: detener propagación de click (reemplaza onclick="event.stopPropagation()")
+    document.querySelectorAll('[data-stop-propagation]').forEach(function(el) {
+        el.addEventListener('click', function(ev) { ev.stopPropagation(); });
+    });
+
+    // CSP-safe: acciones de click vía data-* (reemplazan onclick="fn()") delegadas en document
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('[data-drawer-open]')) {
+            e.preventDefault();
+            document.getElementById('drawerToggle')?.click();
+            return;
+        }
+        if (e.target.closest('[data-edit-close]') && typeof window.closeEditModal === 'function') {
+            window.closeEditModal();
+            return;
+        }
+        if (e.target.closest('[data-etiquetas-toggle]') && typeof window.toggleEtiquetas === 'function') {
+            window.toggleEtiquetas();
+            return;
+        }
+        const rmProd = e.target.closest('[data-remove-producto]');
+        if (rmProd && typeof window.eliminarProducto === 'function') {
+            window.eliminarProducto(Number(rmProd.dataset.removeProducto));
+        }
+    });
+
     // US01: Helper para calcular clases de porcentaje para gauges
     window.calculateGaugeClasses = function(percentage, maxValue) {
         if (maxValue === 0) return { width: 'w-pct-0', needle: 'needle-0' };
@@ -297,10 +362,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const originalFetch = window.fetch;
     window.fetch = function(input, init = {}) {
-        init.headers = init.headers || {};
-        // No sobrescribir si ya fue seteado
-        if (!init.headers['X-CSRFToken'] && !init.headers['X-CSRF-Token']) {
-            init.headers['X-CSRFToken'] = token;
+        // Solo adjuntar el token CSRF a métodos no seguros y a URLs del mismo origen,
+        // para no filtrar el token a servicios externos.
+        const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+        let sameOrigin = true;
+        try {
+            const url = new URL((input && input.url) || input, window.location.href);
+            sameOrigin = (url.origin === window.location.origin);
+        } catch (e) {
+            sameOrigin = true; // rutas relativas → mismo origen
+        }
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && sameOrigin) {
+            init.headers = init.headers || {};
+            if (init.headers instanceof Headers) {
+                if (!init.headers.has('X-CSRFToken') && !init.headers.has('X-CSRF-Token')) {
+                    init.headers.set('X-CSRFToken', token);
+                }
+            } else if (!init.headers['X-CSRFToken'] && !init.headers['X-CSRF-Token']) {
+                init.headers['X-CSRFToken'] = token;
+            }
         }
         return originalFetch(input, init);
     };

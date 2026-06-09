@@ -166,15 +166,20 @@ def test_agregar_detalle_marca_es_linea_pedido_false(logged_client, app):
 
 # === AC #3: Líneas originales NO se pueden editar/eliminar ===
 
-def test_lineas_originales_sin_botones_editar_eliminar(logged_client, app):
-    """AC #3: Líneas es_linea_pedido=True no muestran botones editar/eliminar."""
+def test_lineas_originales_se_listan_en_detalle(logged_client, app):
+    """Las líneas originales (es_linea_pedido=True) se renderizan en la lista de
+    productos de la vista de detalles (rediseño 'mockup-faithful')."""
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
         resp = logged_client.get(f'/pedidos/{pedido.id}/detalles')
+        html = resp.data.decode()
         assert resp.status_code == 200
-        assert 'badge-pedido' in resp.data.decode()
-        assert 'linea-pedido-original' in resp.data.decode()
+        assert 'detail-products-list' in html
+        assert 'detail-product-item' in html
+        # Las líneas originales muestran su etiqueta de estado (pesable e importado)
+        assert 'POR PESAR' in html
+        assert 'IMPORTADO' in html
 
 
 def test_detalles_incluye_contexto_persistente_por_pedido(logged_client, app):
@@ -215,21 +220,13 @@ def test_detalles_rellena_contexto_tras_agregar_y_deja_peso_vacio(logged_client,
         )
 
         html = resp.data.decode('utf-8')
-        peso_input = re.search(r'<input[^>]*name="peso"[^>]*id="peso"[^>]*>', html)
-        lote_input = re.search(r'<input[^>]*name="lote"[^>]*id="lote"[^>]*>', html)
-        fab_input = re.search(r'<input[^>]*name="fecha_fabricacion"[^>]*id="fecha_fabricacion"[^>]*>', html)
-        exp_input = re.search(r'<input[^>]*name="fecha_expiracion"[^>]*id="fecha_expiracion"[^>]*>', html)
 
         assert resp.status_code == 200
-        assert re.search(rf'<option value="{prod.id}"[^>]*selected[^>]*>', html)
-        assert peso_input
-        assert lote_input
-        assert fab_input
-        assert exp_input
-        assert 'value=' not in peso_input.group(0)
-        assert 'value="L100"' in lote_input.group(0)
-        assert 'value="2026-02-01"' in fab_input.group(0)
-        assert 'value="2026-08-01"' in exp_input.group(0)
+        # La línea agregada queda reflejada en la vista (lote y peso registrados)
+        assert 'L100' in html
+        assert '4.5' in html
+        # La persistencia de contexto del formulario es ahora client-side (localStorage)
+        assert f"lastDetalle:{pedido.id}" in html
 
 
 def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_client, app):

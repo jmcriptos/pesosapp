@@ -171,7 +171,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var screen = document.querySelector('.ops-screen[data-accent="temp"]');
   if (!screen) return;

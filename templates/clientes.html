@@ -166,8 +166,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script nonce="{{ csp_nonce() }}">
 // ----- eliminar cliente (AJAX) -----
 $(document).on('click','.eliminar-cliente',function(){
   const id = $(this).data('id');

@@ -30,7 +30,7 @@
     <div class="estado-select-wrap">
       <select name="estado" id="pedidos-estado-select"
               class="estado-select"
-              onchange="this.form.submit()"
+              data-autosubmit
               aria-label="Filtrar por estado">
         <option value="todos"     {% if filtros.estado == 'todos' %}selected{% endif %}>Todos · {{ status_counts.total }}</option>
         <option value="pendiente" {% if filtros.estado == 'pendiente' %}selected{% endif %}>Pendientes · {{ status_counts.pendiente }}</option>
@@ -75,7 +75,7 @@
       <div class="pc-foot">
         <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
 
-        <div class="pc-actions" onclick="event.stopPropagation()">
+        <div class="pc-actions" data-stop-propagation>
           {% if pedido.estado != 'facturado' %}
           <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
              class="pc-action-btn edit" title="Editar" aria-label="Editar pedido #{{ pedido.id }}">
@@ -84,7 +84,7 @@
           {% endif %}
           {% if pedido.estado == 'preparado' %}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form" onclick="event.stopPropagation()">
+                class="pc-action-form" data-stop-propagation>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="pc-action-btn invoice" title="Facturar"
                     aria-label="Facturar pedido #{{ pedido.id }}">
@@ -95,8 +95,8 @@
           {% if pedido.estado in ['pendiente', 'preparado'] %}
           <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form"
-                onsubmit="return confirm('{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}')"
-                onclick="event.stopPropagation()">
+                data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}"
+                data-stop-propagation>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="pc-action-btn danger" title="Eliminar"
                     aria-label="Eliminar pedido #{{ pedido.id }}">
@@ -244,7 +244,7 @@
                   {% endif %}
                   {% if pedido.estado in ['pendiente', 'preparado'] %}
                   <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
-                        onsubmit="return confirm('{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Seguro que quieres eliminar este pedido?{% endif %}');">
+                        data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Seguro que quieres eliminar este pedido?{% endif %}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="row-action row-action-danger"
                             title="Eliminar pedido #{{ pedido.id }}" aria-label="Eliminar pedido #{{ pedido.id }}">
@@ -309,7 +309,7 @@
     </div>
   </div>
 
-  <script>
+  <script nonce="{{ csp_nonce() }}">
   (function () {
     // Client-side instant filter for the mobile card list
     var searchInput = document.getElementById('pedidos-search');

@@ -79,7 +79,7 @@
             </form>
             {% if puede_eliminar %}
             <form method="POST" action="{{ url_for('area_limpieza_eliminar', area_id=a.id) }}"
-                  onsubmit="return confirm('¿Eliminar esta tarea? No se puede deshacer.')">
+                  data-confirm="¿Eliminar esta tarea? No se puede deshacer.">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="cam-edit" title="Eliminar" style="color:var(--color-danger) !important">
                 <i class="fas fa-trash" style="font-size:15px"></i>
@@ -114,7 +114,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var b = document.getElementById('tareaNuevaBtn'); var f = document.getElementById('tareaNuevaForm');
   if (b) b.addEventListener('click', function () { f.hidden = !f.hidden; });

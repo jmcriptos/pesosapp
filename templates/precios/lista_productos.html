@@ -528,7 +528,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     const LISTA_ID = {{ lista.id }};
     const CSRF = '{{ csrf_token() }}';

@@ -46,9 +46,15 @@
               </a>
             {% elif prep %}
               <button type="button"
-                      class="detail-product-action"
+                      class="detail-product-action js-edit-prep"
                       title="Editar cantidad y fechas"
-                      onclick="openEditModal({{ prep.id }}, {{ prep.producto_id }}, {{ prep.peso or 0 }}, '{{ prep.lote or '' }}', '{{ prep.fecha_fabricacion or '' }}', '{{ prep.fecha_expiracion or '' }}', {{ prep.cajas }}, false)">
+                      data-detalle-id="{{ prep.id }}"
+                      data-producto-id="{{ prep.producto_id }}"
+                      data-peso="{{ prep.peso or 0 }}"
+                      data-lote="{{ prep.lote or '' }}"
+                      data-fecha-fab="{{ prep.fecha_fabricacion or '' }}"
+                      data-fecha-exp="{{ prep.fecha_expiracion or '' }}"
+                      data-cajas="{{ prep.cajas }}">
                 <i class="fas fa-pen"></i>
                 <span>Editar</span>
               </button>

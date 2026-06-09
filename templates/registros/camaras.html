@@ -96,8 +96,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var nuevaBtn = document.getElementById('camNuevaBtn');
   var nuevaForm = document.getElementById('camNuevaForm');

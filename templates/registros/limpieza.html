@@ -235,7 +235,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var screen = document.querySelector('.ops-screen[data-accent="clean"]');
   if (!screen) return;
@@ -382,18 +382,19 @@
     document.getElementById('firmaMeta').textContent = meta;
     // Ficha SSOP — proceso de 2 pasos (limpiar → sanitizar)
     var ssop = document.getElementById('firmaSsop');
+    var esc = window.escapeHtml || function (v) { return String(v == null ? '' : v); };
     function step(n, cls, name, dil, proc) {
       var meta = [];
-      if (dil) meta.push('Dilución: ' + dil);
-      if (proc) meta.push(proc);
+      if (dil) meta.push('Dilución: ' + esc(dil));
+      if (proc) meta.push(esc(proc));
       return '<div class="ops-ssop-step"><span class="paso-num ' + cls + '">' + n + '</span><div class="ops-ssop-step-body">' +
-        '<div class="ops-ssop-step-name">' + name + '</div>' +
+        '<div class="ops-ssop-step-name">' + esc(name) + '</div>' +
         (meta.length ? '<div class="ops-ssop-step-meta">' + meta.join(' · ') + '</div>' : '') + '</div></div>';
     }
     var html = '';
     if (btn.dataset.areaProd) html += step('1', '', 'Limpieza · ' + btn.dataset.areaProd, btn.dataset.areaDilucion, btn.dataset.areaProc);
     if (btn.dataset.areaSani) html += step('2', 'is-2', 'Sanitización · ' + btn.dataset.areaSani, btn.dataset.areaSaniDil, btn.dataset.areaSaniProc);
-    if (btn.dataset.areaMetodo) html += '<div class="ops-ssop-line" style="margin-top:8px"><b>Método:</b> ' + btn.dataset.areaMetodo + '</div>';
+    if (btn.dataset.areaMetodo) html += '<div class="ops-ssop-line" style="margin-top:8px"><b>Método:</b> ' + esc(btn.dataset.areaMetodo) + '</div>';
     if (html) { ssop.innerHTML = html; ssop.hidden = false; } else { ssop.hidden = true; }
     // reset
     form.reset(); conformeInput.value = 'si'; corrective.hidden = true;

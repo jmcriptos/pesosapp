@@ -160,7 +160,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 /* === Datos del backend === */
 const productos = {{ productos|tojson }};
 const productos_pedido = {{ productos_pedido|default([])|tojson }};
@@ -254,11 +254,11 @@ function actualizarTablaProductos() {
         card.className = 'producto-card-item';
         card.innerHTML = `
             <input type="hidden" name="productos[${idx}][id]" value="${p.id}">
-            <input type="hidden" name="productos[${idx}][nombre]" value="${p.nombre}">
+            <input type="hidden" name="productos[${idx}][nombre]" value="${escapeHtml(p.nombre)}">
             <input type="hidden" name="productos[${idx}][cajas]" value="${p.cajas}">
             <input type="hidden" name="productos[${idx}][precio]" value="${precio}">
             <div class="producto-card-info">
-                <div class="producto-card-nombre">${p.nombre}</div>
+                <div class="producto-card-nombre">${escapeHtml(p.nombre)}</div>
                 <div class="producto-card-meta">
                     <span>${p.cajas} cajas</span>
                     <span>@ ${precio.toFixed(2)}</span>

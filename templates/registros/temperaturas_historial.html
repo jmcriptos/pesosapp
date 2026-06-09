@@ -27,11 +27,11 @@
       <!-- Filtros -->
       <form method="GET" action="{{ url_for('temperaturas_historial') }}" class="hist-bar">
         <label class="hist-pill"><i class="far fa-calendar" style="color:var(--color-text-subtle)"></i><span class="pill-label">Desde</span>
-          <input type="date" name="fecha_inicio" value="{{ filtros.get('fecha_inicio','') }}" onchange="this.form.submit()"></label>
+          <input type="date" name="fecha_inicio" value="{{ filtros.get('fecha_inicio','') }}" data-autosubmit></label>
         <label class="hist-pill"><i class="far fa-calendar" style="color:var(--color-text-subtle)"></i><span class="pill-label">Hasta</span>
-          <input type="date" name="fecha_fin" value="{{ filtros.get('fecha_fin','') }}" onchange="this.form.submit()"></label>
+          <input type="date" name="fecha_fin" value="{{ filtros.get('fecha_fin','') }}" data-autosubmit></label>
         <label class="hist-pill">
-          <select name="camara_id" onchange="this.form.submit()">
+          <select name="camara_id" data-autosubmit>
             <option value="">Todas las cámaras</option>
             {% for c in camaras %}<option value="{{ c.id }}" {{ 'selected' if filtros.get('camara_id') == c.id|string }}>{{ c.nombre }}</option>{% endfor %}
           </select>
@@ -110,8 +110,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var ef = document.getElementById('export-form');
   if (ef) ef.addEventListener('submit', function (e) {

@@ -2,7 +2,6 @@
 Sistema de cache optimizado para PesosApp
 """
 import functools
-import pickle
 import time
 from typing import Any, Callable, Optional
 from datetime import datetime, timedelta

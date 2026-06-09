@@ -397,9 +397,9 @@ tbody tr:only-child td {
 {% endblock %}
 
 {% block scripts %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="{{ url_for('static', filename='scripts.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='scripts.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Ajustar padding inferior para no tapar contenido con el menú inferior
         const content = document.querySelector('.app-content');

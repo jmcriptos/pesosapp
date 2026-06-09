@@ -90,19 +90,9 @@ def test_nueva_igual_a_actual(app):
     _sigue_con_old(app)
 
 
-def test_default_user_redirige_a_dashboard(app, monkeypatch):
-    """Un DefaultUser (legacy) que accede a cambiar_password debe ser redirigido al dashboard."""
-    import app as app_module
-    monkeypatch.setattr(app_module, '_LEGACY_USER_ENABLED', True)
-    monkeypatch.setattr(app_module, 'DEFAULT_USERNAME', 'legacy')
-    monkeypatch.setattr(app_module, 'DEFAULT_PASSWORD', 'legacypw')
-
-    c = app.test_client()
-    c.post('/login', data={'username': 'legacy', 'password': 'legacypw'},
-           follow_redirects=True)
-    resp = c.get(URL, follow_redirects=False)
-    assert resp.status_code == 302
-    assert '/dashboard' in resp.headers.get('Location', '')
+# Nota: el usuario legacy (DefaultUser) fue eliminado por seguridad; ya no existe
+# un fallback de credenciales por variables de entorno. El test correspondiente
+# se retiró junto con esa funcionalidad.
 
 
 def test_exito_cambia_y_desloguea(app):

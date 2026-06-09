@@ -81,7 +81,7 @@
     <!-- Eruda: DevTools portátil. Solo aparece si la URL actual
          incluye ?debug=1 — al navegar a otra página sin ese
          parámetro, el botón se va. -->
-    <script>
+    <script nonce="{{ csp_nonce() }}">
       (function () {
         // Limpia cualquier flag persistente de versiones anteriores
         try { localStorage.removeItem('eruda'); } catch (e) {}
@@ -108,7 +108,7 @@
 </head>
 <body {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal"{% if request.path.startswith('/registros') %} data-registros-screen="1" data-ops-shell="1"{% elif request.path.startswith('/admin/vendedores') %} data-ops-shell="1"{% endif %}{% endblock %}>
 <div class="app-loading-bar" id="appLoadingBar" aria-hidden="true"></div>
-<script>
+<script nonce="{{ csp_nonce() }}">
   /* Barra de progreso de navegación (estilo NProgress). Inline para pintar
      en el primer frame. Sin overlay a pantalla completa.
      - Arranca al cargar la página y "gotea" hasta ~90%.
@@ -218,7 +218,7 @@
     }, true);
   })();
 </script>
-<script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     {% set current_path = request.path or '' %}
     {% set is_dashboard = current_path.startswith('/dashboard') or current_path in ['/', '/home'] %}
     {% set is_pedidos = current_path.startswith('/pedidos') or current_path.startswith('/detalles_pedido') or current_path.startswith('/generar_etiqueta_detalle') %}
@@ -528,7 +528,7 @@
         <i class="fas fa-users" aria-hidden="true"></i>
         Clientes
       </a>
-      <a href="#" class="tab" onclick="event.preventDefault(); document.getElementById('drawerToggle')?.click();">
+      <a href="#" class="tab" data-drawer-open>
         <i class="fas fa-ellipsis-h" aria-hidden="true"></i>
         Más
       </a>
@@ -537,9 +537,9 @@
 
     <!-- Scripts optimizados - FORZAR MINIFICADOS -->
     {% block scripts %}{% endblock %}
-    <script src="{{ url_for('static', filename='js/base.min.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    <script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/base.min.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script nonce="{{ csp_nonce() }}">
     /* Auto-init Tom Select en todo select.ts-select.
        - data-ts-placeholder="..."  → placeholder del input de búsqueda
        - data-no-auto-ts="1"        → opt-out: la pantalla hace su propio init
@@ -589,7 +589,7 @@
     </script>
     
     <!-- Script de info de optimización -->
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         // Tabbar tap haptic + immediate visual press class. iOS Safari
         // currently no-ops navigator.vibrate (silent), Android Chrome
         // honors the 8ms pulse. The .is-pressing class lingers ~140ms so

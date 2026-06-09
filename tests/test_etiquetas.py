@@ -239,7 +239,7 @@ def test_vista_pedidos_carga_correctamente(logged_client, app):
     assert resp.status_code == 200
     assert b'Cliente Test' in resp.data
     assert b'Filtrar' in resp.data
-    assert b'Nuevo Pedido' in resp.data
+    assert b'btn-nuevo-pedido' in resp.data
 
 
 def test_vista_pedidos_filtra_desde_get(logged_client, app):
@@ -270,8 +270,9 @@ def test_vista_pedidos_filtra_desde_get(logged_client, app):
     assert resp.status_code == 200
     assert 'Cliente Filtro' in html
     assert 'Cliente Test' not in html
-    assert 'value="pendiente" checked' in html
-    assert 'Solo pedidos con notas' in html
+    assert 'value="pendiente" selected' in html
+    # El filtro solo_notas se preserva como hidden input en el form de filtros
+    assert 'name="solo_notas" value="1"' in html
 
 
 # === AC #5: Sin regresiones ===

@@ -414,7 +414,7 @@ h2 {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 document.addEventListener('DOMContentLoaded', function() {
     const tipoCargaSelect = document.getElementById('tipo_carga');
     const listaPreciosSelect = document.getElementById('lista_precios');

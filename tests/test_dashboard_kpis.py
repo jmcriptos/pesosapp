@@ -93,8 +93,8 @@ def test_kpis_empty_period_returns_defaults(app):
         response = resp.get('/dashboard')
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        # Debe contener las claves nuevas en el HTML renderizado
-        assert 'order_completion_rate' in html
+        # El dashboard renderiza el KPI Order Fill Rate (antes order_completion_rate)
+        assert 'Order Fill Rate' in html
         assert 'order_accuracy' not in html
 
 
@@ -107,11 +107,11 @@ def test_kpi_evolution_chart_no_accuracy(logged_client):
 
 
 def test_kpi_evolution_chart_has_ofr(logged_client):
-    """El chart de evolución usa OFR."""
+    """El chart de evolución usa OFR (Order Fill Rate)."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'order_completion_rate' in html
-    assert "OFR (%)" in html
+    assert 'OFR' in html
+    assert 'Order Fill Rate' in html
 
 
 def test_dashboard_no_palabras_error(app):
@@ -144,14 +144,14 @@ def test_dashboard_has_objetivos_de_ventas_section(logged_client):
     """AC #1: La sección de Ventas está visible en el dashboard."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'data-panel-label="Ventas"' in html
+    assert 'data-panel="ventas"' in html
 
 
 def test_dashboard_has_nivel_de_servicio_section(logged_client):
     """AC #2: La sección de Servicio está visible en el dashboard."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'data-panel-label="Servicio"' in html
+    assert 'data-panel="servicio"' in html
 
 
 def test_dashboard_has_proyeccion(logged_client):
@@ -189,7 +189,7 @@ def test_fallback_data_has_proyeccion_keys(app):
 
 def _ventas_mes_en_html(html):
     match = re.search(
-        r'Ventas del Mes</span>.*?<div class="tile-value">([^<]+)<small>XCG</small>',
+        r'Ventas del Mes</div>.*?<div class="kpi-value">([^<]+)<small>XCG</small>',
         html,
         flags=re.S
     )
@@ -199,7 +199,7 @@ def _ventas_mes_en_html(html):
 
 def _top_producto_1_en_html(html):
     match = re.search(
-        r'Top Productos.*?<span class="rr-name">([^<]+)</span>\s*<span class="rr-amount">([^<]+)<small>XCG</small>',
+        r'Top Productos.*?<div class="rank-name">([^<]+)</div>.*?<div class="rank-amt">([^<]+)<small>XCG</small>',
         html,
         flags=re.S
     )
@@ -411,7 +411,7 @@ def test_dashboard_ventas_desde_quickbooks_si_fuente_habilitada(app, logged_clie
         def json(self):
             return self._payload
 
-    def fake_post(url, json, timeout):
+    def fake_post(url, json, timeout, **kwargs):
         called['url'] = url
         called['json'] = json
         called['timeout'] = timeout
@@ -467,7 +467,7 @@ def test_dashboard_ventas_qbo_usd_convierte_a_xcg(app, logged_client, monkeypatc
         def json(self):
             return self._payload
 
-    def fake_post(url, json, timeout):
+    def fake_post(url, json, timeout, **kwargs):
         return DummyResponse({
             'transactions': [
                 {
@@ -518,7 +518,7 @@ def test_dashboard_ventas_qbo_usd_tasa_uno_usa_fallback(app, logged_client, monk
         def json(self):
             return self._payload
 
-    def fake_post(url, json, timeout):
+    def fake_post(url, json, timeout, **kwargs):
         return DummyResponse({
             'transactions': [
                 {
@@ -570,7 +570,7 @@ def test_dashboard_ventas_qbo_no_sobrescribe_con_summary_sin_convertir(app, logg
         def json(self):
             return self._payload
 
-    def fake_post(url, json, timeout):
+    def fake_post(url, json, timeout, **kwargs):
         return DummyResponse({
             'transactions': [
                 {
@@ -624,7 +624,7 @@ def test_dashboard_ventas_qbo_summary_usd_convierte_cuando_no_hay_filas(app, log
         def json(self):
             return self._payload
 
-    def fake_post(url, json, timeout):
+    def fake_post(url, json, timeout, **kwargs):
         return DummyResponse({
             'summary': {
                 'ventas_mes': 100,
@@ -767,7 +767,7 @@ def test_dashboard_ventas_qbo_agregados_usd_sin_moneda_usa_monto_directo(app, lo
         'key': None, 'value': None, 'expires_at': 0.0,
         'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
     })
-    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout, **kwargs: DummyResponse())
 
     resp = logged_client.get('/dashboard')
     assert resp.status_code == 200
@@ -799,7 +799,7 @@ def test_dashboard_ventas_qbo_agregados_usd_con_moneda_convierte(app, logged_cli
         'key': None, 'value': None, 'expires_at': 0.0,
         'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
     })
-    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout, **kwargs: DummyResponse())
 
     resp = logged_client.get('/dashboard')
     assert resp.status_code == 200
@@ -830,7 +830,7 @@ def test_dashboard_ventas_qbo_agregados_usd_sin_tasa_usa_fallback(app, logged_cl
         'key': None, 'value': None, 'expires_at': 0.0,
         'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
     })
-    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout, **kwargs: DummyResponse())
 
     resp = logged_client.get('/dashboard')
     assert resp.status_code == 200
@@ -866,7 +866,7 @@ def test_dashboard_ventas_qbo_transacciones_con_home_amount_prioriza(app, logged
         'key': None, 'value': None, 'expires_at': 0.0,
         'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
     })
-    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout: DummyResponse())
+    monkeypatch.setattr(app_module.requests, 'post', lambda url, json, timeout, **kwargs: DummyResponse())
 
     resp = logged_client.get('/dashboard')
     assert resp.status_code == 200
@@ -888,7 +888,7 @@ def test_dashboard_ventas_qbo_fallback_timeout_usa_datos_locales(app, logged_cli
         'stale_expires_at': 0.0, 'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
     })
 
-    def fake_post_timeout(url, json, timeout):
+    def fake_post_timeout(url, json, timeout, **kwargs):
         raise req_lib.Timeout('Simulated timeout')
 
     monkeypatch.setattr(app_module.requests, 'post', fake_post_timeout)

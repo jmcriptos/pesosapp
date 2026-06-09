@@ -58,7 +58,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var input = document.getElementById('cfgFreqInput');
   var chips = document.querySelectorAll('#cfgFreqChips .cfg-freq-chip');

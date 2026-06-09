@@ -1,6 +1,7 @@
 # init_multivendor_data.py
 import os
 import sys
+import secrets
 from datetime import datetime, date
 
 # Asegurarse de que podemos importar desde app.py
@@ -146,13 +147,16 @@ def crear_vendedor_admin():
                 fecha_ingreso=date.today(),
                 activo=True
             )
-            admin.set_password('admin123')  # Cambiar en producción
+            admin_password = os.environ.get('ADMIN_PASSWORD') or secrets.token_urlsafe(16)
+            admin.set_password(admin_password)
+            if hasattr(admin, 'debe_cambiar_password'):
+                admin.debe_cambiar_password = True
             db.session.add(admin)
             db.session.commit()
             print("  ✓ Vendedor administrador creado")
             print("     Usuario: admin")
-            print("     Contraseña: admin123")
-            print("     ⚠️  CAMBIAR CONTRASEÑA EN PRODUCCIÓN")
+            print(f"     Contraseña temporal (guárdala, no se vuelve a mostrar): {admin_password}")
+            print("     ⚠️  Debe cambiarse en el primer inicio de sesión")
         else:
             print("  - Vendedor administrador ya existe")
 
@@ -163,9 +167,9 @@ def migrar_usuario_actual():
     with app.app_context():
         print("Migrando usuario actual...")
         
-        # Obtener credenciales del entorno
+        # Obtener credenciales del entorno (sin defaults débiles)
         default_username = os.environ.get("DEFAULT_USERNAME", "jomar")
-        default_password = os.environ.get("DEFAULT_PASSWORD", "password")
+        default_password = os.environ.get("DEFAULT_PASSWORD") or secrets.token_urlsafe(16)
         
         vendedor_existente = Vendedor.query.filter_by(username=default_username).first()
         if not vendedor_existente:

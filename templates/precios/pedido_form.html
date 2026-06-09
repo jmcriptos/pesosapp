@@ -380,7 +380,7 @@ h2 {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 const productos = {{ productos|tojson }};
 let productosAgregados = [];
 let clienteSeleccionado = null;
@@ -465,8 +465,8 @@ async function actualizarTablaProductos() {
         tr.innerHTML = `
             <td>
                 <input type="hidden" name="productos[${idx}][id]" value="${p.id}">
-                <input type="hidden" name="productos[${idx}][nombre]" value="${p.nombre}">
-                <strong>${p.nombre}</strong>
+                <input type="hidden" name="productos[${idx}][nombre]" value="${escapeHtml(p.nombre)}">
+                <strong>${escapeHtml(p.nombre)}</strong>
             </td>
             <td>
                 <input type="hidden" name="productos[${idx}][cajas]" value="${p.cajas}">
@@ -479,7 +479,7 @@ async function actualizarTablaProductos() {
                 $${subtotal.toFixed(2)}
             </td>
             <td>
-                <button type="button" class="btn-chip btn-chip-danger" onclick="eliminarProducto(${idx})">
+                <button type="button" class="btn-chip btn-chip-danger" data-remove-producto="${idx}">
                     <i class="fa fa-trash"></i> Eliminar
                 </button>
             </td>
@@ -558,8 +558,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             item.innerHTML = `
-                <span>${prod.nombre}</span>
-                <span class="suggestion-precio">${precioText}</span>
+                <span>${escapeHtml(prod.nombre)}</span>
+                <span class="suggestion-precio">${escapeHtml(precioText)}</span>
             `;
             
             item.onclick = async () => {

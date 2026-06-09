@@ -118,7 +118,7 @@
             <div class="ops-cell-muted">{{ v.territorio.nombre if v.territorio else '—' }}</div>
             <div class="ops-cell-subtle">{{ ultimo_rel.get(v.id) or 'Nunca' }}</div>
             <div class="ops-cell-right">
-              <form method="POST" action="{{ url_for('toggle_vendedor', v_id=v.id) }}" onsubmit="return confirm('{{ 'Desactivar' if v.activo else 'Activar' }} a {{ v.nombre_completo or v.username }}?');">
+              <form method="POST" action="{{ url_for('toggle_vendedor', v_id=v.id) }}" data-confirm="{{ 'Desactivar' if v.activo else 'Activar' }} a {{ v.nombre_completo or v.username }}?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="ops-toggle {{ 'is-on' if v.activo }}" aria-label="{{ 'Desactivar' if v.activo else 'Activar' }}"></button>
               </form>
@@ -310,7 +310,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function () {
   var root = document.getElementById('adminUsuarios');
   if (!root) return;

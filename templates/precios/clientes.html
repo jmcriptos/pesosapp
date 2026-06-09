@@ -628,10 +628,19 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce() }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script nonce="{{ csp_nonce() }}">
 $(document).ready(function() {
     // Funciones utilitarias
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function mostrarMensaje(mensaje, tipo) {
         const flashDiv = document.getElementById('flash-message');
         flashDiv.className = 'flash-message ' + tipo;
@@ -688,7 +697,7 @@ $(document).ready(function() {
 
             if (debugInfo.lista_asignada) {
                 infoHtml += '<div class="alert alert-info">';
-                infoHtml += '<strong>Lista Asignada:</strong> ' + debugInfo.lista_asignada.nombre + ' ';
+                infoHtml += '<strong>Lista Asignada:</strong> ' + escapeHtml(debugInfo.lista_asignada.nombre) + ' ';
                 infoHtml += '<strong>(' + debugInfo.lista_asignada.productos_count + ' productos)</strong>';
                 infoHtml += '</div>';
             } else {
@@ -738,7 +747,7 @@ $(document).ready(function() {
                     }
 
                     html += '<tr>';
-                    html += '<td><strong>' + precio.producto_nombre + '</strong></td>';
+                    html += '<td><strong>' + escapeHtml(precio.producto_nombre) + '</strong></td>';
                     html += '<td class="precio-valor">$' + precio.precio_base.toFixed(2) + '</td>';
                     html += '<td class="precio-valor">$' + precio.precio_jomar.toFixed(2) + '</td>';
                     html += '<td class="precio-valor">$' + precio.precio_retail.toFixed(2) + '</td>';

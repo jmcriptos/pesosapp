@@ -27,7 +27,7 @@ $(document).ready(function() {
         } else if (tipo === 'error') {
             flashMessage.addClass('error');
         }
-        flashMessage.html(mensaje);
+        flashMessage.text(mensaje);  // .text() evita XSS con datos del servidor (p.ej. nombres de producto)
         flashMessage.fadeIn(500).delay(3000).fadeOut(500);
     }
 

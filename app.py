@@ -1,6 +1,8 @@
 import os
 import calendar
 import secrets
+import hmac
+import base64
 import json
 from dotenv import load_dotenv
 load_dotenv()
@@ -51,10 +53,9 @@ from utils.label_utils import (
     LABEL_WIDTH, LABEL_HEIGHT,
     create_a4_page_pdf, get_a4_label_positions, draw_order_label_a4
 )
-try:
-    from flask_wtf import CSRFProtect
-except ImportError:  # fallback if not installed; user should install Flask-WTF
-    CSRFProtect = None
+# Flask-WTF es obligatorio: la protección CSRF debe fallar de forma cerrada.
+# Si la dependencia falta, la app no debe arrancar sin CSRF.
+from flask_wtf import CSRFProtect
 try:
     from flask_talisman import Talisman
 except ImportError:
@@ -69,6 +70,36 @@ def _env_flag(name, default=False):
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _excel_safe(value):
+    """Neutraliza inyección de fórmulas (CSV/Excel injection): prefija con apóstrofe
+    los valores de texto que empiezan con =, +, -, @, tab o CR para que la hoja
+    los trate como texto y no como fórmula viva."""
+    if value is None:
+        return value
+    if isinstance(value, str) and value[:1] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
+
+
+def _webhook_headers():
+    """Header de autenticación para webhooks salientes a N8N. Si N8N_OUTBOUND_SECRET
+    está configurado, N8N puede validar X-Webhook-Token; si no, no rompe el flujo."""
+    secret = os.environ.get('N8N_OUTBOUND_SECRET', '').strip()
+    return {'X-Webhook-Token': secret} if secret else {}
+
+
+def _firma_png_valida(firma):
+    """Valida que la firma sea un data URL PNG base64 razonable (no SVG ni payloads)."""
+    prefijo = 'data:image/png;base64,'
+    if not firma.startswith(prefijo) or len(firma) > 600000:
+        return False
+    try:
+        base64.b64decode(firma[len(prefijo):], validate=True)
+        return True
+    except Exception:
+        return False
 
 
 IS_HEROKU = bool(os.environ.get("DYNO"))
@@ -107,6 +138,11 @@ app.config['SESSION_COOKIE_SECURE'] = SECURE_COOKIES
 app.config['REMEMBER_COOKIE_SECURE'] = SECURE_COOKIES
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+# Duración de sesión y de la cookie "recordarme" (en vez del default de 365 días)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
+# Límite global de tamaño de request (anti-DoS de memoria); aplica antes de procesar el body
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
 try:
     DASHBOARD_TIMEZONE = ZoneInfo(os.environ.get('BUSINESS_TIMEZONE', 'America/Curacao'))
@@ -267,7 +303,7 @@ def _haccp_alerta(tipo, titulo, detalle, accion=None):
 
     def _post():
         try:
-            requests.post(N8N_HACCP_ALERT_WEBHOOK_URL, json=payload, timeout=8)
+            requests.post(N8N_HACCP_ALERT_WEBHOOK_URL, json=payload, timeout=8, headers=_webhook_headers())
         except Exception as e:
             app.logger.warning(f'[haccp-alert] webhook falló: {e}')
     try:
@@ -292,21 +328,19 @@ def _audit(tipo, accion, detalle=None):
         app.logger.warning(f'[audit] no se pudo registrar evento: {e}')
 
 
-# CSRF (Flask-WTF)
-if CSRFProtect:
-    csrf = CSRFProtect(app)
+# CSRF (Flask-WTF) - obligatorio
+csrf = CSRFProtect(app)
 
 # Configuración de seguridad con Talisman (HSTS, CSP, etc.)
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
-    # NOTA: 'unsafe-inline' en script-src y style-src es necesario para compatibilidad
-    # con librerías legacy. Se recomienda migrar gradualmente a nonces/hashes.
-    # Para usar nonces, agregar 'script-src' y 'style-src' a content_security_policy_nonce_in
+    # script-src usa nonces (sin 'unsafe-inline'): cada <script> inline lleva
+    # nonce="{{ csp_nonce() }}". style-src mantiene 'unsafe-inline' (bajo riesgo,
+    # evita reescribir cientos de estilos inline).
     talisman_policy = {
         'default-src': ["'self'"],
         'script-src': [
             "'self'",
-            "'unsafe-inline'",  # TODO: Migrar a nonces para mayor seguridad
             'https://cdn.jsdelivr.net',
             'https://code.jquery.com',
             'https://cdnjs.cloudflare.com'
@@ -334,7 +368,7 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
     Talisman(
         app,
         content_security_policy=talisman_policy,
-        content_security_policy_nonce_in=[],
+        content_security_policy_nonce_in=['script-src'],
         # Configuración HSTS - forzar HTTPS por 1 año
         strict_transport_security=True,
         strict_transport_security_max_age=31536000,  # 1 año
@@ -347,11 +381,59 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
         # X-Frame-Options (adicional a CSP frame-ancestors)
         frame_options='DENY'
     )
+else:
+    # Sin Talisman (dev/testing): los templates usan {{ csp_nonce() }}; proveer un
+    # fallback no-op para que rendericen. setdefault evita pisar el de Talisman.
+    app.jinja_env.globals.setdefault('csp_nonce', lambda: '')
 
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.session_protection = 'strong'
+
+
+def _client_ip():
+    """IP real del cliente detrás de Cloudflare/Heroku para rate limiting."""
+    cf = request.headers.get('CF-Connecting-IP')
+    if cf:
+        return cf.strip()
+    xff = request.headers.get('X-Forwarded-For')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
+
+
+# Rate limiting (defensa contra fuerza bruta). Degrada con aviso si la librería falta.
+# Se desactiva en testing para no interferir con los logins repetidos de la suite.
+app.config['RATELIMIT_ENABLED'] = (os.environ.get('FLASK_ENV') != 'testing')
+try:
+    from flask_limiter import Limiter
+    limiter = Limiter(
+        key_func=_client_ip,
+        app=app,
+        storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
+        default_limits=[],
+        enabled=app.config['RATELIMIT_ENABLED'],
+    )
+except ImportError:
+    limiter = None
+    app.logger.warning("flask_limiter no instalado: /login sin rate limiting")
+
+
+def _login_rate_limit(view):
+    """Aplica el límite de intentos a /login solo si limiter está disponible."""
+    if limiter is None:
+        return view
+    return limiter.limit('10 per minute; 60 per hour', methods=['POST'])(view)
+
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    if request.endpoint == 'login' or (request.path or '').startswith('/login'):
+        flash('Demasiados intentos. Espera un momento antes de volver a intentar.', 'danger')
+        return render_template('login.html'), 429
+    return jsonify({'error': 'Demasiadas solicitudes. Intenta de nuevo en un momento.'}), 429
 
 
 @app.before_request
@@ -375,16 +457,6 @@ def disable_cache_for_auth_and_session_responses(response):
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     return response
-
-# Credenciales legacy - SOLO usar si se configuran explícitamente las variables de entorno
-# Se recomienda migrar a Vendedor y deshabilitar el usuario legacy
-DEFAULT_USERNAME = os.environ.get("DEFAULT_USERNAME")
-DEFAULT_PASSWORD = os.environ.get("DEFAULT_PASSWORD")
-_LEGACY_USER_ENABLED = DEFAULT_USERNAME is not None and DEFAULT_PASSWORD is not None
-
-class DefaultUser(UserMixin):
-    def __init__(self, username):
-        self.id = username
 
 from utils.filters import kpi_tag
 app.jinja_env.filters['kpi_tag'] = kpi_tag
@@ -584,12 +656,7 @@ def load_user(user_id: str):
         app.logger.warning("[login] user_loader: user_id vacío o None")
         return None
 
-    # 1) Fallback de compatibilidad (usuario por defecto)
-    if user_id == DEFAULT_USERNAME:
-        app.logger.debug(f"[login] user_loader: DefaultUser={user_id}")
-        return DefaultUser(DEFAULT_USERNAME)
-
-    # 2) Intento como Vendedor (id numérico)
+    # Solo se admiten usuarios Vendedor (id numérico). El usuario legacy fue eliminado.
     try:
         vid = int(user_id)
     except (TypeError, ValueError):
@@ -618,12 +685,11 @@ def csrf_ping():
     if not token:
         return jsonify({'error': 'The CSRF token is missing.'}), 400
 
-    if CSRFProtect:
-        try:
-            from flask_wtf.csrf import validate_csrf
-            validate_csrf(token)
-        except Exception:
-            return jsonify({'error': 'The CSRF token is invalid.'}), 400
+    try:
+        from flask_wtf.csrf import validate_csrf
+        validate_csrf(token)
+    except Exception:
+        return jsonify({'error': 'The CSRF token is invalid.'}), 400
 
     return jsonify({'ok': True}), 200
 
@@ -637,6 +703,7 @@ def _is_safe_next(target: str) -> bool:
     return (test_url.scheme in ("http", "https")) and (ref_url.netloc == test_url.netloc)
 
 @app.route('/login', methods=['GET', 'POST'])
+@_login_rate_limit
 def login():
     # Si ya está autenticado, respeta 'next' y si no, a la página de inicio (pedidos)
     if current_user.is_authenticated:
@@ -673,17 +740,7 @@ def login():
                 next_url = url_for('index')
             return redirect(next_url)
 
-        # 2) Fallback legacy (usuario por defecto) - SOLO si está explícitamente habilitado
-        if _LEGACY_USER_ENABLED and username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
-            user = DefaultUser(username)
-            login_user(user, remember=remember_me)
-            app.logger.warning(f"Legacy user login from IP: {request.remote_addr}")
-            flash("Inicio de sesión exitoso (modo compatibilidad). Se recomienda migrar a un usuario Vendedor.", "warning")
-            if not _is_safe_next(next_url):
-                next_url = url_for('index')
-            return redirect(next_url)
-
-        # 3) Credenciales inválidas
+        # Credenciales inválidas
         flash("Credenciales inválidas", "danger")
 
     # GET o POST fallido → mostrar login
@@ -691,7 +748,7 @@ def login():
     return render_template('login.html')
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
@@ -739,10 +796,10 @@ def cambiar_password():
 @app.before_request
 def require_login():
     allowed_endpoints = ['login', 'logout', 'static']
-    # Permitir específicamente el endpoint de CSRF
-    if request.endpoint == 'csrf_ping':
+    # Endpoints que se autentican por su cuenta (CSRF ping, webhook con token propio)
+    if request.endpoint in ('csrf_ping', 'webhook_actualizacion_precios'):
         return
-        
+
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
@@ -1610,7 +1667,8 @@ def _obtener_metricas_ventas_quickbooks(
         resp = requests.post(
             N8N_QB_SALES_WEBHOOK_URL,
             json=payload,
-            timeout=blocking_timeout
+            timeout=blocking_timeout,
+            headers=_webhook_headers()
         )
         resp.raise_for_status()
         data = resp.json()
@@ -2627,11 +2685,11 @@ def requiere_permiso_recurso(recurso, tipo_acceso='leer'):
             if not current_user.is_authenticated:
                 flash('Debes iniciar sesión para acceder a esta página', 'warning')
                 return redirect(url_for('login'))
-                
-            # Si es el usuario legacy, permitir acceso
+
+            # Fail-closed: solo usuarios Vendedor tienen permisos definidos
             if not isinstance(current_user, Vendedor):
-                return f(*args, **kwargs)
-                
+                abort(403)
+
             # Verificar permiso sobre el recurso
             if not current_user.tiene_permiso(recurso, tipo_acceso):
                 flash(f'No tienes permisos para {tipo_acceso} {recurso}', 'error')
@@ -2648,11 +2706,11 @@ def requiere_rol(roles_permitidos):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 return redirect(url_for('login'))
-            
+
+            # Fail-closed: solo usuarios Vendedor tienen roles definidos
             if not isinstance(current_user, Vendedor):
-                # Si es el usuario por defecto del sistema anterior
-                return f(*args, **kwargs)
-            
+                abort(403)
+
             if current_user.rol.nombre not in roles_permitidos:
                 flash("No tienes autorización para acceder a esta función", "error")
                 return redirect(url_for('index'))
@@ -4009,7 +4067,7 @@ def exportar_ventas():
         
         # Crear Excel
         output = BytesIO()
-        workbook = xlsxwriter.Workbook(output)
+        workbook = xlsxwriter.Workbook(output, {'strings_to_formulas': False, 'strings_to_urls': False})
         worksheet = workbook.add_worksheet('Reporte de Ventas')
         
         # Formatos
@@ -4425,12 +4483,26 @@ def reset_password_vendedor(v_id):
 # ===== WEBHOOKS Y INTEGRACIONES =====
 
 @app.route('/webhook/actualizacion-precios', methods=['POST'])
+@csrf.exempt
 def webhook_actualizacion_precios():
-    """Webhook para actualizaciones automáticas de precios desde sistemas externos"""
+    """Webhook para actualizaciones automáticas de precios desde sistemas externos.
+
+    Autenticado con un secreto compartido (WEBHOOK_SECRET) enviado en el header
+    X-Webhook-Token. Sin secreto configurado, el endpoint queda deshabilitado.
+    """
+    expected = os.environ.get('WEBHOOK_SECRET', '').strip()
+    if not expected:
+        app.logger.error("Webhook precios deshabilitado: WEBHOOK_SECRET no configurado")
+        return jsonify({'error': 'No autorizado'}), 401
+
+    provided = (request.headers.get('X-Webhook-Token') or '').strip()
+    if not provided or not hmac.compare_digest(provided, expected):
+        app.logger.warning(f"Webhook precios: token inválido desde IP {request.remote_addr}")
+        return jsonify({'error': 'No autorizado'}), 401
+
     try:
         data = request.get_json()
-        
-        # Validar webhook (en producción añadir autenticación)
+
         if not data or 'productos' not in data:
             return jsonify({'error': 'Datos inválidos'}), 400
         
@@ -5880,6 +5952,10 @@ def detalles_pedido(pedido_id):
 
     # ── 2) Alta de un nuevo detalle ───────────────────────────
     if request.method == 'POST':
+        # Agregar líneas requiere permiso de edición de pedidos
+        if isinstance(current_user, Vendedor) and not current_user.tiene_permiso('pedidos', 'editar'):
+            flash('No tienes permisos para editar pedidos', 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
         # ── Inmutabilidad post-facturación ──────────────────────
         if pedido.estado == 'facturado':
             flash('No se puede agregar detalles a un pedido facturado', 'error')
@@ -6273,6 +6349,7 @@ def finalizar_pesaje_pedido(pedido_id):
 
 @app.route('/detalles_pedido/<int:detalle_id>/eliminar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'eliminar')
 def eliminar_detalle_pedido(detalle_id):
     detalle = DetallePedido.query.get_or_404(detalle_id)
     pedido = Pedido.query.get_or_404(detalle.pedido_id)
@@ -6314,6 +6391,7 @@ def eliminar_detalle_pedido(detalle_id):
 
 @app.route('/detalles_pedido/<int:detalle_id>/editar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'editar')
 def editar_detalle_pedido(detalle_id):
     """Edita un detalle de pedido existente."""
     detalle = DetallePedido.query.get_or_404(detalle_id)
@@ -6605,6 +6683,7 @@ def preparar_pedido(pedido_id):
 
 @app.route('/pedidos/<int:pedido_id>/marcar_preparado', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'editar')
 def marcar_preparado(pedido_id):
     """Valida trazabilidad y marca pedido como preparado (Story 3-0)."""
     pedido = Pedido.query.get_or_404(pedido_id)
@@ -6646,6 +6725,7 @@ except (ValueError, TypeError):
 
 @app.route('/pedidos/<int:pedido_id>/facturar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('pedidos', 'editar')
 def facturar_pedido(pedido_id):
     pedido = Pedido.query.get_or_404(pedido_id)
 
@@ -6676,7 +6756,7 @@ def facturar_pedido(pedido_id):
 
     # ── Llamada al webhook N8N ──
     try:
-        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_WEBHOOK_TIMEOUT)
+        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_WEBHOOK_TIMEOUT, headers=_webhook_headers())
         resp.raise_for_status()
     except requests.Timeout:
         app.logger.error(f'Timeout al enviar pedido {pedido_id} a n8n ({N8N_WEBHOOK_TIMEOUT}s)')
@@ -6752,6 +6832,7 @@ def mostrar_precios():
 
 @app.route('/precios/listas')
 @login_required
+@requiere_permiso_recurso('precios', 'leer')
 def listas_precios():
     """Mostrar todas las listas de precios"""
     listas = ListaPrecio.query.order_by(ListaPrecio.es_default.desc(), ListaPrecio.nombre).all()
@@ -7010,6 +7091,7 @@ def eliminar_precio_producto(precio_id):
 
 @app.route('/precios/clientes')
 @login_required
+@requiere_permiso_recurso('precios', 'leer')
 def precios_clientes():
     """Gestionar listas de precios por cliente"""
     clientes = Cliente.query.all()
@@ -7334,6 +7416,7 @@ def debug_precios_cliente(cliente_id):
 
 @app.route('/api/precios/lista/<int:lista_id>')
 @login_required
+@requiere_permiso_recurso('precios', 'leer')
 def api_precios_lista(lista_id):
     """API para obtener todos los precios de una lista"""
     precios = db.session.query(PrecioProducto, Producto).join(
@@ -7592,6 +7675,7 @@ def obtener_recepciones_api():
 
 @app.route('/recepciones', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('importaciones', 'crear')
 def crear_recepcion():
     try:
         producto_id = request.form['producto_id']
@@ -7624,6 +7708,7 @@ def crear_recepcion():
 
 @app.route('/recepciones/<int:id>', methods=['DELETE'])
 @login_required
+@requiere_permiso_recurso('importaciones', 'eliminar')
 def eliminar_recepcion(id):
     recepcion = Recepcion.query.get_or_404(id)
     try:
@@ -7664,6 +7749,7 @@ def facturacion():
 
 @app.route('/ultimos_facturaciones', methods=['GET'])
 @login_required
+@requiere_permiso_recurso('facturacion', 'leer')
 def ultimos_facturaciones():
     cliente_id = request.args.get('cliente_id', type=int)
     hoy = datetime.utcnow().date()
@@ -7698,6 +7784,7 @@ def ultimos_facturaciones():
 
 @app.route('/facturacion/registrar', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('facturacion', 'crear')
 def registrar_facturacion():
     try:
         producto_id = request.form['producto_id']
@@ -7728,6 +7815,7 @@ def registrar_facturacion():
     
 @app.route('/facturacion/eliminar/<int:id>', methods=['DELETE'])
 @login_required
+@requiere_permiso_recurso('facturacion', 'eliminar')
 def eliminar_facturacion(id):
     try:
         facturacion = Facturacion.query.get_or_404(id)
@@ -7758,6 +7846,7 @@ def formulario_importacion():
 
 @app.route('/registrar_importacion', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('importaciones', 'crear')
 def registrar_importacion():
     try:
         numero_factura = request.form.get('numero_factura')
@@ -7844,6 +7933,7 @@ def registrar_importacion():
 
 @app.route('/reporte_factura/<numero_factura>', methods=['GET'])
 @login_required
+@requiere_permiso_recurso('importaciones', 'leer')
 def reporte_factura(numero_factura):
     importaciones = db.session.query(Importacion, Producto).join(Producto).filter(Importacion.numero_factura == numero_factura).all()
     if not importaciones:
@@ -7882,7 +7972,7 @@ def reporte_factura(numero_factura):
         logo_width = 50
         logo_height = 50
         logo = Image(logo_path, width=logo_width, height=logo_height)
-        titulo_text = f"Reporte de Importación - Factura {numero_factura}"
+        titulo_text = f"Reporte de Importación - Factura {_pdf_xe(numero_factura)}"
         titulo = Paragraph(titulo_text, styleTitle)
         desired_indent = 1.0 * inch
         data_title = [['', logo, titulo]]
@@ -7902,7 +7992,7 @@ def reporte_factura(numero_factura):
         elements.append(table_title)
     else:
         desired_indent = 1.0 * inch
-        titulo = Paragraph(f"Reporte de Importación - Factura {numero_factura}", styleTitle)
+        titulo = Paragraph(f"Reporte de Importación - Factura {_pdf_xe(numero_factura)}", styleTitle)
         data_title = [['', titulo]]
         table_title = Table(
             data_title,
@@ -7976,7 +8066,7 @@ def reporte_factura(numero_factura):
         precio_jomar = costo_por_unidad_ang
         precio_retail = precio_jomar * 1.2
         data.append([
-            Paragraph(prod.nombre, style_cell),
+            Paragraph(_pdf_xe(prod.nombre), style_cell),
             Paragraph("{:,.2f}".format(imp.cantidad_total), style_cell),
             Paragraph("{:,.2f}".format(imp.precio_fob_unidad), style_cell),
             Paragraph("{:,.2f}".format(total_fob_producto), style_cell),
@@ -8203,7 +8293,7 @@ def generar_reporte():
             'Fecha de Recepción': r.recibido_en.strftime('%Y-%m-%d')
         } for r in recepciones]
         output = io.BytesIO()
-        workbook = xlsxwriter.Workbook(output)
+        workbook = xlsxwriter.Workbook(output, {'strings_to_formulas': False, 'strings_to_urls': False})
         worksheet = workbook.add_worksheet('Reporte')
         bold_blue_format = workbook.add_format({'bold': True, 'color': 'blue'})
         bold_red_format = workbook.add_format({'bold': True, 'color': 'red'})
@@ -8281,7 +8371,7 @@ def generar_reporte_pesos():
     red_bold_font = Font(bold=True, color="FF0000")
     alignment = Alignment(horizontal="left")
     ws['A1'] = "Cliente:"
-    ws['B1'] = cliente_nombre
+    ws['B1'] = _excel_safe(cliente_nombre)
     ws['A2'] = "Fecha de Registro:"
     ws['B2'] = f"{fecha_inicio} - {fecha_fin}"
     ws['A1'].font = bold_font
@@ -8299,7 +8389,7 @@ def generar_reporte_pesos():
     producto_index = 1
     for producto, pesos in producto_grupo.items():
         ws[f'A{row}'] = f"Producto {producto_index}:"
-        ws[f'B{row}'] = producto
+        ws[f'B{row}'] = _excel_safe(producto)
         ws[f'A{row}'].font = bold_font
         ws[f'B{row}'].font = bold_font
         row += 1
@@ -8670,8 +8760,8 @@ def generar_reporte_carga():
             
             for precio, producto in precios:
                 writer.writerow({
-                    'codigo_producto': producto.codigo,
-                    'nombre_producto': producto.nombre,
+                    'codigo_producto': _excel_safe(producto.codigo),
+                    'nombre_producto': _excel_safe(producto.nombre),
                     'precio_base': precio.precio_base,
                     'precio_jomar': precio.precio_jomar,
                     'precio_retail': precio.precio_retail,
@@ -8698,6 +8788,7 @@ def generar_reporte_carga():
 # Función para validar CSV antes de procesarlo
 @app.route('/precios/validar-csv', methods=['POST'])
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def validar_csv_precios():
     """Valida un CSV antes de procesarlo completamente"""
     # Tipos MIME válidos para archivos CSV
@@ -8816,11 +8907,15 @@ def validar_csv_precios():
 def log_carga_precios():
     """Registra actividades de carga masiva para auditoría"""
     try:
-        datos = request.get_json()
-        
+        datos = request.get_json() or {}
+
+        # Sanea el texto controlado por el usuario antes de loguear (log injection).
+        def _log_safe(v, n=100):
+            return str(v).replace('\n', ' ').replace('\r', ' ')[:n]
+
         # Aquí podrías agregar a una tabla de auditoría
-        logging.info(f"Carga masiva ejecutada por usuario {current_user.username}: "
-                    f"Tipo: {datos.get('tipo')}, "
+        logging.info(f"Carga masiva ejecutada por usuario {_log_safe(current_user.username, 60)}: "
+                    f"Tipo: {_log_safe(datos.get('tipo'))}, "
                     f"Registros: {datos.get('procesados', 0)}, "
                     f"Errores: {datos.get('errores', 0)}")
         
@@ -8841,6 +8936,7 @@ logging.basicConfig(
 
 @app.route('/precios/carga-masiva')
 @login_required
+@requiere_permiso_recurso('precios', 'editar')
 def carga_masiva_precios():
     """Interfaz para carga masiva de precios mediante CSV"""
     listas = ListaPrecio.query.filter_by(activa=True).all()
@@ -9199,7 +9295,7 @@ def descargar_plantilla_csv(tipo):
         
         writer.writerow({
             'codigo_cliente': str(cliente_ejemplo.id) if cliente_ejemplo else '1',
-            'nombre_lista_precio': lista_ejemplo.nombre if lista_ejemplo else 'Lista Mayorista'
+            'nombre_lista_precio': _excel_safe(lista_ejemplo.nombre) if lista_ejemplo else 'Lista Mayorista'
         })
         filename = 'plantilla_asignacion_clientes.csv'
         
@@ -9843,7 +9939,7 @@ def _build_xlsx(headers, rows, sheet_name, title):
         cell.font = head_font
         cell.alignment = Alignment(horizontal='left')
     for row in rows:
-        ws.append(row)
+        ws.append([_excel_safe(v) for v in row])
     for i, h in enumerate(headers, start=1):
         width = max(len(str(h)), *(len(str(r[i - 1])) for r in rows)) if rows else len(str(h))
         ws.column_dimensions[ws.cell(2, i).column_letter].width = min(max(width + 2, 10), 48)
@@ -10227,8 +10323,8 @@ def limpieza_registrar():
         metodo = None
 
     firma = (request.form.get('firma_png') or '').strip() or None
-    if firma and (not firma.startswith('data:image/') or len(firma) > 600000):
-        firma = None  # descartar payloads inválidos o excesivos
+    if firma and not _firma_png_valida(firma):
+        firma = None  # descartar payloads inválidos, no-PNG o excesivos
 
     momento = _registrado_en_from_form(request.form)
     registro = RegistroLimpieza(

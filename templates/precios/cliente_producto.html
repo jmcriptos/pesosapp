@@ -509,7 +509,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 // Variables globales
 let editandoPrecio = false;
 let precioEditandoId = null;

@@ -296,8 +296,20 @@ def test_facturacion_trazabilidad_incompleta(logged_client, app):
         from app import Pedido, DetallePedido
         pedido = Pedido.query.first()
         pedido_id = pedido.id
-        # Quitar lote del detalle
+        # Trazabilidad incompleta (modelo actual): una línea original pesable cuya
+        # línea de preparación quedó sin lote. _validar_preparacion_pedido solo valida
+        # la preparación de productos que tienen línea original, así que añadimos una.
         detalle = DetallePedido.query.filter_by(pedido_id=pedido_id).first()
+        linea_original = DetallePedido(
+            pedido_id=pedido_id,
+            producto_id=detalle.producto_id,
+            cajas=detalle.cajas,
+            peso=0,
+            precio_unitario=0,
+            subtotal=0,
+            es_linea_pedido=True,
+        )
+        _db.session.add(linea_original)
         detalle.lote = None
         _db.session.commit()
 
