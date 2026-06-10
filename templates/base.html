@@ -296,9 +296,12 @@
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                 </a>
-                <a href="/logout" class="drawer-item drawer-item-logout">
-                    <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
-                </a>
+                <form method="POST" action="/logout" style="display:contents">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="drawer-item drawer-item-logout" style="border:none;background:none;width:100%;text-align:left;cursor:pointer;font:inherit">
+                        <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
+                    </button>
+                </form>
             </div>
         </nav>
 
@@ -455,9 +458,12 @@
                                 <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
                                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                                 </a>
-                                <a href="/logout" class="dropdown-item logout-item">
-                                    <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
-                                </a>
+                                <form method="POST" action="/logout" style="display:contents">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dropdown-item logout-item" style="border:none;background:none;width:100%;text-align:left;cursor:pointer;font:inherit">
+                                        <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
