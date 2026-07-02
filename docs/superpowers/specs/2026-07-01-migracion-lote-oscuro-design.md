@@ -141,8 +141,8 @@ Font Awesome 6.4.2 duplicado que carga `clientes.html` (el global es 6.7.2).
 | 2 | Recepciones + Facturación | Patrón CAPTURA; Tom Select; tablas AJAX restiladas; split `recepciones.js`/`facturacion.js`; colapsables de reportes |
 | 3 | Importación | Restaurar `agregarProducto`; crear `importaciones.js` real; corregir refs muertas a `importaciones.css`/`js`; tabla scroll-h |
 | ~~4~~ | ~~Etiquetas~~ | **Retirada del alcance 2026-07-02** — ya estaba migrada (ver corrección arriba). Renumeración: la limpieza final pasa a llamarse Tanda 5 |
-| 5 (antes 5) | Precios | `precios/index.html` (hub → tarjetas claras), `listas.html`, `lista_form.html`, `lista_productos.html`, `clientes.html`, `cliente_producto.html`, `carga_masiva.html`. Patrón GESTIÓN. La tanda grande (~3,300 líneas de template con estilos y scripts inline propios) |
-| 6 | Limpieza final | Ver siguiente sección. Precondición: Tandas 2, 3 y 5 completas (Etiquetas ya no bloquea) |
+| 5 (antes 5) | ✅ Precios | Completada 2026-07-02 (pendiente push). `precios/index.html` (hub → tarjetas claras), `listas.html`, `lista_form.html`, `lista_productos.html`, `clientes.html`, `cliente_producto.html`, `carga_masiva.html`. `pedido_form.html` huérfano borrado. Corrigió 2 bugs reales (carga masiva CSV rota, modal de precios de cliente con TypeError) y 4 fugas de `dark-theme.css` sin scope encontradas en verificación visual (tablas, tags genéricos strong/p/small, Tom Select, `.mobile-checkbox-label`) — ver `precios.css` sección 4-14 para el patrón completo de reverts a replicar en tandas 2/3 |
+| 6 | Limpieza final | Ver siguiente sección. Precondición: Tandas 2 y 3 completas (Etiquetas y Precios ya no bloquean) |
 
 ### 5. Limpieza final (tanda 6)
 
