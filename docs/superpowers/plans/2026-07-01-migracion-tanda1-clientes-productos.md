@@ -206,7 +206,8 @@ Expected: los 4 que fallaban ahora PASS (gestion.css devuelve 404 como estático
    ============================================================================= */
 
 /* ── 1 · Fondo del área de contenido ─────────────────────────────────────── */
-body[data-gestion-screen] .app-content {
+body[data-gestion-screen] .app-content,
+body[data-gestion-screen] .mobile-form-container {
   background: #f8fafc !important;
   background-image: none !important;
 }
@@ -276,6 +277,11 @@ body[data-gestion-screen] .mobile-form-container textarea {
 body[data-gestion-screen] .gestion-wrap input::placeholder,
 body[data-gestion-screen] .mobile-form-container input::placeholder {
   color: #94a3b8 !important;
+}
+body[data-gestion-screen] .mobile-btn-secondary {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
 /* ── 5 · Layout del patrón GESTIÓN ───────────────────────────────────────── */
