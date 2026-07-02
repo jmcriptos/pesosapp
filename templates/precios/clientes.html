@@ -8,798 +8,296 @@
 {% endblock %}
 
 {% block content %}
-<div id="flash-message" class="flash-message hidden"></div>
+<div class="precios-wrap">
+  <div id="flash-message" class="flash-message hidden"></div>
 
-<div class="precios-clientes-container">
-    <div class="page-header">
-        <p>Si un cliente no tiene lista asignada, usará la lista por defecto.</p>
-        <a href="{{ url_for('mostrar_precios') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Volver a Precios
-        </a>
-    </div>
+  <div class="precios-page-header">
+    <p class="precios-sub" style="max-width:560px">Si un cliente no tiene lista asignada, usará la lista por defecto.</p>
+    <a href="{{ url_for('mostrar_precios') }}" class="mobile-btn mobile-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Volver a Precios
+    </a>
+  </div>
 
-    <!-- Formulario para asignar lista a cliente -->
-    <div class="asignar-card">
-        <h3><i class="fas fa-link"></i> Asignar Lista de Precios</h3>
-
-        <form id="form-asignar-lista">
-            <!-- US01: hidden CSRF field -->
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="asignar-form-row">
-                <div class="form-group">
-                    <label for="cliente_id">Cliente:</label>
-                    <select id="cliente_id" name="cliente_id" class="form-control ts-select" required>
-                        <option value="">Seleccionar cliente...</option>
-                        {% for cliente in clientes %}
-                            <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="lista_precio_id">Lista de Precios:</label>
-                    <select id="lista_precio_id" name="lista_precio_id" class="form-control ts-select" required>
-                        <option value="">Seleccionar lista...</option>
-                        {% for lista in listas %}
-                            <option value="{{ lista.id }}">
-                                {{ lista.nombre }}
-                                {% if lista.es_default %} (Por Defecto){% endif %}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>&nbsp;</label>
-                    <button type="submit" class="btn btn-success form-control">
-                        <i class="fas fa-link"></i> Asignar Lista
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <!-- Tabla de asignaciones actuales -->
-    <div class="asignaciones-card">
-        <h3><i class="fas fa-list"></i> Asignaciones Actuales</h3>
-
-        {% if asignaciones %}
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th>Lista de Precios</th>
-                        <th>Tipo</th>
-                        <th>Fecha Asignación</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for asignacion, cliente, lista in asignaciones %}
-                    <tr data-asignacion-id="{{ asignacion.id }}">
-                        <td>
-                            <strong>{{ cliente.nombre }}</strong>
-                        </td>
-                        <td>
-                            {{ lista.nombre }}
-                            {% if lista.es_default %}
-                                <span class="badge badge-default">Defecto</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if lista.es_default %}
-                                <span class="tipo-lista tipo-default">Sistema</span>
-                            {% else %}
-                                <span class="tipo-lista tipo-custom">Personalizada</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ asignacion.fecha_asignacion.strftime('%d/%m/%Y') if asignacion.fecha_asignacion else '-' }}
-                        </td>
-                        <td>
-                            {% if asignacion.activa %}
-                                <span class="estado-badge activo">Activo</span>
-                            {% else %}
-                                <span class="estado-badge inactivo">Inactivo</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <button class="btn-view" data-cliente-id="{{ cliente.id }}" data-cliente-nombre="{{ cliente.nombre }}">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            {% if not lista.es_default %}
-                            <button class="btn-delete" data-asignacion-id="{{ asignacion.id }}">
-                                <i class="fas fa-unlink"></i>
-                            </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-link"></i> Asignar Lista de Precios</div>
+    <div class="mobile-card-body">
+      <form id="form-asignar-lista">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="cliente_id">Cliente:</label>
+          <select id="cliente_id" name="cliente_id" class="mobile-form-control ts-select"
+                  data-ts-placeholder="Buscar cliente…" required>
+            <option value=""></option>
+            {% for cliente in clientes %}
+            <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+            {% endfor %}
+          </select>
         </div>
-        {% else %}
-        <div class="empty-message">
-            <div class="empty-icon">
-                <i class="fas fa-users-slash"></i>
-            </div>
-            <h4>No hay asignaciones específicas</h4>
-            <p>Todos los clientes están usando la lista de precios por defecto. Usa el formulario de arriba para asignar listas específicas.</p>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="lista_precio_id">Lista de Precios:</label>
+          <select id="lista_precio_id" name="lista_precio_id" class="mobile-form-control ts-select"
+                  data-ts-placeholder="Buscar lista…" required>
+            <option value=""></option>
+            {% for lista in listas %}
+            <option value="{{ lista.id }}">{{ lista.nombre }}{% if lista.es_default %} (Por Defecto){% endif %}</option>
+            {% endfor %}
+          </select>
         </div>
-        {% endif %}
+        <div class="mobile-form-actions">
+          <button type="submit" class="mobile-btn mobile-btn-primary">
+            <i class="fas fa-link"></i> Asignar Lista
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Información adicional -->
-    <div class="info-cards">
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="fas fa-info-circle"></i>
-            </div>
-            <div class="info-content">
-                <h4>¿Cómo funciona?</h4>
-                <ul>
-                    <li>Cada cliente puede tener una lista de precios específica</li>
-                    <li>Si no tiene lista asignada, usa la lista por defecto</li>
-                    <li>Los precios específicos cliente-producto tienen prioridad sobre las listas</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="info-card">
-            <div class="info-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="info-content">
-                <h4>Estadísticas</h4>
-                <ul>
-                    <li><strong>{{ clientes|length }}</strong> clientes totales</li>
-                    <li><strong>{{ asignaciones|length }}</strong> con listas específicas</li>
-                    <li><strong>{{ listas|length }}</strong> listas disponibles</li>
-                </ul>
-            </div>
-        </div>
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-list"></i> Asignaciones Actuales</div>
+    <div class="mobile-card-body">
+      {% if asignaciones %}
+      <div class="precios-table-responsive">
+        <table class="precios-generic-table" id="tabla-asignaciones">
+          <thead>
+            <tr>
+              <th>Cliente</th><th>Lista de Precios</th><th>Tipo</th>
+              <th>Fecha Asignación</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for asignacion, cliente, lista in asignaciones %}
+            <tr data-asignacion-id="{{ asignacion.id }}">
+              <td><strong>{{ cliente.nombre }}</strong></td>
+              <td>{{ lista.nombre }}{% if lista.es_default %} <span class="precios-badge precios-badge-default">Defecto</span>{% endif %}</td>
+              <td>
+                {% if lista.es_default %}
+                <span class="precios-badge precios-badge-inactive">Sistema</span>
+                {% else %}
+                <span class="precios-badge precios-badge-success">Personalizada</span>
+                {% endif %}
+              </td>
+              <td>{{ asignacion.fecha_asignacion.strftime('%d/%m/%Y') if asignacion.fecha_asignacion else '-' }}</td>
+              <td>
+                {% if asignacion.activa %}
+                <span class="precios-badge precios-badge-success">Activo</span>
+                {% else %}
+                <span class="precios-badge precios-badge-inactive">Inactivo</span>
+                {% endif %}
+              </td>
+              <td>
+                <button type="button" class="precios-icon-btn precios-icon-edit btn-ver"
+                        data-cliente-id="{{ cliente.id }}" data-cliente-nombre="{{ cliente.nombre }}"
+                        title="Ver precios" aria-label="Ver precios de {{ cliente.nombre }}">
+                  <i class="fas fa-eye"></i>
+                </button>
+                {% if not lista.es_default %}
+                <button type="button" class="precios-icon-btn precios-icon-delete btn-desasignar"
+                        data-asignacion-id="{{ asignacion.id }}"
+                        title="Desasignar" aria-label="Desasignar lista de {{ cliente.nombre }}">
+                  <i class="fas fa-unlink"></i>
+                </button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="precios-empty">
+        <i class="fas fa-users-slash"></i>
+        <p>No hay asignaciones específicas. Todos los clientes usan la lista por defecto.</p>
+      </div>
+      {% endif %}
     </div>
+  </div>
+
+  <div class="precios-hub-grid">
+    <div class="precios-hub-card" style="cursor:default">
+      <div class="precios-hub-icon"><i class="fas fa-info-circle"></i></div>
+      <h3>¿Cómo funciona?</h3>
+      <p style="text-align:left">
+        Cada cliente puede tener una lista de precios específica. Si no tiene lista
+        asignada, usa la lista por defecto. Los precios específicos cliente-producto
+        tienen prioridad sobre las listas.
+      </p>
+    </div>
+    <div class="precios-hub-card" style="cursor:default">
+      <div class="precios-hub-icon"><i class="fas fa-chart-line"></i></div>
+      <h3>Estadísticas</h3>
+      <p>{{ clientes|length }} clientes totales · {{ asignaciones|length }} con listas específicas · {{ listas|length }} listas disponibles</p>
+    </div>
+  </div>
 </div>
 
-<!-- Modal para ver precios de cliente -->
-<div id="modal-precios-cliente" class="modal hidden">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modal-cliente-nombre">Precios del Cliente</h3>
-            <button class="modal-close">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div id="precios-cliente-contenido">
-                <p>Cargando precios...</p>
-            </div>
-        </div>
+<div id="modal-precios-cliente" class="precios-modal" hidden>
+  <div class="precios-modal-content">
+    <div class="precios-modal-header">
+      <h3 id="modal-cliente-nombre">Precios del Cliente</h3>
+      <button type="button" class="precios-modal-close" aria-label="Cerrar">&times;</button>
     </div>
+    <div class="precios-modal-body">
+      <div id="precios-cliente-contenido"><p>Cargando precios...</p></div>
+    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.precios-clientes-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    background: #141820;
-    padding: 25px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    border: 1px solid #3b4a5c;
-}
-
-.page-header p {
-    color: #94a3b8;
-    margin: 0;
-    max-width: 600px;
-    line-height: 1.5;
-}
-
-.header-info h2 {
-    color: #1877ff;
-    margin: 0 0 10px 0;
-    font-size: 1.8rem;
-}
-
-.header-info p {
-    color: #94a3b8;
-    margin: 0;
-    max-width: 600px;
-    line-height: 1.5;
-}
-
-.asignar-card, .asignaciones-card {
-    background: #141820;
-    padding: 25px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    border: 1px solid #3b4a5c;
-}
-
-.asignar-card h3, .asignaciones-card h3 {
-    color: #f1f5f9;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.4rem;
-}
-
-.asignar-form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 20px;
-    align-items: end;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.form-group label {
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #f1f5f9;
-}
-
-.form-control {
-    padding: 12px;
-    border: 2px solid #3b4a5c;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-    background: #1a1f2b;
-    color: #f1f5f9;
-}
-
-.form-control:focus {
-    border-color: #1877ff;
-    outline: none;
-}
-
-.btn {
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
-
-.btn-success {
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-}
-
-.btn-success:hover {
-    background: linear-gradient(135deg, #1565e0 0%, #2563eb 100%);
-}
-
-.btn-secondary {
-    background: #1a1f2b;
-    color: #94a3b8;
-    border: 1px solid #3b4a5c;
-}
-
-.btn-view, .btn-delete {
-    padding: 8px 10px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    margin: 0 3px;
-}
-
-.btn-view {
-    background: rgba(24,119,255,0.15);
-    color: #60a5fa;
-}
-
-.btn-delete {
-    background: rgba(239,68,68,0.15);
-    color: #f87171;
-}
-
-.table-responsive {
-    overflow-x: auto;
-}
-
-.table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table th {
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-    padding: 15px 12px;
-    text-align: left;
-    font-weight: 600;
-}
-
-.table td {
-    padding: 15px 12px;
-    border-bottom: 1px solid #1e2533;
-    vertical-align: middle;
-    color: #f1f5f9;
-}
-
-.badge {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    margin-left: 8px;
-}
-
-.badge-default {
-    background: rgba(251,191,36,0.15);
-    color: #fbbf24;
-}
-
-.tipo-lista {
-    padding: 4px 10px;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.tipo-default {
-    background: rgba(148,163,184,0.15);
-    color: #94a3b8;
-}
-
-.tipo-custom {
-    background: rgba(16,185,129,0.15);
-    color: #34d399;
-}
-
-.estado-badge {
-    padding: 4px 10px;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.estado-badge.activo {
-    background: rgba(16,185,129,0.15);
-    color: #34d399;
-}
-
-.estado-badge.inactivo {
-    background: rgba(248,113,113,0.15);
-    color: #f87171;
-}
-
-.empty-message {
-    text-align: center;
-    padding: 60px 20px;
-    color: #64748b;
-}
-
-.empty-message h4 {
-    color: #64748b;
-}
-
-.empty-icon {
-    font-size: 4rem;
-    color: #3b4a5c;
-    margin-bottom: 20px;
-}
-
-.info-cards {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.info-card {
-    background: #141820;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #3b4a5c;
-    display: flex;
-    gap: 15px;
-}
-
-.info-icon {
-    font-size: 2rem;
-    color: #1877ff;
-}
-
-.info-content h4 {
-    margin: 0 0 10px 0;
-    color: #f1f5f9;
-}
-
-.info-content ul {
-    margin: 0;
-    padding-left: 20px;
-    color: #94a3b8;
-}
-
-.info-content li {
-    margin-bottom: 5px;
-}
-
-/* Modal */
-.modal {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background: #141820;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 900px;
-    max-height: 80vh;
-    overflow: hidden;
-    border: 1px solid #3b4a5c;
-}
-
-.modal-header {
-    padding: 20px 25px;
-    border-bottom: 1px solid #3b4a5c;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: #f1f5f9;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #94a3b8;
-}
-
-.modal-body {
-    padding: 25px;
-    max-height: 60vh;
-    overflow-y: auto;
-    background: #141820;
-    color: #f1f5f9;
-}
-
-.flash-message {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 15px 25px;
-    border-radius: 8px;
-    color: white;
-    font-weight: 500;
-    z-index: 1001;
-}
-
-.flash-message.success {
-    background: #059669;
-}
-
-.flash-message.error {
-    background: #dc2626;
-}
-
-/* Estilos para precios mejorados */
-.cliente-info {
-    margin-bottom: 20px;
-}
-
-.alert {
-    padding: 12px 16px;
-    margin-bottom: 12px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    font-size: 14px;
-}
-
-.alert-info {
-    color: #93c5fd;
-    background: rgba(24,119,255,0.1);
-    border-color: rgba(24,119,255,0.25);
-}
-
-.alert-warning {
-    color: #fbbf24;
-    background: rgba(251,191,36,0.1);
-    border-color: rgba(251,191,36,0.25);
-}
-
-.alert-success {
-    color: #34d399;
-    background: rgba(16,185,129,0.1);
-    border-color: rgba(16,185,129,0.25);
-}
-
-.alert-danger {
-    color: #f87171;
-    background: rgba(239,68,68,0.1);
-    border-color: rgba(239,68,68,0.25);
-}
-
-.badge-tipo {
-    display: inline-block;
-    min-width: 10px;
-    padding: 4px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1;
-    text-align: center;
-    white-space: nowrap;
-    vertical-align: middle;
-    border-radius: 12px;
-    text-transform: uppercase;
-}
-
-.badge-primary {
-    background: rgba(24,119,255,0.15);
-    color: #60a5fa;
-}
-
-.badge-success {
-    background: rgba(16,185,129,0.15);
-    color: #34d399;
-}
-
-.badge-secondary {
-    background: rgba(148,163,184,0.15);
-    color: #94a3b8;
-}
-
-.precios-resumen {
-    background: #1a1f2b;
-    padding: 15px;
-    border-radius: 6px;
-    margin-bottom: 15px;
-    border-left: 4px solid #1877ff;
-}
-
-.precios-resumen p {
-    margin: 0;
-    font-weight: 500;
-    color: #f1f5f9;
-}
-
-.table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(255,255,255,0.03);
-}
-
-.precio-valor {
-    font-weight: 600;
-    color: #34d399;
-}
-
-@media (max-width: 768px) {
-    .page-header {
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .asignar-form-row {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-
-    .info-cards {
-        grid-template-columns: 1fr;
-    }
-
-    .info-card {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .modal-content {
-        width: 95%;
-        max-width: none;
-    }
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce() }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script nonce="{{ csp_nonce() }}">
-$(document).ready(function() {
-    // Funciones utilitarias
-    function escapeHtml(value) {
-        return String(value == null ? '' : value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
+(function () {
+  'use strict';
 
-    function mostrarMensaje(mensaje, tipo) {
-        const flashDiv = document.getElementById('flash-message');
-        flashDiv.className = 'flash-message ' + tipo;
-        flashDiv.textContent = mensaje;
-        flashDiv.style.display = 'block';
+  function aviso(msg, tipo) {
+    if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+    else { alert(msg); }
+  }
 
-        setTimeout(function() {
-            flashDiv.style.display = 'none';
-        }, 3000);
-    }
+  function escapeHtml(value) {
+    if (window.escapeHtml) return window.escapeHtml(value);
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
-    // Event listeners con jQuery para evitar conflictos
-    $('.btn-delete').click(function() {
-        const asignacionId = $(this).data('asignacion-id');
+  // ---- Asignar lista (fail-closed) ----
+  var form = document.getElementById('form-asignar-lista');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
 
-        if (!confirm('¿Desasignar esta lista de precios del cliente?')) return;
-
-        fetch('/precios/clientes/' + asignacionId + '/eliminar', {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                mostrarMensaje(data.message, 'success');
-                // Remover fila
-                $('[data-asignacion-id="' + asignacionId + '"]').remove();
-            } else {
-                mostrarMensaje(data.error || 'Error al eliminar asignación', 'error');
-            }
-        })
-        .catch(error => {
-            mostrarMensaje('Error de conexión', 'error');
-        });
-    });
-
-    // Ver precios de cliente
-    $('.btn-view').click(function() {
-        const clienteId = $(this).data('cliente-id');
-        const clienteNombre = $(this).data('cliente-nombre');
-
-        $('#modal-cliente-nombre').text('Precios de ' + clienteNombre);
-        $('#modal-precios-cliente').show();
-
-        // Mostrar loading
-        $('#precios-cliente-contenido').html('<p>Cargando información del cliente...</p>');
-
-        // Debug info primero
-        fetch('/api/precios/cliente/' + clienteId + '/debug')
-        .then(response => response.json())
-        .then(debugInfo => {
-            console.log('Debug info:', debugInfo);
-
-            let infoHtml = '<div class="cliente-info">';
-
-            if (debugInfo.lista_asignada) {
-                infoHtml += '<div class="alert alert-info">';
-                infoHtml += '<strong>Lista Asignada:</strong> ' + escapeHtml(debugInfo.lista_asignada.nombre) + ' ';
-                infoHtml += '<strong>(' + debugInfo.lista_asignada.productos_count + ' productos)</strong>';
-                infoHtml += '</div>';
-            } else {
-                infoHtml += '<div class="alert alert-warning">';
-                infoHtml += '<strong>Sin lista asignada</strong> - Usando lista por defecto';
-                if (debugInfo.lista_default) {
-                    infoHtml += ' <strong>(' + debugInfo.lista_default.productos_count + ' productos)</strong>';
-                }
-                infoHtml += '</div>';
-            }
-
-            if (debugInfo.precios_especificos_count > 0) {
-                infoHtml += '<div class="alert alert-success">';
-                infoHtml += '<strong>' + debugInfo.precios_especificos_count + ' precios específicos</strong> configurados';
-                infoHtml += '</div>';
-            }
-
-            infoHtml += '</div>';
-
-            $('#precios-cliente-contenido').html(infoHtml + '<p>Cargando precios...</p>');
-
-            return fetch('/api/precios/cliente/' + clienteId);
-        })
-        .then(response => response.json())
-        .then(data => {
-            const infoExistente = $('.cliente-info')[0].outerHTML;
-            let html = infoExistente;
-
-            if (data.length > 0) {
-                html += '<div class="precios-resumen">';
-                html += '<p><strong>Total de productos con precio:</strong> ' + data.length + '</p>';
-                html += '</div>';
-
-                html += '<div class="table-responsive">';
-                html += '<table class="table table-striped"><thead><tr>';
-                html += '<th>Producto</th><th>Precio Base</th><th>Precio Jomar</th><th>Precio Retail</th><th>Tipo</th>';
-                html += '</tr></thead><tbody>';
-
-                data.forEach(function(precio) {
-                    let tipoBadge = '';
-                    if (precio.tipo_precio === 'específico') {
-                        tipoBadge = '<span class="badge-tipo badge-primary">Específico</span>';
-                    } else if (precio.tipo_precio === 'lista_asignada') {
-                        tipoBadge = '<span class="badge-tipo badge-success">Lista</span>';
-                    } else {
-                        tipoBadge = '<span class="badge-tipo badge-secondary">Default</span>';
-                    }
-
-                    html += '<tr>';
-                    html += '<td><strong>' + escapeHtml(precio.producto_nombre) + '</strong></td>';
-                    html += '<td class="precio-valor">$' + precio.precio_base.toFixed(2) + '</td>';
-                    html += '<td class="precio-valor">$' + precio.precio_jomar.toFixed(2) + '</td>';
-                    html += '<td class="precio-valor">$' + precio.precio_retail.toFixed(2) + '</td>';
-                    html += '<td>' + tipoBadge + '</td>';
-                    html += '</tr>';
-                });
-                html += '</tbody></table></div>';
-            } else {
-                html += '<div class="alert alert-warning">';
-                html += 'Este cliente no tiene productos con precios configurados.';
-                html += '</div>';
-            }
-
-            $('#precios-cliente-contenido').html(html);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            $('#precios-cliente-contenido').html('<div class="alert alert-danger">Error al cargar los precios.</div>');
-        });
-    });
-
-    // Cerrar modal
-    $('.modal-close, #modal-precios-cliente').click(function(e) {
-        if (e.target === this) {
-            $('#modal-precios-cliente').hide();
+    fetch("{{ url_for('asignar_lista_cliente') }}", {
+      method: 'POST',
+      body: new FormData(form)
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (data.message) {
+          sessionStorage.setItem('gestionFlash', data.message);
+          window.location.reload();
+        } else {
+          submitBtn.disabled = false;
+          aviso(data.error || 'Error al asignar lista', 'error');
         }
-    });
+      })
+      .catch(function () {
+        submitBtn.disabled = false;
+        aviso('Error de conexión', 'error');
+      });
+  });
 
-    // Formulario de asignación
-    $('#form-asignar-lista').submit(function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-
-        fetch('/precios/clientes/asignar', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
+  // ---- Desasignar (fail-closed, delegado a la tabla) ----
+  var tabla = document.getElementById('tabla-asignaciones');
+  if (tabla) {
+    tabla.addEventListener('click', function (e) {
+      var btnDel = e.target.closest('.btn-desasignar');
+      if (btnDel) {
+        var asignacionId = btnDel.dataset.asignacionId;
+        if (!confirm('¿Desasignar esta lista de precios del cliente?')) return;
+        fetch('/precios/clientes/' + asignacionId + '/eliminar', { method: 'DELETE' })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (data) {
             if (data.message) {
-                mostrarMensaje(data.message, 'success');
-                this.reset();
-                setTimeout(() => location.reload(), 1500);
+              aviso(data.message, 'success');
+              var row = tabla.querySelector('[data-asignacion-id="' + asignacionId + '"]');
+              if (row) row.remove();
             } else {
-                mostrarMensaje(data.error || 'Error al asignar lista', 'error');
+              aviso(data.error || 'Error al eliminar asignación', 'error');
             }
+          })
+          .catch(function () { aviso('Error de conexión', 'error'); });
+        return;
+      }
+
+      // ---- Ver precios del cliente (modal) ----
+      var btnVer = e.target.closest('.btn-ver');
+      if (!btnVer) return;
+      var clienteId = btnVer.dataset.clienteId;
+      var clienteNombre = btnVer.dataset.clienteNombre;
+      var modal = document.getElementById('modal-precios-cliente');
+      var contenido = document.getElementById('precios-cliente-contenido');
+
+      document.getElementById('modal-cliente-nombre').textContent = 'Precios de ' + clienteNombre;
+      modal.hidden = false;
+      contenido.innerHTML = '<p>Cargando información del cliente...</p>';
+
+      fetch('/api/precios/cliente/' + clienteId + '/debug')
+        .then(function (r) { return r.json(); })
+        .then(function (debugInfo) {
+          var infoHtml = '<div class="cliente-info">';
+          if (debugInfo.lista_asignada) {
+            infoHtml += '<p class="precios-badge precios-badge-info">Lista asignada: ' +
+              escapeHtml(debugInfo.lista_asignada.nombre) + ' (' + debugInfo.lista_asignada.productos_count + ' productos)</p>';
+          } else {
+            infoHtml += '<p class="precios-badge precios-badge-inactive">Sin lista asignada — usando lista por defecto' +
+              (debugInfo.lista_default ? ' (' + debugInfo.lista_default.productos_count + ' productos)' : '') + '</p>';
+          }
+          if (debugInfo.precios_especificos_count > 0) {
+            infoHtml += '<p class="precios-badge precios-badge-success">' + debugInfo.precios_especificos_count + ' precios específicos configurados</p>';
+          }
+          infoHtml += '</div>';
+          contenido.innerHTML = infoHtml + '<p>Cargando precios...</p>';
+
+          return fetch('/api/precios/cliente/' + clienteId + '/productos');
         })
-        .catch(error => {
-            mostrarMensaje('Error de conexión', 'error');
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          // Fix: la API devuelve {id, nombre, precio, tipo_precio, precio_base,
+          // margen_jomar, margen_retail, lista_nombre} — NUNCA precio_jomar/
+          // precio_retail ni producto_nombre. El código anterior llamaba
+          // precio.precio_jomar.toFixed(2) (undefined) y lanzaba TypeError a
+          // mitad del forEach, dejando la tabla a medio renderizar.
+          var infoExistente = contenido.querySelector('.cliente-info');
+          var html = infoExistente ? infoExistente.outerHTML : '';
+
+          if (data.length > 0) {
+            html += '<p class="precios-list-meta">Total de productos con precio: ' + data.length + '</p>';
+            html += '<div class="precios-table-responsive"><table class="precios-generic-table"><thead><tr>' +
+              '<th>Producto</th><th>Precio Base</th><th>Precio Jomar</th><th>Precio Retail</th><th>Tipo</th>' +
+              '</tr></thead><tbody>';
+
+            data.forEach(function (precio) {
+              var margenJomar = precio.margen_jomar || 1.0;
+              var margenRetail = precio.margen_retail || 1.2;
+              var precioJomar = precio.precio_base * margenJomar;
+              var precioRetail = precio.precio_base * margenRetail;
+              var tipoBadge = precio.tipo_precio === 'específico' ? 'precios-badge-primary'
+                : (precio.tipo_precio === 'lista_asignada' ? 'precios-badge-success' : 'precios-badge-inactive');
+              var tipoTexto = precio.tipo_precio === 'específico' ? 'Específico'
+                : (precio.tipo_precio === 'lista_asignada' ? 'Lista' : 'Default');
+
+              html += '<tr>' +
+                '<td><strong>' + escapeHtml(precio.nombre) + '</strong></td>' +
+                '<td>$' + precio.precio_base.toFixed(2) + '</td>' +
+                '<td>$' + precioJomar.toFixed(2) + '</td>' +
+                '<td>$' + precioRetail.toFixed(2) + '</td>' +
+                '<td><span class="precios-badge ' + tipoBadge + '">' + tipoTexto + '</span></td>' +
+                '</tr>';
+            });
+            html += '</tbody></table></div>';
+          } else {
+            html += '<p class="precios-badge precios-badge-inactive">Este cliente no tiene productos con precios configurados.</p>';
+          }
+          contenido.innerHTML = html;
+        })
+        .catch(function () {
+          contenido.innerHTML = '<p class="precios-badge precios-badge-inactive">Error al cargar los precios.</p>';
         });
     });
-});
+  }
+
+  // ---- Cerrar modal ----
+  var modalEl = document.getElementById('modal-precios-cliente');
+  modalEl.querySelector('.precios-modal-close').addEventListener('click', function () { modalEl.hidden = true; });
+  modalEl.addEventListener('click', function (e) { if (e.target === modalEl) modalEl.hidden = true; });
+
+  // ---- Flash diferido ----
+  var flash = sessionStorage.getItem('gestionFlash');
+  if (flash) {
+    sessionStorage.removeItem('gestionFlash');
+    document.addEventListener('DOMContentLoaded', function () { aviso(flash, 'success'); });
+  }
+})();
 </script>
 {% endblock %}
