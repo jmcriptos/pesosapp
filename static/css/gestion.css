@@ -229,3 +229,75 @@ body[data-gestion-screen] .chip-success { background: var(--color-success-soft);
 body[data-gestion-screen] .chip-warning { background: var(--color-warning-soft); color: var(--color-warning-soft-fg); }
 body[data-gestion-screen] .chip-info    { background: var(--color-info-soft);    color: var(--color-info-soft-fg); }
 body[data-gestion-screen] .chip-primary { background: var(--color-primary-soft); color: var(--color-primary-soft-fg); }
+
+/* ── 6 · Escudo dark-mode del sistema ────────────────────────────────────
+   styles(.min).css trae un @media (prefers-color-scheme: dark) con overrides
+   !important (y un :root sin cerrar que, vía CSS nesting, anida sus reglas
+   como `:root ...` inflando especificidad) que pintan inputs oscuros y
+   botones azules. Los peores ofensores medidos en el CSSOM:
+     :root input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button])  → (0,5,1) !important
+     :root button:not(.btn-chip):not(.cam-edit)                                                → (0,3,1) !important
+   Un simple peldaño `html` (0,2,3) NO alcanza: espejamos sus cadenas :not()
+   dentro de nuestro scope para superarlos siempre. Mientras exista ese dark
+   @media (se retira en la tanda 6), re-asertamos el look claro aquí. */
+@media (prefers-color-scheme: dark) {
+  html body[data-gestion-screen] .gestion-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html body[data-gestion-screen] .gestion-wrap select,
+  html body[data-gestion-screen] .gestion-wrap textarea,
+  html body[data-gestion-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html body[data-gestion-screen] .mobile-form-container select,
+  html body[data-gestion-screen] .mobile-form-container textarea {
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+  html body[data-gestion-screen] .gestion-wrap select:focus,
+  html body[data-gestion-screen] .gestion-wrap textarea:focus,
+  html body[data-gestion-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+  html body[data-gestion-screen] .mobile-form-container select:focus,
+  html body[data-gestion-screen] .mobile-form-container textarea:focus {
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap input::placeholder,
+  html body[data-gestion-screen] .mobile-form-container input::placeholder {
+    color: #94a3b8 !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap label,
+  html body[data-gestion-screen] .mobile-form-container label {
+    color: #475569 !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap form,
+  html body[data-gestion-screen] .mobile-form-container form {
+    background: transparent !important;
+  }
+  html body[data-gestion-screen] .mobile-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  html body[data-gestion-screen] .mobile-card-header {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+  /* :not(.btn-chip):not(.cam-edit) espeja al ofensor de botones (0,3,1);
+     nuestros botones de gestión nunca llevan esas clases, así que el :not
+     siempre matchea y solo aporta especificidad. */
+  html body[data-gestion-screen] .mobile-btn-secondary:not(.btn-chip):not(.cam-edit) {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  /* Icon buttons de las filas: también son <button> → el ofensor los pinta
+     de azul; re-asertamos su paleta de la sección 5. */
+  html body[data-gestion-screen] .gestion-icon-edit:not(.btn-chip):not(.cam-edit) {
+    background: #eef4ff !important;
+    color: #2b7cff !important;
+  }
+  html body[data-gestion-screen] .gestion-icon-delete:not(.btn-chip):not(.cam-edit) {
+    background: #ffecec !important;
+    color: #dc3545 !important;
+  }
+}

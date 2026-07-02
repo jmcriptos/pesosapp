@@ -12,6 +12,12 @@
     var lista = document.getElementById('lista-productos');
     if (!form || !lista) return; // guarda: solo corre en /productos
 
+    // base.min.js stale (caché CDN/PWA) puede no traer mostrarMensaje aún
+    function aviso(msg, tipo) {
+        if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+        else { alert(msg); }
+    }
+
     // Flash diferido (tras crear + reload). OJO: este script se carga en
     // {% block scripts %}, que base.html renderiza ANTES de base.min.js —
     // window.mostrarMensaje aún no existe en parse-time; diferir a
@@ -20,7 +26,7 @@
     if (flash) {
         sessionStorage.removeItem('gestionFlash');
         document.addEventListener('DOMContentLoaded', function () {
-            if (window.mostrarMensaje) window.mostrarMensaje(flash, 'success');
+            aviso(flash, 'success');
         });
     }
 
@@ -60,16 +66,16 @@
             })
             .then(function (res) {
                 if (res.error) {
-                    window.mostrarMensaje(res.error, 'error');
                     submitBtn.disabled = false;
+                    aviso(res.error, 'error');
                     return;
                 }
                 sessionStorage.setItem('gestionFlash', res.message || 'Producto creado');
                 window.location.reload();
             })
             .catch(function () {
-                window.mostrarMensaje('Error al crear el producto', 'error');
                 submitBtn.disabled = false;
+                aviso('Error al crear el producto', 'error');
             });
     });
 
@@ -89,11 +95,11 @@
                 if (res.message) {
                     var row = document.getElementById('producto-' + btn.dataset.id);
                     if (row) row.remove();
-                    window.mostrarMensaje(res.message, 'success');
+                    aviso(res.message, 'success');
                 } else {
-                    window.mostrarMensaje(res.error || 'Error al eliminar el producto.', 'error');
+                    aviso(res.error || 'Error al eliminar el producto.', 'error');
                 }
             })
-            .catch(function () { window.mostrarMensaje('Error al eliminar el producto.', 'error'); });
+            .catch(function () { aviso('Error al eliminar el producto.', 'error'); });
     });
 })();

@@ -423,6 +423,78 @@ body[data-gestion-screen] .chip-success { background: var(--color-success-soft);
 body[data-gestion-screen] .chip-warning { background: var(--color-warning-soft); color: var(--color-warning-soft-fg); }
 body[data-gestion-screen] .chip-info    { background: var(--color-info-soft);    color: var(--color-info-soft-fg); }
 body[data-gestion-screen] .chip-primary { background: var(--color-primary-soft); color: var(--color-primary-soft-fg); }
+
+/* ── 6 · Escudo dark-mode del sistema ────────────────────────────────────
+   styles(.min).css trae un @media (prefers-color-scheme: dark) con overrides
+   !important (y un :root sin cerrar que, vía CSS nesting, anida sus reglas
+   como `:root ...` inflando especificidad) que pintan inputs oscuros y
+   botones azules. Los peores ofensores medidos en el CSSOM:
+     :root input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button])  → (0,5,1) !important
+     :root button:not(.btn-chip):not(.cam-edit)                                                → (0,3,1) !important
+   Un simple peldaño `html` (0,2,3) NO alcanza: espejamos sus cadenas :not()
+   dentro de nuestro scope para superarlos siempre. Mientras exista ese dark
+   @media (se retira en la tanda 6), re-asertamos el look claro aquí. */
+@media (prefers-color-scheme: dark) {
+  html body[data-gestion-screen] .gestion-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html body[data-gestion-screen] .gestion-wrap select,
+  html body[data-gestion-screen] .gestion-wrap textarea,
+  html body[data-gestion-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html body[data-gestion-screen] .mobile-form-container select,
+  html body[data-gestion-screen] .mobile-form-container textarea {
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+  html body[data-gestion-screen] .gestion-wrap select:focus,
+  html body[data-gestion-screen] .gestion-wrap textarea:focus,
+  html body[data-gestion-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+  html body[data-gestion-screen] .mobile-form-container select:focus,
+  html body[data-gestion-screen] .mobile-form-container textarea:focus {
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap input::placeholder,
+  html body[data-gestion-screen] .mobile-form-container input::placeholder {
+    color: #94a3b8 !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap label,
+  html body[data-gestion-screen] .mobile-form-container label {
+    color: #475569 !important;
+  }
+  html body[data-gestion-screen] .gestion-wrap form,
+  html body[data-gestion-screen] .mobile-form-container form {
+    background: transparent !important;
+  }
+  html body[data-gestion-screen] .mobile-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  html body[data-gestion-screen] .mobile-card-header {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+  /* :not(.btn-chip):not(.cam-edit) espeja al ofensor de botones (0,3,1);
+     nuestros botones de gestión nunca llevan esas clases, así que el :not
+     siempre matchea y solo aporta especificidad. */
+  html body[data-gestion-screen] .mobile-btn-secondary:not(.btn-chip):not(.cam-edit) {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  /* Icon buttons de las filas: también son <button> → el ofensor los pinta
+     de azul; re-asertamos su paleta de la sección 5. */
+  html body[data-gestion-screen] .gestion-icon-edit:not(.btn-chip):not(.cam-edit) {
+    background: #eef4ff !important;
+    color: #2b7cff !important;
+  }
+  html body[data-gestion-screen] .gestion-icon-delete:not(.btn-chip):not(.cam-edit) {
+    background: #ffecec !important;
+    color: #dc3545 !important;
+  }
+}
 ```
 
 - [ ] **Step 2: Verificar que el estático se sirve**
@@ -621,6 +693,12 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
 (function () {
   'use strict';
 
+  // base.min.js stale (caché CDN/PWA) puede no traer mostrarMensaje aún
+  function aviso(msg, tipo) {
+    if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+    else { alert(msg); }
+  }
+
   // Flash diferido (tras crear + reload). OJO: este block scripts se renderiza
   // ANTES de base.min.js en base.html, así que window.mostrarMensaje aún no
   // existe en parse-time — diferir a DOMContentLoaded (base.min.js es script
@@ -629,7 +707,7 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
   if (flash) {
     sessionStorage.removeItem('gestionFlash');
     document.addEventListener('DOMContentLoaded', function () {
-      if (window.mostrarMensaje) window.mostrarMensaje(flash, 'success');
+      aviso(flash, 'success');
     });
   }
 
@@ -670,8 +748,8 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
       })
       .then(function (res) {
         if (res.error) {
-          window.mostrarMensaje(res.error, 'error');
           submitBtn.disabled = false;
+          aviso(res.error, 'error');
           return;
         }
         // Reload: la fila la renderiza el servidor (una sola fuente de markup)
@@ -679,8 +757,8 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
         window.location.reload();
       })
       .catch(function () {
-        window.mostrarMensaje('Error al registrar el cliente', 'error');
         submitBtn.disabled = false;
+        aviso('Error al registrar el cliente', 'error');
       });
   });
 
@@ -698,12 +776,12 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
         if (res.message) {
           var row = document.getElementById('cliente-' + btn.dataset.id);
           if (row) row.remove();
-          window.mostrarMensaje(res.message, 'success');
+          aviso(res.message, 'success');
         } else {
-          window.mostrarMensaje(res.error || 'Error al eliminar', 'error');
+          aviso(res.error || 'Error al eliminar', 'error');
         }
       })
-      .catch(function () { window.mostrarMensaje('Error al eliminar', 'error'); });
+      .catch(function () { aviso('Error al eliminar', 'error'); });
   });
 })();
 </script>
@@ -798,6 +876,12 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
     var lista = document.getElementById('lista-productos');
     if (!form || !lista) return; // guarda: solo corre en /productos
 
+    // base.min.js stale (caché CDN/PWA) puede no traer mostrarMensaje aún
+    function aviso(msg, tipo) {
+        if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+        else { alert(msg); }
+    }
+
     // Flash diferido (tras crear + reload). OJO: base.html incluye este script
     // ANTES de base.min.js, así que window.mostrarMensaje aún no existe en
     // parse-time — diferir a DOMContentLoaded (base.min.js es script síncrono
@@ -806,7 +890,7 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
     if (flash) {
         sessionStorage.removeItem('gestionFlash');
         document.addEventListener('DOMContentLoaded', function () {
-            if (window.mostrarMensaje) window.mostrarMensaje(flash, 'success');
+            aviso(flash, 'success');
         });
     }
 
@@ -846,16 +930,16 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
             })
             .then(function (res) {
                 if (res.error) {
-                    window.mostrarMensaje(res.error, 'error');
                     submitBtn.disabled = false;
+                    aviso(res.error, 'error');
                     return;
                 }
                 sessionStorage.setItem('gestionFlash', res.message || 'Producto creado');
                 window.location.reload();
             })
             .catch(function () {
-                window.mostrarMensaje('Error al crear el producto', 'error');
                 submitBtn.disabled = false;
+                aviso('Error al crear el producto', 'error');
             });
     });
 
@@ -875,12 +959,12 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
                 if (res.message) {
                     var row = document.getElementById('producto-' + btn.dataset.id);
                     if (row) row.remove();
-                    window.mostrarMensaje(res.message, 'success');
+                    aviso(res.message, 'success');
                 } else {
-                    window.mostrarMensaje(res.error || 'Error al eliminar el producto.', 'error');
+                    aviso(res.error || 'Error al eliminar el producto.', 'error');
                 }
             })
-            .catch(function () { window.mostrarMensaje('Error al eliminar el producto.', 'error'); });
+            .catch(function () { aviso('Error al eliminar el producto.', 'error'); });
     });
 })();
 ```

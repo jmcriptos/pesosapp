@@ -91,6 +91,12 @@
 (function () {
   'use strict';
 
+  // base.min.js stale (caché CDN/PWA) puede no traer mostrarMensaje aún
+  function aviso(msg, tipo) {
+    if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+    else { alert(msg); }
+  }
+
   // Flash diferido (tras crear + reload). OJO: este block scripts se renderiza
   // ANTES de base.min.js en base.html, así que window.mostrarMensaje aún no
   // existe en parse-time — diferir a DOMContentLoaded (base.min.js es script
@@ -99,7 +105,7 @@
   if (flash) {
     sessionStorage.removeItem('gestionFlash');
     document.addEventListener('DOMContentLoaded', function () {
-      if (window.mostrarMensaje) window.mostrarMensaje(flash, 'success');
+      aviso(flash, 'success');
     });
   }
 
@@ -140,8 +146,8 @@
       })
       .then(function (res) {
         if (res.error) {
-          window.mostrarMensaje(res.error, 'error');
           submitBtn.disabled = false;
+          aviso(res.error, 'error');
           return;
         }
         // Reload: la fila la renderiza el servidor (una sola fuente de markup)
@@ -149,8 +155,8 @@
         window.location.reload();
       })
       .catch(function () {
-        window.mostrarMensaje('Error al registrar el cliente', 'error');
         submitBtn.disabled = false;
+        aviso('Error al registrar el cliente', 'error');
       });
   });
 
@@ -168,12 +174,12 @@
         if (res.message) {
           var row = document.getElementById('cliente-' + btn.dataset.id);
           if (row) row.remove();
-          window.mostrarMensaje(res.message, 'success');
+          aviso(res.message, 'success');
         } else {
-          window.mostrarMensaje(res.error || 'Error al eliminar', 'error');
+          aviso(res.error || 'Error al eliminar', 'error');
         }
       })
-      .catch(function () { window.mostrarMensaje('Error al eliminar', 'error'); });
+      .catch(function () { aviso('Error al eliminar', 'error'); });
   });
 })();
 </script>
