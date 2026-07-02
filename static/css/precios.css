@@ -1,0 +1,494 @@
+/* =============================================================================
+   PesosApp · precios.css — pantallas de Precios migradas al design system claro
+   Spec: docs/superpowers/specs/2026-07-01-migracion-lote-oscuro-design.md
+
+   Mismo mecanismo que gestion.css (Tanda 1): el tema global sigue siendo
+   oscuro (dark-theme.css, overrides con !important) mientras duren las
+   tandas. Aquí re-aclaramos SOLO el contenido de las pantallas marcadas por
+   base.html con body[data-precios-screen]. Carga después de dark-theme.css
+   en la cascada. Servido directo (sin minificar), como gestion.css.
+   Convención: reglas con prefijo body[data-precios-screen] = pelean
+   especificidad contra dark-theme.css; sin prefijo = layout puro sin conflicto.
+   ============================================================================= */
+
+/* ── 1 · Fondo del área de contenido ─────────────────────────────────────── */
+body[data-precios-screen] .app-content,
+body[data-precios-screen] .mobile-form-container {
+  background: #f8fafc !important;
+  background-image: none !important;
+}
+
+/* ── 2 · Tokens claros scopeados al wrapper de contenido.
+      NUNCA al body (lección de la firma/canvas en pantallas ops). ────────── */
+body[data-precios-screen] .precios-wrap,
+body[data-precios-screen] .mobile-form-container {
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #eef2f7;
+  --color-success-soft: #dcfce7; --color-success-soft-fg: #166534;
+  --color-warning-soft: #fef9c3; --color-warning-soft-fg: #854d0e;
+  --color-danger-soft:  #fee2e2; --color-danger-soft-fg:  #991b1b;
+  --color-info-soft:    #e0f2fe; --color-info-soft-fg:    #075985;
+  --color-primary-soft: #e0e7ff; --color-primary-soft-fg: #3730a3;
+  color: #0f172a;
+}
+
+/* ── 3 · Neutralizar el "recuadro" genérico de <form> ────────────────────── */
+body[data-precios-screen] .precios-wrap form,
+body[data-precios-screen] .mobile-form-container form {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* ── 4 · Reverts de dark-theme para .mobile-* dentro del scope (idéntico a
+      gestion.css sección 4 — lista_form.html reutiliza estos componentes) ── */
+body[data-precios-screen] .mobile-card {
+  background: #ffffff !important;
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid #e2e8f0 !important;
+}
+body[data-precios-screen] .mobile-card-body { color: #0f172a !important; }
+body[data-precios-screen] .mobile-card-header {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+body[data-precios-screen] .mobile-form-label { color: #475569 !important; }
+body[data-precios-screen] .mobile-form-control,
+body[data-precios-screen] .precios-wrap input,
+body[data-precios-screen] .precios-wrap select,
+body[data-precios-screen] .precios-wrap textarea,
+body[data-precios-screen] .mobile-form-container input,
+body[data-precios-screen] .mobile-form-container select,
+body[data-precios-screen] .mobile-form-container textarea {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+body[data-precios-screen] .precios-wrap input::placeholder,
+body[data-precios-screen] .mobile-form-container input::placeholder {
+  color: #94a3b8 !important;
+}
+body[data-precios-screen] .mobile-btn-secondary {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* ── 5 · Layout base ──────────────────────────────────────────────────────── */
+.precios-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 14px 90px;
+}
+body[data-precios-screen] .precios-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+body[data-precios-screen] .precios-sub {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 4px 0 0;
+}
+.precios-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── 6 · Hub (precios/index.html) ────────────────────────────────────────── */
+.precios-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+body[data-precios-screen] .precios-hub-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 24px 20px;
+  text-align: center;
+  text-decoration: none;
+  color: #0f172a;
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+body[data-precios-screen] .precios-hub-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px -14px rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+}
+body[data-precios-screen] .precios-hub-icon {
+  font-size: 2rem;
+  color: #2563eb;
+  margin-bottom: 12px;
+}
+body[data-precios-screen] .precios-hub-card h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  color: #0f172a;
+}
+body[data-precios-screen] .precios-hub-card p {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+@media (max-width: 640px) {
+  .precios-hub-grid { grid-template-columns: 1fr; }
+}
+
+/* ── 7 · Grid de tarjetas (precios/listas.html) ──────────────────────────── */
+.precios-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+body[data-precios-screen] .precios-list-card {
+  background: #ffffff;
+  border: 1px solid #eef2f7;
+  border-left: 4px solid #2563eb;
+  border-radius: var(--radius-xl, 20px);
+  padding: 18px 20px;
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+}
+.precios-list-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+body[data-precios-screen] .precios-list-card-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #0f172a;
+  flex: 1;
+}
+body[data-precios-screen] .precios-list-desc {
+  color: #64748b;
+  font-size: 0.88rem;
+  margin: 0 0 4px;
+}
+body[data-precios-screen] .precios-list-meta {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+.precios-list-stats {
+  display: flex;
+  gap: 16px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #eef2f7;
+}
+body[data-precios-screen] .precios-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+body[data-precios-screen] .precios-stat-item i { color: #2563eb; }
+body[data-precios-screen] .precios-stat-value { color: #0f172a; font-weight: 700; }
+.precios-list-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+body[data-precios-screen] .precios-chip-action {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+body[data-precios-screen] .precios-chip-primary { background: #e0e7ff; color: #3730a3; }
+body[data-precios-screen] .precios-chip-edit { background: #fef9c3; color: #854d0e; }
+body[data-precios-screen] .precios-chip-danger { background: #fee2e2; color: #991b1b; }
+
+/* Botones de icono en filas de tabla (equivalente propio de .gestion-icon-btn:
+   ese componente vive en gestion.css scopeado a body[data-gestion-screen], que
+   NO aplica en estas pantallas — se define aquí para no depender de otro CSS). */
+body[data-precios-screen] .precios-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 0.88rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+body[data-precios-screen] .precios-icon-edit { background: #eef4ff !important; color: #2b7cff !important; }
+body[data-precios-screen] .precios-icon-edit:hover { background: #d9e8ff !important; }
+body[data-precios-screen] .precios-icon-delete { background: #ffecec !important; color: #dc3545 !important; }
+body[data-precios-screen] .precios-icon-delete:hover { background: #ffd3d3 !important; }
+.precios-icon-btn i { pointer-events: none; }
+
+/* ── 8 · Tabla editable (precios/lista_productos.html) ───────────────────── */
+body[data-precios-screen] .precios-table-card {
+  background: #ffffff;
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid #eef2f7;
+  overflow: hidden;
+  box-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
+}
+.precios-table-responsive { overflow-x: auto; }
+.precios-table { width: 100%; border-collapse: collapse; }
+body[data-precios-screen] .precios-table th {
+  background: #f8fafc;
+  color: #475569;
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  border-bottom: 1px solid #eef2f7;
+}
+body[data-precios-screen] .precios-table td {
+  padding: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+body[data-precios-screen] .precios-table tr:hover td { background: #f8fafc; }
+.precios-th-precio, .precios-th-margen { width: 110px; text-align: center; }
+.precios-th-proveedor { width: 140px; }
+.precios-th-acciones { width: 60px; text-align: center; }
+body[data-precios-screen] .precios-input {
+  width: 90px;
+  padding: 6px 8px;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  text-align: right;
+}
+body[data-precios-screen] .precios-input:focus {
+  outline: none;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+body[data-precios-screen] .precios-input.is-modified {
+  border-color: #f59e0b !important;
+  background: #fffbeb !important;
+}
+.precios-td-input { text-align: center; }
+.precios-td-calculado {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 700;
+  text-align: center;
+}
+body[data-precios-screen] .precios-precio-jomar { color: #0284c7; }
+body[data-precios-screen] .precios-precio-retail { color: #ea580c; }
+@keyframes precios-row-saved {
+  0% { background: rgba(5, 150, 105, 0.15); }
+  100% { background: transparent; }
+}
+.precios-row-saved td { animation: precios-row-saved 1.4s ease-out; }
+
+/* ── 9 · Toolbar / acciones de página ────────────────────────────────────── */
+.precios-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.precios-toolbar-left, .precios-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+body[data-precios-screen] .precios-select {
+  padding: 9px 12px;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+body[data-precios-screen] .precios-count { color: #64748b; font-size: 0.85rem; }
+
+/* ── 10 · Tabla genérica (asignaciones / precios específicos) ────────────── */
+body[data-precios-screen] .precios-generic-table th {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  color: #ffffff;
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+body[data-precios-screen] .precios-generic-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #0f172a;
+}
+body[data-precios-screen] .precios-generic-table tbody tr:nth-of-type(odd) { background: #f8fafc; }
+
+/* ── 11 · Empty state ─────────────────────────────────────────────────────── */
+body[data-precios-screen] .precios-empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: #94a3b8;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: var(--radius-xl, 20px);
+}
+body[data-precios-screen] .precios-empty i { font-size: 2.2rem; color: #cbd5e1; margin-bottom: 10px; display: block; }
+
+/* ── 12 · Modal (precios/clientes.html) ──────────────────────────────────── */
+.precios-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.5);
+  padding: 16px;
+}
+.precios-modal[hidden] { display: none; }
+body[data-precios-screen] .precios-modal-content {
+  background: #ffffff;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 82vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+}
+body[data-precios-screen] .precios-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eef2f7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+body[data-precios-screen] .precios-modal-header h3 { margin: 0; color: #0f172a; font-size: 1.05rem; }
+body[data-precios-screen] .precios-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #64748b;
+  line-height: 1;
+}
+body[data-precios-screen] .precios-modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  color: #0f172a;
+}
+
+/* ── 13 · Badges/chips propios de Precios (fuera de scope de .chip global) ── */
+body[data-precios-screen] .precios-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+body[data-precios-screen] .precios-badge-default { background: #fef9c3; color: #854d0e; }
+body[data-precios-screen] .precios-badge-inactive { background: #f1f5f9; color: #64748b; }
+body[data-precios-screen] .precios-badge-success { background: #dcfce7; color: #166534; }
+body[data-precios-screen] .precios-badge-info { background: #e0f2fe; color: #075985; }
+body[data-precios-screen] .precios-badge-primary { background: #e0e7ff; color: #3730a3; }
+
+/* ── 14 · Escudo dark-mode del sistema (idéntico mecanismo verificado en
+      gestion.css sección 6 — mismos ofensores, mismo truco de especificidad,
+      adaptado al prefijo data-precios-screen). ─────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  html body[data-precios-screen] .precios-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html body[data-precios-screen] .precios-wrap select,
+  html body[data-precios-screen] .precios-wrap textarea,
+  html body[data-precios-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  html body[data-precios-screen] .mobile-form-container select,
+  html body[data-precios-screen] .mobile-form-container textarea {
+    background: #ffffff !important;
+    background-image: none !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+  html body[data-precios-screen] .precios-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+  html body[data-precios-screen] .precios-wrap select:focus,
+  html body[data-precios-screen] .precios-wrap textarea:focus,
+  html body[data-precios-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+  html body[data-precios-screen] .mobile-form-container select:focus,
+  html body[data-precios-screen] .mobile-form-container textarea:focus {
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+  }
+  html body[data-precios-screen] .precios-wrap input::placeholder,
+  html body[data-precios-screen] .mobile-form-container input::placeholder {
+    color: #94a3b8 !important;
+  }
+  html body[data-precios-screen] .precios-wrap label,
+  html body[data-precios-screen] .mobile-form-container label {
+    color: #475569 !important;
+  }
+  html body[data-precios-screen] .precios-wrap form,
+  html body[data-precios-screen] .mobile-form-container form {
+    background: transparent !important;
+  }
+  html body[data-precios-screen] .mobile-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  html body[data-precios-screen] .mobile-card-header {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+  }
+  html body[data-precios-screen] .mobile-btn-secondary:not(.btn-chip):not(.cam-edit) {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  html body[data-precios-screen] .precios-input:not(.btn-chip):not(.cam-edit) {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  html body[data-precios-screen] .precios-icon-edit:not(.btn-chip):not(.cam-edit) {
+    background: #eef4ff !important;
+    color: #2b7cff !important;
+  }
+  html body[data-precios-screen] .precios-icon-delete:not(.btn-chip):not(.cam-edit) {
+    background: #ffecec !important;
+    color: #dc3545 !important;
+  }
+}
