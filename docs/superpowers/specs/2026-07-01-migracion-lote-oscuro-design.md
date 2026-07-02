@@ -1,15 +1,24 @@
 # Migración del lote oscuro al design system claro
 
 **Fecha:** 2026-07-01
-**Estado:** Aprobado — pendiente plan de implementación
+**Estado:** Aprobado — en ejecución (Tanda 1 deployada 2026-07-02)
 **Origen:** Revisión UI/UX 2026-07-01 (preview local + viewport móvil 375px)
+
+**Corrección 2026-07-02:** Etiquetas (`templates/form_generar_etiquetas.html`)
+**ya estaba migrada** antes de esta revisión (commits `8ec94000`/`6d329b60`,
+`static/css/etiquetas_form.css` "desktop-first light redesign") — la
+evaluación original confundió la topbar oscura global (compartida por todas
+las pantallas, incluidas las ya claras) con la pantalla en sí. Se retira del
+alcance de la Tanda 4; esa tanda queda disponible para consumir en una futura
+pantalla si aparece, o se elimina del plan de tandas.
 
 ## Problema
 
 La app tiene dos generaciones de UI conviviendo. Pedidos, Dashboard, Detalle,
-Pesar y Registros HACCP usan el design system claro (tokens + primitives +
-`.mobile-*`); Clientes, Productos, Facturación, Recepciones, Importación,
-Precios (hub + 5 subpantallas) y Etiquetas siguen en el tema oscuro legacy
+Pesar, Registros HACCP y Etiquetas usan el design system claro (tokens +
+primitives + `.mobile-*`, o su propio CSS scopeado tipo `etiquetas_form.css`);
+Clientes y Productos (migrados, Tanda 1) también. Facturación, Recepciones,
+Importación y Precios (hub + 5 subpantallas) siguen en el tema oscuro legacy
 (`dark-theme.css` + ~520 líneas de `<style>` inline). Al navegar, la app salta
 de claro a oscuro. Además:
 
@@ -28,7 +37,7 @@ de claro a oscuro. Además:
 
 | Decisión | Valor |
 |---|---|
-| Alcance | Todo el lote oscuro: las 5 pantallas core + Precios (hub y subpantallas) + Etiquetas |
+| Alcance | Todo el lote oscuro: las 5 pantallas core + Precios (hub y subpantallas). Etiquetas retirada 2026-07-02 (ya estaba migrada) |
 | Nivel UX | Re-skin + mejoras estándar (lista-primero, búsqueda, sin columna ID, Tom Select) — misma funcionalidad de fondo |
 | Tema oscuro | Quitar el toggle; la app queda light-only. Dark mode real = proyecto futuro aparte |
 | Bugs scripts.js | Incluidos: restaurar `agregarProducto`, split por pantalla con guardas |
@@ -128,12 +137,12 @@ Font Awesome 6.4.2 duplicado que carga `clientes.html` (el global es 6.7.2).
 
 | Tanda | Pantallas | Contenido clave |
 |---|---|---|
-| 1 | Clientes + Productos | Valida patrón GESTIÓN; crea `gestion.css`; split `productos.js`; quita FA 6.4.2 duplicado |
+| 1 | ✅ Clientes + Productos | Deployada 2026-07-02. Valida patrón GESTIÓN; crea `gestion.css`; split `productos.js`; quita FA 6.4.2 duplicado |
 | 2 | Recepciones + Facturación | Patrón CAPTURA; Tom Select; tablas AJAX restiladas; split `recepciones.js`/`facturacion.js`; colapsables de reportes |
 | 3 | Importación | Restaurar `agregarProducto`; crear `importaciones.js` real; corregir refs muertas a `importaciones.css`/`js`; tabla scroll-h |
-| 4 | Etiquetas (`form_generar_etiquetas.html`) | Patrón CAPTURA, pantalla chica. Ojo: `test_etiquetas` está acoplado a markup |
-| 5 | Precios | `precios/index.html` (hub → tarjetas claras), `listas.html`, `lista_form.html`, `lista_productos.html`, `clientes.html`, `cliente_producto.html`, `carga_masiva.html`. Patrón GESTIÓN. La tanda grande (~3,300 líneas de template con estilos y scripts inline propios) |
-| 6 | Limpieza final | Ver siguiente sección |
+| ~~4~~ | ~~Etiquetas~~ | **Retirada del alcance 2026-07-02** — ya estaba migrada (ver corrección arriba). Renumeración: la limpieza final pasa a llamarse Tanda 5 |
+| 5 (antes 5) | Precios | `precios/index.html` (hub → tarjetas claras), `listas.html`, `lista_form.html`, `lista_productos.html`, `clientes.html`, `cliente_producto.html`, `carga_masiva.html`. Patrón GESTIÓN. La tanda grande (~3,300 líneas de template con estilos y scripts inline propios) |
+| 6 | Limpieza final | Ver siguiente sección. Precondición: Tandas 2, 3 y 5 completas (Etiquetas ya no bloquea) |
 
 ### 5. Limpieza final (tanda 6)
 
