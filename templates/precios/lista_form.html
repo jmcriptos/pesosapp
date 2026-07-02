@@ -90,7 +90,9 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       alert('El nombre debe tener al menos 3 caracteres');
       nombre.focus();
+      return;
     }
+    this.querySelector('[type=submit]').disabled = true;
   });
 });
 </script>
