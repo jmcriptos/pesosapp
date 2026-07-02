@@ -614,11 +614,16 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
 (function () {
   'use strict';
 
-  // Flash diferido (tras crear + reload)
+  // Flash diferido (tras crear + reload). OJO: este block scripts se renderiza
+  // ANTES de base.min.js en base.html, así que window.mostrarMensaje aún no
+  // existe en parse-time — diferir a DOMContentLoaded (base.min.js es script
+  // síncrono y ya habrá cargado para entonces).
   var flash = sessionStorage.getItem('gestionFlash');
   if (flash) {
     sessionStorage.removeItem('gestionFlash');
-    window.mostrarMensaje(flash, 'success');
+    document.addEventListener('DOMContentLoaded', function () {
+      window.mostrarMensaje(flash, 'success');
+    });
   }
 
   // Abrir/cerrar el form de crear
@@ -777,11 +782,16 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
     var lista = document.getElementById('lista-productos');
     if (!form || !lista) return; // guarda: solo corre en /productos
 
-    // Flash diferido (tras crear + reload)
+    // Flash diferido (tras crear + reload). OJO: base.html incluye este script
+    // ANTES de base.min.js, así que window.mostrarMensaje aún no existe en
+    // parse-time — diferir a DOMContentLoaded (base.min.js es script síncrono
+    // y ya habrá cargado para entonces).
     var flash = sessionStorage.getItem('gestionFlash');
     if (flash) {
         sessionStorage.removeItem('gestionFlash');
-        window.mostrarMensaje(flash, 'success');
+        document.addEventListener('DOMContentLoaded', function () {
+            window.mostrarMensaje(flash, 'success');
+        });
     }
 
     // Abrir/cerrar el form de crear
