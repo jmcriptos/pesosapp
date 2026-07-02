@@ -1,4 +1,4 @@
-<!-- Archivo corregido: templates/precios/carga_masiva.html -->
+<!-- templates/precios/carga_masiva.html -->
 {% extends "base.html" %}
 
 {% block title %}Carga Masiva de Precios{% endblock %}
@@ -6,478 +6,190 @@
 {% block header_title %}<i class="fas fa-upload color-blue mr-10"></i>Carga Masiva de Precios{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2>Carga Masiva de Precios</h2>
-    
-    <div class="upload-section">
-        <form method="POST" action="{{ url_for('procesar_csv_precios') }}" enctype="multipart/form-data" class="form-mb-1">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# US01: hidden CSRF field #}
-            
-            <div class="form-group">
-                <label for="archivo"><i class="fas fa-file-csv"></i> Archivo CSV:</label>
-                <input type="file" name="archivo_csv" id="archivo" accept=".csv" required>
-                <small class="form-help">Formato soportado: CSV (.csv) codificado en UTF-8</small>
-            </div>
-            
-            <div class="form-group">
-                <label for="tipo_carga">Tipo de Carga:</label>
-                <select name="tipo_carga" id="tipo_carga" required>
-                    <option value="">Seleccione el tipo de carga</option>
-                    <option value="lista_precios">Actualizar Precios de Lista</option>
-                    <option value="asignacion_clientes">Asignar Listas a Clientes</option>
-                    <option value="precios_especificos">Precios Específicos por Cliente</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="lista_precios">Lista de Precios:</label>
-                <select name="lista_precio_id" id="lista_precios" class="ts-select" required>
-                    <option value="">Seleccione una lista de precios</option>
-                    {% for lista in listas %}
-                    <option value="{{ lista.id }}">{{ lista.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="validar_antes">Validar antes de procesar:</label>
-                <input type="checkbox" name="validar_antes" id="validar_antes" checked>
-                <small class="form-help">Recomendado para archivos grandes</small>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-upload"></i> Procesar Archivo
-                </button>
-                <a href="{{ url_for('listas_precios') }}" class="btn btn-secondary">Cancelar</a>
-            </div>
-        </form>
+<div class="precios-wrap">
+  <div id="flash-message" class="flash-message hidden"></div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-file-csv"></i> Archivo CSV</div>
+    <div class="mobile-card-body">
+      <form id="form-carga-masiva" enctype="multipart/form-data" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="archivo">Archivo CSV:</label>
+          <input type="file" name="archivo_csv" id="archivo" class="mobile-form-control" accept=".csv" required>
+          <small>Formato soportado: CSV (.csv) codificado en UTF-8</small>
+        </div>
+
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="tipo_carga">Tipo de Carga:</label>
+          <select name="tipo_carga" id="tipo_carga" class="mobile-form-control" required>
+            <option value="">Seleccione el tipo de carga</option>
+            <option value="lista_precios">Actualizar Precios de Lista</option>
+            <option value="asignacion_clientes">Asignar Listas a Clientes</option>
+            <option value="precios_especificos">Precios Específicos por Cliente</option>
+          </select>
+        </div>
+
+        <div class="mobile-form-group" id="grupo-lista-precios">
+          <label class="mobile-form-label" for="lista_precios">Lista de Precios:</label>
+          <select name="lista_precio_id" id="lista_precios" class="mobile-form-control ts-select"
+                  data-ts-placeholder="Buscar lista…">
+            <option value="">Seleccione una lista de precios</option>
+            {% for lista in listas %}
+            <option value="{{ lista.id }}">{{ lista.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mobile-form-group">
+          <label class="mobile-checkbox-label">
+            <input type="checkbox" name="validar_antes" id="validar_antes" class="mobile-checkbox" checked>
+            Validar antes de procesar (recomendado para archivos grandes)
+          </label>
+        </div>
+
+        <div class="mobile-form-actions">
+          <a href="{{ url_for('mostrar_precios') }}" class="mobile-btn mobile-btn-secondary">Cancelar</a>
+          <button type="submit" class="mobile-btn mobile-btn-primary">
+            <i class="fas fa-upload"></i> Procesar Archivo
+          </button>
+        </div>
+      </form>
     </div>
-    
-    {% if resultado %}
-    <div class="resultado-section">
-        <h3>Resultado del Procesamiento</h3>
-        
-        <div class="resultado-stats">
-            <div class="stat-item">
-                <span class="stat-label">Total de registros:</span>
-                <span class="stat-value">{{ resultado.total_registros }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Procesados correctamente:</span>
-                <span class="stat-value color-success">{{ resultado.exitosos }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Con errores:</span>
-                <span class="stat-value color-warning">{{ resultado.errores }}</span>
-            </div>
-        </div>
-        
-        {% if resultado.errores > 0 %}
-        <div class="errores-section">
-            <h4>Errores Encontrados:</h4>
-            <div class="errores-list">
-                {% for error in resultado.detalle_errores %}
-                <div class="error-item">
-                    <span class="error-row">Fila {{ error.fila }}:</span>
-                    <span class="error-message">{{ error.mensaje }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if resultado.exitosos > 0 %}
-        <div class="exitos-section">
-            <h4>Registros Procesados:</h4>
-            <div class="exitos-list">
-                {% for exito in resultado.detalle_exitos %}
-                <div class="exito-item">
-                    <span class="exito-producto">{{ exito.producto }}</span>
-                    <span class="exito-precio">${{ "%.2f"|format(exito.precio) }}</span>
-                    <span class="exito-status color-success">✓</span>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        
-        <div class="resultado-actions">
-            <a href="{{ url_for('descargar_log', job_id=resultado.job_id) }}" class="btn btn-secondary">
-                <i class="fas fa-download"></i> Descargar Log
-            </a>
-            <a href="{{ url_for('listas_precios') }}" class="btn btn-primary">
-                <i class="fas fa-list"></i> Ver Lista de Precios
-            </a>
-        </div>
-    </div>
-    {% endif %}
-    
-    {% if plantilla %}
-    <div class="plantilla-section">
-        <h3>Plantilla de Carga</h3>
-        <p>Descarga la plantilla para asegurar el formato correcto de los datos:</p>
-        <a href="{{ url_for('descargar_plantilla') }}" class="btn btn-outline">
-            <i class="fas fa-file-excel"></i> Descargar Plantilla Excel
+  </div>
+
+  <div class="mobile-card" id="resultado-card" hidden>
+    <div class="mobile-card-header"><i class="fas fa-clipboard-check"></i> Resultado del Procesamiento</div>
+    <div class="mobile-card-body">
+      <p id="resultado-resumen" class="precios-list-meta"></p>
+      <div id="resultado-detalles" class="precios-empty" style="text-align:left; display:none;"></div>
+      <div class="mobile-form-actions">
+        <a id="link-ver-lista" href="{{ url_for('listas_precios') }}" class="mobile-btn mobile-btn-secondary">
+          <i class="fas fa-list"></i> Ver Lista de Precios
         </a>
+      </div>
     </div>
-    {% endif %}
+  </div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-file-excel"></i> Plantilla de Carga</div>
+    <div class="mobile-card-body">
+      <p class="precios-list-meta">Descarga la plantilla del tipo de carga seleccionado para asegurar el formato correcto.</p>
+      <a id="link-plantilla" href="{{ url_for('descargar_plantilla_csv', tipo='lista_precios') }}"
+         class="mobile-btn mobile-btn-secondary">
+        <i class="fas fa-download"></i> Descargar Plantilla
+      </a>
+    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h2 {
-    color: #f1f5f9;
-    margin-bottom: 30px;
-    text-align: center;
-}
-
-.upload-section {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 30px;
-    margin-bottom: 30px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: #f1f5f9;
-}
-
-.form-group input[type="file"],
-.form-group select {
-    width: 100%;
-    padding: 12px;
-    background: #1a1f2b;
-    color: #f1f5f9;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.2s;
-}
-
-.form-group input[type="file"]:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: #1877ff;
-    box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.15);
-}
-
-.form-group input[type="checkbox"] {
-    margin-right: 8px;
-    transform: scale(1.2);
-}
-
-.form-help {
-    display: block;
-    margin-top: 5px;
-    color: #94a3b8;
-    font-size: 0.9rem;
-}
-
-.form-actions {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    margin-top: 30px;
-}
-
-.btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-}
-
-.btn-primary:hover {
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.4);
-    transform: translateY(-1px);
-}
-
-.btn-secondary {
-    background: #1a1f2b;
-    color: #94a3b8;
-    border: 1px solid #3b4a5c;
-}
-
-.btn-secondary:hover {
-    color: #f1f5f9;
-    border-color: #60a5fa;
-}
-
-.btn-outline {
-    background: transparent;
-    color: #60a5fa;
-    border: 1px solid #3b4a5c;
-}
-
-.btn-outline:hover {
-    background: rgba(24, 119, 255, 0.1);
-    border-color: #60a5fa;
-}
-
-.resultado-section {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 30px;
-    margin-bottom: 30px;
-}
-
-.resultado-section h3 {
-    color: #f1f5f9;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.resultado-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.stat-item {
-    background: #1a1f2b;
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #3b4a5c;
-}
-
-.stat-label {
-    display: block;
-    color: #94a3b8;
-    font-size: 0.9rem;
-    margin-bottom: 8px;
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #f1f5f9;
-}
-
-.errores-section,
-.exitos-section {
-    margin-bottom: 25px;
-}
-
-.errores-section h4,
-.exitos-section h4 {
-    color: #f1f5f9;
-    margin-bottom: 15px;
-    font-size: 1.1rem;
-}
-
-.errores-list,
-.exitos-list {
-    max-height: 200px;
-    overflow-y: auto;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    padding: 15px;
-}
-
-.error-item,
-.exito-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid #1e2533;
-}
-
-.error-item:last-child,
-.exito-item:last-child {
-    border-bottom: none;
-}
-
-.error-row {
-    font-weight: 600;
-    color: #f87171;
-    min-width: 80px;
-}
-
-.error-message {
-    color: #94a3b8;
-    flex: 1;
-    margin-left: 15px;
-}
-
-.exito-producto {
-    font-weight: 600;
-    color: #f1f5f9;
-    flex: 1;
-}
-
-.exito-precio {
-    color: #60a5fa;
-    font-weight: 600;
-    margin: 0 15px;
-}
-
-.exito-status {
-    font-size: 1.2rem;
-    font-weight: bold;
-}
-
-.resultado-actions {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    margin-top: 25px;
-}
-
-.plantilla-section {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 30px;
-    text-align: center;
-}
-
-.plantilla-section h3 {
-    color: #f1f5f9;
-    margin-bottom: 15px;
-}
-
-.plantilla-section p {
-    color: #94a3b8;
-    margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
-    }
-    
-    .upload-section,
-    .resultado-section,
-    .plantilla-section {
-        padding: 20px;
-    }
-    
-    .form-actions,
-    .resultado-actions {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .resultado-stats {
-        grid-template-columns: 1fr;
-    }
-    
-    .error-item,
-    .exito-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-    }
-    
-    .error-message {
-        margin-left: 0;
-    }
-    
-    .exito-precio {
-        margin: 0;
-    }
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script nonce="{{ csp_nonce() }}">
-document.addEventListener('DOMContentLoaded', function() {
-    const tipoCargaSelect = document.getElementById('tipo_carga');
-    const listaPreciosSelect = document.getElementById('lista_precios');
-    
-    // Mostrar/ocultar campos según el tipo de carga
-    tipoCargaSelect.addEventListener('change', function() {
-        const tipo = this.value;
-        
-        if (tipo === 'asignacion_clientes') {
-            listaPreciosSelect.parentElement.style.display = 'none';
-        } else {
-            listaPreciosSelect.parentElement.style.display = 'block';
-        }
-    });
-    
-    // Validación del archivo
-    const archivoInput = document.getElementById('archivo');
-    archivoInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (file) {
-            const maxSize = 10 * 1024 * 1024; // 10MB
-            if (file.size > maxSize) {
-                alert('El archivo es demasiado grande. El tamaño máximo es 10MB.');
-                this.value = '';
-            }
-            
-            const allowedTypes = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'];
+(function () {
+  'use strict';
 
-            if (file.type && !allowedTypes.includes(file.type)) {
-                alert('Tipo de archivo no soportado. Use CSV (.csv)');
-                this.value = '';
-            }
+  function aviso(msg, tipo) {
+    if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+    else { alert(msg); }
+  }
+
+  var tipoCargaSelect = document.getElementById('tipo_carga');
+  var grupoLista = document.getElementById('grupo-lista-precios');
+  var listaPreciosSelect = document.getElementById('lista_precios');
+  var linkPlantilla = document.getElementById('link-plantilla');
+
+  var PLANTILLA_URLS = {
+    lista_precios: "{{ url_for('descargar_plantilla_csv', tipo='lista_precios') }}",
+    asignacion_clientes: "{{ url_for('descargar_plantilla_csv', tipo='asignacion_clientes') }}",
+    precios_especificos: "{{ url_for('descargar_plantilla_csv', tipo='precios_especificos') }}"
+  };
+
+  tipoCargaSelect.addEventListener('change', function () {
+    var tipo = this.value;
+    grupoLista.style.display = (tipo === 'asignacion_clientes') ? 'none' : '';
+    if (PLANTILLA_URLS[tipo]) linkPlantilla.href = PLANTILLA_URLS[tipo];
+  });
+
+  var archivoInput = document.getElementById('archivo');
+  archivoInput.addEventListener('change', function () {
+    var file = this.files[0];
+    if (!file) return;
+    var maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      aviso('El archivo es demasiado grande. El tamaño máximo es 10MB.', 'error');
+      this.value = '';
+      return;
+    }
+    var allowedTypes = ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'];
+    if (file.type && allowedTypes.indexOf(file.type) === -1) {
+      aviso('Tipo de archivo no soportado. Use CSV (.csv)', 'error');
+      this.value = '';
+    }
+  });
+
+  var form = document.getElementById('form-carga-masiva');
+  var resultadoCard = document.getElementById('resultado-card');
+  var resultadoResumen = document.getElementById('resultado-resumen');
+  var resultadoDetalles = document.getElementById('resultado-detalles');
+
+  // Fix: el submit nativo iba a un endpoint que SIEMPRE responde JSON (el
+  // navegador terminaba mostrando JSON crudo); además el template esperaba
+  // variables (resultado.total_registros, resultado.detalle_errores...) que
+  // la ruta nunca pasaba. Se reemplaza por fetch, renderizando la forma REAL
+  // de /precios/procesar-csv: {success, mensaje, resultados: {procesados,
+  // errores, warnings, detalles}}.
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    if (!archivoInput.files[0]) { aviso('Por favor seleccione un archivo', 'error'); archivoInput.focus(); return; }
+    if (!tipoCargaSelect.value) { aviso('Por favor seleccione el tipo de carga', 'error'); tipoCargaSelect.focus(); return; }
+    if (tipoCargaSelect.value !== 'asignacion_clientes' && !listaPreciosSelect.value) {
+      aviso('Por favor seleccione una lista de precios', 'error');
+      listaPreciosSelect.focus();
+      return;
+    }
+
+    var submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+
+    fetch("{{ url_for('procesar_csv_precios') }}", {
+      method: 'POST',
+      body: new FormData(form)
+    })
+      .then(function (r) { return r.json().catch(function () { return { error: 'Error al procesar el archivo' }; }); })
+      .then(function (data) {
+        submitBtn.disabled = false;
+        if (data.error) { aviso(data.error, 'error'); return; }
+
+        var r = data.resultados || {};
+        resultadoResumen.textContent =
+          (r.procesados || 0) + ' procesados · ' + (r.errores || 0) + ' con errores' +
+          ((r.warnings && r.warnings.length) ? ' · ' + r.warnings.length + ' advertencias' : '');
+
+        if (r.detalles && r.detalles.length) {
+          resultadoDetalles.style.display = '';
+          resultadoDetalles.innerHTML = '';
+          r.detalles.forEach(function (linea) {
+            var p = document.createElement('p');
+            p.className = 'precios-list-meta';
+            p.textContent = linea; // textContent: los detalles vienen del servidor, evita XSS
+            resultadoDetalles.appendChild(p);
+          });
+        } else {
+          resultadoDetalles.style.display = 'none';
         }
-    });
-    
-    // Validación del formulario
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function(e) {
-        const archivo = archivoInput.files[0];
-        const tipoCarga = tipoCargaSelect.value;
-        const listaPrecios = listaPreciosSelect.value;
-        
-        if (!archivo) {
-            e.preventDefault();
-            alert('Por favor seleccione un archivo');
-            archivoInput.focus();
-            return;
-        }
-        
-        if (!tipoCarga) {
-            e.preventDefault();
-            alert('Por favor seleccione el tipo de carga');
-            tipoCargaSelect.focus();
-            return;
-        }
-        
-        if (tipoCarga !== 'asignacion_clientes' && !listaPrecios) {
-            e.preventDefault();
-            alert('Por favor seleccione una lista de precios');
-            listaPreciosSelect.focus();
-            return;
-        }
-    });
-});
+
+        resultadoCard.hidden = false;
+        resultadoCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        aviso(data.mensaje || 'Procesamiento completado', (r.errores || 0) > 0 ? 'error' : 'success');
+      })
+      .catch(function () {
+        submitBtn.disabled = false;
+        aviso('Error al procesar el archivo', 'error');
+      });
+  });
+})();
 </script>
 {% endblock %}
