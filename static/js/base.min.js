@@ -8,6 +8,19 @@ window.escapeHtml = function (value) {
         .replace(/'/g, '&#39;');
 };
 
+// Flash message global (una sola fuente; antes vivía duplicado en scripts.js
+// con jQuery). Requiere un <div id="flash-message" class="flash-message"> en
+// el template. tipo: 'success' | cualquier otro valor → estilo error.
+window.mostrarMensaje = function (mensaje, tipo) {
+    var el = document.getElementById('flash-message');
+    if (!el) { alert(mensaje); return; }
+    el.className = 'flash-message ' + (tipo === 'success' ? 'success' : 'error');
+    el.textContent = mensaje; // textContent evita XSS con datos del servidor
+    el.style.display = 'block';
+    clearTimeout(el._flashTimer);
+    el._flashTimer = setTimeout(function () { el.style.display = 'none'; }, 3000);
+};
+
 // Logout por POST (anti CSRF): intercepta cualquier enlace a /logout y lo envía
 // como formulario POST con token CSRF.
 document.addEventListener('click', function (ev) {
