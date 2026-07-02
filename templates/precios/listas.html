@@ -8,271 +8,105 @@
 {% endblock %}
 
 {% block content %}
-<div id="flash-message" class="flash-message hidden"></div>
+<div class="precios-wrap">
+  <div id="flash-message" class="flash-message hidden"></div>
 
-<div class="listas-container precios-container">
-    <div class="listas-header">
-        <a href="{{ url_for('nueva_lista_precio') }}" class="btn-nueva-lista">
-            <i class="fas fa-plus"></i> Nueva Lista
-        </a>
-    </div>
+  <div class="precios-page-header">
+    <h1 class="precios-title">Listas de Precios</h1>
+    <a href="{{ url_for('nueva_lista_precio') }}" id="btn-nueva-lista" class="mobile-btn mobile-btn-primary">
+      <i class="fas fa-plus"></i> Nueva Lista
+    </a>
+  </div>
 
-    <div class="listas-grid">
-        {% for lista in listas %}
-        <div class="lista-card" data-lista-id="{{ lista.id }}">
-            <div class="lista-card-header">
-                <h3>{{ lista.nombre }}</h3>
-                <div class="lista-badges">
-                    {% if lista.es_default %}
-                        <span class="precio-badge default">Por Defecto</span>
-                    {% endif %}
-                    {% if not lista.activa %}
-                        <span class="precio-badge inactive">Inactiva</span>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="lista-description">
-                <p>{{ lista.descripcion or 'Sin descripción' }}</p>
-                <small>Creada: {{ lista.fecha_creacion.strftime('%d/%m/%Y') if lista.fecha_creacion }}</small>
-            </div>
-
-            <div class="lista-stats">
-                <div class="stat-item">
-                    <i class="fas fa-box"></i>
-                    <span class="stat-value">{{ lista.precios_productos|length }}</span> productos
-                </div>
-                <div class="stat-item">
-                    <i class="fas fa-users"></i>
-                    <span class="stat-value">{{ lista.clientes|length }}</span> clientes
-                </div>
-            </div>
-
-            <div class="lista-actions">
-                <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}"
-                   class="btn-chip-action btn-chip-primary">
-                    <i class="fas fa-dollar-sign"></i> Precios
-                </a>
-
-                {% if not lista.es_default %}
-                <a href="{{ url_for('editar_lista_precio', lista_id=lista.id) }}"
-                   class="btn-chip-action btn-chip-edit">
-                    <i class="fas fa-edit"></i> Editar
-                </a>
-
-                <button class="btn-chip-action btn-chip-danger eliminar-lista"
-                        data-id="{{ lista.id }}">
-                    <i class="fas fa-trash"></i> Eliminar
-                </button>
-                {% endif %}
-            </div>
+  <div class="precios-list-grid">
+    {% for lista in listas %}
+    <div class="precios-list-card" data-lista-id="{{ lista.id }}">
+      <div class="precios-list-card-header">
+        <h3>{{ lista.nombre }}</h3>
+        <div>
+          {% if lista.es_default %}<span class="precios-badge precios-badge-default">Por Defecto</span>{% endif %}
+          {% if not lista.activa %}<span class="precios-badge precios-badge-inactive">Inactiva</span>{% endif %}
         </div>
-        {% endfor %}
-    </div>
+      </div>
 
-    {% if not listas %}
-    <div class="empty-state">
-        <i class="fas fa-list-alt"></i>
-        <h3>No hay listas de precios</h3>
-        <p>Crea tu primera lista de precios para comenzar</p>
-        <a href="{{ url_for('nueva_lista_precio') }}" class="btn-nueva-lista">
-            <i class="fas fa-plus"></i> Crear Lista
+      <p class="precios-list-desc">{{ lista.descripcion or 'Sin descripción' }}</p>
+      <span class="precios-list-meta">Creada: {{ lista.fecha_creacion.strftime('%d/%m/%Y') if lista.fecha_creacion else '—' }}</span>
+
+      <div class="precios-list-stats">
+        <div class="precios-stat-item">
+          <i class="fas fa-box"></i>
+          <span class="precios-stat-value">{{ lista.precios_productos|length }}</span> productos
+        </div>
+        <div class="precios-stat-item">
+          <i class="fas fa-users"></i>
+          <span class="precios-stat-value">{{ lista.clientes|length }}</span> clientes
+        </div>
+      </div>
+
+      <div class="precios-list-actions">
+        <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}"
+           class="precios-chip-action precios-chip-primary">
+          <i class="fas fa-dollar-sign"></i> Precios
         </a>
+        {% if not lista.es_default %}
+        <a href="{{ url_for('editar_lista_precio', lista_id=lista.id) }}"
+           class="precios-chip-action precios-chip-edit">
+          <i class="fas fa-edit"></i> Editar
+        </a>
+        <button type="button" class="precios-chip-action precios-chip-danger eliminar-lista"
+                data-id="{{ lista.id }}" aria-label="Eliminar {{ lista.nombre }}">
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
+    {% else %}
+    <div class="precios-empty">
+      <i class="fas fa-list-alt"></i>
+      <p>No hay listas de precios. Crea la primera para comenzar.</p>
+      <a href="{{ url_for('nueva_lista_precio') }}" class="mobile-btn mobile-btn-primary">
+        <i class="fas fa-plus"></i> Crear Lista
+      </a>
+    </div>
+    {% endfor %}
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.listas-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.listas-header {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 20px;
-}
-
-.btn-nueva-lista {
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-.btn-nueva-lista:hover {
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.4);
-    transform: translateY(-1px);
-    text-decoration: none;
-    color: white;
-}
-
-.listas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 16px;
-}
-
-.lista-card {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-left: 4px solid #1877ff;
-    border-radius: 12px;
-    padding: 20px;
-    transition: transform 0.2s, border-color 0.2s;
-}
-.lista-card:hover {
-    transform: translateY(-2px);
-    border-color: #60a5fa;
-}
-
-.lista-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-    gap: 8px;
-}
-.lista-card-header h3 {
-    color: #f1f5f9;
-    margin: 0;
-    font-size: 1.15rem;
-    flex: 1;
-}
-
-.lista-badges { display: flex; gap: 6px; flex-wrap: wrap; }
-
-.lista-description p {
-    color: #94a3b8;
-    margin: 0 0 4px 0;
-    line-height: 1.4;
-    font-size: 0.9rem;
-}
-.lista-description small {
-    color: #64748b;
-    font-size: 0.8rem;
-}
-
-.lista-stats {
-    display: flex;
-    gap: 16px;
-    margin: 14px 0;
-    padding: 10px 14px;
-    background: #1a1f2b;
-    border-radius: 8px;
-    border: 1px solid #2a3040;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #94a3b8;
-    font-size: 0.85rem;
-}
-.stat-item i { color: #60a5fa; font-size: 0.8rem; }
-.stat-item .stat-value { color: #f1f5f9; font-weight: 600; }
-
-.lista-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.btn-chip-action {
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.btn-chip-primary {
-    background: rgba(24, 119, 255, 0.15);
-    color: #60a5fa;
-}
-.btn-chip-primary:hover { background: rgba(24, 119, 255, 0.25); text-decoration: none; color: #60a5fa; }
-
-.btn-chip-edit {
-    background: rgba(251, 191, 36, 0.12);
-    color: #fbbf24;
-}
-.btn-chip-edit:hover { background: rgba(251, 191, 36, 0.22); text-decoration: none; color: #fbbf24; }
-
-.btn-chip-danger {
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-}
-.btn-chip-danger:hover { background: rgba(239, 68, 68, 0.22); }
-
-/* Empty state */
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: #64748b;
-}
-.empty-state i { font-size: 3rem; display: block; margin-bottom: 16px; color: #3b4a5c; }
-.empty-state h3 { color: #94a3b8; margin-bottom: 10px; }
-.empty-state p { color: #64748b; margin-bottom: 20px; }
-
-/* Flash */
-.flash-message {
-    position: fixed; top: 20px; right: 20px; padding: 12px 24px;
-    border-radius: 8px; color: white; font-weight: 500; z-index: 1000; font-size: 0.9rem;
-}
-.flash-message.success { background: #059669; }
-.flash-message.error { background: #dc2626; }
-
-@media (max-width: 768px) {
-    .listas-grid { grid-template-columns: 1fr; }
-    .lista-stats { flex-direction: column; gap: 8px; }
-    .lista-actions { justify-content: center; }
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script nonce="{{ csp_nonce() }}">
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.eliminar-lista').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var listaId = this.dataset.id;
-            var card = this.closest('.lista-card');
-            if (!confirm('¿Eliminar esta lista de precios?')) return;
+(function () {
+  'use strict';
 
-            fetch('/precios/listas/' + listaId + '/eliminar', { method: 'POST' })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.message) {
-                        card.style.transition = 'opacity 0.3s';
-                        card.style.opacity = '0';
-                        setTimeout(function() {
-                            card.remove();
-                            if (!document.querySelector('.lista-card')) location.reload();
-                        }, 300);
-                    } else {
-                        alert(data.error || 'Error al eliminar');
-                    }
-                })
-                .catch(function() { alert('Error de conexión'); });
-        });
+  function aviso(msg, tipo) {
+    if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+    else { alert(msg); }
+  }
+
+  document.querySelectorAll('.eliminar-lista').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var listaId = btn.dataset.id;
+      var card = btn.closest('.precios-list-card');
+      if (!confirm('¿Eliminar esta lista de precios?')) return;
+
+      fetch('/precios/listas/' + listaId + '/eliminar', { method: 'POST' })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (data) {
+          // Fail-closed: solo message cuenta como éxito.
+          if (data.message) {
+            card.style.transition = 'opacity 0.25s';
+            card.style.opacity = '0';
+            setTimeout(function () {
+              card.remove();
+              if (!document.querySelector('.precios-list-card')) window.location.reload();
+            }, 250);
+          } else {
+            aviso(data.error || 'Error al eliminar', 'error');
+          }
+        })
+        .catch(function () { aviso('Error de conexión', 'error'); });
     });
-});
+  });
+})();
 </script>
 {% endblock %}
