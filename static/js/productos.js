@@ -78,22 +78,21 @@
         var btn = e.target.closest('.eliminar-producto');
         if (!btn) return;
         if (!confirm('¿Eliminar este producto?')) return;
-        var body = new URLSearchParams();
-        body.set('accion', 'eliminar');
         fetch('/productos/' + btn.dataset.id + '/eliminar', {
             method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: body.toString()
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
             .then(function (r) { return r.json().catch(function () { return {}; }); })
             .then(function (res) {
-                if (res.error) { window.mostrarMensaje(res.error, 'error'); return; }
-                var row = document.getElementById('producto-' + btn.dataset.id);
-                if (row) row.remove();
-                window.mostrarMensaje(res.message || 'Producto eliminado', 'success');
+                // Fail-closed: solo tratar como éxito el JSON con message del
+                // endpoint; una respuesta HTML (login/403) cae al error.
+                if (res.message) {
+                    var row = document.getElementById('producto-' + btn.dataset.id);
+                    if (row) row.remove();
+                    window.mostrarMensaje(res.message, 'success');
+                } else {
+                    window.mostrarMensaje(res.error || 'Error al eliminar el producto.', 'error');
+                }
             })
             .catch(function () { window.mostrarMensaje('Error al eliminar el producto.', 'error'); });
     });
