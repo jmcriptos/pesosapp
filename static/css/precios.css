@@ -63,7 +63,8 @@ body[data-precios-screen] .mobile-card-header {
   color: #0f172a !important;
   border-bottom: 1px solid #e2e8f0 !important;
 }
-body[data-precios-screen] .mobile-form-label { color: #475569 !important; }
+body[data-precios-screen] .mobile-form-label,
+body[data-precios-screen] .mobile-checkbox-label { color: #475569 !important; }
 body[data-precios-screen] .mobile-form-control,
 body[data-precios-screen] .precios-wrap input,
 body[data-precios-screen] .precios-wrap select,
@@ -83,6 +84,93 @@ body[data-precios-screen] .mobile-btn-secondary {
   background: #ffffff !important;
   color: #0f172a !important;
   border: 1px solid #e2e8f0 !important;
+}
+
+/* dark-theme.css además fija color en TAGS genéricos sin scope y SIN
+   !important (`strong{color:#f1f5f9}`, `p{color:#94a3b8}`,
+   `a{color:#60a5fa}`, `small{color:#94a3b8}`). Como esas reglas matchean
+   directo al elemento hijo (ej. <strong> dentro de un <td>), ganan sobre el
+   `color` heredado del padre aunque el padre tenga !important — la herencia
+   no hereda el !important, solo el valor. Se revierten explícitamente los 4
+   tags dentro de las tres raíces de contenido claro (.precios-wrap,
+   .mobile-form-container, .precios-modal — el modal vive FUERA de
+   .precios-wrap en el DOM). No se tocan los que ya tienen su propio color
+   vía clase (.precios-sub, .precios-list-meta, .precios-chip-*, etc. —
+   esos ganan por especificidad de clase, sin necesidad de !important aquí). */
+body[data-precios-screen] .precios-wrap strong,
+body[data-precios-screen] .mobile-form-container strong,
+body[data-precios-screen] .precios-modal strong {
+  color: inherit !important;
+}
+body[data-precios-screen] .precios-wrap p,
+body[data-precios-screen] .mobile-form-container p,
+body[data-precios-screen] .precios-modal p {
+  color: inherit !important;
+}
+body[data-precios-screen] .precios-wrap small,
+body[data-precios-screen] .mobile-form-container small,
+body[data-precios-screen] .precios-modal small {
+  color: #64748b !important;
+}
+body[data-precios-screen] .precios-wrap a:not([class]),
+body[data-precios-screen] .mobile-form-container a:not([class]),
+body[data-precios-screen] .precios-modal a:not([class]) {
+  color: #2563eb !important;
+}
+
+/* Tom Select: dark-theme.css lo estila sin scope y con !important (pinta
+   el control y el dropdown de negro). El dropdown se monta con
+   dropdownParent:'body' (base.html) — sigue siendo descendiente de
+   body[data-precios-screen], así que el scope alcanza igual. Mismo patrón
+   ya usado en etiquetas_form.css. */
+body[data-precios-screen] .ts-wrapper .ts-control,
+body[data-precios-screen] .ts-wrapper.single .ts-control,
+body[data-precios-screen] .ts-wrapper.multi .ts-control {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+}
+body[data-precios-screen] .ts-wrapper.focus .ts-control,
+body[data-precios-screen] .ts-wrapper.single.focus .ts-control,
+body[data-precios-screen] .ts-wrapper.multi.focus .ts-control {
+  background: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16) !important;
+}
+body[data-precios-screen] .ts-control input,
+body[data-precios-screen] .ts-wrapper.single .ts-control input {
+  color: #0f172a !important;
+}
+body[data-precios-screen] .ts-control input::placeholder,
+body[data-precios-screen] .ts-wrapper .ts-control > input::placeholder,
+body[data-precios-screen] .ts-wrapper.single .ts-control input::placeholder {
+  color: #94a3b8 !important;
+}
+body[data-precios-screen] .ts-control .item,
+body[data-precios-screen] .ts-wrapper.single .ts-control .item {
+  color: #0f172a !important;
+}
+body[data-precios-screen] .ts-dropdown,
+body[data-precios-screen] .ts-dropdown.single,
+body[data-precios-screen] .ts-dropdown.multi {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 48px -16px rgba(15, 23, 42, 0.18) !important;
+}
+body[data-precios-screen] .ts-dropdown .option,
+body[data-precios-screen] .ts-dropdown .ts-dropdown-content .option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-bottom-color: #f1f5f9 !important;
+}
+body[data-precios-screen] .ts-dropdown .option:hover,
+body[data-precios-screen] .ts-dropdown .option.active,
+body[data-precios-screen] .ts-dropdown .ts-dropdown-content .option:hover,
+body[data-precios-screen] .ts-dropdown .ts-dropdown-content .option.active {
+  background: #eef4ff !important;
+  color: #2563eb !important;
 }
 
 /* ── 5 · Layout base ──────────────────────────────────────────────────────── */
@@ -262,9 +350,14 @@ body[data-precios-screen] .precios-table-card {
 }
 .precios-table-responsive { overflow-x: auto; }
 .precios-table { width: 100%; border-collapse: collapse; }
+/* dark-theme.css define `td { color:#f1f5f9 !important }`,
+   `tr:nth-child(even) td { background:#161c26 !important }` y
+   `tr:hover td { background:#1a1f2b !important }` SIN scope — pelea contra
+   cualquier tabla de la app. Los reverts de abajo deben llevar !important en
+   background/color para ganarle (mismo patrón que la sección 4). */
 body[data-precios-screen] .precios-table th {
-  background: #f8fafc;
-  color: #475569;
+  background: #f8fafc !important;
+  color: #475569 !important;
   padding: 12px 10px;
   text-align: left;
   font-weight: 700;
@@ -277,10 +370,12 @@ body[data-precios-screen] .precios-table th {
 body[data-precios-screen] .precios-table td {
   padding: 10px;
   border-bottom: 1px solid #f1f5f9;
-  color: #0f172a;
+  background: #ffffff !important;
+  color: #0f172a !important;
   font-size: 0.9rem;
 }
-body[data-precios-screen] .precios-table tr:hover td { background: #f8fafc; }
+body[data-precios-screen] .precios-table tr:nth-child(even) td { background: #f8fafc !important; }
+body[data-precios-screen] .precios-table tr:hover td { background: #f1f5f9 !important; }
 .precios-th-precio, .precios-th-margen { width: 110px; text-align: center; }
 .precios-th-proveedor { width: 140px; }
 body[data-precios-screen] .precios-td-proveedor { color: #94a3b8; font-size: 0.85rem; }
@@ -344,9 +439,11 @@ body[data-precios-screen] .precios-select {
 body[data-precios-screen] .precios-count { color: #64748b; font-size: 0.85rem; }
 
 /* ── 10 · Tabla genérica (asignaciones / precios específicos) ────────────── */
+/* Mismo problema que .precios-table (sección 8): dark-theme.css pelea sin
+   scope contra cualquier <td>/fila par/hover — reverts con !important. */
 body[data-precios-screen] .precios-generic-table th {
-  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+  color: #ffffff !important;
   padding: 12px 10px;
   text-align: left;
   font-weight: 700;
@@ -355,9 +452,11 @@ body[data-precios-screen] .precios-generic-table th {
 body[data-precios-screen] .precios-generic-table td {
   padding: 12px 10px;
   border-bottom: 1px solid #f1f5f9;
-  color: #0f172a;
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
-body[data-precios-screen] .precios-generic-table tbody tr:nth-of-type(odd) { background: #f8fafc; }
+body[data-precios-screen] .precios-generic-table tbody tr:nth-of-type(odd) td { background: #f8fafc !important; }
+body[data-precios-screen] .precios-generic-table tbody tr:hover td { background: #f1f5f9 !important; }
 
 /* ── 11 · Empty state ─────────────────────────────────────────────────────── */
 body[data-precios-screen] .precios-empty {
