@@ -89,7 +89,7 @@ body[data-gestion-screen] .mobile-form-container input::placeholder {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding-bottom: 90px; /* respiro sobre la tabbar fija */
+  padding: 8px 14px 90px; /* laterales: .app-content no aporta padding aquí; bottom: respiro sobre la tabbar fija */
 }
 
 .gestion-header {
