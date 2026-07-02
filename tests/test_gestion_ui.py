@@ -94,3 +94,25 @@ def test_non_gestion_routes_lack_gestion_attrs(logged_client, path):
     response = logged_client.get(path)
     assert b'data-gestion-screen="1"' not in response.data
     assert b"css/gestion.css" not in response.data
+
+
+# ---------------------------------------------------------------------------
+# Clientes — patrón GESTIÓN
+# ---------------------------------------------------------------------------
+
+
+def test_clientes_patron_gestion(logged_client):
+    html = logged_client.get("/clientes").data
+    assert b'id="buscar-cliente"' in html, "input de búsqueda missing"
+    assert b'id="crear-cliente-card"' in html, "card de crear missing"
+    assert b'id="btn-nuevo-cliente"' in html, "botón + Nuevo missing"
+    assert b'id="form-cliente"' in html, "form de crear missing (el POST AJAX depende de este id)"
+    assert b"Cliente Uno" in html, "fila del cliente seed missing"
+    assert b"gestion-row" in html, "filas .gestion-row missing"
+
+
+def test_clientes_sin_legacy(logged_client):
+    html = logged_client.get("/clientes").data
+    assert b"font-awesome/6.4.2" not in html, "FA 6.4.2 duplicado debe eliminarse (global es 6.7.2)"
+    assert b"tabla-clientes" not in html, "la tabla legacy debe reemplazarse por .gestion-list"
+    assert b"code.jquery.com" not in html, "clientes ya no necesita jQuery CDN"

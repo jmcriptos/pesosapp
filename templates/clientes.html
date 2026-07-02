@@ -7,176 +7,159 @@
 {% endblock %}
 
 {% block content %}
-<!-- Flash -->
-<div id="flash-message" class="flash-message hidden"></div>
+<div class="gestion-wrap">
+  <div id="flash-message" class="flash-message hidden"></div>
 
-<!-- 🔹 REGISTRAR NUEVO CLIENTE -->
-<section class="form-section">
-  <h2>Registrar Nuevo Cliente</h2>
-  <form id="form-cliente" method="POST" action="{{ url_for('nuevo_cliente') }}">
-    <!-- US01: hidden CSRF field -->
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-group">
-      <label for="nombre-cliente" class="form-label">Nombre:</label>
-      <input id="nombre-cliente" name="nombre" class="form-input" required>
-    </div>
-
-    <div class="form-group">
-      <label for="qbo-cliente" class="form-label">QBO ID <small>(opcional)</small>:</label>
-      <input id="qbo-cliente" name="qbo_id" class="form-input">
-    </div>
-
-    <div class="form-group">
-      <label for="moneda-cliente" class="form-label">Moneda:</label>
-      <select id="moneda-cliente" name="moneda" class="form-input">
-        <option value="XCG">XCG (Guilder)</option>
-        <option value="USD">USD (Dólar)</option>
-      </select>
-    </div>
-
-    <button class="form-button">
-      <i class="fas fa-plus"></i> Registrar
+  <div class="gestion-header">
+    <h1 class="gestion-title">Clientes</h1>
+    <button type="button" id="btn-nuevo-cliente" class="mobile-btn mobile-btn-primary gestion-new-btn">
+      <i class="fas fa-plus"></i> Nuevo
     </button>
-  </form>
-</section>
-
-<!-- 🔹 LISTADO -->
-<section class="table-section">
-  <h2>Clientes Registrados</h2>
-  <div class="table-container">
-    <table class="tabla-clientes">
-      <thead>
-        <tr>
-                      <th class="table-width-70px text-center">ID</th>
-          <th>Nombre</th>
-                      <th class="table-width-80px text-center">Moneda</th>
-                      <th class="table-width-160px text-center">QBO ID</th>
-                      <th class="table-width-120px text-center">Acciones</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {% for c in clientes %}
-        <tr id="cliente-{{ c.id }}">
-          <td class="col-id">{{ c.id }}</td>
-          <td>{{ c.nombre }}</td>
-          <td class="col-moneda text-center">
-            <span class="badge {{ 'badge-usd' if c.moneda == 'USD' else 'badge-na' }}">{{ c.moneda or 'XCG' }}</span>
-          </td>
-          <td class="col-qbo">
-            {% if c.qbo_id %}
-              <span class="badge badge-ok" title="Integrado a QuickBooks">{{ c.qbo_id }}</span>
-            {% else %}
-              <span class="badge badge-na" title="Sin QBO ID">—</span>
-            {% endif %}
-          </td>
-          <td class="col-actions">
-            <!-- Editar -->
-            <a href="{{ url_for('editar_cliente', cliente_id=c.id) }}"
-               class="icon-btn btn-edit" title="Editar">
-              <i class="fas fa-pen"></i>
-            </a>
-
-            <!-- Eliminar -->
-            <button type="button" title="Eliminar"
-                    class="icon-btn btn-delete eliminar-cliente"
-                    data-id="{{ c.id }}">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </div>
-</section>
-{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<style>
-/* ---------- cards ---------- */
-.form-section,.table-section{
-  background:#fff;border-radius:14px;padding:1.4rem;margin-bottom:1.6rem;
-  box-shadow:0 4px 14px rgba(0,0,0,.06);
-}
-.form-group{margin-bottom:1.2rem}
+  <section id="crear-cliente-card" class="mobile-card gestion-create" hidden>
+    <div class="mobile-card-header">
+      <i class="fas fa-user-plus"></i> Registrar Nuevo Cliente
+    </div>
+    <div class="mobile-card-body">
+      <form id="form-cliente" method="POST" action="{{ url_for('nuevo_cliente') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label for="nombre-cliente" class="mobile-form-label">Nombre:</label>
+          <input id="nombre-cliente" name="nombre" class="mobile-form-control" required>
+        </div>
+        <div class="mobile-form-group">
+          <label for="qbo-cliente" class="mobile-form-label">QBO ID <small>(opcional)</small>:</label>
+          <input id="qbo-cliente" name="qbo_id" class="mobile-form-control">
+        </div>
+        <div class="mobile-form-group">
+          <label for="moneda-cliente" class="mobile-form-label">Moneda:</label>
+          <select id="moneda-cliente" name="moneda" class="mobile-form-control">
+            <option value="XCG">XCG (Guilder)</option>
+            <option value="USD">USD (Dólar)</option>
+          </select>
+        </div>
+        <div class="mobile-form-actions">
+          <button type="button" id="btn-cancelar-cliente" class="mobile-btn mobile-btn-secondary">
+            <i class="fas fa-times"></i> Cancelar
+          </button>
+          <button type="submit" class="mobile-btn mobile-btn-primary">
+            <i class="fas fa-plus"></i> Registrar
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
 
-/* ---------- inputs ---------- */
-.form-label{display:block;margin-bottom:.4rem;font-weight:600;color:#333}
-.form-input{
-  width:100%;border:1px solid #ddd;border-radius:6px;padding:.7rem;font-size:1rem
-}
-.form-button{
-  background:#6c63ff;color:#fff;border:none;border-radius:6px;padding:.7rem 1.6rem;
-  font-weight:700;display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;
-  transition:background .18s
-}
-.form-button:hover{background:#584fe0}
+  <input type="search" id="buscar-cliente" class="gestion-search"
+         placeholder="Buscar cliente…" autocomplete="off">
 
-/* ---------- tabla ---------- */
-.table-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tabla-clientes{width:100%;border-collapse:collapse;font-size:1rem}
-/* cabecera de tabla con mayor contraste */
-.tabla-clientes thead th{
-  background:#e8ecf6;          /* azul grisáceo claro  */
-  color:#333;                  /* gris oscuro          */
-  text-shadow:0 1px 0 #fff;    /* sutil relieve        */
-}
-.tabla-clientes td{padding:.85rem;border-bottom:1px solid #f1f2f7}
-.tabla-clientes tbody tr:nth-child(odd){background:#fafbfe}
-
-/* columnas compactas */
-.col-id,.col-qbo,.col-actions{text-align:center}
-
-/* ---------- badges ---------- */
-.badge{
-  display:inline-block;border-radius:12px;padding:.25rem .55rem;font-size:.78rem;
-  font-weight:600;line-height:1
-}
-.badge-ok{background:#e6fcec;color:#19a354}
-.badge-usd{background:#fff3e0;color:#e65100}
-.badge-na{background:#f1f2f7;color:#999}
-
-/* ---------- action buttons ---------- */
-.icon-btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:34px;height:34px;border-radius:8px;border:none;cursor:pointer;
-  transition:background .15s,color .15s;font-size:.9rem
-}
-.btn-edit{background:#eef4ff;color:#2b7cff}
-.btn-edit:hover{background:#d9e8ff}
-.btn-delete{background:#ffecec;color:#dc3545}
-.btn-delete:hover{background:#ffd3d3}
-.icon-btn i{pointer-events:none}
-
-/* ---------- responsive ---------- */
-@media(max-width:680px){
-  .col-qbo,.col-moneda{display:none}
-  .tabla-clientes thead th:nth-child(3),
-  .tabla-clientes td:nth-child(3),
-  .tabla-clientes thead th:nth-child(4),
-  .tabla-clientes td:nth-child(4){display:none}
-  .form-section,.table-section{padding:1rem}
-  .form-input{font-size:15px}
-  .tabla-clientes td,.tabla-clientes th{padding:.7rem}
-  .icon-btn{width:30px;height:30px}
-}
-</style>
+  <ul id="lista-clientes" class="gestion-list">
+    {% for c in clientes %}
+    <li class="gestion-row" id="cliente-{{ c.id }}" data-buscar="{{ c.nombre|lower }}">
+      <div class="gestion-row-main">
+        <span class="gestion-row-name">{{ c.nombre }}</span>
+        <span class="gestion-row-badges">
+          <span class="chip {{ 'chip-warning' if c.moneda == 'USD' else '' }}">{{ c.moneda or 'XCG' }}</span>
+          {% if c.qbo_id %}
+          <span class="chip chip-success" title="Integrado a QuickBooks">QBO {{ c.qbo_id }}</span>
+          {% else %}
+          <span class="chip" title="Sin QBO ID">Sin QBO</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="gestion-row-actions">
+        <a href="{{ url_for('editar_cliente', cliente_id=c.id) }}"
+           class="gestion-icon-btn gestion-icon-edit" title="Editar"
+           aria-label="Editar {{ c.nombre }}"><i class="fas fa-pen"></i></a>
+        <button type="button"
+                class="gestion-icon-btn gestion-icon-delete eliminar-cliente"
+                data-id="{{ c.id }}" title="Eliminar"
+                aria-label="Eliminar {{ c.nombre }}"><i class="fas fa-trash"></i></button>
+      </div>
+    </li>
+    {% else %}
+    <li class="gestion-empty">No hay clientes registrados todavía.</li>
+    {% endfor %}
+  </ul>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce() }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script nonce="{{ csp_nonce() }}">
-// ----- eliminar cliente (AJAX) -----
-$(document).on('click','.eliminar-cliente',function(){
-  const id = $(this).data('id');
-  if(!confirm('¿Eliminar este cliente?')) return;
-  fetch(`/clientes/${id}`,{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest'}})
-    .then(r=>r.json()).then(res=>{
-      if(res.message){ $(`#cliente-${id}`).remove(); alert(res.message); }
-      else{ alert(res.error||'Error'); }
+(function () {
+  'use strict';
+
+  // Flash diferido (tras crear + reload)
+  var flash = sessionStorage.getItem('gestionFlash');
+  if (flash) {
+    sessionStorage.removeItem('gestionFlash');
+    window.mostrarMensaje(flash, 'success');
+  }
+
+  // Abrir/cerrar el form de crear
+  var createCard = document.getElementById('crear-cliente-card');
+  document.getElementById('btn-nuevo-cliente').addEventListener('click', function () {
+    var abrir = createCard.hidden;
+    createCard.hidden = !abrir;
+    if (abrir) document.getElementById('nombre-cliente').focus();
+  });
+  document.getElementById('btn-cancelar-cliente').addEventListener('click', function () {
+    createCard.hidden = true;
+  });
+
+  // Búsqueda client-side
+  document.getElementById('buscar-cliente').addEventListener('input', function () {
+    var q = this.value.trim().toLowerCase();
+    document.querySelectorAll('#lista-clientes .gestion-row').forEach(function (row) {
+      row.hidden = !!q && row.dataset.buscar.indexOf(q) === -1;
     });
-});
+  });
+
+  // Crear cliente — el endpoint SIEMPRE responde JSON (app.py nuevo_cliente),
+  // así que el submit nativo mostraría JSON crudo; se maneja con fetch.
+  // base.js ya inyecta X-CSRFToken en fetch; el token de form va en FormData.
+  var form = document.getElementById('form-cliente');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return { error: 'Error al registrar el cliente' }; });
+      })
+      .then(function (res) {
+        if (res.error) { window.mostrarMensaje(res.error, 'error'); return; }
+        // Reload: la fila la renderiza el servidor (una sola fuente de markup)
+        sessionStorage.setItem('gestionFlash', res.message || 'Cliente registrado');
+        window.location.reload();
+      })
+      .catch(function () { window.mostrarMensaje('Error al registrar el cliente', 'error'); });
+  });
+
+  // Eliminar cliente (delegación scoped a la lista)
+  document.getElementById('lista-clientes').addEventListener('click', function (e) {
+    var btn = e.target.closest('.eliminar-cliente');
+    if (!btn) return;
+    if (!confirm('¿Eliminar este cliente?')) return;
+    fetch('/clientes/' + btn.dataset.id, {
+      method: 'DELETE',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (res) {
+        if (res.message) {
+          var row = document.getElementById('cliente-' + btn.dataset.id);
+          if (row) row.remove();
+          window.mostrarMensaje(res.message, 'success');
+        } else {
+          window.mostrarMensaje(res.error || 'Error al eliminar', 'error');
+        }
+      })
+      .catch(function () { window.mostrarMensaje('Error al eliminar', 'error'); });
+  });
+})();
 </script>
 {% endblock %}
