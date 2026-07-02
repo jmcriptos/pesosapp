@@ -8,714 +8,329 @@
 {% endblock %}
 
 {% block content %}
-<div id="flash-message" class="flash-message" style="display: none;"></div>
+<div class="precios-wrap">
+  <div id="flash-message" class="flash-message hidden"></div>
 
-<div class="precios-productos-container">
-    <!-- Header con información de la lista -->
-    <div class="lista-info-header">
-        <div class="lista-info">
-            <h2>{{ lista.nombre }}</h2>
-            <p class="lista-descripcion">{{ lista.descripcion or 'Sin descripción' }}</p>
-            {% if lista.es_default %}
-                <span class="precio-badge default">Lista por Defecto</span>
-            {% endif %}
-        </div>
-        <div class="lista-actions">
-            <a href="{{ url_for('listas_precios') }}" class="btn-volver">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
-        </div>
+  <div class="precios-page-header">
+    <div>
+      <h1 class="precios-title">{{ lista.nombre }}</h1>
+      <p class="precios-sub">{{ lista.descripcion or 'Sin descripción' }}</p>
+      {% if lista.es_default %}<span class="precios-badge precios-badge-default">Lista por Defecto</span>{% endif %}
+    </div>
+    <a href="{{ url_for('listas_precios') }}" class="mobile-btn mobile-btn-secondary">
+      <i class="fas fa-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  <div class="precios-toolbar">
+    <div class="precios-toolbar-left">
+      <select id="filtro-proveedor" class="precios-select" aria-label="Filtrar por proveedor">
+        <option value="">Todos los proveedores</option>
+        {% for prov in proveedores %}
+        <option value="{{ prov }}">{{ prov }}</option>
+        {% endfor %}
+      </select>
+      <span class="precios-count" id="productos-count">{{ precios_existentes|length }} productos</span>
+    </div>
+    <div class="precios-toolbar-right">
+      <button type="button" class="mobile-btn mobile-btn-secondary" id="btn-agregar-producto">
+        <i class="fas fa-plus"></i> Agregar Producto
+      </button>
+      <button type="button" class="mobile-btn mobile-btn-primary" id="btn-guardar-todo" disabled>
+        <i class="fas fa-save"></i> Guardar Cambios
+      </button>
+    </div>
+  </div>
+
+  <div class="precios-table-card">
+    <div class="precios-table-responsive">
+      <table class="precios-table" id="tabla-precios">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="precios-th-proveedor">Proveedor</th>
+            <th class="precios-th-precio">Precio Base ($)</th>
+            <th class="precios-th-margen">Margen Jomar</th>
+            <th class="precios-th-precio">P. Jomar</th>
+            <th class="precios-th-margen">Margen Retail</th>
+            <th class="precios-th-precio">P. Retail</th>
+            <th class="precios-th-acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-precios">
+          {% for precio, producto in precios_existentes %}
+          <tr data-precio-id="{{ precio.id }}"
+              data-producto-id="{{ producto.id }}"
+              data-proveedor="{{ producto.proveedor or '' }}">
+            <td><strong>{{ producto.nombre }}</strong></td>
+            <td class="precios-td-proveedor">{{ producto.proveedor or '—' }}</td>
+            <td class="precios-td-input">
+              <input type="number" class="precios-input input-base"
+                     value="{{ '%.2f'|format(precio.precio_base) }}"
+                     step="0.01" min="0" data-original="{{ '%.2f'|format(precio.precio_base) }}"
+                     aria-label="Precio base de {{ producto.nombre }}">
+            </td>
+            <td class="precios-td-input">
+              <input type="number" class="precios-input input-margen"
+                     value="{{ '%.2f'|format(precio.margen_jomar or 1.0) }}"
+                     step="0.01" min="0" data-field="margen_jomar"
+                     data-original="{{ '%.2f'|format(precio.margen_jomar or 1.0) }}"
+                     aria-label="Margen Jomar de {{ producto.nombre }}">
+            </td>
+            <td class="precios-td-calculado precios-precio-jomar">
+              ${{ "%.2f"|format((precio.precio_base * (precio.margen_jomar or 1.0))) }}
+            </td>
+            <td class="precios-td-input">
+              <input type="number" class="precios-input input-margen"
+                     value="{{ '%.2f'|format(precio.margen_retail or 1.2) }}"
+                     step="0.01" min="0" data-field="margen_retail"
+                     data-original="{{ '%.2f'|format(precio.margen_retail or 1.2) }}"
+                     aria-label="Margen Retail de {{ producto.nombre }}">
+            </td>
+            <td class="precios-td-calculado precios-precio-retail">
+              ${{ "%.2f"|format((precio.precio_base * (precio.margen_retail or 1.2))) }}
+            </td>
+            <td style="text-align:center">
+              <button type="button" class="precios-icon-btn precios-icon-delete btn-eliminar"
+                      title="Eliminar" aria-label="Eliminar precio de {{ producto.nombre }}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
 
-    <!-- Barra de filtro y acciones -->
-    <div class="precios-toolbar">
-        <div class="toolbar-left">
-            <select id="filtro-proveedor" class="filtro-select">
-                <option value="">Todos los proveedores</option>
-                {% for prov in proveedores %}
-                <option value="{{ prov }}">{{ prov }}</option>
-                {% endfor %}
-            </select>
-            <span class="productos-count" id="productos-count">
-                {{ precios_existentes|length }} productos
-            </span>
-        </div>
-        <div class="toolbar-right">
-            <button type="button" class="btn-agregar" id="btn-agregar-producto">
-                <i class="fas fa-plus"></i> Agregar Producto
-            </button>
-            <button type="button" class="btn-guardar" id="btn-guardar-todo" disabled>
-                <i class="fas fa-save"></i> Guardar Cambios
-            </button>
-        </div>
+    {% if not precios_existentes %}
+    <div class="precios-empty" id="empty-state">
+      <i class="fas fa-box-open"></i>
+      <p>No hay precios configurados. Agrega productos usando el botón de arriba.</p>
     </div>
+    {% endif %}
+  </div>
 
-    <!-- Tabla editable inline -->
-    <div class="precios-tabla-card">
-        <div class="table-responsive">
-            <table class="precios-table" id="tabla-precios">
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th class="th-proveedor">Proveedor</th>
-                        <th class="th-precio">Precio Base ($)</th>
-                        <th class="th-margen">Margen Jomar</th>
-                        <th class="th-precio">P. Jomar</th>
-                        <th class="th-margen">Margen Retail</th>
-                        <th class="th-precio">P. Retail</th>
-                        <th class="th-acciones">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-precios">
-                    {% for precio, producto in precios_existentes %}
-                    <tr data-precio-id="{{ precio.id }}"
-                        data-producto-id="{{ producto.id }}"
-                        data-proveedor="{{ producto.proveedor or '' }}">
-                        <td class="td-producto"><strong>{{ producto.nombre }}</strong></td>
-                        <td class="td-proveedor">{{ producto.proveedor or '—' }}</td>
-                        <td class="td-input">
-                            <input type="number" class="input-precio input-base"
-                                   value="{{ '%.2f'|format(precio.precio_base) }}"
-                                   step="0.01" min="0" data-original="{{ '%.2f'|format(precio.precio_base) }}">
-                        </td>
-                        <td class="td-input">
-                            <input type="number" class="input-precio input-margen"
-                                   value="{{ '%.2f'|format(precio.margen_jomar or 1.0) }}"
-                                   step="0.01" min="0"
-                                   data-field="margen_jomar"
-                                   data-original="{{ '%.2f'|format(precio.margen_jomar or 1.0) }}">
-                        </td>
-                        <td class="td-calculado precio-jomar">
-                            ${{ "%.2f"|format((precio.precio_base * (precio.margen_jomar or 1.0))) }}
-                        </td>
-                        <td class="td-input">
-                            <input type="number" class="input-precio input-margen"
-                                   value="{{ '%.2f'|format(precio.margen_retail or 1.2) }}"
-                                   step="0.01" min="0"
-                                   data-field="margen_retail"
-                                   data-original="{{ '%.2f'|format(precio.margen_retail or 1.2) }}">
-                        </td>
-                        <td class="td-calculado precio-retail">
-                            ${{ "%.2f"|format((precio.precio_base * (precio.margen_retail or 1.2))) }}
-                        </td>
-                        <td class="td-acciones">
-                            <button class="btn-chip btn-chip-danger btn-eliminar" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+  <div class="mobile-card" id="agregar-form" hidden>
+    <div class="mobile-card-header"><i class="fas fa-plus-circle"></i> Agregar Producto a la Lista</div>
+    <div class="mobile-card-body">
+      <form id="form-nuevo-precio">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nuevo_producto_id">Producto:</label>
+          <select id="nuevo_producto_id" name="producto_id" class="mobile-form-control ts-select"
+                  data-ts-placeholder="Buscar producto…" required>
+            <option value=""></option>
+            {% for producto in productos_disponibles %}
+            <option value="{{ producto.id }}">{{ producto.nombre }}</option>
+            {% endfor %}
+          </select>
         </div>
-
-        {% if not precios_existentes %}
-        <div class="empty-state" id="empty-state">
-            <i class="fas fa-box-open"></i>
-            <p>No hay precios configurados. Agrega productos usando el botón de arriba.</p>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nuevo_precio_base">Precio Base ($):</label>
+          <input type="number" id="nuevo_precio_base" name="precio_base" class="mobile-form-control" step="0.01" min="0" required>
         </div>
-        {% endif %}
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nuevo_margen_jomar">Margen Jomar:</label>
+          <input type="number" id="nuevo_margen_jomar" name="margen_jomar" class="mobile-form-control" step="0.01" min="0" value="1.0">
+        </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nuevo_margen_retail">Margen Retail:</label>
+          <input type="number" id="nuevo_margen_retail" name="margen_retail" class="mobile-form-control" step="0.01" min="0" value="1.2">
+        </div>
+        <div class="mobile-form-actions">
+          <button type="button" class="mobile-btn mobile-btn-secondary" id="btn-cancelar-agregar">Cancelar</button>
+          <button type="submit" class="mobile-btn mobile-btn-primary">
+            <i class="fas fa-plus"></i> Agregar
+          </button>
+        </div>
+      </form>
     </div>
-
-    <!-- Mini-form para agregar producto (oculto por defecto) -->
-    <div class="agregar-form-card" id="agregar-form" style="display: none;">
-        <h3><i class="fas fa-plus-circle"></i> Agregar Producto a la Lista</h3>
-        <form id="form-nuevo-precio">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="agregar-form-row">
-                <div class="form-grupo">
-                    <label for="nuevo_producto_id">Producto:</label>
-                    <select id="nuevo_producto_id" name="producto_id" class="input-select ts-select" required>
-                        <option value="">Seleccionar producto...</option>
-                        {% for producto in productos_disponibles %}
-                        <option value="{{ producto.id }}" data-proveedor="{{ producto.proveedor or '' }}">{{ producto.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-grupo">
-                    <label for="nuevo_precio_base">Precio Base ($):</label>
-                    <input type="number" id="nuevo_precio_base" name="precio_base" class="input-select" step="0.01" min="0" required>
-                </div>
-                <div class="form-grupo">
-                    <label for="nuevo_margen_jomar">Margen Jomar:</label>
-                    <input type="number" id="nuevo_margen_jomar" name="margen_jomar" class="input-select" step="0.01" min="0" value="1.0">
-                </div>
-                <div class="form-grupo">
-                    <label for="nuevo_margen_retail">Margen Retail:</label>
-                    <input type="number" id="nuevo_margen_retail" name="margen_retail" class="input-select" step="0.01" min="0" value="1.2">
-                </div>
-            </div>
-            <div class="agregar-form-actions">
-                <button type="button" class="btn-cancelar" id="btn-cancelar-agregar">Cancelar</button>
-                <button type="submit" class="btn-confirmar">
-                    <i class="fas fa-plus"></i> Agregar
-                </button>
-            </div>
-        </form>
-    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.precios-productos-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 16px;
-}
-
-/* Header */
-.lista-info-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #141820;
-    padding: 20px 24px;
-    border-radius: 12px;
-    margin-bottom: 16px;
-    border: 1px solid #3b4a5c;
-}
-
-.lista-info h2 {
-    color: #f1f5f9;
-    margin: 0 0 6px 0;
-    font-size: 1.3rem;
-}
-
-.lista-descripcion {
-    color: #94a3b8;
-    margin: 0 0 8px 0;
-    font-size: 0.9rem;
-}
-
-.btn-volver {
-    padding: 8px 16px;
-    background: #1a1f2b;
-    color: #94a3b8;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-.btn-volver:hover {
-    color: #f1f5f9;
-    border-color: #60a5fa;
-    text-decoration: none;
-}
-
-/* Toolbar */
-.precios-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.toolbar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.toolbar-right {
-    display: flex;
-    gap: 10px;
-}
-
-.filtro-select {
-    padding: 8px 12px;
-    background: #1a1f2b;
-    color: #f1f5f9;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    cursor: pointer;
-}
-.filtro-select:focus {
-    outline: none;
-    border-color: #1877ff;
-}
-
-.productos-count {
-    color: #94a3b8;
-    font-size: 0.85rem;
-}
-
-.btn-agregar {
-    padding: 8px 16px;
-    background: #1a1f2b;
-    color: #60a5fa;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-.btn-agregar:hover {
-    border-color: #60a5fa;
-    background: rgba(24, 119, 255, 0.1);
-}
-
-.btn-guardar {
-    padding: 8px 20px;
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-.btn-guardar:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-.btn-guardar:not(:disabled):hover {
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.4);
-    transform: translateY(-1px);
-}
-
-/* Table Card */
-.precios-tabla-card {
-    background: #141820;
-    border-radius: 12px;
-    border: 1px solid #3b4a5c;
-    overflow: hidden;
-    margin-bottom: 16px;
-}
-
-.table-responsive {
-    overflow-x: auto;
-}
-
-.precios-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.precios-table th {
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-    padding: 12px 10px;
-    text-align: left;
-    font-weight: 600;
-    font-size: 0.85rem;
-    white-space: nowrap;
-}
-
-.precios-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid #1e2533;
-    color: #f1f5f9;
-    font-size: 0.9rem;
-}
-
-.precios-table tr:hover td {
-    background: #1a1f2b;
-}
-
-.th-precio, .th-margen { width: 110px; text-align: center; }
-.th-proveedor { width: 140px; }
-.th-acciones { width: 70px; text-align: center; }
-
-/* Inputs inline */
-.input-precio {
-    width: 90px;
-    padding: 6px 8px;
-    background: #1a1f2b;
-    color: #f1f5f9;
-    border: 1px solid #3b4a5c;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    text-align: right;
-    transition: border-color 0.2s;
-}
-.input-precio:focus {
-    outline: none;
-    border-color: #1877ff;
-    box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.2);
-}
-.input-precio.modified {
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
-}
-
-.td-input { text-align: center; }
-.td-producto { font-size: 0.9rem; }
-.td-proveedor { color: #94a3b8; font-size: 0.85rem; }
-
-.td-calculado {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-weight: 600;
-    text-align: center;
-    font-size: 0.9rem;
-}
-.precio-jomar { color: #38bdf8; }
-.precio-retail { color: #fb923c; }
-
-.td-acciones { text-align: center; }
-
-/* Chip buttons */
-.btn-chip {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    transition: all 0.2s;
-}
-.btn-chip-danger {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-}
-.btn-chip-danger:hover {
-    background: rgba(239, 68, 68, 0.3);
-}
-
-/* Empty state */
-.empty-state {
-    text-align: center;
-    padding: 50px 20px;
-    color: #64748b;
-}
-.empty-state i {
-    font-size: 2.5rem;
-    margin-bottom: 12px;
-    display: block;
-    color: #3b4a5c;
-}
-
-/* Agregar form */
-.agregar-form-card {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 16px;
-}
-.agregar-form-card h3 {
-    color: #f1f5f9;
-    margin: 0 0 16px 0;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.agregar-form-row {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.form-grupo label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
-    color: #94a3b8;
-    font-size: 0.85rem;
-}
-
-.input-select {
-    width: 100%;
-    padding: 8px 12px;
-    background: #1a1f2b;
-    color: #f1f5f9;
-    border: 1px solid #3b4a5c;
-    border-radius: 6px;
-    font-size: 0.9rem;
-}
-.input-select:focus {
-    outline: none;
-    border-color: #1877ff;
-}
-
-.agregar-form-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
-.btn-cancelar {
-    padding: 8px 16px;
-    background: #1a1f2b;
-    color: #94a3b8;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
-.btn-cancelar:hover { color: #f1f5f9; }
-
-.btn-confirmar {
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* Badge */
-.precio-badge {
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-.precio-badge.default {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(251, 191, 36, 0.3);
-}
-
-/* Flash message */
-.flash-message {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    color: white;
-    font-weight: 500;
-    z-index: 1000;
-    font-size: 0.9rem;
-}
-.flash-message.success { background: #059669; }
-.flash-message.error { background: #dc2626; }
-
-/* Row saved animation */
-@keyframes rowSaved {
-    0% { background: rgba(5, 150, 105, 0.2); }
-    100% { background: transparent; }
-}
-.row-saved td { animation: rowSaved 1.5s ease-out; }
-
-/* Responsive */
-@media (max-width: 900px) {
-    .lista-info-header { flex-direction: column; gap: 12px; }
-    .precios-toolbar { flex-direction: column; align-items: stretch; }
-    .toolbar-left, .toolbar-right { justify-content: center; }
-    .agregar-form-row { grid-template-columns: 1fr; }
-    .th-proveedor, .td-proveedor { display: none; }
-    .input-precio { width: 75px; }
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script nonce="{{ csp_nonce() }}">
-(function() {
-    const LISTA_ID = {{ lista.id }};
-    const CSRF = '{{ csrf_token() }}';
-    let cambiosPendientes = false;
+(function () {
+  'use strict';
 
-    // ---- Utilidades ----
-    function mostrarMensaje(msg, tipo) {
-        const el = document.getElementById('flash-message');
-        el.className = 'flash-message ' + tipo;
-        el.textContent = msg;
-        el.style.display = 'block';
-        setTimeout(() => { el.style.display = 'none'; }, 3000);
-    }
+  var LISTA_ID = {{ lista.id }};
+  var cambiosPendientes = false;
 
-    function actualizarContador() {
-        const filas = document.querySelectorAll('#tbody-precios tr');
-        const visibles = Array.from(filas).filter(r => r.style.display !== 'none').length;
-        const total = filas.length;
-        const filtro = document.getElementById('filtro-proveedor').value;
-        document.getElementById('productos-count').textContent =
-            filtro ? `${visibles} de ${total} productos` : `${total} productos`;
-    }
+  // base.min.js stale (caché CDN/PWA) puede no traer mostrarMensaje aún.
+  // Reemplaza al mostrarMensaje() local que tenía este archivo antes.
+  function aviso(msg, tipo) {
+    if (window.mostrarMensaje) { window.mostrarMensaje(msg, tipo); }
+    else { alert(msg); }
+  }
 
-    function marcarCambios() {
-        cambiosPendientes = true;
-        document.getElementById('btn-guardar-todo').disabled = false;
-    }
+  function actualizarContador() {
+    var filas = document.querySelectorAll('#tbody-precios tr');
+    var visibles = Array.prototype.filter.call(filas, function (r) { return r.style.display !== 'none'; }).length;
+    var total = filas.length;
+    var filtro = document.getElementById('filtro-proveedor').value;
+    document.getElementById('productos-count').textContent =
+      filtro ? (visibles + ' de ' + total + ' productos') : (total + ' productos');
+  }
 
-    function calcularFila(fila) {
-        const base = parseFloat(fila.querySelector('.input-base').value) || 0;
-        const margenJ = parseFloat(fila.querySelector('[data-field="margen_jomar"]').value) || 1.0;
-        const margenR = parseFloat(fila.querySelector('[data-field="margen_retail"]').value) || 1.2;
-        fila.querySelector('.precio-jomar').textContent = '$' + (base * margenJ).toFixed(2);
-        fila.querySelector('.precio-retail').textContent = '$' + (base * margenR).toFixed(2);
-    }
+  function marcarCambios() {
+    cambiosPendientes = true;
+    document.getElementById('btn-guardar-todo').disabled = false;
+  }
 
-    function marcarModificado(input) {
-        if (input.value !== input.dataset.original) {
-            input.classList.add('modified');
+  function calcularFila(fila) {
+    var base = parseFloat(fila.querySelector('.input-base').value) || 0;
+    var margenJ = parseFloat(fila.querySelector('[data-field="margen_jomar"]').value) || 1.0;
+    var margenR = parseFloat(fila.querySelector('[data-field="margen_retail"]').value) || 1.2;
+    fila.querySelector('.precios-precio-jomar').textContent = '$' + (base * margenJ).toFixed(2);
+    fila.querySelector('.precios-precio-retail').textContent = '$' + (base * margenR).toFixed(2);
+  }
+
+  function marcarModificado(input) {
+    input.classList.toggle('is-modified', input.value !== input.dataset.original);
+  }
+
+  document.getElementById('filtro-proveedor').addEventListener('change', function () {
+    var filtro = this.value.toLowerCase();
+    document.querySelectorAll('#tbody-precios tr').forEach(function (fila) {
+      var match = !filtro || (fila.dataset.proveedor || '').toLowerCase() === filtro;
+      fila.style.display = match ? '' : 'none';
+    });
+    actualizarContador();
+  });
+
+  document.getElementById('tbody-precios').addEventListener('input', function (e) {
+    if (!e.target.classList.contains('precios-input')) return;
+    var fila = e.target.closest('tr');
+    calcularFila(fila);
+    marcarModificado(e.target);
+    marcarCambios();
+  });
+
+  document.getElementById('tbody-precios').addEventListener('click', function (e) {
+    var btn = e.target.closest('.btn-eliminar');
+    if (!btn) return;
+    var fila = btn.closest('tr');
+    var precioId = fila.dataset.precioId;
+    if (!confirm('¿Eliminar este precio de la lista?')) return;
+
+    fetch('/precios/productos/' + precioId + '/eliminar', { method: 'DELETE' })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (data.message) {
+          fila.remove();
+          aviso('Precio eliminado', 'success');
+          actualizarContador();
+          if (!document.querySelectorAll('#tbody-precios tr').length) {
+            var empty = document.getElementById('empty-state');
+            if (empty) empty.style.display = '';
+          }
         } else {
-            input.classList.remove('modified');
+          aviso(data.error || 'Error al eliminar', 'error');
         }
+      })
+      .catch(function () { aviso('Error de conexión', 'error'); });
+  });
+
+  document.getElementById('btn-guardar-todo').addEventListener('click', function () {
+    var btnGuardar = this;
+    var filas = document.querySelectorAll('#tbody-precios tr');
+    var precios = [];
+    filas.forEach(function (fila) {
+      var base = parseFloat(fila.querySelector('.input-base').value);
+      var margenJ = parseFloat(fila.querySelector('[data-field="margen_jomar"]').value);
+      var margenR = parseFloat(fila.querySelector('[data-field="margen_retail"]').value);
+      if (!isNaN(base) && base >= 0) {
+        precios.push({
+          producto_id: parseInt(fila.dataset.productoId, 10),
+          precio_base: base,
+          margen_jomar: isNaN(margenJ) ? 1.0 : margenJ,
+          margen_retail: isNaN(margenR) ? 1.2 : margenR
+        });
+      }
+    });
+
+    btnGuardar.disabled = true;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    fetch('/precios/listas/' + LISTA_ID + '/productos/masivo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ precios: precios })
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (data.actualizados !== undefined) {
+          aviso(data.message, 'success');
+          cambiosPendientes = false;
+          filas.forEach(function (fila) {
+            fila.querySelectorAll('.precios-input').forEach(function (input) {
+              input.dataset.original = input.value;
+              input.classList.remove('is-modified');
+            });
+            fila.classList.add('precios-row-saved');
+            setTimeout(function () { fila.classList.remove('precios-row-saved'); }, 1400);
+          });
+        } else {
+          aviso(data.error || 'Error al guardar', 'error');
+        }
+      })
+      .catch(function () { aviso('Error de conexión', 'error'); })
+      .finally(function () {
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+        btnGuardar.disabled = !cambiosPendientes;
+      });
+  });
+
+  var agregarForm = document.getElementById('agregar-form');
+  document.getElementById('btn-agregar-producto').addEventListener('click', function () {
+    var abrir = agregarForm.hidden;
+    agregarForm.hidden = !abrir;
+    if (abrir) agregarForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  document.getElementById('btn-cancelar-agregar').addEventListener('click', function () {
+    agregarForm.hidden = true;
+    document.getElementById('form-nuevo-precio').reset();
+  });
+
+  var formNuevo = document.getElementById('form-nuevo-precio');
+  formNuevo.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var submitBtn = formNuevo.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+
+    fetch('/precios/listas/' + LISTA_ID + '/productos', {
+      method: 'POST',
+      body: new FormData(formNuevo)
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (data.message) {
+          sessionStorage.setItem('gestionFlash', data.message);
+          window.location.reload();
+        } else {
+          submitBtn.disabled = false;
+          aviso(data.error || 'Error al agregar', 'error');
+        }
+      })
+      .catch(function () {
+        submitBtn.disabled = false;
+        aviso('Error de conexión', 'error');
+      });
+  });
+
+  var flash = sessionStorage.getItem('gestionFlash');
+  if (flash) {
+    sessionStorage.removeItem('gestionFlash');
+    document.addEventListener('DOMContentLoaded', function () { aviso(flash, 'success'); });
+  }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (cambiosPendientes) {
+      e.preventDefault();
+      e.returnValue = '';
     }
-
-    // ---- Filtro por proveedor ----
-    document.getElementById('filtro-proveedor').addEventListener('change', function() {
-        const filtro = this.value.toLowerCase();
-        document.querySelectorAll('#tbody-precios tr').forEach(fila => {
-            if (!filtro || (fila.dataset.proveedor || '').toLowerCase() === filtro) {
-                fila.style.display = '';
-            } else {
-                fila.style.display = 'none';
-            }
-        });
-        actualizarContador();
-    });
-
-    // ---- Inputs: cálculo en vivo + detección de cambios ----
-    document.getElementById('tbody-precios').addEventListener('input', function(e) {
-        if (e.target.classList.contains('input-precio')) {
-            const fila = e.target.closest('tr');
-            calcularFila(fila);
-            marcarModificado(e.target);
-            marcarCambios();
-        }
-    });
-
-    // ---- Eliminar producto ----
-    document.getElementById('tbody-precios').addEventListener('click', function(e) {
-        const btn = e.target.closest('.btn-eliminar');
-        if (!btn) return;
-        const fila = btn.closest('tr');
-        const precioId = fila.dataset.precioId;
-        if (!confirm('¿Eliminar este precio de la lista?')) return;
-
-        fetch('/precios/productos/' + precioId + '/eliminar', { method: 'DELETE' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.message) {
-                    fila.remove();
-                    mostrarMensaje('Precio eliminado', 'success');
-                    actualizarContador();
-                    if (!document.querySelectorAll('#tbody-precios tr').length) {
-                        const empty = document.getElementById('empty-state');
-                        if (empty) empty.style.display = '';
-                    }
-                } else {
-                    mostrarMensaje(data.error || 'Error', 'error');
-                }
-            })
-            .catch(() => mostrarMensaje('Error de conexión', 'error'));
-    });
-
-    // ---- Guardar todos los cambios ----
-    document.getElementById('btn-guardar-todo').addEventListener('click', function() {
-        const filas = document.querySelectorAll('#tbody-precios tr');
-        const precios = [];
-        filas.forEach(fila => {
-            const base = parseFloat(fila.querySelector('.input-base').value);
-            const margenJ = parseFloat(fila.querySelector('[data-field="margen_jomar"]').value);
-            const margenR = parseFloat(fila.querySelector('[data-field="margen_retail"]').value);
-            if (!isNaN(base) && base >= 0) {
-                precios.push({
-                    producto_id: parseInt(fila.dataset.productoId),
-                    precio_base: base,
-                    margen_jomar: isNaN(margenJ) ? 1.0 : margenJ,
-                    margen_retail: isNaN(margenR) ? 1.2 : margenR
-                });
-            }
-        });
-
-        this.disabled = true;
-        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
-
-        fetch('/precios/listas/' + LISTA_ID + '/productos/masivo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-            body: JSON.stringify({ precios: precios })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.actualizados !== undefined) {
-                mostrarMensaje(data.message, 'success');
-                cambiosPendientes = false;
-                // Actualizar originals y quitar marcas
-                filas.forEach(fila => {
-                    fila.querySelectorAll('.input-precio').forEach(input => {
-                        input.dataset.original = input.value;
-                        input.classList.remove('modified');
-                    });
-                    fila.classList.add('row-saved');
-                    setTimeout(() => fila.classList.remove('row-saved'), 1500);
-                });
-            } else {
-                mostrarMensaje(data.error || 'Error al guardar', 'error');
-            }
-        })
-        .catch(() => mostrarMensaje('Error de conexión', 'error'))
-        .finally(() => {
-            this.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
-            this.disabled = !cambiosPendientes;
-        });
-    });
-
-    // ---- Agregar producto: toggle form ----
-    document.getElementById('btn-agregar-producto').addEventListener('click', function() {
-        const form = document.getElementById('agregar-form');
-        form.style.display = form.style.display === 'none' ? '' : 'none';
-        if (form.style.display !== 'none') {
-            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    });
-
-    document.getElementById('btn-cancelar-agregar').addEventListener('click', function() {
-        document.getElementById('agregar-form').style.display = 'none';
-        document.getElementById('form-nuevo-precio').reset();
-    });
-
-    // ---- Agregar producto: submit ----
-    document.getElementById('form-nuevo-precio').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-
-        fetch('/precios/listas/' + LISTA_ID + '/productos', {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.message) {
-                mostrarMensaje(data.message, 'success');
-                // Recargar para obtener la fila completa (simple y confiable)
-                setTimeout(() => location.reload(), 800);
-            } else {
-                mostrarMensaje(data.error || 'Error al agregar', 'error');
-            }
-        })
-        .catch(() => mostrarMensaje('Error de conexión', 'error'));
-    });
-
-    // ---- Advertencia al salir con cambios pendientes ----
-    window.addEventListener('beforeunload', function(e) {
-        if (cambiosPendientes) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
+  });
 })();
 </script>
 {% endblock %}
