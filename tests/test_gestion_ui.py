@@ -116,3 +116,27 @@ def test_clientes_sin_legacy(logged_client):
     assert b"font-awesome/6.4.2" not in html, "FA 6.4.2 duplicado debe eliminarse (global es 6.7.2)"
     assert b"tabla-clientes" not in html, "la tabla legacy debe reemplazarse por .gestion-list"
     assert b"code.jquery.com" not in html, "clientes ya no necesita jQuery CDN"
+
+
+# ---------------------------------------------------------------------------
+# Productos — patrón GESTIÓN
+# ---------------------------------------------------------------------------
+
+
+def test_productos_patron_gestion(logged_client):
+    html = logged_client.get("/productos").data
+    assert b'id="buscar-producto"' in html, "input de búsqueda missing"
+    assert b'id="crear-producto-card"' in html, "card de crear missing"
+    assert b'id="btn-nuevo-producto"' in html, "botón + Nuevo missing"
+    assert b'id="form-crear-producto"' in html, "form de crear missing (id usado por productos.js)"
+    assert b"Producto Uno" in html, "fila del producto seed missing"
+    assert b"js/productos.js" in html, "productos.js debe estar linkeado"
+
+
+def test_productos_sin_legacy(logged_client):
+    html = logged_client.get("/productos").data
+    assert b"static/scripts.js" not in html, (
+        "productos.html ya no debe cargar el scripts.js compartido"
+    )
+    assert b"code.jquery.com" not in html, "productos ya no necesita jQuery CDN"
+    assert b"Se pesa" in html, "el chip 'Se pesa' del producto seed debe renderizarse"
