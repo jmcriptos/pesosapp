@@ -226,6 +226,22 @@ def test_precios_clientes_sin_jquery(logged_client):
     assert b"code.jquery.com" not in html, "precios/clientes.html ya no debe cargar jQuery CDN"
 
 
+def test_api_precios_cliente_productos_shape(logged_client, app):
+    with app.app_context():
+        from app import Cliente
+        cliente_id = Cliente.query.filter_by(nombre="Cliente Precios Uno").first().id
+    response = logged_client.get(f"/api/precios/cliente/{cliente_id}/productos")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) >= 1
+    item = data[0]
+    for campo in ("id", "nombre", "precio", "tipo_precio", "precio_base", "margen_jomar", "margen_retail"):
+        assert campo in item, f"falta el campo '{campo}' en la respuesta de /productos"
+    assert "producto_nombre" not in item, "el endpoint /productos no debe traer producto_nombre (usar 'nombre')"
+    assert "precio_jomar" not in item, "el endpoint /productos no debe traer precio_jomar precalculado (se computa en el cliente)"
+    assert "precio_retail" not in item, "el endpoint /productos no debe traer precio_retail precalculado (se computa en el cliente)"
+
+
 # ---------------------------------------------------------------------------
 # Cliente-producto (precios/cliente_producto.html)
 # ---------------------------------------------------------------------------

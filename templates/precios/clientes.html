@@ -243,11 +243,18 @@
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          // Fix: la API devuelve {id, nombre, precio, tipo_precio, precio_base,
-          // margen_jomar, margen_retail, lista_nombre} — NUNCA precio_jomar/
-          // precio_retail ni producto_nombre. El código anterior llamaba
-          // precio.precio_jomar.toFixed(2) (undefined) y lanzaba TypeError a
-          // mitad del forEach, dejando la tabla a medio renderizar.
+          // Fix: el legacy llamaba a /api/precios/cliente/<id> (endpoint bare,
+          // api_precios_cliente() en app.py) que NO tiene fallback a lista
+          // default — para un cliente sin precios específicos ni lista
+          // asignada devolvía [] aunque sí tuviera precios vía la lista
+          // default. Ese mismo endpoint también puede traer precio_jomar/
+          // precio_retail en null si alguna fila nunca corrió
+          // calcular_precios(), lo que rompía el .toFixed(). Se cambió a
+          // /api/precios/cliente/<id>/productos (cubre las 3 capas de
+          // prioridad) y se calculan jomar/retail en el cliente
+          // (precio_base * margen) en vez de leer columnas potencialmente
+          // null del backend. Devuelve {id, nombre, precio, tipo_precio,
+          // precio_base, margen_jomar, margen_retail, lista_nombre}.
           var infoExistente = contenido.querySelector('.cliente-info');
           var html = infoExistente ? infoExistente.outerHTML : '';
 
