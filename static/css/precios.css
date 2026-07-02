@@ -283,6 +283,7 @@ body[data-precios-screen] .precios-table td {
 body[data-precios-screen] .precios-table tr:hover td { background: #f8fafc; }
 .precios-th-precio, .precios-th-margen { width: 110px; text-align: center; }
 .precios-th-proveedor { width: 140px; }
+body[data-precios-screen] .precios-td-proveedor { color: #94a3b8; font-size: 0.85rem; }
 .precios-th-acciones { width: 60px; text-align: center; }
 body[data-precios-screen] .precios-input {
   width: 90px;

@@ -257,7 +257,7 @@ def test_carga_masiva_patron_claro(logged_client):
 def test_pedido_form_precios_no_existe():
     import os
     path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        os.path.dirname(os.path.dirname(__file__)),
         "templates", "precios", "pedido_form.html",
     )
     assert not os.path.exists(path), "templates/precios/pedido_form.html debía borrarse (código muerto)"
