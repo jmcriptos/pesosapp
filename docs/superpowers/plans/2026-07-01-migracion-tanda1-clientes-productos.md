@@ -582,7 +582,8 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
   </section>
 
   <input type="search" id="buscar-cliente" class="gestion-search"
-         placeholder="Buscar cliente…" autocomplete="off">
+         placeholder="Buscar cliente…" autocomplete="off"
+         aria-label="Buscar cliente">
 
   <ul id="lista-clientes" class="gestion-list">
     {% for c in clientes %}
@@ -628,7 +629,7 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
   if (flash) {
     sessionStorage.removeItem('gestionFlash');
     document.addEventListener('DOMContentLoaded', function () {
-      window.mostrarMensaje(flash, 'success');
+      if (window.mostrarMensaje) window.mostrarMensaje(flash, 'success');
     });
   }
 
@@ -657,6 +658,8 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
   var form = document.getElementById('form-cliente');
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    var submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true; // evita doble submit (doble tap en móvil)
     fetch(form.action, {
       method: 'POST',
       body: new FormData(form),
@@ -666,12 +669,19 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
         return r.json().catch(function () { return { error: 'Error al registrar el cliente' }; });
       })
       .then(function (res) {
-        if (res.error) { window.mostrarMensaje(res.error, 'error'); return; }
+        if (res.error) {
+          window.mostrarMensaje(res.error, 'error');
+          submitBtn.disabled = false;
+          return;
+        }
         // Reload: la fila la renderiza el servidor (una sola fuente de markup)
         sessionStorage.setItem('gestionFlash', res.message || 'Cliente registrado');
         window.location.reload();
       })
-      .catch(function () { window.mostrarMensaje('Error al registrar el cliente', 'error'); });
+      .catch(function () {
+        window.mostrarMensaje('Error al registrar el cliente', 'error');
+        submitBtn.disabled = false;
+      });
   });
 
   // Eliminar cliente (delegación scoped a la lista)
@@ -796,7 +806,7 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
     if (flash) {
         sessionStorage.removeItem('gestionFlash');
         document.addEventListener('DOMContentLoaded', function () {
-            window.mostrarMensaje(flash, 'success');
+            if (window.mostrarMensaje) window.mostrarMensaje(flash, 'success');
         });
     }
 
@@ -824,6 +834,8 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
     // agregarProductoATabla que insertaba filas desalineadas por JS).
     form.addEventListener('submit', function (e) {
         e.preventDefault();
+        var submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true; // evita doble submit (doble tap en móvil)
         fetch(form.action, {
             method: 'POST',
             body: new FormData(form),
@@ -833,11 +845,18 @@ Expected: 2 FAIL (los nuevos), el resto PASS.
                 return r.json().catch(function () { return { error: 'Error al crear el producto' }; });
             })
             .then(function (res) {
-                if (res.error) { window.mostrarMensaje(res.error, 'error'); return; }
+                if (res.error) {
+                    window.mostrarMensaje(res.error, 'error');
+                    submitBtn.disabled = false;
+                    return;
+                }
                 sessionStorage.setItem('gestionFlash', res.message || 'Producto creado');
                 window.location.reload();
             })
-            .catch(function () { window.mostrarMensaje('Error al crear el producto', 'error'); });
+            .catch(function () {
+                window.mostrarMensaje('Error al crear el producto', 'error');
+                submitBtn.disabled = false;
+            });
     });
 
     // Eliminar producto (delegación scoped a la lista)
@@ -955,7 +974,8 @@ Expected: sin output (exit 0).
   </section>
 
   <input type="search" id="buscar-producto" class="gestion-search"
-         placeholder="Buscar producto o proveedor…" autocomplete="off">
+         placeholder="Buscar producto o proveedor…" autocomplete="off"
+         aria-label="Buscar producto">
 
   <ul id="lista-productos" class="gestion-list">
     {% for producto in productos %}
