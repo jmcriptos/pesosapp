@@ -8,118 +8,32 @@
 {% endblock %}
 
 {% block content %}
-<div class="precios-container">
-    <div class="precios-grid">
-        <!-- Listas de Precios -->
-        <a href="{{ url_for('listas_precios') }}" class="precio-card">
-            <div class="precio-icon">
-                <i class="fas fa-list-alt"></i>
-            </div>
+<div class="precios-wrap">
+    <div class="precios-hub-grid">
+        <a href="{{ url_for('listas_precios') }}" class="precios-hub-card">
+            <div class="precios-hub-icon"><i class="fas fa-list-alt"></i></div>
             <h3>Listas de Precios</h3>
             <p>Gestionar listas de precios por defecto y personalizadas</p>
-            <span class="precio-count">{{ listas_precio|length }} listas</span>
+            <span class="precios-badge precios-badge-info">{{ listas_precio|length }} listas</span>
         </a>
 
-        <!-- Precios por Cliente -->
-        <a href="{{ url_for('precios_clientes') }}" class="precio-card">
-            <div class="precio-icon">
-                <i class="fas fa-users"></i>
-            </div>
+        <a href="{{ url_for('precios_clientes') }}" class="precios-hub-card">
+            <div class="precios-hub-icon"><i class="fas fa-users"></i></div>
             <h3>Precios por Cliente</h3>
             <p>Asignar listas de precios específicas a clientes</p>
         </a>
 
-        <!-- Precios Específicos -->
-        <a href="{{ url_for('precios_cliente_producto') }}" class="precio-card">
-            <div class="precio-icon">
-                <i class="fas fa-tags"></i>
-            </div>
+        <a href="{{ url_for('precios_cliente_producto') }}" class="precios-hub-card">
+            <div class="precios-hub-icon"><i class="fas fa-tags"></i></div>
             <h3>Precios Específicos</h3>
             <p>Definir precios individuales por cliente-producto</p>
         </a>
 
-        <!-- Carga Masiva -->
-        <a href="{{ url_for('carga_masiva_precios') }}" class="precio-card">
-            <div class="precio-icon">
-                <i class="fas fa-upload"></i>
-            </div>
+        <a href="{{ url_for('carga_masiva_precios') }}" class="precios-hub-card">
+            <div class="precios-hub-icon"><i class="fas fa-upload"></i></div>
             <h3>Carga Masiva CSV</h3>
             <p>Actualizar precios en lote desde archivo CSV</p>
         </a>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.precios-container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.precios-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-top: 20px;
-}
-
-.precio-card {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 30px;
-    text-align: center;
-    transition: transform 0.2s, border-color 0.2s;
-    text-decoration: none;
-    color: #f1f5f9;
-    cursor: pointer;
-}
-
-.precio-card:hover {
-    transform: translateY(-3px);
-    border-color: #60a5fa;
-    text-decoration: none;
-    color: #f1f5f9;
-}
-
-.precio-icon {
-    font-size: 2.5rem;
-    color: #1877ff;
-    margin-bottom: 16px;
-}
-
-.precio-card h3 {
-    color: #f1f5f9;
-    margin-bottom: 10px;
-    font-size: 1.2rem;
-}
-
-.precio-card p {
-    color: #94a3b8;
-    margin-bottom: 12px;
-    line-height: 1.4;
-    font-size: 0.9rem;
-}
-
-.precio-count {
-    background: rgba(24, 119, 255, 0.15);
-    color: #60a5fa;
-    padding: 4px 14px;
-    border-radius: 16px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-@media (max-width: 768px) {
-    .precios-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .precio-card {
-        padding: 20px;
-    }
-}
-</style>
 {% endblock %}
