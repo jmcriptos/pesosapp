@@ -7,6 +7,8 @@
    Aquí re-aclaramos SOLO el contenido de las pantallas marcadas por base.html
    con body[data-gestion-screen]. Carga después de dark-theme.css en la cascada.
    Servido directo (sin minificar), como registros.css.
+   Convención: reglas con prefijo body[data-gestion-screen] = pelean
+   especificidad contra dark-theme.css; sin prefijo = layout puro sin conflicto.
    ============================================================================= */
 
 /* ── 1 · Fondo del área de contenido ─────────────────────────────────────── */
@@ -44,8 +46,7 @@ body[data-gestion-screen] .mobile-form-container {
 /* ── 3 · Neutralizar el "recuadro" genérico de <form> (dark-theme.css /
       forms.css / styles.min.css le ponen fondo+sombra+padding a todo form) ── */
 body[data-gestion-screen] .gestion-wrap form,
-body[data-gestion-screen] .mobile-form-container form,
-[data-theme="dark"] body[data-gestion-screen] .gestion-wrap form {
+body[data-gestion-screen] .mobile-form-container form {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;

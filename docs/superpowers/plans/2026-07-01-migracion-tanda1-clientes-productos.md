@@ -240,8 +240,7 @@ body[data-gestion-screen] .mobile-form-container {
 /* ── 3 · Neutralizar el "recuadro" genérico de <form> (dark-theme.css /
       forms.css / styles.min.css le ponen fondo+sombra+padding a todo form) ── */
 body[data-gestion-screen] .gestion-wrap form,
-body[data-gestion-screen] .mobile-form-container form,
-[data-theme="dark"] body[data-gestion-screen] .gestion-wrap form {
+body[data-gestion-screen] .mobile-form-container form {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
