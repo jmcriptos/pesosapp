@@ -11,279 +11,87 @@
 {% endblock %}
 
 {% block content %}
-<div class="form-container precios-container">
-    <div class="form-card">
-        <div class="form-card-header">
-            <h2>{% if lista %}Editar Lista de Precios{% else %}Crear Nueva Lista de Precios{% endif %}</h2>
+<div class="mobile-form-container">
+  <form method="POST" id="lista-form" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="mobile-card">
+      <div class="mobile-card-header">
+        <i class="fas fa-tag"></i>
+        {% if lista %}Editar Lista de Precios{% else %}Crear Nueva Lista de Precios{% endif %}
+      </div>
+      <div class="mobile-card-body">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="nombre">Nombre de la Lista:</label>
+          <input type="text" id="nombre" name="nombre" class="mobile-form-control"
+                 value="{{ lista.nombre if lista else '' }}"
+                 placeholder="Ej: Lista Clientes Premium" required>
         </div>
 
-        <form method="POST" class="lista-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-grupo">
-                <label for="nombre">
-                    <i class="fas fa-tag"></i> Nombre de la Lista
-                </label>
-                <input type="text" id="nombre" name="nombre"
-                       value="{{ lista.nombre if lista else '' }}"
-                       placeholder="Ej: Lista Clientes Premium" required>
-                <small>Nombre descriptivo para identificar la lista</small>
-            </div>
-
-            <div class="form-grupo">
-                <label for="descripcion">
-                    <i class="fas fa-align-left"></i> Descripción
-                </label>
-                <textarea id="descripcion" name="descripcion" rows="3"
-                          placeholder="Descripción opcional">{{ lista.descripcion if lista else '' }}</textarea>
-                <small>Descripción opcional para explicar el propósito de esta lista</small>
-            </div>
-
-            {% if lista and lista.es_default %}
-            <div class="alert-info-card">
-                <i class="fas fa-info-circle"></i>
-                <strong>Lista por defecto:</strong> Esta es la lista de precios principal del sistema.
-            </div>
-            {% endif %}
-
-            <div class="form-acciones">
-                <a href="{{ url_for('listas_precios') }}" class="btn-cancelar">
-                    <i class="fas fa-arrow-left"></i> Cancelar
-                </a>
-                <button type="submit" class="btn-guardar">
-                    <i class="fas fa-save"></i>
-                    {% if lista %}Actualizar Lista{% else %}Crear Lista{% endif %}
-                </button>
-            </div>
-        </form>
-    </div>
-
-    {% if lista %}
-    <div class="info-card">
-        <h4>Información de la Lista</h4>
-        <div class="info-grid">
-            <div class="info-item">
-                <label>Fecha de creación:</label>
-                <span>{{ lista.fecha_creacion.strftime('%d/%m/%Y %H:%M') if lista.fecha_creacion else 'No disponible' }}</span>
-            </div>
-            <div class="info-item">
-                <label>Estado:</label>
-                <span class="precio-badge {{ 'active' if lista.activa else 'inactive' }}">
-                    {{ 'Activa' if lista.activa else 'Inactiva' }}
-                </span>
-            </div>
-            <div class="info-item">
-                <label>Productos configurados:</label>
-                <span>{{ lista.precios_productos|length }} productos</span>
-            </div>
-            <div class="info-item">
-                <label>Clientes asignados:</label>
-                <span>{{ lista.clientes|length }} clientes</span>
-            </div>
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="descripcion">Descripción:</label>
+          <textarea id="descripcion" name="descripcion" rows="3" class="mobile-form-control"
+                    placeholder="Descripción opcional">{{ lista.descripcion if lista else '' }}</textarea>
         </div>
 
-        {% if lista.precios_productos|length > 0 %}
-        <div class="info-actions">
-            <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}" class="btn-ver-precios">
-                <i class="fas fa-dollar-sign"></i> Gestionar Precios
-            </a>
-        </div>
+        {% if lista and lista.es_default %}
+        <p class="precios-list-meta">
+          <i class="fas fa-info-circle"></i>
+          Lista por defecto: esta es la lista de precios principal del sistema.
+        </p>
         {% endif %}
+      </div>
     </div>
-    {% endif %}
+
+    <div class="mobile-form-actions">
+      <a href="{{ url_for('listas_precios') }}" class="mobile-btn mobile-btn-secondary">
+        <i class="fas fa-arrow-left"></i> Cancelar
+      </a>
+      <button type="submit" class="mobile-btn mobile-btn-primary">
+        <i class="fas fa-save"></i>
+        {% if lista %}Actualizar Lista{% else %}Crear Lista{% endif %}
+      </button>
+    </div>
+  </form>
+
+  {% if lista %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-info-circle"></i> Información de la Lista</div>
+    <div class="mobile-card-body">
+      <p class="precios-list-meta">Creada: {{ lista.fecha_creacion.strftime('%d/%m/%Y %H:%M') if lista.fecha_creacion else 'No disponible' }}</p>
+      <p class="precios-list-meta">
+        Estado:
+        <span class="precios-badge {{ 'precios-badge-success' if lista.activa else 'precios-badge-inactive' }}">
+          {{ 'Activa' if lista.activa else 'Inactiva' }}
+        </span>
+      </p>
+      <p class="precios-list-meta">{{ lista.precios_productos|length }} productos configurados · {{ lista.clientes|length }} clientes asignados</p>
+      {% if lista.precios_productos|length > 0 %}
+      <a href="{{ url_for('precios_lista_productos', lista_id=lista.id) }}" class="mobile-btn mobile-btn-secondary">
+        <i class="fas fa-dollar-sign"></i> Gestionar Precios
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-.form-container {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.form-card {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 28px;
-    margin-bottom: 16px;
-}
-
-.form-card-header {
-    margin-bottom: 24px;
-    text-align: center;
-}
-.form-card-header h2 {
-    color: #f1f5f9;
-    margin: 0;
-    font-size: 1.4rem;
-}
-
-.form-grupo {
-    margin-bottom: 20px;
-}
-.form-grupo label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
-    color: #f1f5f9;
-    font-size: 0.95rem;
-}
-.form-grupo label i {
-    color: #60a5fa;
-    margin-right: 6px;
-    width: 14px;
-}
-.form-grupo input, .form-grupo textarea {
-    width: 100%;
-    padding: 10px 14px;
-    background: #1a1f2b;
-    color: #f1f5f9;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.2s;
-}
-.form-grupo input:focus, .form-grupo textarea:focus {
-    border-color: #1877ff;
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.15);
-}
-.form-grupo small {
-    display: block;
-    margin-top: 4px;
-    color: #64748b;
-    font-size: 0.85rem;
-}
-
-.alert-info-card {
-    padding: 12px 16px;
-    background: rgba(24, 119, 255, 0.1);
-    border: 1px solid rgba(24, 119, 255, 0.25);
-    border-radius: 8px;
-    color: #93c5fd;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-}
-
-.form-acciones {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-top: 28px;
-}
-
-.btn-cancelar {
-    padding: 10px 20px;
-    background: #1a1f2b;
-    color: #94a3b8;
-    border: 1px solid #3b4a5c;
-    border-radius: 8px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-}
-.btn-cancelar:hover { color: #f1f5f9; text-decoration: none; }
-
-.btn-guardar {
-    padding: 10px 24px;
-    background: linear-gradient(135deg, #1877ff 0%, #3b82f6 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.btn-guardar:hover {
-    box-shadow: 0 4px 12px rgba(24, 119, 255, 0.4);
-}
-
-/* Info card */
-.info-card {
-    background: #141820;
-    border: 1px solid #3b4a5c;
-    border-radius: 12px;
-    padding: 24px;
-}
-.info-card h4 {
-    color: #f1f5f9;
-    margin: 0 0 16px 0;
-    font-size: 1.1rem;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #3b4a5c;
-}
-
-.info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-    margin-bottom: 16px;
-}
-.info-item label {
-    display: block;
-    font-weight: 600;
-    color: #94a3b8;
-    font-size: 0.8rem;
-    margin-bottom: 2px;
-}
-.info-item span {
-    color: #f1f5f9;
-    font-size: 0.95rem;
-}
-
-.info-actions {
-    border-top: 1px solid #3b4a5c;
-    padding-top: 14px;
-    text-align: center;
-}
-.btn-ver-precios {
-    padding: 8px 16px;
-    background: rgba(24, 119, 255, 0.15);
-    color: #60a5fa;
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 0.85rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-.btn-ver-precios:hover { background: rgba(24, 119, 255, 0.25); text-decoration: none; color: #60a5fa; }
-
-@media (max-width: 768px) {
-    .form-acciones { flex-direction: column; align-items: stretch; }
-    .btn-cancelar, .btn-guardar { justify-content: center; }
-    .info-grid { grid-template-columns: 1fr; }
-}
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script nonce="{{ csp_nonce() }}">
-document.addEventListener('DOMContentLoaded', function() {
-    var nombre = document.getElementById('nombre');
-    if (nombre) nombre.focus();
-
-    nombre.addEventListener('input', function() {
-        this.style.borderColor = this.value.trim().length < 3 ? '#ef4444' : '#1877ff';
-    });
-
-    document.querySelector('.lista-form').addEventListener('submit', function(e) {
-        if (nombre.value.trim().length < 3) {
-            e.preventDefault();
-            alert('El nombre debe tener al menos 3 caracteres');
-            nombre.focus();
-        }
-    });
+document.addEventListener('DOMContentLoaded', function () {
+  var nombre = document.getElementById('nombre');
+  nombre.focus();
+  nombre.addEventListener('input', function () {
+    this.style.borderColor = this.value.trim().length < 3 ? '#ef4444' : '';
+  });
+  document.getElementById('lista-form').addEventListener('submit', function (e) {
+    if (nombre.value.trim().length < 3) {
+      e.preventDefault();
+      alert('El nombre debe tener al menos 3 caracteres');
+      nombre.focus();
+    }
+  });
 });
 </script>
 {% endblock %}
