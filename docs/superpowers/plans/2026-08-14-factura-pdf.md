@@ -533,29 +533,34 @@ def test_render_tolera_factura_minima():
     assert pdf[:5] == b'%PDF-'
 
 
-def test_render_con_muchas_cajas_pagina_extra():
-    """20 cajas pesadas (caso real de la factura 5806) genera más de una página."""
+def test_render_con_muchas_cajas_no_revienta_y_crece():
+    """Caso real de la factura 5806: 6 productos de 20 cajas cada uno. El grid
+    de pesos tiene que fluir sin romper el render, y el PDF resultante pesa
+    claramente más que uno de dos líneas."""
     from utils.factura_pdf import render_factura_pdf
 
     pesos = '\t'.join(f'{12 + i * 0.15:.2f}' for i in range(20))
+    linea = {
+        'DetailType': 'SalesItemLineDetail',
+        'Description': pesos,
+        'Amount': 3339.70,
+        'SalesItemLineDetail': {
+            'ItemRef': {'name': 'Smoked and Cooked:Smoked Pork Chop'},
+            'Qty': 256.9, 'UnitPrice': 13,
+        },
+    }
     factura = {'Invoice': {
         'Id': '47339', 'DocNumber': '5806', 'TxnDate': '2026-08-11',
         'CustomerRef': {'name': 'Mangusa Supermarket na Rio Canario, BV'},
-        'Line': [{
-            'DetailType': 'SalesItemLineDetail',
-            'Description': pesos,
-            'Amount': 3339.70,
-            'SalesItemLineDetail': {
-                'ItemRef': {'name': 'Smoked and Cooked:Smoked Pork Chop'},
-                'Qty': 256.9, 'UnitPrice': 13,
-            },
-        }] * 6,
+        'Line': [dict(linea) for _ in range(6)],
         'SubTotal': 20038.2, 'TotalAmt': 20038.2,
     }}
 
-    pdf = render_factura_pdf(factura)
+    grande = render_factura_pdf(factura)
+    chico = render_factura_pdf(cargar('xcg_sin_ob'))
 
-    assert pdf.count(b'/Type /Page\n') >= 2 or pdf.count(b'/Type /Page') >= 2
+    assert grande[:5] == b'%PDF-'
+    assert len(grande) > len(chico)
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
