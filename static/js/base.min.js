@@ -355,6 +355,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Factura PDF: Web Share API en el PWA de iOS (una descarga normal no
+    // funciona en standalone), con enlace de descarga como fallback.
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('[data-factura-share]');
+        if (!btn) return;
+
+        const url = btn.dataset.facturaUrl;
+        const nombre = btn.dataset.facturaNombre || 'Factura.pdf';
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.textContent = 'Generando...';
+
+        try {
+            const resp = await fetch(url, { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const blob = await resp.blob();
+            const file = new File([blob], nombre, { type: 'application/pdf' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: nombre });
+            } else {
+                const objectUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = objectUrl;
+                a.download = nombre;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+            }
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;  // el usuario canceló
+            alert('No se pudo generar la factura. Intente de nuevo.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
+
     // US01: Helper para calcular clases de porcentaje para gauges
     window.calculateGaugeClasses = function(percentage, maxValue) {
         if (maxValue === 0) return { width: 'w-pct-0', needle: 'needle-0' };

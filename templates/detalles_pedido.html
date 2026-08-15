@@ -74,6 +74,19 @@
     </div>
     {% endif %}
 
+    <!-- Factura PDF (solo si ya está en QuickBooks) -->
+    {% if pedido.invoice_id_qbo %}
+    <div style="margin: 0 16px 14px;">
+      <button type="button" class="btn-secondary"
+              style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;"
+              data-factura-share
+              data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
+              data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf">
+        <i class="fas fa-file-invoice"></i> Factura PDF
+      </button>
+    </div>
+    {% endif %}
+
     <!-- Notas del pedido -->
     {% if pedido.notas %}
     <div class="mobile-notes-section">

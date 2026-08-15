@@ -171,3 +171,23 @@ def test_ruta_502_si_n8n_falla(mock_post, app):
         resp = client.get(f'/pedidos/{pedido_id}/factura.pdf')
 
     assert resp.status_code == 502
+
+
+def test_detalles_muestra_boton_factura_si_hay_invoice_id(app):
+    with app.app_context():
+        pedido_id = _crear_pedido_facturado()
+        client = _login(app)
+
+        resp = client.get(f'/pedidos/{pedido_id}/detalles')
+
+    assert b'data-factura-share' in resp.data
+
+
+def test_detalles_oculta_boton_sin_invoice_id(app):
+    with app.app_context():
+        pedido_id = _crear_pedido_facturado(invoice_id=None, doc_number=None)
+        client = _login(app)
+
+        resp = client.get(f'/pedidos/{pedido_id}/detalles')
+
+    assert b'data-factura-share' not in resp.data
