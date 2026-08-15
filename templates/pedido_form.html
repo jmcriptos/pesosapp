@@ -193,9 +193,19 @@ function cargarProductosEnSelect() {
         tomProducto.sync();
     }
 }
+/* El precio depende del cliente. Hasta que no estén cargados sus precios no se
+   puede agregar productos: si no, se muestra el de la lista general y el pedido
+   se carga con un precio que no es el de este cliente. */
+function habilitarAgregar(ok, motivo) {
+    if (!btnAgregar) return;
+    btnAgregar.disabled = !ok;
+    btnAgregar.title = ok ? '' : (motivo || '');
+    btnAgregar.style.opacity = ok ? '' : '0.5';
+}
+
 async function actualizarPreciosCliente(clienteId) {
-    if (!clienteId) return;
-    
+    if (!clienteId) return false;
+
     try {
         console.log('Actualizando precios para cliente:', clienteId);
         const response = await fetch(`/api/precios/cliente/${clienteId}/productos`);
@@ -221,13 +231,16 @@ async function actualizarPreciosCliente(clienteId) {
             
             actualizarTablaProductos();
             console.log('Precios actualizados correctamente');
-            
+
             // Recargar el select de productos con los nuevos precios
             cargarProductosEnSelect();
+            return true;
         }
+        console.error('No se pudieron cargar los precios del cliente:', response.status);
     } catch (error) {
         console.error('Error al actualizar precios:', error);
     }
+    return false;
 }
 
 function actualizarTablaProductos() {
@@ -355,18 +368,33 @@ const tomProducto = new TomSelect('#producto-select', {
 
     // Cambio de cliente
     if (clienteSelect) {
-        clienteSelect.addEventListener('change', async function() {
-            const clienteId = this.value;
-            actualizarTipoCambio(clienteId);
-            if (clienteId) {
-                await actualizarPreciosCliente(clienteId);
+        async function cargarPreciosDe(clienteId) {
+            if (!clienteId) {
+                habilitarAgregar(false, 'Elegí primero el cliente: el precio depende de él');
+                return;
             }
+            habilitarAgregar(false, 'Cargando los precios de este cliente…');
+            const ok = await actualizarPreciosCliente(clienteId);
+            // Si la carga falla se habilita igual para no bloquear el trabajo: el
+            // servidor resuelve el precio por jerarquía al guardar, así que lo que
+            // puede quedar desactualizado es lo que se muestra, no lo que se cobra.
+            habilitarAgregar(true, '');
+            if (!ok) {
+                alert('No se pudieron cargar los precios de este cliente. Los precios en pantalla pueden no ser los suyos; al guardar se aplica el precio correcto.');
+            }
+        }
+
+        clienteSelect.addEventListener('change', async function() {
+            actualizarTipoCambio(this.value);
+            await cargarPreciosDe(this.value);
         });
 
         // Si ya hay cliente seleccionado, actualizar precios
         if (clienteSelect.value) {
             actualizarTipoCambio(clienteSelect.value);
-            actualizarPreciosCliente(clienteSelect.value);
+            cargarPreciosDe(clienteSelect.value);
+        } else {
+            habilitarAgregar(false, 'Elegí primero el cliente: el precio depende de él');
         }
     }
 

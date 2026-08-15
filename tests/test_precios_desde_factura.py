@@ -663,3 +663,108 @@ def test_el_form_es_el_ultimo_recurso_no_un_override(app):
 
     assert _resolver_precio_unitario_pedido(cliente_id, producto_id, '25.00') == Decimal('25.00')
     assert _resolver_precio_unitario_pedido(cliente_id, producto_id, None) == Decimal('0')
+
+
+# ───────── La API de precios por cliente y el servidor deben coincidir ────────
+
+def test_api_precios_incluye_productos_fuera_de_la_lista_del_cliente(app):
+    """El formulario mostraba el precio de la lista general para los productos
+    que no estaban en la lista asignada al cliente, porque la API ni siquiera los
+    devolvía. El servidor sí caía a la lista default: mostraban números distintos."""
+    from app import (Producto, ListaPrecio, PrecioProducto, ClienteListaPrecio,
+                     obtener_precio_producto_cliente)
+
+    _, producto_id, cliente_id = _armar(precio_app=None)
+
+    # Lista asignada al cliente, que NO incluye el producto
+    lista_cliente = ListaPrecio(nombre='Familia', es_default=False, activa=True)
+    lista_default = ListaPrecio(nombre='General', es_default=True, activa=True)
+    otro = Producto(nombre='Otro Producto', qbo_id='555', tax_rate=0.0)
+    _db.session.add_all([lista_cliente, lista_default, otro])
+    _db.session.flush()
+
+    en_lista_cliente = PrecioProducto(lista_precio_id=lista_cliente.id, producto_id=otro.id,
+                                      precio_base=9.00, margen_jomar=1.0, margen_retail=1.2,
+                                      activo=True)
+    en_default = PrecioProducto(lista_precio_id=lista_default.id, producto_id=producto_id,
+                                precio_base=14.00, margen_jomar=1.0, margen_retail=1.2,
+                                activo=True)
+    for p in (en_lista_cliente, en_default):
+        p.calcular_precios()
+    _db.session.add_all([en_lista_cliente, en_default,
+                         ClienteListaPrecio(cliente_id=cliente_id,
+                                            lista_precio_id=lista_cliente.id, activa=True)])
+    _db.session.commit()
+
+    datos = _login(app).get(f'/api/precios/cliente/{cliente_id}/productos').get_json()
+    por_id = {d['id']: d for d in datos}
+
+    # El producto que NO está en la lista del cliente ahora viene igual...
+    assert producto_id in por_id
+    # ...y con el mismo precio que va a usar el servidor al guardar el pedido
+    assert por_id[producto_id]['precio'] == float(
+        obtener_precio_producto_cliente(cliente_id, producto_id, 'base'))
+    assert por_id[producto_id]['precio'] == 14.00
+    assert por_id[otro.id]['precio'] == 9.00
+
+
+def test_api_precios_prioriza_el_precio_propio_del_cliente(app):
+    _, producto_id, cliente_id = _armar(precio_app=13.00)
+
+    datos = _login(app).get(f'/api/precios/cliente/{cliente_id}/productos').get_json()
+    fila = next(d for d in datos if d['id'] == producto_id)
+
+    assert fila['precio'] == 13.00
+    assert fila['tipo_precio'] == 'específico'
+
+
+def test_api_precios_marca_producto_sin_precio(app):
+    """Devolverlo con precio nulo es mejor que omitirlo: omitido, el formulario
+    se queda con el número que ya tenía y parece un precio válido."""
+    _, producto_id, cliente_id = _armar(precio_app=None)
+
+    datos = _login(app).get(f'/api/precios/cliente/{cliente_id}/productos').get_json()
+    fila = next(d for d in datos if d['id'] == producto_id)
+
+    assert fila['precio'] is None
+    assert fila['tipo_precio'] == 'sin_precio'
+
+
+def test_api_precios_coincide_con_el_resolutor(app):
+    """Pin: la API y el resolutor del servidor no pueden separarse. Si divergen,
+    el formulario vuelve a mostrar un precio distinto del que se cobra."""
+    from app import (Producto, ListaPrecio, PrecioProducto, ClienteListaPrecio,
+                     obtener_precio_producto_cliente, obtener_precio_default_producto)
+
+    _, producto_id, cliente_id = _armar(precio_app=13.00)
+
+    lista_cliente = ListaPrecio(nombre='Familia', es_default=False, activa=True)
+    lista_default = ListaPrecio(nombre='General', es_default=True, activa=True)
+    solo_lista = Producto(nombre='Solo En Lista', qbo_id='777', tax_rate=0.0)
+    solo_default = Producto(nombre='Solo En Default', qbo_id='778', tax_rate=0.0)
+    _db.session.add_all([lista_cliente, lista_default, solo_lista, solo_default])
+    _db.session.flush()
+
+    filas = [
+        PrecioProducto(lista_precio_id=lista_cliente.id, producto_id=solo_lista.id,
+                       precio_base=9.00, margen_jomar=1.0, margen_retail=1.2, activo=True),
+        PrecioProducto(lista_precio_id=lista_default.id, producto_id=solo_default.id,
+                       precio_base=20.00, margen_jomar=1.2, margen_retail=1.2, activo=True),
+    ]
+    for f in filas:
+        f.calcular_precios()
+    _db.session.add_all(filas + [ClienteListaPrecio(
+        cliente_id=cliente_id, lista_precio_id=lista_cliente.id, activa=True)])
+    _db.session.commit()
+
+    datos = _login(app).get(f'/api/precios/cliente/{cliente_id}/productos').get_json()
+
+    assert len(datos) == Producto.query.count(), 'la API debe devolver todos los productos'
+    for fila in datos:
+        esperado = obtener_precio_producto_cliente(cliente_id, fila['id'], 'base')
+        if esperado is None:
+            esperado = obtener_precio_default_producto(fila['id'], 'base')
+        if esperado is None:
+            assert fila['precio'] is None
+        else:
+            assert fila['precio'] == float(esperado), f"desajuste en {fila['nombre']}"

@@ -2924,6 +2924,39 @@ def obtener_precio_producto_cliente(cliente_id, producto_id, tipo_precio='jomar'
 
     return None
 
+def _fila_precio_vigente(cliente_id, producto_id):
+    """Fila de precio que rige para (cliente, producto), y de dónde salió.
+
+    Misma precedencia que `obtener_precio_producto_cliente`; existe solo para
+    exponer los márgenes junto al precio. El precio siempre se toma del
+    resolutor, no de acá: si alguna vez se separan, lo cachea
+    `test_api_precios_coincide_con_el_resolutor`.
+    """
+    especifico = PrecioClienteProducto.query.filter_by(
+        cliente_id=cliente_id, producto_id=producto_id, activo=True).first()
+    if especifico:
+        return especifico, 'específico'
+
+    cliente_lista = ClienteListaPrecio.query.filter_by(
+        cliente_id=cliente_id, activa=True).first()
+    if cliente_lista:
+        de_lista = PrecioProducto.query.filter_by(
+            lista_precio_id=cliente_lista.lista_precio_id,
+            producto_id=producto_id, activo=True).first()
+        if de_lista:
+            return de_lista, 'lista_asignada'
+
+    lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
+    if lista_default:
+        de_default = PrecioProducto.query.filter_by(
+            lista_precio_id=lista_default.id,
+            producto_id=producto_id, activo=True).first()
+        if de_default:
+            return de_default, 'lista_default'
+
+    return None, 'sin_precio'
+
+
 def obtener_precio_default_producto(producto_id, tipo_precio='base'):
     """
     Devuelve el precio de un producto tomado de la lista marcada como es_default.
@@ -7896,87 +7929,54 @@ def api_precio_cliente_producto(cliente_id, producto_id):
 @app.route('/api/precios/cliente/<int:cliente_id>/productos')
 @login_required
 def api_precios_cliente_productos(cliente_id):
-    """API para obtener precios de todos los productos para un cliente específico"""
+    """Precio de CADA producto para un cliente, resuelto por la misma jerarquía
+    que usa el servidor al guardar el pedido.
+
+    Antes esta API armaba el resultado por su cuenta: precios específicos, más
+    los productos de la lista asignada al cliente. Un producto que no estuviera
+    en esa lista **no venía en la respuesta**, así que el formulario nunca le
+    actualizaba el precio y quedaba mostrando el de la lista default — mientras
+    el servidor sí caía a la lista default y guardaba otro número. Form y
+    servidor calculaban por caminos distintos y podían no coincidir.
+
+    Ahora se recorre el catálogo completo y se resuelve con
+    `obtener_precio_producto_cliente`, la misma cadena de
+    `_resolver_precio_unitario_pedido`: lo que se ve es lo que se va a cobrar.
+    """
     if not _user_can_view_cliente(cliente_id):
         return jsonify({'error': 'No autorizado'}), 403
+
     resultado = []
-    
-    # 1. Primero buscar precios específicos cliente-producto
-    precios_especificos = db.session.query(PrecioClienteProducto, Producto).join(
-        Producto, PrecioClienteProducto.producto_id == Producto.id
-    ).filter(
-        PrecioClienteProducto.cliente_id == cliente_id,
-        PrecioClienteProducto.activo == True
-    ).all()
-    
-    productos_con_precio_especifico = set()
-    
-    for precio_esp, producto in precios_especificos:
+    for producto in Producto.query.all():
+        # El precio sale del mismo resolutor que usa el servidor al guardar.
+        precio = obtener_precio_producto_cliente(cliente_id, producto.id, 'base')
+        if precio is None:
+            precio = obtener_precio_default_producto(producto.id, 'base')
+
+        fila, origen = _fila_precio_vigente(cliente_id, producto.id)
+
+        if precio is None or fila is None:
+            # Producto sin precio en ningún lado: se devuelve igual, con precio
+            # nulo, para que el formulario lo muestre como "sin precio" en vez
+            # de quedarse con el número que ya tenía y hacerlo pasar por válido.
+            resultado.append({
+                'id': producto.id, 'nombre': producto.nombre,
+                'precio': None, 'tipo_precio': 'sin_precio',
+                'precio_base': None, 'margen_jomar': None, 'margen_retail': None,
+            })
+            continue
+
         resultado.append({
             'id': producto.id,
             'nombre': producto.nombre,
-            'precio': float(precio_esp.precio_base),
-            'tipo_precio': 'específico',
-            'precio_base': precio_esp.precio_base,
-            'margen_jomar': precio_esp.margen_jomar,
-            'margen_retail': precio_esp.margen_retail
+            'precio': float(precio),
+            'tipo_precio': origen,
+            'precio_base': float(fila.precio_base),
+            'margen_jomar': fila.margen_jomar,
+            'margen_retail': fila.margen_retail,
         })
-        productos_con_precio_especifico.add(producto.id)
-    
-    # 2. Buscar si el cliente tiene una lista asignada
-    cliente_lista = ClienteListaPrecio.query.filter_by(
-        cliente_id=cliente_id,
-        activa=True
-    ).first()
-    
-    if cliente_lista:
-        # Solo obtener productos que están en la lista asignada al cliente
-        precios_lista = db.session.query(PrecioProducto, Producto).join(
-            Producto, PrecioProducto.producto_id == Producto.id
-        ).filter(
-            PrecioProducto.lista_precio_id == cliente_lista.lista_precio_id,
-            PrecioProducto.activo == True,
-            ~Producto.id.in_(productos_con_precio_especifico)  # Excluir los que ya tienen precio específico
-        ).all()
-        
-        for precio_lista, producto in precios_lista:
-            resultado.append({
-                'id': producto.id,
-                'nombre': producto.nombre,
-                'precio': float(precio_lista.precio_base),
-                'tipo_precio': 'lista_asignada',
-                'precio_base': precio_lista.precio_base,
-                'margen_jomar': precio_lista.margen_jomar,
-                'margen_retail': precio_lista.margen_retail,
-                'lista_nombre': cliente_lista.lista_precio.nombre
-            })
-    else:
-        # Si no tiene lista asignada, usar lista por defecto
-        lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
-        if lista_default:
-            precios_default = db.session.query(PrecioProducto, Producto).join(
-                Producto, PrecioProducto.producto_id == Producto.id
-            ).filter(
-                PrecioProducto.lista_precio_id == lista_default.id,
-                PrecioProducto.activo == True,
-                ~Producto.id.in_(productos_con_precio_especifico)  # Excluir los que ya tienen precio específico
-            ).all()
-            
-            for precio_def, producto in precios_default:
-                resultado.append({
-                    'id': producto.id,
-                    'nombre': producto.nombre,
-                    'precio': float(precio_def.precio_base),
-                    'tipo_precio': 'lista_default',
-                    'precio_base': precio_def.precio_base,
-                    'margen_jomar': precio_def.margen_jomar,
-                    'margen_retail': precio_def.margen_retail,
-                    'lista_nombre': lista_default.nombre
-                })
-    
-    # Ordenar por nombre de producto
+
     resultado.sort(key=lambda x: x['nombre'])
-    
     return jsonify(resultado)
 
 # TAMBIÉN agregar esta nueva función para debugging:
