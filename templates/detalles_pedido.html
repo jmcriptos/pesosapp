@@ -84,6 +84,11 @@
               data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf">
         <i class="fas fa-file-invoice"></i> Factura PDF
       </button>
+      <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
+         class="btn-secondary"
+         style="width:100%; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <i class="fas fa-tags"></i> Revisar precios
+      </a>
     </div>
     {% endif %}
 

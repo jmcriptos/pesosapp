@@ -68,12 +68,16 @@ def extraer_datos_factura(invoice_json):
         if l.get('DetailType') != 'SalesItemLineDetail':
             continue
         det = l.get('SalesItemLineDetail') or {}
-        nombre = (det.get('ItemRef') or {}).get('name') or ''
+        item_ref = det.get('ItemRef') or {}
+        nombre = item_ref.get('name') or ''
         producto = nombre.split(':')[1].strip() if ':' in nombre else nombre
         desc = l.get('Description') or ''
         pesos = _pesos_de_descripcion(desc)
         lineas.append({
             'producto': producto,
+            # Id del ítem en QBO: es lo que se cruza contra Producto.qbo_id para
+            # comparar precios. El PDF no lo usa.
+            'item_qbo_id': str(item_ref.get('value')) if item_ref.get('value') else None,
             'pesos': pesos,
             'detalle_texto': '' if pesos else desc,
             'qty': float(det.get('Qty') or 0),

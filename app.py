@@ -6822,6 +6822,158 @@ def _obtener_factura_qbo(invoice_id):
         return None
 
 
+# Una diferencia por debajo de medio centavo es redondeo, no una corrección de
+# precio: sin este umbral la pantalla se llena de ruido.
+UMBRAL_DIFERENCIA_PRECIO = 0.005
+
+
+def _comparar_precios_factura(pedido, factura_json):
+    """Compara los precios de la factura vigente en QBO contra los de la app.
+
+    Devuelve (filas, avisos).
+
+    Todo se compara sobre `precio_base`, que es tax-exclusive: el
+    `precio_unitario` de la línea se resuelve con
+    `obtener_precio_producto_cliente(..., 'base')` y el `UnitPrice` de QBO
+    tampoco lleva OB (QuickBooks lo aplica encima), así que las tres cifras
+    son comparables sin conversión.
+    """
+    from utils.factura_pdf import extraer_datos_factura
+
+    lineas_factura = (extraer_datos_factura(factura_json) or {}).get('lineas') or []
+
+    # Precio que la app mandó a facturar, por producto. Se muestra al lado para
+    # que se vea la corrección; la decisión de escribir se toma contra el vigente.
+    #
+    # La selección de líneas espeja la de `pedido_a_json`, que es lo que se envía
+    # a facturar: los productos pesables se facturan desde su línea ORIGINAL (vía
+    # sus CajaPesada) y el resto desde las líneas de preparación. Mirar solo las
+    # de preparación deja fuera media facturación.
+    facturado = {}
+    for detalle in _pedido_detalles_pesables(pedido):
+        if detalle.cajas_pesadas_count:
+            facturado.setdefault(detalle.producto_id, float(detalle.precio_unitario or 0))
+
+    for d in pedido.detalles:
+        if d.es_linea_pedido:
+            continue
+        facturado.setdefault(d.producto_id, float(d.precio_unitario or 0))
+
+    filas = []
+    avisos = []
+    productos_en_factura = set()
+    por_producto = {}
+
+    for linea in lineas_factura:
+        qbo_id = linea.get('item_qbo_id')
+        producto = Producto.query.filter_by(qbo_id=qbo_id).first() if qbo_id else None
+        precio_qbo = float(linea.get('rate') or 0)
+        qty = float(linea.get('qty') or 0)
+
+        if producto is None:
+            # Nunca descartar en silencio: la línea existe en la factura y el
+            # usuario tiene que poder verla aunque no se pueda actuar sobre ella.
+            filas.append({
+                'producto_id': None,
+                'nombre': linea.get('producto') or '(sin nombre)',
+                'qty': qty,
+                'precio_qbo': precio_qbo,
+                'precio_facturado': None,
+                'precio_vigente': None,
+                'estado': 'sin_producto',
+                'motivo': 'No corresponde a ningún producto de la app.',
+            })
+            continue
+
+        productos_en_factura.add(producto.id)
+
+        # Un producto puede venir en varias líneas de la misma factura: el payload
+        # emite una línea por caja pesada. Si todas traen el mismo precio se suman
+        # las cantidades; si traen precios distintos no hay un "precio nuevo" único
+        # que aplicar, y hay que decirlo en vez de elegir uno al azar.
+        anterior = por_producto.get(producto.id)
+        if anterior is not None:
+            anterior['qty'] += qty
+            if abs(anterior['precio_qbo'] - precio_qbo) >= UMBRAL_DIFERENCIA_PRECIO:
+                anterior['estado'] = 'precio_ambiguo'
+                anterior['motivo'] = (
+                    'La factura trae este producto con más de un precio; '
+                    'corregilo en QuickBooks para que quede uno solo.'
+                )
+            continue
+
+        precio_vigente = obtener_precio_producto_cliente(pedido.cliente_id, producto.id, 'base')
+        heredado = False
+        if precio_vigente is None:
+            precio_vigente = obtener_precio_default_producto(producto.id, 'base')
+            heredado = precio_vigente is not None
+        else:
+            # ¿El precio vigente es propio del cliente o lo hereda de una lista?
+            heredado = PrecioClienteProducto.query.filter_by(
+                cliente_id=pedido.cliente_id, producto_id=producto.id, activo=True,
+            ).first() is None
+
+        motivo = None
+        if precio_qbo <= 0:
+            # Escribir un precio 0 en la lista es justo lo que la guarda de
+            # facturación impide del otro lado.
+            estado = 'precio_invalido'
+            motivo = 'La factura trae precio 0; no se puede usar como precio de lista.'
+        elif (precio_vigente is not None
+                and abs(precio_qbo - float(precio_vigente)) < UMBRAL_DIFERENCIA_PRECIO):
+            estado = 'igual'
+        else:
+            # Sin precio vigente (producto nuevo) la diferencia también es real:
+            # es justo el caso que dejó una línea en 0 en su momento.
+            estado = 'difiere'
+
+        fila = {
+            'producto_id': producto.id,
+            'nombre': producto.nombre,
+            'qty': qty,
+            'precio_qbo': precio_qbo,
+            'precio_facturado': facturado.get(producto.id),
+            'precio_vigente': float(precio_vigente) if precio_vigente is not None else None,
+            'heredado': heredado,
+            'estado': estado,
+            'motivo': motivo,
+        }
+        filas.append(fila)
+        por_producto[producto.id] = fila
+
+    productos_del_pedido = set(facturado.keys())
+
+    if not productos_del_pedido:
+        avisos.append(
+            'No se pudo determinar qué precios mandó la app a facturar para este '
+            'pedido, así que solo se compara contra el precio vigente del cliente.'
+        )
+    else:
+        faltantes = productos_del_pedido - productos_en_factura
+        if faltantes:
+            nombres = _nombres_de_productos(faltantes)
+            avisos.append(
+                'La factura de QuickBooks no cubre todas las líneas del pedido. '
+                f'Sin contraparte en la factura: {nombres}. Puede haber una segunda '
+                'factura para este pedido.'
+            )
+
+        sobrantes = productos_en_factura - productos_del_pedido
+        if sobrantes:
+            nombres = _nombres_de_productos(sobrantes)
+            avisos.append(
+                'La factura trae líneas que no están en el pedido: '
+                f'{nombres}.'
+            )
+
+    return filas, avisos
+
+
+def _nombres_de_productos(producto_ids):
+    productos = Producto.query.filter(Producto.id.in_(list(producto_ids))).all()
+    return ', '.join(sorted(p.nombre for p in productos)) or '(desconocidos)'
+
+
 N8N_DRIVE_WEBHOOK_URL = os.environ.get('N8N_DRIVE_WEBHOOK_URL', '').strip()
 # El archivado corre en línea, antes de devolver el PDF, así que su timeout se
 # suma al de la consulta a QBO (N8N_INVOICE_FETCH_TIMEOUT = 20s). El router de
@@ -7088,6 +7240,161 @@ def factura_pdf(pedido_id):
     # de cerrar sesión.
     resp.headers['Cache-Control'] = 'no-store, private'
     return resp
+
+
+def _factura_vigente_del_pedido(pedido):
+    """Trae la factura viva de QBO y verifica que sea la de este pedido.
+
+    Mismas guardas que `factura_pdf`: sin `invoice_id_qbo` no hay nada que
+    traer, y un payload vacío o de otra factura se rechaza en vez de usarse.
+    """
+    from utils.factura_pdf import _pick_invoice
+
+    if not pedido.invoice_id_qbo:
+        abort(404, description='Este pedido no tiene factura en QuickBooks.')
+
+    factura = _obtener_factura_qbo(pedido.invoice_id_qbo)
+    if not factura:
+        abort(502, description='No se pudo obtener la factura desde QuickBooks.')
+
+    inv = _pick_invoice(factura)
+    if str(inv.get('Id')) != str(pedido.invoice_id_qbo):
+        app.logger.error(
+            'QBO devolvió la factura Id=%s para el pedido %s (se esperaba %s)',
+            inv.get('Id'), pedido.id, pedido.invoice_id_qbo,
+        )
+        abort(502, description='QuickBooks devolvió una factura que no corresponde a este pedido.')
+
+    return factura
+
+
+@app.route('/pedidos/<int:pedido_id>/precios-factura')
+@login_required
+@requiere_permiso_recurso('precios', 'leer')
+def revisar_precios_factura(pedido_id):
+    """Compara los precios de la factura corregida en QBO contra los de la app.
+
+    Cuando la lista está desactualizada el precio se corrige a mano en QBO y esa
+    corrección no vuelve nunca a la app, así que hay que volver a corregirla en
+    la factura siguiente. Esta pantalla es el camino de vuelta.
+    """
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        abort(403)
+
+    factura = _factura_vigente_del_pedido(pedido)
+    filas, avisos = _comparar_precios_factura(pedido, factura)
+
+    return render_template(
+        'revisar_precios_factura.html',
+        pedido=pedido,
+        filas=filas,
+        avisos=avisos,
+        diferencias=[f for f in filas if f['estado'] == 'difiere'],
+        no_aplicables=[
+            f for f in filas
+            if f['estado'] in ('sin_producto', 'precio_invalido', 'precio_ambiguo')
+        ],
+    )
+
+
+@app.route('/pedidos/<int:pedido_id>/precios-factura/aplicar', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('precios', 'editar')
+def aplicar_precios_factura(pedido_id):
+    """Escribe los precios confirmados en el precio del cliente.
+
+    Escribe SOLO en `PrecioClienteProducto`: ahí el margen es 1.0, así que
+    `precio_base` es directamente lo que se factura. En las listas generales hay
+    filas con margen 1.2, donde escribir el UnitPrice crudo inflaría la factura
+    siguiente un 20%.
+    """
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        abort(403)
+
+    seleccionados = set()
+    for raw in request.form.getlist('aplicar'):
+        try:
+            seleccionados.add(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    if not seleccionados:
+        flash('No seleccionaste ningún precio para actualizar.', 'info')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+    # Los precios se vuelven a leer de QBO en vez de confiar en el formulario:
+    # del form solo se toma QUÉ productos actualizar, nunca CON QUÉ valor.
+    factura = _factura_vigente_del_pedido(pedido)
+    filas, _ = _comparar_precios_factura(pedido, factura)
+    aplicables = {
+        f['producto_id']: f for f in filas
+        if f['estado'] == 'difiere' and f['producto_id'] is not None
+    }
+
+    actualizados = 0
+    for producto_id in sorted(seleccionados):
+        fila = aplicables.get(producto_id)
+        if not fila:
+            continue
+
+        nuevo = round(float(fila['precio_qbo']), 2)
+        # Sin filtrar por `activo`: la unique constraint es (cliente_id,
+        # producto_id), así que una fila desactivada haría fallar el insert.
+        registro = PrecioClienteProducto.query.filter_by(
+            cliente_id=pedido.cliente_id,
+            producto_id=producto_id,
+        ).first()
+
+        anterior = float(registro.precio_base) if registro else None
+
+        if registro is None:
+            registro = PrecioClienteProducto(
+                cliente_id=pedido.cliente_id,
+                producto_id=producto_id,
+                precio_base=nuevo,
+                margen_jomar=1.0,
+                margen_retail=1.2,
+                activo=True,
+            )
+            db.session.add(registro)
+        else:
+            registro.precio_base = nuevo
+            registro.activo = True
+
+        registro.calcular_precios()
+
+        _log_pedido_evento(
+            pedido,
+            'precio_actualizado',
+            f"{fila['nombre']}: {anterior if anterior is not None else 'sin precio'} → {nuevo}",
+            meta={
+                'producto_id': producto_id,
+                'precio_anterior': anterior,
+                'precio_nuevo': nuevo,
+                'invoice_id_qbo': pedido.invoice_id_qbo,
+                'origen': 'factura_qbo',
+            },
+        )
+        actualizados += 1
+
+    if actualizados:
+        db.session.commit()
+        flash(
+            f'{actualizados} precio(s) actualizados para {pedido.cliente.nombre}. '
+            'Los próximos pedidos de este cliente los toman por defecto.',
+            'success',
+        )
+    else:
+        db.session.rollback()
+        flash('No había diferencias vigentes que aplicar.', 'info')
+
+    return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+
+
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS
 ############################################

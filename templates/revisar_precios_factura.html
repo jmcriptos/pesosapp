@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar precios{% endblock %}
+
+{% block header_title %}
+    <span class="fw-700 color-white">
+        Revisar precios
+    </span>
+    <br>
+    <small class="fs-08 color-white" style="opacity:0.8; font-weight:normal;">
+        {{ pedido.cliente.nombre }} &middot; Factura {{ pedido.doc_number_qbo or pedido.invoice_id_qbo }}
+    </small>
+{% endblock %}
+
+{% block content %}
+<div class="mobile-form-container">
+
+    {% for aviso in avisos %}
+    <div class="mobile-card" style="border-left:4px solid #f59e0b;">
+        <div class="mobile-card-body">
+            <i class="fas fa-triangle-exclamation" style="color:#f59e0b;"></i>
+            {{ aviso }}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not diferencias and not no_aplicables %}
+    <div class="mobile-card">
+        <div class="mobile-card-body">
+            <i class="fas fa-circle-check" style="color:#16a34a;"></i>
+            Los precios de la factura coinciden con los de la app. No hay nada que actualizar.
+        </div>
+    </div>
+    {% endif %}
+
+    {% if diferencias %}
+    <form method="POST" action="{{ url_for('aplicar_precios_factura', pedido_id=pedido.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <i class="fas fa-tags"></i>
+                Diferencias de precio
+            </div>
+            <div class="mobile-card-body">
+                <p class="fs-08" style="opacity:0.8; margin-bottom:12px;">
+                    Marcá solo los precios que sean el precio nuevo de verdad. Un descuento
+                    puntual marcado acá queda como precio permanente de este cliente.
+                </p>
+
+                {% for fila in diferencias %}
+                <div class="mobile-form-group" style="border-bottom:1px solid rgba(128,128,128,0.2); padding-bottom:10px;">
+                    <label class="mobile-form-label" style="display:flex; align-items:flex-start; gap:10px;">
+                        <input type="checkbox" name="aplicar" value="{{ fila.producto_id }}"
+                               style="margin-top:4px;">
+                        <span>
+                            <strong>{{ fila.nombre }}</strong>
+                            <br>
+                            <small class="fs-08" style="opacity:0.8;">
+                                Facturado: {{ '%.2f'|format(fila.qty) }} (cajas o kg, según el producto)
+                            </small>
+                            <br>
+                            <small class="fs-08">
+                                Precio en la app:
+                                {% if fila.precio_vigente is not none %}
+                                    {{ '%.2f'|format(fila.precio_vigente) }}
+                                {% else %}
+                                    <em>sin precio</em>
+                                {% endif %}
+                                &nbsp;&rarr;&nbsp;
+                                <strong>Factura QBO: {{ '%.2f'|format(fila.precio_qbo) }}</strong>
+                            </small>
+                            {% if fila.precio_facturado is not none %}
+                            <br>
+                            <small class="fs-08" style="opacity:0.7;">
+                                Se facturó desde la app a {{ '%.2f'|format(fila.precio_facturado) }}
+                            </small>
+                            {% endif %}
+                            {% if fila.heredado %}
+                            <br>
+                            <small class="fs-08" style="color:#f59e0b;">
+                                Hoy este cliente hereda el precio de la lista general.
+                                Al aplicarlo pasa a tener precio propio y deja de seguir la lista.
+                            </small>
+                            {% endif %}
+                        </span>
+                    </label>
+                </div>
+                {% endfor %}
+
+                <button type="submit" class="btn-primary"
+                        style="width:100%; margin-top:14px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <i class="fas fa-floppy-disk"></i> Actualizar precios seleccionados
+                </button>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+
+    {% if no_aplicables %}
+    <div class="mobile-card">
+        <div class="mobile-card-header">
+            <i class="fas fa-circle-question"></i>
+            Líneas que no se pueden actualizar
+        </div>
+        <div class="mobile-card-body">
+            {% for fila in no_aplicables %}
+            <div class="fs-08" style="padding:8px 0; border-bottom:1px solid rgba(128,128,128,0.2);">
+                <strong>{{ fila.nombre }}</strong>
+                &middot; {{ '%.2f'|format(fila.qty) }} &times; {{ '%.2f'|format(fila.precio_qbo) }}
+                <br>
+                <span style="opacity:0.75;">{{ fila.motivo }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:14px;">
+        <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}" class="btn-secondary"
+           style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-arrow-left"></i> Volver al pedido
+        </a>
+    </div>
+
+</div>
+{% endblock %}
