@@ -1,8 +1,8 @@
-"""Render de facturas de QuickBooks a PDF.
+"""Normalización de facturas de QuickBooks.
 
-Dos responsabilidades separadas a propósito: `extraer_datos_factura` normaliza
-el objeto Invoice de QBO a un dict plano (testeable con aserciones ricas), y
-`render_factura_pdf` lo dibuja (se verifica estructuralmente).
+`extraer_datos_factura` normaliza el objeto Invoice de QBO a un dict plano
+(testeable con aserciones ricas) que contiene todos los datos necesarios para
+el renderizado de PDF.
 
 El módulo es puro: sin Flask, sin base de datos, sin red.
 """

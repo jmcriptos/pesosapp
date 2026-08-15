@@ -76,3 +76,53 @@ def test_tolera_factura_sin_direccion():
     assert datos['direccion'] == []
     assert datos['crib'] == ''
     assert datos['lineas'] == []
+
+
+def test_extrae_impuesto_y_totales_con_ob():
+    """Verifica que el porcentaje de impuesto (OB) se extrae correctamente de TaxLineDetail."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(cargar('xcg_con_ob'))
+
+    assert datos['subtotal'] == 686.58
+    assert datos['ob_pct'] == 6
+    assert datos['ob'] == 41.19
+    assert datos['total'] == 727.77
+
+
+def test_subtotal_fallback_sin_subtotal_en_invoice():
+    """Cuando SubTotal no está presente, calcula el subtotal sumando los montos de las líneas."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    invoice = {
+        'Invoice': {
+            'DocNumber': '9999',
+            'Line': [
+                {
+                    'Amount': 100.00,
+                    'DetailType': 'SalesItemLineDetail',
+                    'SalesItemLineDetail': {
+                        'ItemRef': {'name': 'Category:Product A'},
+                        'Qty': 10,
+                        'UnitPrice': 10,
+                    }
+                },
+                {
+                    'Amount': 250.50,
+                    'DetailType': 'SalesItemLineDetail',
+                    'SalesItemLineDetail': {
+                        'ItemRef': {'name': 'Category:Product B'},
+                        'Qty': 5,
+                        'UnitPrice': 50.1,
+                    }
+                }
+            ],
+            'TxnTaxDetail': {'TotalTax': 0}
+        }
+    }
+
+    datos = extraer_datos_factura(invoice)
+
+    assert datos['subtotal'] == 350.50
+    assert datos['total'] == 350.50
+    assert len(datos['lineas']) == 2
