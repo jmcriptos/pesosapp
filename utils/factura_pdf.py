@@ -12,7 +12,7 @@ from io import BytesIO
 from pathlib import Path
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
@@ -247,27 +247,42 @@ def render_factura_pdf(invoice_json):
                                    spaceAfter=_px(5))
     st_crib = ParagraphStyle('cr', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2,
                              textColor=GRIS, spaceBefore=_px(4))
-    st_detalle_label = ParagraphStyle('dl', parent=st_normal, fontSize=9, textColor=GRIS)
+    # NOTA sobre alineación: TableStyle('ALIGN', ...) NO reposiciona un
+    # Paragraph -- Paragraph.wrap() siempre reclama el ancho completo de la
+    # celda (necesita saber dónde hacer word-wrap), así que para reportlab
+    # ya "usa todo el espacio" y el ALIGN de la tabla no tiene nada que
+    # mover. La alineación real de un Paragraph sale de su propio
+    # ParagraphStyle.alignment. Por eso todo lo que el CSS pide alineado a
+    # la derecha o centrado lleva su propio estilo con `alignment=` acá
+    # abajo, y los ('ALIGN', ...) que quedan en los TableStyle son sólo
+    # documentación de intención (no rompen nada, pero tampoco alinean).
+    st_detalle_label = ParagraphStyle('dl', parent=st_normal, fontSize=9, textColor=GRIS,
+                                      alignment=TA_RIGHT)
     st_detalle_val = ParagraphStyle('dv', parent=st_bold, fontSize=9)
 
     st_th = ParagraphStyle('th', parent=st_normal, fontName='Helvetica-Bold',
                            fontSize=8.5, leading=8.5 * 1.2)
+    st_th_center = ParagraphStyle('thc', parent=st_th, alignment=TA_CENTER)
+    st_th_right = ParagraphStyle('thr', parent=st_th, alignment=TA_RIGHT)
     st_product = ParagraphStyle('pr', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2)
     st_details = ParagraphStyle('de', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2)
     st_grid = ParagraphStyle('gr', parent=st_normal, fontSize=8.5, leading=8.5 * 1.6)
-    st_qty = ParagraphStyle('qt', parent=st_normal, fontSize=8, leading=8 * 1.2)
-    st_rate = ParagraphStyle('ra', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2)
-    st_amount = ParagraphStyle('am', parent=st_bold, fontSize=9)
+    st_qty = ParagraphStyle('qt', parent=st_normal, fontSize=8, leading=8 * 1.2,
+                            alignment=TA_CENTER)
+    st_rate = ParagraphStyle('ra', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2,
+                             alignment=TA_RIGHT)
+    st_amount = ParagraphStyle('am', parent=st_bold, fontSize=9, alignment=TA_RIGHT)
 
     st_banco_titulo = ParagraphStyle('bkt', parent=st_normal, fontName='Helvetica-Bold',
                                      fontSize=11, leading=11 * 1.2, textColor=GRIS)
     st_banco_linea = ParagraphStyle('bkl', parent=st_normal, fontSize=9, textColor=GRIS,
                                     leading=9 * 1.3)
     st_total_label = ParagraphStyle('tl', parent=st_normal, fontSize=10, leading=10 * 1.2)
-    st_total_val = ParagraphStyle('tv', parent=st_total_label, fontName='Helvetica-Bold')
+    st_total_val = ParagraphStyle('tv', parent=st_total_label, fontName='Helvetica-Bold',
+                                  alignment=TA_RIGHT)
     st_balance_label = ParagraphStyle('bl', parent=st_normal, fontName='Helvetica-Bold',
                                       fontSize=13, leading=13 * 1.2)
-    st_balance_val = ParagraphStyle('bv', parent=st_balance_label)
+    st_balance_val = ParagraphStyle('bv', parent=st_balance_label, alignment=TA_RIGHT)
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -342,7 +357,8 @@ def render_factura_pdf(invoice_json):
     col_amount = ancho_contenido * 0.13
 
     cab = ['PRODUCT', 'DETAILS', 'QUANTITY', 'RATE', 'AMOUNT']
-    filas = [[Paragraph(_xe(c), st_th) for c in cab]]
+    cab_estilos = [st_th, st_th, st_th_center, st_th_right, st_th_right]
+    filas = [[Paragraph(_xe(c), est) for c, est in zip(cab, cab_estilos)]]
     for l in d['lineas']:
         detalle = (_grid_pesos(l['pesos'], st_grid, col_details) if l['pesos']
                    else Paragraph(_xe(l['detalle_texto']), st_details))
@@ -389,6 +405,14 @@ def render_factura_pdf(invoice_json):
         colWidths=[45 * mm, 40 * mm],
         style=TableStyle([
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            # Sin este RIGHTPADDING explícito, la celda de valor cae en el
+            # padding por defecto de reportlab (6pt planos, no derivado de
+            # ningún px del CSS) en vez del mismo _px(6) que usa la columna
+            # AMOUNT de la tabla de líneas -- por eso los importes quedaban
+            # ~1.5pt más adentro que AMOUNT y no coincidían con su borde
+            # derecho pese a estar ambos "pegados" a la misma margen.
+            ('LEFTPADDING', (0, 0), (-1, -1), _px(6)),
+            ('RIGHTPADDING', (0, 0), (-1, -1), _px(6)),
             # Regla doble (no sólida) sobre BALANCE DUE, como el CSS de referencia.
             ('LINEABOVE', (0, -1), (-1, -1), _px(1), colors.black, None, None, None, 2, _px(3)),
             ('TOPPADDING', (0, 0), (-1, -2), _px(8)),

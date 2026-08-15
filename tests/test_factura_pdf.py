@@ -99,6 +99,103 @@ def _fuente_de(runs, texto_esperado):
     raise AssertionError(f'no se encontró ningún texto que contenga {texto_esperado!r}')
 
 
+_TOKEN_RE_POS = re.compile(
+    rb'(?P<q>q)(?=[\s])'
+    rb'|(?P<Q>Q)(?=[\s])'
+    rb'|1 0 0 1 (?P<cmx>-?[\d.]+) -?[\d.]+ cm'          # traslación (q/cm/Q anidados de las tablas)
+    rb'|/(?P<fname>F\d+) (?P<fsize>[\d.]+) Tf'
+    rb'|1 0 0 1 (?P<tmx>-?[\d.]+) -?[\d.]+ Tm'          # fija el origen de la línea de texto
+    rb'|(?P<tdx>-?[\d.]+) -?[\d.]+ Td'                  # mueve dentro de esa línea (así alinea reportlab)
+    rb'|\((?P<tj>(?:[^()\\]|\\.)*)\)\s*Tj'
+    rb'|\[(?P<TJ>(?:[^\[\]])*)\]\s*TJ'
+)
+
+
+def _runs_con_posicion(pdf):
+    """Como `_runs_de_texto`, pero además de fuente/tamaño devuelve la
+    posición x0 (en pt, en el sistema de coordenadas de la página) donde
+    reportlab empezó a dibujar cada fragmento de texto.
+
+    reportlab no alinea a la derecha/centro moviendo la celda -- calcula el
+    ancho de la línea con `stringWidth` y la corre con un operador `Td`
+    relativo *dentro* del mismo bloque BT/ET (el `Tm` sólo fija el punto de
+    partida de la línea). Sumar cm (traslación acumulada de las tablas
+    anidadas) + Tm + Td da la x real donde arranca el glyph; sumarle
+    `pdfmetrics.stringWidth(texto, fuente, tamaño)` da dónde termina -- ese
+    borde derecho es lo que hay que comparar entre columnas/bloques.
+    Devuelve una lista de (x0, fuente, tamaño, texto)."""
+    fuentes = _mapa_fuentes(pdf)
+    runs = []
+    for stream in _streams_descomprimidos(pdf):
+        stack = [0.0]
+        cum = 0.0
+        fuente = tamano = None
+        tm_tx = 0.0
+        td_acc = 0.0
+        for m in _TOKEN_RE_POS.finditer(stream):
+            if m.group('q') is not None:
+                stack.append(cum)
+            elif m.group('Q') is not None:
+                if stack:
+                    cum = stack.pop()
+            elif m.group('cmx') is not None:
+                cum += float(m.group('cmx'))
+            elif m.group('fname') is not None:
+                fuente = fuentes.get(m.group('fname'), m.group('fname').decode('latin1'))
+                tamano = float(m.group('fsize'))
+            elif m.group('tmx') is not None:
+                tm_tx = float(m.group('tmx'))
+                td_acc = 0.0
+            elif m.group('tdx') is not None:
+                td_acc += float(m.group('tdx'))
+            elif m.group('tj') is not None:
+                texto = _unescape(m.group('tj')).decode('latin1')
+                if texto.strip():
+                    runs.append((cum + tm_tx + td_acc, fuente, tamano, texto))
+            elif m.group('TJ') is not None:
+                texto = b''.join(_unescape(p) for p in _PAREN_RE.findall(m.group('TJ'))).decode('latin1')
+                if texto.strip():
+                    runs.append((cum + tm_tx + td_acc, fuente, tamano, texto))
+    return runs
+
+
+def _bordes_derechos(runs, texto_esperado):
+    """x del borde derecho (x0 + ancho real del glyph run) de CADA run cuyo
+    texto es exactamente `texto_esperado` (dos importes iguales -- p.ej.
+    TOTAL y BALANCE DUE en la misma factura -- son runs distintos con la
+    misma cadena)."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    bordes = [x0 + stringWidth(texto, fuente, tamano)
+              for x0, fuente, tamano, texto in runs if texto.strip() == texto_esperado]
+    if not bordes:
+        raise AssertionError(f'no se encontró ningún texto igual a {texto_esperado!r}')
+    return bordes
+
+
+def _borde_derecho(runs, texto_esperado):
+    """x del borde derecho (x0 + ancho real del glyph run) del primer run
+    cuyo texto contiene `texto_esperado`."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    for x0, fuente, tamano, texto in runs:
+        if texto_esperado in texto:
+            return x0 + stringWidth(texto, fuente, tamano)
+    raise AssertionError(f'no se encontró ningún texto que contenga {texto_esperado!r}')
+
+
+def _centro(runs, texto_esperado):
+    """x del centro horizontal del primer run cuyo texto contiene
+    `texto_esperado` (para verificar centrado, no alineación a la
+    derecha)."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    for x0, fuente, tamano, texto in runs:
+        if texto_esperado in texto:
+            return x0 + stringWidth(texto, fuente, tamano) / 2
+    raise AssertionError(f'no se encontró ningún texto que contenga {texto_esperado!r}')
+
+
 def test_extrae_cabecera_y_cliente():
     from utils.factura_pdf import extraer_datos_factura
 
@@ -312,3 +409,62 @@ def test_render_usd_muestra_la_moneda():
     pdf = render_factura_pdf(cargar('usd'))
 
     assert b'USD - US Dollar' in _texto_visible(pdf)
+
+
+def test_render_alinea_totales_detalles_y_amount_a_la_derecha():
+    """Regresión de un bug real: TableStyle('ALIGN', ..., 'RIGHT') no
+    reposiciona un Paragraph (que siempre reclama el ancho completo de la
+    celda) -- sin `alignment=TA_RIGHT`/`TA_CENTER` en el propio
+    ParagraphStyle, todo lo que el CSS pide alineado queda pegado a la
+    izquierda. Verificado con un PDF de control aislado (un Paragraph con
+    ALIGN RIGHT de tabla y sin alignment propio sale a la izquierda).
+
+    Estas aserciones comparan bordes derechos reales (x0 + stringWidth),
+    no estilos declarados, así que también detectan una regresión de
+    columna/padding aunque el `alignment` del estilo siga puesto."""
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(cargar('xcg_con_ob'))
+    runs = _runs_con_posicion(pdf)
+
+    # 1) Los cuatro valores del bloque de totales terminan en la misma x.
+    #    TOTAL y BALANCE DUE comparten importe (727.77) en esta fixture --
+    #    son dos runs distintos con la misma cadena, así que se piden los
+    #    dos bordes de una y se verifican ambos.
+    borde_subtotal = _borde_derecho(runs, '686.58')
+    borde_ob = _borde_derecho(runs, '41.19')
+    borde_total, borde_balance = _bordes_derechos(runs, '727.77')
+
+    assert borde_subtotal == pytest.approx(borde_ob, abs=0.5)
+    assert borde_subtotal == pytest.approx(borde_total, abs=0.5)
+    assert borde_subtotal == pytest.approx(borde_balance, abs=0.5)
+
+    # 2) Ese borde común coincide con el borde derecho de la columna AMOUNT
+    #    de la tabla de líneas (header y valores) -- el bloque de totales
+    #    llega hasta el mismo margen derecho que la tabla de productos.
+    borde_amount_header = _borde_derecho(runs, 'AMOUNT')
+    borde_amount_293 = _borde_derecho(runs, '293.34')
+    borde_amount_393 = _borde_derecho(runs, '393.24')
+    assert borde_amount_header == pytest.approx(borde_amount_293, abs=0.5)
+    assert borde_amount_393 == pytest.approx(borde_amount_293, abs=0.5)
+    assert borde_subtotal == pytest.approx(borde_amount_header, abs=0.5)
+
+    # 3) Las etiquetas del bloque de detalles ('Invoice #:', 'Date:'...)
+    #    terminan todas en la misma x, justo antes de sus valores.
+    etiquetas = ['Invoice #:', 'Date:', 'Terms:', 'Due Date:', 'Currency:']
+    bordes_etiquetas = [_borde_derecho(runs, e) for e in etiquetas]
+    for b in bordes_etiquetas[1:]:
+        assert b == pytest.approx(bordes_etiquetas[0], abs=0.5)
+
+    # 4) QUANTITY: los valores quedan centrados bajo su header (no
+    #    pegados a la izquierda de la columna). '2.00' también aparece en
+    #    DETAILS (mismo valor que QUANTITY para un producto sin pesar,
+    #    por diseño), pero a 8.5pt -- QUANTITY es la única columna a 8pt
+    #    (`st_qty`), así que ese tamaño desambigua cuál run es cuál.
+    centro_header_qty = _centro(runs, 'QUANTITY')
+    runs_qty_8pt = [r for r in runs if r[2] == 8 and r[3].strip() == '2.00']
+    assert runs_qty_8pt, 'no se encontró el valor de QUANTITY a 8pt'
+    x0, fuente, tamano, texto = runs_qty_8pt[0]
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    centro_valor_qty = x0 + stringWidth(texto, fuente, tamano) / 2
+    assert centro_valor_qty == pytest.approx(centro_header_qty, abs=1.5)
