@@ -6789,6 +6789,38 @@ try:
 except (ValueError, TypeError):
     N8N_WEBHOOK_TIMEOUT = 30
 
+N8N_INVOICE_FETCH_WEBHOOK_URL = os.environ.get('N8N_INVOICE_FETCH_WEBHOOK_URL', '').strip()
+try:
+    N8N_INVOICE_FETCH_TIMEOUT = int(os.environ.get('N8N_INVOICE_FETCH_TIMEOUT', 20))
+except (ValueError, TypeError):
+    N8N_INVOICE_FETCH_TIMEOUT = 20
+
+
+def _obtener_factura_qbo(invoice_id):
+    """Pide a n8n la factura vigente en QuickBooks.
+
+    Se consulta en vivo en lugar de guardar un snapshot al facturar porque las
+    facturas se corrigen a mano en QBO cuando la lista de precios de la app
+    está desactualizada. Devuelve None ante cualquier fallo; quien llama decide
+    qué mostrar.
+    """
+    if not N8N_INVOICE_FETCH_WEBHOOK_URL:
+        app.logger.warning('N8N_INVOICE_FETCH_WEBHOOK_URL no configurada')
+        return None
+    try:
+        resp = requests.post(
+            N8N_INVOICE_FETCH_WEBHOOK_URL,
+            json={'invoice_id': str(invoice_id)},
+            timeout=N8N_INVOICE_FETCH_TIMEOUT,
+            headers=_webhook_headers(),
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        app.logger.error(f'No se pudo obtener la factura {invoice_id} de QBO: {e}')
+        return None
+
+
 @app.route('/pedidos/<int:pedido_id>/facturar', methods=['POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'editar')
