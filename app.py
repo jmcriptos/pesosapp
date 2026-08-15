@@ -3396,6 +3396,43 @@ def pedido_a_json(pedido: Pedido) -> dict:
     }
 
 
+def _validar_datos_facturacion(payload):
+    """Valida el payload que se enviará a QBO: cada línea necesita item y precio.
+
+    Una línea sin product_qbo_id o con unit_price 0 produce una factura
+    incorrecta en QuickBooks que hay que corregir a mano. Pasó el 2026-08-14
+    con un producto nuevo creado sin precio en ninguna lista y con un qbo_id
+    que no correspondía al item real.
+    """
+    errores = []
+    vistos = set()
+
+    def _agregar(mensaje):
+        if mensaje not in vistos:
+            vistos.add(mensaje)
+            errores.append(mensaje)
+
+    if not payload.get('customer_qbo_id'):
+        _agregar('El cliente no tiene QBO ID configurado.')
+
+    lineas = payload.get('lines') or []
+    if not lineas:
+        _agregar('El pedido no tiene líneas para facturar.')
+
+    for linea in lineas:
+        nombre = linea.get('descripcion') or 'Producto sin nombre'
+        if not linea.get('product_qbo_id'):
+            _agregar(f'{nombre}: el producto no tiene QBO ID configurado.')
+        try:
+            precio = float(linea.get('unit_price') or 0)
+        except (TypeError, ValueError):
+            precio = 0.0
+        if precio <= 0:
+            _agregar(f'{nombre}: precio en 0 — falta cargarlo en la lista de precios.')
+
+    return errores
+
+
 def obtener_ip_servidor():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -6736,10 +6773,22 @@ def facturar_pedido(pedido_id):
         flash('No tienes permisos para facturar este pedido', 'error')
         return redirect(url_for('lista_pedidos'))
 
-    # Sólo facturar si aún no fue facturado (permitir reintento si no tiene invoice_id)
-    if pedido.estado == 'facturado' and pedido.invoice_id_qbo:
-        flash('El pedido ya está facturado.', 'info')
-        return redirect(url_for('lista_pedidos'))
+    # Sólo facturar si aún no fue facturado. Ojo: N8N no devuelve invoice_id, así
+    # que invoice_id_qbo está NULL incluso en pedidos que sí se facturaron — no se
+    # puede usar como prueba de "ya facturado". Sin esta guarda el pedido 1264 se
+    # envió dos veces el 2026-08-14. El reintento exige confirmación explícita.
+    if pedido.estado == 'facturado':
+        if pedido.invoice_id_qbo:
+            flash('El pedido ya está facturado.', 'info')
+            return redirect(url_for('lista_pedidos'))
+        if not request.form.get('reintentar'):
+            flash(
+                'Este pedido ya fue enviado a facturar. Verificá en QuickBooks '
+                'antes de reenviarlo: si la factura ya existe, reenviar crea una '
+                'factura duplicada.',
+                'warning',
+            )
+            return redirect(url_for('lista_pedidos'))
 
     traz_errores = _validar_preparacion_pedido(pedido)
     if traz_errores:
@@ -6749,6 +6798,14 @@ def facturar_pedido(pedido_id):
         return redirect(url_for('lista_pedidos'))
 
     payload = pedido_a_json(pedido)
+
+    # ── Guard: datos que QBO necesita (item y precio en cada línea) ──
+    datos_errores = _validar_datos_facturacion(payload)
+    if datos_errores:
+        flash('No se puede facturar. Datos incompletos para QuickBooks:', 'error')
+        for err in datos_errores:
+            flash(err, 'error')
+        return redirect(url_for('lista_pedidos'))
 
     # ── Guard: verificar que N8N está configurado ──
     if not N8N_WEBHOOK_URL:
@@ -6802,8 +6859,8 @@ def facturar_pedido(pedido_id):
     _log_pedido_evento(
         pedido,
         'facturado',
-        f'Pedido facturado{(": " + invoice_id) if invoice_id else ""}',
-        meta={'invoice_id_qbo': invoice_id},
+        f'Pedido facturado{(": " + invoice_id) if invoice_id else " (QBO no confirmó número de factura)"}',
+        meta={'invoice_id_qbo': invoice_id, 'qbo_confirmado': bool(invoice_id)},
     )
     try:
         db.session.commit()
@@ -6816,7 +6873,13 @@ def facturar_pedido(pedido_id):
     if invoice_id:
         flash(f'Factura generada: {invoice_id}', 'success')
     else:
-        flash('Factura generada correctamente. Sin invoice_id devuelto por QuickBooks.', 'success')
+        # Un 2xx de N8N no prueba que QBO haya creado la factura. Decir "generada
+        # correctamente" acá fue lo que ocultó el fallo del 2026-08-14.
+        flash(
+            'Enviado a QuickBooks, pero QBO no confirmó el número de factura. '
+            'Verificá en QuickBooks que la factura exista antes de reenviar.',
+            'warning',
+        )
     return redirect(url_for('lista_pedidos'))
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS

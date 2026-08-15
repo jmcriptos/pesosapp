@@ -43,18 +43,20 @@ def app():
         vendedor.set_password('testpass')
         _db.session.add(vendedor)
 
-        # Setup cliente
-        cliente = Cliente(nombre='Cliente Test', territorio_id=territorio.id)
+        # Setup cliente (con qbo_id: sin él no se puede facturar en QuickBooks)
+        cliente = Cliente(nombre='Cliente Test', territorio_id=territorio.id,
+                          qbo_id='QBO-C001')
         _db.session.add(cliente)
         _db.session.flush()
 
-        # Setup productos
+        # Setup productos (con qbo_id: el payload lo necesita para el item de QBO)
         producto_carne = Producto(
             nombre='Chuleta de Cerdo',
             descripcion='Carne que se pesa',
             temperatura='Congelado',
             se_pesa=True,
             tax_rate=6.0,
+            qbo_id='QBO-P001',
         )
         producto_aceite = Producto(
             nombre='Aceite de Oliva',
@@ -62,6 +64,7 @@ def app():
             temperatura='Ambiente',
             se_pesa=False,
             tax_rate=6.0,
+            qbo_id='QBO-P002',
         )
         _db.session.add_all([producto_carne, producto_aceite])
         _db.session.flush()

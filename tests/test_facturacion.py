@@ -69,6 +69,21 @@ def app():
         _db.session.add(pedido)
         _db.session.flush()
 
+        # Línea original (lo que pidió el cliente). Sin ella, pedido_a_json
+        # descarta la línea de preparación como huérfana y el payload sale
+        # vacío — el pedido no tendría nada que facturar.
+        detalle_original = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=producto.id,
+            cajas=10,
+            peso=0,
+            cajas_pedidas=10,
+            precio_unitario=25.00,
+            subtotal=250.00,
+            es_linea_pedido=True,
+        )
+        _db.session.add(detalle_original)
+
         detalle = DetallePedido(
             pedido_id=pedido.id,
             producto_id=producto.id,
@@ -239,7 +254,12 @@ def test_facturacion_timeout(mock_post, logged_client, app):
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post')
 def test_facturacion_exitosa_sin_invoice_id(mock_post, logged_client, app):
-    """AC #5: N8N 200 sin invoice_id → estado=facturado, invoice_id_qbo=None."""
+    """AC #5: N8N 200 sin invoice_id → estado=facturado, invoice_id_qbo=None.
+
+    El flash ya NO declara éxito: un 2xx de N8N no prueba que QBO haya creado la
+    factura. El 2026-08-14 este mensaje ("Factura generada correctamente") ocultó
+    un pedido que nunca llegó a QuickBooks.
+    """
     mock_post.return_value = _mock_n8n_success_no_invoice()
 
     with app.app_context():
@@ -258,8 +278,9 @@ def test_facturacion_exitosa_sin_invoice_id(mock_post, logged_client, app):
         assert pedido.invoice_id_qbo is None
         assert pedido.fecha_facturacion is not None
 
-        # Flash genérico (sin invoice ID)
-        assert 'Factura generada correctamente'.encode() in resp.data
+        # Flash de advertencia, no de éxito
+        assert 'Factura generada correctamente'.encode() not in resp.data
+        assert 'no confirm'.encode() in resp.data
 
 
 # === AC #6: Pedido ya facturado (idempotencia) ===
@@ -296,21 +317,13 @@ def test_facturacion_trazabilidad_incompleta(logged_client, app):
         from app import Pedido, DetallePedido
         pedido = Pedido.query.first()
         pedido_id = pedido.id
-        # Trazabilidad incompleta (modelo actual): una línea original pesable cuya
-        # línea de preparación quedó sin lote. _validar_preparacion_pedido solo valida
-        # la preparación de productos que tienen línea original, así que añadimos una.
-        detalle = DetallePedido.query.filter_by(pedido_id=pedido_id).first()
-        linea_original = DetallePedido(
-            pedido_id=pedido_id,
-            producto_id=detalle.producto_id,
-            cajas=detalle.cajas,
-            peso=0,
-            precio_unitario=0,
-            subtotal=0,
-            es_linea_pedido=True,
-        )
-        _db.session.add(linea_original)
-        detalle.lote = None
+        # Trazabilidad incompleta (modelo actual): el fixture ya trae línea original
+        # + línea de preparación. _validar_preparacion_pedido solo valida la
+        # preparación de productos que tienen línea original, así que basta con
+        # dejar sin lote la línea de preparación.
+        detalle_prep = DetallePedido.query.filter_by(
+            pedido_id=pedido_id, es_linea_pedido=False).first()
+        detalle_prep.lote = None
         _db.session.commit()
 
         with patch('app.requests.post') as mock_post:

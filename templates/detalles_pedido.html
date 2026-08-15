@@ -49,8 +49,10 @@
         </span>
         <span class="status-info">{{ detalles_ordenados|length if detalles_ordenados else 0 }} líneas</span>
         {% if pedido.estado == 'facturado' and not pedido.invoice_id_qbo %}
-        <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" style="margin:0">
+        <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" style="margin:0"
+              data-confirm="Este pedido ya fue enviado a facturar. Si la factura ya existe en QuickBooks, reenviarlo crea un DUPLICADO. ¿Reenviar de todas formas?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="reintentar" value="1">
             <button type="submit" class="status-badge" style="background:#fff3e0;color:#e65100;border:none;cursor:pointer;font-weight:600;font-size:.82rem;padding:6px 12px;border-radius:20px;">
                 <i class="fas fa-redo"></i> Reintentar
             </button>
@@ -61,8 +63,10 @@
     <!-- Botón Reintentar facturación (si está facturado sin QBO ID) -->
     {% if pedido.estado == 'facturado' and not pedido.invoice_id_qbo %}
     <div style="margin: 0 16px 14px;">
-      <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST">
+      <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
+            data-confirm="Este pedido ya fue enviado a facturar. Si la factura ya existe en QuickBooks, reenviarlo crea un DUPLICADO. ¿Reenviar de todas formas?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="reintentar" value="1">
         <button type="submit" class="btn-secondary" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
           <i class="fas fa-redo"></i> Reintentar facturación
         </button>
