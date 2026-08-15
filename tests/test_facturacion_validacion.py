@@ -275,6 +275,31 @@ def test_lee_invoice_id_del_objeto_invoice_de_qbo(mock_post, logged_client, app)
 
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post')
+def test_persiste_doc_number_al_facturar(mock_post, logged_client, app):
+    """El número visible de la factura (DocNumber) se guarda para poder
+    nombrar el PDF y mostrarlo sin volver a consultar QuickBooks."""
+    from unittest.mock import MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        'Invoice': {'Id': '47349', 'DocNumber': '5816'},
+    }
+    mock_resp.raise_for_status = MagicMock()
+    mock_post.return_value = mock_resp
+
+    with app.app_context():
+        from app import Pedido
+        pedido_id = _crear_pedido_preparado()
+
+        logged_client.post(f'/pedidos/{pedido_id}/facturar', follow_redirects=True)
+
+        pedido = _db.session.get(Pedido, pedido_id)
+        assert pedido.doc_number_qbo == '5816'
+
+
+@patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
+@patch('app.requests.post')
 def test_guard_duplicados_usa_invoice_id_real(mock_post, logged_client, app):
     """Con invoice_id_qbo poblado, el pedido ya facturado se rechaza sin pedir
     confirmación: hay prueba de que la factura existe en QuickBooks."""

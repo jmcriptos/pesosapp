@@ -2229,6 +2229,7 @@ class Pedido(db.Model):
     estado = db.Column(db.String(30), default="pendiente", nullable=False)
     notas = db.Column(db.Text, nullable=True)
     invoice_id_qbo = db.Column(db.String(100), nullable=True)
+    doc_number_qbo = db.Column(db.String(20), nullable=True)
     tipo_cambio = db.Column(db.Float, default=1.0, nullable=False)
     cliente = db.relationship('Cliente', back_populates='pedidos')
     detalles = db.relationship('DetallePedido', back_populates='pedido', cascade="all, delete-orphan")
@@ -6881,6 +6882,7 @@ def facturar_pedido(pedido_id):
     # ── Transacción atómica: marcar como facturado ──
     pedido.estado = 'facturado'
     pedido.invoice_id_qbo = invoice_id
+    pedido.doc_number_qbo = doc_number
     pedido.fecha_facturacion = datetime.now(timezone.utc)
     _log_pedido_evento(
         pedido,
