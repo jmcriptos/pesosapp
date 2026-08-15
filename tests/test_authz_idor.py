@@ -156,6 +156,15 @@ def test_vendedor_ajeno_no_abre_editar_pedido(app):
     )
 
 
+@patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://test/fetch')
+@patch('app.requests.post')
+def test_vendedor_ajeno_no_descarga_factura_pdf(mock_post, app):
+    c = _login(app, 'vend_b')
+    resp = c.get(f'/pedidos/{IDS["pedido_a"]}/factura.pdf', follow_redirects=False)
+    assert resp.status_code in (302, 403)
+    mock_post.assert_not_called()  # no debe consultarse QBO
+
+
 # ── Vuln 2: APIs de precios por cliente (IDOR) ─────────────────────────────
 
 @pytest.mark.parametrize('url_tpl', [

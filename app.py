@@ -6980,6 +6980,49 @@ def facturar_pedido(pedido_id):
             'warning',
         )
     return redirect(url_for('lista_pedidos'))
+
+
+@app.route('/pedidos/<int:pedido_id>/factura.pdf')
+@login_required
+@requiere_permiso_recurso('pedidos', 'leer')
+def factura_pdf(pedido_id):
+    """PDF de la factura, con los datos vigentes en QuickBooks.
+
+    Se consulta QBO en cada llamada en vez de guardar un snapshot: las facturas
+    se corrigen a mano cuando la lista de precios está desactualizada, y el PDF
+    tiene que reflejar lo que realmente se le cobró al cliente.
+    """
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        abort(403)
+
+    if not pedido.invoice_id_qbo:
+        abort(404, description='Este pedido no tiene factura en QuickBooks.')
+
+    factura = _obtener_factura_qbo(pedido.invoice_id_qbo)
+    if not factura:
+        abort(502, description='No se pudo obtener la factura desde QuickBooks.')
+
+    from utils.factura_pdf import render_factura_pdf, extraer_datos_factura
+
+    try:
+        pdf = render_factura_pdf(factura)
+    except Exception as e:
+        app.logger.error(f'Error al renderizar la factura del pedido {pedido_id}: {e}')
+        abort(500, description='No se pudo generar el PDF de la factura.')
+
+    numero = extraer_datos_factura(factura)['numero'] or pedido.doc_number_qbo or pedido.id
+    filename = f'Factura_{numero}.pdf'
+
+    _archivar_factura_drive(pdf, filename)
+
+    return send_file(
+        BytesIO(pdf),
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=filename,
+    )
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS
 ############################################
