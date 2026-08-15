@@ -1,4 +1,5 @@
 import os
+import re
 import calendar
 import secrets
 import hmac
@@ -6987,6 +6988,45 @@ def facturar_pedido(pedido_id):
     return redirect(url_for('lista_pedidos'))
 
 
+def _sanitizar_para_archivo(texto):
+    """Deja `texto` apto para un nombre de archivo (Drive, iOS, Web Share).
+
+    Sólo se conservan letras (incluidas las acentuadas y ñ/ü de nombres de
+    clientes de Curazao), dígitos, espacios, guiones y guiones bajos; el
+    resto se descarta. Las corridas de espacio quedan como un solo guión
+    bajo, y no sobran guiones bajos al principio ni al final.
+    """
+    if not texto:
+        return ''
+    limpio = re.sub(r'[^\w\s-]', '', texto, flags=re.UNICODE)
+    limpio = re.sub(r'\s+', '_', limpio.strip())
+    return limpio.strip('_')
+
+
+def _truncar_en_guion_bajo(texto, largo):
+    """Recorta `texto` a `largo` caracteres, cortando en un guión bajo en
+    vez de a mitad de palabra cuando hay uno disponible dentro del límite."""
+    if len(texto) <= largo:
+        return texto
+    cortado = texto[:largo]
+    if '_' in cortado:
+        cortado = cortado.rsplit('_', 1)[0]
+    return cortado.rstrip('_')
+
+
+def _nombre_archivo_factura(numero, cliente):
+    """Nombre del PDF de la factura, con el cliente incluido para que sea
+    identificable a simple vista en Drive (antes era sólo `Factura_<numero>`).
+
+    El nombre de cliente viene de la factura de QBO (lo que se le imprimió
+    de verdad al cliente), no de `pedido.cliente.nombre`.
+    """
+    cliente_limpio = _truncar_en_guion_bajo(_sanitizar_para_archivo(cliente), 40)
+    if not cliente_limpio:
+        return f'Factura_{numero}.pdf'
+    return f'Factura_{numero}_{cliente_limpio}.pdf'
+
+
 @app.route('/pedidos/<int:pedido_id>/factura.pdf')
 @login_required
 @requiere_permiso_recurso('pedidos', 'leer')
@@ -7026,12 +7066,15 @@ def factura_pdf(pedido_id):
 
     try:
         pdf = render_factura_pdf(factura)
-        numero = extraer_datos_factura(factura)['numero'] or pedido.doc_number_qbo or pedido.id
+        datos_factura = extraer_datos_factura(factura)
+        numero = datos_factura['numero'] or pedido.doc_number_qbo or pedido.id
     except Exception as e:
         app.logger.error(f'Error al renderizar la factura del pedido {pedido_id}: {e}')
         abort(500, description='No se pudo generar el PDF de la factura.')
 
-    filename = f'Factura_{numero}.pdf'
+    # El nombre de cliente sale de la factura de QBO (lo impreso de verdad),
+    # no de pedido.cliente.nombre, que puede haber cambiado desde entonces.
+    filename = _nombre_archivo_factura(numero, datos_factura['cliente'])
 
     _archivar_factura_drive(pdf, filename)
 

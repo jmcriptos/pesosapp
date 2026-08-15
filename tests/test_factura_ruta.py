@@ -133,6 +133,54 @@ def _factura_fixture(nombre='xcg_sin_ob.json'):
         pathlib.Path(f'tests/fixtures/facturas/{nombre}').read_text())
 
 
+# ---- Nombre del archivo del PDF (incluye el cliente, para Drive/iOS) ----
+
+def test_nombre_archivo_factura_nombre_plano():
+    from app import _nombre_archivo_factura
+
+    assert _nombre_archivo_factura('5816', 'Roberto da Silva') == \
+        'Factura_5816_Roberto_da_Silva.pdf'
+
+
+def test_nombre_archivo_factura_con_acentos():
+    from app import _nombre_archivo_factura
+
+    # Los acentos y la ñ/ü de nombres de clientes de Curazao se preservan.
+    assert _nombre_archivo_factura('100', 'Panadería Süd') == \
+        'Factura_100_Panadería_Süd.pdf'
+
+
+def test_nombre_archivo_factura_quita_caracteres_invalidos():
+    from app import _nombre_archivo_factura
+
+    assert _nombre_archivo_factura('7', 'Toko "El Sol" / Sucursal #2') == \
+        'Factura_7_Toko_El_Sol_Sucursal_2.pdf'
+
+
+def test_nombre_archivo_factura_trunca_nombre_largo():
+    from app import _nombre_archivo_factura
+
+    nombre = 'Supermercado y Distribuidora Internacional de Curazao BV'
+    resultado = _nombre_archivo_factura('42', nombre)
+
+    # Sanitizado son 56 caracteres; al límite de 40 cae a mitad de
+    # "Internacion", así que se corta en el guión bajo anterior en vez de
+    # dejar la palabra a medias.
+    assert resultado == 'Factura_42_Supermercado_y_Distribuidora.pdf'
+    cliente = resultado[len('Factura_42_'):-len('.pdf')]
+    assert len(cliente) <= 40
+    assert not cliente.endswith('_')
+
+
+def test_nombre_archivo_factura_fallback_si_nombre_vacio():
+    from app import _nombre_archivo_factura
+
+    assert _nombre_archivo_factura('5816', '') == 'Factura_5816.pdf'
+    assert _nombre_archivo_factura('5816', None) == 'Factura_5816.pdf'
+    # Nombre compuesto solo por caracteres inválidos también cae al fallback.
+    assert _nombre_archivo_factura('5816', '###///') == 'Factura_5816.pdf'
+
+
 @patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://n8n.local/fetch')
 @patch('app.N8N_DRIVE_WEBHOOK_URL', '')
 @patch('app.requests.post')
@@ -152,7 +200,10 @@ def test_ruta_devuelve_pdf(mock_post, app):
     assert resp.status_code == 200
     assert resp.mimetype == 'application/pdf'
     assert resp.data[:5] == b'%PDF-'
-    assert 'Factura_5814.pdf' in resp.headers['Content-Disposition']
+    # El nombre del archivo incluye el número de factura y el cliente (tal
+    # como aparece impreso en la factura de QBO), para que sea identificable
+    # en Drive a simple vista.
+    assert 'Factura_5814_New_Centrum_Supermarket_BV.pdf' in resp.headers['Content-Disposition']
     # Documento financiero: no debe quedar cacheado tras cerrar sesión.
     assert 'no-store' in resp.headers['Cache-Control']
     assert 'private' in resp.headers['Cache-Control']
