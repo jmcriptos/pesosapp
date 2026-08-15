@@ -3433,6 +3433,32 @@ def _validar_datos_facturacion(payload):
     return errores
 
 
+def _extraer_invoice_id(resp_data):
+    """Devuelve (invoice_id, doc_number) desde la respuesta de N8N.
+
+    El webhook está en modo 'Last Node', así que N8N responde con el objeto
+    crudo de QuickBooks: {"Invoice": {"Id": "47349", "DocNumber": "5816"}}.
+    Se acepta además la forma plana {"invoice_id": ...} por si el workflow
+    vuelve a usar un nodo 'Respond to Webhook' propio.
+    """
+    if isinstance(resp_data, list):
+        resp_data = resp_data[0] if resp_data else None
+    if not isinstance(resp_data, dict):
+        return None, None
+
+    invoice = resp_data.get('Invoice')
+    if isinstance(invoice, dict) and invoice.get('Id'):
+        doc = invoice.get('DocNumber')
+        return str(invoice['Id']), (str(doc) if doc else None)
+
+    plano = resp_data.get('invoice_id')
+    if plano:
+        doc = resp_data.get('doc_number')
+        return str(plano), (str(doc) if doc else None)
+
+    return None, None
+
+
 def obtener_ip_servidor():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -6846,9 +6872,9 @@ def facturar_pedido(pedido_id):
 
     # ── Extraer invoice_id de la respuesta N8N ──
     invoice_id = None
+    doc_number = None
     try:
-        resp_data = resp.json()
-        invoice_id = resp_data.get('invoice_id')
+        invoice_id, doc_number = _extraer_invoice_id(resp.json())
     except Exception:
         app.logger.warning(f'No se pudo parsear JSON de respuesta n8n para pedido {pedido_id}')
 
@@ -6860,7 +6886,11 @@ def facturar_pedido(pedido_id):
         pedido,
         'facturado',
         f'Pedido facturado{(": " + invoice_id) if invoice_id else " (QBO no confirmó número de factura)"}',
-        meta={'invoice_id_qbo': invoice_id, 'qbo_confirmado': bool(invoice_id)},
+        meta={
+            'invoice_id_qbo': invoice_id,
+            'doc_number': doc_number,
+            'qbo_confirmado': bool(invoice_id),
+        },
     )
     try:
         db.session.commit()
@@ -6871,7 +6901,10 @@ def facturar_pedido(pedido_id):
         return redirect(url_for('lista_pedidos'))
 
     if invoice_id:
-        flash(f'Factura generada: {invoice_id}', 'success')
+        if doc_number:
+            flash(f'Factura {doc_number} generada (QBO {invoice_id})', 'success')
+        else:
+            flash(f'Factura generada: {invoice_id}', 'success')
     else:
         # Un 2xx de N8N no prueba que QBO haya creado la factura. Decir "generada
         # correctamente" acá fue lo que ocultó el fallo del 2026-08-14.

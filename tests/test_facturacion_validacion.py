@@ -244,6 +244,58 @@ def test_sin_invoice_id_avisa_en_vez_de_declarar_exito(mock_post, logged_client,
 
 @patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
 @patch('app.requests.post')
+def test_lee_invoice_id_del_objeto_invoice_de_qbo(mock_post, logged_client, app):
+    """El webhook N8N quedó en modo 'Last Node': responde con el objeto crudo de
+    QuickBooks, donde el ID viene en Invoice.Id (no en una clave 'invoice_id').
+    Sin esto, invoice_id_qbo sigue NULL y el guard anti-duplicados nunca sirve."""
+    from unittest.mock import MagicMock
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        'Invoice': {'Id': '47349', 'DocNumber': '5816', 'TotalAmt': 1234.5},
+        'time': '2026-08-15T00:40:00.000-04:00',
+    }
+    mock_resp.raise_for_status = MagicMock()
+    mock_post.return_value = mock_resp
+
+    with app.app_context():
+        from app import Pedido
+        pedido_id = _crear_pedido_preparado()
+
+        resp = logged_client.post(f'/pedidos/{pedido_id}/facturar',
+                                  follow_redirects=True)
+
+        assert resp.status_code == 200
+        pedido = _db.session.get(Pedido, pedido_id)
+        assert pedido.estado == 'facturado'
+        assert pedido.invoice_id_qbo == '47349'
+        assert '5816'.encode() in resp.data
+
+
+@patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
+@patch('app.requests.post')
+def test_guard_duplicados_usa_invoice_id_real(mock_post, logged_client, app):
+    """Con invoice_id_qbo poblado, el pedido ya facturado se rechaza sin pedir
+    confirmación: hay prueba de que la factura existe en QuickBooks."""
+    with app.app_context():
+        from app import Pedido
+        pedido_id = _crear_pedido_preparado()
+        pedido = _db.session.get(Pedido, pedido_id)
+        pedido.estado = 'facturado'
+        pedido.invoice_id_qbo = '47349'
+        _db.session.commit()
+
+        resp = logged_client.post(f'/pedidos/{pedido_id}/facturar',
+                                  data={'reintentar': '1'},
+                                  follow_redirects=True)
+
+        assert resp.status_code == 200
+        mock_post.assert_not_called()
+
+
+@patch('app.N8N_WEBHOOK_URL', 'http://test-n8n.local/webhook')
+@patch('app.requests.post')
 def test_factura_normal_sigue_funcionando(mock_post, logged_client, app):
     """Datos completos → la facturación sigue llamando a N8N como siempre."""
     from unittest.mock import MagicMock
