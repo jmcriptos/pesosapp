@@ -6822,10 +6822,15 @@ def _obtener_factura_qbo(invoice_id):
 
 
 N8N_DRIVE_WEBHOOK_URL = os.environ.get('N8N_DRIVE_WEBHOOK_URL', '').strip()
+# El archivado corre en línea, antes de devolver el PDF, así que su timeout se
+# suma al de la consulta a QBO (N8N_INVOICE_FETCH_TIMEOUT = 20s). El router de
+# Heroku corta la conexión a los 30s (H12), así que el peor caso combinado
+# (20 + 8 = 28s) tiene que quedar por debajo de ese límite: si Drive tarda, el
+# usuario igual recibe la factura que ya está generada en memoria.
 try:
-    N8N_DRIVE_TIMEOUT = int(os.environ.get('N8N_DRIVE_TIMEOUT', 15))
+    N8N_DRIVE_TIMEOUT = int(os.environ.get('N8N_DRIVE_TIMEOUT', 8))
 except (ValueError, TypeError):
-    N8N_DRIVE_TIMEOUT = 15
+    N8N_DRIVE_TIMEOUT = 8
 
 
 def _archivar_factura_drive(pdf_bytes, filename):
@@ -7004,25 +7009,42 @@ def factura_pdf(pedido_id):
     if not factura:
         abort(502, description='No se pudo obtener la factura desde QuickBooks.')
 
-    from utils.factura_pdf import render_factura_pdf, extraer_datos_factura
+    from utils.factura_pdf import render_factura_pdf, extraer_datos_factura, _pick_invoice
+
+    # Verificar que lo que devolvió n8n es de verdad la factura pedida. Como
+    # todos los campos tienen valor por defecto, un payload vacío o de otra
+    # factura se renderizaría igual (membrete completo, sin líneas, BALANCE DUE
+    # 0.00) y se archivaría en Drive como si fuera legítimo.
+    inv = _pick_invoice(factura)
+    if str(inv.get('Id')) != str(pedido.invoice_id_qbo):
+        app.logger.error(
+            'QBO devolvió la factura Id=%s para el pedido %s '
+            '(se esperaba invoice_id_qbo=%s)',
+            inv.get('Id'), pedido_id, pedido.invoice_id_qbo,
+        )
+        abort(502, description='QuickBooks devolvió una factura que no corresponde a este pedido.')
 
     try:
         pdf = render_factura_pdf(factura)
+        numero = extraer_datos_factura(factura)['numero'] or pedido.doc_number_qbo or pedido.id
     except Exception as e:
         app.logger.error(f'Error al renderizar la factura del pedido {pedido_id}: {e}')
         abort(500, description='No se pudo generar el PDF de la factura.')
 
-    numero = extraer_datos_factura(factura)['numero'] or pedido.doc_number_qbo or pedido.id
     filename = f'Factura_{numero}.pdf'
 
     _archivar_factura_drive(pdf, filename)
 
-    return send_file(
+    resp = send_file(
         BytesIO(pdf),
         mimetype='application/pdf',
         as_attachment=False,
         download_name=filename,
     )
+    # Documento financiero: que no quede en la caché del navegador después
+    # de cerrar sesión.
+    resp.headers['Cache-Control'] = 'no-store, private'
+    return resp
 ############################################
 # RUTAS PARA SISTEMA DE PRECIOS
 ############################################

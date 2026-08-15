@@ -367,26 +367,51 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.disabled = true;
         btn.textContent = 'Generando...';
 
+        // Descarga por object URL: es el fallback cuando no hay Web Share y
+        // también cuando share() falla (p. ej. iOS rechaza con NotAllowedError
+        // si la generación del PDF tardó más que la ventana de activación).
+        function descargar(blob) {
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = nombre;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+        }
+
         try {
             const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            if (!resp.ok) {
+                if (resp.status === 403) {
+                    alert('No tiene permiso para ver la factura de este pedido.');
+                } else if (resp.status === 404) {
+                    alert('Este pedido todavía no tiene factura en QuickBooks.');
+                } else if (resp.status === 502) {
+                    alert('No se pudo conectar con QuickBooks. Intente en un momento.');
+                } else {
+                    alert('No se pudo generar la factura. Intente de nuevo.');
+                }
+                return;
+            }
             const blob = await resp.blob();
             const file = new File([blob], nombre, { type: 'application/pdf' });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: nombre });
+                try {
+                    await navigator.share({ files: [file], title: nombre });
+                } catch (shareErr) {
+                    // El usuario cerró la hoja de compartir: no es un error.
+                    if (shareErr && shareErr.name === 'AbortError') return;
+                    // Cualquier otro fallo (activación vencida, etc.): el PDF ya
+                    // está en memoria, así que se descarga en vez de perderlo.
+                    descargar(blob);
+                }
             } else {
-                const objectUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = objectUrl;
-                a.download = nombre;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+                descargar(blob);
             }
         } catch (err) {
-            if (err && err.name === 'AbortError') return;  // el usuario canceló
             alert('No se pudo generar la factura. Intente de nuevo.');
         } finally {
             btn.disabled = false;
