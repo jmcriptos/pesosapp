@@ -593,3 +593,73 @@ def test_botones_solo_con_factura(mock_post, app):
     Pedido.query.get(pedido_id).invoice_id_qbo = None
     _db.session.commit()
     assert 'Revisar precios' not in client.get(f'/pedidos/{pedido_id}/detalles').data.decode()
+
+
+# ─────────── El pedido cobrado distinto de la lista (caso pedido 1270) ────────
+
+@patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://n8n.local/fetch')
+@patch('app.requests.post')
+def test_avisa_cuando_el_pedido_se_cobro_distinto_de_la_lista(mock_post, app):
+    """Caso real del pedido 1270: la lista tenía 13,00, QBO facturó 13,00, pero
+    el pedido se cargó a 14,00 (precio de la lista default). No hay nada que
+    actualizar, pero decir 'coinciden' tapaba que la factura sí difería."""
+    _mock_qbo(mock_post, _factura([
+        {'item': QBO_ITEM_ID, 'nombre': 'Smoked Turkey Breast', 'qty': 2, 'precio': 13.00},
+    ]))
+    pedido_id, _, _ = _armar(precio_app=13.00, precio_facturado=14.00)
+
+    html = _login(app).get(f'/pedidos/{pedido_id}/precios-factura').data.decode()
+
+    assert 'El pedido se cobró distinto' in html
+    assert 'se facturó a 14.00' in html
+    assert 'coinciden con los de la app' not in html
+    # No es algo que se actualice: la lista ya está bien
+    assert 'name="aplicar"' not in html
+
+
+# ──────────── El precio del formulario no le gana a la jerarquía ─────────────
+
+def test_precio_del_form_no_pisa_el_precio_del_cliente(app):
+    """Origen del pedido 1270: el form se siembra con el precio de la lista
+    default y solo lo corrige el JS al elegir cliente. Si ese JS no corre, el
+    pedido salía cobrado con el precio equivocado."""
+    from app import _resolver_precio_unitario_pedido
+    from decimal import Decimal
+
+    _, producto_id, cliente_id = _armar(precio_app=13.00)
+
+    # El formulario manda 14.00 (el de la lista default); gana el del cliente.
+    assert _resolver_precio_unitario_pedido(cliente_id, producto_id, '14.00') == Decimal('13')
+    assert _resolver_precio_unitario_pedido(cliente_id, producto_id, None) == Decimal('13')
+    assert _resolver_precio_unitario_pedido(cliente_id, producto_id, '') == Decimal('13')
+
+
+def test_precio_cae_a_la_lista_default_si_el_cliente_no_tiene_propio(app):
+    from app import _resolver_precio_unitario_pedido, ListaPrecio, PrecioProducto
+    from decimal import Decimal
+
+    _, producto_id, cliente_id = _armar(precio_app=None)
+
+    lista = ListaPrecio(nombre='General', es_default=True, activa=True)
+    _db.session.add(lista)
+    _db.session.flush()
+    fila = PrecioProducto(lista_precio_id=lista.id, producto_id=producto_id,
+                          precio_base=14.00, margen_jomar=1.0, margen_retail=1.2,
+                          activo=True)
+    fila.calcular_precios()
+    _db.session.add(fila)
+    _db.session.commit()
+
+    assert _resolver_precio_unitario_pedido(cliente_id, producto_id, '99.00') == Decimal('14')
+
+
+def test_el_form_es_el_ultimo_recurso_no_un_override(app):
+    """Sin precio en ninguna lista, el del formulario es mejor que un 0 — que
+    además borraría el precio de un pedido que ya lo tenía al editarlo."""
+    from app import _resolver_precio_unitario_pedido
+    from decimal import Decimal
+
+    _, producto_id, cliente_id = _armar(precio_app=None)
+
+    assert _resolver_precio_unitario_pedido(cliente_id, producto_id, '25.00') == Decimal('25.00')
+    assert _resolver_precio_unitario_pedido(cliente_id, producto_id, None) == Decimal('0')

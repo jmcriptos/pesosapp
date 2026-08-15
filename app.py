@@ -5606,20 +5606,53 @@ def lista_pedidos():
 
 
 
-def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_raw=None):
-    """Obtiene el precio unitario para una línea del pedido."""
-    if precio_raw not in (None, ''):
-        return Decimal(str(precio_raw))
+def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None):
+    """Precio unitario de una línea del pedido, SIEMPRE resuelto por jerarquía.
 
-    precio_cliente = obtener_precio_producto_cliente(cliente_id, producto_id, 'base')
-    if precio_cliente is not None:
-        return Decimal(str(precio_cliente))
+    El formulario manda `productos[i][precio]`, sembrado con el precio de la
+    lista default y sobreescrito por JS recién cuando se elige el cliente. Si ese
+    JS no alcanza a correr —producto agregado antes de elegir cliente, fetch que
+    no vuelve, cliente cambiado al editar— lo que llega es el precio default y no
+    el del cliente. Antes ese valor le ganaba a la jerarquía y el pedido salía mal
+    cobrado en silencio: le pasó al pedido 1270 (cobrado a 14,00 con precio de
+    cliente 13,00), y obligó a corregir la factura a mano en QuickBooks.
 
-    precio_def = obtener_precio_default_producto(producto_id, 'base')
-    if precio_def is not None:
-        return Decimal(str(precio_def))
+    Como nunca se carga un precio a mano, el valor del formulario dejó de ganarle
+    a la jerarquía: ahora es el ÚLTIMO recurso, para cuando el producto no tiene
+    precio en ninguna lista. Descartarlo del todo sería peor — dejaría la línea en
+    0 y borraría el precio de un pedido que ya lo tenía.
 
-    return Decimal('0')
+    Cuando el formulario manda algo distinto de lo resuelto se registra en el log:
+    es la señal de que el JS de precios por cliente no llegó a correr.
+    """
+    precio = obtener_precio_producto_cliente(cliente_id, producto_id, 'base')
+    if precio is None:
+        precio = obtener_precio_default_producto(producto_id, 'base')
+
+    if precio is None:
+        # Sin precio configurado en ningún lado: mejor lo que trajo el formulario
+        # que un 0 que además bloquea la facturación.
+        if precio_form not in (None, ''):
+            try:
+                return Decimal(str(precio_form))
+            except (ArithmeticError, TypeError, ValueError):
+                return Decimal('0')
+        return Decimal('0')
+
+    resuelto = Decimal(str(precio))
+
+    if precio_form not in (None, ''):
+        try:
+            if Decimal(str(precio_form)) != resuelto:
+                app.logger.warning(
+                    '[precio-form] cliente=%s producto=%s form=%s resuelto=%s '
+                    '(se usa el resuelto)',
+                    cliente_id, producto_id, precio_form, resuelto,
+                )
+        except (ArithmeticError, TypeError, ValueError):
+            pass
+
+    return resuelto
 
 
 class _PedidoFormError(ValueError):
@@ -6921,7 +6954,22 @@ def _comparar_precios_factura(pedido, factura_json):
             motivo = 'La factura trae precio 0; no se puede usar como precio de lista.'
         elif (precio_vigente is not None
                 and abs(precio_qbo - float(precio_vigente)) < UMBRAL_DIFERENCIA_PRECIO):
-            estado = 'igual'
+            # La lista ya coincide con la factura. Pero si el pedido se facturó a
+            # otro precio, el problema no era la lista: el pedido nació mal
+            # cobrado. No hay nada que actualizar y hay que decirlo igual, porque
+            # si no "no hay diferencias" tapa una factura que sí difiere.
+            facturado_prod = facturado.get(producto.id)
+            if (facturado_prod is not None
+                    and abs(facturado_prod - precio_qbo) >= UMBRAL_DIFERENCIA_PRECIO):
+                estado = 'pedido_desfasado'
+                motivo = (
+                    f'El pedido se facturó a {facturado_prod:.2f} pero el precio '
+                    f'de este cliente es {float(precio_vigente):.2f}, que es el que '
+                    f'tiene la factura. La lista está bien: el precio quedó mal al '
+                    f'cargar el pedido.'
+                )
+            else:
+                estado = 'igual'
         else:
             # Sin precio vigente (producto nuevo) la diferencia también es real:
             # es justo el caso que dejó una línea en 0 en su momento.
@@ -7292,6 +7340,7 @@ def revisar_precios_factura(pedido_id):
         filas=filas,
         avisos=avisos,
         diferencias=[f for f in filas if f['estado'] == 'difiere'],
+        desfasados=[f for f in filas if f['estado'] == 'pedido_desfasado'],
         no_aplicables=[
             f for f in filas
             if f['estado'] in ('sin_producto', 'precio_invalido', 'precio_ambiguo')

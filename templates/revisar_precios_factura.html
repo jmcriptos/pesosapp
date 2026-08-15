@@ -24,11 +24,34 @@
     </div>
     {% endfor %}
 
-    {% if not diferencias and not no_aplicables %}
+    {% if not diferencias and not desfasados and not no_aplicables %}
     <div class="mobile-card">
         <div class="mobile-card-body">
             <i class="fas fa-circle-check" style="color:#16a34a;"></i>
             Los precios de la factura coinciden con los de la app. No hay nada que actualizar.
+        </div>
+    </div>
+    {% endif %}
+
+    {% if desfasados %}
+    <div class="mobile-card" style="border-left:4px solid #f59e0b;">
+        <div class="mobile-card-header">
+            <i class="fas fa-triangle-exclamation"></i>
+            El pedido se cobró distinto
+        </div>
+        <div class="mobile-card-body">
+            <p class="fs-08" style="opacity:0.8; margin-bottom:10px;">
+                La lista de precios está bien y la factura también. Lo que salió mal
+                fue el pedido: se cargó con un precio que no era el de este cliente.
+                No hay nada que actualizar acá.
+            </p>
+            {% for fila in desfasados %}
+            <div class="fs-08" style="padding:8px 0; border-bottom:1px solid rgba(128,128,128,0.2);">
+                <strong>{{ fila.nombre }}</strong>
+                <br>
+                <span style="opacity:0.75;">{{ fila.motivo }}</span>
+            </div>
+            {% endfor %}
         </div>
     </div>
     {% endif %}
