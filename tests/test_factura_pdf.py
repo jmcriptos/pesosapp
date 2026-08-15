@@ -3,7 +3,10 @@
 Los fixtures son objetos Invoice de QuickBooks con datos reales de facturas
 emitidas el 2026-08-12 y 2026-08-14.
 """
+import base64
 import json
+import re
+import zlib
 from pathlib import Path
 
 import pytest
@@ -13,6 +16,24 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'facturas'
 
 def cargar(nombre):
     return json.loads((FIXTURES / f'{nombre}.json').read_text())
+
+
+def _texto_visible(pdf):
+    """Descomprime los content streams del PDF (reportlab los guarda con
+    ASCII85Decode + FlateDecode) para poder buscar texto literal dentro de
+    los operadores Tj, en vez de confiar en cómo un rasterizador externo
+    (con su propia sustitución de fuentes) decide dibujarlos."""
+    out = b''
+    for m in re.finditer(rb'stream\r?\n(.*?)endstream', pdf, re.S):
+        raw = m.group(1).strip(b'\r\n')
+        try:
+            out += zlib.decompress(base64.a85decode(raw.split(b'~>')[0], adobe=False))
+        except Exception:
+            try:
+                out += zlib.decompress(raw)
+            except Exception:
+                out += raw
+    return out
 
 
 def test_extrae_cabecera_y_cliente():
@@ -176,3 +197,30 @@ def test_render_con_muchas_cajas_no_revienta_y_crece():
 
     assert grande[:5] == b'%PDF-'
     assert len(grande) > len(chico)
+
+
+def test_render_incrusta_la_fuente_bold():
+    """Verificación real de negrita, no visual: reportlab declara la fuente
+    en los recursos del PDF como /BaseFont /Helvetica-Bold cuando algún
+    ParagraphStyle la usa. Buscar el string en los bytes crudos alcanza
+    porque esa declaración vive en el diccionario de recursos (un objeto
+    plano), no dentro de un content stream comprimido.
+
+    (Un rasterizador externo puede sustituir Helvetica-Bold por la misma
+    cara que Helvetica si el sistema no tiene una fuente bold real mapeada
+    -verificado en este entorno con `fc-match Helvetica-Bold` -> Regular-,
+    así que un screenshot con esa herramienta no es evidencia confiable de
+    si el PDF pide negrita o no; esto sí lo es.)"""
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(cargar('xcg_con_ob'))
+
+    assert b'/BaseFont /Helvetica-Bold' in pdf
+
+
+def test_render_usd_muestra_la_moneda():
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(cargar('usd'))
+
+    assert b'USD - US Dollar' in _texto_visible(pdf)
