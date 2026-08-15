@@ -1,0 +1,28 @@
+{
+  "Invoice": {
+    "Id": "47340",
+    "DocNumber": "5807",
+    "TxnDate": "2026-08-12",
+    "DueDate": "2026-08-19",
+    "SalesTermRef": { "value": "46", "name": "Net 7" },
+    "CustomerRef": { "value": "1473", "name": "Caribe Nobo Supermarkett" },
+    "CurrencyRef": { "value": "USD", "name": "United States Dollar" },
+    "BillAddr": { "Line1": "Caribe Nobo", "City": "Willemstad" },
+    "Line": [
+      {
+        "Id": "1",
+        "Description": "16.80\t18.10\t17.55\t17.80\t17.80\t14.85",
+        "Amount": 823.20,
+        "DetailType": "SalesItemLineDetail",
+        "SalesItemLineDetail": {
+          "ItemRef": { "value": "1351", "name": "Smoked and Cooked:Smoked Pork Chop" },
+          "Qty": 102.9, "UnitPrice": 8
+        }
+      }
+    ],
+    "SubTotal": 823.20,
+    "TxnTaxDetail": { "TotalTax": 0 },
+    "TotalAmt": 823.20,
+    "Balance": 823.20
+  }
+}

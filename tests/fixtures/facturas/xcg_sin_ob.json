@@ -1,0 +1,37 @@
+{
+  "Invoice": {
+    "Id": "47347",
+    "DocNumber": "5814",
+    "TxnDate": "2026-08-14",
+    "DueDate": "2026-08-21",
+    "SalesTermRef": { "value": "46", "name": "Net 7" },
+    "CustomerRef": { "value": "1570", "name": "New Centrum Supermarket, BV" },
+    "BillAddr": { "Line1": "Mahaai", "City": "Willemstad" },
+    "Line": [
+      {
+        "Id": "1",
+        "Description": "13.50\t12.05",
+        "Amount": 868.70,
+        "DetailType": "SalesItemLineDetail",
+        "SalesItemLineDetail": {
+          "ItemRef": { "value": "1407", "name": "Smoked and Cooked:Smoked Turkey Breast" },
+          "Qty": 25.55, "UnitPrice": 34
+        }
+      },
+      {
+        "Id": "2",
+        "Description": "19.65\t19.60",
+        "Amount": 732.01,
+        "DetailType": "SalesItemLineDetail",
+        "SalesItemLineDetail": {
+          "ItemRef": { "value": "1352", "name": "Smoked and Cooked:Smoked Turkey Ham" },
+          "Qty": 39.25, "UnitPrice": 18.65
+        }
+      }
+    ],
+    "SubTotal": 1600.71,
+    "TxnTaxDetail": { "TotalTax": 0 },
+    "TotalAmt": 1600.71,
+    "Balance": 1600.71
+  }
+}

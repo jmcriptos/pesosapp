@@ -1,0 +1,56 @@
+{
+  "Invoice": {
+    "Id": "47344",
+    "DocNumber": "5811",
+    "TxnDate": "2026-08-14",
+    "DueDate": "2026-08-21",
+    "SalesTermRef": { "value": "46", "name": "Net 7" },
+    "CustomerRef": { "value": "1497", "name": "Esperamos Supermarket" },
+    "BillAddr": {
+      "Line1": "Esperamos Supermarket",
+      "City": "Willemstad",
+      "CountrySubDivisionCode": "CRIB: 104123456"
+    },
+    "Line": [
+      {
+        "Id": "1",
+        "Description": "2.00",
+        "Amount": 293.34,
+        "DetailType": "SalesItemLineDetail",
+        "SalesItemLineDetail": {
+          "ItemRef": { "value": "1388", "name": "Untables Underwood:Deviled Ham 32/120 gr" },
+          "Qty": 2, "UnitPrice": 146.67
+        }
+      },
+      {
+        "Id": "2",
+        "Description": "3.00",
+        "Amount": 393.24,
+        "DetailType": "SalesItemLineDetail",
+        "SalesItemLineDetail": {
+          "ItemRef": { "value": "1297", "name": "Atún Van Camps:VCamps Atun en Agua 48x160g" },
+          "Qty": 3, "UnitPrice": 131.08
+        }
+      },
+      {
+        "Id": "3",
+        "Amount": 185.71,
+        "DetailType": "SubTotalLineDetail",
+        "SubTotalLineDetail": {}
+      }
+    ],
+    "SubTotal": 686.58,
+    "TxnTaxDetail": {
+      "TotalTax": 41.19,
+      "TaxLine": [
+        {
+          "Amount": 41.19,
+          "DetailType": "TaxLineDetail",
+          "TaxLineDetail": { "TaxPercent": 6, "NetAmountTaxable": 686.58, "PercentBased": true }
+        }
+      ]
+    },
+    "TotalAmt": 727.77,
+    "Balance": 727.77
+  }
+}
