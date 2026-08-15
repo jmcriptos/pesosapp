@@ -58,3 +58,34 @@ def test_obtener_factura_traga_errores_de_red(mock_post, app):
 
     with app.app_context():
         assert _obtener_factura_qbo('47349') is None
+
+
+@patch('app.N8N_DRIVE_WEBHOOK_URL', 'http://n8n.local/drive')
+@patch('app.requests.post')
+def test_archivar_manda_el_pdf_en_base64(mock_post, app):
+    import base64
+    from app import _archivar_factura_drive
+
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_post.return_value = mock_resp
+
+    with app.app_context():
+        ok = _archivar_factura_drive(b'%PDF-fake', 'Factura_5816.pdf')
+
+    assert ok is True
+    enviado = mock_post.call_args.kwargs['json']
+    assert enviado['filename'] == 'Factura_5816.pdf'
+    assert base64.b64decode(enviado['pdf_base64']) == b'%PDF-fake'
+
+
+@patch('app.N8N_DRIVE_WEBHOOK_URL', 'http://n8n.local/drive')
+@patch('app.requests.post')
+def test_archivar_no_propaga_fallos(mock_post, app):
+    import requests as req_lib
+    from app import _archivar_factura_drive
+
+    mock_post.side_effect = req_lib.Timeout('drive lento')
+
+    with app.app_context():
+        assert _archivar_factura_drive(b'%PDF-fake', 'x.pdf') is False

@@ -6821,6 +6821,38 @@ def _obtener_factura_qbo(invoice_id):
         return None
 
 
+N8N_DRIVE_WEBHOOK_URL = os.environ.get('N8N_DRIVE_WEBHOOK_URL', '').strip()
+try:
+    N8N_DRIVE_TIMEOUT = int(os.environ.get('N8N_DRIVE_TIMEOUT', 15))
+except (ValueError, TypeError):
+    N8N_DRIVE_TIMEOUT = 15
+
+
+def _archivar_factura_drive(pdf_bytes, filename):
+    """Sube el PDF a Google Drive vía n8n. Best-effort: nunca lanza.
+
+    Si falla, el usuario igual recibe su PDF; solo queda sin archivar.
+    """
+    if not N8N_DRIVE_WEBHOOK_URL:
+        app.logger.info('N8N_DRIVE_WEBHOOK_URL no configurada; se omite el archivado')
+        return False
+    try:
+        resp = requests.post(
+            N8N_DRIVE_WEBHOOK_URL,
+            json={
+                'filename': filename,
+                'pdf_base64': base64.b64encode(pdf_bytes).decode('ascii'),
+            },
+            timeout=N8N_DRIVE_TIMEOUT,
+            headers=_webhook_headers(),
+        )
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        app.logger.warning(f'No se pudo archivar {filename} en Drive: {e}')
+        return False
+
+
 @app.route('/pedidos/<int:pedido_id>/facturar', methods=['POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'editar')
