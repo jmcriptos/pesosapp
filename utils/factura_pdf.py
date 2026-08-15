@@ -163,9 +163,18 @@ def _fecha(iso):
         return str(iso)
 
 
+def _px(n):
+    """CSS px -> pt (96dpi vs 72dpi, el factor estándar es 0.75)."""
+    return n * 0.75
+
+
 def _logo():
     """El logo es opcional a propósito: los tests corren sin el asset y una
-    factura sin logo es preferible a una factura que no se genera."""
+    factura sin logo es preferible a una factura que no se genera.
+
+    CSS de referencia: max-height 154px, max-width 420px, aspect ratio
+    preservado. Con el asset de 850x480 el alto es lo que manda (~40.7mm),
+    dando un ancho de ~72mm."""
     ruta = Path(__file__).resolve().parent.parent / 'static' / 'logo_factura.png'
     if not ruta.exists():
         return ''
@@ -174,22 +183,24 @@ def _logo():
         # defecto y setea drawWidth/drawHeight recién al primer acceso a esos
         # atributos, lo que pisaba el drawWidth que fijamos abajo.
         img = Image(str(ruta), lazy=0)
-        ancho = 62 * mm
-        img.drawWidth = ancho
-        img.drawHeight = ancho * (img.imageHeight / img.imageWidth)
+        max_h, max_w = _px(154), _px(420)
+        escala = min(max_h / img.imageHeight, max_w / img.imageWidth)
+        img.drawWidth = img.imageWidth * escala
+        img.drawHeight = img.imageHeight * escala
         img.hAlign = 'RIGHT'
         return img
     except Exception:
         return ''
 
 
-def _grid_pesos(pesos, estilo):
-    """Los pesos de cada caja en 5 columnas, como el HTML."""
+def _grid_pesos(pesos, estilo, ancho_col):
+    """Los pesos de cada caja en 5 columnas iguales, como el HTML
+    (line-height 1.6, cada peso alineado a la derecha)."""
     filas = [pesos[i:i + 5] for i in range(0, len(pesos), 5)]
     filas = [f + [''] * (5 - len(f)) for f in filas]
     tabla = Table(
         [[Paragraph(_xe(c), estilo) for c in fila] for fila in filas],
-        colWidths=[12 * mm] * 5,
+        colWidths=[ancho_col / 5] * 5,
     )
     tabla.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
@@ -203,17 +214,60 @@ def _grid_pesos(pesos, estilo):
 
 
 def render_factura_pdf(invoice_json):
+    """Genera el PDF de una factura A4. Los tamaños, colores y espaciados de
+    abajo están tomados 1:1 del CSS del generador HTML que produce las
+    facturas de referencia (5802-5805); las conversiones px->pt usan el
+    factor estándar 0.75 (96dpi CSS vs 72dpi PDF). Excepción conocida: el
+    tracking/letter-spacing del CSS no tiene equivalente en reportlab
+    Paragraph y se omite (no afecta la jerarquía visual: tamaño/peso/color
+    sí se respetan)."""
     d = extraer_datos_factura(invoice_json)
 
+    ancho_contenido = 186 * mm  # A4 (210mm) - 12mm de margen a cada lado
+
+    # NOTA: `leading` (interlineado) es fontSize * line-height del CSS, y
+    # ambos ya están en puntos/sin unidad -> NO pasa por _px(). _px() es solo
+    # para paddings/márgenes/anchos que el CSS da en px (8px, 20px, etc).
     base = getSampleStyleSheet()
     st_normal = ParagraphStyle('n', parent=base['Normal'], fontName='Helvetica',
-                               fontSize=8, leading=10)
+                               fontSize=9, leading=9 * 1.2)
     st_bold = ParagraphStyle('b', parent=st_normal, fontName='Helvetica-Bold')
-    st_small = ParagraphStyle('s', parent=st_normal, fontSize=7, leading=9)
+    st_gris = ParagraphStyle('g', parent=st_normal, textColor=GRIS)
+
     st_titulo = ParagraphStyle('t', parent=st_normal, fontName='Helvetica-Bold',
-                               fontSize=22, alignment=TA_RIGHT)
+                               fontSize=26, leading=26 * 1.15, alignment=TA_RIGHT)
+
     st_empresa = ParagraphStyle('e', parent=st_normal, fontName='Helvetica-Bold',
-                                fontSize=11)
+                                fontSize=14, leading=14 * 1.2, spaceAfter=_px(5))
+    st_empresa_linea = ParagraphStyle('el', parent=st_normal, fontSize=9,
+                                      leading=9 * 1.2, spaceBefore=_px(1))
+
+    st_bill_label = ParagraphStyle('bt', parent=st_normal, fontName='Helvetica-Bold',
+                                   fontSize=8.5, leading=8.5 * 1.2, textColor=GRIS,
+                                   spaceAfter=_px(5))
+    st_crib = ParagraphStyle('cr', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2,
+                             textColor=GRIS, spaceBefore=_px(4))
+    st_detalle_label = ParagraphStyle('dl', parent=st_normal, fontSize=9, textColor=GRIS)
+    st_detalle_val = ParagraphStyle('dv', parent=st_bold, fontSize=9)
+
+    st_th = ParagraphStyle('th', parent=st_normal, fontName='Helvetica-Bold',
+                           fontSize=8.5, leading=8.5 * 1.2)
+    st_product = ParagraphStyle('pr', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2)
+    st_details = ParagraphStyle('de', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2)
+    st_grid = ParagraphStyle('gr', parent=st_normal, fontSize=8.5, leading=8.5 * 1.6)
+    st_qty = ParagraphStyle('qt', parent=st_normal, fontSize=8, leading=8 * 1.2)
+    st_rate = ParagraphStyle('ra', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2)
+    st_amount = ParagraphStyle('am', parent=st_bold, fontSize=9)
+
+    st_banco_titulo = ParagraphStyle('bkt', parent=st_normal, fontName='Helvetica-Bold',
+                                     fontSize=11, leading=11 * 1.2, textColor=GRIS)
+    st_banco_linea = ParagraphStyle('bkl', parent=st_normal, fontSize=9, textColor=GRIS,
+                                    leading=9 * 1.3)
+    st_total_label = ParagraphStyle('tl', parent=st_normal, fontSize=10, leading=10 * 1.2)
+    st_total_val = ParagraphStyle('tv', parent=st_total_label, fontName='Helvetica-Bold')
+    st_balance_label = ParagraphStyle('bl', parent=st_normal, fontName='Helvetica-Bold',
+                                      fontSize=13, leading=13 * 1.2)
+    st_balance_val = ParagraphStyle('bv', parent=st_balance_label)
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -227,10 +281,10 @@ def render_factura_pdf(invoice_json):
 
     # Encabezado: empresa a la izquierda, logo a la derecha
     empresa = [Paragraph(_xe(EMPRESA[0]), st_empresa)]
-    empresa += [Paragraph(_xe(l), st_normal) for l in EMPRESA[1:]]
+    empresa += [Paragraph(_xe(l), st_empresa_linea) for l in EMPRESA[1:]]
     flow.append(Table(
         [[empresa, _logo()]],
-        colWidths=[110 * mm, 76 * mm],
+        colWidths=[114 * mm, 72 * mm],
         style=TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
@@ -238,17 +292,17 @@ def render_factura_pdf(invoice_json):
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]),
     ))
-    flow.append(Spacer(1, 4 * mm))
+    flow.append(Spacer(1, _px(20)))
     flow.append(Paragraph('INVOICE', st_titulo))
-    flow.append(Spacer(1, 6 * mm))
+    flow.append(Spacer(1, _px(15)))
 
     # Bill To + detalles de la factura
-    bill = [Paragraph('BILL TO', st_small), Paragraph(_xe(d['cliente']), st_bold)]
+    bill = [Paragraph('BILL TO', st_bill_label), Paragraph(_xe(d['cliente']), st_bold)]
     for linea in d['direccion']:
         if linea != d['cliente']:
             bill.append(Paragraph(_xe(linea), st_normal))
     if d['crib']:
-        bill.append(Paragraph(f'CRIB: {_xe(d["crib"])}', st_small))
+        bill.append(Paragraph(f'CRIB: {_xe(d["crib"])}', st_crib))
 
     detalles = [
         ('Invoice #:', d['numero']),
@@ -258,11 +312,13 @@ def render_factura_pdf(invoice_json):
         ('Currency:', d['moneda_label']),
     ]
     tabla_detalles = Table(
-        [[Paragraph(_xe(k), st_small), Paragraph(_xe(v), st_bold)] for k, v in detalles],
+        [[Paragraph(_xe(k), st_detalle_label), Paragraph(_xe(v), st_detalle_val)]
+         for k, v in detalles],
         colWidths=[22 * mm, 44 * mm],
         style=TableStyle([
             ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('RIGHTPADDING', (0, 0), (0, -1), _px(8)),
             ('TOPPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]),
@@ -276,61 +332,73 @@ def render_factura_pdf(invoice_json):
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]),
     ))
-    flow.append(Spacer(1, 6 * mm))
+    flow.append(Spacer(1, _px(20)))
 
-    # Tabla de líneas
+    # Tabla de líneas: PRODUCT 34% / DETAILS 33% / QUANTITY 10% / RATE 10% / AMOUNT 13%
+    col_product = ancho_contenido * 0.34
+    col_details = ancho_contenido * 0.33
+    col_qty = ancho_contenido * 0.10
+    col_rate = ancho_contenido * 0.10
+    col_amount = ancho_contenido * 0.13
+
     cab = ['PRODUCT', 'DETAILS', 'QUANTITY', 'RATE', 'AMOUNT']
-    filas = [[Paragraph(f'<b>{_xe(c)}</b>', st_small) for c in cab]]
+    filas = [[Paragraph(_xe(c), st_th) for c in cab]]
     for l in d['lineas']:
-        detalle = (_grid_pesos(l['pesos'], st_small) if l['pesos']
-                   else Paragraph(_xe(l['detalle_texto']), st_small))
+        detalle = (_grid_pesos(l['pesos'], st_grid, col_details) if l['pesos']
+                   else Paragraph(_xe(l['detalle_texto']), st_details))
         filas.append([
-            Paragraph(_xe(l['producto']), st_normal),
+            Paragraph(_xe(l['producto']), st_product),
             detalle,
-            Paragraph(f'{l["qty"]:,.2f}', st_small),
-            Paragraph(_money(l['rate']), st_small),
-            Paragraph(f'<b>{_money(l["amount"])}</b>', st_small),
+            Paragraph(f'{l["qty"]:,.2f}', st_qty),
+            Paragraph(_money(l['rate']), st_rate),
+            Paragraph(_money(l['amount']), st_amount),
         ])
 
-    tabla = Table(filas, colWidths=[52 * mm, 66 * mm, 20 * mm, 20 * mm, 28 * mm],
+    tabla = Table(filas, colWidths=[col_product, col_details, col_qty, col_rate, col_amount],
                   repeatRows=1)
     tabla.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
-        ('LINEABOVE', (0, 0), (-1, 0), 1.2, colors.black),
-        ('LINEBELOW', (0, 0), (-1, 0), 1.2, colors.black),
-        ('LINEBELOW', (0, 1), (-1, -2), 0.25, colors.HexColor('#dddddd')),
-        ('LINEBELOW', (0, -1), (-1, -1), 1.2, colors.black),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+        ('ALIGN', (3, 0), (4, -1), 'RIGHT'),
+        ('LINEABOVE', (0, 0), (-1, 0), _px(2), colors.black),
+        ('LINEBELOW', (0, 0), (-1, 0), _px(2), colors.black),
+        ('LINEBELOW', (0, 1), (-1, -2), _px(1), colors.HexColor('#dddddd')),
+        ('LINEBELOW', (0, -1), (-1, -1), _px(2), colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), _px(8)),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), _px(8)),
+        ('LEFTPADDING', (0, 0), (-1, -1), _px(6)),
+        ('RIGHTPADDING', (0, 0), (-1, -1), _px(6)),
+        ('RIGHTPADDING', (0, 1), (0, -1), _px(25)),
     ]))
     flow.append(tabla)
     flow.append(Spacer(1, 6 * mm))
 
     # Datos bancarios + totales
-    banco = [Paragraph(_xe(BANCO[0]), st_bold)]
-    banco += [Paragraph(_xe(l), st_small) for l in BANCO[1:]]
+    banco = [Paragraph(_xe(BANCO[0]), st_banco_titulo)]
+    banco += [Paragraph(_xe(l), st_banco_linea) for l in BANCO[1:]]
 
     totales_datos = [
-        ('SUBTOTAL', _money(d['subtotal'])),
-        (f'OB ({_pct(d["ob_pct"])}%)', _money(d['ob'])),
-        ('TOTAL', _money(d['total'])),
-        ('BALANCE DUE', _money(d['balance'])),
+        (st_total_label, st_total_val, 'SUBTOTAL', _money(d['subtotal'])),
+        (st_total_label, st_total_val, f'OB ({_pct(d["ob_pct"])}%)', _money(d['ob'])),
+        (st_total_label, st_total_val, 'TOTAL', _money(d['total'])),
+        (st_balance_label, st_balance_val, 'BALANCE DUE', _money(d['balance'])),
     ]
     totales = Table(
-        [[Paragraph(_xe(k), st_normal), Paragraph(f'<b>{v}</b>', st_normal)]
-         for k, v in totales_datos],
-        colWidths=[40 * mm, 34 * mm],
+        [[Paragraph(_xe(k), st_l), Paragraph(_xe(v), st_v)] for st_l, st_v, k, v in totales_datos],
+        colWidths=[45 * mm, 40 * mm],
         style=TableStyle([
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('LINEABOVE', (0, -1), (-1, -1), 1.2, colors.black),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            # Regla doble (no sólida) sobre BALANCE DUE, como el CSS de referencia.
+            ('LINEABOVE', (0, -1), (-1, -1), _px(1), colors.black, None, None, None, 2, _px(3)),
+            ('TOPPADDING', (0, 0), (-1, -2), _px(8)),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), _px(8)),
+            ('TOPPADDING', (0, -1), (-1, -1), _px(12) + _px(6)),
         ]),
     )
     flow.append(KeepTogether(Table(
         [[banco, totales]],
-        colWidths=[112 * mm, 74 * mm],
+        colWidths=[101 * mm, 85 * mm],
         style=TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
