@@ -500,9 +500,32 @@ git commit -m "feat(factura-pdf): normaliza el objeto Invoice de QuickBooks"
 
 ### Task 3: Dibujar el PDF
 
+**Referencia visual:** las facturas 5802, 5803, 5804 y 5805 emitidas con el
+workflow HTML son el objetivo. Detalles verificados contra ellas:
+
+- Logo de Jomar arriba a la derecha, sobre un panel gris muy claro. Datos de
+  la empresa arriba a la izquierda.
+- `INVOICE` en grande, negrita, alineado a la derecha, **debajo** del bloque
+  del encabezado.
+- Fechas en formato **MM/DD/YYYY** (`08/11/2026`). QBO las entrega como
+  `2026-08-11`, hay que convertirlas.
+- Etiquetas del bloque de detalles en gris y alineadas a la derecha; los
+  valores en negrita.
+- La etiqueta del impuesto lleva el porcentaje: `OB (0%)`, `OB (6%)`.
+- `BALANCE DUE` en grande y negrita, con línea gruesa encima.
+- En productos que no se pesan, DETAILS muestra un único valor (`3.00`) y
+  QUANTITY repite ese mismo número. En los que se pesan, DETAILS lleva el
+  grid de pesos y QUANTITY el total (`129.70`).
+
 **Files:**
 - Modify: `utils/factura_pdf.py`
 - Test: `tests/test_factura_pdf.py`
+- Asset: `static/logo_factura.png` (lo provee el operador; ver nota abajo)
+
+**Nota sobre el logo:** `static/logo_etiquetas.png` es el logo de Mr. Raucher
+y **no** sirve. El renderizador debe dibujar `static/logo_factura.png` si
+existe y omitirlo sin fallar si no está, para que los tests corran sin el
+asset y la factura no reviente en producción si falta.
 
 **Interfaces:**
 - Consumes: `extraer_datos_factura(invoice_json) -> dict` (Task 2)
@@ -573,7 +596,9 @@ Expected: FAIL con `ImportError: cannot import name 'render_factura_pdf'`
 Agregar a `utils/factura_pdf.py`:
 
 ```python
+from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
@@ -581,8 +606,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
+
+GRIS = colors.HexColor('#666666')
 
 EMPRESA = [
     'JOMAR FOODS, BV',
@@ -613,6 +640,33 @@ def _money(n):
 
 def _pct(p):
     return str(round(p)) if abs(p - round(p)) < 0.05 else f'{p:.1f}'
+
+
+def _fecha(iso):
+    """QBO entrega 2026-08-11; la factura se ve como 08/11/2026."""
+    if not iso:
+        return ''
+    try:
+        return datetime.strptime(str(iso)[:10], '%Y-%m-%d').strftime('%m/%d/%Y')
+    except ValueError:
+        return str(iso)
+
+
+def _logo():
+    """El logo es opcional a propósito: los tests corren sin el asset y una
+    factura sin logo es preferible a una factura que no se genera."""
+    ruta = Path(__file__).resolve().parent.parent / 'static' / 'logo_factura.png'
+    if not ruta.exists():
+        return ''
+    try:
+        img = Image(str(ruta))
+        ancho = 62 * mm
+        img.drawWidth = ancho
+        img.drawHeight = ancho * (img.imageHeight / img.imageWidth)
+        img.hAlign = 'RIGHT'
+        return img
+    except Exception:
+        return ''
 
 
 def _grid_pesos(pesos, estilo):
@@ -657,19 +711,22 @@ def render_factura_pdf(invoice_json):
 
     flow = []
 
-    # Encabezado: empresa a la izquierda, título a la derecha
+    # Encabezado: empresa a la izquierda, logo a la derecha
     empresa = [Paragraph(_xe(EMPRESA[0]), st_empresa)]
     empresa += [Paragraph(_xe(l), st_normal) for l in EMPRESA[1:]]
     flow.append(Table(
-        [[empresa, Paragraph('INVOICE', st_titulo)]],
+        [[empresa, _logo()]],
         colWidths=[110 * mm, 76 * mm],
         style=TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]),
     ))
-    flow.append(Spacer(1, 8 * mm))
+    flow.append(Spacer(1, 4 * mm))
+    flow.append(Paragraph('INVOICE', st_titulo))
+    flow.append(Spacer(1, 6 * mm))
 
     # Bill To + detalles de la factura
     bill = [Paragraph('BILL TO', st_small), Paragraph(_xe(d['cliente']), st_bold)]
@@ -681,9 +738,9 @@ def render_factura_pdf(invoice_json):
 
     detalles = [
         ('Invoice #:', d['numero']),
-        ('Date:', d['fecha']),
+        ('Date:', _fecha(d['fecha'])),
         ('Terms:', d['terminos']),
-        ('Due Date:', d['vence']),
+        ('Due Date:', _fecha(d['vence'])),
         ('Currency:', d['moneda_label']),
     ]
     tabla_detalles = Table(
