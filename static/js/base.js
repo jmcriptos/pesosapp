@@ -355,6 +355,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // El servidor calcula el nombre autoritativo del PDF (incluye el cliente
+    // tal como aparece en la factura de QBO) y lo manda en el header
+    // Content-Disposition. `data-factura-nombre` (armado en el template con
+    // datos locales del pedido, sin cliente) es solo el fallback para cuando
+    // el header falta o viene en una forma que no se puede parsear.
+    //
+    // Formas que Flask/Werkzeug emiten y hay que soportar:
+    //   filename="Factura_5816_Roberto_da_Silva.pdf"              (ASCII)
+    //   filename*=UTF-8''Factura_5817_Panader%C3%ADa_S%C3%BCd.pdf  (RFC 5987,
+    //   para nombres con á/é/í/ó/ú/ñ/ü — común en clientes de Curazao)
+    // Cuando ambas están presentes, filename* es la que hay que usar.
+    function nombreFacturaDesdeHeader(header, fallback) {
+        if (!header) return fallback;
+
+        const estrella = header.match(/filename\*\s*=\s*[^']*''([^;]+)/i);
+        if (estrella) {
+            try {
+                const limpio = decodeURIComponent(estrella[1].trim()).replace(/[\/\\]/g, '');
+                return limpio || fallback;
+            } catch (err) {
+                // Secuencia percent-encoded inválida: no perder la descarga
+                // por esto, se cae al nombre del data-attribute.
+                return fallback;
+            }
+        }
+
+        const plano = header.match(/filename(?!\*)\s*=\s*"?([^";]+)"?/i);
+        if (plano) {
+            const limpio = plano[1].trim().replace(/[\/\\]/g, '');
+            return limpio || fallback;
+        }
+
+        return fallback;
+    }
+
     // Factura PDF: Web Share API en el PWA de iOS (una descarga normal no
     // funciona en standalone), con enlace de descarga como fallback.
     document.addEventListener('click', async function (e) {
@@ -362,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!btn) return;
 
         const url = btn.dataset.facturaUrl;
-        const nombre = btn.dataset.facturaNombre || 'Factura.pdf';
+        let nombre = btn.dataset.facturaNombre || 'Factura.pdf';
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.textContent = 'Generando...';
@@ -395,6 +430,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return;
             }
+            // El servidor es la fuente de verdad del nombre (lleva el cliente);
+            // data-factura-nombre queda como fallback si el header falta o no
+            // se puede parsear.
+            nombre = nombreFacturaDesdeHeader(resp.headers.get('Content-Disposition'), nombre);
             const blob = await resp.blob();
             const file = new File([blob], nombre, { type: 'application/pdf' });
 

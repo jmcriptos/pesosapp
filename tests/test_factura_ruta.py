@@ -344,6 +344,62 @@ def test_ruta_404_sin_invoice_id(app):
 
 
 @patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://n8n.local/fetch')
+@patch('app.N8N_DRIVE_WEBHOOK_URL', '')
+@patch('app.requests.post')
+def test_ruta_content_disposition_lleva_nombre_cliente(mock_post, app):
+    """Contrato que depende el cliente (base.js): el nombre completo (con
+    cliente) tiene que venir en el header `Content-Disposition`, no solo
+    quedar archivado en Drive — la descarga/share del navegador ahora lee
+    el nombre de ahí en vez de fiarse solo de `data-factura-nombre`."""
+    factura = _factura_fixture()
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = factura
+    mock_post.return_value = mock_resp
+
+    with app.app_context():
+        pedido_id = _crear_pedido_facturado(invoice_id='47347', doc_number='5814')
+        client = _login(app)
+
+        resp = client.get(f'/pedidos/{pedido_id}/factura.pdf')
+
+    cd = resp.headers['Content-Disposition']
+    assert 'filename=' in cd
+    assert 'Factura_5814_New_Centrum_Supermarket_BV.pdf' in cd
+
+
+@patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://n8n.local/fetch')
+@patch('app.N8N_DRIVE_WEBHOOK_URL', '')
+@patch('app.requests.post')
+def test_ruta_content_disposition_con_acentos_usa_filename_estrella(mock_post, app):
+    """Nombres de cliente con á/é/í/ó/ú/ñ/ü (comunes en Curazao) fuerzan la
+    forma RFC 5987 `filename*=UTF-8''...` que Flask/Werkzeug emite para
+    nombres no-ASCII. El cliente (base.js) tiene que saber leer esta forma,
+    no solo `filename=`."""
+    factura = _factura_fixture('xcg_con_acentos.json')
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = factura
+    mock_post.return_value = mock_resp
+
+    with app.app_context():
+        pedido_id = _crear_pedido_facturado(invoice_id='47350', doc_number='5817')
+        client = _login(app)
+
+        resp = client.get(f'/pedidos/{pedido_id}/factura.pdf')
+
+    cd = resp.headers['Content-Disposition']
+    assert "filename*=UTF-8''" in cd
+
+    import re
+    from urllib.parse import unquote
+
+    m = re.search(r"filename\*=UTF-8''([^;]+)", cd)
+    assert m is not None, f'no se encontró filename* en: {cd!r}'
+    assert unquote(m.group(1)) == 'Factura_5817_Panadería_Süd.pdf'
+
+
+@patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://n8n.local/fetch')
 @patch('app.requests.post')
 def test_ruta_502_si_n8n_falla(mock_post, app):
     import requests as req_lib
@@ -421,6 +477,39 @@ def test_mensajes_de_error_distintos_por_status():
     assert "throw new Error('HTTP '" not in bloque
     assert 'No tiene permiso' in bloque
     assert 'QuickBooks' in bloque
+
+
+def test_nombre_de_descarga_lee_content_disposition():
+    """El servidor calcula el nombre autoritativo (con cliente) y lo manda en
+    `Content-Disposition`; el cliente ya no debe confiar solo en
+    `data-factura-nombre` (que no lleva cliente, ver template) para nombrar
+    la descarga/share — tiene que leer el header y usarlo si es parseable.
+
+    Se busca en el archivo completo (no con `_bloque_factura`, que arranca
+    justo en `data-factura-share`) porque el helper que parsea el header
+    está factorizado fuera del handler de click, antes de esa marca."""
+    js = _leer_js('static/js/base.js')
+
+    assert "resp.headers.get('Content-Disposition')" in js
+    # Preferir filename* (RFC 5987, no-ASCII) sobre filename= cuando ambos
+    # están presentes.
+    assert 'filename*' in js or "filename\\*" in js
+    assert 'decodeURIComponent' in js
+    # El decode de un filename* mal formado no puede tirar la descarga entera.
+    assert 'try' in js and 'catch' in js
+    # data-factura-nombre sigue siendo el fallback cuando el header falta o
+    # no se puede parsear.
+    assert 'facturaNombre' in js
+
+
+def test_nombre_de_descarga_quita_separadores_de_ruta():
+    """Nunca confiar en el header como nombre de archivo verbatim: hay que
+    quitar separadores de ruta antes de usarlo como `download`/nombre de
+    `File` (la función dedicada a esto está factorizada y nombrada)."""
+    js = _leer_js('static/js/base.js')
+
+    assert 'function nombreFacturaDesdeHeader' in js
+    assert '.replace(' in js
 
 
 def test_base_min_js_esta_regenerado():

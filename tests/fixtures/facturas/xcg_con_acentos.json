@@ -1,0 +1,27 @@
+{
+  "Invoice": {
+    "Id": "47350",
+    "DocNumber": "5817",
+    "TxnDate": "2026-08-14",
+    "DueDate": "2026-08-21",
+    "SalesTermRef": { "value": "46", "name": "Net 7" },
+    "CustomerRef": { "value": "1571", "name": "Panadería Süd" },
+    "BillAddr": { "Line1": "Mahaai", "City": "Willemstad" },
+    "Line": [
+      {
+        "Id": "1",
+        "Description": "13.50\t12.05",
+        "Amount": 868.70,
+        "DetailType": "SalesItemLineDetail",
+        "SalesItemLineDetail": {
+          "ItemRef": { "value": "1407", "name": "Smoked and Cooked:Smoked Turkey Breast" },
+          "Qty": 25.55, "UnitPrice": 34
+        }
+      }
+    ],
+    "SubTotal": 868.70,
+    "TxnTaxDetail": { "TotalTax": 0 },
+    "TotalAmt": 868.70,
+    "Balance": 868.70
+  }
+}
