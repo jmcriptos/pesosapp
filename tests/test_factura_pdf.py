@@ -18,22 +18,85 @@ def cargar(nombre):
     return json.loads((FIXTURES / f'{nombre}.json').read_text())
 
 
-def _texto_visible(pdf):
-    """Descomprime los content streams del PDF (reportlab los guarda con
-    ASCII85Decode + FlateDecode) para poder buscar texto literal dentro de
-    los operadores Tj, en vez de confiar en cómo un rasterizador externo
-    (con su propia sustitución de fuentes) decide dibujarlos."""
-    out = b''
+def _streams_descomprimidos(pdf):
+    """Los content streams de reportlab vienen con ASCII85Decode +
+    FlateDecode. Los devuelve descomprimidos y en orden, uno por stream,
+    para poder leer el texto realmente dibujado en vez de confiar en cómo
+    un rasterizador externo (con su propia sustitución de fuentes) decide
+    pintarlo."""
+    out = []
     for m in re.finditer(rb'stream\r?\n(.*?)endstream', pdf, re.S):
         raw = m.group(1).strip(b'\r\n')
         try:
-            out += zlib.decompress(base64.a85decode(raw.split(b'~>')[0], adobe=False))
+            out.append(zlib.decompress(base64.a85decode(raw.split(b'~>')[0], adobe=False)))
         except Exception:
             try:
-                out += zlib.decompress(raw)
+                out.append(zlib.decompress(raw))
             except Exception:
-                out += raw
+                out.append(raw)
     return out
+
+
+def _texto_visible(pdf):
+    return b''.join(_streams_descomprimidos(pdf))
+
+
+def _mapa_fuentes(pdf):
+    """Nombre de recurso (/F1, /F2...) -> BaseFont (Helvetica,
+    Helvetica-Bold...), leído de los objetos /Type /Font del PDF (son
+    objetos planos, no vienen comprimidos)."""
+    fuentes = {}
+    for m in re.finditer(rb'<<([^<>]*?/Type\s*/Font[^<>]*?)>>', pdf, re.S):
+        bloque = m.group(1)
+        base = re.search(rb'/BaseFont\s*/(\S+)', bloque)
+        nombre = re.search(rb'/Name\s*/(\S+)', bloque)
+        if base and nombre:
+            fuentes[nombre.group(1)] = base.group(1).decode('latin1')
+    return fuentes
+
+
+_TOKEN_RE = re.compile(
+    rb'/(F\d+)\s+([\d.]+)\s+Tf'          # cambio de fuente/tamaño
+    rb'|\(((?:[^()\\]|\\.)*)\)\s*Tj'      # texto simple
+    rb'|\[((?:[^\[\]])*)\]\s*TJ'          # texto con kerning
+)
+_PAREN_RE = re.compile(rb'\(((?:[^()\\]|\\.)*)\)')
+
+
+def _unescape(s):
+    return s.replace(rb'\(', b'(').replace(rb'\)', b')')
+
+
+def _runs_de_texto(pdf):
+    """Cada fragmento de texto realmente dibujado en el PDF, con la fuente
+    (BaseFont) y el tamaño con los que reportlab lo escribió -- construido
+    siguiendo los operadores Tf/Tj/TJ del content stream, no adivinado
+    desde un screenshot. Devuelve una lista de (fuente, tamaño, texto)."""
+    fuentes = _mapa_fuentes(pdf)
+    runs = []
+    for stream in _streams_descomprimidos(pdf):
+        fuente = tamano = None
+        for m in _TOKEN_RE.finditer(stream):
+            if m.group(1):
+                fuente = fuentes.get(m.group(1), m.group(1).decode('latin1'))
+                tamano = float(m.group(2))
+            elif m.group(3) is not None:
+                texto = _unescape(m.group(3)).decode('latin1')
+                if texto.strip():
+                    runs.append((fuente, tamano, texto))
+            elif m.group(4) is not None:
+                texto = b''.join(_unescape(p) for p in _PAREN_RE.findall(m.group(4))).decode('latin1')
+                if texto.strip():
+                    runs.append((fuente, tamano, texto))
+    return runs
+
+
+def _fuente_de(runs, texto_esperado):
+    """(fuente, tamaño) del primer run cuyo texto contiene `texto_esperado`."""
+    for fuente, tamano, texto in runs:
+        if texto_esperado in texto:
+            return fuente, tamano
+    raise AssertionError(f'no se encontró ningún texto que contenga {texto_esperado!r}')
 
 
 def test_extrae_cabecera_y_cliente():
@@ -199,23 +262,48 @@ def test_render_con_muchas_cajas_no_revienta_y_crece():
     assert len(grande) > len(chico)
 
 
-def test_render_incrusta_la_fuente_bold():
-    """Verificación real de negrita, no visual: reportlab declara la fuente
-    en los recursos del PDF como /BaseFont /Helvetica-Bold cuando algún
-    ParagraphStyle la usa. Buscar el string en los bytes crudos alcanza
-    porque esa declaración vive en el diccionario de recursos (un objeto
-    plano), no dentro de un content stream comprimido.
-
-    (Un rasterizador externo puede sustituir Helvetica-Bold por la misma
-    cara que Helvetica si el sistema no tiene una fuente bold real mapeada
-    -verificado en este entorno con `fc-match Helvetica-Bold` -> Regular-,
-    así que un screenshot con esa herramienta no es evidencia confiable de
-    si el PDF pide negrita o no; esto sí lo es.)"""
+def test_render_negrita_por_elemento():
+    """No alcanza con que /BaseFont /Helvetica-Bold aparezca en algún lado
+    del PDF (el header de la tabla solo ya lo garantiza) -- hay que probar,
+    elemento por elemento, que el texto que la referencia muestra en
+    negrita realmente se dibujó con esa fuente. Sigue los operadores
+    Tf/Tj/TJ del content stream (vía `_runs_de_texto`), no un screenshot."""
     from utils.factura_pdf import render_factura_pdf
 
     pdf = render_factura_pdf(cargar('xcg_con_ob'))
+    runs = _runs_de_texto(pdf)
 
-    assert b'/BaseFont /Helvetica-Bold' in pdf
+    # Nombre del cliente bajo BILL TO, negrita contra las líneas de
+    # dirección en peso normal.
+    assert _fuente_de(runs, 'Esperamos Supermarket')[0] == 'Helvetica-Bold'
+    # Valor del bloque de detalles (el label 'Invoice #:' de al lado es gris
+    # y en peso normal).
+    assert _fuente_de(runs, '5811')[0] == 'Helvetica-Bold'
+    # Una cifra de la columna AMOUNT.
+    assert _fuente_de(runs, '293.34')[0] == 'Helvetica-Bold'
+    # BALANCE DUE y su importe.
+    assert _fuente_de(runs, 'BALANCE DUE')[0] == 'Helvetica-Bold'
+    assert _fuente_de(runs, '727.77')[0] == 'Helvetica-Bold'
+    # Título del bloque bancario.
+    assert _fuente_de(runs, 'Jomar Foods, BV')[0] == 'Helvetica-Bold'
+    # Header de la tabla de líneas.
+    assert _fuente_de(runs, 'AMOUNT')[0] == 'Helvetica-Bold'
+    # Control: una línea que NO debe estar en negrita.
+    assert _fuente_de(runs, 'Willemstad')[0] == 'Helvetica'
+
+
+def test_render_tamanos_de_fuente():
+    """El spec de la factura es, ante todo, una lista de tamaños. Un cambio
+    que reduzca BALANCE DUE a 10pt o infle PRODUCT a 12pt debe romper la
+    suite."""
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(cargar('xcg_con_ob'))
+    runs = _runs_de_texto(pdf)
+
+    assert _fuente_de(runs, 'INVOICE')[1] == 26
+    assert _fuente_de(runs, 'BALANCE DUE')[1] == 13
+    assert _fuente_de(runs, 'Deviled Ham 32/120 gr')[1] == 8.5
 
 
 def test_render_usd_muestra_la_moneda():
