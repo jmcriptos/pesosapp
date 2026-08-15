@@ -7,6 +7,18 @@ el renderizado de PDF.
 El módulo es puro: sin Flask, sin base de datos, sin red.
 """
 import re
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+)
 
 
 def _pick_invoice(src):
@@ -106,3 +118,225 @@ def extraer_datos_factura(invoice_json):
         'total': round(total, 2),
         'balance': round(float(inv.get('Balance') if inv.get('Balance') is not None else total), 2),
     }
+
+
+GRIS = colors.HexColor('#666666')
+
+EMPRESA = [
+    'JOMAR FOODS, BV',
+    'Industriepark Brievengat, Unit H.I.1.',
+    'Willemstad, Curacao',
+    'WhatsApp: +5999 6905484',
+    'sales@jomarfoods.com',
+    'www.jomarfoods.com',
+]
+
+BANCO = [
+    'Jomar Foods, BV',
+    'Crib nr.: 102505329',
+    'K.V.K.: 148768',
+    'RBC Account#: 8000009000132576',
+]
+
+
+def _xe(s):
+    """Escapa para Paragraph de reportlab, que interpreta markup tipo XML."""
+    return (str(s or '')
+            .replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+
+
+def _money(n):
+    return f'{float(n or 0):,.2f}'
+
+
+def _pct(p):
+    return str(round(p)) if abs(p - round(p)) < 0.05 else f'{p:.1f}'
+
+
+def _fecha(iso):
+    """QBO entrega 2026-08-11; la factura se ve como 08/11/2026."""
+    if not iso:
+        return ''
+    try:
+        return datetime.strptime(str(iso)[:10], '%Y-%m-%d').strftime('%m/%d/%Y')
+    except ValueError:
+        return str(iso)
+
+
+def _logo():
+    """El logo es opcional a propósito: los tests corren sin el asset y una
+    factura sin logo es preferible a una factura que no se genera."""
+    ruta = Path(__file__).resolve().parent.parent / 'static' / 'logo_factura.png'
+    if not ruta.exists():
+        return ''
+    try:
+        # lazy=0 fuerza a leer imageWidth/imageHeight ya: Image es "lazy" por
+        # defecto y setea drawWidth/drawHeight recién al primer acceso a esos
+        # atributos, lo que pisaba el drawWidth que fijamos abajo.
+        img = Image(str(ruta), lazy=0)
+        ancho = 62 * mm
+        img.drawWidth = ancho
+        img.drawHeight = ancho * (img.imageHeight / img.imageWidth)
+        img.hAlign = 'RIGHT'
+        return img
+    except Exception:
+        return ''
+
+
+def _grid_pesos(pesos, estilo):
+    """Los pesos de cada caja en 5 columnas, como el HTML."""
+    filas = [pesos[i:i + 5] for i in range(0, len(pesos), 5)]
+    filas = [f + [''] * (5 - len(f)) for f in filas]
+    tabla = Table(
+        [[Paragraph(_xe(c), estilo) for c in fila] for fila in filas],
+        colWidths=[12 * mm] * 5,
+    )
+    tabla.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
+    return tabla
+
+
+def render_factura_pdf(invoice_json):
+    d = extraer_datos_factura(invoice_json)
+
+    base = getSampleStyleSheet()
+    st_normal = ParagraphStyle('n', parent=base['Normal'], fontName='Helvetica',
+                               fontSize=8, leading=10)
+    st_bold = ParagraphStyle('b', parent=st_normal, fontName='Helvetica-Bold')
+    st_small = ParagraphStyle('s', parent=st_normal, fontSize=7, leading=9)
+    st_titulo = ParagraphStyle('t', parent=st_normal, fontName='Helvetica-Bold',
+                               fontSize=22, alignment=TA_RIGHT)
+    st_empresa = ParagraphStyle('e', parent=st_normal, fontName='Helvetica-Bold',
+                                fontSize=11)
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=12 * mm, rightMargin=12 * mm,
+        topMargin=12 * mm, bottomMargin=12 * mm,
+        title=f'Invoice {d["numero"]}',
+    )
+
+    flow = []
+
+    # Encabezado: empresa a la izquierda, logo a la derecha
+    empresa = [Paragraph(_xe(EMPRESA[0]), st_empresa)]
+    empresa += [Paragraph(_xe(l), st_normal) for l in EMPRESA[1:]]
+    flow.append(Table(
+        [[empresa, _logo()]],
+        colWidths=[110 * mm, 76 * mm],
+        style=TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]),
+    ))
+    flow.append(Spacer(1, 4 * mm))
+    flow.append(Paragraph('INVOICE', st_titulo))
+    flow.append(Spacer(1, 6 * mm))
+
+    # Bill To + detalles de la factura
+    bill = [Paragraph('BILL TO', st_small), Paragraph(_xe(d['cliente']), st_bold)]
+    for linea in d['direccion']:
+        if linea != d['cliente']:
+            bill.append(Paragraph(_xe(linea), st_normal))
+    if d['crib']:
+        bill.append(Paragraph(f'CRIB: {_xe(d["crib"])}', st_small))
+
+    detalles = [
+        ('Invoice #:', d['numero']),
+        ('Date:', _fecha(d['fecha'])),
+        ('Terms:', d['terminos']),
+        ('Due Date:', _fecha(d['vence'])),
+        ('Currency:', d['moneda_label']),
+    ]
+    tabla_detalles = Table(
+        [[Paragraph(_xe(k), st_small), Paragraph(_xe(v), st_bold)] for k, v in detalles],
+        colWidths=[22 * mm, 44 * mm],
+        style=TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]),
+    )
+    flow.append(Table(
+        [[bill, tabla_detalles]],
+        colWidths=[120 * mm, 66 * mm],
+        style=TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]),
+    ))
+    flow.append(Spacer(1, 6 * mm))
+
+    # Tabla de líneas
+    cab = ['PRODUCT', 'DETAILS', 'QUANTITY', 'RATE', 'AMOUNT']
+    filas = [[Paragraph(f'<b>{_xe(c)}</b>', st_small) for c in cab]]
+    for l in d['lineas']:
+        detalle = (_grid_pesos(l['pesos'], st_small) if l['pesos']
+                   else Paragraph(_xe(l['detalle_texto']), st_small))
+        filas.append([
+            Paragraph(_xe(l['producto']), st_normal),
+            detalle,
+            Paragraph(f'{l["qty"]:,.2f}', st_small),
+            Paragraph(_money(l['rate']), st_small),
+            Paragraph(f'<b>{_money(l["amount"])}</b>', st_small),
+        ])
+
+    tabla = Table(filas, colWidths=[52 * mm, 66 * mm, 20 * mm, 20 * mm, 28 * mm],
+                  repeatRows=1)
+    tabla.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('LINEABOVE', (0, 0), (-1, 0), 1.2, colors.black),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.2, colors.black),
+        ('LINEBELOW', (0, 1), (-1, -2), 0.25, colors.HexColor('#dddddd')),
+        ('LINEBELOW', (0, -1), (-1, -1), 1.2, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    flow.append(tabla)
+    flow.append(Spacer(1, 6 * mm))
+
+    # Datos bancarios + totales
+    banco = [Paragraph(_xe(BANCO[0]), st_bold)]
+    banco += [Paragraph(_xe(l), st_small) for l in BANCO[1:]]
+
+    totales_datos = [
+        ('SUBTOTAL', _money(d['subtotal'])),
+        (f'OB ({_pct(d["ob_pct"])}%)', _money(d['ob'])),
+        ('TOTAL', _money(d['total'])),
+        ('BALANCE DUE', _money(d['balance'])),
+    ]
+    totales = Table(
+        [[Paragraph(_xe(k), st_normal), Paragraph(f'<b>{v}</b>', st_normal)]
+         for k, v in totales_datos],
+        colWidths=[40 * mm, 34 * mm],
+        style=TableStyle([
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('LINEABOVE', (0, -1), (-1, -1), 1.2, colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]),
+    )
+    flow.append(KeepTogether(Table(
+        [[banco, totales]],
+        colWidths=[112 * mm, 74 * mm],
+        style=TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]),
+    )))
+
+    doc.build(flow)
+    return buf.getvalue()

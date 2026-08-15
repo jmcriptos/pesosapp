@@ -126,3 +126,53 @@ def test_subtotal_fallback_sin_subtotal_en_invoice():
     assert datos['subtotal'] == 350.50
     assert datos['total'] == 350.50
     assert len(datos['lineas']) == 2
+
+
+@pytest.mark.parametrize('fixture', ['xcg_con_ob', 'xcg_sin_ob', 'usd'])
+def test_render_produce_pdf_valido(fixture):
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(cargar(fixture))
+
+    assert pdf[:5] == b'%PDF-'
+    assert pdf.rstrip()[-5:] == b'%%EOF'
+    assert len(pdf) > 2000
+
+
+def test_render_tolera_factura_minima():
+    """Una factura sin líneas ni dirección no debe reventar el render."""
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf({'Invoice': {'Id': '1', 'DocNumber': '9999'}})
+
+    assert pdf[:5] == b'%PDF-'
+
+
+def test_render_con_muchas_cajas_no_revienta_y_crece():
+    """Caso real de la factura 5806: 6 productos de 20 cajas cada uno. El grid
+    de pesos tiene que fluir sin romper el render, y el PDF resultante pesa
+    claramente más que uno de dos líneas."""
+    from utils.factura_pdf import render_factura_pdf
+
+    pesos = '\t'.join(f'{12 + i * 0.15:.2f}' for i in range(20))
+    linea = {
+        'DetailType': 'SalesItemLineDetail',
+        'Description': pesos,
+        'Amount': 3339.70,
+        'SalesItemLineDetail': {
+            'ItemRef': {'name': 'Smoked and Cooked:Smoked Pork Chop'},
+            'Qty': 256.9, 'UnitPrice': 13,
+        },
+    }
+    factura = {'Invoice': {
+        'Id': '47339', 'DocNumber': '5806', 'TxnDate': '2026-08-11',
+        'CustomerRef': {'name': 'Mangusa Supermarket na Rio Canario, BV'},
+        'Line': [dict(linea) for _ in range(6)],
+        'SubTotal': 20038.2, 'TotalAmt': 20038.2,
+    }}
+
+    grande = render_factura_pdf(factura)
+    chico = render_factura_pdf(cargar('xcg_sin_ob'))
+
+    assert grande[:5] == b'%PDF-'
+    assert len(grande) > len(chico)
