@@ -38,6 +38,15 @@ body[data-pedido-habitual] {
   --ph-ambar: #fbbf24;
 }
 
+/* pedido_form.css pone `html { background:#f8fafc !important }` con el selector
+   SIN scope, así que aplica también acá. El degradado oscuro lo pinta <body>,
+   pero el rebote del overscroll en iOS descubre el fondo de <html>: un
+   destello blanco al final de la lista. Se oscurece solo cuando esta pantalla
+   está activa, para no tocar el resto de la app. */
+html:has(body[data-pedido-habitual]) {
+  background: #0a0e1f !important;
+}
+
 /* ── Fondo: el degradado del mockup, ganándole al reskin claro ── */
 body[data-pedido-habitual][data-pedido-form-screen],
 body[data-pedido-habitual][data-pedido-form-screen] .app-container,
@@ -181,34 +190,62 @@ body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control inpu
   color: var(--ph-texto-subtle) !important;
 }
 
+/* OJO con la especificidad, otra vez: pedido_form.css NO usa
+   `.ts-dropdown .option` sino `.ts-dropdown .ts-dropdown-content .option
+   .suggestion-name` (5 clases) — subieron la cuenta a propósito para ganarle
+   a dark-theme.css. Un selector más corto acá pierde aunque cargue después, y
+   el resultado es texto casi negro sobre el panel oscuro. Todas las reglas de
+   abajo pasan por `.ts-dropdown-content` y suman `[data-pedido-habitual]`. */
 body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown {
   background: #131a2c !important;
+  color: var(--ph-texto) !important;
   border: 1px solid var(--ph-borde-fuerte) !important;
   border-radius: 14px !important;
   box-shadow: 0 20px 48px -16px rgba(0, 0, 0, 0.7) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable] {
+  background: #131a2c !important;
+  color: var(--ph-texto) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .suggestion-name {
   color: var(--ph-texto) !important;
 }
 
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .option {
-  background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .option.active,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .active {
-  background: rgba(37, 99, 235, 0.22) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .suggestion-name {
-  color: var(--ph-texto) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .suggestion-price {
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .suggestion-price {
   color: var(--ph-azul-claro) !important;
 }
 
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .no-results {
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable].active,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option:hover,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable]:hover {
+  background: #1e3a6b !important;
+  color: #ffffff !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active .suggestion-name,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active .suggestion-price {
+  color: #ffffff !important;
+}
+
+/* El resaltado de la búsqueda venía de dark-theme.css como azul #60a5fa sobre
+   fondo azul translúcido: la parte que coincide con lo tecleado era JUSTO la
+   menos legible. Va texto blanco y el fondo solo como subrayado suave. */
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .highlight {
+  background: rgba(37, 99, 235, 0.45) !important;
+  color: #ffffff !important;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .no-results,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .optgroup-header {
   color: var(--ph-texto-muted) !important;
+  background: #131a2c !important;
 }
 
 /* ── Encabezado: nombre del cliente y su cadencia de compra ── */
@@ -407,14 +444,23 @@ body[data-pedido-habitual] .ph-linea.is-cambiada {
   border-color: rgba(52, 211, 153, 0.35);
 }
 
+/* La línea quitada va atenuada, pero SIN `opacity` sobre el contenedor: eso
+   apagaba también el botón "Volver", que no está deshabilitado — es la única
+   forma de recuperar la línea. Con opacity quedaba en 3.94:1 y el texto en
+   2.93:1. Se atenúa con colores explícitos y el botón conserva su contraste. */
 body[data-pedido-habitual] .ph-linea.is-quitada {
   background: rgba(30, 41, 59, 0.3);
   border-color: rgba(255, 255, 255, 0.05);
-  opacity: 0.55;
 }
 
 body[data-pedido-habitual] .ph-linea.is-quitada .ph-linea-nombre {
   text-decoration: line-through;
+  color: var(--ph-texto-muted);
+  font-weight: 500;
+}
+
+body[data-pedido-habitual] .ph-linea.is-quitada .ph-linea-meta {
+  color: var(--ph-texto-muted);
 }
 
 body[data-pedido-habitual] .ph-linea-info {
@@ -438,9 +484,12 @@ body[data-pedido-habitual] .ph-linea-metas {
   margin-top: 2px;
 }
 
+/* --ph-texto-subtle (#64748b) da 3.39:1 sobre la tarjeta a 11.5px, por debajo
+   del 4.5:1 que pide WCAG AA para texto chico. Con --ph-texto-muted queda en
+   ~5.5:1 y "habitual N cajas" se lee bajo el sol, que es donde se usa. */
 body[data-pedido-habitual] .ph-linea-meta {
   font-size: 0.72rem;
-  color: var(--ph-texto-subtle);
+  color: var(--ph-texto-muted);
 }
 
 body[data-pedido-habitual] .ph-delta-mas { color: var(--ph-verde); }
@@ -499,12 +548,13 @@ body[data-pedido-habitual] .ph-step-valor {
 }
 
 body[data-pedido-habitual] .ph-linea .ph-volver {
-  padding: 7px 13px;
-  border: none;
+  padding: 8px 14px;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.07);
-  color: #cbd5e1;
-  font: 600 0.75rem system-ui, sans-serif;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  font: 600 0.78rem system-ui, sans-serif;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -583,9 +633,13 @@ body[data-pedido-habitual] .ph-add-panel .ph-btn-add {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Deshabilitado pero legible: el vendedor tiene que poder leer QUÉ está
+   bloqueado, no solo ver una mancha gris. WCAG exime a los controles
+   deshabilitados, pero acá el estado es transitorio (se está esperando los
+   precios del cliente) y el botón vuelve enseguida. */
 body[data-pedido-habitual] .ph-add-panel .ph-btn-add:disabled {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--ph-texto-subtle);
+  background: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
   cursor: not-allowed;
 }
 
