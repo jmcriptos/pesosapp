@@ -80,8 +80,19 @@
           {% endif %}
         </div>
 
+        {# SIN data-stop-propagation.
+           base.js lo implementa como `ev.stopPropagation()` sobre el elemento,
+           y eso mata TODA delegación en document dentro del contenedor: el
+           clic en "Factura PDF" moría acá y nunca llegaba al handler de
+           `data-factura-share`. Por eso el PDF andaba desde el detalle del
+           pedido —donde no hay este contenedor— y no desde el listado.
+
+           Es innecesario además: el handler de navegación de la tarjeta ya
+           ignora los clics sobre `a, button, form, input, label`, así que
+           tocar un botón no abre el detalle igual. El borrado nunca se vio
+           afectado porque `data-confirm` se delega sobre `submit`. #}
         {% if tiene_acciones %}
-        <div class="pc-actions" data-stop-propagation>
+        <div class="pc-actions">
           {# La acción principal de la tarjeta, CON palabra: la guía solo deja
              iconos sin etiqueta para cerrar, volver, deshacer y borrar. Un
              pedido pendiente se va a pesar; uno preparado, a facturar. Es lo
@@ -94,7 +105,7 @@
           {% endif %}
           {% if puede_facturar %}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form" data-stop-propagation>
+                class="pc-action-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="pc-action-main"
                     aria-label="Facturar pedido PED-{{ pedido.id }}">
@@ -116,7 +127,7 @@
           <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form"
                 data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}"
-                data-stop-propagation>
+                >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="pc-action-btn danger" title="Eliminar"
                     aria-label="Eliminar pedido #{{ pedido.id }}">
