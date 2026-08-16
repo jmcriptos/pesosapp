@@ -111,7 +111,24 @@
             </button>
           </form>
           {% endif %}
+          {# Un pedido facturado no tenía ninguna acción en el listado, y como en
+             producción todos los pedidos terminan facturados, la lista quedaba de
+             solo lectura. Estas dos son las que se usan sobre una factura ya
+             emitida. Ambas rutas abortan 404 sin invoice_id_qbo, así que se
+             condicionan a que exista. #}
           {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+          <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
+             class="pc-action-btn" title="Revisar precios contra la factura"
+             aria-label="Revisar precios del pedido #{{ pedido.id }}">
+            <i class="fa-solid fa-tags"></i>
+          </a>
+          <button type="button" class="pc-action-btn"
+                  data-factura-share
+                  data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
+                  data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf"
+                  title="Factura PDF" aria-label="Factura PDF del pedido #{{ pedido.id }}">
+            <i class="fa-solid fa-file-invoice"></i>
+          </button>
           <span class="invoice-id-chip" title="QuickBooks Invoice">{{ pedido.invoice_id_qbo }}</span>
           {% endif %}
         </div>
@@ -258,6 +275,22 @@
                       <i class="fa-solid fa-trash-can"></i>
                     </button>
                   </form>
+                  {% endif %}
+                  {# Mismas acciones que en la tarjeta móvil: sin esto, un pedido
+                     facturado no ofrece nada desde el listado. #}
+                  {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                  <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
+                     class="row-action" title="Revisar precios contra la factura"
+                     aria-label="Revisar precios del pedido #{{ pedido.id }}">
+                    <i class="fa-solid fa-tags"></i>
+                  </a>
+                  <button type="button" class="row-action"
+                          data-factura-share
+                          data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
+                          data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf"
+                          title="Factura PDF" aria-label="Factura PDF del pedido #{{ pedido.id }}">
+                    <i class="fa-solid fa-file-invoice"></i>
+                  </button>
                   {% endif %}
                 </div>
               </td>
