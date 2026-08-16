@@ -254,9 +254,19 @@
           // prioridad) y se calculan jomar/retail en el cliente
           // (precio_base * margen) en vez de leer columnas potencialmente
           // null del backend. Devuelve {id, nombre, precio, tipo_precio,
-          // precio_base, margen_jomar, margen_retail, lista_nombre}.
+          // precio_base, margen_jomar, margen_retail}.
           var infoExistente = contenido.querySelector('.cliente-info');
           var html = infoExistente ? infoExistente.outerHTML : '';
+
+          // La API devuelve el catálogo COMPLETO, incluidos los productos sin
+          // precio configurado (precio_base null), porque el formulario de
+          // pedido los necesita para mostrarlos como "sin precio". Esta pantalla
+          // lista productos CON precio, así que los descarta: sin este filtro,
+          // el precio_base null reventaba en toFixed() y el catch de abajo lo
+          // mostraba como "Error al cargar los precios".
+          data = data.filter(function (p) {
+            return p && p.precio_base !== null && p.precio_base !== undefined;
+          });
 
           if (data.length > 0) {
             html += '<p class="precios-list-meta">Total de productos con precio: ' + data.length + '</p>';
