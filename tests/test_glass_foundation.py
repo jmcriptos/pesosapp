@@ -405,18 +405,29 @@ def test_typography_utilities_defined():
 
 
 def test_bundle_size_under_budget():
-    """tokens.css + primitives.css combined must be under 25 KB uncompressed.
+    """tokens.css + primitives.css combined must be under 34 KB uncompressed.
 
     Spec §11 success criterion 8 originally targeted 20 KB; after all 16
     primitive tasks were implemented the actual combined size settled at ~22 KB
     with no duplication or excess comments — the original estimate was too
     conservative. Budget raised to 25 KB (verified 2026-04-17) to give a
     meaningful regression guard without forcing artificial compression.
+
+    Subido a 34 KB (2026-08-16) al implementar la guía "Sistema UI": entran 8
+    primitivos nuevos —píldoras de filtro, stepper, avisos, superficie hundida,
+    barra de acción, estado vacío, botones suave / eliminar-suave y .sr-only—
+    más los tokens de altura de control, radio 14 y roles tipográficos. El
+    presupuesto sube con el alcance, a propósito y no en silencio: la idea es
+    que crecer cueste una decisión, no que sea gratis.
+
+    Ojo: este repo NO minifica, así que los comentarios se sirven tal cual en
+    cada carga. Si vuelve a rozar el techo, lo primero a recortar es prosa, no
+    primitivos.
     """
     tokens_size = TOKENS_CSS.stat().st_size
     primitives_size = PRIMITIVES_CSS.stat().st_size
     combined_kb = (tokens_size + primitives_size) / 1024
-    assert combined_kb <= 25, (
-        f"Bundle exceeds 25 KB: tokens={tokens_size/1024:.1f} KB + "
+    assert combined_kb <= 34, (
+        f"Bundle exceeds 34 KB: tokens={tokens_size/1024:.1f} KB + "
         f"primitives={primitives_size/1024:.1f} KB = {combined_kb:.1f} KB"
     )

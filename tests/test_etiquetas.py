@@ -270,7 +270,14 @@ def test_vista_pedidos_filtra_desde_get(logged_client, app):
     assert resp.status_code == 200
     assert 'Cliente Filtro' in html
     assert 'Cliente Test' not in html
-    assert 'value="pendiente" selected' in html
+    # El estado activo se ve en su píldora de filtro. Antes esto miraba
+    # `value="pendiente" selected` del <select>, que la guía "Sistema UI"
+    # reemplazó por píldoras de 44px para que el estado se lea sin abrir nada.
+    # Lo comprobado es lo mismo: el filtro llega por GET y la vista lo marca.
+    assert 'data-estado="pendiente"' in html
+    assert 'aria-pressed="true"' in html
+    # y el estado viaja al servidor en el hidden del formulario
+    assert 'name="estado" id="pedidos-estado" value="pendiente"' in html
     # El filtro solo_notas se preserva como hidden input en el form de filtros
     assert 'name="solo_notas" value="1"' in html
 

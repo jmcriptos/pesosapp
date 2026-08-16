@@ -340,18 +340,19 @@ body[data-pedidos-list-screen] .pc-amt .moneda {
   #pedidos-resultados.is-cargando { transition: none; }
 }
 
-/* No existía en el proyecto: la nota pasó a ser solo icono y su texto tiene
-   que seguir llegando a un lector de pantalla. */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* `.sr-only` vive ahora en primitives.css, con el resto de la guía. */
+
+/* El <select> de estado salió del formulario y lo reemplazan las píldoras de
+   `.filters` (primitives.css). El buscador se queda solo en su fila, así que
+   deja de recortar su propio placeholder —decía "Buscar pedid…"— y sube a la
+   altura de campo de la guía. */
+body[data-pedidos-list-screen] .filter-bar .search-pill {
+  height: var(--control-h-field);
+}
+
+body[data-pedidos-list-screen] #pedidos-filtros {
+  margin: 0 0 var(--space-4);
+  padding: 2px var(--space-1);
 }
 
 /* Envuelve, no recorta. Con `nowrap` las tarjetas quedaban parejas en 138px,
@@ -478,12 +479,16 @@ body[data-pedidos-list-screen] .status-pill.facturado {
 }
 
 /* Action buttons (view, edit, invoice, delete) */
+/* 48px, no 34: la guía Sistema UI pone el piso de cualquier destino de toque
+   en 48px porque la app se usa en ruta y en planta. Encarece la tarjeta (los
+   pedidos preparados llevan tres botones y los metadatos pasan a dos líneas),
+   pero es el intercambio que la guía elige: tocar antes que densidad. */
 body[data-pedidos-list-screen] .pc-action-btn {
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
+  width: var(--touch-min) !important;
+  height: var(--touch-min) !important;
+  min-width: var(--touch-min) !important;
   padding: 0 !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-md) !important;
   display: inline-grid !important;
   place-items: center;
   background: var(--color-bg-elevated) !important;

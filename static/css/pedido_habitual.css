@@ -1,329 +1,210 @@
-/* ─────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────────
    pedido_habitual.css · Pantalla "Repetir y ajustar" de /pedidos/nuevo.
 
-   El pedido llega escrito con lo que el cliente suele comprar y el
-   vendedor solo corrige lo que cambió. Reemplaza el área de contenido
-   del formulario; el topnav y la tabbar siguen siendo los de siempre.
+   El pedido llega escrito con lo que el cliente suele comprar y el vendedor
+   solo corrige lo que cambió.
 
-   IMPORTANTE — dos trampas conocidas de este repo, por eso todo acá es
-   explícito y con selectores largos en vez de reglas sueltas:
+   Esta hoja era OSCURA. La guía "Sistema UI" define la app en tema claro y
+   dice, sobre esta pantalla en concreto: «el flujo del pedido habitual
+   pre-cargado, pasado al tema claro y a los controles grandes de esta guía;
+   las marcas de cambio ahora se leen con color y peso, no con fondos
+   oscuros». Eso es lo que hace este archivo ahora.
 
-   1. `pedido_form.css` fuerza esta pantalla a CLARO (#f8fafc, tarjetas
-      blancas, --color-text oscuro) con !important. Esta hoja carga
-      después y re-declara los tokens en oscuro sobre el mismo scope.
+   Segundo cambio de fondo: ya no hay paleta propia. Antes fijaba #2563eb y
+   una docena de grises a mano; ahora todo sale de tokens.css, así que el hue
+   y la escala se cambian en un solo sitio. Los primitivos compartidos
+   (.btn, .chip, .stepper, .notice, .actionbar) viven en primitives.css —
+   acá queda solo lo que es propio de esta pantalla.
+   ───────────────────────────────────────────────────────────────────────── */
 
-   2. `dark-theme.css` tiene `button, .btn { color:#f1f5f9 }`, y por la
-      `:root` sin cerrar de styles.css hay un `button:not(.btn-chip)
-      { background:#1877ff }` que pinta de azul CUALQUIER botón en modo
-      oscuro. Los botones de acá (stepper, chips, Volver) declaran su
-      background con especificidad de body[...] + clase, que le gana.
-   ───────────────────────────────────────────────────────────── */
-
-body[data-pedido-habitual] {
-  /* Paleta propia, no heredada: los tokens de tokens.css los pisa
-     pedido_form.css en claro y volverían las tarjetas blancas. */
-  --ph-bg-1: #0a0e1f;
-  --ph-bg-2: #0f172a;
-  --ph-bg-3: #1a1033;
-  --ph-surface: rgba(30, 41, 59, 0.55);
-  --ph-surface-alta: rgba(30, 41, 59, 0.75);
-  --ph-borde: rgba(255, 255, 255, 0.07);
-  --ph-borde-fuerte: rgba(255, 255, 255, 0.12);
-  --ph-texto: #f8fafc;
-  --ph-texto-muted: #94a3b8;
-  --ph-texto-subtle: #64748b;
-  --ph-azul: #2563eb;
-  --ph-azul-claro: #93c5fd;
-  --ph-verde: #34d399;
-  --ph-ambar: #fbbf24;
-}
-
-/* pedido_form.css pone `html { background:#f8fafc !important }` con el selector
-   SIN scope, así que aplica también acá. El degradado oscuro lo pinta <body>,
-   pero el rebote del overscroll en iOS descubre el fondo de <html>: un
-   destello blanco al final de la lista. Se oscurece solo cuando esta pantalla
-   está activa, para no tocar el resto de la app. */
-html:has(body[data-pedido-habitual]) {
-  background: #0a0e1f !important;
-}
-
-/* ── Fondo: el degradado del mockup, ganándole al reskin claro ── */
-body[data-pedido-habitual][data-pedido-form-screen],
-body[data-pedido-habitual][data-pedido-form-screen] .app-container,
-body[data-pedido-habitual][data-pedido-form-screen] .app-content,
-body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
-  background: linear-gradient(160deg, var(--ph-bg-1) 0%, var(--ph-bg-2) 55%, var(--ph-bg-3) 100%) !important;
-  background-attachment: fixed !important;
-}
-
+/* Los tokens de superficie y texto ya los fija pedido_form.css para este
+   shell, y coinciden con la guía (#f8fafc de fondo, #ffffff de card, #0f172a
+   de texto). Pero los SEMÁNTICOS viven en :root, y :root se voltea entero
+   dentro de `@media (prefers-color-scheme: dark)`: en un teléfono con el modo
+   oscuro del sistema, `--color-primary-soft` devolvería la variante oscura
+   sobre una card blanca. Además `[data-hue="blue"]` remapea --indigo-500 pero
+   NO --indigo-400, que es lo que usa --color-primary en la capa oscura, así
+   que el azul dejaría de ser el de la guía. Se anclan acá, con los valores
+   literales del Sistema UI. */
 body[data-pedido-habitual][data-pedido-form-screen] .app-content,
 body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell,
 body[data-pedido-habitual][data-pedido-form-screen] .mobile-form-container {
-  /* Re-declarar los tokens que pedido_form.css puso en claro: los
-     hijos que usan var(--color-text) heredarían texto casi negro
-     sobre fondo navy. */
-  --bg-ambient: transparent;
-  --color-bg: transparent;
-  --color-bg-elevated: var(--ph-surface);
-  --color-bg-subtle: transparent;
-  --color-surface: var(--ph-surface);
-  --color-surface-muted: var(--ph-surface);
-  --color-surface-strong: var(--ph-surface-alta);
-  --color-text: var(--ph-texto);
-  --color-text-muted: var(--ph-texto-muted);
-  --color-text-subtle: var(--ph-texto-subtle);
-  --color-border: var(--ph-borde);
-  --color-border-subtle: var(--ph-borde);
-  color: var(--ph-texto);
-}
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-fg: #ffffff;
+  --color-primary-soft: #eff6ff;
+  --color-primary-soft-fg: #1d4ed8;
 
-/* Alto del footer (≈118px) + tabbar (63px). Sin esto la última línea
-   del pedido queda tapada por la barra de total. */
-body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
-  padding-bottom: calc(118px + 63px + env(safe-area-inset-bottom)) !important;
+  --color-success: #10b981;
+  --color-success-soft: #d1fae5;
+  --color-success-soft-fg: #047857;
+
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fef3c7;
+  --color-warning-soft-fg: #b45309;
+
+  --color-danger: #f43f5e;
+  --color-danger-soft: #ffe4e6;
+  --color-danger-soft-fg: #be123c;
+
+  --color-border: #cbd5e1;
+  --color-border-subtle: #e2e8f0;
 }
 
 body[data-pedido-habitual][data-pedido-form-screen] .mobile-form-container {
-  padding: 0 16px;
+  padding: 0 var(--space-4);
+}
+
+/* Cerrar medía 40px. Es de los cuatro iconos que la guía permite sin
+   etiqueta, pero sigue siendo un destino de toque: 48px. */
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-close {
+  width: var(--touch-min);
+  height: var(--touch-min);
 }
 
 body[data-pedido-habitual] .pedido-form-shell form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
+}
+
+/* Alto de la barra de acción (≈118px) + tabbar (63px): sin esto la última
+   línea del pedido queda tapada por el total. */
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
+  padding-bottom: calc(118px + 63px + env(safe-area-inset-bottom)) !important;
+}
+
+@media (min-width: 1024px) {
+  body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
+    padding-bottom: calc(118px + env(safe-area-inset-bottom)) !important;
+  }
 }
 
 /* ── Tarjeta de cliente ── */
 body[data-pedido-habitual] .ph-card {
-  background: var(--ph-surface);
-  border: 1px solid var(--ph-borde);
-  border-radius: 16px;
-  padding: 14px;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
 }
 
+/* `label.ph-label` y no `.ph-label`: dark-theme.css:175 tiene
+   `label { color:#f1f5f9 !important }` SIN scope, así que pinta de blanco
+   cualquier etiqueta de la app. Sobre la card blanca de esta pantalla el
+   texto desaparecía. Hace falta igualar el !important y sumar el selector de
+   elemento. Mismo problema que ya apareció en las pantallas .ops-*. */
+body[data-pedido-habitual] label.ph-label,
 body[data-pedido-habitual] .ph-label {
   display: block;
-  font-size: 0.78rem;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-role-meta);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ph-texto-subtle);
-  margin-bottom: 7px;
+  color: var(--color-text-muted) !important;
 }
 
 body[data-pedido-habitual] .ph-field {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 
-/* Los inputs nativos y los TomSelect también vienen claros de
-   pedido_form.css — acá se les devuelve el fondo oscuro. */
+/* Campos a 52px y 16px de texto. El 16px no es estético: por debajo, iOS
+   Safari hace zoom al enfocar y descoloca la pantalla entera. */
 body[data-pedido-habitual] .mobile-form-control,
-body[data-pedido-habitual] .ts-wrapper .ts-control {
-  background: rgba(15, 23, 42, 0.75) !important;
-  border: 1px solid var(--ph-borde-fuerte) !important;
-  border-radius: 14px !important;
-  color: var(--ph-texto) !important;
-  font-size: 1rem;
-  min-height: 48px;
+body[data-pedido-habitual] .ts-wrapper .ts-control,
+body[data-pedido-habitual] .ts-wrapper.single .ts-control {
+  min-height: var(--control-h-field) !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--color-text) !important;
+  font-size: var(--text-input) !important;
 }
 
 body[data-pedido-habitual] .ts-wrapper .ts-control input,
+body[data-pedido-habitual] .ts-wrapper .ts-control .item,
 body[data-pedido-habitual] .ts-wrapper .ts-control .ts-item-clean {
-  color: var(--ph-texto) !important;
-}
-
-body[data-pedido-habitual] .mobile-form-control::placeholder {
-  color: var(--ph-texto-subtle) !important;
-}
-
-body[data-pedido-habitual] input[readonly].mobile-form-control {
-  color: var(--ph-texto-muted) !important;
-}
-
-/* ── Topnav ──
-   pedido_form.css fija el título en #0f172a !important (línea ~680) porque
-   ahí la pantalla es blanca. Acá el fondo es navy, así que quedaba negro
-   sobre negro. Mismo !important y un atributo más de especificidad. */
-body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-topnav {
-  background: rgba(10, 14, 31, 0.85) !important;
-  border-bottom: 1px solid var(--ph-borde) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-topnav-heading {
-  color: var(--ph-texto) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-topnav-meta {
-  color: var(--ph-texto-muted) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-close {
-  background: rgba(255, 255, 255, 0.07) !important;
-  color: #cbd5e1 !important;
-  border-color: transparent !important;
-}
-
-/* ── TomSelect ──
-   `.ts-wrapper.single .ts-control` de pedido_form.css lleva `.single`, que
-   suma especificidad; sin repetirla, el campo se quedaba blanco sobre el
-   fondo oscuro. El dropdown va igual: si no, se abre un panel blanco. */
-body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper.single .ts-control {
-  background: rgba(15, 23, 42, 0.75) !important;
-  color: var(--ph-texto) !important;
-  border: 1px solid var(--ph-borde-fuerte) !important;
-  border-radius: 14px !important;
-  padding: 12px 14px !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control input,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control .item,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control .ts-item-clean {
-  color: var(--ph-texto) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control input::placeholder {
-  color: var(--ph-texto-subtle) !important;
-}
-
-/* OJO con la especificidad, otra vez: pedido_form.css NO usa
-   `.ts-dropdown .option` sino `.ts-dropdown .ts-dropdown-content .option
-   .suggestion-name` (5 clases) — subieron la cuenta a propósito para ganarle
-   a dark-theme.css. Un selector más corto acá pierde aunque cargue después, y
-   el resultado es texto casi negro sobre el panel oscuro. Todas las reglas de
-   abajo pasan por `.ts-dropdown-content` y suman `[data-pedido-habitual]`. */
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown {
-  background: #131a2c !important;
-  color: var(--ph-texto) !important;
-  border: 1px solid var(--ph-borde-fuerte) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 20px 48px -16px rgba(0, 0, 0, 0.7) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable] {
-  background: #131a2c !important;
-  color: var(--ph-texto) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .suggestion-name {
-  color: var(--ph-texto) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .suggestion-price {
-  color: var(--ph-azul-claro) !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable].active,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option:hover,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content [data-selectable]:hover {
-  background: #1e3a6b !important;
-  color: #ffffff !important;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active .suggestion-name,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option.active .suggestion-price {
-  color: #ffffff !important;
-}
-
-/* El resaltado de la búsqueda venía de dark-theme.css como azul #60a5fa sobre
-   fondo azul translúcido: la parte que coincide con lo tecleado era JUSTO la
-   menos legible. Va texto blanco y el fondo solo como subrayado suave. */
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .ts-dropdown-content .option .highlight {
-  background: rgba(37, 99, 235, 0.45) !important;
-  color: #ffffff !important;
-  border-radius: 3px;
-  padding: 0 1px;
-}
-
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .no-results,
-body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .optgroup-header {
-  color: var(--ph-texto-muted) !important;
-  background: #131a2c !important;
+  color: var(--color-text) !important;
 }
 
 /* ── Encabezado: nombre del cliente y su cadencia de compra ── */
 body[data-pedido-habitual] .ph-hero {
-  padding: 2px 4px;
+  padding: 0 var(--space-1);
 }
 
 body[data-pedido-habitual] .ph-hero[hidden] { display: none; }
 
 body[data-pedido-habitual] .ph-hero-nombre {
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: var(--text-role-screen);
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--ph-texto);
+  color: var(--color-text);
   line-height: 1.2;
 }
 
 body[data-pedido-habitual] .ph-hero-meta {
   margin-top: 3px;
-  font-size: 0.8rem;
-  color: var(--ph-texto-muted);
+  font-size: var(--text-role-meta);
+  color: var(--color-text-muted);
 }
 
 /* ── Chips de entrega ── */
 body[data-pedido-habitual] .ph-entrega {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--touch-gap);
   flex-wrap: wrap;
-  padding: 0 2px;
+  padding: 0 var(--space-1);
 }
 
 body[data-pedido-habitual] .ph-entrega-label {
-  font-size: 0.8rem;
+  font-size: var(--text-role-meta);
   font-weight: 500;
-  color: var(--ph-texto-muted);
+  color: var(--color-text-muted);
 }
 
 body[data-pedido-habitual] .ph-chips {
   display: flex;
-  gap: 7px;
+  gap: var(--touch-gap);
   flex-wrap: wrap;
 }
 
-/* El background va explícito y con esta especificidad para que el
-   `button:not(.btn-chip){background:#1877ff}` del bug de styles.css
-   no pinte todas las chips de azul en modo oscuro. */
+/* Píldoras de 44px, como los filtros de la guía: el activo va en tinta y no
+   en azul, para no competir con "Enviar pedido". */
 body[data-pedido-habitual] .ph-chips .ph-chip {
-  padding: 8px 14px;
-  min-height: 38px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cbd5e1;
-  font: 600 0.8rem system-ui, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h-pill);
+  padding: 0 18px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
 body[data-pedido-habitual] .ph-chips .ph-chip.is-active {
-  background: var(--ph-azul);
-  color: #ffffff;
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-bg);
 }
 
-body[data-pedido-habitual] .ph-chips .ph-chip:active {
-  transform: scale(0.96);
-}
-
-body[data-pedido-habitual] .ph-date {
+/* !important porque dark-theme.css:178 pinta `input[type="date"]` de #1a1f2b
+   con !important, sin scope. */
+body[data-pedido-habitual] input.ph-date {
   margin-left: auto;
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid var(--ph-borde-fuerte);
-  border-radius: 12px;
-  color: var(--ph-texto);
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  color-scheme: dark;
+  height: var(--control-h-pill);
+  padding: 0 var(--space-3);
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md);
+  color: var(--color-text) !important;
+  font-size: var(--text-input);
 }
 
 body[data-pedido-habitual] .ph-date[hidden] { display: none; }
@@ -332,33 +213,33 @@ body[data-pedido-habitual] .ph-date[hidden] { display: none; }
    Aparece solo con clientes que compran de más de un grupo (22 de 49). Es un
    bloqueo intencional: hasta que no se elige, no hay líneas que precargar. */
 body[data-pedido-habitual] .ph-grupos {
-  padding: 16px;
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  border-radius: 16px;
+  padding: var(--space-4);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-control);
 }
 
 body[data-pedido-habitual] .ph-grupos[hidden] { display: none; }
 
 body[data-pedido-habitual] .ph-grupos-title {
-  font-size: 0.9rem;
+  font-size: var(--text-role-body);
   font-weight: 700;
-  color: var(--ph-ambar);
-  margin-bottom: 5px;
+  color: var(--color-warning-soft-fg);
+  margin-bottom: var(--space-1);
 }
 
 body[data-pedido-habitual] .ph-grupos-body {
-  font-size: 0.79rem;
+  font-size: var(--text-role-meta);
   line-height: 1.5;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
 body[data-pedido-habitual] .ph-grupos-lista {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 13px;
+  gap: var(--touch-gap);
+  margin-top: var(--space-3);
 }
 
 body[data-pedido-habitual] .ph-grupos-lista .ph-grupo-opt {
@@ -367,57 +248,57 @@ body[data-pedido-habitual] .ph-grupos-lista .ph-grupo-opt {
   align-items: flex-start;
   gap: 2px;
   width: 100%;
-  padding: 13px 14px;
-  border: 1px solid var(--ph-borde-fuerte);
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.75);
+  min-height: var(--touch-glove);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 body[data-pedido-habitual] .ph-grupos-lista .ph-grupo-opt:active {
-  background: rgba(37, 99, 235, 0.22);
+  background: var(--color-primary-soft);
 }
 
 body[data-pedido-habitual] .ph-grupo-nombre {
-  font-size: 0.92rem;
+  font-size: var(--text-role-body);
   font-weight: 700;
-  color: var(--ph-texto);
+  color: var(--color-text);
 }
 
 body[data-pedido-habitual] .ph-grupo-ejemplos {
-  font-size: 0.78rem;
-  color: #cbd5e1;
+  font-size: var(--text-role-meta);
+  color: var(--color-text-muted);
   line-height: 1.35;
 }
 
 body[data-pedido-habitual] .ph-grupo-meta {
-  font-size: 0.74rem;
-  color: var(--ph-texto-muted);
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
 }
 
 /* ── Aviso de dónde salen las líneas ── */
 body[data-pedido-habitual] .ph-banner {
-  padding: 14px;
-  background: rgba(37, 99, 235, 0.12);
-  border: 1px solid rgba(37, 99, 235, 0.35);
-  border-radius: 16px;
+  padding: var(--space-4);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-control);
 }
 
 body[data-pedido-habitual] .ph-banner[hidden] { display: none; }
 
 body[data-pedido-habitual] .ph-banner-title {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: var(--ph-azul-claro);
-  margin-bottom: 4px;
+  font-size: var(--text-role-meta);
+  font-weight: 700;
+  color: var(--color-primary-soft-fg);
+  margin-bottom: var(--space-1);
 }
 
 body[data-pedido-habitual] .ph-banner-body {
-  font-size: 0.8rem;
+  font-size: var(--text-role-meta);
   line-height: 1.5;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
   text-wrap: pretty;
 }
 
@@ -425,42 +306,39 @@ body[data-pedido-habitual] .ph-banner-body {
 body[data-pedido-habitual] .ph-lineas {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--touch-gap);
 }
 
 body[data-pedido-habitual] .ph-linea {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 11px 13px;
-  background: var(--ph-surface);
-  border: 1px solid var(--ph-borde);
-  border-radius: 14px;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
 }
 
-/* Una cantidad distinta a la habitual se marca en el borde: el vendedor
-   ve de un vistazo qué tocó sin tener que leer cada subtítulo. */
+/* Una cantidad distinta a la habitual se marca con COLOR Y PESO en el texto,
+   no con un fondo: es lo que pide la guía al pasar a claro. El borde apenas
+   acompaña. */
 body[data-pedido-habitual] .ph-linea.is-cambiada {
-  border-color: rgba(52, 211, 153, 0.35);
+  border-color: var(--color-success);
 }
 
-/* La línea quitada va atenuada, pero SIN `opacity` sobre el contenedor: eso
-   apagaba también el botón "Volver", que no está deshabilitado — es la única
-   forma de recuperar la línea. Con opacity quedaba en 3.94:1 y el texto en
-   2.93:1. Se atenúa con colores explícitos y el botón conserva su contraste. */
 body[data-pedido-habitual] .ph-linea.is-quitada {
-  background: rgba(30, 41, 59, 0.3);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-subtle);
+  border-style: dashed;
 }
 
 body[data-pedido-habitual] .ph-linea.is-quitada .ph-linea-nombre {
   text-decoration: line-through;
-  color: var(--ph-texto-muted);
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
 body[data-pedido-habitual] .ph-linea.is-quitada .ph-linea-meta {
-  color: var(--ph-texto-muted);
+  color: var(--color-text-muted);
 }
 
 body[data-pedido-habitual] .ph-linea-info {
@@ -469,9 +347,9 @@ body[data-pedido-habitual] .ph-linea-info {
 }
 
 body[data-pedido-habitual] .ph-linea-nombre {
-  font-size: 0.9rem;
+  font-size: var(--text-role-body);
   font-weight: 600;
-  color: var(--ph-texto);
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -480,126 +358,137 @@ body[data-pedido-habitual] .ph-linea-nombre {
 body[data-pedido-habitual] .ph-linea-metas {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--space-2);
   margin-top: 2px;
 }
 
-/* --ph-texto-subtle (#64748b) da 3.39:1 sobre la tarjeta a 11.5px, por debajo
-   del 4.5:1 que pide WCAG AA para texto chico. Con --ph-texto-muted queda en
-   ~5.5:1 y "habitual N cajas" se lee bajo el sol, que es donde se usa. */
 body[data-pedido-habitual] .ph-linea-meta {
-  font-size: 0.72rem;
-  color: var(--ph-texto-muted);
+  font-size: var(--text-role-meta);
+  color: var(--color-text-muted);
 }
 
-body[data-pedido-habitual] .ph-delta-mas { color: var(--ph-verde); }
-body[data-pedido-habitual] .ph-delta-menos { color: var(--ph-ambar); }
+/* Verde y ámbar acá solo comunican estado (subió / bajó), no decoran. */
+body[data-pedido-habitual] .ph-delta-mas {
+  color: var(--color-success-soft-fg);
+  font-weight: 700;
+}
+
+body[data-pedido-habitual] .ph-delta-menos {
+  color: var(--color-warning-soft-fg);
+  font-weight: 700;
+}
 
 body[data-pedido-habitual] .ph-linea-subtotal {
-  font-size: 0.72rem;
+  font-size: var(--text-role-meta);
   font-weight: 700;
-  color: var(--ph-texto-muted);
+  color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
   margin-left: auto;
 }
 
-/* Sin precio no es 0.00: se marca en ámbar para que se note que falta
-   configurarlo, no para que parezca que el producto es gratis. */
+/* Sin precio no es 0.00: se marca para que se note que falta configurarlo,
+   no para que parezca que el producto es gratis. */
 body[data-pedido-habitual] .ph-sin-precio {
-  color: var(--ph-ambar);
-  font-weight: 600;
+  color: var(--color-warning-soft-fg);
+  font-weight: 700;
 }
 
-/* ── Stepper ── */
+/* ── Stepper ──
+   52px de alto y teclas de 48px: se usa con el teléfono en una mano. */
 body[data-pedido-habitual] .ph-stepper {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 3px;
+  height: var(--control-h-field);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
   flex-shrink: 0;
 }
 
 body[data-pedido-habitual] .ph-stepper .ph-step {
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 8px;
+  width: var(--touch-min);
+  height: 100%;
+  border: 0;
   background: transparent;
-  color: #cbd5e1;
-  font: 500 1.15rem system-ui, sans-serif;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  font-weight: 500;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 body[data-pedido-habitual] .ph-stepper .ph-step:active {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-surface-muted);
 }
 
 body[data-pedido-habitual] .ph-step-valor {
-  min-width: 26px;
+  min-width: 40px;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: var(--text-role-client);
   font-weight: 700;
-  color: var(--ph-texto);
+  color: var(--color-text);
   font-variant-numeric: tabular-nums;
 }
 
 body[data-pedido-habitual] .ph-linea .ph-volver {
-  padding: 8px 14px;
-  min-height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
-  font: 600 0.78rem system-ui, sans-serif;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
 }
 
 /* ── Vacío ── */
 body[data-pedido-habitual] .ph-empty {
-  padding: 26px 16px;
+  padding: var(--space-6) var(--space-4);
   text-align: center;
-  color: var(--ph-texto-subtle);
-  border: 1px dashed var(--ph-borde-fuerte);
-  border-radius: 14px;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
 }
 
 body[data-pedido-habitual] .ph-empty i {
-  font-size: 1.6rem;
-  opacity: 0.6;
+  font-size: var(--text-xl);
+  opacity: 0.5;
 }
 
 body[data-pedido-habitual] .ph-empty p {
-  margin: 8px 0 0;
-  font-size: 0.85rem;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-role-body);
 }
 
 /* ── Añadir otro producto ── */
 body[data-pedido-habitual] .ph-add-toggle {
   width: 100%;
-  padding: 13px;
-  border: 1px dashed rgba(255, 255, 255, 0.15);
-  border-radius: 14px;
+  min-height: var(--control-h-secondary);
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--ph-texto-muted);
-  font: 600 0.85rem system-ui, sans-serif;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-role-body);
+  font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 body[data-pedido-habitual] .ph-add-toggle:active {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-surface-muted);
 }
 
 body[data-pedido-habitual] .ph-add-panel {
-  padding: 14px;
-  background: var(--ph-surface);
-  border: 1px solid var(--ph-borde);
-  border-radius: 16px;
+  padding: var(--space-4);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-control);
 }
 
 body[data-pedido-habitual] .ph-add-panel[hidden] { display: none; }
@@ -607,8 +496,8 @@ body[data-pedido-habitual] .ph-add-panel[hidden] { display: none; }
 body[data-pedido-habitual] .ph-add-row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  margin-top: 12px;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 body[data-pedido-habitual] .ph-field-cajas {
@@ -621,49 +510,53 @@ body[data-pedido-habitual] .ph-field-cajas .mobile-form-control {
   text-align: center;
 }
 
+/* "Suave", no primario: la única acción azul de la pantalla es enviar el
+   pedido. La guía prohíbe dos botones primarios juntos. */
 body[data-pedido-habitual] .ph-add-panel .ph-btn-add {
   flex: 1;
-  min-height: 48px;
-  border: none;
-  border-radius: 14px;
-  background: var(--ph-azul);
-  color: #ffffff;
-  font: 700 0.95rem system-ui, sans-serif;
+  min-height: var(--control-h-secondary);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-role-body);
+  font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Deshabilitado pero legible: el vendedor tiene que poder leer QUÉ está
-   bloqueado, no solo ver una mancha gris. WCAG exime a los controles
-   deshabilitados, pero acá el estado es transitorio (se está esperando los
-   precios del cliente) y el botón vuelve enseguida. */
 body[data-pedido-habitual] .ph-add-panel .ph-btn-add:disabled {
-  background: rgba(255, 255, 255, 0.12);
-  color: #cbd5e1;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-subtle);
   cursor: not-allowed;
 }
 
 body[data-pedido-habitual] .ph-motivo {
-  margin: 10px 0 0;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--ph-ambar);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-role-meta);
+  line-height: 1.45;
+  color: var(--color-warning-soft-fg);
 }
 
 body[data-pedido-habitual] .ph-motivo:empty { display: none; }
 
 /* ── Notas ── */
 body[data-pedido-habitual] .ph-notas {
-  background: var(--ph-surface);
-  border: 1px solid var(--ph-borde);
-  border-radius: 16px;
-  padding: 12px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  padding: var(--space-3) var(--space-4);
 }
 
 body[data-pedido-habitual] .ph-notas-summary {
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-min);
+  font-size: var(--text-role-body);
   font-weight: 600;
-  color: var(--ph-texto-muted);
+  color: var(--color-text-muted);
   cursor: pointer;
   list-style: none;
 }
@@ -672,28 +565,28 @@ body[data-pedido-habitual] .ph-notas-summary::-webkit-details-marker { display: 
 
 body[data-pedido-habitual] .ph-notas-summary::after {
   content: ' ⌄';
-  color: var(--ph-texto-subtle);
+  color: var(--color-text-subtle);
 }
 
 body[data-pedido-habitual] .ph-notas[open] .ph-notas-summary::after { content: ' ⌃'; }
 
 body[data-pedido-habitual] .ph-textarea {
-  margin-top: 10px;
   min-height: 84px;
+  padding: var(--space-3) var(--space-4);
   resize: vertical;
 }
 
-/* ── Footer sticky con total ── */
+/* ── Barra de acción con el total ──
+   Ancho completo, fija abajo, una sola acción azul en toda la pantalla. */
 body[data-pedido-habitual] .ph-footer {
   position: fixed;
-  /* Encima de la tabbar móvil (~63px + safe-area). */
   bottom: calc(63px + env(safe-area-inset-bottom));
   left: 0;
   right: 0;
   z-index: 29;
-  padding: 12px 16px;
-  background: rgba(10, 14, 31, 0.9);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-strong);
+  border-top: 1px solid var(--color-border-subtle);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -702,19 +595,20 @@ body[data-pedido-habitual] .ph-footer-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 body[data-pedido-habitual] .ph-footer-meta {
-  font-size: 0.78rem;
-  color: var(--ph-texto-muted);
+  font-size: var(--text-role-meta);
+  color: var(--color-text-muted);
 }
 
+/* La cifra grande de la guía: 32/700, tabular. */
 body[data-pedido-habitual] .ph-footer-total {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--ph-texto);
+  font-size: var(--text-role-figure);
+  font-weight: 700;
+  color: var(--color-text);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -722,22 +616,22 @@ body[data-pedido-habitual] .ph-footer-total {
 
 body[data-pedido-habitual] .ph-footer .ph-submit {
   width: 100%;
-  height: 52px;
-  border: none;
-  border-radius: 16px;
-  background: var(--ph-azul);
-  color: #ffffff;
-  font: 700 1rem system-ui, sans-serif;
+  height: var(--control-h-primary);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-role-client);
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 10px 24px -8px rgba(37, 99, 235, 0.8);
   -webkit-tap-highlight-color: transparent;
 }
 
 body[data-pedido-habitual] .ph-footer .ph-submit:active {
-  background: #1d4ed8;
+  background: var(--color-primary-active);
 }
 
-/* ── Desktop: sin tabbar, footer centrado con el contenido ── */
 @media (min-width: 1024px) {
   body[data-pedido-habitual] .ph-footer {
     bottom: 0;
@@ -746,24 +640,17 @@ body[data-pedido-habitual] .ph-footer .ph-submit:active {
     transform: translateX(-50%);
     width: 100%;
     max-width: 640px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
-    border-radius: 18px 18px 0 0;
-    border-left: 1px solid rgba(255, 255, 255, 0.08);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
-    padding-bottom: calc(118px + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-inline: 1px solid var(--color-border-subtle);
   }
 }
 
 /* ── Pantallas angostas: el stepper manda, el subtotal cede ── */
 @media (max-width: 360px) {
   body[data-pedido-habitual] .ph-linea-subtotal { display: none; }
-  body[data-pedido-habitual] .ph-stepper .ph-step { width: 30px; height: 30px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body[data-pedido-habitual] .ph-chips .ph-chip,
-  body[data-pedido-habitual] .ph-chips .ph-chip:active { transition: none; transform: none; }
+  body[data-pedido-habitual] .ph-chips .ph-chip { transition: none; transform: none; }
 }

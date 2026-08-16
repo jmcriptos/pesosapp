@@ -26,7 +26,10 @@
   box-shadow: var(--btn-shadow);
   cursor: pointer;
   user-select: none;
-  min-height: 44px;           /* iOS touch target */
+  /* La guía Sistema UI sube el piso de 44 a 48px: la app se usa en ruta y en
+     planta, a veces con guante. Solo puede hacer el botón más alto, nunca
+     cambia su ancho, así que no rompe layouts. */
+  min-height: var(--touch-min);
   text-decoration: none;
   transition:
     background var(--duration-fast) var(--ease-out-quart),
@@ -61,13 +64,39 @@
   --btn-border: transparent;
 }
 
-/* Sizes */
-.btn-sm { padding: var(--space-1) var(--space-3); min-height: 36px; font-size: var(--text-xs); }
-.btn-lg { padding: var(--space-3) var(--space-6); min-height: 52px; font-size: var(--text-md); }
+/* "Suave": acción de acento que NO compite con la principal. Es la salida
+   cuando una pantalla necesita un segundo botón con peso de acento, porque la
+   guía prohíbe dos primarios azules en la misma pantalla. */
+.btn-soft {
+  --btn-bg: var(--color-primary-soft);
+  --btn-fg: var(--color-primary-soft-fg);
+  --btn-border: transparent;
+  --btn-shadow: none;
+}
+
+/* Eliminar en versión suave, que es como la guía dibuja la acción destructiva
+   en una lista. `.btn-danger` (rojo sólido) queda para la confirmación dentro
+   de un modal, donde sí tiene que gritar. */
+.btn-danger-soft {
+  --btn-bg: var(--color-danger-soft);
+  --btn-fg: var(--color-danger-soft-fg);
+  --btn-border: transparent;
+  --btn-shadow: none;
+}
+
+/* Sizes — `.btn-sm` sube de 36 a 44px (la altura de píldora, el piso de la
+   guía) y `.btn-lg` es la acción principal de 56px. */
+.btn-sm { padding: var(--space-1) var(--space-3); min-height: var(--control-h-pill); font-size: var(--text-xs); }
+.btn-lg {
+  padding: var(--space-3) var(--space-6);
+  min-height: var(--control-h-primary);
+  font-size: var(--text-role-client);
+  border-radius: var(--radius-control);
+}
 
 /* Modifiers */
 .btn-block { width: 100%; }
-.btn-icon  { width: 44px; padding: 0; aspect-ratio: 1; }
+.btn-icon  { width: var(--touch-min); padding: 0; aspect-ratio: 1; }
 
 /* ─── .input + .field ─────────────────────────────────────────────────── */
 .input {
@@ -116,7 +145,7 @@
   --card-bg: var(--color-surface);
   --card-border: var(--color-border);
   --card-shadow: var(--shadow-sm);
-  --card-radius: var(--radius-lg);
+  --card-radius: var(--radius-control);  /* 14px — guía Sistema UI */
 
   background: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -338,4 +367,186 @@
 .kpi-value {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum", "lnum";
+}
+
+/* ═══ Guía "Sistema UI" · primitivos que faltaban ═════════════════════════
+   Sin literales: todo sale de tokens.css, para que el hue y la escala se
+   cambien en un sitio y no en las 27 hojas del repo. */
+
+/* Píldoras de filtro — la guía las prefiere a un <select> porque el estado
+   activo se ve sin abrir nada. El activo va en TINTA, no en azul, para no
+   competir con la acción principal. */
+.filters {
+  display: flex;
+  gap: var(--touch-gap);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.filters::-webkit-scrollbar { display: none; }
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: var(--control-h-pill);
+  padding: 0 18px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* `.filters .filter-pill` y no `.filter-pill` a secas: styles.css tiene un
+   `:root` sin cerrar que deja `button { background-color: var(--primary-color) }`
+   anidado como `:root button` (0,1,1), y eso le gana a una sola clase (0,1,0).
+   Con dos clases (0,2,0) la píldora recupera su fondo sin necesidad de
+   !important. Mientras esa llave siga abierta, cualquier primitivo que sea un
+   <button> necesita este cuidado. */
+.filters .filter-pill {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.filters .filter-pill.is-active {
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-bg);
+}
+
+.filter-pill-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+
+/* Stepper */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h-field);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+/* 48px de ancho: es un destino de toque, no un adorno. */
+.stepper button {
+  width: var(--touch-min);
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium, 500);
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.stepper button:active { background: var(--color-surface-muted); }
+.stepper button:disabled { color: var(--color-text-subtle); cursor: not-allowed; }
+
+.stepper-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: var(--text-role-screen);
+  font-weight: var(--weight-bold, 700);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Avisos — franja fina, nunca un modal: sin señal se sigue trabajando.
+   El verde se va a los 3 s; el ámbar se queda hasta vaciar la cola. */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  font-size: var(--text-role-meta);
+  font-weight: var(--weight-semibold);
+  line-height: 1.45;
+}
+.notice-ok    { background: var(--color-success-soft); color: var(--color-success-soft-fg); }
+.notice-warn  { background: var(--color-warning-soft); color: var(--color-warning-soft-fg); }
+.notice-info  { background: var(--color-primary-soft); color: var(--color-primary-soft-fg); }
+.notice-error { background: var(--color-danger-soft);  color: var(--color-danger-soft-fg); }
+
+/* Superficie hundida — listas DENTRO de una card: solo un escalón. */
+.sunken {
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+}
+
+/* Barra de acción — ancho completo, abajo, UNA sola acción azul. */
+.actionbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(63px + env(safe-area-inset-bottom)); /* encima de la tabbar */
+  z-index: 29;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-strong);
+  border-top: 1px solid var(--color-border-subtle);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@media (min-width: 1024px) {
+  .actionbar {
+    bottom: 0;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 640px;
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-inline: 1px solid var(--color-border-subtle);
+  }
+}
+
+/* Estado vacío */
+.empty-state {
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.empty-state > i { font-size: var(--text-xl); opacity: 0.5; }
+.empty-state-title {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-role-client);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+.empty-state-body {
+  margin: 0;
+  font-size: var(--text-role-body);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* Un icono va sin etiqueta SOLO si es cerrar, volver, deshacer o borrar;
+   para el resto, el texto viaja acá. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

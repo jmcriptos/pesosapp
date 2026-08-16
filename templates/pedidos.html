@@ -27,19 +27,30 @@
       <input type="search" placeholder="Buscar pedido, cliente…" id="pedidos-search"
              name="q" value="{{ filtros.q }}" autocomplete="off">
     </div>
-    <div class="estado-select-wrap">
-      <select name="estado" id="pedidos-estado-select"
-              class="estado-select"
-              data-autosubmit
-              aria-label="Filtrar por estado">
-        <option value="todos"     {% if filtros.estado == 'todos' %}selected{% endif %}>Todos · {{ status_counts.total }}</option>
-        <option value="pendiente" {% if filtros.estado == 'pendiente' %}selected{% endif %}>Pendientes · {{ status_counts.pendiente }}</option>
-        <option value="preparado" {% if filtros.estado == 'preparado' %}selected{% endif %}>Preparados · {{ status_counts.preparado }}</option>
-        <option value="facturado" {% if filtros.estado == 'facturado' %}selected{% endif %}>Facturados · {{ status_counts.facturado }}</option>
-      </select>
-    </div>
+    {# El estado viaja en un hidden; los botones de abajo lo escriben. Así el
+       formulario sigue funcionando sin JS (submit normal) y con JS la búsqueda
+       lo lee igual que antes. #}
+    <input type="hidden" name="estado" id="pedidos-estado" value="{{ filtros.estado }}">
     {% if filtros.solo_notas %}<input type="hidden" name="solo_notas" value="1">{% endif %}
   </form>
+
+  {# Píldoras de 44px en vez de un <select>: la guía Sistema UI las prefiere
+     porque el estado activo se ve sin abrir nada. El activo va en tinta y no
+     en azul, para no competir con "+ Nuevo". #}
+  <div class="filters" id="pedidos-filtros" role="group" aria-label="Filtrar por estado">
+    {% for valor, etiqueta, cuenta in [
+        ('todos', 'Todos', status_counts.total),
+        ('pendiente', 'Pendientes', status_counts.pendiente),
+        ('preparado', 'Preparados', status_counts.preparado),
+        ('facturado', 'Facturados', status_counts.facturado)] %}
+    <button type="button"
+            class="filter-pill{% if filtros.estado == valor %} is-active{% endif %}"
+            data-estado="{{ valor }}"
+            aria-pressed="{{ 'true' if filtros.estado == valor else 'false' }}">
+      {{ etiqueta }}<span class="filter-pill-count">{{ cuenta }}</span>
+    </button>
+    {% endfor %}
+  </div>
 
   {# Los resultados viven en un parcial porque la búsqueda los recarga sola,
      sin recargar la página: en un teléfono un submit completo cierra el
@@ -52,7 +63,8 @@
   (function () {
     var form = document.querySelector('form.filter-bar');
     var searchInput = document.getElementById('pedidos-search');
-    var estadoSelect = document.getElementById('pedidos-estado-select');
+    var estadoInput = document.getElementById('pedidos-estado');
+    var filtros = document.getElementById('pedidos-filtros');
     var resultados = document.getElementById('pedidos-resultados');
 
     /* La búsqueda consulta al SERVIDOR, no el DOM.
@@ -68,8 +80,8 @@
       var p = new URLSearchParams();
       var q = searchInput ? searchInput.value.trim() : '';
       if (q) p.set('q', q);
-      if (estadoSelect && estadoSelect.value && estadoSelect.value !== 'todos') {
-        p.set('estado', estadoSelect.value);
+      if (estadoInput && estadoInput.value && estadoInput.value !== 'todos') {
+        p.set('estado', estadoInput.value);
       }
       {% if filtros.solo_notas %}p.set('solo_notas', '1');{% endif %}
       // Si el usuario venía con ?per_page, buscar no debe devolverlo a 20.
@@ -134,11 +146,21 @@
       });
     }
 
-    /* El select tenía data-autosubmit (base.js hace form.submit() y recarga).
-       Se maneja acá para que cambiar de estado use el mismo camino sin salto. */
-    if (estadoSelect) {
-      estadoSelect.removeAttribute('data-autosubmit');
-      estadoSelect.addEventListener('change', function () { cargarResultados(); });
+    /* Las píldoras escriben el hidden y recargan por el mismo camino que la
+       búsqueda. Sin JS el formulario sigue enviándose normal con el valor que
+       ya trae el hidden. */
+    if (filtros) {
+      filtros.addEventListener('click', function (e) {
+        var pill = e.target.closest('.filter-pill');
+        if (!pill) return;
+        estadoInput.value = pill.dataset.estado;
+        filtros.querySelectorAll('.filter-pill').forEach(function (p) {
+          var activo = p === pill;
+          p.classList.toggle('is-active', activo);
+          p.setAttribute('aria-pressed', activo ? 'true' : 'false');
+        });
+        cargarResultados();
+      });
     }
 
     /* Todo lo que vive DENTRO del bloque reemplazable se re-engancha después

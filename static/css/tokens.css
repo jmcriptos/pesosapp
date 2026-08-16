@@ -238,10 +238,39 @@
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;
+  --radius-control: 14px;  /* cards y acción principal — guía Sistema UI */
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-2xl: 24px;
   --radius-full: 9999px;
+}
+
+/* ─── Controles y toque (guía Sistema UI) ─────────────────────────────────
+   La app se usa en ruta y en planta, a veces con guante. De ahí las alturas:
+   nada por debajo de 48px, y 56px para lo que se toca con el guante puesto.
+
+   Los roles tipográficos apuntan a la escala de arriba, que ya coincidía con
+   la guía. Se nombran por SIGNIFICADO para que una pantalla pida
+   `--text-role-cliente` y no tenga que acordarse de que eso es `--text-md`.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Alturas de control */
+  --control-h-primary: 56px;    /* acción principal, ancho completo en móvil */
+  --control-h-field: 52px;      /* input, select, stepper */
+  --control-h-secondary: 48px;  /* botón secundario, suave, eliminar */
+  --control-h-pill: 44px;       /* píldora de filtro */
+
+  /* Toque */
+  --touch-min: 48px;            /* mínimo absoluto de un destino de toque */
+  --touch-glove: 56px;          /* lo que se opera con guante */
+  --touch-gap: 8px;             /* separación mínima entre destinos */
+
+  /* Roles tipográficos — cinco, no más */
+  --text-role-figure: var(--text-2xl);    /* 32 / 700 · cifras */
+  --text-role-screen: var(--text-lg);     /* 20 / 600 · título de pantalla */
+  --text-role-client: var(--text-md);     /* 17 / 600 · nombre de cliente */
+  --text-role-body: var(--text-base);     /* 15 / 400 · texto de interfaz */
+  --text-role-meta: var(--text-sm);       /* 13 / 500 · dato secundario */
 }
 
 /* ─── Shadows (solid + glass — LIGHT defaults) ────────────────────────── */
