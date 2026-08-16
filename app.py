@@ -733,6 +733,16 @@ def login():
         if vendedor and vendedor.check_password(password):
             vendedor.ultimo_login = datetime.utcnow()
             db.session.commit()
+            # La app se usa como PWA standalone en iPhone. Sin marcar la sesión
+            # como permanente, Flask emite la cookie SIN Expires ni Max-Age —
+            # una cookie de sesión de navegador— y iOS la descarta cuando
+            # descarta el WebView, que es lo que pasa de rutina al cambiar de
+            # app. El vendedor volvía deslogueado.
+            #
+            # Con esto entra en juego PERMANENT_SESSION_LIFETIME, que ya estaba
+            # declarado en 8 h y hasta ahora no hacía nada. No es un plazo
+            # nuevo: es el que la config decía tener.
+            session.permanent = True
             login_user(vendedor, remember=remember_me)
             try:
                 _audit('auth', 'Inició sesión')

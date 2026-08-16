@@ -449,8 +449,15 @@ def _leer_js(rel):
 
 
 def _bloque_factura(js):
+    """Recorta el handler de compartir factura desde su marcador.
+
+    La ventana es fija y tiene que cubrir el handler ENTERO: si se queda corta,
+    las aserciones de abajo empiezan a fallar por recorte y no porque el código
+    esté mal. Ya pasó al agregar el control de sesión vencida, que empujó la
+    segunda llamada a `descargar(blob)` fuera de los 3000 caracteres de antes.
+    """
     inicio = js.index("data-factura-share")
-    return js[inicio:inicio + 3000]
+    return js[inicio:inicio + 4500]
 
 
 def test_share_fallido_cae_en_la_descarga():
@@ -466,6 +473,28 @@ def test_share_fallido_cae_en_la_descarga():
     assert "shareErr.name === 'AbortError'" in bloque
     # El AbortError del fetch ya no se traga en silencio: solo el de share.
     assert "err.name === 'AbortError'" not in bloque
+
+
+def test_sesion_vencida_no_se_empaqueta_como_pdf():
+    """Una sesión muerta NO llega como error: Flask redirige a /login y fetch
+    sigue el redirect solo, así que resp.ok es true y el cuerpo es HTML.
+
+    Sin control, ese HTML se envolvía en `new File([...], 'Factura.pdf',
+    {type:'application/pdf'})` y se compartía un archivo roto sin un solo
+    mensaje. Reportado desde iPhone: "el botón del PDF no funciona", que en
+    realidad era la sesión perdida al cambiar de app.
+    """
+    for archivo in ('static/js/base.js', 'static/js/base.min.js'):
+        bloque = _bloque_factura(_leer_js(archivo))
+        assert 'resp.redirected' in bloque, archivo
+        assert "indexOf('application/pdf')" in bloque, archivo
+        assert 'sesión expiró' in bloque, archivo
+
+
+def test_base_min_js_es_el_que_se_sirve_y_esta_sincronizado():
+    """base.html carga base.min.js, no base.js. Editar solo la fuente deja el
+    arreglo fuera de producción sin que nada falle."""
+    assert _leer_js('static/js/base.js') == _leer_js('static/js/base.min.js')
 
 
 def test_mensajes_de_error_distintos_por_status():

@@ -430,6 +430,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return;
             }
+            // Una sesión vencida NO llega como error: Flask redirige a /login y
+            // fetch sigue el redirect por su cuenta, así que resp.ok es true y
+            // lo que vuelve es el HTML del login. Sin este control se empaqueta
+            // esa página como "Factura.pdf" y se comparte un archivo roto, sin
+            // un solo mensaje. Es lo que se veía en iPhone al volver de otra
+            // app: el botón "no hacía nada".
+            const tipo = resp.headers.get('Content-Type') || '';
+            if (resp.redirected || tipo.indexOf('application/pdf') === -1) {
+                alert('Tu sesión expiró. Iniciá sesión de nuevo para descargar la factura.');
+                window.location.href = resp.redirected ? resp.url : '/login';
+                return;
+            }
+
             // El servidor es la fuente de verdad del nombre (lleva el cliente);
             // data-factura-nombre queda como fallback si el header falta o no
             // se puede parsear.
