@@ -112,12 +112,17 @@
                         </div>
                         
                         <div style="margin-top: 12px; text-align: center;">
-                            <button type="button" 
-                                    id="agregar-producto" 
+                            <button type="button"
+                                    id="agregar-producto"
                                     class="mobile-btn mobile-btn-primary">
                                 <i class="fas fa-plus"></i>
                                 Agregar
                             </button>
+                            {# En touch no hay hover, así que el motivo por el que el
+                               botón está deshabilitado tiene que verse, no vivir en
+                               un title. #}
+                            <p id="agregar-motivo" class="fs-08"
+                               style="margin:8px 0 0; opacity:0.75;"></p>
                         </div>
                     </div>
                 </div>
@@ -213,8 +218,10 @@ function cargarProductosEnSelect() {
 function habilitarAgregar(ok, motivo) {
     if (!btnAgregar) return;
     btnAgregar.disabled = !ok;
-    btnAgregar.title = ok ? '' : (motivo || '');
     btnAgregar.style.opacity = ok ? '' : '0.5';
+    // El title no sirve en un teléfono: no hay hover. El motivo va a la vista.
+    const cartel = document.getElementById('agregar-motivo');
+    if (cartel) cartel.textContent = ok ? '' : (motivo || '');
 }
 
 async function actualizarPreciosCliente(clienteId) {
