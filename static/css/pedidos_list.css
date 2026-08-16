@@ -48,8 +48,9 @@ body[data-pedidos-list-screen] .app-shell {
    Responsive: show cards on mobile, polished table on desktop
    ──────────────────────────────────────────────────────────── */
 @media (min-width: 900px) {
+  /* .pc-foot ya no se oculta aparte: es hijo de .pedido-card, así que se va
+     con .pedidos-list. Lo era cuando el parser lo dejaba como hermano. */
   body[data-pedidos-list-screen] .pedidos-list,
-  body[data-pedidos-list-screen] .pc-foot,
   body[data-pedidos-list-screen] .pagination-mobile {
     display: none !important;
   }
@@ -270,7 +271,7 @@ body[data-pedidos-list-screen] .pc-top {
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 body[data-pedidos-list-screen] .pc-id {
@@ -281,6 +282,9 @@ body[data-pedidos-list-screen] .pc-id {
   letter-spacing: 0.04em;
 }
 
+/* Una sola línea con elipsis: "Hotel Renaissance Curacao" partía en dos y cada
+   salto costaba ~21px por tarjeta. El nombre completo sigue disponible al
+   abrir el pedido. */
 body[data-pedidos-list-screen] .pc-client {
   color: var(--color-text) !important;
   font-size: 1rem;
@@ -288,6 +292,21 @@ body[data-pedidos-list-screen] .pc-client {
   letter-spacing: -0.01em;
   margin-top: 2px;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-pedidos-list-screen] .pc-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+body[data-pedidos-list-screen] .pc-idrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 body[data-pedidos-list-screen] .pc-amt {
@@ -308,13 +327,49 @@ body[data-pedidos-list-screen] .pc-amt .moneda {
   margin-left: 2px;
 }
 
+/* Mientras el servidor responde la búsqueda, los resultados viejos se atenúan
+   en vez de desaparecer: dejar la lista vacía durante la espera es justo lo
+   que hacía parecer que el pedido no existía. */
+#pedidos-resultados.is-cargando {
+  opacity: 0.5;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pedidos-resultados.is-cargando { transition: none; }
+}
+
+/* No existía en el proyecto: la nota pasó a ser solo icono y su texto tiene
+   que seguir llegando a un lector de pantalla. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Envuelve, no recorta. Con `nowrap` las tarjetas quedaban parejas en 138px,
+   pero los pedidos `preparado` (tres botones) cortaban la fecha a la mitad, y
+   ocultar un dato es peor que una tarjeta 21px más alta. La fecha corta y la
+   nota como icono hacen que el wrap sea raro: solo cae en preparado + nota. */
 body[data-pedidos-list-screen] .pc-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px 10px;
   color: var(--color-text-muted) !important;
   font-size: 0.82rem;
   margin-bottom: 10px;
+}
+
+body[data-pedidos-list-screen] .pc-meta > span {
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 body[data-pedidos-list-screen] .pc-meta span,
@@ -329,33 +384,41 @@ body[data-pedidos-list-screen] .pc-meta i {
   font-size: 0.8rem;
 }
 
-/* .pc-foot is parsed as sibling of .pedido-card (nested <a>/<form> inside
-   <a> triggers HTML5 auto-closure). Style them as a visual continuation. */
-body[data-pedidos-list-screen] .pedido-card {
-  border-bottom-left-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-  margin-bottom: 0;
-}
-
+/* El .pc-foot se estilaba como un panel aparte (fondo propio, borde, radio y
+   margen negativo) porque cuando la tarjeta era un <a>, el parser HTML lo
+   expulsaba fuera y quedaba como HERMANO de la tarjeta. El template ya usa
+   <div role="link">, así que hoy es un hijo normal — verificado: 0 tarjetas
+   fantasma en el DOM. Ese panel costaba ~90px por tarjeta y, con los 910
+   pedidos de producción facturados y sin invoice_id_qbo, se veía como una
+   caja gris VACÍA en toda la lista. Ahora es una fila más de la tarjeta. */
 body[data-pedidos-list-screen] .pc-foot {
-  background: var(--color-bg-subtle) !important;
-  background-image: none !important;
-  border: 1px solid var(--color-border-subtle) !important;
-  border-top: 0 !important;
-  border-radius: 0 0 16px 16px !important;
-  padding: 10px 16px !important;
-  margin: -1px 0 10px !important;
-  box-shadow: var(--shadow-card);
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
   display: flex !important;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
+/* Estado + metadatos comparten fila con las acciones: dos filas por tarjeta
+   en vez de cuatro. */
+body[data-pedidos-list-screen] .pc-foot .pc-meta {
+  margin-bottom: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 body[data-pedidos-list-screen] .pc-actions {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
 }
 
 /* Phantom .pedido-card wrapper that HTML5 parser injects around

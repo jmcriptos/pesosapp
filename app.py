@@ -5633,8 +5633,14 @@ def lista_pedidos():
         'next_num': page + 1 if page < total_pages else None,
     }
 
+    # Con ?partial=1 se devuelve SOLO el bloque de resultados. La búsqueda del
+    # listado lo pide por fetch y reemplaza esa parte, en vez de recargar la
+    # página: en un teléfono un submit completo cierra el teclado y obliga a
+    # tocar el campo de nuevo para seguir escribiendo.
+    plantilla = '_pedidos_resultados.html' if request.args.get('partial') else 'pedidos.html'
+
     return render_template(
-        'pedidos.html',
+        plantilla,
         pedidos=pedidos,
         pagination=pagination,
         filtros=filtros,

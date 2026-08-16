@@ -1,0 +1,332 @@
+  {# Mobile card list #}
+  <div class="pedidos-list">
+    {% for pedido in pedidos %}
+    {# Div y no <a>: la tarjeta contiene el botón de editar (otro <a>) y forms con
+       botones. Anidar eso dentro de un <a> es HTML inválido, y el parser cerraba
+       la tarjeta antes del .pc-foot y lo expulsaba fuera. Además de verse partida,
+       el filtro de búsqueda ocultaba la tarjeta pero dejaba visibles el estado y
+       los botones de editar/borrar, huérfanos y sin decir a qué pedido eran. #}
+    <div class="pedido-card"
+         role="link" tabindex="0"
+         data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
+         aria-label="Ver detalles del pedido #{{ pedido.id }}"
+         data-estado="{{ (pedido.estado or '')|lower }}"
+         data-search="{{ (pedido.id|string ~ ' ' ~ (pedido.cliente.nombre if pedido.cliente else ''))|lower }}">
+
+      <div class="pc-top">
+        <div class="pc-main">
+          {# La píldora va acá y no abajo: en la fila de metadatos no entraban
+             estado + líneas + fecha + acciones en 375px (339px necesarios en
+             283 disponibles) y el estado saltaba a una línea propia. #}
+          <div class="pc-idrow">
+            <span class="pc-id">#{{ pedido.id }}</span>
+            <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
+          </div>
+          <div class="pc-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
+        </div>
+        <div class="pc-amt">
+          {{ '{:,.2f}'.format(pedido.total_calculado or 0) }}
+          <small>{{ (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG' }}</small>
+        </div>
+      </div>
+
+      {# Estado, metadatos y acciones en UNA fila. Antes el pie era un panel
+         gris aparte —herencia de cuando la tarjeta era un <a> y el parser
+         expulsaba el .pc-foot afuera—, y sumaba ~90px por tarjeta. Con los 910
+         pedidos de producción facturados y sin invoice_id_qbo, ese panel
+         quedaba VACÍO en toda la lista salvo por la píldora. #}
+      {% set puede_editar   = pedido.estado != 'facturado' %}
+      {% set puede_facturar = pedido.estado == 'preparado' %}
+      {% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
+      {% set tiene_factura  = pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+      {% set tiene_acciones = puede_editar or puede_facturar or puede_eliminar or tiene_factura %}
+
+      <div class="pc-foot">
+        <div class="pc-meta">
+          {% if pedido.detalles is defined and pedido.detalles %}
+          <span><i class="fas fa-boxes" aria-hidden="true"></i> {{ pedido.detalles|length }} líneas</span>
+          {% endif %}
+          {# dd/mm/aa y no dd/mm/aaaa: los dos dígitos de más empujaban la fila
+             a envolver en los pedidos preparados, que llevan tres botones. #}
+          {% if pedido.fecha_pedido %}
+          <span title="{{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}"><i class="fas fa-calendar" aria-hidden="true"></i> {{ pedido.fecha_pedido.strftime('%d/%m/%y') }}</span>
+          {% endif %}
+          {# Solo el icono: con la palabra "Nota" la fila no entraba en 375px
+             cuando el pedido está preparado (tres botones) y los metadatos
+             saltaban a dos o tres líneas. #}
+          {% if pedido.notas %}
+          <span class="pc-meta-nota" title="Este pedido tiene una nota">
+            <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
+            <span class="sr-only">Tiene nota</span>
+          </span>
+          {% endif %}
+        </div>
+
+        {% if tiene_acciones %}
+        <div class="pc-actions" data-stop-propagation>
+          {% if puede_editar %}
+          <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
+             class="pc-action-btn edit" title="Editar" aria-label="Editar pedido #{{ pedido.id }}">
+            <i class="fa fa-edit"></i>
+          </a>
+          {% endif %}
+          {% if puede_facturar %}
+          <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
+                class="pc-action-form" data-stop-propagation>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="pc-action-btn invoice" title="Facturar"
+                    aria-label="Facturar pedido #{{ pedido.id }}">
+              <i class="fa fa-file-invoice-dollar"></i>
+            </button>
+          </form>
+          {% endif %}
+          {% if puede_eliminar %}
+          <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
+                class="pc-action-form"
+                data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}"
+                data-stop-propagation>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="pc-action-btn danger" title="Eliminar"
+                    aria-label="Eliminar pedido #{{ pedido.id }}">
+              <i class="fa fa-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+          {# Un pedido facturado no tenía ninguna acción en el listado, y como en
+             producción todos los pedidos terminan facturados, la lista quedaba de
+             solo lectura. Estas dos son las que se usan sobre una factura ya
+             emitida. Ambas rutas abortan 404 sin invoice_id_qbo, así que se
+             condicionan a que exista. #}
+          {% if tiene_factura %}
+          <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
+             class="pc-action-btn" title="Revisar precios contra la factura"
+             aria-label="Revisar precios del pedido #{{ pedido.id }}">
+            <i class="fa-solid fa-tags"></i>
+          </a>
+          <button type="button" class="pc-action-btn"
+                  data-factura-share
+                  data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
+                  data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf"
+                  title="Factura PDF" aria-label="Factura PDF del pedido #{{ pedido.id }}">
+            <i class="fa-solid fa-file-invoice"></i>
+          </button>
+          <span class="invoice-id-chip" title="QuickBooks Invoice">{{ pedido.invoice_id_qbo }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="pedidos-empty">
+      <i class="fa fa-clipboard-list"></i>
+      <p>{% if filtros.q or filtros.estado != 'todos' or filtros.solo_notas %}
+        No encontramos pedidos con estos filtros.
+        <a href="{{ url_for('lista_pedidos') }}" class="clear-link">Limpiar filtros</a>
+      {% else %}
+        No hay pedidos cargados.
+      {% endif %}</p>
+      <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+        <i class="fa fa-plus"></i> Crear primer pedido
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Mobile pagination — siempre visible (incluso con 1 página o 0 pedidos)
+     para que el indicador de página sea constante y la fila no desaparezca. #}
+  {% if pagination %}
+  <div class="pagination-mobile">
+    <div class="pagination-info-mobile">
+      {% if pagination.total > 0 %}
+        {{ ((pagination.page - 1) * pagination.per_page) + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }}
+      {% else %}
+        Sin pedidos
+      {% endif %}
+    </div>
+    <div class="pagination-controls-mobile">
+      {% if pagination.has_prev %}
+      <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}"
+         class="pagination-btn-mobile" aria-label="Página anterior">
+        <i class="fa fa-chevron-left"></i>
+      </a>
+      {% else %}
+      <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-left"></i></span>
+      {% endif %}
+      <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+      {% if pagination.has_next %}
+      <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}"
+         class="pagination-btn-mobile" aria-label="Página siguiente">
+        <i class="fa fa-chevron-right"></i>
+      </a>
+      {% else %}
+      <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-right"></i></span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Desktop table (hidden on mobile via CSS) #}
+  <div class="pedidos-table-desktop">
+    <div class="tabla-pedidos-card">
+      {# Card header omitted — the hero above already shows "Operaciones / Pedidos"
+         and "+ Nuevo" lives there too, so the duplicate title + button row is
+         redundant chrome on desktop. #}
+
+      {% if pedidos %}
+      <div class="tabla-pedidos-scroll">
+        <table class="tabla-pedidos">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
+              <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
+              <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
+              <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
+              <th class="sortable text-right" data-sort="total" data-type="number">Total (XCG) <i class="fa fa-sort"></i></th>
+              <th>Contexto</th>
+              <th class="pedido-actions-header">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for pedido in pedidos %}
+            <tr class="pedido-row pedido-row-{{ pedido.estado }}"
+                data-id="{{ pedido.id }}"
+                data-cliente="{{ pedido.cliente.nombre }}"
+                data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
+                data-estado="{{ pedido.estado }}"
+                data-total="{{ pedido.total_calculado }}"
+                data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">
+              <td class="pedido-id-cell">#{{ pedido.id }}</td>
+              <td>
+                <div class="pedido-client-stack">
+                  <span class="pedido-client-name">{{ pedido.cliente.nombre }}</span>
+                  {% if pedido.notas %}
+                  <span class="pedido-client-note">{{ pedido.notas|truncate(46) }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="pedido-date-cell">{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
+              <td>
+                <span class="estado-badge estado-{{ pedido.estado }}">
+                  {% if pedido.estado == 'pendiente' %}<i class="fa fa-clock"></i> Pendiente
+                  {% elif pedido.estado == 'facturado' %}<i class="fa fa-check-circle"></i> Facturado
+                  {% elif pedido.estado == 'preparado' %}<i class="fa fa-box"></i> Preparado
+                  {% else %}<i class="fa fa-info-circle"></i> {{ pedido.estado }}
+                  {% endif %}
+                </span>
+              </td>
+              <td class="text-right pedido-total-cell">{{ "%.2f"|format(pedido.total_calculado) }}</td>
+              <td class="pedido-context-cell">
+                <div class="pedido-context-stack">
+                  {% if pedido.notas %}
+                  <span class="pedido-context-chip" title="{{ pedido.notas }}">
+                    <i class="fa-solid fa-note-sticky"></i> Nota
+                  </span>
+                  {% else %}
+                  <span class="pedido-context-empty">Sin notas</span>
+                  {% endif %}
+                  {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                  <span class="invoice-id-badge" title="QuickBooks Invoice ID">{{ pedido.invoice_id_qbo }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              {% set action_count = (1 if pedido.estado != 'facturado' else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
+              <td class="pedido-actions-cell">
+                <div class="pedido-row-actions{% if action_count == 1 %} pedido-row-actions-single{% endif %}"
+                     role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
+                  {% if pedido.estado != 'facturado' %}
+                  <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
+                     class="row-action row-action-edit" title="Editar pedido #{{ pedido.id }}" aria-label="Editar pedido #{{ pedido.id }}">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </a>
+                  {% endif %}
+                  {% if pedido.estado == 'preparado' %}
+                  <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="row-action row-action-success"
+                            title="Facturar pedido #{{ pedido.id }}" aria-label="Facturar pedido #{{ pedido.id }}">
+                      <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                  {% if pedido.estado in ['pendiente', 'preparado'] %}
+                  <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
+                        data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Seguro que quieres eliminar este pedido?{% endif %}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="row-action row-action-danger"
+                            title="Eliminar pedido #{{ pedido.id }}" aria-label="Eliminar pedido #{{ pedido.id }}">
+                      <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                  {# Mismas acciones que en la tarjeta móvil: sin esto, un pedido
+                     facturado no ofrece nada desde el listado. #}
+                  {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                  <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
+                     class="row-action" title="Revisar precios contra la factura"
+                     aria-label="Revisar precios del pedido #{{ pedido.id }}">
+                    <i class="fa-solid fa-tags"></i>
+                  </a>
+                  <button type="button" class="row-action"
+                          data-factura-share
+                          data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
+                          data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf"
+                          title="Factura PDF" aria-label="Factura PDF del pedido #{{ pedido.id }}">
+                    <i class="fa-solid fa-file-invoice"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if pagination and pagination.pages > 1 %}
+      <div class="pagination-desktop">
+        <div class="pagination-info">
+          Mostrando {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }} de {{ pagination.total }} pedidos
+        </div>
+        <div class="pagination-controls">
+          {% if pagination.has_prev %}
+          <a href="{{ url_for('lista_pedidos', page=1, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Primera">
+            <i class="fa fa-angles-left"></i>
+          </a>
+          <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Anterior">
+            <i class="fa fa-angle-left"></i>
+          </a>
+          {% else %}
+          <span class="pagination-btn disabled"><i class="fa fa-angles-left"></i></span>
+          <span class="pagination-btn disabled"><i class="fa fa-angle-left"></i></span>
+          {% endif %}
+          <span class="pagination-current">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+          {% if pagination.has_next %}
+          <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Siguiente">
+            <i class="fa fa-angle-right"></i>
+          </a>
+          <a href="{{ url_for('lista_pedidos', page=pagination.pages, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Última">
+            <i class="fa fa-angles-right"></i>
+          </a>
+          {% else %}
+          <span class="pagination-btn disabled"><i class="fa fa-angle-right"></i></span>
+          <span class="pagination-btn disabled"><i class="fa fa-angles-right"></i></span>
+          {% endif %}
+        </div>
+      </div>
+      {% elif pagination %}
+      <div class="pagination-info pagination-info-single">
+        {{ pagination.total }} pedido{{ 's' if pagination.total != 1 else '' }} en total
+      </div>
+      {% endif %}
+
+      {% else %}
+      <div class="pedidos-empty pedidos-empty-desktop">
+        <i class="fa fa-clipboard-list"></i>
+        <p>{% if filtros.q or filtros.estado != 'todos' or filtros.solo_notas %}No encontramos pedidos con estos filtros.{% else %}No hay pedidos cargados.{% endif %}</p>
+        <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
+          <i class="fa fa-plus"></i> Crear primer pedido
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
