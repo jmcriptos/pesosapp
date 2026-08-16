@@ -9,8 +9,9 @@
     <div class="pedido-card"
          role="link" tabindex="0"
          data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-         aria-label="Ver detalles del pedido #{{ pedido.id }}"
+         aria-label="Ver detalles del pedido PED-{{ pedido.id }}"
          data-estado="{{ (pedido.estado or '')|lower }}"
+         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}
          data-search="{{ (pedido.id|string ~ ' ' ~ (pedido.cliente.nombre if pedido.cliente else ''))|lower }}">
 
       <div class="pc-top">
@@ -18,9 +19,17 @@
           {# La píldora va acá y no abajo: en la fila de metadatos no entraban
              estado + líneas + fecha + acciones en 375px (339px necesarios en
              283 disponibles) y el estado saltaba a una línea propia. #}
+          {# "Vencido" no es un estado de la tabla: es fecha_entrega pasada con
+             el pedido aún sin facturar. La guía lo muestra como un estado más
+             porque para el vendedor lo es. #}
+          {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
           <div class="pc-idrow">
-            <span class="pc-id">#{{ pedido.id }}</span>
+            <span class="pc-id">PED-{{ pedido.id }}</span>
+            {% if vencido %}
+            <span class="status-pill vencido">Vencido</span>
+            {% else %}
             <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
+            {% endif %}
           </div>
           <div class="pc-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
         </div>
@@ -43,13 +52,22 @@
 
       <div class="pc-foot">
         <div class="pc-meta">
+          {# La ENTREGA manda sobre la fecha del pedido: al vendedor le importa
+             cuándo hay que llevarlo, no cuándo se tomó. Los 910 pedidos
+             históricos no tienen fecha_entrega (la columna es del 16/08), así
+             que se cae a fecha_pedido y se dice cuál es cuál. #}
+          {% if pedido.fecha_entrega %}
+          <span title="Entrega {{ pedido.fecha_entrega.strftime('%d/%m/%Y') }}">
+            <i class="fas fa-truck" aria-hidden="true"></i>
+            entrega {{ 'hoy' if pedido.fecha_entrega == hoy_local else pedido.fecha_entrega.strftime('%d/%m') }}
+          </span>
+          {% elif pedido.fecha_pedido %}
+          <span title="Pedido tomado el {{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}">
+            <i class="fas fa-calendar" aria-hidden="true"></i> {{ pedido.fecha_pedido.strftime('%d/%m/%y') }}
+          </span>
+          {% endif %}
           {% if pedido.detalles is defined and pedido.detalles %}
           <span><i class="fas fa-boxes" aria-hidden="true"></i> {{ pedido.detalles|length }} líneas</span>
-          {% endif %}
-          {# dd/mm/aa y no dd/mm/aaaa: los dos dígitos de más empujaban la fila
-             a envolver en los pedidos preparados, que llevan tres botones. #}
-          {% if pedido.fecha_pedido %}
-          <span title="{{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}"><i class="fas fa-calendar" aria-hidden="true"></i> {{ pedido.fecha_pedido.strftime('%d/%m/%y') }}</span>
           {% endif %}
           {# Solo el icono: con la palabra "Nota" la fila no entraba en 375px
              cuando el pedido está preparado (tres botones) y los metadatos
@@ -64,21 +82,35 @@
 
         {% if tiene_acciones %}
         <div class="pc-actions" data-stop-propagation>
-          {% if puede_editar %}
-          <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
-             class="pc-action-btn edit" title="Editar" aria-label="Editar pedido #{{ pedido.id }}">
-            <i class="fa fa-edit"></i>
+          {# La acción principal de la tarjeta, CON palabra: la guía solo deja
+             iconos sin etiqueta para cerrar, volver, deshacer y borrar. Un
+             pedido pendiente se va a pesar; uno preparado, a facturar. Es lo
+             que el vendedor viene a hacer desde la lista. #}
+          {% if pedido.estado == 'pendiente' %}
+          <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
+             class="pc-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
+            <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
           </a>
           {% endif %}
           {% if puede_facturar %}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form" data-stop-propagation>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="pc-action-btn invoice" title="Facturar"
-                    aria-label="Facturar pedido #{{ pedido.id }}">
-              <i class="fa fa-file-invoice-dollar"></i>
+            <button type="submit" class="pc-action-main"
+                    aria-label="Facturar pedido PED-{{ pedido.id }}">
+              <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
             </button>
           </form>
+          {% endif %}
+          {# Editar queda como icono aunque la guía pida palabra: el detalle del
+             pedido NO ofrece editar ni eliminar, así que sacarlos de acá los
+             dejaría inalcanzables. Es una regresión funcional, no un cambio de
+             estilo, y no corresponde meterla en un cambio de piel. #}
+          {% if puede_editar %}
+          <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
+             class="pc-action-btn edit" title="Editar" aria-label="Editar pedido PED-{{ pedido.id }}">
+            <i class="fa fa-edit"></i>
+          </a>
           {% endif %}
           {% if puede_eliminar %}
           <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
@@ -179,7 +211,9 @@
             <tr>
               <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
               <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
-              <th class="sortable" data-sort="fecha" data-type="date">Fecha <i class="fa fa-sort"></i></th>
+              {# La guía pone ENTREGA, no la fecha en que se tomó el pedido:
+                 es el dato con el que se decide a quién atender primero. #}
+              <th class="sortable" data-sort="fecha" data-type="date">Entrega <i class="fa fa-sort"></i></th>
               <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
               <th class="sortable text-right" data-sort="total" data-type="number">Total (XCG) <i class="fa fa-sort"></i></th>
               <th>Contexto</th>
@@ -191,7 +225,7 @@
             <tr class="pedido-row pedido-row-{{ pedido.estado }}"
                 data-id="{{ pedido.id }}"
                 data-cliente="{{ pedido.cliente.nombre }}"
-                data-fecha="{{ pedido.fecha_pedido.strftime('%Y-%m-%d') if pedido.fecha_pedido else '' }}"
+                data-fecha="{{ (pedido.fecha_entrega or pedido.fecha_pedido).strftime('%Y-%m-%d') if (pedido.fecha_entrega or pedido.fecha_pedido) else '' }}"
                 data-estado="{{ pedido.estado }}"
                 data-total="{{ pedido.total_calculado }}"
                 data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">
@@ -204,8 +238,27 @@
                   {% endif %}
                 </div>
               </td>
-              <td class="pedido-date-cell">{{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}</td>
+              {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
+              <td class="pedido-date-cell">
+                {% if pedido.fecha_entrega %}
+                  {% if pedido.fecha_entrega == hoy_local %}Hoy
+                  {% else %}{{ pedido.fecha_entrega.strftime('%d/%m') }}
+                  {% endif %}
+                  {% if vencido %}
+                  <span class="pedido-date-tarde">· {{ (hoy_local - pedido.fecha_entrega).days }} d tarde</span>
+                  {% endif %}
+                {% else %}
+                  {# Sin fecha de entrega (los 910 históricos): se muestra la
+                     del pedido y se dice que es esa, para no mentir. #}
+                  <span title="Sin fecha de entrega; se muestra la del pedido">
+                    {{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}
+                  </span>
+                {% endif %}
+              </td>
               <td>
+                {% if vencido %}
+                <span class="estado-badge estado-vencido"><i class="fa fa-triangle-exclamation"></i> Vencido</span>
+                {% else %}
                 <span class="estado-badge estado-{{ pedido.estado }}">
                   {% if pedido.estado == 'pendiente' %}<i class="fa fa-clock"></i> Pendiente
                   {% elif pedido.estado == 'facturado' %}<i class="fa fa-check-circle"></i> Facturado
@@ -213,6 +266,7 @@
                   {% else %}<i class="fa fa-info-circle"></i> {{ pedido.estado }}
                   {% endif %}
                 </span>
+                {% endif %}
               </td>
               <td class="text-right pedido-total-cell">{{ "%.2f"|format(pedido.total_calculado) }}</td>
               <td class="pedido-context-cell">
@@ -232,7 +286,16 @@
               {% set action_count = (1 if pedido.estado != 'facturado' else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
               <td class="pedido-actions-cell">
                 <div class="pedido-row-actions{% if action_count == 1 %} pedido-row-actions-single{% endif %}"
-                     role="group" aria-label="Acciones del pedido #{{ pedido.id }}">
+                     role="group" aria-label="Acciones del pedido PED-{{ pedido.id }}">
+                  {# Misma acción principal que en la tarjeta móvil, también
+                     con palabra: la guía muestra "Pesar"/"Facturar" en la
+                     tabla, no un icono suelto. #}
+                  {% if pedido.estado == 'pendiente' %}
+                  <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
+                     class="row-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
+                    <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
+                  </a>
+                  {% endif %}
                   {% if pedido.estado != 'facturado' %}
                   <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
                      class="row-action row-action-edit" title="Editar pedido #{{ pedido.id }}" aria-label="Editar pedido #{{ pedido.id }}">
@@ -242,9 +305,9 @@
                   {% if pedido.estado == 'preparado' %}
                   <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="row-action row-action-success"
-                            title="Facturar pedido #{{ pedido.id }}" aria-label="Facturar pedido #{{ pedido.id }}">
-                      <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <button type="submit" class="row-action-main"
+                            aria-label="Facturar pedido PED-{{ pedido.id }}">
+                      <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
                     </button>
                   </form>
                   {% endif %}

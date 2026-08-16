@@ -18,6 +18,24 @@
     </a>
   </header>
 
+  {# Las dos cifras que la guía "Sistema UI" pone arriba: lo que hay por hacer
+     y lo que ya se pasó de fecha. Son botones porque filtran la lista.
+     "Vencidos" solo se pinta en rojo cuando hay alguno — un cero en rojo
+     alarma sin motivo. #}
+  <div class="pedidos-cifras">
+    <button type="button" class="cifra" data-estado="por_preparar"
+            aria-label="Ver los {{ status_counts.por_preparar }} pedidos por preparar">
+      <span class="cifra-valor">{{ status_counts.por_preparar }}</span>
+      <span class="cifra-label">Por preparar</span>
+    </button>
+    <button type="button" class="cifra{% if status_counts.vencido %} cifra-alerta{% endif %}"
+            data-estado="vencido"
+            aria-label="Ver los {{ status_counts.vencido }} pedidos vencidos">
+      <span class="cifra-valor">{{ status_counts.vencido }}</span>
+      <span class="cifra-label">Vencidos</span>
+    </button>
+  </div>
+
   {# Toolbar: búsqueda + select de estado en una sola fila. Single GET form,
      se submit cuando el usuario presiona Enter en la búsqueda o cambia
      el dropdown. #}
@@ -39,6 +57,7 @@
      en azul, para no competir con "+ Nuevo". #}
   <div class="filters" id="pedidos-filtros" role="group" aria-label="Filtrar por estado">
     {% for valor, etiqueta, cuenta in [
+        ('hoy', 'Hoy', status_counts.hoy),
         ('todos', 'Todos', status_counts.total),
         ('pendiente', 'Pendientes', status_counts.pendiente),
         ('preparado', 'Preparados', status_counts.preparado),
@@ -149,17 +168,36 @@
     /* Las píldoras escriben el hidden y recargan por el mismo camino que la
        búsqueda. Sin JS el formulario sigue enviándose normal con el valor que
        ya trae el hidden. */
-    if (filtros) {
-      filtros.addEventListener('click', function (e) {
-        var pill = e.target.closest('.filter-pill');
-        if (!pill) return;
-        estadoInput.value = pill.dataset.estado;
+    function aplicarEstado(valor) {
+      estadoInput.value = valor;
+      if (filtros) {
         filtros.querySelectorAll('.filter-pill').forEach(function (p) {
-          var activo = p === pill;
+          var activo = p.dataset.estado === valor;
           p.classList.toggle('is-active', activo);
           p.setAttribute('aria-pressed', activo ? 'true' : 'false');
         });
-        cargarResultados();
+      }
+      // "Vencidos" no tiene píldora propia, así que la cifra hace de indicador.
+      document.querySelectorAll('.pedidos-cifras .cifra').forEach(function (c) {
+        c.classList.toggle('is-active', c.dataset.estado === valor);
+      });
+      cargarResultados();
+    }
+
+    if (filtros) {
+      filtros.addEventListener('click', function (e) {
+        var pill = e.target.closest('.filter-pill');
+        if (pill) aplicarEstado(pill.dataset.estado);
+      });
+    }
+
+    /* Las dos cifras de arriba son atajos al mismo filtro: tocar "Vencidos"
+       deja la lista en los vencidos y marca la píldora correspondiente. */
+    var cifras = document.querySelector('.pedidos-cifras');
+    if (cifras) {
+      cifras.addEventListener('click', function (e) {
+        var c = e.target.closest('.cifra');
+        if (c) aplicarEstado(c.dataset.estado);
       });
     }
 

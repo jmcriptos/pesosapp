@@ -5487,7 +5487,10 @@ def lista_pedidos():
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
     estado = (request.args.get('estado', 'todos', type=str) or 'todos').strip().lower()
-    estado = estado if estado in {'todos', 'pendiente', 'preparado', 'facturado'} else 'todos'
+    estado = estado if estado in {
+        'todos', 'pendiente', 'preparado', 'facturado',
+        'hoy', 'vencido', 'por_preparar',
+    } else 'todos'
     q = (request.args.get('q', '', type=str) or '').strip()
     solo_notas = (request.args.get('solo_notas', '', type=str) or '').strip().lower() in {'1', 'true', 'on', 'yes'}
 
@@ -5561,6 +5564,9 @@ def lista_pedidos():
                     'pendiente': 0,
                     'preparado': 0,
                     'facturado': 0,
+                    'por_preparar': 0,
+                    'vencido': 0,
+                    'hoy': 0,
                 },
             )
         base_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))
@@ -5582,8 +5588,42 @@ def lista_pedidos():
             status_counts[estado_nombre] = cantidad
             status_counts['total'] += cantidad
 
-    # Filtros de bandeja operativa
-    if estado != 'todos':
+    # Las dos cifras que la guía "Sistema UI" pone arriba de la lista, más el
+    # conteo de la píldora "Hoy". Se calculan sobre la MISMA base_query, así
+    # que respetan los clientes que este vendedor puede ver.
+    #
+    # Ojo con el dato: `fecha_entrega` se agregó el 2026-08-16 y los 910
+    # pedidos históricos la tienen en NULL, así que "vencidos" y "hoy" valen 0
+    # hasta que empiecen a entrar pedidos por el formulario nuevo. No es un
+    # error: es que el dato no existía antes.
+    hoy_local = datetime.now(DASHBOARD_TIMEZONE).date()
+    status_counts['por_preparar'] = status_counts['pendiente'] + status_counts['preparado']
+    status_counts['vencido'] = base_query.filter(
+        Pedido.fecha_entrega.isnot(None),
+        Pedido.fecha_entrega < hoy_local,
+        Pedido.estado != 'facturado',
+    ).count()
+    status_counts['hoy'] = base_query.filter(
+        Pedido.fecha_entrega == hoy_local,
+    ).count()
+
+    # Filtros de bandeja operativa. `hoy` y `vencido` no son estados de la
+    # tabla: son vistas sobre fecha_entrega que la guía muestra como una
+    # píldora más, al lado de los estados reales.
+    if estado == 'por_preparar':
+        # La cifra "Por preparar" suma pendientes + preparados, así que su
+        # filtro tiene que traer los dos: si trajera solo pendientes, el número
+        # de arriba y la lista de abajo no coincidirían.
+        base_query = base_query.filter(Pedido.estado.in_(['pendiente', 'preparado']))
+    elif estado == 'hoy':
+        base_query = base_query.filter(Pedido.fecha_entrega == hoy_local)
+    elif estado == 'vencido':
+        base_query = base_query.filter(
+            Pedido.fecha_entrega.isnot(None),
+            Pedido.fecha_entrega < hoy_local,
+            Pedido.estado != 'facturado',
+        )
+    elif estado != 'todos':
         base_query = base_query.filter(Pedido.estado == estado)
 
     if solo_notas:
@@ -5645,6 +5685,9 @@ def lista_pedidos():
         pagination=pagination,
         filtros=filtros,
         status_counts=status_counts,
+        # La tarjeta marca "Vencido" y "entrega hoy" comparando contra el día
+        # LOCAL (Curaçao, UTC−4), no contra date.today() del servidor.
+        hoy_local=hoy_local,
     )
 
 

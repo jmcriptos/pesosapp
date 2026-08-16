@@ -309,6 +309,12 @@ body[data-pedidos-list-screen] .pc-idrow {
   min-width: 0;
 }
 
+/* "PED-19" partía en dos líneas al quedarse sin ancho. */
+body[data-pedidos-list-screen] .pc-id {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
 body[data-pedidos-list-screen] .pc-amt {
   color: var(--color-text) !important;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -355,6 +361,150 @@ body[data-pedidos-list-screen] #pedidos-filtros {
   padding: 2px var(--space-1);
 }
 
+/* ── Las dos cifras de la guía ──
+   Van arriba de todo porque son la respuesta a "¿qué tengo que hacer hoy?".
+   Son botones: tocarlas filtra la lista. */
+body[data-pedidos-list-screen] .pedidos-cifras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--touch-gap);
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+/* En escritorio no tiene sentido que cada cifra mida 619px: se compactan a la
+   izquierda, que es donde la guía las pone como resumen del encabezado. */
+@media (min-width: 720px) {
+  body[data-pedidos-list-screen] .pedidos-cifras {
+    grid-template-columns: repeat(2, minmax(0, 200px));
+    justify-content: start;
+  }
+}
+
+/* Doble clase para ganarle al `:root button` que deja la llave sin cerrar de
+   styles.css, que si no las pinta de #007bff. */
+body[data-pedidos-list-screen] .pedidos-cifras .cifra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: var(--touch-glove);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedidos-list-screen] .pedidos-cifras .cifra.is-active {
+  border-color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-text);
+}
+
+body[data-pedidos-list-screen] .cifra-valor {
+  font-size: var(--text-role-figure);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-pedidos-list-screen] .cifra-label {
+  font-size: var(--text-role-meta);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* Rojo SOLO cuando hay vencidos: un cero en rojo alarma sin motivo. */
+body[data-pedidos-list-screen] .pedidos-cifras .cifra-alerta .cifra-valor,
+body[data-pedidos-list-screen] .pedidos-cifras .cifra-alerta .cifra-label {
+  color: var(--color-danger-soft-fg);
+}
+
+body[data-pedidos-list-screen] .pedidos-cifras .cifra-alerta {
+  background: var(--color-danger-soft);
+  border-color: transparent;
+}
+
+/* ── Acción principal de la tarjeta ──
+   Con palabra, no icono suelto: la guía solo permite iconos sin etiqueta para
+   cerrar, volver, deshacer y borrar. Va "suave" y no azul sólido para no
+   competir con "+ Nuevo", que es la acción primaria de la pantalla. */
+body[data-pedidos-list-screen] .pc-actions .pc-action-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedidos-list-screen] .pc-actions .pc-action-main:active {
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+}
+
+/* Misma acción principal en la tabla de escritorio. */
+body[data-pedidos-list-screen] .pedido-row-actions .row-action-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+body[data-pedidos-list-screen] .pedido-row-actions .row-action-main:hover {
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+}
+
+/* Entrega vencida en la tabla: los días de retraso, en rojo. */
+body[data-pedidos-list-screen] .pedido-date-tarde {
+  color: var(--color-danger-soft-fg);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body[data-pedidos-list-screen] .estado-badge.estado-vencido {
+  background: var(--color-danger-soft) !important;
+  color: var(--color-danger-soft-fg) !important;
+}
+
+/* Vencido: fecha de entrega pasada y todavía sin facturar. */
+body[data-pedidos-list-screen] .status-pill.vencido {
+  background: var(--color-danger-soft) !important;
+  color: var(--color-danger-soft-fg) !important;
+}
+
+body[data-pedidos-list-screen] .pedido-card[data-vencido="1"]::before {
+  background: var(--color-danger);
+}
+
 /* Envuelve, no recorta. Con `nowrap` las tarjetas quedaban parejas en 138px,
    pero los pedidos `preparado` (tres botones) cortaban la fecha a la mitad, y
    ocultar un dato es peor que una tarjeta 21px más alta. La fecha corta y la
@@ -392,6 +542,10 @@ body[data-pedidos-list-screen] .pc-meta i {
    fantasma en el DOM. Ese panel costaba ~90px por tarjeta y, con los 910
    pedidos de producción facturados y sin invoice_id_qbo, se veía como una
    caja gris VACÍA en toda la lista. Ahora es una fila más de la tarjeta. */
+/* Metadatos arriba, acciones abajo alineadas a la derecha. Iban en la misma
+   fila mientras las acciones eran tres iconos de 34px; con la acción principal
+   ya en palabra ("Pesar" / "Facturar") y los botones a 48px suman ~210px de
+   los 283 disponibles, y los metadatos quedaban aplastados debajo del botón. */
 body[data-pedidos-list-screen] .pc-foot {
   background: transparent !important;
   border: 0 !important;
@@ -400,9 +554,25 @@ body[data-pedidos-list-screen] .pc-foot {
   margin: 0 !important;
   box-shadow: none !important;
   display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--touch-gap);
+}
+
+/* display:flex y no el inline-flex de la base: en la columna necesita ocupar
+   el ancho para poder empujar los botones a la derecha, como en la guía. */
+body[data-pedidos-list-screen] .pc-foot .pc-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Con sitio de sobra vuelven a compartir fila. */
+@media (min-width: 480px) {
+  body[data-pedidos-list-screen] .pc-foot {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 /* Estado + metadatos comparten fila con las acciones: dos filas por tarjeta
