@@ -592,3 +592,92 @@ body[data-precios-screen] .precios-badge-primary { background: #e0e7ff; color: #
     color: #dc3545 !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Tablas de precios en pantallas angostas
+
+   La tabla de precios por cliente tiene 5 columnas (~550px) y dentro del modal
+   el contenedor mide ~335px en un teléfono de 375px: había que arrastrar de
+   costado dentro de un modal para llegar a "Precio Retail" y "Tipo". Abajo de
+   560px la tabla se apila: cada fila es un bloque y cada celda muestra su
+   etiqueta desde data-label.
+   --------------------------------------------------------------------------- */
+@media (max-width: 560px) {
+  /* display:none y no la técnica sr-only: con `clip` el thead deja de verse pero
+     los <th> siguen ocupando ancho y arrastran el scrollWidth de la tabla, que
+     era justamente lo que queríamos eliminar. Además, al pasar todo a display
+     block el navegador ya descarta la semántica de tabla, así que mantener el
+     thead accesible no aportaba nada: cada celda lleva su etiqueta en
+     data-label. */
+  .precios-generic-table thead { display: none; }
+  .precios-generic-table,
+  .precios-generic-table tbody,
+  .precios-generic-table tr,
+  .precios-generic-table td {
+    display: block;
+    width: 100%;
+    /* Sin esto el padding y el borde del tr se suman al 100% y la tabla vuelve
+       a desbordar el contenedor por unos pocos píxeles. */
+    box-sizing: border-box;
+  }
+  /* La tabla trae un margin horizontal negativo (-3px por lado) que, sumado al
+     width:100%, la hacía sobresalir 6px del contenedor y dejaba un scroll
+     horizontal residual. En el layout apilado no hace falta. */
+  .precios-generic-table,
+  body[data-precios-screen] .precios-generic-table {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  /* La tabla y el tbody quedan transparentes: con las filas separadas por un
+     hueco, cualquier fondo propio se ve como bandas oscuras entre tarjetas. */
+  .precios-generic-table,
+  .precios-generic-table tbody,
+  body[data-precios-screen] .precios-generic-table,
+  body[data-precios-screen] .precios-generic-table tbody {
+    background: transparent !important;
+  }
+  .precios-generic-table tr,
+  body[data-precios-screen] .precios-generic-table tbody tr:nth-of-type(odd),
+  body[data-precios-screen] .precios-generic-table tr {
+    /* Fondo explícito en la FILA: las reglas de esta pantalla fuerzan el blanco
+       en los td, no en el tr. Al convertir la fila en tarjeta, su padding dejaba
+       ver el token de fondo oscuro alrededor de cada bloque. */
+    background: #ffffff !important;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  /* Sin rayado cebra: en tarjetas apiladas no ordena nada y ensucia el bloque. */
+  body[data-precios-screen] .precios-generic-table tbody tr:nth-of-type(odd) td,
+  body[data-precios-screen] .precios-generic-table tbody tr:hover td {
+    background: transparent !important;
+  }
+  .precios-generic-table td,
+  body[data-precios-screen] .precios-generic-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0;
+    padding: 3px 0;
+    text-align: right;
+    background: transparent !important;
+  }
+  .precios-generic-table td::before {
+    content: attr(data-label);
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0.7;
+    text-align: left;
+  }
+  /* La primera celda es el nombre del producto: hace de título del bloque. */
+  .precios-generic-table td:first-child {
+    display: block;
+    text-align: left;
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--color-border-subtle, rgba(128,128,128,0.2));
+  }
+  .precios-generic-table td:first-child::before { content: none; }
+}

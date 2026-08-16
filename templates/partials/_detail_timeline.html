@@ -1,9 +1,11 @@
 {# Horizontal 4-step progress stepper with section title.
-   Maps pedido.estado to one of: recibido / preparado / facturado / entregado.
-   "Recibido" is the entry state (covers 'pendiente' in the model). #}
+   Las etiquetas son EXACTAMENTE los estados del modelo (pendiente / preparado /
+   facturado / entregado). El primer paso decía "Recibido", que no existe en
+   ningún otro lado: la lista y el badge de esta misma pantalla rotulan
+   "Pendiente", y había que traducir mentalmente pendiente↔recibido. #}
 
 {% set steps = [
-  ('recibido',   'Recibido'),
+  ('pendiente',  'Pendiente'),
   ('preparado',  'Preparado'),
   ('facturado',  'Facturado'),
   ('entregado',  'Entregado'),

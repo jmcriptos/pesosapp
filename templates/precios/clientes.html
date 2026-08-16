@@ -284,12 +284,15 @@
               var tipoTexto = precio.tipo_precio === 'específico' ? 'Específico'
                 : (precio.tipo_precio === 'lista_asignada' ? 'Lista' : 'Default');
 
+              // Los data-label alimentan el layout apilado en pantallas angostas
+              // (ver .precios-generic-table en precios.css): 5 columnas en 375px
+              // obligaban a scrollear de costado dentro del modal.
               html += '<tr>' +
-                '<td><strong>' + escapeHtml(precio.nombre) + '</strong></td>' +
-                '<td>$' + precio.precio_base.toFixed(2) + '</td>' +
-                '<td>$' + precioJomar.toFixed(2) + '</td>' +
-                '<td>$' + precioRetail.toFixed(2) + '</td>' +
-                '<td><span class="precios-badge ' + tipoBadge + '">' + tipoTexto + '</span></td>' +
+                '<td data-label="Producto"><strong>' + escapeHtml(precio.nombre) + '</strong></td>' +
+                '<td data-label="Precio Base">$' + precio.precio_base.toFixed(2) + '</td>' +
+                '<td data-label="Precio Jomar">$' + precioJomar.toFixed(2) + '</td>' +
+                '<td data-label="Precio Retail">$' + precioRetail.toFixed(2) + '</td>' +
+                '<td data-label="Tipo"><span class="precios-badge ' + tipoBadge + '">' + tipoTexto + '</span></td>' +
                 '</tr>';
             });
             html += '</tbody></table></div>';

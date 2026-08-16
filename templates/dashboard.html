@@ -91,12 +91,23 @@
 <div class="app-shell dash-body">
 <div class="screen-body">
 
-  {# ══════ HERO ══════ #}
+  {# ══════ HERO ══════
+     El mes va de una lista propia y no de strftime('%B'): el locale del dyno es
+     inglés y salía "16 de August, 2026" en una app en español. #}
+  {% set meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                     'agosto','septiembre','octubre','noviembre','diciembre'] %}
   <div class="hero">
     <div class="hero-kicker">Buenos días{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %} ☀</div>
-    <h1 class="hero-title">Tu semana va bien.</h1>
+    <h1 class="hero-title">
+      {# El titular se deriva de los datos. Antes era un texto fijo que decía
+         "Tu semana va bien" incluso sin ventas y con pedidos vencidos. #}
+      {% if not ventas_mes_v %}Todavía no hay ventas este mes.
+      {% elif pedidos_vencidos_v %}Hay {{ pedidos_vencidos_v }} pedido{{ 's' if pedidos_vencidos_v != 1 }} vencido{{ 's' if pedidos_vencidos_v != 1 }}.
+      {% elif pedidos_pendientes_v %}Tenés {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} por atender.
+      {% else %}Todo al día.{% endif %}
+    </h1>
     <div class="hero-sub">
-      {% if fecha_actual %}{{ fecha_actual.strftime('%d de %B, %Y') }} · {% endif %}{{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 else '' }} requiere{{ '' if pedidos_pendientes_v != 1 else 'n' }} atención
+      {% if fecha_actual %}{{ fecha_actual.day }} de {{ meses_es[fecha_actual.month - 1] }}, {{ fecha_actual.year }} · {% endif %}{{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} requiere{{ 'n' if pedidos_pendientes_v != 1 }} atención
     </div>
   </div>
 
@@ -154,7 +165,7 @@
       {# 3: On-Time Delivery #}
       <div class="kpi" data-snap-card="1" data-kpi-state="{{ otd_state }}">
         <div class="kpi-top">
-          <div class="kpi-label">On-Time Delivery</div>
+          <div class="kpi-label">Entregas a tiempo</div>
           {{ progress_ring(otd_rate_v, otd_state) }}
         </div>
         <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>

@@ -301,9 +301,16 @@ body[data-pedidos-list-screen] .estado-select {
     font-weight: 700;
     color: #dce6f8;
     margin-top: 2px;
-    white-space: nowrap;
+    /* El nombre del cliente es la clave por la que se escanea la lista. Truncado
+       en una línea, varios "Minimarket ..." quedaban indistinguibles. Se permite
+       una segunda línea —el alto sobra— y recién ahí se corta. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .pc-amt {
