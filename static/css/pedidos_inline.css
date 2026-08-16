@@ -1088,26 +1088,20 @@ body[data-pedidos-list-screen] .pagination-btn-mobile.disabled {
         border-spacing: 0;
     }
 
-    /* Header row: gradiente indigo vivo con texto blanco — fuerte
-       contraste y alineado con el color de marca (--orders-blue).
-       NOTA: incluir `thead` en el selector para superar la
-       especificidad de `pedidos_list.css thead th` (0,0,2,3) que
-       de lo contrario pinta `var(--color-bg-subtle)` con
-       `background-image: none !important` matando el gradiente. */
+    /* Acá vivía el encabezado azul (degradado #2563eb→#4f46e5, texto blanco)
+       con !important, escrito a propósito para ganarle a pedidos_list.css.
+       La guía "Sistema UI" lo define GRIS —#f8fafc de fondo, #64748b de
+       texto—: un encabezado de tabla solo rotula columnas y no debe ser lo
+       más llamativo de la pantalla, y ese azul además rompía la regla de un
+       solo color de acento.
+
+       El estilo vive ahora en pedidos_list.css. Acá quedan solo las
+       propiedades estructurales y SIN !important, para no reabrir la guerra
+       de especificidad que documentaba el comentario anterior. */
     body[data-pedidos-list-screen] .tabla-pedidos thead th,
     body[data-pedidos-list-screen] .tabla-pedidos th {
-        background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
-        background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
-        color: #ffffff !important;
-        font-size: 0.74rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.08em !important;
-        text-transform: uppercase;
-        padding: 14px 18px !important;
-        border: 0 !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
-        backdrop-filter: none !important;
         text-align: left;
+        backdrop-filter: none;
     }
     /* También overridear el thead para que no asome la franja gris
        detrás de los th con border-radius. */

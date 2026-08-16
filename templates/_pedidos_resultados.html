@@ -229,7 +229,9 @@
                 data-estado="{{ pedido.estado }}"
                 data-total="{{ pedido.total_calculado }}"
                 data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">
-              <td class="pedido-id-cell">#{{ pedido.id }}</td>
+              {# PED-N, igual que en la tarjeta y en la guía: "#20" no dice de
+                 qué es el número cuando se lee suelto en una columna. #}
+              <td class="pedido-id-cell">PED-{{ pedido.id }}</td>
               <td>
                 <div class="pedido-client-stack">
                   <span class="pedido-client-name">{{ pedido.cliente.nombre }}</span>

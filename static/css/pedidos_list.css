@@ -827,38 +827,47 @@ body[data-pedidos-list-screen] .tabla-pedidos thead {
   background: transparent !important;
 }
 
+/* Encabezado gris, no una barra azul.
+   La guía Sistema UI lo define como `background:#f8fafc; color:#64748b;
+   600 11.5px; uppercase; letter-spacing:.06em` sobre `border-bottom:#eef2f7`.
+   Estaba con un degradado azul→índigo y texto blanco, que además rompía la
+   regla de un solo color de acento: ese azul competía con el acento real y
+   convertía el encabezado en lo más llamativo de la pantalla, cuando solo
+   rotula columnas. */
 body[data-pedidos-list-screen] .tabla-pedidos thead th {
-  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
-  background-image: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
-  color: #ffffff !important;
-  font-weight: 800;
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
+  background: var(--color-bg-subtle) !important;
+  background-image: none !important;
+  /* --gray-500 es exactamente el #64748b de la guía. Da 4.83:1 sobre #f8fafc,
+     por encima del 4.5 que pide AA para este tamaño. */
+  color: var(--gray-500) !important;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border: 0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
-  padding: 14px 18px !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  padding: 12px 18px !important;
   text-align: left;
 }
-body[data-pedidos-list-screen] .tabla-pedidos thead th:first-child {
-  border-top-left-radius: 18px;
-}
-body[data-pedidos-list-screen] .tabla-pedidos thead th:last-child {
-  border-top-right-radius: 18px;
-}
+/* Sin radios propios: el contenedor de la tabla ya recorta con overflow, y
+   redondear los th solo tenía sentido cuando el encabezado era una barra
+   azul flotando sobre el fondo. */
 body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable {
   cursor: pointer;
 }
 body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
-  background-image: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+  background: var(--color-surface-muted) !important;
+  background-image: none !important;
+  color: var(--color-text) !important;
 }
+/* La flecha de orden se apaga sobre el fondo claro; la columna activa la
+   sube a tinta para que se distinga sin recurrir al color de acento. */
 body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable i {
-  color: rgba(255, 255, 255, 0.55) !important;
+  color: var(--color-text-subtle) !important;
 }
 body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable.asc i,
 body[data-pedidos-list-screen] .tabla-pedidos thead th.sortable.desc i {
-  color: #ffffff !important;
+  color: var(--color-text) !important;
 }
 
 body[data-pedidos-list-screen] .tabla-pedidos tbody tr,
