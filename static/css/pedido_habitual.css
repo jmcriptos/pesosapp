@@ -1,0 +1,715 @@
+/* ─────────────────────────────────────────────────────────────
+   pedido_habitual.css · Pantalla "Repetir y ajustar" de /pedidos/nuevo.
+
+   El pedido llega escrito con lo que el cliente suele comprar y el
+   vendedor solo corrige lo que cambió. Reemplaza el área de contenido
+   del formulario; el topnav y la tabbar siguen siendo los de siempre.
+
+   IMPORTANTE — dos trampas conocidas de este repo, por eso todo acá es
+   explícito y con selectores largos en vez de reglas sueltas:
+
+   1. `pedido_form.css` fuerza esta pantalla a CLARO (#f8fafc, tarjetas
+      blancas, --color-text oscuro) con !important. Esta hoja carga
+      después y re-declara los tokens en oscuro sobre el mismo scope.
+
+   2. `dark-theme.css` tiene `button, .btn { color:#f1f5f9 }`, y por la
+      `:root` sin cerrar de styles.css hay un `button:not(.btn-chip)
+      { background:#1877ff }` que pinta de azul CUALQUIER botón en modo
+      oscuro. Los botones de acá (stepper, chips, Volver) declaran su
+      background con especificidad de body[...] + clase, que le gana.
+   ───────────────────────────────────────────────────────────── */
+
+body[data-pedido-habitual] {
+  /* Paleta propia, no heredada: los tokens de tokens.css los pisa
+     pedido_form.css en claro y volverían las tarjetas blancas. */
+  --ph-bg-1: #0a0e1f;
+  --ph-bg-2: #0f172a;
+  --ph-bg-3: #1a1033;
+  --ph-surface: rgba(30, 41, 59, 0.55);
+  --ph-surface-alta: rgba(30, 41, 59, 0.75);
+  --ph-borde: rgba(255, 255, 255, 0.07);
+  --ph-borde-fuerte: rgba(255, 255, 255, 0.12);
+  --ph-texto: #f8fafc;
+  --ph-texto-muted: #94a3b8;
+  --ph-texto-subtle: #64748b;
+  --ph-azul: #2563eb;
+  --ph-azul-claro: #93c5fd;
+  --ph-verde: #34d399;
+  --ph-ambar: #fbbf24;
+}
+
+/* ── Fondo: el degradado del mockup, ganándole al reskin claro ── */
+body[data-pedido-habitual][data-pedido-form-screen],
+body[data-pedido-habitual][data-pedido-form-screen] .app-container,
+body[data-pedido-habitual][data-pedido-form-screen] .app-content,
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
+  background: linear-gradient(160deg, var(--ph-bg-1) 0%, var(--ph-bg-2) 55%, var(--ph-bg-3) 100%) !important;
+  background-attachment: fixed !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .app-content,
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell,
+body[data-pedido-habitual][data-pedido-form-screen] .mobile-form-container {
+  /* Re-declarar los tokens que pedido_form.css puso en claro: los
+     hijos que usan var(--color-text) heredarían texto casi negro
+     sobre fondo navy. */
+  --bg-ambient: transparent;
+  --color-bg: transparent;
+  --color-bg-elevated: var(--ph-surface);
+  --color-bg-subtle: transparent;
+  --color-surface: var(--ph-surface);
+  --color-surface-muted: var(--ph-surface);
+  --color-surface-strong: var(--ph-surface-alta);
+  --color-text: var(--ph-texto);
+  --color-text-muted: var(--ph-texto-muted);
+  --color-text-subtle: var(--ph-texto-subtle);
+  --color-border: var(--ph-borde);
+  --color-border-subtle: var(--ph-borde);
+  color: var(--ph-texto);
+}
+
+/* Alto del footer (≈118px) + tabbar (63px). Sin esto la última línea
+   del pedido queda tapada por la barra de total. */
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
+  padding-bottom: calc(118px + 63px + env(safe-area-inset-bottom)) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .mobile-form-container {
+  padding: 0 16px;
+}
+
+body[data-pedido-habitual] .pedido-form-shell form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Tarjeta de cliente ── */
+body[data-pedido-habitual] .ph-card {
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-borde);
+  border-radius: 16px;
+  padding: 14px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body[data-pedido-habitual] .ph-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ph-texto-subtle);
+  margin-bottom: 7px;
+}
+
+body[data-pedido-habitual] .ph-field {
+  margin-top: 12px;
+}
+
+/* Los inputs nativos y los TomSelect también vienen claros de
+   pedido_form.css — acá se les devuelve el fondo oscuro. */
+body[data-pedido-habitual] .mobile-form-control,
+body[data-pedido-habitual] .ts-wrapper .ts-control {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border: 1px solid var(--ph-borde-fuerte) !important;
+  border-radius: 14px !important;
+  color: var(--ph-texto) !important;
+  font-size: 1rem;
+  min-height: 48px;
+}
+
+body[data-pedido-habitual] .ts-wrapper .ts-control input,
+body[data-pedido-habitual] .ts-wrapper .ts-control .ts-item-clean {
+  color: var(--ph-texto) !important;
+}
+
+body[data-pedido-habitual] .mobile-form-control::placeholder {
+  color: var(--ph-texto-subtle) !important;
+}
+
+body[data-pedido-habitual] input[readonly].mobile-form-control {
+  color: var(--ph-texto-muted) !important;
+}
+
+/* ── Topnav ──
+   pedido_form.css fija el título en #0f172a !important (línea ~680) porque
+   ahí la pantalla es blanca. Acá el fondo es navy, así que quedaba negro
+   sobre negro. Mismo !important y un atributo más de especificidad. */
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-topnav {
+  background: rgba(10, 14, 31, 0.85) !important;
+  border-bottom: 1px solid var(--ph-borde) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-topnav-heading {
+  color: var(--ph-texto) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-topnav-meta {
+  color: var(--ph-texto-muted) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-close {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #cbd5e1 !important;
+  border-color: transparent !important;
+}
+
+/* ── TomSelect ──
+   `.ts-wrapper.single .ts-control` de pedido_form.css lleva `.single`, que
+   suma especificidad; sin repetirla, el campo se quedaba blanco sobre el
+   fondo oscuro. El dropdown va igual: si no, se abre un panel blanco. */
+body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper.single .ts-control {
+  background: rgba(15, 23, 42, 0.75) !important;
+  color: var(--ph-texto) !important;
+  border: 1px solid var(--ph-borde-fuerte) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control input,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control .item,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control .ts-item-clean {
+  color: var(--ph-texto) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-wrapper .ts-control input::placeholder {
+  color: var(--ph-texto-subtle) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown {
+  background: #131a2c !important;
+  border: 1px solid var(--ph-borde-fuerte) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 48px -16px rgba(0, 0, 0, 0.7) !important;
+  color: var(--ph-texto) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .option {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .option.active,
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .active {
+  background: rgba(37, 99, 235, 0.22) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .suggestion-name {
+  color: var(--ph-texto) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .suggestion-price {
+  color: var(--ph-azul-claro) !important;
+}
+
+body[data-pedido-habitual][data-pedido-form-screen] .ts-dropdown .no-results {
+  color: var(--ph-texto-muted) !important;
+}
+
+/* ── Encabezado: nombre del cliente y su cadencia de compra ── */
+body[data-pedido-habitual] .ph-hero {
+  padding: 2px 4px;
+}
+
+body[data-pedido-habitual] .ph-hero[hidden] { display: none; }
+
+body[data-pedido-habitual] .ph-hero-nombre {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ph-texto);
+  line-height: 1.2;
+}
+
+body[data-pedido-habitual] .ph-hero-meta {
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: var(--ph-texto-muted);
+}
+
+/* ── Chips de entrega ── */
+body[data-pedido-habitual] .ph-entrega {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 2px;
+}
+
+body[data-pedido-habitual] .ph-entrega-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ph-texto-muted);
+}
+
+body[data-pedido-habitual] .ph-chips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* El background va explícito y con esta especificidad para que el
+   `button:not(.btn-chip){background:#1877ff}` del bug de styles.css
+   no pinte todas las chips de azul en modo oscuro. */
+body[data-pedido-habitual] .ph-chips .ph-chip {
+  padding: 8px 14px;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  font: 600 0.8rem system-ui, sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+body[data-pedido-habitual] .ph-chips .ph-chip.is-active {
+  background: var(--ph-azul);
+  color: #ffffff;
+}
+
+body[data-pedido-habitual] .ph-chips .ph-chip:active {
+  transform: scale(0.96);
+}
+
+body[data-pedido-habitual] .ph-date {
+  margin-left: auto;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--ph-borde-fuerte);
+  border-radius: 12px;
+  color: var(--ph-texto);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color-scheme: dark;
+}
+
+body[data-pedido-habitual] .ph-date[hidden] { display: none; }
+
+/* ── Selector de grupo de facturación ──
+   Aparece solo con clientes que compran de más de un grupo (22 de 49). Es un
+   bloqueo intencional: hasta que no se elige, no hay líneas que precargar. */
+body[data-pedido-habitual] .ph-grupos {
+  padding: 16px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 16px;
+}
+
+body[data-pedido-habitual] .ph-grupos[hidden] { display: none; }
+
+body[data-pedido-habitual] .ph-grupos-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ph-ambar);
+  margin-bottom: 5px;
+}
+
+body[data-pedido-habitual] .ph-grupos-body {
+  font-size: 0.79rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  text-wrap: pretty;
+}
+
+body[data-pedido-habitual] .ph-grupos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+body[data-pedido-habitual] .ph-grupos-lista .ph-grupo-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--ph-borde-fuerte);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.75);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedido-habitual] .ph-grupos-lista .ph-grupo-opt:active {
+  background: rgba(37, 99, 235, 0.22);
+}
+
+body[data-pedido-habitual] .ph-grupo-nombre {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ph-texto);
+}
+
+body[data-pedido-habitual] .ph-grupo-ejemplos {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+body[data-pedido-habitual] .ph-grupo-meta {
+  font-size: 0.74rem;
+  color: var(--ph-texto-muted);
+}
+
+/* ── Aviso de dónde salen las líneas ── */
+body[data-pedido-habitual] .ph-banner {
+  padding: 14px;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: 16px;
+}
+
+body[data-pedido-habitual] .ph-banner[hidden] { display: none; }
+
+body[data-pedido-habitual] .ph-banner-title {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--ph-azul-claro);
+  margin-bottom: 4px;
+}
+
+body[data-pedido-habitual] .ph-banner-body {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  text-wrap: pretty;
+}
+
+/* ── Líneas del pedido ── */
+body[data-pedido-habitual] .ph-lineas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body[data-pedido-habitual] .ph-linea {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-borde);
+  border-radius: 14px;
+}
+
+/* Una cantidad distinta a la habitual se marca en el borde: el vendedor
+   ve de un vistazo qué tocó sin tener que leer cada subtítulo. */
+body[data-pedido-habitual] .ph-linea.is-cambiada {
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+body[data-pedido-habitual] .ph-linea.is-quitada {
+  background: rgba(30, 41, 59, 0.3);
+  border-color: rgba(255, 255, 255, 0.05);
+  opacity: 0.55;
+}
+
+body[data-pedido-habitual] .ph-linea.is-quitada .ph-linea-nombre {
+  text-decoration: line-through;
+}
+
+body[data-pedido-habitual] .ph-linea-info {
+  flex: 1;
+  min-width: 0;
+}
+
+body[data-pedido-habitual] .ph-linea-nombre {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ph-texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-pedido-habitual] .ph-linea-metas {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+body[data-pedido-habitual] .ph-linea-meta {
+  font-size: 0.72rem;
+  color: var(--ph-texto-subtle);
+}
+
+body[data-pedido-habitual] .ph-delta-mas { color: var(--ph-verde); }
+body[data-pedido-habitual] .ph-delta-menos { color: var(--ph-ambar); }
+
+body[data-pedido-habitual] .ph-linea-subtotal {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ph-texto-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* Sin precio no es 0.00: se marca en ámbar para que se note que falta
+   configurarlo, no para que parezca que el producto es gratis. */
+body[data-pedido-habitual] .ph-sin-precio {
+  color: var(--ph-ambar);
+  font-weight: 600;
+}
+
+/* ── Stepper ── */
+body[data-pedido-habitual] .ph-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+body[data-pedido-habitual] .ph-stepper .ph-step {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #cbd5e1;
+  font: 500 1.15rem system-ui, sans-serif;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedido-habitual] .ph-stepper .ph-step:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body[data-pedido-habitual] .ph-step-valor {
+  min-width: 26px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ph-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-pedido-habitual] .ph-linea .ph-volver {
+  padding: 7px 13px;
+  border: none;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+  font: 600 0.75rem system-ui, sans-serif;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Vacío ── */
+body[data-pedido-habitual] .ph-empty {
+  padding: 26px 16px;
+  text-align: center;
+  color: var(--ph-texto-subtle);
+  border: 1px dashed var(--ph-borde-fuerte);
+  border-radius: 14px;
+}
+
+body[data-pedido-habitual] .ph-empty i {
+  font-size: 1.6rem;
+  opacity: 0.6;
+}
+
+body[data-pedido-habitual] .ph-empty p {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+
+/* ── Añadir otro producto ── */
+body[data-pedido-habitual] .ph-add-toggle {
+  width: 100%;
+  padding: 13px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ph-texto-muted);
+  font: 600 0.85rem system-ui, sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedido-habitual] .ph-add-toggle:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body[data-pedido-habitual] .ph-add-panel {
+  padding: 14px;
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-borde);
+  border-radius: 16px;
+}
+
+body[data-pedido-habitual] .ph-add-panel[hidden] { display: none; }
+
+body[data-pedido-habitual] .ph-add-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+body[data-pedido-habitual] .ph-field-cajas {
+  width: 96px;
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+body[data-pedido-habitual] .ph-field-cajas .mobile-form-control {
+  text-align: center;
+}
+
+body[data-pedido-habitual] .ph-add-panel .ph-btn-add {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: 14px;
+  background: var(--ph-azul);
+  color: #ffffff;
+  font: 700 0.95rem system-ui, sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedido-habitual] .ph-add-panel .ph-btn-add:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ph-texto-subtle);
+  cursor: not-allowed;
+}
+
+body[data-pedido-habitual] .ph-motivo {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ph-ambar);
+}
+
+body[data-pedido-habitual] .ph-motivo:empty { display: none; }
+
+/* ── Notas ── */
+body[data-pedido-habitual] .ph-notas {
+  background: var(--ph-surface);
+  border: 1px solid var(--ph-borde);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+body[data-pedido-habitual] .ph-notas-summary {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ph-texto-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+body[data-pedido-habitual] .ph-notas-summary::-webkit-details-marker { display: none; }
+
+body[data-pedido-habitual] .ph-notas-summary::after {
+  content: ' ⌄';
+  color: var(--ph-texto-subtle);
+}
+
+body[data-pedido-habitual] .ph-notas[open] .ph-notas-summary::after { content: ' ⌃'; }
+
+body[data-pedido-habitual] .ph-textarea {
+  margin-top: 10px;
+  min-height: 84px;
+  resize: vertical;
+}
+
+/* ── Footer sticky con total ── */
+body[data-pedido-habitual] .ph-footer {
+  position: fixed;
+  /* Encima de la tabbar móvil (~63px + safe-area). */
+  bottom: calc(63px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  z-index: 29;
+  padding: 12px 16px;
+  background: rgba(10, 14, 31, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+body[data-pedido-habitual] .ph-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+body[data-pedido-habitual] .ph-footer-meta {
+  font-size: 0.78rem;
+  color: var(--ph-texto-muted);
+}
+
+body[data-pedido-habitual] .ph-footer-total {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--ph-texto);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body[data-pedido-habitual] .ph-footer .ph-submit {
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 16px;
+  background: var(--ph-azul);
+  color: #ffffff;
+  font: 700 1rem system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 10px 24px -8px rgba(37, 99, 235, 0.8);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedido-habitual] .ph-footer .ph-submit:active {
+  background: #1d4ed8;
+}
+
+/* ── Desktop: sin tabbar, footer centrado con el contenido ── */
+@media (min-width: 1024px) {
+  body[data-pedido-habitual] .ph-footer {
+    bottom: 0;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 640px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  body[data-pedido-habitual][data-pedido-form-screen] .pedido-form-shell {
+    padding-bottom: calc(118px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ── Pantallas angostas: el stepper manda, el subtotal cede ── */
+@media (max-width: 360px) {
+  body[data-pedido-habitual] .ph-linea-subtotal { display: none; }
+  body[data-pedido-habitual] .ph-stepper .ph-step { width: 30px; height: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-pedido-habitual] .ph-chips .ph-chip,
+  body[data-pedido-habitual] .ph-chips .ph-chip:active { transition: none; transform: none; }
+}

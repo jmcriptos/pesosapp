@@ -2227,6 +2227,10 @@ class Pedido(db.Model):
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
     fecha_pedido = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     fecha_facturacion = db.Column(db.DateTime, nullable=True)
+    # Fecha en que el cliente espera la entrega. Es un date, no un datetime:
+    # el vendedor elige un día en ruta ("mañana"), nunca una hora. Nullable
+    # porque los 780 pedidos históricos no la tienen y no se puede inventar.
+    fecha_entrega = db.Column(db.Date, nullable=True)
     estado = db.Column(db.String(30), default="pendiente", nullable=False)
     notas = db.Column(db.Text, nullable=True)
     invoice_id_qbo = db.Column(db.String(100), nullable=True)
@@ -5748,7 +5752,77 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
             }
         idx += 1
 
-    return list(lineas_por_producto.values())
+    lineas = list(lineas_por_producto.values())
+    _validar_grupo_unico(lineas)
+    return lineas
+
+
+def _grupo_facturable(producto):
+    """Grupo de facturación al que pertenece un producto.
+
+    Un pedido NO puede mezclar grupos: QuickBooks no factura en un mismo
+    documento líneas con impuestos distintos. Y el impuesto no se deduce de
+    `se_pesa` — en producción hay pesables con tax_rate 10 y con 14 — así que
+    el grupo es el par (se_pesa, tax_rate), no una sola de las dos columnas.
+
+    Los 910 pedidos históricos cumplen esta partición sin una sola excepción.
+    """
+    if producto is None:
+        return None
+    return ('pesable' if producto.se_pesa else 'importado', float(producto.tax_rate or 0))
+
+
+def _etiqueta_grupo(grupo):
+    """Nombre legible del grupo para mostrarle al vendedor."""
+    if not grupo:
+        return '—'
+    tipo, tax = grupo
+    base = 'Pesables' if tipo == 'pesable' else 'Importados'
+    # El tax_rate va en la etiqueta porque hay DOS grupos de pesables: sin él,
+    # el selector mostraría dos opciones llamadas igual.
+    return f'{base} · imp. {tax:g}'
+
+
+def _validar_grupo_unico(lineas):
+    """Rechaza un pedido que mezcle grupos de facturación.
+
+    Corre en el servidor, no solo en la pantalla: la edición de pedidos y
+    cualquier POST directo llegan por acá igual.
+    """
+    grupos = {}
+    for linea in lineas:
+        producto = db.session.get(Producto, linea['producto_id'])
+        grupo = _grupo_facturable(producto)
+        if grupo is None:
+            continue
+        grupos.setdefault(grupo, []).append(producto.nombre)
+
+    if len(grupos) <= 1:
+        return
+
+    detalle = '; '.join(
+        f'{_etiqueta_grupo(g)}: {", ".join(sorted(nombres)[:3])}'
+        for g, nombres in sorted(grupos.items())
+    )
+    raise _PedidoFormError(
+        'Un pedido no puede mezclar productos con impuestos distintos: '
+        f'QuickBooks no los factura juntos. Separalos en pedidos aparte ({detalle})'
+    )
+
+
+def _parsear_fecha_entrega(valor):
+    """Convierte el `fecha_entrega` del formulario en un date, o None.
+
+    Una fecha ilegible se trata como "sin fecha" en vez de reventar el guardado:
+    el pedido con sus líneas vale mucho más que el día de entrega, que se puede
+    corregir después desde la edición.
+    """
+    if not valor:
+        return None
+    try:
+        return datetime.strptime(valor.strip(), '%Y-%m-%d').date()
+    except (ValueError, AttributeError):
+        return None
 
 
 def _cantidad_detalle_facturable(detalle):
@@ -5781,7 +5855,10 @@ def nuevo_pedido():
         'nombre': p.nombre,
         'precio': float(
             obtener_precio_default_producto(p.id, 'base') or 0
-        )
+        ),
+        # El form filtra el buscador al grupo del pedido: un pedido no puede
+        # mezclar impuestos distintos porque QuickBooks no los factura juntos.
+        'grupo' : _clave_grupo(_grupo_facturable(p)),
     } for p in productos]
 
     if request.method == 'POST':
@@ -5809,7 +5886,12 @@ def nuevo_pedido():
             flash('Agrega al menos un producto al pedido', 'error')
             return redirect(url_for('nuevo_pedido'))
 
-        pedido = Pedido(cliente_id=cliente_id, notas=notas, tipo_cambio=tipo_cambio)
+        pedido = Pedido(
+            cliente_id=cliente_id,
+            notas=notas,
+            tipo_cambio=tipo_cambio,
+            fecha_entrega=_parsear_fecha_entrega(request.form.get('fecha_entrega')),
+        )
         db.session.add(pedido)
         db.session.commit()
         _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
@@ -5889,7 +5971,10 @@ def editar_pedido(pedido_id):
                 pedido.cliente_id,  # Ahora sí existe pedido
                 p.id, 'base'
             ) or obtener_precio_default_producto(p.id, 'base') or 0
-        )
+        ),
+        # Igual que en alta: el buscador se filtra al grupo del pedido para
+        # que editando tampoco se pueda mezclar impuestos.
+        'grupo' : _clave_grupo(_grupo_facturable(p)),
     } for p in productos]
 
     
@@ -5927,6 +6012,7 @@ def editar_pedido(pedido_id):
         # Actualizar cabecera
         pedido.cliente_id = nuevo_cliente_id
         pedido.notas = request.form.get('notas')
+        pedido.fecha_entrega = _parsear_fecha_entrega(request.form.get('fecha_entrega'))
 
         # Preservar líneas de preparación ya capturadas y solo resincronizar precios.
         productos_con_prep = set()
@@ -7978,6 +8064,270 @@ def api_precios_cliente_productos(cliente_id):
 
     resultado.sort(key=lambda x: x['nombre'])
     return jsonify(resultado)
+
+
+# Cuántas visitas pasadas miramos para armar "lo habitual". Cuatro es lo que
+# describe el diseño y, con clientes que compran semanalmente, cubre el último
+# mes: suficiente para que un pedido raro no mande, poco para que un cambio de
+# temporada tarde en reflejarse.
+_HABITUAL_VISITAS = 4
+
+
+def _mediana_int(valores):
+    """Mediana redondeada de una lista de enteros.
+
+    Con cantidad par de elementos promedia los dos centrales y redondea; el
+    resultado se usa como cajas, que son unidades enteras.
+    """
+    if not valores:
+        return 0
+    ordenados = sorted(valores)
+    n = len(ordenados)
+    medio = n // 2
+    if n % 2:
+        return int(ordenados[medio])
+    return int(round((ordenados[medio - 1] + ordenados[medio]) / 2))
+
+
+def _grupos_del_cliente(cliente_id):
+    """Grupos de facturación que este cliente compra, y desde cuándo.
+
+    Casi la mitad de los clientes compran de más de un grupo (22 de 49 en
+    producción), así que precargar "lo habitual" sin elegir grupo primero
+    armaría un pedido mezclado que QuickBooks no puede facturar.
+
+    Devuelve una lista ordenada por compra más reciente: el grupo del último
+    pedido va primero.
+    """
+    filas = (
+        db.session.query(Pedido, Producto)
+        .join(DetallePedido, DetallePedido.pedido_id == Pedido.id)
+        .join(Producto, Producto.id == DetallePedido.producto_id)
+        .filter(
+            Pedido.cliente_id == cliente_id,
+            DetallePedido.es_linea_pedido.is_(True),
+        )
+        .all()
+    )
+
+    por_grupo = {}
+    for pedido, producto in filas:
+        grupo = _grupo_facturable(producto)
+        if grupo is None:
+            continue
+        info = por_grupo.setdefault(grupo, {'pedidos': set(), 'ultima': None})
+        info['pedidos'].add(pedido.id)
+        fecha = pedido.fecha_pedido
+        if info['ultima'] is None or fecha > info['ultima']:
+            info['ultima'] = fecha
+
+    grupos = [{
+        'clave': _clave_grupo(grupo),
+        'etiqueta': _etiqueta_grupo(grupo),
+        'pedidos': len(info['pedidos']),
+        'ultima_fecha': info['ultima'].date().isoformat() if info['ultima'] else None,
+        # Nombres de ejemplo: el tax_rate es un código de QuickBooks, no un
+        # porcentaje, así que por sí solo no le dice nada al vendedor. Ver dos
+        # productos del grupo sí le dice cuál es cuál.
+        'ejemplos': _ejemplos_del_grupo(cliente_id, grupo),
+        '_orden': info['ultima'],
+    } for grupo, info in por_grupo.items()]
+
+    grupos.sort(key=lambda g: g['_orden'], reverse=True)
+    for g in grupos:
+        del g['_orden']
+    return grupos
+
+
+def _ejemplos_del_grupo(cliente_id, grupo, limite=2):
+    """Productos que este cliente compra dentro del grupo, para reconocerlo."""
+    nombres = {
+        producto.nombre
+        for producto in (
+            db.session.query(Producto)
+            .join(DetallePedido, DetallePedido.producto_id == Producto.id)
+            .join(Pedido, Pedido.id == DetallePedido.pedido_id)
+            .filter(
+                Pedido.cliente_id == cliente_id,
+                DetallePedido.es_linea_pedido.is_(True),
+            )
+            .all()
+        )
+        if _grupo_facturable(producto) == grupo
+    }
+    return sorted(nombres)[:limite]
+
+
+def _clave_grupo(grupo):
+    """Identificador estable del grupo, para viajar en la URL y el form."""
+    if not grupo:
+        return ''
+    tipo, tax = grupo
+    return f'{tipo}:{tax:g}'
+
+
+def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VISITAS):
+    """Arma el pedido que este cliente suele hacer, a partir de su historial.
+
+    Devuelve (lineas, meta). Se apoya SOLO en líneas originales
+    (`es_linea_pedido=True`): las de preparación duplican el producto y
+    contarlas inflaría las cantidades al doble.
+
+    Todo el cálculo ocurre DENTRO de un grupo de facturación: las visitas que
+    se promedian son las últimas `visitas` de ese grupo, no las últimas en
+    general. Si se filtrara después, un cliente que alterna entre grupos
+    aportaría una o dos visitas útiles en vez de cuatro.
+
+    La cantidad por producto es la **mediana** de las visitas en que aparece,
+    no el promedio: con 4 datos un solo pedido grande desvía el promedio lo
+    suficiente como para proponer una cantidad que el cliente nunca pidió.
+
+    Regla de inclusión, según cuántas visitas haya:
+      - 0 visitas → nada; la pantalla cae al buscador de siempre.
+      - 1 visita  → esa visita tal cual (base débil, se avisa en `meta`).
+      - 2+        → solo productos presentes en al menos 2 visitas, para que
+                    una compra puntual no se vuelva parte del pedido base.
+    """
+    grupos = _grupos_del_cliente(cliente_id)
+    meta = {
+        'visitas': 0,
+        'ultima_fecha': None,
+        'cadencia_dias': None,
+        'grupos': grupos,
+        'grupo': None,
+    }
+
+    if not grupos:
+        return [], meta
+
+    # Sin grupo pedido: con uno solo se resuelve solo; con varios la pantalla
+    # tiene que preguntar antes de precargar nada.
+    if grupo_clave:
+        elegido = next((g for g in grupos if g['clave'] == grupo_clave), None)
+        if elegido is None:
+            return [], meta
+    elif len(grupos) == 1:
+        elegido = grupos[0]
+    else:
+        return [], meta
+
+    meta['grupo'] = elegido['clave']
+
+    # Solo los pedidos de ESTE grupo, y de ahí las últimas `visitas`. Un pedido
+    # no mezcla grupos, así que basta con mirar cualquiera de sus líneas.
+    ids_del_grupo = {
+        pedido_id
+        for pedido_id, producto in (
+            db.session.query(DetallePedido.pedido_id, Producto)
+            .join(Producto, Producto.id == DetallePedido.producto_id)
+            .join(Pedido, Pedido.id == DetallePedido.pedido_id)
+            .filter(
+                Pedido.cliente_id == cliente_id,
+                DetallePedido.es_linea_pedido.is_(True),
+            )
+            .all()
+        )
+        if _clave_grupo(_grupo_facturable(producto)) == elegido['clave']
+    }
+
+    pedidos = (
+        Pedido.query
+        .filter(Pedido.id.in_(ids_del_grupo))
+        .order_by(Pedido.fecha_pedido.desc())
+        .limit(visitas)
+        .all()
+    ) if ids_del_grupo else []
+
+    meta['visitas'] = len(pedidos)
+    if not pedidos:
+        return [], meta
+
+    meta['ultima_fecha'] = pedidos[0].fecha_pedido.date().isoformat()
+
+    # Cadencia: mediana de días entre visitas consecutivas. Solo tiene sentido
+    # con 2+ pedidos; alimenta el "Compra cada N días" del encabezado.
+    if len(pedidos) >= 2:
+        fechas = [p.fecha_pedido.date() for p in pedidos]
+        deltas = [
+            (fechas[i] - fechas[i + 1]).days
+            for i in range(len(fechas) - 1)
+        ]
+        deltas = [d for d in deltas if d > 0]
+        if deltas:
+            meta['cadencia_dias'] = _mediana_int(deltas)
+
+    pedido_ids = [p.id for p in pedidos]
+    detalles = (
+        DetallePedido.query
+        .filter(
+            DetallePedido.pedido_id.in_(pedido_ids),
+            DetallePedido.es_linea_pedido.is_(True),
+        )
+        .all()
+    )
+
+    # producto_id → {pedido_id: cajas}. Se agrupa por pedido antes de tomar la
+    # mediana para que un producto repetido dentro del MISMO pedido cuente como
+    # una visita con la suma, no como dos visitas.
+    por_producto = {}
+    for det in detalles:
+        cantidades = por_producto.setdefault(det.producto_id, {})
+        cantidades[det.pedido_id] = cantidades.get(det.pedido_id, 0) + det.cajas_objetivo
+
+    minimo_visitas = 1 if len(pedidos) == 1 else 2
+
+    lineas = []
+    for producto_id, por_pedido in por_producto.items():
+        apariciones = [c for c in por_pedido.values() if c > 0]
+        if len(apariciones) < minimo_visitas:
+            continue
+
+        producto = db.session.get(Producto, producto_id)
+        if producto is None:
+            continue  # producto borrado del catálogo
+
+        # Red de seguridad: si algún pedido viejo mezclara grupos, la línea
+        # ajena no debe colarse en el precargado y volverlo no facturable.
+        if _clave_grupo(_grupo_facturable(producto)) != elegido['clave']:
+            continue
+
+        precio = obtener_precio_producto_cliente(cliente_id, producto_id, 'base')
+        if precio is None:
+            precio = obtener_precio_default_producto(producto_id, 'base')
+
+        lineas.append({
+            'id': producto_id,
+            'nombre': producto.nombre,
+            'cajas': _mediana_int(apariciones),
+            'cajas_habitual': _mediana_int(apariciones),
+            'precio': float(precio) if precio is not None else None,
+            'visitas': len(apariciones),
+        })
+
+    # Lo más constante primero (aparece en más visitas), después alfabético:
+    # el vendedor ve arriba lo que casi nunca cambia y ajusta abajo.
+    lineas.sort(key=lambda l: (-l['visitas'], l['nombre']))
+    return lineas, meta
+
+
+@app.route('/api/clientes/<int:cliente_id>/pedido-habitual')
+@login_required
+def api_pedido_habitual(cliente_id):
+    """Líneas y cantidades que este cliente suele pedir, para precargar el form.
+
+    Alimenta la pantalla "Repetir y ajustar": el pedido llega escrito y el
+    vendedor solo corrige lo que cambió, en vez de teclear cada línea.
+    """
+    if not _user_can_view_cliente(cliente_id):
+        return jsonify({'error': 'No autorizado'}), 403
+
+    # Sin `grupo` y con el cliente comprando de varios, la respuesta trae la
+    # lista de grupos y ninguna línea: la pantalla pregunta antes de precargar.
+    lineas, meta = _calcular_pedido_habitual(
+        cliente_id, grupo_clave=request.args.get('grupo') or None
+    )
+    return jsonify({'lineas': lineas, **meta})
+
 
 # TAMBIÉN agregar esta nueva función para debugging:
 

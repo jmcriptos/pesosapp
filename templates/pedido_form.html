@@ -4,7 +4,7 @@
     {% if pedido %}Editar Pedido PED-{{ pedido.id }}{% else %}Nuevo Pedido{% endif %} — PesosApp
 {% endblock %}
 
-{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pedido-form-screen="1"{% endblock %}
+{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-pedido-form-screen="1" data-pedido-habitual="1"{% endblock %}
 
 {% block header_title %}
     <span class="fw-700 color-white">
@@ -20,6 +20,9 @@
 {# Inline-extracted styles (formerly a 278-line <style> block in this file). #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form_inline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form.css') }}">
+{# Va último: la pantalla "Repetir y ajustar" es oscura y tiene que ganarle al
+   reskin claro de pedido_form.css. #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_habitual.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -40,123 +43,119 @@
     <form method="POST" id="form-nuevo-pedido" autocomplete="off">
         <!-- US01: hidden CSRF field -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <!-- Cliente Card -->
-        <div class="mobile-card">
-            <div class="mobile-card-header">
-                <i class="fas fa-user"></i>
-                Cliente
-            </div>
-            <div class="mobile-card-body">
-                <div class="mobile-form-group">
-                    <label class="mobile-form-label" for="cliente_id">Seleccionar cliente:</label>
-                        <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" data-no-auto-ts="1" required>
-                            <option value=""></option>
-                            {% for cliente in clientes|sort(attribute='nombre') %}
-                                <option value="{{ cliente.id }}"
-                                        data-moneda="{{ cliente.moneda or 'XCG' }}"
-                                        {% if pedido and pedido.cliente_id == cliente.id %}selected{% endif %}>
-                                    {{ cliente.nombre }}{% if cliente.moneda == 'USD' %} (USD){% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                </div>
 
-                <!-- Tipo de cambio (solo para clientes USD) -->
-                <div class="mobile-form-group" id="tipo-cambio-group" style="display:none;">
-                    <label class="mobile-form-label" for="tipo_cambio">
-                        Tipo de cambio (1 USD = ? XCG):
-                    </label>
-                    <input type="number" id="tipo_cambio" name="tipo_cambio"
-                           class="mobile-form-control" step="0.01" min="0.01"
-                           value="1.78" readonly>
-                </div>
+        <!-- ── Cliente ─────────────────────────────────────────────── -->
+        <div class="ph-card">
+            <label class="ph-label" for="cliente_id">Cliente</label>
+            <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" data-no-auto-ts="1" required>
+                <option value=""></option>
+                {% for cliente in clientes|sort(attribute='nombre') %}
+                    <option value="{{ cliente.id }}"
+                            data-moneda="{{ cliente.moneda or 'XCG' }}"
+                            data-nombre="{{ cliente.nombre }}"
+                            {% if pedido and pedido.cliente_id == cliente.id %}selected{% endif %}>
+                        {{ cliente.nombre }}{% if cliente.moneda == 'USD' %} (USD){% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <!-- Tipo de cambio (solo para clientes USD) -->
+            <div class="ph-field" id="tipo-cambio-group" style="display:none;">
+                <label class="ph-label" for="tipo_cambio">Tipo de cambio (1 USD = ? XCG)</label>
+                <input type="number" id="tipo_cambio" name="tipo_cambio"
+                       class="mobile-form-control" step="0.01" min="0.01"
+                       value="1.78" readonly>
             </div>
         </div>
 
-        <!-- Productos Card -->
-        <div class="mobile-card">
-            <div class="mobile-card-header">
-                <i class="fas fa-cubes"></i>
-                Productos solicitados
-            </div>
-            <div class="mobile-card-body">
-                
-                <!-- Lista de productos (cards en mobile) -->
-                <div id="productos-body" class="productos-list">
-                    <div class="mobile-empty-state">
-                        <i class="fas fa-box-open"></i>
-                        <p>No hay productos agregados</p>
-                    </div>
-                </div>
-
-                <!-- Búsqueda y agregar -->
-                <div class="mobile-search-layout">
-                    <div class="mobile-search-group">
-                        <label class="mobile-form-label" for="producto-select">Seleccionar producto:</label>
-                            <select id="producto-select" class="mobile-form-control">
-                                <option value=""></option>
-                                <!-- Opciones se cargarán dinámicamente -->
-                            </select>
-                    </div>
-                    
-                    <div class="mobile-add-section">
-                        <div class="mobile-form-group">
-                            <label class="mobile-form-label" for="input-cajas">Cantidad:</label>
-                            <input type="number" 
-                                   id="input-cajas" 
-                                   placeholder="Cajas" 
-                                   class="mobile-form-control" 
-                                   min="1" 
-                                   autocomplete="off">
-                        </div>
-                        
-                        <div style="margin-top: 12px; text-align: center;">
-                            <button type="button"
-                                    id="agregar-producto"
-                                    class="mobile-btn mobile-btn-primary">
-                                <i class="fas fa-plus"></i>
-                                Agregar
-                            </button>
-                            {# En touch no hay hover, así que el motivo por el que el
-                               botón está deshabilitado tiene que verse, no vivir en
-                               un title. #}
-                            <p id="agregar-motivo" class="fs-08"
-                               style="margin:8px 0 0; opacity:0.75;"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Total -->
-                <div class="mobile-total-section">
-                    <div class="mobile-total-label">Total del pedido</div>
-                    <div id="total-pedido" class="mobile-total-amount">0.00 XCG</div>
-                </div>
-            </div>
+        <!-- ── Encabezado del cliente: cadencia e historial ─────────── -->
+        <div class="ph-hero" id="ph-hero" hidden>
+            <div class="ph-hero-nombre" id="ph-hero-nombre"></div>
+            <div class="ph-hero-meta" id="ph-hero-meta"></div>
         </div>
 
-        <!-- Notas Card -->
-        <div class="mobile-card">
-            <div class="mobile-card-header">
-                <i class="fas fa-sticky-note"></i>
-                Notas adicionales
-            </div>
-            <div class="mobile-card-body">
-                <div class="mobile-form-group" style="margin-bottom:0">
-                    <label class="mobile-form-label" for="notas">Instrucciones especiales:</label>
-                    <textarea name="notas"
-                              id="notas"
-                              class="mobile-form-control mobile-textarea"
-                              placeholder="Notas o instrucciones especiales para este pedido...">{{ pedido.notas if pedido else '' }}</textarea>
-                </div>
-            </div>
+        <!-- ── Fecha de entrega ─────────────────────────────────────── -->
+        <div class="ph-entrega">
+            <span class="ph-entrega-label">Entrega</span>
+            <div class="ph-chips" id="ph-entrega-chips" role="group" aria-label="Fecha de entrega"></div>
+            <input type="hidden" name="fecha_entrega" id="fecha_entrega"
+                   value="{{ pedido.fecha_entrega.isoformat() if pedido and pedido.fecha_entrega else '' }}">
+            <input type="date" id="ph-entrega-otra" class="ph-date" hidden
+                   aria-label="Otra fecha de entrega">
         </div>
 
-        <!-- Botón guardar sticky -->
-        <div class="sticky-submit-bar">
-            <button type="submit" class="mobile-btn mobile-btn-success">
-                <i class="fas fa-save"></i>
-                {% if pedido %}Actualizar pedido{% else %}Guardar pedido{% endif %}
+        <!-- ── Elegir grupo (clientes que compran de varios) ────────── -->
+        <div class="ph-grupos" id="ph-grupos" hidden>
+            <div class="ph-grupos-title">¿Qué pedido vas a tomar?</div>
+            <div class="ph-grupos-body">
+                Este cliente compra de más de un grupo y un pedido no puede
+                mezclarlos: QuickBooks no factura junto lo que paga impuestos
+                distintos.
+            </div>
+            <div class="ph-grupos-lista" id="ph-grupos-lista"></div>
+        </div>
+
+        <!-- ── Aviso: de dónde salen las líneas precargadas ─────────── -->
+        <div class="ph-banner" id="ph-banner" hidden>
+            <div class="ph-banner-title" id="ph-banner-title">Partimos de su pedido habitual</div>
+            <div class="ph-banner-body" id="ph-banner-body"></div>
+        </div>
+
+        <!-- ── Líneas del pedido ────────────────────────────────────── -->
+        <div id="productos-body" class="ph-lineas"></div>
+
+        <button type="button" class="ph-add-toggle" id="ph-add-toggle"
+                aria-expanded="false" aria-controls="ph-add-panel">
+            <span aria-hidden="true">＋</span> Añadir otro producto
+        </button>
+
+        <div class="ph-add-panel" id="ph-add-panel" hidden>
+            <div class="ph-field">
+                <label class="ph-label" for="producto-select">Producto</label>
+                <select id="producto-select" class="mobile-form-control">
+                    <option value=""></option>
+                    <!-- Opciones se cargarán dinámicamente -->
+                </select>
+            </div>
+
+            <div class="ph-add-row">
+                <div class="ph-field ph-field-cajas">
+                    <label class="ph-label" for="input-cajas">Cajas</label>
+                    <input type="number"
+                           id="input-cajas"
+                           placeholder="0"
+                           class="mobile-form-control"
+                           min="1"
+                           inputmode="numeric"
+                           autocomplete="off">
+                </div>
+                <button type="button" id="agregar-producto" class="ph-btn-add">
+                    Añadir
+                </button>
+            </div>
+            {# En touch no hay hover, así que el motivo por el que el
+               botón está deshabilitado tiene que verse, no vivir en
+               un title. #}
+            <p id="agregar-motivo" class="ph-motivo"></p>
+        </div>
+
+        <!-- ── Notas ────────────────────────────────────────────────── -->
+        <details class="ph-notas" {% if pedido and pedido.notas %}open{% endif %}>
+            <summary class="ph-notas-summary">Notas para este pedido</summary>
+            <textarea name="notas"
+                      id="notas"
+                      class="mobile-form-control ph-textarea"
+                      placeholder="Instrucciones especiales…">{{ pedido.notas if pedido else '' }}</textarea>
+        </details>
+
+        <!-- ── Footer sticky ────────────────────────────────────────── -->
+        <div class="ph-footer">
+            <div class="ph-footer-row">
+                <span class="ph-footer-meta" id="ph-footer-meta">Sin líneas</span>
+                <span class="ph-footer-total" id="total-pedido">0.00 XCG</span>
+            </div>
+            <button type="submit" class="ph-submit">
+                {% if pedido %}Actualizar pedido{% else %}Enviar pedido{% endif %}
             </button>
         </div>
     </form>
@@ -169,7 +168,26 @@
 /* === Datos del backend === */
 const productos = {{ productos|tojson }};
 const productos_pedido = {{ productos_pedido|default([])|tojson }};
-let productosAgregados = productos_pedido.length ? productos_pedido : [];
+
+/* Editando un pedido que ya existe no hay "lo habitual" contra qué comparar:
+   sus líneas son el pedido, no un ajuste sobre una base. */
+const esEdicion = {{ 'true' if pedido else 'false' }};
+
+/* Estado de las líneas del pedido.
+   Cada línea: { id, nombre, cajas, precio, habitual, activa }
+     habitual → cajas que este cliente suele pedir, o null si la línea se
+                añadió a mano. Es la base contra la que se calcula el delta
+                («+4 sobre lo habitual»).
+     activa   → false = quitada de ESTE pedido pero visible y recuperable.
+                Una línea inactiva no genera inputs, así que no se guarda. */
+let productosAgregados = (productos_pedido || []).map(p => ({
+    id: p.id,
+    nombre: p.nombre,
+    cajas: p.cajas,
+    precio: p.precio,
+    habitual: null,
+    activa: true,
+}));
 
 /* === Referencias DOM === */
 const productoSelect = document.getElementById('producto-select');
@@ -178,6 +196,37 @@ const btnAgregar = document.getElementById('agregar-producto');
 const clienteSelect = document.getElementById('cliente_id');
 const tbody = document.getElementById('productos-body');
 const totalSpan = document.getElementById('total-pedido');
+const heroEl = document.getElementById('ph-hero');
+const heroNombre = document.getElementById('ph-hero-nombre');
+const heroMeta = document.getElementById('ph-hero-meta');
+const bannerEl = document.getElementById('ph-banner');
+const bannerBody = document.getElementById('ph-banner-body');
+const footerMeta = document.getElementById('ph-footer-meta');
+const inputFechaEntrega = document.getElementById('fecha_entrega');
+const chipsEntrega = document.getElementById('ph-entrega-chips');
+const inputOtraFecha = document.getElementById('ph-entrega-otra');
+const addToggle = document.getElementById('ph-add-toggle');
+const addPanel = document.getElementById('ph-add-panel');
+const gruposEl = document.getElementById('ph-grupos');
+const gruposLista = document.getElementById('ph-grupos-lista');
+
+/* Grupo de facturación del pedido en curso ('pesable:14', 'importado:10'…).
+   Un pedido NO puede mezclar grupos: QuickBooks no factura en un mismo
+   documento líneas con impuestos distintos. Mientras hay un grupo fijado, el
+   buscador solo ofrece productos de ese grupo, así que la mezcla no se puede
+   ni intentar. El servidor lo valida igual, porque esta pantalla no es la
+   única puerta de entrada. */
+let grupoActual = null;
+
+function grupoDeProducto(id) {
+    const p = productos.find(x => x.id === id);
+    return p ? (p.grupo || null) : null;
+}
+
+/* Moneda del cliente. El total se mostraba siempre en XCG aunque el cliente
+   facturara en USD, así que un pedido de un cliente USD decía «XCG» sobre un
+   número en dólares. Ahora sigue a data-moneda del cliente elegido. */
+let monedaActual = 'XCG';
 
 /* Declarado acá a propósito: TomSelect se instancia dentro del DOMContentLoaded,
    y `cargarProductosEnSelect()` —que vive en este scope— necesita alcanzarlo para
@@ -186,11 +235,114 @@ const totalSpan = document.getElementById('total-pedido');
    dataset del <select> nativo pero TomSelect seguía dibujando los precios viejos. */
 let tomProducto = null;
 
-/* === Funciones principales === */
+/* === Utilidades === */
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+function isoDe(fecha) {
+    // toISOString() pasa por UTC y en Curaçao (UTC−4) devuelve el día ANTERIOR
+    // para cualquier hora antes de las 20:00. Se arma a mano en local.
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    return `${fecha.getFullYear()}-${mes}-${dia}`;
+}
+
+function fechaDesdeIso(iso) {
+    // new Date('2026-08-16') se interpreta como UTC; con el constructor por
+    // partes queda anclada al día local que el vendedor eligió.
+    const [a, m, d] = (iso || '').split('-').map(Number);
+    if (!a || !m || !d) return null;
+    return new Date(a, m - 1, d);
+}
+
+function etiquetaFecha(iso) {
+    const fecha = fechaDesdeIso(iso);
+    if (!fecha) return 'sin fecha';
+    const hoy = new Date();
+    const dias = Math.round((fecha - new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())) / 86400000);
+    if (dias === 0) return 'hoy';
+    if (dias === 1) return 'mañana';
+    return `${fecha.getDate()} ${MESES[fecha.getMonth()]}`;
+}
+
+function formatearMonto(valor) {
+    return valor.toLocaleString('es-419', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+/* === Fecha de entrega === */
+function construirChipsEntrega() {
+    const hoy = new Date();
+    const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1);
+
+    // Tercera opción: el siguiente día hábil después de mañana. Saltea sábado y
+    // domingo porque no hay reparto el fin de semana.
+    const siguiente = new Date(manana);
+    do { siguiente.setDate(siguiente.getDate() + 1); }
+    while (siguiente.getDay() === 0 || siguiente.getDay() === 6);
+
+    const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const opciones = [
+        { iso: isoDe(hoy), texto: 'Hoy' },
+        { iso: isoDe(manana), texto: 'Mañana' },
+        { iso: isoDe(siguiente), texto: `${DIAS[siguiente.getDay()]} ${siguiente.getDate()}` },
+    ];
+
+    chipsEntrega.innerHTML = '';
+    opciones.forEach(op => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ph-chip';
+        chip.dataset.fecha = op.iso;
+        chip.textContent = op.texto;
+        chipsEntrega.appendChild(chip);
+    });
+
+    const otra = document.createElement('button');
+    otra.type = 'button';
+    otra.className = 'ph-chip ph-chip-otra';
+    otra.dataset.fecha = '';
+    otra.textContent = 'Otra';
+    chipsEntrega.appendChild(otra);
+
+    // Por defecto mañana: es lo que el vendedor elige casi siempre en ruta.
+    seleccionarEntrega(inputFechaEntrega.value || isoDe(manana));
+}
+
+function seleccionarEntrega(iso) {
+    inputFechaEntrega.value = iso || '';
+    let coincide = false;
+    chipsEntrega.querySelectorAll('.ph-chip').forEach(chip => {
+        const activo = !!chip.dataset.fecha && chip.dataset.fecha === iso;
+        chip.classList.toggle('is-active', activo);
+        chip.setAttribute('aria-pressed', activo ? 'true' : 'false');
+        if (activo) coincide = true;
+    });
+
+    // Una fecha que no cae en ningún chip (elegida con el calendario) mantiene
+    // «Otra» marcada y muestra el día, para que no parezca que no hay nada.
+    const chipOtra = chipsEntrega.querySelector('.ph-chip-otra');
+    if (chipOtra) {
+        const usaOtra = !!iso && !coincide;
+        chipOtra.classList.toggle('is-active', usaOtra);
+        chipOtra.setAttribute('aria-pressed', usaOtra ? 'true' : 'false');
+        chipOtra.textContent = usaOtra ? etiquetaFecha(iso) : 'Otra';
+    }
+    actualizarResumen();
+}
+
+/* === Productos === */
 function cargarProductosEnSelect() {
     productoSelect.innerHTML = '<option value=""></option>';
-    
-    productos.forEach(producto => {
+
+    // Con un grupo fijado, el resto del catálogo ni aparece: es la forma de
+    // que no se pueda armar un pedido que después no se puede facturar.
+    const disponibles = grupoActual
+        ? productos.filter(p => p.grupo === grupoActual)
+        : productos;
+
+    disponibles.forEach(producto => {
         const option = document.createElement('option');
         option.value = producto.id;
         option.textContent = producto.nombre;
@@ -212,13 +364,13 @@ function cargarProductosEnSelect() {
         tomProducto.sync();
     }
 }
+
 /* El precio depende del cliente. Hasta que no estén cargados sus precios no se
    puede agregar productos: si no, se muestra el de la lista general y el pedido
    se carga con un precio que no es el de este cliente. */
 function habilitarAgregar(ok, motivo) {
     if (!btnAgregar) return;
     btnAgregar.disabled = !ok;
-    btnAgregar.style.opacity = ok ? '' : '0.5';
     // El title no sirve en un teléfono: no hay hover. El motivo va a la vista.
     const cartel = document.getElementById('agregar-motivo');
     if (cartel) cartel.textContent = ok ? '' : (motivo || '');
@@ -228,12 +380,11 @@ async function actualizarPreciosCliente(clienteId) {
     if (!clienteId) return false;
 
     try {
-        console.log('Actualizando precios para cliente:', clienteId);
         const response = await fetch(`/api/precios/cliente/${clienteId}/productos`);
-        
+
         if (response.ok) {
             const productosConPrecios = await response.json();
-            
+
             // Actualizar precios en el array global
             productosConPrecios.forEach(productoAPI => {
                 const productoLocal = productos.find(p => p.id === productoAPI.id);
@@ -241,7 +392,7 @@ async function actualizarPreciosCliente(clienteId) {
                     productoLocal.precio = productoAPI.precio;
                 }
             });
-            
+
             // Actualizar precios en productos ya agregados
             productosAgregados.forEach(prodAgregado => {
                 const productoActualizado = productosConPrecios.find(p => p.id === prodAgregado.id);
@@ -249,9 +400,8 @@ async function actualizarPreciosCliente(clienteId) {
                     prodAgregado.precio = productoActualizado.precio;
                 }
             });
-            
+
             actualizarTablaProductos();
-            console.log('Precios actualizados correctamente');
 
             // Recargar el select de productos con los nuevos precios
             cargarProductosEnSelect();
@@ -264,59 +414,254 @@ async function actualizarPreciosCliente(clienteId) {
     return false;
 }
 
+/* Trae lo que el cliente suele pedir y precarga las líneas. Solo corre cuando
+   el pedido está vacío: si el vendedor ya escribió algo (o está editando un
+   pedido existente), pisarlo sería perder trabajo hecho. */
+function mostrarSelectorGrupos(grupos) {
+    gruposLista.innerHTML = '';
+    grupos.forEach(g => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ph-grupo-opt';
+        btn.dataset.grupo = g.clave;
+        const cuando = g.ultima_fecha ? `última vez ${etiquetaFecha(g.ultima_fecha)}` : '';
+        const cuantos = `${g.pedidos} ${g.pedidos === 1 ? 'pedido' : 'pedidos'}`;
+        // Los ejemplos son lo que de verdad identifica al grupo: el código de
+        // impuesto de la etiqueta no le dice nada al vendedor.
+        const ejemplos = (g.ejemplos || []).join(', ');
+        btn.innerHTML = `
+            <span class="ph-grupo-nombre">${escapeHtml(g.etiqueta)}</span>
+            ${ejemplos ? `<span class="ph-grupo-ejemplos">${escapeHtml(ejemplos)}…</span>` : ''}
+            <span class="ph-grupo-meta">${escapeHtml([cuantos, cuando].filter(Boolean).join(' · '))}</span>
+        `;
+        gruposLista.appendChild(btn);
+    });
+    gruposEl.hidden = false;
+}
+
+async function cargarPedidoHabitual(clienteId, grupoClave) {
+    bannerEl.hidden = true;
+    if (!clienteId) return;
+
+    let datos = null;
+    try {
+        const url = grupoClave
+            ? `/api/clientes/${clienteId}/pedido-habitual?grupo=${encodeURIComponent(grupoClave)}`
+            : `/api/clientes/${clienteId}/pedido-habitual`;
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        datos = await resp.json();
+    } catch (error) {
+        // Sin historial la pantalla sigue siendo usable: queda el buscador.
+        console.error('No se pudo cargar el pedido habitual:', error);
+        return;
+    }
+
+    actualizarHero(datos);
+
+    const grupos = (datos && datos.grupos) || [];
+
+    // El backend devuelve `grupo: null` y varios grupos cuando hay que
+    // preguntar: precargar uno al azar armaría un pedido no facturable.
+    if (!datos.grupo && grupos.length > 1) {
+        gruposEl.hidden = false;
+        mostrarSelectorGrupos(grupos);
+        return;
+    }
+
+    gruposEl.hidden = true;
+    if (datos.grupo) {
+        grupoActual = datos.grupo;
+        cargarProductosEnSelect();  // el buscador queda acotado al grupo
+    }
+
+    const lineas = (datos && datos.lineas) || [];
+    if (!lineas.length || productosAgregados.length) {
+        // Cliente nuevo, o el vendedor ya cargó líneas a mano: se respeta lo
+        // que hay y se despliega el buscador para que pueda escribir.
+        if (!productosAgregados.length) abrirPanelAgregar(true);
+        return;
+    }
+
+    productosAgregados = lineas.map(l => ({
+        id: l.id,
+        nombre: l.nombre,
+        cajas: l.cajas,
+        precio: l.precio,
+        habitual: l.cajas_habitual,
+        activa: true,
+    }));
+
+    const visitas = datos.visitas || 0;
+    bannerBody.textContent = visitas === 1
+        ? `${lineas.length} ${lineas.length === 1 ? 'línea cargada' : 'líneas cargadas'} con su última visita, la única que tiene registrada. Ajusta lo que cambie y envía.`
+        : `${lineas.length} ${lineas.length === 1 ? 'línea cargada' : 'líneas cargadas'} con las cantidades de sus últimas ${visitas} visitas. Ajusta lo que cambie y envía.`;
+    bannerEl.hidden = false;
+
+    actualizarTablaProductos();
+}
+
+function actualizarHero(datos) {
+    const opt = clienteSelect.options[clienteSelect.selectedIndex];
+    const nombre = opt ? (opt.dataset.nombre || opt.textContent.trim()) : '';
+    if (!nombre) { heroEl.hidden = true; return; }
+
+    heroNombre.textContent = nombre;
+
+    const partes = [];
+    if (datos && datos.cadencia_dias) partes.push(`Compra cada ${datos.cadencia_dias} días`);
+    if (datos && datos.ultima_fecha) {
+        const f = fechaDesdeIso(datos.ultima_fecha);
+        if (f) partes.push(`última vez el ${f.getDate()} ${MESES[f.getMonth()]}`);
+    }
+    if (!partes.length) {
+        // La cadencia se calcula DENTRO de un grupo, así que antes de elegir
+        // uno no existe. Decir "sin pedidos anteriores" acá sería falso para
+        // un cliente con historial en dos grupos.
+        const grupos = (datos && datos.grupos) || [];
+        const total = grupos.reduce((acc, g) => acc + g.pedidos, 0);
+        partes.push(total
+            ? `${total} ${total === 1 ? 'pedido' : 'pedidos'} en ${grupos.length} grupos`
+            : 'Sin pedidos anteriores');
+    }
+
+    heroMeta.textContent = partes.join(' · ');
+    heroEl.hidden = false;
+}
+
 function actualizarTablaProductos() {
     tbody.innerHTML = '';
 
     if (productosAgregados.length === 0) {
         tbody.innerHTML = `
-            <div class="mobile-empty-state">
-                <i class="fas fa-box-open"></i>
-                <p>No hay productos agregados</p>
+            <div class="ph-empty">
+                <i class="fas fa-box-open" aria-hidden="true"></i>
+                <p>Todavía no hay líneas en este pedido</p>
             </div>
         `;
-        totalSpan.textContent = '0.00 XCG';
+        actualizarResumen();
         return;
     }
 
-    let total = 0;
     productosAgregados.forEach((p, idx) => {
-        const precio = p.precio || 0;
-        const subtotal = precio * p.cajas;
-        total += subtotal;
-
         const card = document.createElement('div');
-        card.className = 'producto-card-item';
+        card.className = 'ph-linea';
+
+        if (!p.activa) {
+            card.classList.add('is-quitada');
+            card.innerHTML = `
+                <div class="ph-linea-info">
+                    <div class="ph-linea-nombre">${escapeHtml(p.nombre)}</div>
+                    <div class="ph-linea-meta">fuera de este pedido</div>
+                </div>
+                <button type="button" class="ph-volver"
+                        data-action="restaurar-producto" data-idx="${idx}">Volver</button>
+            `;
+            tbody.appendChild(card);
+            return;
+        }
+
+        // Solo las líneas activas viajan al servidor. El índice de los inputs se
+        // asigna al renderizar, así que quitar una línea no deja huecos en la
+        // secuencia productos[N] que el backend recorre hasta el primer faltante.
+        const idxForm = tbody.querySelectorAll('input[name$="[id]"]').length;
+        const sinPrecio = (p.precio === null || p.precio === undefined);
+        const precio = p.precio || 0;
+        // Un producto sin precio configurado NO muestra 0.00: ese número se lee
+        // como gratis. Se dice "sin precio" y el servidor resuelve al guardar.
+        const subtotalTxt = sinPrecio
+            ? '<span class="ph-linea-subtotal ph-sin-precio">sin precio</span>'
+            : `<span class="ph-linea-subtotal">${formatearMonto(precio * p.cajas)}</span>`;
+
+        let meta;
+        if (p.habitual === null || p.habitual === undefined) {
+            meta = esEdicion
+                ? `<span class="ph-linea-meta">${p.cajas} ${p.cajas === 1 ? 'caja' : 'cajas'}</span>`
+                : '<span class="ph-linea-meta">añadido a este pedido</span>';
+        } else if (p.cajas > p.habitual) {
+            meta = `<span class="ph-linea-meta ph-delta-mas">+${p.cajas - p.habitual} sobre lo habitual</span>`;
+            card.classList.add('is-cambiada');
+        } else if (p.cajas < p.habitual) {
+            meta = `<span class="ph-linea-meta ph-delta-menos">−${p.habitual - p.cajas} bajo lo habitual</span>`;
+            card.classList.add('is-cambiada');
+        } else {
+            meta = `<span class="ph-linea-meta">habitual ${p.habitual} ${p.habitual === 1 ? 'caja' : 'cajas'}</span>`;
+        }
+
         card.innerHTML = `
-            <input type="hidden" name="productos[${idx}][id]" value="${p.id}">
-            <input type="hidden" name="productos[${idx}][nombre]" value="${escapeHtml(p.nombre)}">
-            <input type="hidden" name="productos[${idx}][cajas]" value="${p.cajas}">
-            <input type="hidden" name="productos[${idx}][precio]" value="${precio}">
-            <div class="producto-card-info">
-                <div class="producto-card-nombre">${escapeHtml(p.nombre)}</div>
-                <div class="producto-card-meta">
-                    <span>${p.cajas} cajas</span>
-                    <span>@ ${precio.toFixed(2)}</span>
+            <input type="hidden" name="productos[${idxForm}][id]" value="${p.id}">
+            <input type="hidden" name="productos[${idxForm}][nombre]" value="${escapeHtml(p.nombre)}">
+            <input type="hidden" name="productos[${idxForm}][cajas]" value="${p.cajas}">
+            <input type="hidden" name="productos[${idxForm}][precio]" value="${precio}">
+            <div class="ph-linea-info">
+                <div class="ph-linea-nombre">${escapeHtml(p.nombre)}</div>
+                <div class="ph-linea-metas">
+                    ${meta}
+                    ${subtotalTxt}
                 </div>
             </div>
-            <div class="producto-card-subtotal">${subtotal.toFixed(2)}</div>
-            <button type="button"
-                    class="producto-card-delete"
-                    data-action="eliminar-producto"
-                    data-idx="${idx}"
-                    title="Eliminar producto">
-                <i class="fas fa-trash"></i>
-            </button>
+            <div class="ph-stepper">
+                <button type="button" class="ph-step" data-action="menos" data-idx="${idx}"
+                        aria-label="Quitar una caja de ${escapeHtml(p.nombre)}">−</button>
+                <span class="ph-step-valor" aria-live="polite">${p.cajas}</span>
+                <button type="button" class="ph-step" data-action="mas" data-idx="${idx}"
+                        aria-label="Sumar una caja de ${escapeHtml(p.nombre)}">+</button>
+            </div>
         `;
         tbody.appendChild(card);
     });
 
-    totalSpan.textContent = total.toFixed(2) + ' XCG';
+    actualizarResumen();
+}
+
+function actualizarResumen() {
+    const activas = productosAgregados.filter(p => p.activa);
+    const total = activas.reduce((acc, p) => acc + (p.precio || 0) * p.cajas, 0);
+
+    totalSpan.textContent = `${formatearMonto(total)} ${monedaActual}`;
+
+    if (footerMeta) {
+        const n = activas.length;
+        const lineasTxt = n === 0 ? 'Sin líneas' : `${n} ${n === 1 ? 'línea' : 'líneas'}`;
+        const entregaTxt = inputFechaEntrega.value
+            ? ` · entrega ${etiquetaFecha(inputFechaEntrega.value)}`
+            : '';
+        footerMeta.textContent = `${lineasTxt}${entregaTxt}`;
+    }
+}
+
+function cambiarCajas(idx, delta) {
+    const linea = productosAgregados[idx];
+    if (!linea) return;
+
+    const nuevas = linea.cajas + delta;
+    if (nuevas <= 0) {
+        // Bajar de 1 no borra: una línea habitual se marca como quitada y se
+        // puede recuperar con «Volver». Una añadida a mano sí desaparece,
+        // porque no hay un estado previo al que volver.
+        if (linea.habitual === null || linea.habitual === undefined) {
+            productosAgregados.splice(idx, 1);
+        } else {
+            linea.activa = false;
+            linea.cajas = linea.habitual;
+        }
+    } else {
+        linea.cajas = nuevas;
+    }
+    actualizarTablaProductos();
+}
+
+function restaurarProducto(idx) {
+    const linea = productosAgregados[idx];
+    if (!linea) return;
+    linea.activa = true;
+    actualizarTablaProductos();
 }
 
 function obtenerProductoSeleccionado() {
     const selectedOption = productoSelect.options[productoSelect.selectedIndex];
     if (!selectedOption || !selectedOption.value) return null;
-    
+
     return {
         id: parseInt(selectedOption.value),
         nombre: selectedOption.dataset.nombre,
@@ -324,67 +669,108 @@ function obtenerProductoSeleccionado() {
     };
 }
 
-function eliminarProducto(idx) {
-    productosAgregados.splice(idx, 1);
-    actualizarTablaProductos();
+function abrirPanelAgregar(abierto) {
+    addPanel.hidden = !abierto;
+    addToggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
 }
-
 
 /* === Event Listeners === */
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar
+    construirChipsEntrega();
+    // Editando un pedido que ya existe, su grupo sale de las líneas que trae:
+    // así el buscador queda acotado también acá y no se puede mezclar.
+    if (productosAgregados.length && !grupoActual) {
+        grupoActual = grupoDeProducto(productosAgregados[0].id);
+    }
     actualizarTablaProductos();
     cargarProductosEnSelect();
 
-    // Delegación de eventos para eliminar productos
+    // Delegación: steppers, quitar y restaurar líneas
     tbody.addEventListener('click', function(e) {
-        const btn = e.target.closest('[data-action="eliminar-producto"]');
-        if (btn) {
-            eliminarProducto(parseInt(btn.dataset.idx));
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const idx = parseInt(btn.dataset.idx, 10);
+        if (btn.dataset.action === 'mas') cambiarCajas(idx, 1);
+        else if (btn.dataset.action === 'menos') cambiarCajas(idx, -1);
+        else if (btn.dataset.action === 'restaurar-producto') restaurarProducto(idx);
+    });
+
+    chipsEntrega.addEventListener('click', function(e) {
+        const chip = e.target.closest('.ph-chip');
+        if (!chip) return;
+        if (chip.classList.contains('ph-chip-otra')) {
+            inputOtraFecha.hidden = false;
+            // showPicker no existe en todos los navegadores; el input visible
+            // es el fallback para que igual se pueda elegir la fecha.
+            if (typeof inputOtraFecha.showPicker === 'function') {
+                try { inputOtraFecha.showPicker(); } catch (_) { /* el input queda visible */ }
+            }
+            inputOtraFecha.focus();
+            return;
+        }
+        inputOtraFecha.hidden = true;
+        seleccionarEntrega(chip.dataset.fecha);
+    });
+
+    inputOtraFecha.addEventListener('change', function() {
+        if (this.value) seleccionarEntrega(this.value);
+    });
+
+    gruposLista.addEventListener('click', function(e) {
+        const opt = e.target.closest('.ph-grupo-opt');
+        if (!opt) return;
+        cargarPedidoHabitual(clienteSelect.value, opt.dataset.grupo);
+    });
+
+    addToggle.addEventListener('click', function() {
+        const abierto = addPanel.hidden;
+        abrirPanelAgregar(abierto);
+        if (abierto && tomProducto) tomProducto.focus();
+    });
+
+    /* ------------ Tom Select (búsqueda inteligente) ------------ */
+    const tomCliente = new TomSelect('#cliente_id', {
+        maxOptions: 1000,
+        closeAfterSelect: true,
+        placeholder: 'Buscar cliente…',
+        dropdownParent: 'body',
+        onType: function() { this.clear(); },
+        sortField: { field: 'text', direction: 'asc' },
+        render: {
+            option: (data, escape) => `<div><span class="suggestion-name">${escape(data.text)}</span></div>`,
+            item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
         }
     });
-    /* ------------ Tom Select (búsqueda inteligente) ------------ */
-const tomCliente = new TomSelect('#cliente_id', {
-    maxOptions: 1000,
-    closeAfterSelect: true,
-    placeholder: 'Buscar cliente…',
-    dropdownParent: 'body',
-    onType: function() { this.clear(); },
-    sortField: { field: 'text', direction: 'asc' },
-    render: {
-        option: (data, escape) => `<div><span class="suggestion-name">${escape(data.text)}</span></div>`,
-        item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
-    }
-});
 
-tomProducto = new TomSelect('#producto-select', {
-    copyClassesToDropdown: true,     // hereda clases para que se vea igual
-    maxOptions: 1000,                // muestra hasta 1 000 coincidencias
-    closeAfterSelect: true,
-    placeholder: 'Buscar producto…',
-    dropdownParent: 'body',          // escapa overflow:hidden de las tarjetas
-    onType: function() { this.clear(); },  // limpiar selección al escribir
-    sortField: { field: 'text', direction: 'asc' },
-    render: {
-        option: (data, escape) => `
-            <div>
-                <span class="suggestion-name">${escape(data.text)}</span>
-                <span class="float-right suggestion-price">
-                    ${data.$option.dataset.precio === undefined ? 'sin precio' : parseFloat(data.$option.dataset.precio).toFixed(2) + ' XCG'}
-                </span>
-            </div>`,
-        item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
-    }
-});
-
+    tomProducto = new TomSelect('#producto-select', {
+        copyClassesToDropdown: true,     // hereda clases para que se vea igual
+        maxOptions: 1000,                // muestra hasta 1 000 coincidencias
+        closeAfterSelect: true,
+        placeholder: 'Buscar producto…',
+        dropdownParent: 'body',          // escapa overflow:hidden de las tarjetas
+        onType: function() { this.clear(); },  // limpiar selección al escribir
+        sortField: { field: 'text', direction: 'asc' },
+        render: {
+            option: (data, escape) => `
+                <div>
+                    <span class="suggestion-name">${escape(data.text)}</span>
+                    <span class="float-right suggestion-price">
+                        ${data.$option.dataset.precio === undefined ? 'sin precio' : parseFloat(data.$option.dataset.precio).toFixed(2) + ' ' + monedaActual}
+                    </span>
+                </div>`,
+            item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
+        }
+    });
 
     // Mostrar/ocultar tipo de cambio según moneda del cliente
     const tipoCambioGroup = document.getElementById('tipo-cambio-group');
-    function actualizarTipoCambio(clienteId) {
-        if (!clienteId || !tipoCambioGroup) return;
-        const opt = clienteSelect.querySelector(`option[value="${clienteId}"]`);
-        const moneda = opt ? opt.dataset.moneda : 'XCG';
-        tipoCambioGroup.style.display = (moneda === 'USD') ? '' : 'none';
+    function actualizarMoneda(clienteId) {
+        const opt = clienteId ? clienteSelect.querySelector(`option[value="${clienteId}"]`) : null;
+        monedaActual = (opt && opt.dataset.moneda) || 'XCG';
+        if (tipoCambioGroup) {
+            tipoCambioGroup.style.display = (monedaActual === 'USD') ? '' : 'none';
+        }
+        actualizarResumen();
     }
 
     // Cambio de cliente
@@ -406,14 +792,26 @@ tomProducto = new TomSelect('#producto-select', {
         }
 
         clienteSelect.addEventListener('change', async function() {
-            actualizarTipoCambio(this.value);
+            // Cambiar de cliente reinicia el pedido: las líneas y el grupo
+            // eran de otro cliente, con otros precios y otro historial.
+            productosAgregados = [];
+            grupoActual = null;
+            gruposEl.hidden = true;
+            actualizarTablaProductos();
+            actualizarMoneda(this.value);
+            // Los precios primero: el habitual necesita precios del cliente para
+            // que el total no arranque con los de la lista general.
             await cargarPreciosDe(this.value);
+            await cargarPedidoHabitual(this.value);
         });
 
         // Si ya hay cliente seleccionado, actualizar precios
         if (clienteSelect.value) {
-            actualizarTipoCambio(clienteSelect.value);
-            cargarPreciosDe(clienteSelect.value);
+            actualizarMoneda(clienteSelect.value);
+            (async () => {
+                await cargarPreciosDe(clienteSelect.value);
+                await cargarPedidoHabitual(clienteSelect.value);
+            })();
         } else {
             habilitarAgregar(false, 'Elegí primero el cliente: el precio depende de él');
         }
@@ -436,23 +834,39 @@ tomProducto = new TomSelect('#producto-select', {
             return;
         }
 
-        // Verificar si ya existe
+        // Verificar si ya existe. Si estaba quitada, volver a añadirla la
+        // reactiva en vez de crear una segunda línea del mismo producto.
         const existente = productosAgregados.findIndex(p => p.id === productoSeleccionado.id);
         if (existente >= 0) {
-            productosAgregados[existente].cajas += cajas;
+            const linea = productosAgregados[existente];
+            if (linea.activa) {
+                linea.cajas += cajas;
+            } else {
+                linea.activa = true;
+                linea.cajas = cajas;
+            }
         } else {
             productosAgregados.push({
                 id: productoSeleccionado.id,
                 nombre: productoSeleccionado.nombre,
                 cajas: cajas,
-                precio: productoSeleccionado.precio
+                precio: productoSeleccionado.precio,
+                habitual: null,
+                activa: true,
             });
+            // Cliente sin historial: no hubo grupo que precargar, así que el
+            // pedido queda fijado por su primera línea y de ahí en más el
+            // buscador solo ofrece ese grupo.
+            if (!grupoActual) {
+                grupoActual = grupoDeProducto(productoSeleccionado.id);
+                if (grupoActual) cargarProductosEnSelect();
+            }
         }
 
         // Limpiar campos
         tomProducto.clear();
         inputCajas.value = '';
-        
+
         actualizarTablaProductos();
     });
 
@@ -474,7 +888,7 @@ tomProducto = new TomSelect('#producto-select', {
 
     // Envío del formulario
     document.getElementById('form-nuevo-pedido').addEventListener('submit', function(e) {
-        if (productosAgregados.length === 0) {
+        if (!productosAgregados.some(p => p.activa)) {
             e.preventDefault();
             alert('Agrega al menos un producto al pedido');
             return;
@@ -484,11 +898,7 @@ tomProducto = new TomSelect('#producto-select', {
             e.preventDefault();
             alert('Selecciona un cliente');
             clienteSelect.focus();
-            return;
         }
-
-        // El formulario se enviará normalmente con todos los campos hidden
-        console.log('Enviando pedido...');
     });
 });
 </script>

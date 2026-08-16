@@ -230,14 +230,20 @@ def test_detalles_rellena_contexto_tras_agregar_y_deja_peso_vacio(logged_client,
 
 
 def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_client, app):
-    """Regresión: cambiar el cliente no elimina pesos/cajas ya registrados."""
+    """Regresión: cambiar el cliente no elimina pesos/cajas ya registrados.
+
+    Antes este test editaba un pedido con un pesable Y un importado a la vez.
+    Eso ya no se puede: un pedido no mezcla grupos de facturación (QuickBooks
+    no factura junto lo que paga impuestos distintos) y el servidor lo rechaza.
+    La cobertura del importado vive ahora en el test de abajo, con su propio
+    pedido.
+    """
     with app.app_context():
         from app import Cliente, DetallePedido, Pedido, Producto, Territorio
 
         pedido = Pedido.query.first()
         territorio = Territorio.query.first()
         prod_pesa = Producto.query.filter_by(se_pesa=True).first()
-        prod_import = Producto.query.filter_by(se_pesa=False).first()
 
         cliente_nuevo = Cliente(
             nombre='Cliente Reasignado',
@@ -259,21 +265,10 @@ def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_clien
             fecha_expiracion='2026-08-10',
             es_linea_pedido=False,
         )
-        prep_import = DetallePedido(
-            pedido_id=pedido.id,
-            producto_id=prod_import.id,
-            cajas=5,
-            peso=0,
-            precio_unitario=10.00,
-            subtotal=50.00,
-            es_linea_pedido=False,
-        )
         _db.session.add(prep_pesa)
-        _db.session.add(prep_import)
         _db.session.commit()
 
         prep_pesa_id = prep_pesa.id
-        prep_import_id = prep_import.id
 
         resp = logged_client.post(
             f'/pedidos/{pedido.id}/editar',
@@ -283,9 +278,6 @@ def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_clien
                 'productos[0][id]': prod_pesa.id,
                 'productos[0][cajas]': '3',
                 'productos[0][precio]': '30.50',
-                'productos[1][id]': prod_import.id,
-                'productos[1][cajas]': '5',
-                'productos[1][precio]': '12.25',
             },
             follow_redirects=True,
         )
@@ -294,7 +286,6 @@ def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_clien
         _db.session.expire_all()
         pedido = _db.session.get(Pedido, pedido.id)
         prep_pesa = _db.session.get(DetallePedido, prep_pesa_id)
-        prep_import = _db.session.get(DetallePedido, prep_import_id)
         lineas_prep = DetallePedido.query.filter_by(
             pedido_id=pedido.id,
             es_linea_pedido=False,
@@ -303,12 +294,81 @@ def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_clien
         assert pedido.cliente_id == cliente_nuevo.id
         assert pedido.notas == 'Cliente corregido'
         assert prep_pesa is not None
-        assert prep_import is not None
-        assert len(lineas_prep) == 2
+        assert len(lineas_prep) == 1
         assert prep_pesa.peso == pytest.approx(4.5)
         assert prep_pesa.lote == 'L300'
         assert float(prep_pesa.precio_unitario) == pytest.approx(30.50)
         assert float(prep_pesa.subtotal) == pytest.approx(137.25)
+
+
+def test_editar_pedido_cambiando_cliente_preserva_lineas_importacion(logged_client, app):
+    """Misma regresión que arriba, por el camino del producto de importación.
+
+    Va en su propio pedido porque un pedido no puede mezclar grupos de
+    facturación.
+    """
+    with app.app_context():
+        from app import Cliente, DetallePedido, Pedido, Producto, Territorio
+
+        territorio = Territorio.query.first()
+        cliente = Cliente.query.first()
+        prod_import = Producto.query.filter_by(se_pesa=False).first()
+
+        pedido = Pedido(cliente_id=cliente.id)
+        _db.session.add(pedido)
+        _db.session.flush()
+
+        # Línea original + su línea de preparación de importación.
+        _db.session.add(DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_import.id,
+            cajas=5,
+            cajas_pedidas=5,
+            precio_unitario=10.00,
+            subtotal=50.00,
+            es_linea_pedido=True,
+        ))
+        prep_import = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=prod_import.id,
+            cajas=5,
+            peso=0,
+            precio_unitario=10.00,
+            subtotal=50.00,
+            es_linea_pedido=False,
+        )
+        _db.session.add(prep_import)
+
+        cliente_nuevo = Cliente(
+            nombre='Cliente Reasignado Import',
+            territorio_id=territorio.id,
+            qbo_id='QBO-C003',
+        )
+        _db.session.add(cliente_nuevo)
+        _db.session.commit()
+
+        pedido_id = pedido.id
+        prep_import_id = prep_import.id
+
+        resp = logged_client.post(
+            f'/pedidos/{pedido_id}/editar',
+            data={
+                'cliente_id': cliente_nuevo.id,
+                'notas': 'Cliente corregido',
+                'productos[0][id]': prod_import.id,
+                'productos[0][cajas]': '5',
+                'productos[0][precio]': '12.25',
+            },
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+
+        _db.session.expire_all()
+        pedido = _db.session.get(Pedido, pedido_id)
+        prep_import = _db.session.get(DetallePedido, prep_import_id)
+
+        assert pedido.cliente_id == cliente_nuevo.id
+        assert prep_import is not None, 'la línea de preparación no debe borrarse'
         assert prep_import.cajas == 5
         assert float(prep_import.precio_unitario) == pytest.approx(12.25)
         assert float(prep_import.subtotal) == pytest.approx(61.25)
