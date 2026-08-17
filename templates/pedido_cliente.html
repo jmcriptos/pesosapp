@@ -28,6 +28,7 @@
         {% endfor %}
       </select>
     </div>
+    <p class="ph-motivo" id="paso-cliente-estado" aria-live="polite"></p>
 
     {% if grupos_cliente %}
     <div class="ph-grupos" id="ph-grupos">
@@ -58,12 +59,15 @@
 <script nonce="{{ csp_nonce() }}">
 document.addEventListener('DOMContentLoaded', function () {
     const sel = document.getElementById('cliente_id');
-    new TomSelect('#cliente_id', {
+    const ts = new TomSelect('#cliente_id', {
         maxOptions: 1000, closeAfterSelect: true, placeholder: 'Buscar cliente…',
         dropdownParent: 'body', sortField: { field: 'text', direction: 'asc' },
     });
+    {% if not cliente_pendiente %}setTimeout(() => ts.focus(), 150);{% endif %}
     sel.addEventListener('change', function () {
         if (!this.value) return;
+        ts.disable();
+        document.getElementById('paso-cliente-estado').textContent = 'Cargando su pedido habitual…';
         window.location.assign(this.dataset.destino + '?cliente=' + encodeURIComponent(this.value));
     });
 });

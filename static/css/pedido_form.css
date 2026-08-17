@@ -685,3 +685,8 @@ body[data-pedido-form-screen] .pedido-form-topnav-meta {
   color: #1f2937 !important;
   font-weight: 600 !important;
 }
+
+/* Paso 1: la tarjeta de grupos ahora usa anchors */
+#paso-cliente .ph-grupo-opt { display: block; text-decoration: none; color: inherit; }
+#paso-cliente .ph-grupos { margin-top: 16px; }
+#paso-cliente .ph-card { margin-top: 8px; }
