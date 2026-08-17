@@ -69,7 +69,9 @@ def test_paso2_cliente_con_historial_siembra_lineas(app, logged_client):
     assert 'id="form-nuevo-pedido"' in html
     assert 'Chuleta de cerdo ahumada 5 kg' in html
     assert '"habitual": 7' in html or '"habitual":7' in html
-    assert f'name="cliente_id" value="{cliente_id}"' in html.replace("'", '"')
+    # (el hidden cliente_id llega con la Task 3; aquí el select transicional
+    # debe traer al cliente preseleccionado)
+    assert 'selected' in html
 
 
 def test_paso2_multigrupo_sin_grupo_repregunta(app, logged_client):
@@ -240,7 +242,7 @@ def _texto_origen_lineas(n_lineas, visitas):
 ```html
 {% extends "base.html" %}
 {% block title %}Nuevo Pedido — PesosApp{% endblock %}
-{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-pedido-form-screen="1"{% endblock %}
+{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-pedido-form-screen="1" data-pedido-habitual="1"{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form_inline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form.css') }}">
@@ -381,7 +383,9 @@ def test_paso2_orden_de_secciones(app, logged_client):
     assert '<select name="cliente_id"' not in html          # ya no hay select de cliente
     assert f'name="cliente_id" value="{cliente_id}"' in html.replace("'", '"')
     assert '/api/precios/cliente' not in html               # sin fetch de precios
-    assert 'pedido-habitual' not in html                    # sin fetch de habitual
+    assert '/api/clientes' not in html                      # sin fetch de habitual
+    # OJO: no usar 'pedido-habitual' como token — el body lleva
+    # data-pedido-habitual="1" y el CSS pedido_habitual.css, que se quedan.
 
 
 def test_paso2_sin_historial_abre_panel(app, logged_client):
