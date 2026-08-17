@@ -70,6 +70,18 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('paso-cliente-estado').textContent = 'Cargando su pedido habitual…';
         window.location.assign(this.dataset.destino + '?cliente=' + encodeURIComponent(this.value));
     });
+    // Volver con el botón atrás (o el swipe-back del PWA en iPhone) puede
+    // restaurar esta página desde el bfcache en vez de recargarla: el
+    // DOMContentLoaded de arriba no vuelve a correr, así que sin esto el
+    // select queda deshabilitado y "Cargando su pedido habitual…" pegado
+    // para siempre. `clear(true)` es la variante silenciosa: no dispara
+    // 'change' (que reabriría la navegación que acabamos de deshacer).
+    window.addEventListener('pageshow', function (event) {
+        if (!event.persisted) return;
+        ts.enable();
+        document.getElementById('paso-cliente-estado').textContent = '';
+        ts.clear(true);
+    });
 });
 </script>
 {% endblock %}
