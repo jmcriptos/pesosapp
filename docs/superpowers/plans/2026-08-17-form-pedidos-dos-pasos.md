@@ -343,7 +343,7 @@ const ts = new TomSelect('#cliente_id', { /* opciones de Task 1 */ });
 
 ```css
 /* Paso 1: la tarjeta de grupos ahora usa anchors */
-#paso-cliente .ph-grupo-opt { display: block; text-decoration: none; color: inherit; }
+#paso-cliente .ph-grupo-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-decoration: none; color: inherit; }
 #paso-cliente .ph-grupos { margin-top: 16px; }
 #paso-cliente .ph-card { margin-top: 8px; }
 ```
