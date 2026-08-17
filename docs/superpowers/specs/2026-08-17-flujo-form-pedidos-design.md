@@ -83,10 +83,21 @@ cliente (TomSelect, enfocado al entrar). Al elegir, se navega a
 `GET /pedidos/<id>/editar` entra directo al paso 2 (ya siembra líneas
 server-side). Cambios:
 
-- **Se quita el cambio de cliente de la UI** (decisión de JM): cabecera
-  estática con el cliente del pedido, sin select ni «Cambiar». El POST
-  sigue mandando `cliente_id` en un hidden (el backend lo exige y no se
-  toca). Corregir cliente = borrar y recrear el pedido.
+- **Cambiar cliente se mantiene** (JM recordó casos de uso reales, p. ej.
+  pedido tomado al cliente equivocado), pero deja de ser un select con
+  recarga async: la cabecera muestra el cliente con un enlace «Cambiar»
+  que lleva al selector de clientes (misma pantalla del paso 1, en
+  contexto de edición). Elegir uno navega a
+  `GET /pedidos/<id>/editar?cliente=M`, que re-renderiza el paso 2
+  completo con el cliente nuevo — mismo patrón round-trip del resto del
+  flujo, sin async.
+- En ese re-render, las líneas del pedido se muestran **re-cotizadas por
+  la jerarquía de precios del cliente nuevo** (lo mismo que el POST va a
+  cobrar por el guard v845 — lo que se ve es lo que se cobra), y moneda /
+  `tipo_cambio` se actualizan si cambia XCG↔USD. Nada se guarda hasta
+  «Actualizar pedido».
+- Guard en el GET: `?cliente` sin permiso del vendedor → flash + se queda
+  el cliente original (el POST ya validaba; el GET valida igual).
 - El catálogo llega con precios del cliente resueltos server-side, igual
   que en paso 2 de nuevo pedido.
 
@@ -100,6 +111,8 @@ server-side). Cambios:
   descartar.
 - **Grupo inválido en la URL** (`?grupo=` que el cliente no compra): se
   ignora y se re-pregunta (paso 1 con tarjeta de grupos).
+- **`?cliente` inválido en edición**: flash y render con el cliente
+  original del pedido.
 
 ## JS que se elimina del template
 
@@ -113,8 +126,10 @@ con la CSP actual).
 - Nuevos: paso 1 renderiza buscador sin secciones de pedido; `?cliente=N`
   siembra líneas habituales en el HTML (cliente con historial) y vacío con
   panel abierto (sin historial); multi-grupo sin `grupo` re-pregunta en
-  paso 1; con `grupo` válido renderiza paso 2; edición sin select de
-  cliente; precios por cliente en el catálogo server-side.
+  paso 1; con `grupo` válido renderiza paso 2; edición con
+  `?cliente=M` re-cotiza las líneas mostradas por la jerarquía del cliente
+  nuevo (y respeta el guard de permisos); precios por cliente en el
+  catálogo server-side.
 - El POST no cambia: los tests existentes de crear/editar (incluidos los de
   cantidades fraccionarias) deben pasar sin tocarse.
 - Revisar los tests acoplados a markup del form viejo (test_gestion_ui,
