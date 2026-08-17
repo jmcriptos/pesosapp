@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Pedido — PesosApp{% endblock %}
+{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-pedido-form-screen="1" data-pedido-habitual="1"{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form_inline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_habitual.css') }}">
+{% endblock %}
+{% block content %}
+<div class="pedido-form-shell" id="paso-cliente">
+  <div class="pedido-form-topnav">
+    <a href="{{ url_for('lista_pedidos') }}" class="pedido-form-close" aria-label="Cerrar"><i class="fas fa-times"></i></a>
+    <div class="pedido-form-topnav-title">
+      <div class="pedido-form-topnav-heading">Nuevo pedido</div>
+      <div class="pedido-form-topnav-meta">¿Para qué cliente?</div>
+    </div>
+    <span class="pedido-form-topnav-placeholder" aria-hidden="true"></span>
+  </div>
+  <div class="mobile-form-container">
+    <div class="ph-card">
+      <label class="ph-label" for="cliente_id">Cliente</label>
+      <select id="cliente_id" class="mobile-form-control" data-destino="{{ destino }}">
+        <option value=""></option>
+        {% for cliente in clientes|sort(attribute='nombre') %}
+          <option value="{{ cliente.id }}" {% if cliente_pendiente and cliente_pendiente.id == cliente.id %}selected{% endif %}>
+            {{ cliente.nombre }}{% if cliente.moneda == 'USD' %} (USD){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% if grupos_cliente %}
+    <div class="ph-grupos" id="ph-grupos">
+      <div class="ph-grupos-title">¿Qué pedido vas a tomar?</div>
+      <div class="ph-grupos-body">
+        {{ cliente_pendiente.nombre }} compra de más de un grupo y un pedido no
+        puede mezclarlos: QuickBooks no factura junto lo que paga impuestos distintos.
+      </div>
+      <div class="ph-grupos-lista">
+        {# `g.clave` la arma _clave_grupo con caracteres seguros ('pesable:10'),
+           y los dos puntos son legales sin escapar en un query string. Pasarla
+           por |urlencode la convertiría en 'pesable%3A10' sin ganar nada. #}
+        {% for g in grupos_cliente %}
+        <a class="ph-grupo-opt"
+           href="{{ destino }}?cliente={{ cliente_pendiente.id }}&grupo={{ g.clave }}">
+          <span class="ph-grupo-nombre">{{ g.etiqueta }}</span>
+          {% if g.ejemplos %}<span class="ph-grupo-ejemplos">{{ g.ejemplos|join(', ') }}…</span>{% endif %}
+          <span class="ph-grupo-meta">{{ g.pedidos }} {{ 'pedido' if g.pedidos == 1 else 'pedidos' }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+document.addEventListener('DOMContentLoaded', function () {
+    const sel = document.getElementById('cliente_id');
+    new TomSelect('#cliente_id', {
+        maxOptions: 1000, closeAfterSelect: true, placeholder: 'Buscar cliente…',
+        dropdownParent: 'body', sortField: { field: 'text', direction: 'asc' },
+    });
+    sel.addEventListener('change', function () {
+        if (!this.value) return;
+        window.location.assign(this.dataset.destino + '?cliente=' + encodeURIComponent(this.value));
+    });
+});
+</script>
+{% endblock %}

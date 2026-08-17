@@ -5932,6 +5932,65 @@ def _parsear_fecha_entrega(valor):
         return None
 
 
+def _productos_dicts_para_cliente(cliente_id):
+    """Catálogo para el form con el precio que vería ESTE cliente (jerarquía).
+
+    precio None = sin precio en ninguna lista → el buscador dice «sin precio»
+    en vez de 0.00, que se lee como gratis.
+    """
+    productos = Producto.query.all()
+    dicts = []
+    for p in productos:
+        precio = obtener_precio_producto_cliente(cliente_id, p.id, 'base')
+        if precio is None:
+            precio = obtener_precio_default_producto(p.id, 'base')
+        dicts.append({
+            'id': p.id,
+            'nombre': p.nombre,
+            'precio': float(precio) if precio is not None else None,
+            'grupo': _clave_grupo(_grupo_facturable(p)),
+        })
+    return dicts
+
+
+def _texto_hero_habitual(meta):
+    """Línea de cadencia/historial que antes armaba el JS (actualizarHero)."""
+    partes = []
+    if meta.get('cadencia_dias'):
+        partes.append(f"Compra cada {meta['cadencia_dias']} días")
+    if meta.get('ultima_fecha'):
+        try:
+            f = datetime.strptime(meta['ultima_fecha'], '%Y-%m-%d').date()
+            meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                     'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+            partes.append(f'última vez el {f.day} {meses[f.month - 1]}')
+        except (ValueError, TypeError):
+            pass
+    if not partes:
+        # La cadencia se calcula DENTRO de un grupo, así que antes de elegir uno
+        # no existe. Decir "sin pedidos anteriores" acá sería falso para un
+        # cliente con historial repartido en dos grupos.
+        total = sum(g.get('pedidos', 0) for g in meta.get('grupos', []))
+        if total:
+            n = len(meta.get('grupos', []))
+            partes.append(f"{total} {'pedido' if total == 1 else 'pedidos'} en {n} grupos")
+        else:
+            partes.append('Sin pedidos anteriores')
+    return ' · '.join(partes)
+
+
+def _texto_origen_lineas(n_lineas, visitas):
+    """Aviso de dónde salen las líneas precargadas (antes lo armaba el JS)."""
+    if not n_lineas:
+        return ''
+    lineas_txt = f"{n_lineas} {'línea cargada' if n_lineas == 1 else 'líneas cargadas'}"
+    if visitas == 1:
+        return (f'Partimos de su pedido habitual: {lineas_txt} con su última '
+                'visita, la única que tiene registrada. Ajusta lo que cambie y envía.')
+    return (f'Partimos de su pedido habitual: {lineas_txt} con las cantidades '
+            f'de sus últimas {visitas} visitas. Ajusta lo que cambie y envía.')
+
+
 def _cantidad_detalle_facturable(detalle):
     """Cantidad real utilizada para subtotalizar líneas de preparación."""
     cantidad = detalle.peso if detalle.peso else detalle.cajas
@@ -5954,20 +6013,6 @@ def nuevo_pedido():
             # Vendedor regular: solo sus clientes asignados
             clientes = current_user.obtener_clientes_visibles()
 
-    productos = Producto.query.all()
-
-    # Enviamos al front-end cada producto con su precio (lista default)
-    productos_dicts = [{
-        'id'    : p.id,
-        'nombre': p.nombre,
-        'precio': float(
-            obtener_precio_default_producto(p.id, 'base') or 0
-        ),
-        # El form filtra el buscador al grupo del pedido: un pedido no puede
-        # mezclar impuestos distintos porque QuickBooks no los factura juntos.
-        'grupo' : _clave_grupo(_grupo_facturable(p)),
-    } for p in productos]
-
     if request.method == 'POST':
         # 1) Cabecera
         cliente_id = int(request.form['cliente_id'])
@@ -5984,14 +6029,18 @@ def nuevo_pedido():
 
         # Validate form lines BEFORE creating the pedido row so a bad
         # payload doesn't leave an orphan empty pedido in the DB.
+        #
+        # El error vuelve al PASO 2 de este mismo cliente (`?cliente=`): sin el
+        # parámetro el form arranca de cero en el paso 1 y el vendedor tiene que
+        # volver a elegir cliente para corregir una línea.
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, cliente_id)
         except _PedidoFormError as e:
             flash(str(e), 'error')
-            return redirect(url_for('nuevo_pedido'))
+            return redirect(url_for('nuevo_pedido', cliente=cliente_id))
         if not lineas_form:
             flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('nuevo_pedido'))
+            return redirect(url_for('nuevo_pedido', cliente=cliente_id))
 
         pedido = Pedido(
             cliente_id=cliente_id,
@@ -6046,12 +6095,58 @@ def nuevo_pedido():
         flash('Pedido creado con precios registrados.', 'success')
         return redirect(url_for('lista_pedidos'))
 
+    # ── GET: dos pasos ────────────────────────────────────────────
+    # Paso 1 pregunta el cliente; paso 2 (`?cliente=`) llega ya sembrado desde
+    # el servidor. El catálogo depende del cliente (precio por jerarquía), así
+    # que sin cliente no hay nada honesto que mostrar en el buscador.
+    cliente_id_arg = request.args.get('cliente', type=int)
+    if not cliente_id_arg:
+        return render_template(
+            'pedido_cliente.html',
+            clientes=clientes,
+            destino=url_for('nuevo_pedido'),
+            cliente_pendiente=None,
+            grupos_cliente=None,
+        )
+
+    cliente = db.session.get(Cliente, cliente_id_arg)
+    permitidos = {c.id for c in clientes}
+    if cliente is None or cliente.id not in permitidos:
+        flash('Cliente no válido para este vendedor', 'error')
+        return redirect(url_for('nuevo_pedido'))
+
+    grupo_arg = request.args.get('grupo') or None
+    lineas_hab, meta = _calcular_pedido_habitual(cliente.id, grupo_clave=grupo_arg)
+
+    if meta['grupo'] is None and len(meta['grupos']) > 1:
+        # Multi-grupo sin elegir (o clave inválida): re-preguntar en paso 1.
+        return render_template(
+            'pedido_cliente.html',
+            clientes=clientes,
+            destino=url_for('nuevo_pedido'),
+            cliente_pendiente=cliente,
+            grupos_cliente=meta['grupos'],
+        )
+
+    productos_pedido = [{
+        'id': l['id'],
+        'nombre': l['nombre'],
+        'cajas': l['cajas'],
+        'precio': l['precio'],
+        'habitual': l['cajas_habitual'],
+    } for l in lineas_hab]
+
     return render_template(
         'pedido_form.html',
         clientes=clientes,
-        productos=productos_dicts,
+        cliente=cliente,
+        productos=_productos_dicts_para_cliente(cliente.id),
+        productos_pedido=productos_pedido,
         pedido=None,
-        productos_pedido=[]
+        hero_meta_texto=_texto_hero_habitual(meta),
+        origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
+        grupo_clave=meta['grupo'] or '',
+        tipo_cambio_valor=1.78 if (cliente.moneda or 'XCG') == 'USD' else 1.0,
     )
 
 @app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
@@ -6066,25 +6161,11 @@ def editar_pedido(pedido_id):
         return redirect(url_for('lista_pedidos'))
 
     clientes  = Cliente.query.all()
-    productos = Producto.query.all()
 
-    # Para editar, sí tenemos el cliente del pedido, así que podemos usar precios específicos
-    productos_dicts = [{
-        'id'    : p.id,
-        'nombre': p.nombre,
-        # precio mostrado = el que vería ESTE cliente específico
-        'precio': float(
-            obtener_precio_producto_cliente(
-                pedido.cliente_id,  # Ahora sí existe pedido
-                p.id, 'base'
-            ) or obtener_precio_default_producto(p.id, 'base') or 0
-        ),
-        # Igual que en alta: el buscador se filtra al grupo del pedido para
-        # que editando tampoco se pueda mezclar impuestos.
-        'grupo' : _clave_grupo(_grupo_facturable(p)),
-    } for p in productos]
+    # Para editar, sí tenemos el cliente del pedido, así que el catálogo sale
+    # con los precios que vería ESE cliente (mismo helper que el alta).
+    productos_dicts = _productos_dicts_para_cliente(pedido.cliente_id)
 
-    
     if request.method == 'POST':
         if isinstance(current_user, Vendedor) and not current_user.puede_editar_pedido(pedido):
             flash('No tienes permisos para editar este pedido', 'error')
@@ -6205,19 +6286,27 @@ def editar_pedido(pedido_id):
         return redirect(url_for('lista_pedidos'))
 
     # ----------- pre-cargar detalles (solo líneas originales) -----------
+    # `habitual` va None: editando, las líneas SON el pedido, no un ajuste
+    # sobre una base habitual contra la que mostrar un delta.
     productos_pedido = [{
-        'id'     : d.producto.id,
-        'nombre' : d.producto.nombre,
-        'cajas'  : d.cajas,
-        'precio' : float(d.precio_unitario)
+        'id'      : d.producto.id,
+        'nombre'  : d.producto.nombre,
+        'cajas'   : d.cajas,
+        'precio'  : float(d.precio_unitario),
+        'habitual': None,
     } for d in pedido.detalles if d.es_linea_pedido]
 
     return render_template(
         'pedido_form.html',
-        clientes        = clientes,
-        productos       = productos_dicts,
-        pedido          = pedido,
-        productos_pedido= productos_pedido
+        clientes          = clientes,
+        cliente           = pedido.cliente,
+        productos         = productos_dicts,
+        pedido            = pedido,
+        productos_pedido  = productos_pedido,
+        hero_meta_texto   = '',
+        origen_texto      = '',
+        grupo_clave       = '',
+        tipo_cambio_valor = float(pedido.tipo_cambio or 1.0),
     )
 
 

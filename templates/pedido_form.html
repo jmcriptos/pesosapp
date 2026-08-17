@@ -49,12 +49,15 @@
             <label class="ph-label" for="cliente_id">Cliente</label>
             <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" data-no-auto-ts="1" required>
                 <option value=""></option>
-                {% for cliente in clientes|sort(attribute='nombre') %}
-                    <option value="{{ cliente.id }}"
-                            data-moneda="{{ cliente.moneda or 'XCG' }}"
-                            data-nombre="{{ cliente.nombre }}"
-                            {% if pedido and pedido.cliente_id == cliente.id %}selected{% endif %}>
-                        {{ cliente.nombre }}{% if cliente.moneda == 'USD' %} (USD){% endif %}
+                {# La variable de loop es `cliente_i`, no `cliente`: el contexto
+                   ya trae un `cliente` (el elegido en el paso 1) y el loop lo
+                   taparía justo donde hay que compararlo. #}
+                {% for cliente_i in clientes|sort(attribute='nombre') %}
+                    <option value="{{ cliente_i.id }}"
+                            data-moneda="{{ cliente_i.moneda or 'XCG' }}"
+                            data-nombre="{{ cliente_i.nombre }}"
+                            {% if (pedido and pedido.cliente_id == cliente_i.id) or (cliente and cliente.id == cliente_i.id) %}selected{% endif %}>
+                        {{ cliente_i.nombre }}{% if cliente_i.moneda == 'USD' %} (USD){% endif %}
                     </option>
                 {% endfor %}
             </select>
@@ -187,7 +190,9 @@ let productosAgregados = (productos_pedido || []).map(p => ({
     nombre: p.nombre,
     cajas: p.cajas,
     precio: p.precio,
-    habitual: null,
+    // Jinja manda la clave siempre (null editando); el fallback cubre las
+    // líneas que el JS arma a mano, que no pasan por acá.
+    habitual: ('habitual' in p) ? p.habitual : null,
     activa: true,
 }));
 
