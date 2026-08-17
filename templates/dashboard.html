@@ -292,7 +292,7 @@
               <div class="rank-name">{{ producto.nombre }}</div>
               <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div></div>
               <div class="rank-meta">
-                {% if (producto.cajas or 0) > 0 %}<span>{{ producto.cajas }} cajas</span>{% endif %}
+                {% if (producto.cajas or 0) > 0 %}<span>{{ producto.cajas|fmt_cajas }} cajas</span>{% endif %}
                 {% if (producto.peso or 0) > 0 %}<span>{{ '{:,.1f}'.format(producto.peso|float) }} kg</span>{% endif %}
                 <span>{{ producto.pedidos or 0 }} ped</span>
               </div>

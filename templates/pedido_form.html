@@ -121,12 +121,14 @@
             <div class="ph-add-row">
                 <div class="ph-field ph-field-cajas">
                     <label class="ph-label" for="input-cajas">Cajas</label>
-                    <input type="number"
+                    {# type=text + inputmode=decimal (patrón del modal de
+                       detalles): acepta fracciones (media caja = 0.5) y la
+                       coma decimal del teclado iOS en locale holandés. #}
+                    <input type="text"
                            id="input-cajas"
                            placeholder="0"
                            class="mobile-form-control"
-                           min="1"
-                           inputmode="numeric"
+                           inputmode="decimal"
                            autocomplete="off">
                 </div>
                 <button type="button" id="agregar-producto" class="ph-btn-add">
@@ -820,7 +822,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Agregar producto
     btnAgregar.addEventListener('click', function() {
         const productoSeleccionado = obtenerProductoSeleccionado();
-        const cajas = parseInt(inputCajas.value, 10);
+        // Coma decimal («0,5»): teclado iOS en locale holandés.
+        const cajas = parseFloat(String(inputCajas.value || '').trim().replace(',', '.'));
 
         if (!productoSeleccionado) {
             alert('Selecciona un producto');
@@ -828,8 +831,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!cajas || cajas <= 0) {
+        if (!isFinite(cajas) || cajas <= 0 || cajas > 9999) {
             alert('Ingresa una cantidad válida de cajas');
+            inputCajas.focus();
+            return;
+        }
+
+        // Fracciones solo en cuartos de caja (0.25 = 2⁻², exacto en float:
+        // sin ruido decimal en subtotales) — igual que valida el servidor.
+        if (Math.round(cajas * 4) !== cajas * 4) {
+            alert('Las fracciones de caja van en cuartos: 0.25, 0.5 o 0.75');
             inputCajas.focus();
             return;
         }

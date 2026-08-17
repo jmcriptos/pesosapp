@@ -52,7 +52,7 @@
                     {% for producto in productos_mas_vendidos %}
                     <tr>
                         <td>{{ producto.nombre }}</td>
-                        <td>{{ producto.total_cajas }}</td>
+                        <td>{{ producto.total_cajas|fmt_cajas }}</td>
                         <td>${{ "{:,.2f}".format(producto.ingresos_total) }}</td>
                     </tr>
                     {% endfor %}

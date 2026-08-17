@@ -233,7 +233,8 @@ function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, ca
         editLabel.textContent = 'Cajas';
         editPeso.value = cajas;
         editPeso.placeholder = '0';
-        editPeso.inputMode = 'numeric';
+        // decimal, no numeric: se venden fracciones de caja (media = 0.5)
+        editPeso.inputMode = 'decimal';
     }
 
     // Mostrar/ocultar campos según tipo de producto
@@ -451,7 +452,8 @@ if ($prod && $peso && $lote && $fab && $exp && $form) {
             // Importación: solo Cajas + F. Expiración (opcional)
             $cantidadLabel.textContent = 'Cajas';
             $peso.placeholder = '0';
-            $peso.inputMode = 'numeric';
+            // decimal, no numeric: se venden fracciones de caja (media = 0.5)
+            $peso.inputMode = 'decimal';
             $loteGroup.style.display = 'none';
             $fabGroup.style.display = 'none';
             $expGroup.style.display = '';

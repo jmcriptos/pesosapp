@@ -31,7 +31,7 @@
           </div>
           <h4 class="detail-product-name">{{ linea.producto.nombre if linea.producto else '—' }}</h4>
           <div class="detail-product-meta">
-            {{ linea.cajas_pedidas or linea.cajas }} cajas
+            {{ (linea.cajas_pedidas or linea.cajas)|fmt_cajas }} cajas
             {% if linea_precio > 0 %} · {{ '{:,.0f}'.format(linea_precio) }}/kg{% endif %}
           </div>
 
@@ -54,7 +54,7 @@
                       data-lote="{{ prep.lote or '' }}"
                       data-fecha-fab="{{ prep.fecha_fabricacion or '' }}"
                       data-fecha-exp="{{ prep.fecha_expiracion or '' }}"
-                      data-cajas="{{ prep.cajas }}">
+                      data-cajas="{{ prep.cajas|fmt_cajas }}">
                 <i class="fas fa-pen"></i>
                 <span>Editar</span>
               </button>
@@ -77,7 +77,7 @@
             <div class="detail-product-weight">{{ linea.cajas_pesadas_count }}/{{ linea.cajas_objetivo }}<small>cajas</small></div>
             <div class="detail-product-subtotal">{{ '{:.1f}'.format(linea.peso_real|float) }} kg</div>
           {% else %}
-            <div class="detail-product-weight">{{ linea.cajas }}<small>cajas</small></div>
+            <div class="detail-product-weight">{{ linea.cajas|fmt_cajas }}<small>cajas</small></div>
             {% if prep and prep.peso %}
               <div class="detail-product-subtotal">{{ '{:.1f}'.format(prep.peso|float) }} kg</div>
             {% endif %}

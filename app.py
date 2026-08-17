@@ -1,5 +1,6 @@
 import os
 import re
+import math
 import calendar
 import secrets
 import hmac
@@ -463,6 +464,19 @@ def disable_cache_for_auth_and_session_responses(response):
 
 from utils.filters import kpi_tag
 app.jinja_env.filters['kpi_tag'] = kpi_tag
+
+
+def _fmt_cajas(valor):
+    """Cantidad de cajas para mostrar: entera sin decimales, fracción tal cual.
+
+    Las columnas de cajas son Float, y Jinja renderizaría «3.0 cajas»; este
+    filtro deja «3» para enteros y «0.5» / «1.75» para fracciones.
+    """
+    v = float(valor or 0)
+    return str(int(v)) if v == int(v) else f'{v:g}'
+
+
+app.jinja_env.filters['fmt_cajas'] = _fmt_cajas
 
 _PERMISOS_DEFAULT = {
     'super_admin': {
@@ -2257,7 +2271,8 @@ class DetallePedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     pedido_id = db.Column(db.Integer, db.ForeignKey('pedido.id'), nullable=False)
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False)
-    cajas = db.Column(db.Integer, nullable=False, default=0)  # NUEVO
+    # Float: se venden fracciones de caja (media, cuarto) — ver _parse_cajas.
+    cajas = db.Column(db.Float, nullable=False, default=0)
     peso = db.Column(db.Float, nullable=False, default=0)
     lote = db.Column(db.String(50), nullable=True)
     fecha_fabricacion = db.Column(db.String(10), nullable=True)
@@ -2267,11 +2282,13 @@ class DetallePedido(db.Model):
     precio_unitario = db.Column(db.Numeric(10,2), nullable=False, default=0)
     subtotal        = db.Column(db.Numeric(10,2), nullable=False)
     es_linea_pedido = db.Column(db.Boolean, default=True, nullable=False)
-    cajas_pedidas   = db.Column(db.Integer, nullable=False, default=0)
+    cajas_pedidas   = db.Column(db.Float, nullable=False, default=0)
 
     @property
     def cajas_objetivo(self):
-        return int(self.cajas_pedidas or self.cajas or 0)
+        # Cajas FÍSICAS a pesar: media caja pedida sigue siendo una caja que
+        # pasa por la báscula, así que las fracciones redondean hacia arriba.
+        return math.ceil(self.cajas_pedidas or self.cajas or 0)
 
     @property
     def cajas_pesadas_count(self):
@@ -3187,7 +3204,7 @@ def _detalle_legacy_to_label_item(detalle):
     if peso_float > 0:
         peso_label = f'{peso_float:.2f} kg'
     else:
-        peso_label = f'{int(detalle.cajas or 0)} uds'
+        peso_label = f'{_fmt_cajas(detalle.cajas)} uds'
 
     return {
         'producto_nombre': detalle.producto.nombre if getattr(detalle, 'producto', None) else 'N/A',
@@ -5756,13 +5773,48 @@ class _PedidoFormError(ValueError):
     pass
 
 
+def _parse_cajas(raw):
+    """Cantidad de cajas del form: acepta fracciones en cuartos de caja.
+
+    Clientes piden media caja (atún Van Camps, cooked shoulder 500 g), así que
+    la cantidad va en múltiplos de 0.25 entre 0.25 y 9999. La granularidad de
+    cuarto no es solo física: rechaza typos como «0.3», y al ser 2⁻² todos los
+    valores y sus sumas son exactos en float. Se acepta coma decimal («0,5»)
+    porque el teclado decimal de iOS la trae en locale holandés.
+
+    Raises ValueError con mensaje en español listo para flashear.
+    """
+    try:
+        valor = float(str(raw).strip().replace(',', '.'))
+    except (TypeError, ValueError, AttributeError):
+        raise ValueError('Cantidad de cajas inválida')
+    if not math.isfinite(valor):
+        raise ValueError('Cantidad de cajas inválida')
+    if valor <= 0:
+        raise ValueError('La cantidad de cajas debe ser mayor que 0')
+    if valor > 9999:
+        raise ValueError('La cantidad de cajas no puede exceder 9999')
+    cuartos = valor * 4
+    if abs(cuartos - round(cuartos)) > 1e-9:
+        raise ValueError(
+            'Las fracciones de caja van en cuartos: 0.25, 0.5, 0.75…'
+        )
+    return round(cuartos) / 4.0
+
+
+def _cajas_a_decimal(cajas):
+    """float de cajas → Decimal exacto para multiplicar contra precios Numeric."""
+    return Decimal(str(cajas))
+
+
 def _extraer_lineas_pedido_form(form_data, cliente_id):
     """Normaliza las líneas enviadas desde el formulario de pedido.
 
     Validates each line:
     - producto_id is a positive integer
-    - cajas is an integer between 1 and 9999 (no negative, no zero, no
-      runaway values that would warp subtotals or the QBO payload)
+    - cajas es múltiplo de 0.25 entre 0.25 y 9999 (fracciones de caja en
+      cuartos; sin negativos, ceros ni valores desbocados que deformen
+      subtotales o el payload QBO)
 
     De-duplicates lines that share a producto_id by summing their cajas
     so a JS bug or double-submit can't silently drop quantity.
@@ -5780,14 +5832,10 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
             raise _PedidoFormError(f'Producto inválido en línea {idx + 1}')
 
         try:
-            cajas = int(form_data.get(f'productos[{idx}][cajas]', 0) or 0)
-        except (TypeError, ValueError):
-            raise _PedidoFormError(f'Cantidad de cajas inválida en línea {idx + 1}')
+            cajas = _parse_cajas(form_data.get(f'productos[{idx}][cajas]', 0) or 0)
+        except ValueError as e:
+            raise _PedidoFormError(f'{e} (línea {idx + 1})')
 
-        if cajas <= 0:
-            raise _PedidoFormError(f'La cantidad de cajas debe ser mayor que 0 (línea {idx + 1})')
-        if cajas > 9999:
-            raise _PedidoFormError(f'La cantidad de cajas no puede exceder 9999 (línea {idx + 1})')
         if prod_id <= 0:
             raise _PedidoFormError(f'Producto inválido en línea {idx + 1}')
 
@@ -5800,14 +5848,14 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
         if prod_id in lineas_por_producto:
             lineas_por_producto[prod_id]['cajas'] += cajas
             lineas_por_producto[prod_id]['subtotal'] = (
-                precio_unitario * lineas_por_producto[prod_id]['cajas']
+                precio_unitario * _cajas_a_decimal(lineas_por_producto[prod_id]['cajas'])
             )
         else:
             lineas_por_producto[prod_id] = {
                 'producto_id': prod_id,
                 'cajas': cajas,
                 'precio_unitario': precio_unitario,
-                'subtotal': precio_unitario * cajas,
+                'subtotal': precio_unitario * _cajas_a_decimal(cajas),
             }
         idx += 1
 
@@ -6137,7 +6185,7 @@ def editar_pedido(pedido_id):
                     cajas_pedidas=0,
                     peso=0,
                     precio_unitario=linea['precio_unitario'],
-                    subtotal=linea['precio_unitario'] * linea['cajas'],
+                    subtotal=linea['precio_unitario'] * _cajas_a_decimal(linea['cajas']),
                     es_linea_pedido=False,
                 )
                 db.session.add(prep)
@@ -6240,8 +6288,13 @@ def detalles_pedido(pedido_id):
             return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
         producto_id       = int(request.form['producto_id'])
-        peso              = float(request.form.get('peso', 0)  or 0)
-        cajas             = int  (request.form.get('cajas', 0) or 0)   # reservado
+        peso_raw          = request.form.get('peso', 0) or 0
+        try:
+            # Coma decimal («0,5»): teclado iOS en locale holandés.
+            peso = float(str(peso_raw).replace(',', '.'))
+        except (TypeError, ValueError):
+            peso = 0.0
+        cajas             = 0.0   # para importados sale del campo peso, abajo
         lote              = request.form.get('lote', '').strip()
         fecha_fabricacion = request.form.get('fecha_fabricacion', '').strip()
         fecha_expiracion  = request.form.get('fecha_expiracion', '').strip()
@@ -6262,7 +6315,11 @@ def detalles_pedido(pedido_id):
 
         # Importación: el form envía cajas en el campo peso
         if producto_obj and not producto_obj.se_pesa:
-            cajas = int(peso)
+            try:
+                cajas = _parse_cajas(peso_raw)
+            except ValueError as e:
+                flash(str(e), 'error')
+                return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
             peso = 0
 
         # -------- Obtener precio unitario según la jerarquía --------
@@ -6279,8 +6336,8 @@ def detalles_pedido(pedido_id):
         
         # ------------------------------------------------------------
 
-        cantidad = cajas if cajas else peso   # si se usan cajas en el futuro
-        subtotal = round(precio_unitario * cantidad, 2)
+        cantidad = cajas if cajas else peso
+        subtotal = round(float(precio_unitario or 0) * cantidad, 2)
 
         # -------- Crear y guardar el detalle --------
         detalle = DetallePedido(
@@ -6714,9 +6771,14 @@ def editar_detalle_pedido(detalle_id):
     if producto.se_pesa:
         detalle.peso = peso
     else:
-        cajas = int(peso)  # el form envía cajas en el campo peso
+        # el form envía cajas en el campo peso; acepta fracciones (media caja)
+        try:
+            cajas = _parse_cajas(request.form.get('peso'))
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
         detalle.cajas = cajas
-        detalle.subtotal = (detalle.precio_unitario or 0) * cajas
+        detalle.subtotal = (detalle.precio_unitario or 0) * _cajas_a_decimal(cajas)
         detalle.fecha_expiracion = fecha_expiracion if fecha_expiracion else None
 
         # Sincronizar la línea original (la que muestra la tarjeta y de la que
@@ -6732,7 +6794,7 @@ def editar_detalle_pedido(detalle_id):
             if original is not None:
                 original.cajas = cajas
                 original.cajas_pedidas = cajas
-                original.subtotal = (original.precio_unitario or 0) * cajas
+                original.subtotal = (original.precio_unitario or 0) * _cajas_a_decimal(cajas)
 
     db.session.commit()
     flash('Detalle actualizado correctamente.', 'success')
@@ -8148,6 +8210,29 @@ def _mediana_int(valores):
     return int(round((ordenados[medio - 1] + ordenados[medio]) / 2))
 
 
+def _mediana_cajas(valores):
+    """Mediana de cantidades de caja, respetando fracciones.
+
+    Con historial de cajas enteras se comporta exactamente como _mediana_int,
+    así que ningún cliente actual cambia de sugerencia. Si hay fracciones
+    (media caja, cuarto), la mediana se redondea al cuarto más cercano y se
+    devuelve limpia (int si es entera) para que el form precargue 0.5 y no 1.
+    """
+    if not valores:
+        return 0
+    if all(float(v).is_integer() for v in valores):
+        return _mediana_int(valores)
+    ordenados = sorted(valores)
+    n = len(ordenados)
+    medio = n // 2
+    if n % 2:
+        mediana = float(ordenados[medio])
+    else:
+        mediana = (float(ordenados[medio - 1]) + float(ordenados[medio])) / 2
+    cuartos = round(mediana * 4) / 4.0
+    return int(cuartos) if cuartos.is_integer() else cuartos
+
+
 def _grupos_del_cliente(cliente_id):
     """Grupos de facturación que este cliente compra, y desde cuándo.
 
@@ -8331,7 +8416,12 @@ def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VI
     por_producto = {}
     for det in detalles:
         cantidades = por_producto.setdefault(det.producto_id, {})
-        cantidades[det.pedido_id] = cantidades.get(det.pedido_id, 0) + det.cajas_objetivo
+        # Cantidad REAL pedida (con fracciones), no cajas_objetivo: el objetivo
+        # redondea hacia arriba para la báscula y aquí inflaría la sugerencia
+        # de un cliente que siempre pide media caja.
+        cantidades[det.pedido_id] = (
+            cantidades.get(det.pedido_id, 0) + (det.cajas_pedidas or det.cajas or 0)
+        )
 
     minimo_visitas = 1 if len(pedidos) == 1 else 2
 
@@ -8357,8 +8447,8 @@ def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VI
         lineas.append({
             'id': producto_id,
             'nombre': producto.nombre,
-            'cajas': _mediana_int(apariciones),
-            'cajas_habitual': _mediana_int(apariciones),
+            'cajas': _mediana_cajas(apariciones),
+            'cajas_habitual': _mediana_cajas(apariciones),
             'precio': float(precio) if precio is not None else None,
             'visitas': len(apariciones),
         })
