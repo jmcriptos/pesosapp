@@ -466,6 +466,18 @@ async function cargarPedidoHabitual(clienteId, grupoClave) {
 
     actualizarHero(datos);
 
+    // Con líneas ya en la tabla (sembradas por el servidor o cargadas a mano)
+    // acá no queda nada que decidir: el grupo del pedido ya salió de ellas.
+    //
+    // Salir ANTES del selector de grupos y de tocar `grupoActual` no es
+    // cosmético. Este fetch va sin `grupo`, así que para un cliente que compra
+    // de varios la API responde `grupo: null` + N grupos y repintaría el
+    // selector SOBRE la tabla sembrada; al tocar el OTRO grupo, `grupoActual`
+    // pasaría a B y el buscador se re-filtraría a B con las líneas de A
+    // todavía puestas. Ese pedido mixto lo rechaza _validar_grupo_unico recién
+    // al enviar, y el vendedor pierde todo lo cargado.
+    if (productosAgregados.length) return;
+
     const grupos = (datos && datos.grupos) || [];
 
     // El backend devuelve `grupo: null` y varios grupos cuando hay que
