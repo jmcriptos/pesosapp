@@ -6159,12 +6159,6 @@ def editar_pedido(pedido_id):
         flash('No tienes permisos para editar este pedido', 'error')
         return redirect(url_for('lista_pedidos'))
 
-    clientes  = Cliente.query.all()
-
-    # Para editar, sí tenemos el cliente del pedido, así que el catálogo sale
-    # con los precios que vería ESE cliente (mismo helper que el alta).
-    productos_dicts = _productos_dicts_para_cliente(pedido.cliente_id)
-
     if request.method == 'POST':
         if isinstance(current_user, Vendedor) and not current_user.puede_editar_pedido(pedido):
             flash('No tienes permisos para editar este pedido', 'error')
@@ -6284,27 +6278,83 @@ def editar_pedido(pedido_id):
         flash('Pedido actualizado.', 'success')
         return redirect(url_for('lista_pedidos'))
 
+    # ── GET (dos pasos): ?cambiar=1 → selector; ?cliente=M → re-cotizar ──
+    # Editando no hay un paso 1 propio: «Cambiar» vuelve a preguntar el cliente
+    # en la MISMA pantalla del alta y regresa acá con `?cliente=`. El round-trip
+    # es lo que permite re-cotizar en el servidor (precios por jerarquía del
+    # cliente elegido) sin que el navegador tenga que pedir precios por AJAX.
+    if request.args.get('cambiar'):
+        if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+            clientes_visibles = current_user.obtener_clientes_visibles()
+        else:
+            clientes_visibles = Cliente.query.all()
+        return render_template(
+            'pedido_cliente.html',
+            clientes=clientes_visibles,
+            destino=url_for('editar_pedido', pedido_id=pedido.id),
+            cliente_pendiente=pedido.cliente,
+            grupos_cliente=None,
+        )
+
+    # `?cliente=M` es una PREVISUALIZACIÓN: nada se guarda hasta que el POST
+    # reciba el hidden con ese cliente. Mismo guard que el POST, porque este GET
+    # expone los precios del cliente destino (jerarquía) y un vendedor no debe
+    # poder leerlos escribiendo un id ajeno en la barra de direcciones.
+    cliente_efectivo = pedido.cliente
+    override_id = request.args.get('cliente', type=int)
+    if override_id and override_id != pedido.cliente_id:
+        override = db.session.get(Cliente, override_id)
+        permitido = True
+        if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+            permitido = current_user.puede_crear_pedido_para_cliente(override_id)
+        if override is None or not permitido:
+            flash('Cliente no válido para este vendedor; se mantiene el original', 'error')
+        else:
+            cliente_efectivo = override
+
+    # El catálogo sale con los precios que vería ESTE cliente (mismo helper que
+    # el alta): con override, los del cliente destino.
+    productos_dicts = _productos_dicts_para_cliente(cliente_efectivo.id)
+
     # ----------- pre-cargar detalles (solo líneas originales) -----------
     # `habitual` va None: editando, las líneas SON el pedido, no un ajuste
     # sobre una base habitual contra la que mostrar un delta.
-    productos_pedido = [{
-        'id'      : d.producto.id,
-        'nombre'  : d.producto.nombre,
-        'cajas'   : d.cajas,
-        'precio'  : float(d.precio_unitario),
-        'habitual': None,
-    } for d in pedido.detalles if d.es_linea_pedido]
+    #
+    # El precio se resuelve por jerarquía del cliente EFECTIVO, igual que hace
+    # `_resolver_precio_unitario_pedido` al guardar: la pantalla muestra lo que
+    # el POST va a escribir, no lo que se guardó hace un mes. Sin override es la
+    # jerarquía del mismo cliente; con override, la del cliente destino. El
+    # precio guardado queda de último recurso, para el producto que no tiene
+    # precio en ninguna lista (mismo fallback que el POST).
+    productos_pedido = []
+    for d in pedido.detalles:
+        if not d.es_linea_pedido:
+            continue
+        precio = obtener_precio_producto_cliente(
+            cliente_efectivo.id, d.producto_id, 'base')
+        if precio is None:
+            precio = obtener_precio_default_producto(d.producto_id, 'base')
+        productos_pedido.append({
+            'id'      : d.producto_id,
+            'nombre'  : d.producto.nombre if d.producto else '—',
+            'cajas'   : d.cajas,
+            'precio'  : float(precio) if precio is not None else float(d.precio_unitario or 0),
+            'habitual': None,
+        })
 
     return render_template(
         'pedido_form.html',
-        cliente           = pedido.cliente,
+        cliente           = cliente_efectivo,
         productos         = productos_dicts,
         pedido            = pedido,
         productos_pedido  = productos_pedido,
         hero_meta_texto   = '',
-        origen_texto      = '',
+        origen_texto      = ('Precios re-cotizados para este cliente; nada se guarda '
+                             'hasta «Actualizar pedido».')
+                            if cliente_efectivo.id != pedido.cliente_id else '',
         grupo_clave       = '',
-        tipo_cambio_valor = float(pedido.tipo_cambio or 1.0),
+        tipo_cambio_valor = (1.78 if (cliente_efectivo.moneda or 'XCG') == 'USD'
+                             else float(pedido.tipo_cambio or 1.0)),
     )
 
 

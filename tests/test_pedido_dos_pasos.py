@@ -81,6 +81,18 @@ def _ids():
     return cliente.id, productos
 
 
+def _crear_pedido_por_post(logged_client, cliente_id, producto_id, cajas='2', precio='20.00'):
+    resp = logged_client.post('/pedidos/nuevo', data={
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': producto_id,
+        'productos[0][cajas]': cajas,
+        'productos[0][precio]': precio,
+    }, follow_redirects=True)
+    assert resp.status_code == 200
+    from app import Pedido
+    return Pedido.query.order_by(Pedido.id.desc()).first().id
+
+
 def _crear_pedido(cliente_id, lineas, dias_atras=0, con_prep=False):
     """Crea un pedido con sus líneas originales.
 
@@ -229,3 +241,137 @@ def test_catalogo_paso2_trae_precio_del_cliente(app, logged_client):
 
     html = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}').get_data(as_text=True)
     assert '99.55' in html
+
+
+# ── Edición: cambiar de cliente por round-trip re-cotizado ─────────────────
+
+def test_editar_muestra_cambiar_y_sin_select(app, logged_client):
+    cliente_id, prods = _ids()
+    pid = _crear_pedido_por_post(logged_client, cliente_id, prods['Aceite vegetal 12 x 1 L'])
+    html = logged_client.get(f'/pedidos/{pid}/editar').get_data(as_text=True)
+    assert 'id="ph-cambiar-cliente"' in html
+    assert '<select name="cliente_id"' not in html
+    assert 'cambiar=1' in html
+
+
+def test_editar_cambiar_muestra_paso1(app, logged_client):
+    cliente_id, prods = _ids()
+    pid = _crear_pedido_por_post(logged_client, cliente_id, prods['Aceite vegetal 12 x 1 L'])
+    html = logged_client.get(f'/pedidos/{pid}/editar?cambiar=1').get_data(as_text=True)
+    assert 'id="paso-cliente"' in html
+    assert f'/pedidos/{pid}/editar' in html   # destino apunta de vuelta a la edición
+
+
+def test_editar_con_cliente_recotiza(app, logged_client):
+    from app import Cliente, PrecioClienteProducto
+    cliente_id, prods = _ids()
+    otro = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
+    pid_prod = prods['Aceite vegetal 12 x 1 L']
+    _db.session.add(PrecioClienteProducto(
+        cliente_id=otro.id, producto_id=pid_prod, precio_base=33.44))
+    _db.session.commit()
+
+    pid = _crear_pedido_por_post(logged_client, cliente_id, pid_prod)
+    html = logged_client.get(f'/pedidos/{pid}/editar?cliente={otro.id}').get_data(as_text=True)
+    assert f'name="cliente_id" value="{otro.id}"' in html.replace("'", '"')
+    assert '33.44' in html                       # línea re-cotizada para el cliente nuevo
+    # El catálogo entero también trae 33.44, así que el assert de arriba no
+    # prueba que la LÍNEA se re-cotizó: eso se mira en las líneas sembradas.
+    assert [l['precio'] for l in _seed_lineas(html)] == [33.44]
+    # Nada se guardó: el cambio de cliente recién viaja con «Actualizar pedido».
+    from app import Pedido
+    assert _db.session.get(Pedido, pid).cliente_id == cliente_id
+    assert 'Precios re-cotizados para este cliente' in html
+
+
+def test_editar_sin_cliente_muestra_jerarquia_no_avisa(app, logged_client):
+    """Sin `?cliente` no hay aviso, pero el precio ya sale de la jerarquía.
+
+    Al guardar, `_resolver_precio_unitario_pedido` resuelve por jerarquía sí o
+    sí: mostrar el precio viejo haría que el pedido se guardara por un número
+    distinto del que el vendedor vio. Sin precio en ninguna lista, cae al
+    guardado (mismo último recurso que el POST).
+    """
+    from app import PrecioClienteProducto
+    cliente_id, prods = _ids()
+    pid_prod = prods['Aceite vegetal 12 x 1 L']
+    pid = _crear_pedido_por_post(logged_client, cliente_id, pid_prod, precio='20.00')
+
+    # Sin precio configurado: el guardado es el que se ve.
+    html = logged_client.get(f'/pedidos/{pid}/editar').get_data(as_text=True)
+    assert [l['precio'] for l in _seed_lineas(html)] == [20.0]
+    assert 'Precios re-cotizados para este cliente' not in html
+
+    _db.session.add(PrecioClienteProducto(
+        cliente_id=cliente_id, producto_id=pid_prod, precio_base=77.77))
+    _db.session.commit()
+
+    html = logged_client.get(f'/pedidos/{pid}/editar').get_data(as_text=True)
+    assert [l['precio'] for l in _seed_lineas(html)] == [77.77]
+    assert 'Precios re-cotizados para este cliente' not in html   # mismo cliente
+
+
+def _cliente_vendedor_logueado(app, username='vend'):
+    """Vendedor (rol no super_admin) que solo ve 'Van den Tweel', ya logueado.
+
+    OJO: no combinar con `logged_client`. Flask-Login cachea el usuario en `g`,
+    y el `app_context` del fixture es UNO solo para todo el test: si otro
+    cliente ya se logueó, el `/login` de este devuelve el redirect de «ya
+    estás autenticado» y las peticiones siguen corriendo como el primero.
+    """
+    from app import Rol, Territorio, Vendedor, ClienteVendedor
+    cliente_id, _ = _ids()
+
+    rol_vend = Rol.query.filter_by(nombre='vendedor').first()
+    if rol_vend is None:
+        rol_vend = Rol(nombre='vendedor', descripcion='Vendedor')
+        _db.session.add(rol_vend)
+        _db.session.flush()
+    vend = Vendedor(
+        username=username, email=f'{username}@test.com',
+        nombre_completo='Vendedor Test',
+        rol_id=rol_vend.id, territorio_id=Territorio.query.first().id, activo=True,
+    )
+    vend.set_password('pw')
+    _db.session.add(vend)
+    _db.session.flush()
+    # Solo tiene asignado el cliente del pedido; «Cliente Nuevo» le es ajeno.
+    _db.session.add(ClienteVendedor(
+        cliente_id=cliente_id, vendedor_id=vend.id, activo=True))
+    _db.session.commit()
+
+    c = app.test_client()
+    resp = c.post('/login', data={'username': username, 'password': 'pw'},
+                  follow_redirects=True)
+    assert resp.status_code == 200
+    return c
+
+
+def test_editar_con_cliente_prohibido_mantiene_original(app):
+    """Paridad con el POST: si el vendedor no puede crear pedidos para ese
+    cliente, tampoco puede re-cotizar contra él desde la barra de direcciones."""
+    from app import Cliente
+    cliente_id, prods = _ids()
+    otro = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
+    pedido = _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 2)])
+
+    c = _cliente_vendedor_logueado(app)
+    html = c.get(f'/pedidos/{pedido.id}/editar?cliente={otro.id}').get_data(as_text=True)
+    assert 'id="form-nuevo-pedido"' in html          # no lo echó de la pantalla
+    assert f'name="cliente_id" value="{cliente_id}"' in html.replace("'", '"')
+    assert f'name="cliente_id" value="{otro.id}"' not in html.replace("'", '"')
+    assert 'se mantiene el original' in html
+
+
+def test_editar_cambiar_solo_ofrece_clientes_visibles(app):
+    """El paso 1 de la edición respeta la visibilidad del vendedor."""
+    from app import Cliente
+    cliente_id, prods = _ids()
+    otro = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
+    pedido = _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 2)])
+
+    c = _cliente_vendedor_logueado(app, username='vend2')
+    html = c.get(f'/pedidos/{pedido.id}/editar?cambiar=1').get_data(as_text=True)
+    assert 'id="paso-cliente"' in html
+    assert f'<option value="{cliente_id}"' in html
+    assert f'<option value="{otro.id}"' not in html

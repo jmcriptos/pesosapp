@@ -45,8 +45,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {# El cliente se eligió en el paso 1 y acá ya no se toca: viaja fijo.
            Cambiarlo es volver al paso 1 (enlace «Cambiar» de la cabecera),
-           porque los precios y el habitual son de ESE cliente. #}
-        <input type="hidden" name="cliente_id" value="{{ (pedido.cliente_id if pedido else cliente.id) }}">
+           porque los precios y el habitual son de ESE cliente.
+           Editando, `cliente` es el EFECTIVO (el del pedido, o el de `?cliente=`
+           si se cambió): el hidden tiene que seguirlo o el POST guardaría el
+           pedido con el cliente viejo y los precios del nuevo. #}
+        <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
         {# Antes era un campo visible que el JS mostraba/ocultaba según la
            moneda. El servidor ya sabe la moneda del cliente: 1.78 para USD,
            1.0 para XCG. La cabecera lo dice en palabras. #}
@@ -55,8 +58,11 @@
         <!-- ── Cabecera del cliente (server-rendered, nada aparece después) ── -->
         <div class="ph-hero ph-cliente-head" id="ph-cliente-head">
             <div class="ph-cliente-head-row">
-                <div class="ph-hero-nombre">{{ (pedido.cliente.nombre if pedido else cliente.nombre) }}
-                    {% set moneda_head = (pedido.cliente.moneda if pedido and pedido.cliente else cliente.moneda) or 'XCG' %}
+                {# `cliente` siempre viene del servidor (alta y edición), y en la
+                   edición es el efectivo: leerlo de `pedido.cliente` mostraría
+                   el cliente viejo junto a los precios del nuevo. #}
+                <div class="ph-hero-nombre">{{ cliente.nombre }}
+                    {% set moneda_head = cliente.moneda or 'XCG' %}
                     {% if moneda_head == 'USD' %}<span class="ph-cliente-moneda">USD · {{ '%.2f'|format(tipo_cambio_valor) }}</span>{% endif %}
                 </div>
                 <a class="ph-cambiar-cliente" id="ph-cambiar-cliente"
@@ -172,6 +178,19 @@ let productosAgregados = (productos_pedido || []).map(p => ({
     activa: true,
 }));
 
+/* Foto de lo que sembró el servidor, para saber después si el vendedor tocó
+   algo. Va por id y no por posición: quitar una línea reindexa el arreglo, y
+   comparando por índice dos líneas de la misma cantidad se tapan entre sí. */
+const cajasSembradas = new Map(productosAgregados.map(p => [p.id, p.cajas]));
+
+function hayCambiosSinGuardar() {
+    const activas = productosAgregados.filter(p => p.activa);
+    // Cambió el conjunto de líneas (se añadió, se quitó o se desactivó una).
+    if (activas.length !== cajasSembradas.size) return true;
+    // Misma cantidad de líneas, pero alguna cambió de producto o de cajas.
+    return activas.some(p => cajasSembradas.get(p.id) !== p.cajas);
+}
+
 /* === Referencias DOM === */
 const productoSelect = document.getElementById('producto-select');
 const inputCajas = document.getElementById('input-cajas');
@@ -203,8 +222,10 @@ function grupoDeProducto(id) {
 /* Moneda del cliente. El total se mostraba siempre en XCG aunque el cliente
    facturara en USD, así que un pedido de un cliente USD decía «XCG» sobre un
    número en dólares. El cliente ya no cambia dentro de esta pantalla, así que
-   su moneda es un dato fijo del render. */
-const monedaActual = {{ ((pedido.cliente.moneda if pedido and pedido.cliente else cliente.moneda) or 'XCG')|tojson }};
+   su moneda es un dato fijo del render. Sale del cliente EFECTIVO (mismo que la
+   cabecera y el hidden): con `?cliente=` de otra moneda, el total tiene que
+   rotularse en la moneda de los precios que se están mostrando. */
+const monedaActual = {{ (cliente.moneda or 'XCG')|tojson }};
 
 /* Declarado acá a propósito: TomSelect se instancia dentro del DOMContentLoaded,
    y `cargarProductosEnSelect()` —que vive en este scope— necesita alcanzarlo para
@@ -539,9 +560,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const linkCambiar = document.getElementById('ph-cambiar-cliente');
     if (linkCambiar) {
         linkCambiar.addEventListener('click', function(e) {
+            if (esEdicion) {
+                // Editando, el paso 1 recarga la pantalla desde el pedido
+                // GUARDADO: lo que se ajustó acá sin guardar no vuelve.
+                if (hayCambiosSinGuardar() &&
+                    !confirm('Hay cambios sin guardar; se perderán al cambiar de cliente. ¿Continuar?')) {
+                    e.preventDefault();
+                }
+                return;
+            }
             const manuales = productosAgregados.some(
                 p => p.activa && (p.habitual === null || p.habitual === undefined));
-            if (!esEdicion && manuales &&
+            if (manuales &&
                 !confirm('Tienes líneas añadidas a mano; al cambiar de cliente se pierden. ¿Continuar?')) {
                 e.preventDefault();
             }
