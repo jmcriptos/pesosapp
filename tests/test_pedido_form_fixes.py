@@ -499,6 +499,22 @@ def test_selector_de_grupos_muestra_ultima_vez(app, logged_client):
 
 # ── Template: limpieza y precio unitario visible ───────────────────────────
 
+def test_css_de_la_pantalla_hace_valer_hidden(app, logged_client):
+    """`hidden` tiene que ocultar de verdad en esta pantalla.
+
+    El atributo solo trae `display:none` de la hoja del navegador, con
+    especificidad cero: las reglas propias que fijan `display` (filas de
+    cliente en flex, panel de añadir en grid) lo anulaban y nada desaparecía
+    — el buscador de clientes marcaba las filas y seguían todas a la vista.
+    """
+    import re as _re
+    from pathlib import Path
+    css = Path('static/css/pedido_nuevo.css').read_text()
+    assert _re.search(r'\[hidden\]\s*\{[^}]*display:\s*none\s*!important', css), (
+        'falta la regla que hace valer [hidden] sobre los display propios'
+    )
+
+
 def test_paso2_sin_hidden_nombre_muerto(app, logged_client):
     cliente_id, prods = _ids()
     _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 3)], dias_atras=3)

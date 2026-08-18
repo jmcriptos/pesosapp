@@ -71,6 +71,15 @@ body[data-pedido-nuevo-screen] .app-content {
 .pn-shell *::before,
 .pn-shell *::after { box-sizing: border-box; }
 
+/* `hidden` tiene que ganar SIEMPRE. El atributo solo aplica `display:none`
+   desde la hoja del navegador, con especificidad cero: cualquier regla de
+   este archivo que fije `display` (las filas de cliente son flex, el panel de
+   añadir es grid) lo anula y el elemento sigue a la vista. Pasó de verdad —
+   el buscador de clientes marcaba las filas como ocultas y no desaparecía
+   ninguna. Toda la pantalla muestra y esconde con `hidden`, así que la regla
+   va acá arriba, una sola vez. */
+.pn-shell [hidden] { display: none !important; }
+
 /* El <form> envuelve los tres pasos pero no debe crear caja: los hijos
    (cabecera, cuerpo, footer) tienen que ser hijos directos de la columna
    flex del shell. Vive acá y no en un `style=` inline para no depender de
