@@ -392,3 +392,11 @@ def test_paso2_vendedor_regular_no_ve_catalogo_de_cliente_ajeno(app):
     assert 'id="form-nuevo-pedido"' not in html    # no lo dejó entrar al paso 2
     assert 'Cliente no válido para este vendedor' in html
     assert otro.nombre not in html                 # ni el nombre del cliente ajeno se filtra
+
+
+def test_html_autenticado_no_se_cachea(app, logged_client):
+    """El HTML de páginas autenticadas embebe precios por cliente: no debe
+    quedar en el cache HTTP del navegador/PWA (iOS lo reutiliza incluso tras
+    cerrar la app, sirviendo formularios viejos)."""
+    resp = logged_client.get('/pedidos/nuevo')
+    assert 'no-store' in resp.headers.get('Cache-Control', '')

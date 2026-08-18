@@ -251,7 +251,10 @@ body[data-pedido-form-screen] .ts-wrapper.single .ts-control > input {
   padding: 0 !important;
   margin: 0 !important;
   background: transparent !important;
-  font-size: 0.95rem !important;
+  /* 16px mínimo, NO estético: con menos, iOS Safari hace auto-zoom al
+     enfocar y el dropdown (montado en body) queda fuera de la vista — el
+     vendedor veía el panel sin nombres hasta teclear la primera letra. */
+  font-size: var(--text-input, 16px) !important;
   line-height: 1.3 !important;
   color: #0f172a !important;
   flex: 1 1 auto !important;

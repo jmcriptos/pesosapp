@@ -454,7 +454,12 @@ def redirect_insecure_requests():
 def disable_cache_for_auth_and_session_responses(response):
     should_disable_cache = (
         request.endpoint in {"login", "logout"} or
-        "Set-Cookie" in response.headers
+        "Set-Cookie" in response.headers or
+        # HTML autenticado embebe datos por cliente (precios, historial) y el
+        # cache heurístico de iOS lo reutiliza incluso tras cerrar el PWA:
+        # los vendedores veían formularios viejos después de un deploy.
+        (response.mimetype == 'text/html'
+         and getattr(current_user, 'is_authenticated', False))
     )
     if should_disable_cache:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
