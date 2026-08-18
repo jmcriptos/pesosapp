@@ -6138,7 +6138,6 @@ def nuevo_pedido():
 
     return render_template(
         'pedido_form.html',
-        clientes=clientes,
         cliente=cliente,
         productos=_productos_dicts_para_cliente(cliente.id),
         productos_pedido=productos_pedido,
@@ -6298,7 +6297,6 @@ def editar_pedido(pedido_id):
 
     return render_template(
         'pedido_form.html',
-        clientes          = clientes,
         cliente           = pedido.cliente,
         productos         = productos_dicts,
         pedido            = pedido,

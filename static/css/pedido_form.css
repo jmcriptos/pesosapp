@@ -690,3 +690,14 @@ body[data-pedido-form-screen] .pedido-form-topnav-meta {
 #paso-cliente .ph-grupo-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-decoration: none; color: inherit; }
 #paso-cliente .ph-grupos { margin-top: 16px; }
 #paso-cliente .ph-card { margin-top: 8px; }
+
+/* ── Paso 2: cabecera del cliente (server-rendered) ──
+   Color EXPLÍCITO en los dos textos nuevos, no heredado: dark-theme.css fija
+   `html, body { color:#f1f5f9 !important }` y esta pantalla es clara (fondo
+   #f8fafc), así que lo que hereda del body sale blanco sobre blanco. Por eso
+   también van con token en vez de opacity: bajarle alfa al azul del enlace lo
+   dejaba en 3.8:1 de contraste, por debajo del mínimo legible. */
+.ph-cliente-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ph-cambiar-cliente { font-size: 0.85rem; text-decoration: underline; white-space: nowrap; color: var(--color-primary, #2563eb); }
+.ph-cliente-moneda { font-size: 0.8rem; opacity: 0.8; margin-left: 8px; }
+.ph-hero-origen { margin-top: 6px; font-size: 0.85rem; color: var(--color-text-muted, #475569); }

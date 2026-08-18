@@ -146,12 +146,42 @@ def test_paso2_cliente_con_historial_siembra_lineas(app, logged_client):
     assert 'id="form-nuevo-pedido"' in html
     assert 'Chuleta de cerdo ahumada 5 kg' in html
     assert '"habitual": 7' in html or '"habitual":7' in html
-    # (el hidden cliente_id llega con la Task 3; aquí el select transicional
-    # debe traer al cliente preseleccionado)
-    assert 'selected' in html
-    # `selected` a secas también casa con el `selectedIndex` del JS viejo; lo
-    # que se está probando es que el <option> de ESTE cliente venga marcado.
-    assert re.search(rf'<option value="{cliente_id}"[^>]*selected', html)
+    # El cliente ya no se elige acá: viene fijado desde el paso 1 y viaja en un
+    # hidden. (Antes de la Task 3 esto era un <option ... selected>.)
+    assert f'name="cliente_id" value="{cliente_id}"' in html.replace("'", '"')
+
+
+def test_paso2_orden_de_secciones(app, logged_client):
+    cliente_id, prods = _ids()
+    _crear_pedido(cliente_id, [(prods['Chuleta de cerdo ahumada 5 kg'], 7)], dias_atras=3)
+    html = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}').get_data(as_text=True)
+
+    i_head = html.index('id="ph-cliente-head"')
+    i_lineas = html.index('id="productos-body"')
+    i_add = html.index('id="ph-add-toggle"')
+    i_entrega = html.index('id="ph-entrega-chips"')
+    i_notas = html.index('id="notas"')
+    assert i_head < i_lineas < i_add < i_entrega < i_notas
+
+    assert '<select name="cliente_id"' not in html          # ya no hay select de cliente
+    assert f'name="cliente_id" value="{cliente_id}"' in html.replace("'", '"')
+    assert '/api/precios/cliente' not in html               # sin fetch de precios
+    assert '/api/clientes' not in html                      # sin fetch de habitual
+    # OJO: no usar 'pedido-habitual' como token — el body lleva
+    # data-pedido-habitual="1" y el CSS pedido_habitual.css, que se quedan.
+
+
+def test_paso2_sin_historial_abre_panel(app, logged_client):
+    from app import Cliente
+    nuevo = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
+    html = logged_client.get(f'/pedidos/nuevo?cliente={nuevo.id}').get_data(as_text=True)
+    assert 'Sin pedidos anteriores' in html
+    assert 'id="ph-add-panel"' in html
+    # El panel arranca abierto: `hidden` no está en su tag de apertura. Se mira
+    # el tag ENTERO (no solo lo que va antes del id) porque el atributo se
+    # renderiza después del id y buscarlo a medias no probaría nada.
+    panel_tag = re.search(r'<div[^>]*id="ph-add-panel"[^>]*>', html).group(0)
+    assert 'hidden' not in panel_tag
 
 
 def test_paso2_multigrupo_sin_grupo_repregunta(app, logged_client):

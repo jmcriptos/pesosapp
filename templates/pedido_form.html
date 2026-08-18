@@ -43,76 +43,42 @@
     <form method="POST" id="form-nuevo-pedido" autocomplete="off">
         <!-- US01: hidden CSRF field -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {# El cliente se eligió en el paso 1 y acá ya no se toca: viaja fijo.
+           Cambiarlo es volver al paso 1 (enlace «Cambiar» de la cabecera),
+           porque los precios y el habitual son de ESE cliente. #}
+        <input type="hidden" name="cliente_id" value="{{ (pedido.cliente_id if pedido else cliente.id) }}">
+        {# Antes era un campo visible que el JS mostraba/ocultaba según la
+           moneda. El servidor ya sabe la moneda del cliente: 1.78 para USD,
+           1.0 para XCG. La cabecera lo dice en palabras. #}
+        <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="{{ tipo_cambio_valor }}">
 
-        <!-- ── Cliente ─────────────────────────────────────────────── -->
-        <div class="ph-card">
-            <label class="ph-label" for="cliente_id">Cliente</label>
-            <select name="cliente_id" id="cliente_id" class="mobile-form-control ts-select" data-ts-placeholder="Buscar cliente…" data-no-auto-ts="1" required>
-                <option value=""></option>
-                {# La variable de loop es `cliente_i`, no `cliente`: el contexto
-                   ya trae un `cliente` (el elegido en el paso 1) y el loop lo
-                   taparía justo donde hay que compararlo. #}
-                {% for cliente_i in clientes|sort(attribute='nombre') %}
-                    <option value="{{ cliente_i.id }}"
-                            data-moneda="{{ cliente_i.moneda or 'XCG' }}"
-                            data-nombre="{{ cliente_i.nombre }}"
-                            {% if (pedido and pedido.cliente_id == cliente_i.id) or (cliente and cliente.id == cliente_i.id) %}selected{% endif %}>
-                        {{ cliente_i.nombre }}{% if cliente_i.moneda == 'USD' %} (USD){% endif %}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <!-- Tipo de cambio (solo para clientes USD) -->
-            <div class="ph-field" id="tipo-cambio-group" style="display:none;">
-                <label class="ph-label" for="tipo_cambio">Tipo de cambio (1 USD = ? XCG)</label>
-                <input type="number" id="tipo_cambio" name="tipo_cambio"
-                       class="mobile-form-control" step="0.01" min="0.01"
-                       value="1.78" readonly>
+        <!-- ── Cabecera del cliente (server-rendered, nada aparece después) ── -->
+        <div class="ph-hero ph-cliente-head" id="ph-cliente-head">
+            <div class="ph-cliente-head-row">
+                <div class="ph-hero-nombre">{{ (pedido.cliente.nombre if pedido else cliente.nombre) }}
+                    {% set moneda_head = (pedido.cliente.moneda if pedido and pedido.cliente else cliente.moneda) or 'XCG' %}
+                    {% if moneda_head == 'USD' %}<span class="ph-cliente-moneda">USD · {{ '%.2f'|format(tipo_cambio_valor) }}</span>{% endif %}
+                </div>
+                <a class="ph-cambiar-cliente" id="ph-cambiar-cliente"
+                   href="{% if pedido %}{{ url_for('editar_pedido', pedido_id=pedido.id, cambiar=1) }}{% else %}{{ url_for('nuevo_pedido') }}{% endif %}">Cambiar</a>
             </div>
-        </div>
-
-        <!-- ── Encabezado del cliente: cadencia e historial ─────────── -->
-        <div class="ph-hero" id="ph-hero" hidden>
-            <div class="ph-hero-nombre" id="ph-hero-nombre"></div>
-            <div class="ph-hero-meta" id="ph-hero-meta"></div>
-        </div>
-
-        <!-- ── Fecha de entrega ─────────────────────────────────────── -->
-        <div class="ph-entrega">
-            <span class="ph-entrega-label">Entrega</span>
-            <div class="ph-chips" id="ph-entrega-chips" role="group" aria-label="Fecha de entrega"></div>
-            <input type="hidden" name="fecha_entrega" id="fecha_entrega"
-                   value="{{ pedido.fecha_entrega.isoformat() if pedido and pedido.fecha_entrega else '' }}">
-            <input type="date" id="ph-entrega-otra" class="ph-date" hidden
-                   aria-label="Otra fecha de entrega">
-        </div>
-
-        <!-- ── Elegir grupo (clientes que compran de varios) ────────── -->
-        <div class="ph-grupos" id="ph-grupos" hidden>
-            <div class="ph-grupos-title">¿Qué pedido vas a tomar?</div>
-            <div class="ph-grupos-body">
-                Este cliente compra de más de un grupo y un pedido no puede
-                mezclarlos: QuickBooks no factura junto lo que paga impuestos
-                distintos.
-            </div>
-            <div class="ph-grupos-lista" id="ph-grupos-lista"></div>
-        </div>
-
-        <!-- ── Aviso: de dónde salen las líneas precargadas ─────────── -->
-        <div class="ph-banner" id="ph-banner" hidden>
-            <div class="ph-banner-title" id="ph-banner-title">Partimos de su pedido habitual</div>
-            <div class="ph-banner-body" id="ph-banner-body"></div>
+            {% if hero_meta_texto %}<div class="ph-hero-meta">{{ hero_meta_texto }}</div>{% endif %}
+            {# `origen_texto` ya viene con su propio encabezado («Partimos de su
+               pedido habitual: …»): acá no se le antepone nada. #}
+            {% if origen_texto %}<div class="ph-hero-origen">{{ origen_texto }}</div>{% endif %}
         </div>
 
         <!-- ── Líneas del pedido ────────────────────────────────────── -->
         <div id="productos-body" class="ph-lineas"></div>
 
+        {# Sin líneas sembradas (cliente nuevo) el panel arranca abierto: lo
+           único que se puede hacer en esta pantalla es buscar un producto. #}
         <button type="button" class="ph-add-toggle" id="ph-add-toggle"
-                aria-expanded="false" aria-controls="ph-add-panel">
+                aria-expanded="{{ 'false' if productos_pedido else 'true' }}" aria-controls="ph-add-panel">
             <span aria-hidden="true">＋</span> Añadir otro producto
         </button>
 
-        <div class="ph-add-panel" id="ph-add-panel" hidden>
+        <div class="ph-add-panel" id="ph-add-panel" {% if productos_pedido %}hidden{% endif %}>
             <div class="ph-field">
                 <label class="ph-label" for="producto-select">Producto</label>
                 <select id="producto-select" class="mobile-form-control">
@@ -138,10 +104,20 @@
                     Añadir
                 </button>
             </div>
-            {# En touch no hay hover, así que el motivo por el que el
-               botón está deshabilitado tiene que verse, no vivir en
-               un title. #}
+            {# Arranca vacío: los precios ya vienen resueltos del servidor, así
+               que el botón nunca nace deshabilitado. Queda como el lugar donde
+               mostrar un motivo (en touch no hay hover: no sirve un title). #}
             <p id="agregar-motivo" class="ph-motivo"></p>
+        </div>
+
+        <!-- ── Fecha de entrega ─────────────────────────────────────── -->
+        <div class="ph-entrega">
+            <span class="ph-entrega-label">Entrega</span>
+            <div class="ph-chips" id="ph-entrega-chips" role="group" aria-label="Fecha de entrega"></div>
+            <input type="hidden" name="fecha_entrega" id="fecha_entrega"
+                   value="{{ pedido.fecha_entrega.isoformat() if pedido and pedido.fecha_entrega else '' }}">
+            <input type="date" id="ph-entrega-otra" class="ph-date" hidden
+                   aria-label="Otra fecha de entrega">
         </div>
 
         <!-- ── Notas ────────────────────────────────────────────────── -->
@@ -200,30 +176,24 @@ let productosAgregados = (productos_pedido || []).map(p => ({
 const productoSelect = document.getElementById('producto-select');
 const inputCajas = document.getElementById('input-cajas');
 const btnAgregar = document.getElementById('agregar-producto');
-const clienteSelect = document.getElementById('cliente_id');
 const tbody = document.getElementById('productos-body');
 const totalSpan = document.getElementById('total-pedido');
-const heroEl = document.getElementById('ph-hero');
-const heroNombre = document.getElementById('ph-hero-nombre');
-const heroMeta = document.getElementById('ph-hero-meta');
-const bannerEl = document.getElementById('ph-banner');
-const bannerBody = document.getElementById('ph-banner-body');
 const footerMeta = document.getElementById('ph-footer-meta');
 const inputFechaEntrega = document.getElementById('fecha_entrega');
 const chipsEntrega = document.getElementById('ph-entrega-chips');
 const inputOtraFecha = document.getElementById('ph-entrega-otra');
 const addToggle = document.getElementById('ph-add-toggle');
 const addPanel = document.getElementById('ph-add-panel');
-const gruposEl = document.getElementById('ph-grupos');
-const gruposLista = document.getElementById('ph-grupos-lista');
 
 /* Grupo de facturación del pedido en curso ('pesable:14', 'importado:10'…).
    Un pedido NO puede mezclar grupos: QuickBooks no factura en un mismo
    documento líneas con impuestos distintos. Mientras hay un grupo fijado, el
    buscador solo ofrece productos de ese grupo, así que la mezcla no se puede
    ni intentar. El servidor lo valida igual, porque esta pantalla no es la
-   única puerta de entrada. */
-let grupoActual = null;
+   única puerta de entrada.
+   Viene resuelto del paso 1 ('' cuando no hay, p. ej. editando o cliente
+   nuevo); si llega vacío lo fija la primera línea sembrada. */
+let grupoActual = {{ grupo_clave|tojson }} || null;
 
 function grupoDeProducto(id) {
     const p = productos.find(x => x.id === id);
@@ -232,14 +202,13 @@ function grupoDeProducto(id) {
 
 /* Moneda del cliente. El total se mostraba siempre en XCG aunque el cliente
    facturara en USD, así que un pedido de un cliente USD decía «XCG» sobre un
-   número en dólares. Ahora sigue a data-moneda del cliente elegido. */
-let monedaActual = 'XCG';
+   número en dólares. El cliente ya no cambia dentro de esta pantalla, así que
+   su moneda es un dato fijo del render. */
+const monedaActual = {{ ((pedido.cliente.moneda if pedido and pedido.cliente else cliente.moneda) or 'XCG')|tojson }};
 
 /* Declarado acá a propósito: TomSelect se instancia dentro del DOMContentLoaded,
    y `cargarProductosEnSelect()` —que vive en este scope— necesita alcanzarlo para
-   re-sincronizar el desplegable cuando cambian los precios del cliente. Con la
-   declaración adentro del callback, esta función no la veía: actualizaba los
-   dataset del <select> nativo pero TomSelect seguía dibujando los precios viejos. */
+   re-sincronizar el desplegable cuando el grupo del pedido acota el catálogo. */
 let tomProducto = null;
 
 /* === Utilidades === */
@@ -370,182 +339,6 @@ function cargarProductosEnSelect() {
         tomProducto.clearOptions();
         tomProducto.sync();
     }
-}
-
-/* El precio depende del cliente. Hasta que no estén cargados sus precios no se
-   puede agregar productos: si no, se muestra el de la lista general y el pedido
-   se carga con un precio que no es el de este cliente. */
-function habilitarAgregar(ok, motivo) {
-    if (!btnAgregar) return;
-    btnAgregar.disabled = !ok;
-    // El title no sirve en un teléfono: no hay hover. El motivo va a la vista.
-    const cartel = document.getElementById('agregar-motivo');
-    if (cartel) cartel.textContent = ok ? '' : (motivo || '');
-}
-
-async function actualizarPreciosCliente(clienteId) {
-    if (!clienteId) return false;
-
-    try {
-        const response = await fetch(`/api/precios/cliente/${clienteId}/productos`);
-
-        if (response.ok) {
-            const productosConPrecios = await response.json();
-
-            // Actualizar precios en el array global
-            productosConPrecios.forEach(productoAPI => {
-                const productoLocal = productos.find(p => p.id === productoAPI.id);
-                if (productoLocal) {
-                    productoLocal.precio = productoAPI.precio;
-                }
-            });
-
-            // Actualizar precios en productos ya agregados
-            productosAgregados.forEach(prodAgregado => {
-                const productoActualizado = productosConPrecios.find(p => p.id === prodAgregado.id);
-                if (productoActualizado) {
-                    prodAgregado.precio = productoActualizado.precio;
-                }
-            });
-
-            actualizarTablaProductos();
-
-            // Recargar el select de productos con los nuevos precios
-            cargarProductosEnSelect();
-            return true;
-        }
-        console.error('No se pudieron cargar los precios del cliente:', response.status);
-    } catch (error) {
-        console.error('Error al actualizar precios:', error);
-    }
-    return false;
-}
-
-/* Trae lo que el cliente suele pedir y precarga las líneas. Solo corre cuando
-   el pedido está vacío: si el vendedor ya escribió algo (o está editando un
-   pedido existente), pisarlo sería perder trabajo hecho. */
-function mostrarSelectorGrupos(grupos) {
-    gruposLista.innerHTML = '';
-    grupos.forEach(g => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ph-grupo-opt';
-        btn.dataset.grupo = g.clave;
-        const cuando = g.ultima_fecha ? `última vez ${etiquetaFecha(g.ultima_fecha)}` : '';
-        const cuantos = `${g.pedidos} ${g.pedidos === 1 ? 'pedido' : 'pedidos'}`;
-        // Los ejemplos son lo que de verdad identifica al grupo: el código de
-        // impuesto de la etiqueta no le dice nada al vendedor.
-        const ejemplos = (g.ejemplos || []).join(', ');
-        btn.innerHTML = `
-            <span class="ph-grupo-nombre">${escapeHtml(g.etiqueta)}</span>
-            ${ejemplos ? `<span class="ph-grupo-ejemplos">${escapeHtml(ejemplos)}…</span>` : ''}
-            <span class="ph-grupo-meta">${escapeHtml([cuantos, cuando].filter(Boolean).join(' · '))}</span>
-        `;
-        gruposLista.appendChild(btn);
-    });
-    gruposEl.hidden = false;
-}
-
-async function cargarPedidoHabitual(clienteId, grupoClave) {
-    bannerEl.hidden = true;
-    if (!clienteId) return;
-
-    let datos = null;
-    try {
-        const url = grupoClave
-            ? `/api/clientes/${clienteId}/pedido-habitual?grupo=${encodeURIComponent(grupoClave)}`
-            : `/api/clientes/${clienteId}/pedido-habitual`;
-        const resp = await fetch(url);
-        if (!resp.ok) return;
-        datos = await resp.json();
-    } catch (error) {
-        // Sin historial la pantalla sigue siendo usable: queda el buscador.
-        console.error('No se pudo cargar el pedido habitual:', error);
-        return;
-    }
-
-    actualizarHero(datos);
-
-    // Con líneas ya en la tabla (sembradas por el servidor o cargadas a mano)
-    // acá no queda nada que decidir: el grupo del pedido ya salió de ellas.
-    //
-    // Salir ANTES del selector de grupos y de tocar `grupoActual` no es
-    // cosmético. Este fetch va sin `grupo`, así que para un cliente que compra
-    // de varios la API responde `grupo: null` + N grupos y repintaría el
-    // selector SOBRE la tabla sembrada; al tocar el OTRO grupo, `grupoActual`
-    // pasaría a B y el buscador se re-filtraría a B con las líneas de A
-    // todavía puestas. Ese pedido mixto lo rechaza _validar_grupo_unico recién
-    // al enviar, y el vendedor pierde todo lo cargado.
-    if (productosAgregados.length) return;
-
-    const grupos = (datos && datos.grupos) || [];
-
-    // El backend devuelve `grupo: null` y varios grupos cuando hay que
-    // preguntar: precargar uno al azar armaría un pedido no facturable.
-    if (!datos.grupo && grupos.length > 1) {
-        gruposEl.hidden = false;
-        mostrarSelectorGrupos(grupos);
-        return;
-    }
-
-    gruposEl.hidden = true;
-    if (datos.grupo) {
-        grupoActual = datos.grupo;
-        cargarProductosEnSelect();  // el buscador queda acotado al grupo
-    }
-
-    const lineas = (datos && datos.lineas) || [];
-    if (!lineas.length || productosAgregados.length) {
-        // Cliente nuevo, o el vendedor ya cargó líneas a mano: se respeta lo
-        // que hay y se despliega el buscador para que pueda escribir.
-        if (!productosAgregados.length) abrirPanelAgregar(true);
-        return;
-    }
-
-    productosAgregados = lineas.map(l => ({
-        id: l.id,
-        nombre: l.nombre,
-        cajas: l.cajas,
-        precio: l.precio,
-        habitual: l.cajas_habitual,
-        activa: true,
-    }));
-
-    const visitas = datos.visitas || 0;
-    bannerBody.textContent = visitas === 1
-        ? `${lineas.length} ${lineas.length === 1 ? 'línea cargada' : 'líneas cargadas'} con su última visita, la única que tiene registrada. Ajusta lo que cambie y envía.`
-        : `${lineas.length} ${lineas.length === 1 ? 'línea cargada' : 'líneas cargadas'} con las cantidades de sus últimas ${visitas} visitas. Ajusta lo que cambie y envía.`;
-    bannerEl.hidden = false;
-
-    actualizarTablaProductos();
-}
-
-function actualizarHero(datos) {
-    const opt = clienteSelect.options[clienteSelect.selectedIndex];
-    const nombre = opt ? (opt.dataset.nombre || opt.textContent.trim()) : '';
-    if (!nombre) { heroEl.hidden = true; return; }
-
-    heroNombre.textContent = nombre;
-
-    const partes = [];
-    if (datos && datos.cadencia_dias) partes.push(`Compra cada ${datos.cadencia_dias} días`);
-    if (datos && datos.ultima_fecha) {
-        const f = fechaDesdeIso(datos.ultima_fecha);
-        if (f) partes.push(`última vez el ${f.getDate()} ${MESES[f.getMonth()]}`);
-    }
-    if (!partes.length) {
-        // La cadencia se calcula DENTRO de un grupo, así que antes de elegir
-        // uno no existe. Decir "sin pedidos anteriores" acá sería falso para
-        // un cliente con historial en dos grupos.
-        const grupos = (datos && datos.grupos) || [];
-        const total = grupos.reduce((acc, g) => acc + g.pedidos, 0);
-        partes.push(total
-            ? `${total} ${total === 1 ? 'pedido' : 'pedidos'} en ${grupos.length} grupos`
-            : 'Sin pedidos anteriores');
-    }
-
-    heroMeta.textContent = partes.join(' · ');
-    heroEl.hidden = false;
 }
 
 function actualizarTablaProductos() {
@@ -735,32 +528,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this.value) seleccionarEntrega(this.value);
     });
 
-    gruposLista.addEventListener('click', function(e) {
-        const opt = e.target.closest('.ph-grupo-opt');
-        if (!opt) return;
-        cargarPedidoHabitual(clienteSelect.value, opt.dataset.grupo);
-    });
-
     addToggle.addEventListener('click', function() {
         const abierto = addPanel.hidden;
         abrirPanelAgregar(abierto);
         if (abierto && tomProducto) tomProducto.focus();
     });
 
-    /* ------------ Tom Select (búsqueda inteligente) ------------ */
-    const tomCliente = new TomSelect('#cliente_id', {
-        maxOptions: 1000,
-        closeAfterSelect: true,
-        placeholder: 'Buscar cliente…',
-        dropdownParent: 'body',
-        onType: function() { this.clear(); },
-        sortField: { field: 'text', direction: 'asc' },
-        render: {
-            option: (data, escape) => `<div><span class="suggestion-name">${escape(data.text)}</span></div>`,
-            item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
-        }
-    });
+    // «Cambiar» sale de esta pantalla y vuelve al paso 1: las líneas cargadas a
+    // mano no van a ninguna parte (las sembradas se vuelven a sembrar solas).
+    const linkCambiar = document.getElementById('ph-cambiar-cliente');
+    if (linkCambiar) {
+        linkCambiar.addEventListener('click', function(e) {
+            const manuales = productosAgregados.some(
+                p => p.activa && (p.habitual === null || p.habitual === undefined));
+            if (!esEdicion && manuales &&
+                !confirm('Tienes líneas añadidas a mano; al cambiar de cliente se pierden. ¿Continuar?')) {
+                e.preventDefault();
+            }
+        });
+    }
 
+    /* ------------ Tom Select (búsqueda inteligente) ------------ */
     tomProducto = new TomSelect('#producto-select', {
         copyClassesToDropdown: true,     // hereda clases para que se vea igual
         maxOptions: 1000,                // muestra hasta 1 000 coincidencias
@@ -780,61 +568,6 @@ document.addEventListener('DOMContentLoaded', () => {
             item: (data, escape) => `<div class="ts-item-clean">${escape(data.text)}</div>`
         }
     });
-
-    // Mostrar/ocultar tipo de cambio según moneda del cliente
-    const tipoCambioGroup = document.getElementById('tipo-cambio-group');
-    function actualizarMoneda(clienteId) {
-        const opt = clienteId ? clienteSelect.querySelector(`option[value="${clienteId}"]`) : null;
-        monedaActual = (opt && opt.dataset.moneda) || 'XCG';
-        if (tipoCambioGroup) {
-            tipoCambioGroup.style.display = (monedaActual === 'USD') ? '' : 'none';
-        }
-        actualizarResumen();
-    }
-
-    // Cambio de cliente
-    if (clienteSelect) {
-        async function cargarPreciosDe(clienteId) {
-            if (!clienteId) {
-                habilitarAgregar(false, 'Elegí primero el cliente: el precio depende de él');
-                return;
-            }
-            habilitarAgregar(false, 'Cargando los precios de este cliente…');
-            const ok = await actualizarPreciosCliente(clienteId);
-            // Si la carga falla se habilita igual para no bloquear el trabajo: el
-            // servidor resuelve el precio por jerarquía al guardar, así que lo que
-            // puede quedar desactualizado es lo que se muestra, no lo que se cobra.
-            habilitarAgregar(true, '');
-            if (!ok) {
-                alert('No se pudieron cargar los precios de este cliente. Los precios en pantalla pueden no ser los suyos; al guardar se aplica el precio correcto.');
-            }
-        }
-
-        clienteSelect.addEventListener('change', async function() {
-            // Cambiar de cliente reinicia el pedido: las líneas y el grupo
-            // eran de otro cliente, con otros precios y otro historial.
-            productosAgregados = [];
-            grupoActual = null;
-            gruposEl.hidden = true;
-            actualizarTablaProductos();
-            actualizarMoneda(this.value);
-            // Los precios primero: el habitual necesita precios del cliente para
-            // que el total no arranque con los de la lista general.
-            await cargarPreciosDe(this.value);
-            await cargarPedidoHabitual(this.value);
-        });
-
-        // Si ya hay cliente seleccionado, actualizar precios
-        if (clienteSelect.value) {
-            actualizarMoneda(clienteSelect.value);
-            (async () => {
-                await cargarPreciosDe(clienteSelect.value);
-                await cargarPedidoHabitual(clienteSelect.value);
-            })();
-        } else {
-            habilitarAgregar(false, 'Elegí primero el cliente: el precio depende de él');
-        }
-    }
 
     // Agregar producto
     btnAgregar.addEventListener('click', function() {
@@ -914,18 +647,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Envío del formulario
+    // Envío del formulario. El cliente ya no se valida acá: viene fijo en un
+    // hidden desde el paso 1, así que siempre está.
     document.getElementById('form-nuevo-pedido').addEventListener('submit', function(e) {
         if (!productosAgregados.some(p => p.activa)) {
             e.preventDefault();
             alert('Agrega al menos un producto al pedido');
-            return;
-        }
-
-        if (!clienteSelect.value) {
-            e.preventDefault();
-            alert('Selecciona un cliente');
-            clienteSelect.focus();
         }
     });
 });
