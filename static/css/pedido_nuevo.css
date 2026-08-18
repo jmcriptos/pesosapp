@@ -71,6 +71,15 @@ body[data-pedido-nuevo-screen] .app-content {
 .pn-shell *::before,
 .pn-shell *::after { box-sizing: border-box; }
 
+/* El <form> envuelve los tres pasos pero no debe crear caja: los hijos
+   (cabecera, cuerpo, footer) tienen que ser hijos directos de la columna
+   flex del shell. Vive acá y no en un `style=` inline para no depender de
+   `style-src-attr` de la CSP: si esa directiva se endurece, un atributo
+   bloqueado desarma el layout entero. */
+.pn-form { display: contents; }
+
+.pn-add-campos { margin-top: 10px; }
+
 /* ── Cabecera ───────────────────────────────────────────────────────────── */
 
 .pn-head {

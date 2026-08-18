@@ -16,7 +16,9 @@
 
 {% block content %}
 <div class="pn-shell" id="pn-shell">
-  <form method="POST" id="form-nuevo-pedido" autocomplete="off" style="display:contents">
+  {# `display:contents` (en el CSS): el form envuelve los tres pasos pero no
+     debe crear caja propia, o rompería la columna flex del shell. #}
+  <form method="POST" id="form-nuevo-pedido" class="pn-form" autocomplete="off">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {# El cliente se eligió en el paso 1 y acá ya no se toca: viaja fijo.
        Cambiarlo es volver al paso 1, porque los precios y el habitual son de
@@ -60,7 +62,7 @@
           <i class="fas fa-plus" aria-hidden="true"></i> Añadir producto
         </button>
 
-        <div class="pn-add-campos" id="ph-add-panel" {% if productos_pedido %}hidden{% endif %} style="margin-top:10px">
+        <div class="pn-add-campos" id="ph-add-panel" {% if productos_pedido %}hidden{% endif %}>
           <select id="producto-select" aria-label="Producto"><option value=""></option></select>
           <div class="pn-add-fila">
             {# type=text + inputmode=decimal: acepta fracciones (media caja =
