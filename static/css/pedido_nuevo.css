@@ -191,7 +191,7 @@ body[data-pedido-nuevo-screen] .app-content {
     color: var(--pn-tinta);
     outline: none;
 }
-.pn-buscador input::placeholder { color: #9c9c92; }
+.pn-buscador input::placeholder { color: #6b6b62; opacity: 1; }
 
 /* ── Cuerpo scrolleable ─────────────────────────────────────────────────── */
 
@@ -200,6 +200,10 @@ body[data-pedido-nuevo-screen] .app-content {
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* Un respiro al final: la última fila y el panel de añadir no deben
+       quedar pegados al borde del footer fijo. */
+    padding-bottom: 12px;
+    scroll-padding-bottom: 12px;
 }
 
 .pn-seccion {
@@ -452,7 +456,7 @@ body[data-pedido-nuevo-screen] .app-content {
     text-align: center;
     outline: none;
 }
-.pn-add-cajas::placeholder { color: #9c9c92; font-weight: 500; }
+.pn-add-cajas::placeholder { color: #6b6b62; font-weight: 500; opacity: 1; }
 
 .pn-add-confirmar {
     flex: 1;
@@ -540,7 +544,7 @@ body[data-pedido-nuevo-screen] .app-content {
     resize: vertical;
     outline: none;
 }
-.pn-notas::placeholder { color: #9c9c92; }
+.pn-notas::placeholder { color: #6b6b62; opacity: 1; }
 
 /* ── Footer fijo ────────────────────────────────────────────────────────── */
 
@@ -692,7 +696,7 @@ body[data-pedido-nuevo-screen] .app-content {
     align-items: center;
 }
 .pn-shell .ts-control input { font-size: 16px; color: var(--pn-tinta); }
-.pn-shell .ts-control input::placeholder { color: #9c9c92; }
+.pn-shell .ts-control input::placeholder { color: #6b6b62; opacity: 1; }
 .pn-shell .ts-wrapper.focus .ts-control { box-shadow: none; border: 0; }
 
 /* El desplegable cuelga de <body> (dropdownParent), así que va fuera de
@@ -847,7 +851,18 @@ html:has(body[data-pedido-nuevo-screen]) {
     color: var(--pn-tinta) !important;
 }
 #pn-shell .pn-buscador input { background: none !important; }
-#pn-shell .ts-control input { background: none !important; color: var(--pn-tinta) !important; }
+/* Todo lo que Tom Select mete dentro de la cápsula va en tinta: no solo el
+   input donde se escribe, también `.item` — el producto YA elegido, que el
+   tema global pintaba casi blanco sobre fondo claro y quedaba ilegible justo
+   después de seleccionarlo. */
+#pn-shell .ts-control,
+#pn-shell .ts-control input,
+#pn-shell .ts-control .item,
+#pn-shell .ts-control > * {
+    background: none !important;
+    color: var(--pn-tinta) !important;
+}
+#pn-shell .ts-control { background: var(--pn-capsula) !important; }
 /* La cápsula del buscador iguala al campo «Cajas» que tiene al lado (56 px):
    Tom Select trae su propio alto y lo dejaba 12 px más bajo. */
 #pn-shell .ts-control { min-height: 56px !important; padding: 0 20px !important; }
@@ -856,9 +871,13 @@ html:has(body[data-pedido-nuevo-screen]) {
    «Cajas» a la fila entera y empujaba «Añadir» fuera de la pantalla. */
 #pn-shell input.pn-add-cajas { width: 108px !important; flex: none !important; }
 #pn-shell button.pn-add-confirmar { flex: 1 !important; width: auto !important; }
+/* Los placeholders no son decoración acá: «Cajas» y «Buscar producto…» son la
+   única etiqueta que llevan esos campos. A #9c9c92 daban 2.38:1 sobre la
+   cápsula — invisibles al sol. Este gris llega a 4.6:1 y sigue leyéndose como
+   pista, no como valor escrito (el valor va en tinta, a 16:1). */
 #pn-shell input::placeholder,
 #pn-shell textarea::placeholder,
-#pn-shell .ts-control input::placeholder { color: #9c9c92 !important; }
+#pn-shell .ts-control input::placeholder { color: #6b6b62 !important; opacity: 1; }
 
 /* Y los botones, por lo mismo: del mismo bloque roto salen un
    `button:not(.btn-chip){background:#1877ff}` que los pinta de azul en modo
@@ -893,12 +912,22 @@ html:has(body[data-pedido-nuevo-screen]) {
 #pn-shell .pn-cuerpo { scrollbar-width: none; }
 #pn-shell .pn-cuerpo::-webkit-scrollbar { width: 0; height: 0; }
 
-/* El desplegable cuelga de <body>, fuera de `.pn-shell`. */
+/* El desplegable cuelga de <body>, fuera de `.pn-shell`, así que no alcanza
+   ni el id ni los tokens: repite los colores literales. Cada texto se fija por
+   su cuenta —no por herencia— porque el tema global los pinta uno por uno: el
+   nombre de la opción resaltada salía en azul (#60a5fa, el color de enlace)
+   sobre fondo claro, ilegible justo cuando el vendedor lo está por elegir. */
 .ts-dropdown.pn-dropdown { background: #fbfbf9 !important; }
-.ts-dropdown.pn-dropdown .option { background: transparent !important; color: #111111 !important; }
-.ts-dropdown.pn-dropdown .option.active { background: #f4f4ef !important; }
-.ts-dropdown.pn-dropdown .pn-opt-precio { color: #8a8a80 !important; }
+.ts-dropdown.pn-dropdown .option,
+.ts-dropdown.pn-dropdown .option * { background: transparent !important; color: #111111 !important; }
+.ts-dropdown.pn-dropdown .option.active,
+.ts-dropdown.pn-dropdown .option.selected { background: #f4f4ef !important; }
+.ts-dropdown.pn-dropdown .option.active .pn-opt-nombre,
+.ts-dropdown.pn-dropdown .option.selected .pn-opt-nombre,
+.ts-dropdown.pn-dropdown .pn-opt-nombre { color: #111111 !important; }
+.ts-dropdown.pn-dropdown .pn-opt-precio { color: #727268 !important; }
 .ts-dropdown.pn-dropdown .pn-opt-precio.es-sin-precio { color: #b1370f !important; }
+.ts-dropdown.pn-dropdown .no-results { color: #727268 !important; }
 
 /* Esta pantalla es clara SIEMPRE, también con el teléfono en modo oscuro.
    `color-scheme` va en el elemento raíz de la pantalla y en los controles

@@ -548,7 +548,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const abierto = addPanel.hidden;
         addPanel.hidden = !abierto;
         addToggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
-        if (abierto && tomProducto) tomProducto.focus();
+        if (!abierto) return;
+        // El panel se abre al final de la lista, debajo del footer fijo: sin
+        // esto el vendedor toca «Añadir producto» y los campos quedan fuera de
+        // la pantalla, como si no hubiera pasado nada. Se sube primero la
+        // vista y recién después se enfoca, porque enfocar también hace
+        // scroll y pelearía con este.
+        addPanel.scrollIntoView({ block: 'end', behavior: 'smooth' });
+        if (tomProducto) tomProducto.focus();
     });
 
     // «Cambiar cliente» sale de esta pantalla y vuelve al paso 1: las líneas
