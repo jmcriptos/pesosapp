@@ -63,6 +63,17 @@ document.addEventListener('DOMContentLoaded', function () {
         maxOptions: 1000, closeAfterSelect: true, placeholder: 'Buscar cliente…',
         dropdownParent: 'body', sortField: { field: 'text', direction: 'asc' },
     });
+    // tom-select en single con un cliente ya elegido NO abre la lista al
+    // enfocar: deja el nombre como texto a sobreescribir y recién abre con
+    // la primera letra. En esta pantalla llegar con cliente preseleccionado
+    // es lo normal (re-pregunta multi-grupo, «Cambiar» en edición), y el
+    // vendedor tocaba el campo y veía el panel sin ningún nombre. Al
+    // enfocar: query limpia, re-render y lista abierta siempre.
+    ts.on('focus', () => {
+        if (ts.isOpen) return;
+        ts.control_input.value = '';
+        ts.refreshOptions(true);
+    });
     {% if not cliente_pendiente %}setTimeout(() => ts.focus(), 150);{% endif %}
     sel.addEventListener('change', function () {
         if (!this.value) return;
