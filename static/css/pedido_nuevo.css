@@ -35,8 +35,12 @@ body[data-pedido-nuevo-screen] .app-content {
     --pn-capsula: #efeee8;
     --pn-capsula-activa: #e4e3db;
     --pn-regla: #e4e4dd;
-    --pn-gris: #8a8a80;
-    --pn-gris-fuerte: #6b6b62;
+    /* El gris del diseño original (#8a8a80) daba 3.36:1 sobre el papel: por
+       debajo de AA para texto pequeño. Y esta pantalla se lee a pleno sol, en
+       la calle, con datos que importan (precio unitario, cuándo compró). Un
+       punto más oscuro conserva el mismo gris cálido y llega a 4.69:1. */
+    --pn-gris: #727268;
+    --pn-gris-fuerte: #5f5f57;
     --pn-apagado: #a8a8a0;
     --pn-alerta: #b1370f;
     --pn-alta: #1f5c37;
