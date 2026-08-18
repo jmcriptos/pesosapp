@@ -915,6 +915,22 @@ def _jinja_hora_local(dt, fmt='%Y-%m-%d %H:%M'):
     return _fmt_local(dt, fmt)
 
 
+_MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+
+@app.template_filter('fecha_corta')
+def _jinja_fecha_corta(valor):
+    """Fecha ISO ('2026-08-09') → '9 ago', para metadatos de una línea."""
+    if not valor:
+        return ''
+    try:
+        f = datetime.strptime(str(valor), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return str(valor)
+    return f'{f.day} {_MESES_CORTOS[f.month - 1]}'
+
+
 def _calcular_venta_pedido(pedido):
     """
     Venta facturada del pedido:
@@ -3018,6 +3034,85 @@ def obtener_precio_default_producto(producto_id, tipo_precio='base'):
     elif tipo_precio == 'retail':
         return precio.precio_retail
     return None
+
+
+def _precio_vigente(cliente_id, producto_id, tipo_precio='base'):
+    """Precio que rige para (cliente, producto), jerarquía completa.
+
+    ÚNICO punto de entrada para resolver un precio en el flujo de pedidos:
+    específico del cliente > lista asignada > lista default. Antes esta cadena
+    estaba copiada a mano en media docena de sitios y cualquier cambio de
+    política aplicado en uno solo reabría la clase de mal-cobro silencioso del
+    fix v845. None = sin precio en ninguna lista.
+    """
+    precio = obtener_precio_producto_cliente(cliente_id, producto_id, tipo_precio)
+    if precio is None:
+        precio = obtener_precio_default_producto(producto_id, tipo_precio)
+    return precio
+
+
+def _precios_vigentes_para_cliente(cliente_id, producto_ids, tipo_precio='base'):
+    """`_precio_vigente` en bloque: {producto_id: precio|None} con 4 queries.
+
+    Resolver producto por producto costaba 3-5 queries por cada uno (~200+
+    por render del paso 2). Misma precedencia y mismos filtros `activo` que el
+    resolutor unitario; `test_precios_bulk_coincide_con_el_resolutor` cacha
+    cualquier divergencia entre ambos.
+    """
+    ids = list(producto_ids)
+    if not ids:
+        return {}
+    columna = {'base': 'precio_base', 'jomar': 'precio_jomar',
+               'retail': 'precio_retail'}[tipo_precio]
+
+    especificos = {
+        fila.producto_id: getattr(fila, columna)
+        for fila in PrecioClienteProducto.query.filter(
+            PrecioClienteProducto.cliente_id == cliente_id,
+            PrecioClienteProducto.producto_id.in_(ids),
+            PrecioClienteProducto.activo.is_(True),
+        ).all()
+    }
+
+    cliente_lista = ClienteListaPrecio.query.filter_by(
+        cliente_id=cliente_id, activa=True).first()
+    de_lista = {}
+    if cliente_lista:
+        de_lista = {
+            fila.producto_id: getattr(fila, columna)
+            for fila in PrecioProducto.query.filter(
+                PrecioProducto.lista_precio_id == cliente_lista.lista_precio_id,
+                PrecioProducto.producto_id.in_(ids),
+                PrecioProducto.activo.is_(True),
+            ).all()
+        }
+
+    lista_default = ListaPrecio.query.filter_by(es_default=True, activa=True).first()
+    de_default = {}
+    if lista_default:
+        de_default = {
+            fila.producto_id: getattr(fila, columna)
+            for fila in PrecioProducto.query.filter(
+                PrecioProducto.lista_precio_id == lista_default.id,
+                PrecioProducto.producto_id.in_(ids),
+                PrecioProducto.activo.is_(True),
+            ).all()
+        }
+
+    precios = {}
+    for pid in ids:
+        if pid in especificos:
+            precio = especificos[pid]
+        elif pid in de_lista:
+            precio = de_lista[pid]
+        else:
+            precio = de_default.get(pid)
+        if precio is None:
+            # Igual que el par de resolutores: una capa con la columna vacía
+            # (jomar/retail son nullables) cae a la lista default.
+            precio = de_default.get(pid)
+        precios[pid] = precio
+    return precios
 
 
 def _parse_peso_caja(value):
@@ -5743,9 +5838,7 @@ def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None):
     Cuando el formulario manda algo distinto de lo resuelto se registra en el log:
     es la señal de que el JS de precios por cliente no llegó a correr.
     """
-    precio = obtener_precio_producto_cliente(cliente_id, producto_id, 'base')
-    if precio is None:
-        precio = obtener_precio_default_producto(producto_id, 'base')
+    precio = _precio_vigente(cliente_id, producto_id, 'base')
 
     if precio is None:
         # Sin precio configurado en ningún lado: mejor lo que trajo el formulario
@@ -5852,6 +5945,13 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
 
         if prod_id in lineas_por_producto:
             lineas_por_producto[prod_id]['cajas'] += cajas
+            # La suma fusionada tiene que respetar el mismo tope que cada
+            # línea: dos líneas de 5000 válidas no hacen una de 10000.
+            if lineas_por_producto[prod_id]['cajas'] > 9999:
+                raise _PedidoFormError(
+                    'La cantidad de cajas no puede exceder 9999 '
+                    f'(líneas repetidas del mismo producto, línea {idx + 1})'
+                )
             lineas_por_producto[prod_id]['subtotal'] = (
                 precio_unitario * _cajas_a_decimal(lineas_por_producto[prod_id]['cajas'])
             )
@@ -5899,11 +5999,18 @@ def _validar_grupo_unico(lineas):
     """Rechaza un pedido que mezcle grupos de facturación.
 
     Corre en el servidor, no solo en la pantalla: la edición de pedidos y
-    cualquier POST directo llegan por acá igual.
+    cualquier POST directo llegan por acá igual. También rechaza productos
+    que ya no existen: dejarlos pasar comprometía el Pedido y recién el
+    INSERT del detalle reventaba contra la FK, dejando un pedido huérfano.
     """
     grupos = {}
     for linea in lineas:
         producto = db.session.get(Producto, linea['producto_id'])
+        if producto is None:
+            raise _PedidoFormError(
+                'Uno de los productos del pedido ya no existe en el catálogo; '
+                'quita esa línea y vuelve a intentar'
+            )
         grupo = _grupo_facturable(producto)
         if grupo is None:
             continue
@@ -5944,18 +6051,13 @@ def _productos_dicts_para_cliente(cliente_id):
     en vez de 0.00, que se lee como gratis.
     """
     productos = Producto.query.all()
-    dicts = []
-    for p in productos:
-        precio = obtener_precio_producto_cliente(cliente_id, p.id, 'base')
-        if precio is None:
-            precio = obtener_precio_default_producto(p.id, 'base')
-        dicts.append({
-            'id': p.id,
-            'nombre': p.nombre,
-            'precio': float(precio) if precio is not None else None,
-            'grupo': _clave_grupo(_grupo_facturable(p)),
-        })
-    return dicts
+    precios = _precios_vigentes_para_cliente(cliente_id, [p.id for p in productos])
+    return [{
+        'id': p.id,
+        'nombre': p.nombre,
+        'precio': float(precios[p.id]) if precios[p.id] is not None else None,
+        'grupo': _clave_grupo(_grupo_facturable(p)),
+    } for p in productos]
 
 
 def _texto_hero_habitual(meta):
@@ -6002,6 +6104,160 @@ def _cantidad_detalle_facturable(detalle):
     return Decimal(str(cantidad or 0))
 
 
+def _clientes_con_contexto(clientes):
+    """Anota cada cliente con lo que el vendedor necesita para elegirlo.
+
+    En ruta la pregunta no es "¿cuál de los 49?" sino "¿a quién le toca?": la
+    lista muestra cuándo compró por última vez, cuántas líneas trae su último
+    pedido y si ya pidió hoy (para no duplicarle el pedido a un cliente que
+    otro vendedor acaba de tomar).
+
+    Dos queries agregadas para toda la lista, no una por cliente.
+    """
+    ids = [c.id for c in clientes]
+    if not ids:
+        return []
+
+    ultimos = dict(
+        db.session.query(Pedido.cliente_id, func.max(Pedido.fecha_pedido))
+        .filter(Pedido.cliente_id.in_(ids))
+        .group_by(Pedido.cliente_id)
+        .all()
+    )
+
+    # Líneas del ÚLTIMO pedido de cada cliente: el par (cliente, su fecha
+    # máxima) identifica ese pedido sin una subconsulta por cliente.
+    pares = {(cid, fecha) for cid, fecha in ultimos.items()}
+    conteos = {}
+    if pares:
+        filas = (
+            db.session.query(
+                Pedido.cliente_id, Pedido.fecha_pedido,
+                func.count(func.distinct(DetallePedido.producto_id)))
+            .join(DetallePedido, DetallePedido.pedido_id == Pedido.id)
+            .filter(
+                Pedido.cliente_id.in_(ids),
+                DetallePedido.es_linea_pedido.is_(True),
+            )
+            .group_by(Pedido.id)
+            .all()
+        )
+        for cid, fecha, n in filas:
+            if (cid, fecha) in pares:
+                conteos[cid] = n
+
+    hoy = _to_dashboard_date(datetime.utcnow())
+    anotados = []
+    for cliente in clientes:
+        ultima = ultimos.get(cliente.id)
+        fecha_local = _to_dashboard_date(ultima)
+        lineas = conteos.get(cliente.id, 0)
+
+        if fecha_local == hoy:
+            meta, pidio_hoy = 'Ya pidió hoy', True
+        elif fecha_local is None:
+            meta, pidio_hoy = 'Sin pedidos', False
+        else:
+            dias = (hoy - fecha_local).days
+            cuando = ('ayer' if dias == 1 else
+                      f'hace {dias} días' if dias < 30 else
+                      fecha_local.strftime('%d/%m'))
+            meta = (f"{lineas} {'línea' if lineas == 1 else 'líneas'} · {cuando}"
+                    if lineas else cuando)
+            pidio_hoy = False
+
+        anotados.append({
+            'id': cliente.id,
+            'nombre': cliente.nombre,
+            'moneda': cliente.moneda or 'XCG',
+            'meta': meta,
+            'pidio_hoy': pidio_hoy,
+            '_orden': fecha_local or date.min,
+        })
+
+    # Los de compra más reciente primero: son los que el vendedor visita hoy.
+    anotados.sort(key=lambda c: (c['_orden'], c['nombre']), reverse=True)
+    for c in anotados:
+        del c['_orden']
+    return anotados
+
+
+def _tipo_cambio_para_cliente(cliente):
+    """Tipo de cambio que corresponde a la moneda del cliente.
+
+    Se resuelve SIEMPRE en el servidor: el form ya no manda tipo_cambio (un
+    hidden confiado tal cual escribía cualquier rate en la DB). 1.78 es el
+    peg fijo XCG/USD que usa toda la app."""
+    return 1.78 if (getattr(cliente, 'moneda', None) or 'XCG') == 'USD' else 1.0
+
+
+def _productos_de_lineas(lineas):
+    """{producto_id: Producto} de las líneas normalizadas del form."""
+    ids = [l['producto_id'] for l in lineas]
+    if not ids:
+        return {}
+    return {p.id: p for p in Producto.query.filter(Producto.id.in_(ids)).all()}
+
+
+def _prep_capturada(detalle):
+    """True si almacén ya tocó esta prep (peso, lote o fechas cargados)."""
+    return bool(detalle.peso) or bool(detalle.lote) or bool(
+        detalle.fecha_fabricacion) or bool(detalle.fecha_expiracion)
+
+
+def _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id):
+    """Alinea las líneas de preparación (es_linea_pedido=False) con lo pedido.
+
+    Los importados se FACTURAN por su línea prep (`pedido_a_json`), así que
+    una prep desalineada factura una cantidad que el pedido ya no dice — al
+    editar de 6 a 2 cajas, QuickBooks seguía cobrando 6. Reglas:
+      - producto que ya no está en el form → su prep se borra;
+      - prep aún no capturada (sin peso/lote/fechas) → sigue a la línea
+        original: cajas y subtotal se COPIAN de la línea (mismo Decimal, sin
+        recomputar — antes alta y edición calculaban distinto y divergían en
+        centavos);
+      - prep ya capturada por almacén → conserva su cantidad (lo preparado es
+        lo que se factura) y solo se re-precia;
+      - importado sin prep todavía → se crea.
+    Única pieza que genera/actualiza preps desde el form: alta y edición
+    llaman acá. No hace commit; el caller commitea con el resto.
+    """
+    lineas_por_producto = {l['producto_id']: l for l in lineas_form}
+    con_prep = set()
+
+    for detalle in DetallePedido.query.filter_by(
+            pedido_id=pedido.id, es_linea_pedido=False).all():
+        linea = lineas_por_producto.get(detalle.producto_id)
+        if linea is None:
+            db.session.delete(detalle)
+            continue
+        detalle.precio_unitario = linea['precio_unitario']
+        if _prep_capturada(detalle):
+            detalle.subtotal = (
+                linea['precio_unitario'] * _cantidad_detalle_facturable(detalle))
+        else:
+            detalle.cajas = linea['cajas']
+            detalle.subtotal = linea['subtotal']
+        con_prep.add(detalle.producto_id)
+
+    for linea in lineas_form:
+        if linea['producto_id'] in con_prep:
+            continue
+        producto = productos_por_id.get(linea['producto_id'])
+        if producto is None or producto.se_pesa:
+            continue
+        db.session.add(DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=linea['producto_id'],
+            cajas=linea['cajas'],
+            cajas_pedidas=0,
+            peso=0,
+            precio_unitario=linea['precio_unitario'],
+            subtotal=linea['subtotal'],
+            es_linea_pedido=False,
+        ))
+
+
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'crear')
@@ -6019,33 +6275,44 @@ def nuevo_pedido():
             clientes = current_user.obtener_clientes_visibles()
 
     if request.method == 'POST':
-        # 1) Cabecera
-        cliente_id = int(request.form['cliente_id'])
-        
+        # 1) Cabecera. Un cliente_id ilegible o inexistente se rechaza acá:
+        # antes un int() a secas era un 500 y un id colgante reventaba en la FK.
+        cliente_id = request.form.get('cliente_id', type=int)
+        cliente_post = db.session.get(Cliente, cliente_id) if cliente_id else None
+        if cliente_post is None:
+            flash('Cliente no válido', 'error')
+            return redirect(url_for('nuevo_pedido'))
+
         # VERIFICAR QUE EL VENDEDOR PUEDE CREAR PEDIDOS PARA ESTE CLIENTE
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             clientes_permitidos_ids = [c.id for c in current_user.obtener_clientes_visibles()]
             if cliente_id not in clientes_permitidos_ids:
                 flash('No tienes permisos para crear pedidos para este cliente', 'error')
                 return redirect(url_for('nuevo_pedido'))
-        
+
         notas = request.form.get('notas')
-        tipo_cambio = float(request.form.get('tipo_cambio', 1.0) or 1.0)
+        # El rate sale de la moneda del cliente, no de un hidden del form (un
+        # hidden confiado escribía cualquier rate en la DB).
+        tipo_cambio = _tipo_cambio_para_cliente(cliente_post)
 
         # Validate form lines BEFORE creating the pedido row so a bad
         # payload doesn't leave an orphan empty pedido in the DB.
         #
-        # El error vuelve al PASO 2 de este mismo cliente (`?cliente=`): sin el
-        # parámetro el form arranca de cero en el paso 1 y el vendedor tiene que
-        # volver a elegir cliente para corregir una línea.
+        # El error vuelve al PASO 2 de este mismo cliente Y grupo (`?cliente=`
+        # + `?grupo=`): sin el cliente el form arranca de cero en el paso 1, y
+        # sin el grupo un cliente multi-grupo caía en la re-pregunta de grupo
+        # con el flash del error flotando sobre una pantalla sin líneas.
+        grupo_form = request.form.get('grupo') or None
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, cliente_id)
         except _PedidoFormError as e:
             flash(str(e), 'error')
-            return redirect(url_for('nuevo_pedido', cliente=cliente_id))
+            return redirect(url_for('nuevo_pedido', cliente=cliente_id,
+                                    grupo=grupo_form))
         if not lineas_form:
             flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('nuevo_pedido', cliente=cliente_id))
+            return redirect(url_for('nuevo_pedido', cliente=cliente_id,
+                                    grupo=grupo_form))
 
         pedido = Pedido(
             cliente_id=cliente_id,
@@ -6057,7 +6324,8 @@ def nuevo_pedido():
         db.session.commit()
         _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
 
-        # 2) Detalle (resto del código igual)
+        # 2) Detalle + líneas de preparación de los importados, desde las
+        # MISMAS líneas normalizadas (nada se re-consulta de la DB).
         for linea in lineas_form:
             detalle = DetallePedido(
                 pedido_id=pedido.id,
@@ -6069,32 +6337,13 @@ def nuevo_pedido():
             )
             db.session.add(detalle)
 
+        _sincronizar_lineas_prep(pedido, lineas_form, _productos_de_lineas(lineas_form))
         db.session.commit()
 
-        # 2b) Auto-generar líneas de preparación para productos de importación
-        for det in DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).all():
-            prod = db.session.get(Producto, det.producto_id)
-            if prod and not prod.se_pesa:
-                prep = DetallePedido(
-                    pedido_id=pedido.id,
-                    producto_id=det.producto_id,
-                    cajas=det.cajas,
-                    cajas_pedidas=0,
-                    peso=0,
-                    precio_unitario=det.precio_unitario,
-                    subtotal=round(float(det.precio_unitario) * det.cajas, 2),
-                    es_linea_pedido=False,
-                )
-                db.session.add(prep)
-        db.session.commit()
-
-        # 3) Total del pedido (solo líneas originales)
-        total = db.session.query(
-            func.coalesce(func.sum(DetallePedido.subtotal), 0)
-        ).filter_by(pedido_id=pedido.id, es_linea_pedido=True).scalar()
-
+        # 3) Total del pedido (solo líneas originales): la suma de lo que se
+        # acaba de escribir, sin ida extra a la DB.
         if hasattr(pedido, 'total'):
-            pedido.total = total
+            pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
             db.session.commit()
 
         flash('Pedido creado con precios registrados.', 'success')
@@ -6109,6 +6358,7 @@ def nuevo_pedido():
         return render_template(
             'pedido_cliente.html',
             clientes=clientes,
+            clientes_ctx=_clientes_con_contexto(clientes),
             destino=url_for('nuevo_pedido'),
             cliente_pendiente=None,
             grupos_cliente=None,
@@ -6121,6 +6371,24 @@ def nuevo_pedido():
         return redirect(url_for('nuevo_pedido'))
 
     grupo_arg = request.args.get('grupo') or None
+    if grupo_arg == 'nuevo':
+        # Pedido de un grupo FUERA del historial: paso 2 vacío con el catálogo
+        # completo; la primera línea añadida fija el grupo (igual que un
+        # cliente sin historial). Sin esta salida, un cliente con historial
+        # quedaba bloqueado a sus grupos de siempre y no había forma de
+        # tomarle el primer pedido de una categoría nueva.
+        return render_template(
+            'pedido_form.html',
+            cliente=cliente,
+            productos=_productos_dicts_para_cliente(cliente.id),
+            productos_pedido=[],
+            pedido=None,
+            hero_meta_texto='',
+            origen_texto=('Pedido de otro grupo: busca en el catálogo '
+                          'completo; la primera línea fija el grupo.'),
+            grupo_clave='',
+            tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
+        )
     lineas_hab, meta = _calcular_pedido_habitual(cliente.id, grupo_clave=grupo_arg)
 
     if meta['grupo'] is None and len(meta['grupos']) > 1:
@@ -6128,6 +6396,7 @@ def nuevo_pedido():
         return render_template(
             'pedido_cliente.html',
             clientes=clientes,
+            clientes_ctx=_clientes_con_contexto(clientes),
             destino=url_for('nuevo_pedido'),
             cliente_pendiente=cliente,
             grupos_cliente=meta['grupos'],
@@ -6150,7 +6419,7 @@ def nuevo_pedido():
         hero_meta_texto=_texto_hero_habitual(meta),
         origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
         grupo_clave=meta['grupo'] or '',
-        tipo_cambio_valor=1.78 if (cliente.moneda or 'XCG') == 'USD' else 1.0,
+        tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
     )
 
 @app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
@@ -6175,46 +6444,45 @@ def editar_pedido(pedido_id):
             flash('No se puede editar un pedido facturado', 'error')
             return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
-        nuevo_cliente_id = int(request.form['cliente_id'])
+        nuevo_cliente_id = request.form.get('cliente_id', type=int)
+        cliente_destino = db.session.get(Cliente, nuevo_cliente_id) if nuevo_cliente_id else None
+        if cliente_destino is None:
+            flash('Cliente no válido', 'error')
+            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             if not current_user.puede_crear_pedido_para_cliente(nuevo_cliente_id):
                 flash('No tienes permisos para reasignar este pedido a ese cliente', 'error')
                 return redirect(url_for('editar_pedido', pedido_id=pedido.id))
 
+        # El error vuelve al form del MISMO cliente que se estaba guardando
+        # (`?cliente=`): sin él, un cambio de cliente en curso se revertía en
+        # silencio y al corregir la línea el pedido se guardaba al cliente
+        # original con sus precios.
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, nuevo_cliente_id)
         except _PedidoFormError as e:
             flash(str(e), 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+            return redirect(url_for('editar_pedido', pedido_id=pedido.id,
+                                    cliente=nuevo_cliente_id))
         if not lineas_form:
             flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+            return redirect(url_for('editar_pedido', pedido_id=pedido.id,
+                                    cliente=nuevo_cliente_id))
 
         lineas_por_producto = {
             linea['producto_id']: linea for linea in lineas_form
         }
         productos_en_form = set(lineas_por_producto.keys())
 
-        # Actualizar cabecera
+        # Actualizar cabecera. Reasignar cliente actualiza el tipo de cambio a
+        # su moneda; una edición SIN cambio de cliente no lo toca (los rates
+        # históricos raros del expediente XCG no se reescriben por editar cajas).
+        cliente_anterior_id = pedido.cliente_id
+        if nuevo_cliente_id != cliente_anterior_id:
+            pedido.tipo_cambio = _tipo_cambio_para_cliente(cliente_destino)
         pedido.cliente_id = nuevo_cliente_id
         pedido.notas = request.form.get('notas')
         pedido.fecha_entrega = _parsear_fecha_entrega(request.form.get('fecha_entrega'))
-
-        # Preservar líneas de preparación ya capturadas y solo resincronizar precios.
-        productos_con_prep = set()
-        detalles_prep = DetallePedido.query.filter_by(
-            pedido_id=pedido.id,
-            es_linea_pedido=False,
-        ).all()
-        for detalle in detalles_prep:
-            if detalle.producto_id not in productos_en_form:
-                db.session.delete(detalle)
-                continue
-
-            linea = lineas_por_producto[detalle.producto_id]
-            detalle.precio_unitario = linea['precio_unitario']
-            detalle.subtotal = linea['precio_unitario'] * _cantidad_detalle_facturable(detalle)
-            productos_con_prep.add(detalle.producto_id)
 
         # Upsert líneas originales — NUNCA delete masivo: la FK
         # CajaPesada.detalle_pedido_id es ondelete=CASCADE, así que borrar
@@ -6253,31 +6521,25 @@ def editar_pedido(pedido_id):
                 )
                 db.session.add(detalle)
 
-        # Auto-generar líneas de preparación para productos de importación
-        for linea in lineas_form:
-            prod = db.session.get(Producto, linea['producto_id'])
-            if prod and not prod.se_pesa and linea['producto_id'] not in productos_con_prep:
-                prep = DetallePedido(
-                    pedido_id=pedido.id,
-                    producto_id=linea['producto_id'],
-                    cajas=linea['cajas'],
-                    cajas_pedidas=0,
-                    peso=0,
-                    precio_unitario=linea['precio_unitario'],
-                    subtotal=linea['precio_unitario'] * _cajas_a_decimal(linea['cajas']),
-                    es_linea_pedido=False,
-                )
-                db.session.add(prep)
-                productos_con_prep.add(linea['producto_id'])
+        # Líneas de preparación: borrar/seguir/crear según lo pedido — la
+        # misma pieza que usa el alta (una prep no capturada SIGUE a su línea;
+        # una capturada por almacén conserva su cantidad).
+        _sincronizar_lineas_prep(pedido, lineas_form, _productos_de_lineas(lineas_form))
+
+        # Rastro en la auditoría, como el alta ('creado') y el borrado
+        # ('eliminado'): sin esto una investigación de cobros no podía saber
+        # que el pedido fue editado ni por quién.
+        _log_pedido_evento(
+            pedido, 'editado', 'Pedido editado',
+            meta=({'cliente_anterior': cliente_anterior_id,
+                   'cliente_nuevo': nuevo_cliente_id}
+                  if nuevo_cliente_id != cliente_anterior_id else None),
+        )
         db.session.commit()
 
         # Actualizar total del pedido (solo líneas originales)
-        total = db.session.query(
-            func.coalesce(func.sum(DetallePedido.subtotal), 0)
-        ).filter_by(pedido_id=pedido.id, es_linea_pedido=True).scalar()
-
         if hasattr(pedido, 'total'):
-            pedido.total = total
+            pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
             db.session.commit()
 
         flash('Pedido actualizado.', 'success')
@@ -6296,6 +6558,7 @@ def editar_pedido(pedido_id):
         return render_template(
             'pedido_cliente.html',
             clientes=clientes_visibles,
+            clientes_ctx=_clientes_con_contexto(clientes_visibles),
             destino=url_for('editar_pedido', pedido_id=pedido.id),
             cliente_pendiente=pedido.cliente,
             grupos_cliente=None,
@@ -6327,25 +6590,29 @@ def editar_pedido(pedido_id):
     # `habitual` va None: editando, las líneas SON el pedido, no un ajuste
     # sobre una base habitual contra la que mostrar un delta.
     #
-    # El precio se resuelve por jerarquía del cliente EFECTIVO, igual que hace
-    # `_resolver_precio_unitario_pedido` al guardar: la pantalla muestra lo que
-    # el POST va a escribir, no lo que se guardó hace un mes. Sin override es la
-    # jerarquía del mismo cliente; con override, la del cliente destino. El
-    # precio guardado queda de último recurso, para el producto que no tiene
-    # precio en ninguna lista (mismo fallback que el POST).
+    # El precio sale de `productos_dicts` (jerarquía del cliente EFECTIVO, la
+    # misma resolución que `_resolver_precio_unitario_pedido` aplica al
+    # guardar): la pantalla muestra lo que el POST va a escribir, no lo que se
+    # guardó hace un mes. El precio guardado queda de último recurso, para el
+    # producto que no tiene precio en ninguna lista (mismo fallback que el POST).
+    precio_vigente_por_id = {p['id']: p['precio'] for p in productos_dicts}
     productos_pedido = []
     for d in pedido.detalles:
         if not d.es_linea_pedido:
             continue
-        precio = obtener_precio_producto_cliente(
-            cliente_efectivo.id, d.producto_id, 'base')
+        precio = precio_vigente_por_id.get(d.producto_id)
         if precio is None:
-            precio = obtener_precio_default_producto(d.producto_id, 'base')
+            # Último recurso el precio guardado; pero un 0 guardado significa
+            # "nunca tuvo precio", y mandarlo como número haría que la pantalla
+            # mostrara «0.00» — que se lee como gratis. Va como None para que
+            # diga «sin precio», igual que una línea nueva sin precio de lista.
+            guardado = float(d.precio_unitario or 0)
+            precio = guardado if guardado > 0 else None
         productos_pedido.append({
             'id'      : d.producto_id,
             'nombre'  : d.producto.nombre if d.producto else '—',
             'cajas'   : d.cajas,
-            'precio'  : float(precio) if precio is not None else float(d.precio_unitario or 0),
+            'precio'  : precio,
             'habitual': None,
         })
 
@@ -6360,9 +6627,9 @@ def editar_pedido(pedido_id):
                              'hasta «Actualizar pedido».')
                             if cliente_efectivo.id != pedido.cliente_id else '',
         grupo_clave       = '',
-        tipo_cambio_valor = (1.78 if (cliente_efectivo.moneda or 'XCG') == 'USD'
-                             else (1.0 if cliente_efectivo.id != pedido.cliente_id
-                                   else float(pedido.tipo_cambio or 1.0))),
+        tipo_cambio_valor = (_tipo_cambio_para_cliente(cliente_efectivo)
+                             if cliente_efectivo.id != pedido.cliente_id
+                             else float(pedido.tipo_cambio or 1.0)),
     )
 
 
@@ -6468,17 +6735,7 @@ def detalles_pedido(pedido_id):
             peso = 0
 
         # -------- Obtener precio unitario según la jerarquía --------
-        precio_unitario = obtener_precio_producto_cliente(
-                              pedido.cliente_id,   # 1️⃣ precio específico / lista cliente
-                              producto_id,
-                              'base'
-                          )
-        if precio_unitario is None:
-            # 2️⃣ (fallback) lista de precios por defecto
-            precio_unitario = obtener_precio_default_producto(
-                                  producto_id, 'base'
-                              ) or 0
-        
+        precio_unitario = _precio_vigente(pedido.cliente_id, producto_id, 'base') or 0
         # ------------------------------------------------------------
 
         cantidad = cajas if cajas else peso
@@ -8301,9 +8558,7 @@ def api_precios_cliente_productos(cliente_id):
     resultado = []
     for producto in Producto.query.all():
         # El precio sale del mismo resolutor que usa el servidor al guardar.
-        precio = obtener_precio_producto_cliente(cliente_id, producto.id, 'base')
-        if precio is None:
-            precio = obtener_precio_default_producto(producto.id, 'base')
+        precio = _precio_vigente(cliente_id, producto.id, 'base')
 
         fila, origen = _fila_precio_vigente(cliente_id, producto.id)
 
@@ -8378,18 +8633,14 @@ def _mediana_cajas(valores):
     return int(cuartos) if cuartos.is_integer() else cuartos
 
 
-def _grupos_del_cliente(cliente_id):
-    """Grupos de facturación que este cliente compra, y desde cuándo.
+def _historial_original_cliente(cliente_id):
+    """(pedido_id, fecha_pedido, Producto) de cada línea original del cliente.
 
-    Casi la mitad de los clientes compran de más de un grupo (22 de 49 en
-    producción), así que precargar "lo habitual" sin elegir grupo primero
-    armaría un pedido mezclado que QuickBooks no puede facturar.
-
-    Devuelve una lista ordenada por compra más reciente: el grupo del último
-    pedido va primero.
-    """
-    filas = (
-        db.session.query(Pedido, Producto)
+    Es EL barrido del historial: grupos, ejemplos y pedido habitual derivan
+    todos de estas filas. Antes cada uno relanzaba el mismo join completo
+    (3-4 pasadas por render del paso 2)."""
+    return (
+        db.session.query(Pedido.id, Pedido.fecha_pedido, Producto)
         .join(DetallePedido, DetallePedido.pedido_id == Pedido.id)
         .join(Producto, Producto.id == DetallePedido.producto_id)
         .filter(
@@ -8399,14 +8650,29 @@ def _grupos_del_cliente(cliente_id):
         .all()
     )
 
+
+def _grupos_del_cliente(cliente_id, historial=None):
+    """Grupos de facturación que este cliente compra, y desde cuándo.
+
+    Casi la mitad de los clientes compran de más de un grupo (22 de 49 en
+    producción), así que precargar "lo habitual" sin elegir grupo primero
+    armaría un pedido mezclado que QuickBooks no puede facturar.
+
+    Devuelve una lista ordenada por compra más reciente: el grupo del último
+    pedido va primero. `historial` permite reusar las filas de
+    `_historial_original_cliente` cuando el caller ya las tiene.
+    """
+    filas = historial if historial is not None else _historial_original_cliente(cliente_id)
+
     por_grupo = {}
-    for pedido, producto in filas:
+    for pedido_id, fecha, producto in filas:
         grupo = _grupo_facturable(producto)
         if grupo is None:
             continue
-        info = por_grupo.setdefault(grupo, {'pedidos': set(), 'ultima': None})
-        info['pedidos'].add(pedido.id)
-        fecha = pedido.fecha_pedido
+        info = por_grupo.setdefault(
+            grupo, {'pedidos': set(), 'ultima': None, 'nombres': set()})
+        info['pedidos'].add(pedido_id)
+        info['nombres'].add(producto.nombre)
         if info['ultima'] is None or fecha > info['ultima']:
             info['ultima'] = fecha
 
@@ -8418,7 +8684,7 @@ def _grupos_del_cliente(cliente_id):
         # Nombres de ejemplo: el tax_rate es un código de QuickBooks, no un
         # porcentaje, así que por sí solo no le dice nada al vendedor. Ver dos
         # productos del grupo sí le dice cuál es cuál.
-        'ejemplos': _ejemplos_del_grupo(cliente_id, grupo),
+        'ejemplos': sorted(info['nombres'])[:2],
         '_orden': info['ultima'],
     } for grupo, info in por_grupo.items()]
 
@@ -8426,25 +8692,6 @@ def _grupos_del_cliente(cliente_id):
     for g in grupos:
         del g['_orden']
     return grupos
-
-
-def _ejemplos_del_grupo(cliente_id, grupo, limite=2):
-    """Productos que este cliente compra dentro del grupo, para reconocerlo."""
-    nombres = {
-        producto.nombre
-        for producto in (
-            db.session.query(Producto)
-            .join(DetallePedido, DetallePedido.producto_id == Producto.id)
-            .join(Pedido, Pedido.id == DetallePedido.pedido_id)
-            .filter(
-                Pedido.cliente_id == cliente_id,
-                DetallePedido.es_linea_pedido.is_(True),
-            )
-            .all()
-        )
-        if _grupo_facturable(producto) == grupo
-    }
-    return sorted(nombres)[:limite]
 
 
 def _clave_grupo(grupo):
@@ -8477,7 +8724,8 @@ def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VI
       - 2+        → solo productos presentes en al menos 2 visitas, para que
                     una compra puntual no se vuelva parte del pedido base.
     """
-    grupos = _grupos_del_cliente(cliente_id)
+    historial = _historial_original_cliente(cliente_id)
+    grupos = _grupos_del_cliente(cliente_id, historial)
     meta = {
         'visitas': 0,
         'ultima_fecha': None,
@@ -8503,19 +8751,12 @@ def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VI
     meta['grupo'] = elegido['clave']
 
     # Solo los pedidos de ESTE grupo, y de ahí las últimas `visitas`. Un pedido
-    # no mezcla grupos, así que basta con mirar cualquiera de sus líneas.
+    # no mezcla grupos, así que basta con mirar cualquiera de sus líneas. Las
+    # filas ya están en memoria: son el mismo barrido que armó los grupos.
+    productos_por_id = {producto.id: producto for _pid, _f, producto in historial}
     ids_del_grupo = {
         pedido_id
-        for pedido_id, producto in (
-            db.session.query(DetallePedido.pedido_id, Producto)
-            .join(Producto, Producto.id == DetallePedido.producto_id)
-            .join(Pedido, Pedido.id == DetallePedido.pedido_id)
-            .filter(
-                Pedido.cliente_id == cliente_id,
-                DetallePedido.es_linea_pedido.is_(True),
-            )
-            .all()
-        )
+        for pedido_id, _fecha, producto in historial
         if _clave_grupo(_grupo_facturable(producto)) == elegido['clave']
     }
 
@@ -8570,13 +8811,13 @@ def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VI
 
     minimo_visitas = 1 if len(pedidos) == 1 else 2
 
-    lineas = []
+    candidatos = []
     for producto_id, por_pedido in por_producto.items():
         apariciones = [c for c in por_pedido.values() if c > 0]
         if len(apariciones) < minimo_visitas:
             continue
 
-        producto = db.session.get(Producto, producto_id)
+        producto = productos_por_id.get(producto_id)
         if producto is None:
             continue  # producto borrado del catálogo
 
@@ -8585,12 +8826,16 @@ def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VI
         if _clave_grupo(_grupo_facturable(producto)) != elegido['clave']:
             continue
 
-        precio = obtener_precio_producto_cliente(cliente_id, producto_id, 'base')
-        if precio is None:
-            precio = obtener_precio_default_producto(producto_id, 'base')
+        candidatos.append((producto, apariciones))
 
+    precios = _precios_vigentes_para_cliente(
+        cliente_id, [p.id for p, _a in candidatos])
+
+    lineas = []
+    for producto, apariciones in candidatos:
+        precio = precios.get(producto.id)
         lineas.append({
-            'id': producto_id,
+            'id': producto.id,
             'nombre': producto.nombre,
             'cajas': _mediana_cajas(apariciones),
             'cajas_habitual': _mediana_cajas(apariciones),

@@ -1,0 +1,895 @@
+/* Toma de pedido — dirección "AB": papel hueso, tinta negra, cifras en
+   monoespaciada y todos los controles en cápsula.
+
+   Reemplaza al reskin oscuro (pedido_form.css + pedido_habitual.css) en las
+   dos pantallas del alta. Es una superficie CERRADA: `.pn-shell` se pinta
+   sola, con colores literales y sin heredar tokens de tema. Es a propósito —
+   `styles.css` tiene un `:root` sin cerrar que anida ~245 reglas y dispara la
+   especificidad (los botones se vuelven azules en modo oscuro), así que acá
+   nada depende de variables globales y el bloque final del archivo blinda los
+   controles contra esa regla.
+
+   La pantalla vive en un iPhone, en ruta y a una mano: los targets son de
+   52 px, el total y el botón de enviar viajan fijos abajo, y ningún control
+   se apoya en hover. */
+
+/* La toma de pedido es pantalla completa: sin barra superior ni scroll del
+   documento detrás. Los bloques `footer`/`tabbar` de base.html se anulan en
+   los templates; acá se apaga la barra de arriba y el scroll del body. */
+body[data-pedido-nuevo-screen] { overflow: hidden; background: #fbfbf9; }
+body[data-pedido-nuevo-screen] .app-topbar,
+body[data-pedido-nuevo-screen] .app-footer,
+body[data-pedido-nuevo-screen] .tabbar { display: none !important; }
+body[data-pedido-nuevo-screen] .app-shell,
+body[data-pedido-nuevo-screen] .app-container,
+body[data-pedido-nuevo-screen] .app-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    background: #fbfbf9;
+}
+
+.pn-shell {
+    --pn-papel: #fbfbf9;
+    --pn-tinta: #111111;
+    --pn-capsula: #efeee8;
+    --pn-capsula-activa: #e4e3db;
+    --pn-regla: #e4e4dd;
+    --pn-gris: #8a8a80;
+    --pn-gris-fuerte: #6b6b62;
+    --pn-apagado: #a8a8a0;
+    --pn-alerta: #b1370f;
+    --pn-alta: #1f5c37;
+    --pn-realce: #f4f4ef;
+    --pn-aviso-fondo: #f7f1e8;
+    --pn-aviso-tinta: #7a3212;
+
+    --pn-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --pn-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* La pantalla ocupa el alto real del visor (`dvh` descuenta la barra de
+       Safari al hacer scroll) y se queda quieta: scrollea la lista, no la
+       página. Sin esto el footer fijo salta con la barra del navegador. */
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    background: var(--pn-papel);
+    color: var(--pn-tinta);
+    font-family: var(--pn-sans);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: contain;
+}
+
+.pn-shell *,
+.pn-shell *::before,
+.pn-shell *::after { box-sizing: border-box; }
+
+/* ── Cabecera ───────────────────────────────────────────────────────────── */
+
+.pn-head {
+    flex: none;
+    padding: max(14px, env(safe-area-inset-top)) 24px 20px;
+    border-bottom: 2px solid var(--pn-tinta);
+    background: var(--pn-papel);
+}
+
+.pn-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.pn-volver {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    flex: none;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    color: var(--pn-tinta);
+    font-size: 16px;
+    text-decoration: none;
+    cursor: pointer;
+}
+.pn-volver:active { background: var(--pn-capsula-activa); }
+
+.pn-paso {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: .1em;
+    color: var(--pn-gris);
+}
+
+.pn-titulo {
+    margin: 0;
+    font-weight: 600;
+    font-size: 27px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+}
+
+.pn-sobretitulo {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+    margin-bottom: 6px;
+}
+
+.pn-titulo-cliente {
+    margin: 0;
+    font-weight: 600;
+    font-size: 25px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.pn-head-nota {
+    margin: 10px 0 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--pn-gris-fuerte);
+    text-wrap: pretty;
+}
+
+/* Buscador: cápsula con lupa. El input mide 16px porque iOS hace zoom
+   automático en cualquier campo por debajo de eso. */
+.pn-buscador {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+    padding: 0 20px;
+    margin-top: 20px;
+    background: var(--pn-capsula);
+    border-radius: 999px;
+}
+
+.pn-buscador i { font-size: 14px; color: var(--pn-gris); flex: none; }
+
+.pn-buscador input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    font-family: var(--pn-sans);
+    font-size: 16px;
+    color: var(--pn-tinta);
+    outline: none;
+}
+.pn-buscador input::placeholder { color: #9c9c92; }
+
+/* ── Cuerpo scrolleable ─────────────────────────────────────────────────── */
+
+.pn-cuerpo {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.pn-seccion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 15px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+}
+
+.pn-seccion-titulo {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+}
+
+.pn-seccion-dato {
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* ── Filas de cliente (paso 01) ─────────────────────────────────────────── */
+
+.pn-cliente {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 19px 24px;
+    border: 0;
+    border-bottom: 1px solid var(--pn-regla);
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    text-decoration: none;
+    color: var(--pn-tinta);
+    cursor: pointer;
+}
+.pn-cliente:active { background: var(--pn-realce); }
+
+.pn-cliente-info { flex: 1; min-width: 0; display: block; }
+
+.pn-cliente-nombre {
+    display: block;
+    font-weight: 600;
+    font-size: 17px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.pn-cliente-meta {
+    display: block;
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 12.5px;
+    color: var(--pn-gris);
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+.pn-cliente-meta.es-hoy { color: var(--pn-alerta); }
+
+/* La moneda va pegada al nombre, no en la línea de metadatos. */
+.pn-cliente-moneda {
+    display: inline;
+    margin-left: 6px;
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--pn-gris);
+    vertical-align: 1px;
+}
+
+.pn-cliente i { font-size: 13px; color: var(--pn-tinta); flex: none; }
+
+.pn-vacio {
+    padding: 34px 24px;
+    text-align: center;
+    font-size: 15px;
+    color: var(--pn-gris);
+}
+
+/* ── Grupos de facturación (paso 01) ────────────────────────────────────── */
+
+.pn-grupos-intro {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+    background: var(--pn-aviso-fondo);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--pn-aviso-tinta);
+}
+
+.pn-grupo {
+    display: block;
+    padding: 19px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+    text-decoration: none;
+    color: var(--pn-tinta);
+}
+.pn-grupo:active { background: var(--pn-realce); }
+
+.pn-grupo-nombre { font-weight: 600; font-size: 17px; line-height: 1.25; }
+
+.pn-grupo-ejemplos {
+    display: block;
+    margin-top: 5px;
+    font-size: 13.5px;
+    color: var(--pn-gris-fuerte);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pn-grupo-meta {
+    display: block;
+    margin-top: 6px;
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+}
+
+.pn-grupo-otro .pn-grupo-nombre { color: var(--pn-gris-fuerte); }
+
+/* ── Líneas del pedido (paso 02) ────────────────────────────────────────── */
+
+.pn-linea {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 88px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+}
+.pn-linea.es-cambiada { background: var(--pn-realce); }
+.pn-linea.es-quitada .pn-linea-nombre { color: var(--pn-apagado); }
+
+.pn-linea-info { flex: 1; min-width: 0; }
+
+.pn-linea-nombre {
+    font-weight: 600;
+    font-size: 17px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.pn-linea-meta {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 12.5px;
+    color: var(--pn-gris);
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+.pn-linea-meta.es-mas { color: var(--pn-alta); }
+.pn-linea-meta.es-menos,
+.pn-linea-meta.es-nueva { color: var(--pn-alerta); }
+.pn-linea-meta.es-sin-precio { color: var(--pn-alerta); }
+
+.pn-stepper { display: flex; align-items: center; gap: 5px; flex: none; }
+
+.pn-step {
+    width: 52px;
+    height: 52px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 21px;
+    line-height: 1;
+    color: var(--pn-tinta);
+    cursor: pointer;
+}
+.pn-step:active { background: #e0dfd6; }
+.pn-step-mas { background: var(--pn-tinta); color: var(--pn-papel); }
+.pn-step-mas:active { background: #333333; }
+
+.pn-step-valor {
+    min-width: 42px;
+    text-align: center;
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 19px;
+    font-variant-numeric: tabular-nums;
+}
+
+.pn-volver-linea {
+    height: 52px;
+    padding: 0 22px;
+    flex: none;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--pn-tinta);
+    cursor: pointer;
+}
+.pn-volver-linea:active { background: var(--pn-capsula-activa); }
+
+/* ── Añadir producto (paso 02) ──────────────────────────────────────────── */
+
+.pn-bloque { padding: 16px 24px; border-bottom: 1px solid var(--pn-regla); }
+
+.pn-btn-capsula {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 56px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 15.5px;
+    color: var(--pn-tinta);
+    cursor: pointer;
+}
+.pn-btn-capsula:active { background: var(--pn-capsula-activa); }
+.pn-btn-capsula i { font-size: 12px; }
+
+.pn-add-campos { display: grid; gap: 10px; }
+
+.pn-add-fila { display: flex; gap: 8px; }
+
+.pn-add-cajas {
+    width: 108px;
+    flex: none;
+    height: 56px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 16px;      /* 16px: menos que eso y iOS hace zoom al enfocar */
+    color: var(--pn-tinta);
+    text-align: center;
+    outline: none;
+}
+.pn-add-cajas::placeholder { color: #9c9c92; font-weight: 500; }
+
+.pn-add-confirmar {
+    flex: 1;
+    height: 56px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-tinta);
+    color: var(--pn-papel);
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 15.5px;
+    cursor: pointer;
+}
+.pn-add-confirmar:active { background: #333333; }
+
+.pn-motivo {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--pn-alerta);
+    min-height: 0;
+}
+.pn-motivo:empty { display: none; }
+
+/* ── Entrega y notas (paso 02) ──────────────────────────────────────────── */
+
+.pn-campo { padding: 20px 24px; border-bottom: 1px solid var(--pn-regla); }
+.pn-campo:last-child { border-bottom: 0; }
+
+.pn-campo-label {
+    display: block;
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+    margin-bottom: 12px;
+}
+
+.pn-chips { display: flex; gap: 8px; }
+
+.pn-chip {
+    flex: 1;
+    height: 52px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--pn-gris-fuerte);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pn-chip:active { background: var(--pn-capsula-activa); }
+.pn-chip.is-active { background: var(--pn-tinta); color: var(--pn-papel); }
+
+.pn-fecha-otra {
+    width: 100%;
+    height: 52px;
+    margin-top: 10px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-sans);
+    font-size: 16px;
+    color: var(--pn-tinta);
+    outline: none;
+}
+
+.pn-notas {
+    width: 100%;
+    min-height: 88px;
+    padding: 16px 20px;
+    border: 0;
+    border-radius: 26px;
+    background: var(--pn-capsula);
+    font-family: var(--pn-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--pn-tinta);
+    resize: vertical;
+    outline: none;
+}
+.pn-notas::placeholder { color: #9c9c92; }
+
+/* ── Footer fijo ────────────────────────────────────────────────────────── */
+
+.pn-footer {
+    flex: none;
+    padding: 20px 24px max(20px, env(safe-area-inset-bottom));
+    border-top: 2px solid var(--pn-tinta);
+    background: var(--pn-papel);
+}
+
+.pn-footer-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.pn-footer-meta {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+}
+
+.pn-footer-total {
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 33px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.pn-enviar {
+    width: 100%;
+    height: 58px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-tinta);
+    color: var(--pn-papel);
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 16.5px;
+    cursor: pointer;
+}
+.pn-enviar:active { background: #333333; }
+.pn-enviar[disabled] { opacity: .55; cursor: default; }
+
+/* ── Paso 03: revisar y enviar ──────────────────────────────────────────── */
+
+.pn-revision-cliente { padding: 20px 24px; border-bottom: 1px solid var(--pn-regla); }
+.pn-revision-nombre { font-weight: 600; font-size: 19px; line-height: 1.25; }
+.pn-revision-entrega {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 12.5px;
+    color: var(--pn-gris);
+    margin-top: 6px;
+    text-transform: uppercase;
+}
+
+.pn-revision-linea {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+}
+.pn-revision-linea:last-of-type { border-bottom: 2px solid var(--pn-tinta); }
+
+.pn-revision-producto { font-weight: 500; font-size: 15.5px; color: #4a4a42; }
+
+.pn-revision-monto {
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.pn-revision-monto.es-sin-precio { color: var(--pn-alerta); font-size: 13px; }
+
+.pn-revision-total {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+}
+
+.pn-revision-total-label {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+}
+
+.pn-revision-total-monto {
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.pn-aviso {
+    display: flex;
+    gap: 12px;
+    padding: 18px 24px;
+    background: var(--pn-aviso-fondo);
+    border-bottom: 1px solid var(--pn-regla);
+}
+.pn-aviso i { font-size: 14px; color: var(--pn-alerta); margin-top: 3px; flex: none; }
+.pn-aviso-texto { flex: 1; font-weight: 500; font-size: 13.5px; line-height: 1.6; color: var(--pn-aviso-tinta); }
+
+.pn-revision-notas {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--pn-regla);
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--pn-gris-fuerte);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* ── Tom Select dentro de la superficie ─────────────────────────────────── */
+
+.pn-shell .ts-wrapper { flex: 1; min-width: 0; }
+
+.pn-shell .ts-control {
+    min-height: 56px;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pn-capsula);
+    box-shadow: none;
+    font-family: var(--pn-sans);
+    font-size: 16px;
+    color: var(--pn-tinta);
+    display: flex;
+    align-items: center;
+}
+.pn-shell .ts-control input { font-size: 16px; color: var(--pn-tinta); }
+.pn-shell .ts-control input::placeholder { color: #9c9c92; }
+.pn-shell .ts-wrapper.focus .ts-control { box-shadow: none; border: 0; }
+
+/* El desplegable cuelga de <body> (dropdownParent), así que va fuera de
+   `.pn-shell` y necesita sus propios colores. */
+.ts-dropdown.pn-dropdown {
+    margin-top: 6px;
+    border: 0;
+    border-radius: 22px;
+    background: var(--pn-papel, #fbfbf9);
+    box-shadow: 0 24px 48px -18px rgba(0, 0, 0, .35);
+    overflow: hidden;
+    font-family: 'Archivo', system-ui, sans-serif;
+}
+.ts-dropdown.pn-dropdown .option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e4e4dd;
+    color: #111111;
+    font-size: 16px;
+}
+.ts-dropdown.pn-dropdown .option:last-child { border-bottom: 0; }
+.ts-dropdown.pn-dropdown .option.active { background: #f4f4ef; }
+.ts-dropdown.pn-dropdown .pn-opt-nombre { flex: 1; min-width: 0; font-weight: 500; }
+.ts-dropdown.pn-dropdown .pn-opt-precio {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 13px;
+    color: #8a8a80;
+    white-space: nowrap;
+}
+.ts-dropdown.pn-dropdown .pn-opt-precio.es-sin-precio { color: #b1370f; }
+.ts-dropdown.pn-dropdown .no-results { padding: 16px 20px; color: #8a8a80; }
+
+/* ── Blindaje contra el tema global ─────────────────────────────────────── */
+
+/* `dark-theme.css` es un override global a fuerza de `!important`: pinta
+   `html, body`, todos los encabezados, los inputs, los botones y el control de
+   Tom Select con la paleta oscura de la app. Esta pantalla es la excepción
+   deliberada — papel hueso — así que repite el mismo argumento. Funciona
+   porque este archivo se carga DESPUÉS (bloque `extra_css` de base.html):
+   a igual peso e igual especificidad, gana el último.
+
+   Es el mismo patrón de blindaje que usan las pantallas `.ops-*`; mientras el
+   tema global siga imponiéndose con `!important`, una superficie con paleta
+   propia no tiene otra forma de sostenerse. */
+
+body[data-pedido-nuevo-screen],
+html:has(body[data-pedido-nuevo-screen]) {
+    background-color: #fbfbf9 !important;
+    color: #111111 !important;
+}
+
+.pn-shell,
+.pn-shell .pn-cuerpo,
+.pn-shell .pn-head,
+.pn-shell .pn-footer { background: var(--pn-papel) !important; }
+
+.pn-shell h1,
+.pn-shell .pn-titulo,
+.pn-shell .pn-titulo-cliente,
+.pn-shell .pn-linea-nombre,
+.pn-shell .pn-cliente-nombre,
+.pn-shell .pn-grupo-nombre,
+.pn-shell .pn-revision-nombre,
+.pn-shell .pn-footer-total,
+.pn-shell .pn-revision-total-monto,
+.pn-shell .pn-revision-monto,
+.pn-shell .pn-step-valor,
+.pn-shell .pn-linea,
+.pn-shell .pn-seccion-dato { color: var(--pn-tinta) !important; }
+
+.pn-shell .pn-cliente,
+.pn-shell .pn-grupo,
+.pn-shell a.pn-cliente,
+.pn-shell a.pn-grupo { color: var(--pn-tinta) !important; }
+
+.pn-shell .pn-cliente-moneda,
+.pn-shell .pn-seccion-titulo,
+.pn-shell .pn-campo-label,
+.pn-shell .pn-footer-meta,
+.pn-shell .pn-paso,
+.pn-shell .pn-sobretitulo,
+.pn-shell .pn-linea-meta,
+.pn-shell .pn-cliente-meta,
+.pn-shell .pn-grupo-meta,
+.pn-shell .pn-revision-entrega,
+.pn-shell .pn-revision-total-label { color: var(--pn-gris) !important; }
+
+.pn-shell .pn-head-nota,
+.pn-shell .pn-grupo-ejemplos,
+.pn-shell .pn-revision-notas,
+.pn-shell .pn-revision-producto { color: var(--pn-gris-fuerte) !important; }
+
+.pn-shell .pn-linea-meta.es-mas { color: var(--pn-alta) !important; }
+.pn-shell .pn-linea-meta.es-menos,
+.pn-shell .pn-linea-meta.es-nueva,
+.pn-shell .pn-linea-meta.es-sin-precio,
+.pn-shell .pn-cliente-meta.es-hoy,
+.pn-shell .pn-motivo,
+.pn-shell .pn-revision-monto.es-sin-precio { color: var(--pn-alerta) !important; }
+
+.pn-shell .pn-aviso { background: var(--pn-aviso-fondo) !important; }
+.pn-shell .pn-aviso-texto { color: var(--pn-aviso-tinta) !important; }
+.pn-shell .pn-grupos-intro {
+    background: var(--pn-aviso-fondo) !important;
+    color: var(--pn-aviso-tinta) !important;
+}
+.pn-shell .pn-linea.es-cambiada { background: var(--pn-realce) !important; }
+.pn-shell .pn-linea.es-quitada .pn-linea-nombre { color: var(--pn-apagado) !important; }
+
+/* Controles: cápsula clara con tinta negra; los de acción, al revés. */
+.pn-shell button.pn-step,
+.pn-shell button.pn-volver-linea,
+.pn-shell button.pn-btn-capsula,
+.pn-shell button.pn-chip,
+.pn-shell a.pn-volver,
+.pn-shell button.pn-volver {
+    background: var(--pn-capsula) !important;
+    border: 0 !important;
+    color: var(--pn-tinta) !important;
+}
+.pn-shell button.pn-chip { color: var(--pn-gris-fuerte) !important; }
+
+.pn-shell button.pn-step-mas,
+.pn-shell button.pn-chip.is-active,
+.pn-shell button.pn-add-confirmar,
+.pn-shell button.pn-enviar {
+    background: var(--pn-tinta) !important;
+    border: 0 !important;
+    color: var(--pn-papel) !important;
+}
+
+/* Los campos se declaran desde el ID del contenedor, no desde su clase. No es
+   estética: `styles.min.css` (el `:root` sin cerrar) trae dentro del @media
+   oscuro una regla `input:not([type=checkbox]):not([type=radio])…` cuya ristra
+   de `:not()` acumula especificidad de clase suficiente para ganarle a
+   cualquier selector de clases, incluso con `!important`. Un id la supera de
+   una: mientras esa llave siga rota, los campos de esta pantalla se anclan
+   acá. */
+#pn-shell input,
+#pn-shell textarea,
+#pn-shell select,
+#pn-shell .ts-wrapper .ts-control,
+#pn-shell .ts-wrapper.focus .ts-control,
+#pn-shell .ts-wrapper.single .ts-control {
+    background: var(--pn-capsula) !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: var(--pn-tinta) !important;
+}
+#pn-shell .pn-buscador input { background: none !important; }
+#pn-shell .ts-control input { background: none !important; color: var(--pn-tinta) !important; }
+#pn-shell input::placeholder,
+#pn-shell textarea::placeholder,
+#pn-shell .ts-control input::placeholder { color: #9c9c92 !important; }
+
+/* Y los botones, por lo mismo: del mismo bloque roto salen un
+   `button:not(.btn-chip){background:#1877ff}` que los pinta de azul en modo
+   oscuro y un `border-radius:5px` que les corta la cápsula. */
+#pn-shell button,
+#pn-shell input,
+#pn-shell textarea,
+#pn-shell .ts-control,
+#pn-shell a.pn-volver { border-radius: 999px !important; }
+#pn-shell textarea.pn-notas { border-radius: 26px !important; }
+
+#pn-shell button.pn-step,
+#pn-shell button.pn-volver-linea,
+#pn-shell button.pn-btn-capsula,
+#pn-shell button.pn-chip,
+#pn-shell a.pn-volver,
+#pn-shell button.pn-volver {
+    background: var(--pn-capsula) !important;
+    color: var(--pn-tinta) !important;
+}
+#pn-shell button.pn-chip { color: var(--pn-gris-fuerte) !important; }
+#pn-shell button.pn-step-mas,
+#pn-shell button.pn-chip.is-active,
+#pn-shell button.pn-add-confirmar,
+#pn-shell button.pn-enviar {
+    background: var(--pn-tinta) !important;
+    color: var(--pn-papel) !important;
+}
+
+/* La lista scrollea sin barra visible: en el teléfono no hace falta y en el
+   emulador se come 6 px del ancho de las filas. */
+#pn-shell .pn-cuerpo { scrollbar-width: none; }
+#pn-shell .pn-cuerpo::-webkit-scrollbar { width: 0; height: 0; }
+
+/* El desplegable cuelga de <body>, fuera de `.pn-shell`. */
+.ts-dropdown.pn-dropdown { background: #fbfbf9 !important; }
+.ts-dropdown.pn-dropdown .option { background: transparent !important; color: #111111 !important; }
+.ts-dropdown.pn-dropdown .option.active { background: #f4f4ef !important; }
+.ts-dropdown.pn-dropdown .pn-opt-precio { color: #8a8a80 !important; }
+.ts-dropdown.pn-dropdown .pn-opt-precio.es-sin-precio { color: #b1370f !important; }
+
+/* Esta pantalla es clara SIEMPRE, también con el teléfono en modo oscuro.
+   `color-scheme` va en el elemento raíz de la pantalla y en los controles
+   porque no solo afecta a la hoja de estilos: con el esquema en `dark`, el
+   navegador pinta por su cuenta el fondo de los campos, el selector de fecha
+   y las barras de scroll (un `input[type=search]` salía gris oscuro sin que
+   ninguna regla lo tocara).
+
+   Además `styles.css` deja un `:root` sin cerrar: sus reglas quedan anidadas y
+   una de ellas (`button:not(.btn-chip){background:#1877ff}` dentro del @media
+   dark) pinta de azul todos los botones en modo oscuro — otra razón para que
+   la superficie declare su propio esquema y sus propios colores. */
+body[data-pedido-nuevo-screen],
+body[data-pedido-nuevo-screen] .pn-shell,
+body[data-pedido-nuevo-screen] input,
+body[data-pedido-nuevo-screen] textarea,
+body[data-pedido-nuevo-screen] select,
+body[data-pedido-nuevo-screen] button,
+.ts-dropdown.pn-dropdown { color-scheme: light !important; }
+
+/* Sin animaciones para quien las desactivó en el sistema. */
+@media (prefers-reduced-motion: reduce) {
+    .pn-shell * { animation: none !important; transition: none !important; }
+}

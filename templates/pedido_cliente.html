@@ -1,97 +1,129 @@
 {% extends "base.html" %}
 {% block title %}{{ titulo_topnav|default('Nuevo Pedido') }} — PesosApp{% endblock %}
-{% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-pedido-form-screen="1" data-pedido-habitual="1"{% endblock %}
+{% block body_attrs %}data-pedido-nuevo-screen="1"{% endblock %}
+
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form_inline.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_habitual.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_fuentes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_nuevo.css') }}">
 {% endblock %}
+
+{# La toma de pedido es pantalla completa: la barra inferior de la app
+   distrae y roba el espacio del pulgar. #}
+{% block footer %}{% endblock %}
+{% block tabbar %}{% endblock %}
+
 {% block content %}
-<div class="pedido-form-shell" id="paso-cliente">
-  <div class="pedido-form-topnav">
-    <a href="{{ url_for('lista_pedidos') }}" class="pedido-form-close" aria-label="Cerrar"><i class="fas fa-times"></i></a>
-    <div class="pedido-form-topnav-title">
-      <div class="pedido-form-topnav-heading">{{ titulo_topnav|default('Nuevo pedido') }}</div>
-      <div class="pedido-form-topnav-meta">{{ meta_topnav|default('¿Para qué cliente?') }}</div>
+<div class="pn-shell" id="pn-shell" data-paso="cliente">
+
+  <div class="pn-head">
+    <div class="pn-head-row">
+      <a href="{{ url_for('lista_pedidos') }}" class="pn-volver" aria-label="Cerrar">
+        <i class="fas fa-xmark" aria-hidden="true"></i>
+      </a>
+      <span class="pn-paso">{% if grupos_cliente %}01b{% else %}01{% endif %} / 03</span>
     </div>
-    <span class="pedido-form-topnav-placeholder" aria-hidden="true"></span>
-  </div>
-  <div class="mobile-form-container">
-    <div class="ph-card">
-      <label class="ph-label" for="cliente_id">Cliente</label>
-      <select id="cliente_id" class="mobile-form-control" data-destino="{{ destino }}">
-        <option value=""></option>
-        {% for cliente in clientes|sort(attribute='nombre') %}
-          <option value="{{ cliente.id }}" {% if cliente_pendiente and cliente_pendiente.id == cliente.id %}selected{% endif %}>
-            {{ cliente.nombre }}{% if cliente.moneda == 'USD' %} (USD){% endif %}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    <p class="ph-motivo" id="paso-cliente-estado" aria-live="polite"></p>
 
     {% if grupos_cliente %}
-    <div class="ph-grupos" id="ph-grupos">
-      <div class="ph-grupos-title">¿Qué pedido vas a tomar?</div>
-      <div class="ph-grupos-body">
-        {{ cliente_pendiente.nombre }} compra de más de un grupo y un pedido no
-        puede mezclarlos: QuickBooks no factura junto lo que paga impuestos distintos.
+      <div class="pn-sobretitulo">Cliente</div>
+      <h1 class="pn-titulo-cliente">{{ cliente_pendiente.nombre }}</h1>
+      <p class="pn-head-nota">¿Qué pedido vas a tomar?</p>
+    {% else %}
+      <h1 class="pn-titulo">{{ meta_topnav|default('¿Para quién es el pedido?') }}</h1>
+      <div class="pn-buscador">
+        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" id="pn-buscar-cliente" placeholder="Buscar cliente"
+               autocomplete="off" autocorrect="off" spellcheck="false"
+               aria-label="Buscar cliente">
       </div>
-      <div class="ph-grupos-lista">
-        {# `g.clave` la arma _clave_grupo con caracteres seguros ('pesable:10'),
-           y los dos puntos son legales sin escapar en un query string. Pasarla
-           por |urlencode la convertiría en 'pesable%3A10' sin ganar nada. #}
-        {% for g in grupos_cliente %}
-        <a class="ph-grupo-opt"
-           href="{{ destino }}?cliente={{ cliente_pendiente.id }}&grupo={{ g.clave }}">
-          <span class="ph-grupo-nombre">{{ g.etiqueta }}</span>
-          {% if g.ejemplos %}<span class="ph-grupo-ejemplos">{{ g.ejemplos|join(', ') }}…</span>{% endif %}
-          <span class="ph-grupo-meta">{{ g.pedidos }} {{ 'pedido' if g.pedidos == 1 else 'pedidos' }}</span>
+    {% endif %}
+  </div>
+
+  <div class="pn-cuerpo">
+    {% if grupos_cliente %}
+      {# Un pedido no puede mezclar grupos: QuickBooks no factura en un mismo
+         documento líneas con impuestos distintos. #}
+      <div class="pn-grupos-intro">
+        {{ cliente_pendiente.nombre }} compra de más de un grupo y un pedido no puede
+        mezclarlos: QuickBooks no factura junto lo que paga impuestos distintos.
+      </div>
+
+      {# `g.clave` la arma _clave_grupo con caracteres seguros ('pesable:10'):
+         los dos puntos son legales sin escapar en un query string. #}
+      {% for g in grupos_cliente %}
+        <a class="pn-grupo" href="{{ destino }}?cliente={{ cliente_pendiente.id }}&grupo={{ g.clave }}">
+          <span class="pn-grupo-nombre">{{ g.etiqueta }}</span>
+          {% if g.ejemplos %}<span class="pn-grupo-ejemplos">{{ g.ejemplos|join(', ') }}…</span>{% endif %}
+          <span class="pn-grupo-meta">
+            {{ g.pedidos }} {{ 'pedido' if g.pedidos == 1 else 'pedidos' }}{% if g.ultima_fecha %} · última vez {{ g.ultima_fecha|fecha_corta }}{% endif %}
+          </span>
         </a>
+      {% endfor %}
+
+      {# Salida del candado: sin esto, a un cliente con historial no se le
+         puede tomar el primer pedido de una categoría nueva. #}
+      <a class="pn-grupo pn-grupo-otro" href="{{ destino }}?cliente={{ cliente_pendiente.id }}&grupo=nuevo">
+        <span class="pn-grupo-nombre">Otro grupo</span>
+        <span class="pn-grupo-meta">Buscar en el catálogo completo</span>
+      </a>
+
+    {% else %}
+      <div class="pn-seccion">
+        <span class="pn-seccion-titulo">Clientes</span>
+        <span class="pn-seccion-dato" id="pn-clientes-conteo">{{ '%02d'|format(clientes_ctx|length) }}</span>
+      </div>
+
+      <div id="pn-clientes-lista">
+        {% for c in clientes_ctx %}
+          <a class="pn-cliente" href="{{ destino }}?cliente={{ c.id }}"
+             data-nombre="{{ c.nombre|lower }}">
+            <span class="pn-cliente-info">
+              <span class="pn-cliente-nombre">{{ c.nombre }}{% if c.moneda == 'USD' %}<span class="pn-cliente-moneda">USD</span>{% endif %}</span>
+              <span class="pn-cliente-meta {{ 'es-hoy' if c.pidio_hoy }}">{{ c.meta }}</span>
+            </span>
+            <i class="fas {{ 'fa-check' if c.pidio_hoy else 'fa-arrow-right' }}" aria-hidden="true"></i>
+          </a>
         {% endfor %}
       </div>
-    </div>
+
+      <p class="pn-vacio" id="pn-sin-clientes" hidden>Ningún cliente coincide</p>
     {% endif %}
   </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script nonce="{{ csp_nonce() }}">
 document.addEventListener('DOMContentLoaded', function () {
-    const sel = document.getElementById('cliente_id');
-    const ts = new TomSelect('#cliente_id', {
-        maxOptions: 1000, closeAfterSelect: true, placeholder: 'Buscar cliente…',
-        dropdownParent: 'body', sortField: { field: 'text', direction: 'asc' },
-    });
-    // tom-select en single con un cliente ya elegido NO abre la lista al
-    // enfocar: deja el nombre como texto a sobreescribir y recién abre con
-    // la primera letra. En esta pantalla llegar con cliente preseleccionado
-    // es lo normal (re-pregunta multi-grupo, «Cambiar» en edición), y el
-    // vendedor tocaba el campo y veía el panel sin ningún nombre. Al
-    // enfocar: query limpia, re-render y lista abierta siempre.
-    ts.on('focus', () => {
-        if (ts.isOpen) return;
-        ts.control_input.value = '';
-        ts.refreshOptions(true);
-    });
-    {% if not cliente_pendiente %}setTimeout(() => ts.focus(), 150);{% endif %}
-    sel.addEventListener('change', function () {
-        if (!this.value) return;
-        ts.disable();
-        document.getElementById('paso-cliente-estado').textContent = 'Cargando su pedido habitual…';
-        window.location.assign(this.dataset.destino + '?cliente=' + encodeURIComponent(this.value));
-    });
-    // Volver con el botón atrás (o el swipe-back del PWA en iPhone) puede
-    // restaurar esta página desde el bfcache en vez de recargarla: el
-    // DOMContentLoaded de arriba no vuelve a correr, así que sin esto el
-    // select queda deshabilitado y "Cargando su pedido habitual…" pegado
-    // para siempre. `clear(true)` es la variante silenciosa: no dispara
-    // 'change' (que reabriría la navegación que acabamos de deshacer).
+    const buscador = document.getElementById('pn-buscar-cliente');
+    if (!buscador) return;   // pantalla de grupos: no hay lista que filtrar
+
+    const lista = document.getElementById('pn-clientes-lista');
+    const filas = Array.from(lista.querySelectorAll('.pn-cliente'));
+    const conteo = document.getElementById('pn-clientes-conteo');
+    const vacio = document.getElementById('pn-sin-clientes');
+
+    // Filtro local sobre la lista ya renderizada: 49 clientes caben de sobra
+    // en el HTML y así el buscador responde sin red (en ruta la señal falla).
+    function filtrar() {
+        const q = buscador.value.trim().toLowerCase();
+        let visibles = 0;
+        filas.forEach(fila => {
+            const coincide = !q || fila.dataset.nombre.includes(q);
+            fila.hidden = !coincide;
+            if (coincide) visibles++;
+        });
+        conteo.textContent = String(visibles).padStart(2, '0');
+        vacio.hidden = visibles > 0;
+    }
+
+    buscador.addEventListener('input', filtrar);
+
+    // Volver con el botón atrás (o el swipe-back del PWA) restaura la página
+    // desde el bfcache sin re-ejecutar el DOMContentLoaded: la búsqueda escrita
+    // sigue en el input y hay que re-aplicar el filtro para que la lista y el
+    // conteo coincidan con lo que se ve.
     window.addEventListener('pageshow', function (event) {
-        if (!event.persisted) return;
-        ts.enable();
-        document.getElementById('paso-cliente-estado').textContent = '';
-        ts.clear(true);
+        if (event.persisted) filtrar();
     });
 });
 </script>

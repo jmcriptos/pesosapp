@@ -143,7 +143,7 @@ def test_paso1_sin_cliente_muestra_selector(app, logged_client):
     resp = logged_client.get('/pedidos/nuevo')
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
-    assert 'id="paso-cliente"' in html
+    assert 'data-paso="cliente"' in html
     assert 'id="form-nuevo-pedido"' not in html   # el paso 1 no trae el form del pedido
 
 
@@ -204,7 +204,7 @@ def test_paso2_multigrupo_sin_grupo_repregunta(app, logged_client):
     resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}')
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
-    assert 'id="paso-cliente"' in html
+    assert 'data-paso="cliente"' in html
     assert 'Qué pedido vas a tomar' in html
     assert f'cliente={cliente_id}&amp;grupo=pesable:10' in html or f'cliente={cliente_id}&grupo=pesable:10' in html
 
@@ -258,7 +258,7 @@ def test_editar_cambiar_muestra_paso1(app, logged_client):
     cliente_id, prods = _ids()
     pid = _crear_pedido_por_post(logged_client, cliente_id, prods['Aceite vegetal 12 x 1 L'])
     html = logged_client.get(f'/pedidos/{pid}/editar?cambiar=1').get_data(as_text=True)
-    assert 'id="paso-cliente"' in html
+    assert 'data-paso="cliente"' in html
     assert f'/pedidos/{pid}/editar' in html   # destino apunta de vuelta a la edición
 
 
@@ -372,9 +372,11 @@ def test_editar_cambiar_solo_ofrece_clientes_visibles(app):
 
     c = _cliente_vendedor_logueado(app, username='vend2')
     html = c.get(f'/pedidos/{pedido.id}/editar?cambiar=1').get_data(as_text=True)
-    assert 'id="paso-cliente"' in html
-    assert f'<option value="{cliente_id}"' in html
-    assert f'<option value="{otro.id}"' not in html
+    assert 'data-paso="cliente"' in html
+    # El paso 1 lista los clientes como filas enlazadas al destino.
+    assert f'?cliente={cliente_id}"' in html
+    assert f'?cliente={otro.id}"' not in html
+    assert otro.nombre not in html
 
 
 def test_paso2_vendedor_regular_no_ve_catalogo_de_cliente_ajeno(app):
