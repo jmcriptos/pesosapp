@@ -6294,6 +6294,8 @@ def editar_pedido(pedido_id):
             destino=url_for('editar_pedido', pedido_id=pedido.id),
             cliente_pendiente=pedido.cliente,
             grupos_cliente=None,
+            titulo_topnav=f'Editar PED-{pedido.id}',
+            meta_topnav='¿Cambiar a qué cliente?',
         )
 
     # `?cliente=M` es una PREVISUALIZACIÓN: nada se guarda hasta que el POST
@@ -6354,7 +6356,8 @@ def editar_pedido(pedido_id):
                             if cliente_efectivo.id != pedido.cliente_id else '',
         grupo_clave       = '',
         tipo_cambio_valor = (1.78 if (cliente_efectivo.moneda or 'XCG') == 'USD'
-                             else float(pedido.tipo_cambio or 1.0)),
+                             else (1.0 if cliente_efectivo.id != pedido.cliente_id
+                                   else float(pedido.tipo_cambio or 1.0))),
     )
 
 

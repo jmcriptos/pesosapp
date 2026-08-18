@@ -375,3 +375,20 @@ def test_editar_cambiar_solo_ofrece_clientes_visibles(app):
     assert 'id="paso-cliente"' in html
     assert f'<option value="{cliente_id}"' in html
     assert f'<option value="{otro.id}"' not in html
+
+
+def test_paso2_vendedor_regular_no_ve_catalogo_de_cliente_ajeno(app):
+    """IDOR: un vendedor regular no debe poder leer el catálogo/precios de un
+    cliente que no tiene asignado pidiendo el paso 2 directo por la URL."""
+    from app import Cliente
+    otro = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
+
+    c = _cliente_vendedor_logueado(app)
+    resp = c.get(f'/pedidos/nuevo?cliente={otro.id}', follow_redirects=True)
+    assert resp.status_code == 200
+    assert resp.history and resp.history[0].status_code in (302, 303)
+
+    html = resp.get_data(as_text=True)
+    assert 'id="form-nuevo-pedido"' not in html    # no lo dejó entrar al paso 2
+    assert 'Cliente no válido para este vendedor' in html
+    assert otro.nombre not in html                 # ni el nombre del cliente ajeno se filtra

@@ -34,7 +34,7 @@
     </a>
     <div class="pedido-form-topnav-title">
       <div class="pedido-form-topnav-heading">{% if pedido %}Editar PED-{{ pedido.id }}{% else %}Nuevo pedido{% endif %}</div>
-      <div class="pedido-form-topnav-meta">{% if pedido %}{{ pedido.cliente.nombre if pedido.cliente else '—' }}{% else %}Completa los datos del pedido{% endif %}</div>
+      <div class="pedido-form-topnav-meta">{% if pedido %}{{ cliente.nombre }}{% else %}Completa los datos del pedido{% endif %}</div>
     </div>
     <span class="pedido-form-topnav-placeholder" aria-hidden="true"></span>
   </div>

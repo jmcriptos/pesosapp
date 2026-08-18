@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Nuevo Pedido — PesosApp{% endblock %}
+{% block title %}{{ titulo_topnav|default('Nuevo Pedido') }} — PesosApp{% endblock %}
 {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-pedido-form-screen="1" data-pedido-habitual="1"{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedido_form_inline.css') }}">
@@ -11,8 +11,8 @@
   <div class="pedido-form-topnav">
     <a href="{{ url_for('lista_pedidos') }}" class="pedido-form-close" aria-label="Cerrar"><i class="fas fa-times"></i></a>
     <div class="pedido-form-topnav-title">
-      <div class="pedido-form-topnav-heading">Nuevo pedido</div>
-      <div class="pedido-form-topnav-meta">¿Para qué cliente?</div>
+      <div class="pedido-form-topnav-heading">{{ titulo_topnav|default('Nuevo pedido') }}</div>
+      <div class="pedido-form-topnav-meta">{{ meta_topnav|default('¿Para qué cliente?') }}</div>
     </div>
     <span class="pedido-form-topnav-placeholder" aria-hidden="true"></span>
   </div>
