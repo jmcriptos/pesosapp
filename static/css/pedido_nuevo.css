@@ -830,6 +830,14 @@ html:has(body[data-pedido-nuevo-screen]) {
 }
 #pn-shell .pn-buscador input { background: none !important; }
 #pn-shell .ts-control input { background: none !important; color: var(--pn-tinta) !important; }
+/* La cápsula del buscador iguala al campo «Cajas» que tiene al lado (56 px):
+   Tom Select trae su propio alto y lo dejaba 12 px más bajo. */
+#pn-shell .ts-control { min-height: 56px !important; padding: 0 20px !important; }
+
+/* El ancho también hay que defenderlo: un `input{width:100%}` global estiraba
+   «Cajas» a la fila entera y empujaba «Añadir» fuera de la pantalla. */
+#pn-shell input.pn-add-cajas { width: 108px !important; flex: none !important; }
+#pn-shell button.pn-add-confirmar { flex: 1 !important; width: auto !important; }
 #pn-shell input::placeholder,
 #pn-shell textarea::placeholder,
 #pn-shell .ts-control input::placeholder { color: #9c9c92 !important; }
