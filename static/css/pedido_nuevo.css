@@ -481,26 +481,29 @@ body[data-pedido-nuevo-screen] .app-content {
 }
 .pn-motivo:empty { display: none; }
 
-/* Salida del candado de grupo: nota al pie del panel de añadir. Es texto de
-   apoyo, no un control principal — pesa menos que el botón «Añadir», pero el
-   enlace se subraya para que se lea como enlace y no como énfasis. */
-.pn-otro-grupo {
-    margin: 12px 0 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--pn-gris-fuerte);
-}
-.pn-otro-grupo strong { color: var(--pn-tinta); font-weight: 600; }
-.pn-otro-grupo a {
-    display: inline-block;
-    /* El target táctil vive en una pantalla que se usa a una mano y en ruta:
-       el padding lo lleva a ~44 px de alto sin romper el flujo del párrafo. */
-    padding: 12px 0;
+/* El grupo elegido, en la cabecera del pedido: dice de qué grupo es este
+   pedido —el buscador solo ofrece ese— y vuelve al paso de grupos para
+   cambiarlo. Cápsula como el resto de los controles de la pantalla, pero al
+   peso de un dato, no al de un botón de acción. */
+.pn-grupo-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    /* 40 px de alto: se toca a una mano sin competir con el nombre del
+       cliente, que es el título de la pantalla. */
+    min-height: 40px;
+    margin-top: 10px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: var(--pn-capsula);
     color: var(--pn-tinta);
+    font-family: var(--pn-sans);
+    font-size: 14px;
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none;
 }
+.pn-grupo-chip:active { background: var(--pn-capsula-activa); }
+.pn-grupo-chip i { font-size: 11px; color: var(--pn-gris-fuerte); }
 
 /* ── Entrega y notas (paso 02) ──────────────────────────────────────────── */
 
@@ -828,9 +831,11 @@ html:has(body[data-pedido-nuevo-screen]) {
     background: var(--pn-aviso-fondo) !important;
     color: var(--pn-aviso-tinta) !important;
 }
-.pn-shell .pn-otro-grupo { color: var(--pn-gris-fuerte) !important; }
-.pn-shell .pn-otro-grupo strong,
-.pn-shell .pn-otro-grupo a { color: var(--pn-tinta) !important; }
+.pn-shell .pn-grupo-chip {
+    background: var(--pn-capsula) !important;
+    color: var(--pn-tinta) !important;
+}
+.pn-shell .pn-grupo-chip i { color: var(--pn-gris-fuerte) !important; }
 .pn-shell .pn-linea.es-cambiada { background: var(--pn-realce) !important; }
 .pn-shell .pn-linea.es-quitada .pn-linea-nombre { color: var(--pn-apagado) !important; }
 

@@ -218,7 +218,8 @@ def test_paso2_no_escala_queries_con_el_catalogo(app, logged_client):
     engine = _db.session.get_bind()
     event.listen(engine, 'before_cursor_execute', _contar)
     try:
-        resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}')
+        resp = logged_client.get(
+            f'/pedidos/nuevo?cliente={cliente_id}&grupo=importado:10')
         assert resp.status_code == 200
     finally:
         event.remove(engine, 'before_cursor_execute', _contar)
@@ -462,103 +463,31 @@ def _cliente_multigrupo(cliente_id, prods):
                       dias_atras=dias - 1)
 
 
-def test_selector_de_grupos_ofrece_empezar_otro_grupo(app, logged_client):
-    cliente_id, prods = _ids()
-    _cliente_multigrupo(cliente_id, prods)
-
-    html = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}').get_data(as_text=True)
-    assert 'Qué pedido vas a tomar' in html
-    assert 'grupo=nuevo' in html
 
 
-def test_grupo_nuevo_abre_paso2_vacio_con_catalogo_completo(app, logged_client):
-    cliente_id, prods = _ids()
-    _cliente_multigrupo(cliente_id, prods)
 
-    html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente_id}&grupo=nuevo'
-    ).get_data(as_text=True)
-    assert 'id="form-nuevo-pedido"' in html
-    assert _seed_lineas(html) == []
-    # Catálogo completo: sin grupo fijado, el buscador ofrece todo y la
-    # primera línea añade el candado (igual que un cliente sin historial).
-    marca = 'const productos = '
-    inicio = html.index(marca) + len(marca)
-    fin = html.index('\n', inicio)
-    catalogo = json.loads(html[inicio:fin].rstrip().rstrip(';'))
-    assert len(catalogo) == 4
-
-
-def test_cliente_de_un_solo_grupo_ofrece_salida_a_otro_grupo(app, logged_client):
-    """Luna Park compra SOLO importados y no podía pedir pesables.
-
-    Con un único grupo en el historial el paso 1 no re-pregunta (no hay nada
-    que elegir), así que el paso 2 llega con el grupo fijado y el buscador
-    filtrado a ese grupo. La salida a `?grupo=nuevo` existía, pero solo estaba
-    enlazada desde la re-pregunta multi-grupo: para un cliente de un solo
-    grupo no había NINGUNA forma de tomarle un pedido de otra categoría.
-    """
-    cliente_id, prods = _ids()
-    for dias in (14, 7):
-        _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 3)],
-                      dias_atras=dias)
-
-    resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}')
-    html = resp.get_data(as_text=True)
-
-    # Llega al paso 2 directo, con el grupo del historial fijado.
-    assert 'id="form-nuevo-pedido"' in html
-    assert 'name="grupo" value="importado:10"' in html
-    # ...y desde ahí tiene que poder salirse a otro grupo.
-    assert (f'cliente={cliente_id}&amp;grupo=nuevo' in html
-            or f'cliente={cliente_id}&grupo=nuevo' in html)
-
-
-def test_paso2_sin_grupo_fijado_no_ofrece_la_salida(app, logged_client):
-    """Sin candado no hay de qué salirse: el enlace sería ruido.
-
-    Es el caso del cliente sin historial y el de `?grupo=nuevo`, donde el
-    buscador ya ofrece el catálogo completo.
-    """
-    from app import Cliente
-    nuevo = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
-    html = logged_client.get(f'/pedidos/nuevo?cliente={nuevo.id}').get_data(as_text=True)
-    assert 'id="form-nuevo-pedido"' in html
-    assert 'grupo=nuevo' not in html
-
-
-def test_editar_pedido_no_ofrece_la_salida_a_otro_grupo(app, logged_client):
-    """Editando, cambiar de grupo es cambiar el pedido entero: no es una salida
-    del buscador sino un pedido nuevo, y el enlace apuntaría fuera de la
-    edición perdiendo lo editado."""
-    cliente_id, prods = _ids()
-    pid = _crear_pedido_por_post(logged_client, cliente_id,
-                                 prods['Aceite vegetal 12 x 1 L'])
-    html = logged_client.get(f'/pedidos/{pid}/editar').get_data(as_text=True)
-    assert 'id="form-nuevo-pedido"' in html
-    assert 'grupo=nuevo' not in html
 
 
 def test_candado_provisional_se_suelta_al_quedarse_sin_lineas(app, logged_client):
     """El candado que NO puso el servidor no puede sobrevivir al pedido vacío.
 
-    Cliente sin historial (y `?grupo=nuevo`, y la edición): el grupo lo fija la
-    primera línea. Si esa línea se quita, antes el buscador quedaba acotado a
-    ese grupo para siempre —sin aviso que lo explicara ni enlace de salida, que
-    solo se renderiza cuando el candado viene del servidor—, y la única salida
-    era recargar la página.
+    Desde que el grupo se elige siempre, el único camino que llega al form sin
+    grupo del servidor es la EDICIÓN: ahí lo fija la primera línea del pedido.
+    Si se quitan todas, el buscador tiene que volver a ofrecer el catálogo
+    entero; antes quedaba acotado al grupo de la línea borrada, sin aviso que
+    lo explicara y sin más salida que recargar la página.
 
     Es lógica de la pantalla: el comportamiento se verificó en el navegador
-    (añadir → quitar → el catálogo vuelve a estar completo). Acá se ancla que
-    las dos piezas sigan en el template.
+    (quitar todas las líneas → el catálogo vuelve a estar completo). Acá se
+    ancla que las dos piezas sigan en el template.
     """
-    from app import Cliente
-    nuevo = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
-    html = logged_client.get(f'/pedidos/nuevo?cliente={nuevo.id}').get_data(as_text=True)
+    cliente_id, prods = _ids()
+    pid = _crear_pedido_por_post(logged_client, cliente_id,
+                                 prods['Aceite vegetal 12 x 1 L'])
+    html = logged_client.get(f'/pedidos/{pid}/editar').get_data(as_text=True)
 
-    # El origen del candado se distingue: el del servidor manda el aviso y su
-    # enlace; el provisional es el único que se suelta.
-    assert 'const grupoDelServidor' in html
+    # Editando, el servidor no fija grupo: lo deduce la pantalla de las líneas.
+    assert 'const grupoDelServidor = "" || null' in html
     assert 'function sincronizarCandadoProvisional' in html
     # Y se recalcula en cada render de las líneas, que es donde se quitan.
     cuerpo = html.split('function actualizarTablaProductos()')[1][:200]
@@ -594,7 +523,8 @@ def test_css_de_la_pantalla_hace_valer_hidden(app, logged_client):
 def test_paso2_sin_hidden_nombre_muerto(app, logged_client):
     cliente_id, prods = _ids()
     _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 3)], dias_atras=3)
-    html = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}').get_data(as_text=True)
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=importado:10').get_data(as_text=True)
     assert '[nombre]' not in html
 
 
@@ -619,5 +549,6 @@ def test_editar_linea_sin_precio_no_se_muestra_como_cero(app, logged_client):
 def test_paso2_muestra_precio_unitario_en_las_lineas(app, logged_client):
     cliente_id, prods = _ids()
     _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 3)], dias_atras=3)
-    html = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}').get_data(as_text=True)
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=importado:10').get_data(as_text=True)
     assert 'c/u' in html

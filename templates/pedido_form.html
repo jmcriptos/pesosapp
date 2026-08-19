@@ -33,17 +33,26 @@
     <!-- ══ Paso 02: armar el pedido ══════════════════════════════════════ -->
     <div class="pn-head" id="pn-head-pedido">
       <div class="pn-head-row">
-        <a href="{% if pedido %}{{ url_for('editar_pedido', pedido_id=pedido.id, cambiar=1) }}{% else %}{{ url_for('nuevo_pedido') }}{% endif %}"
-           class="pn-volver" id="ph-cambiar-cliente" aria-label="Cambiar cliente">
+        <a href="{% if pedido %}{{ url_for('editar_pedido', pedido_id=pedido.id, cambiar=1) }}{% else %}{{ url_for('nuevo_pedido', cliente=cliente.id) }}{% endif %}"
+           class="pn-volver" id="ph-cambiar-cliente"
+           aria-label="{% if pedido %}Cambiar cliente{% else %}Volver a elegir grupo{% endif %}">
           <i class="fas fa-chevron-left" aria-hidden="true"></i>
         </a>
-        <span class="pn-paso">02 / 03</span>
+        <span class="pn-paso">03 / 04</span>
       </div>
       <div class="pn-sobretitulo">{% if pedido %}Editar PED-{{ pedido.id }}{% else %}Cliente{% endif %}</div>
       {# `cliente` siempre viene del servidor y en la edición es el efectivo:
          leerlo de `pedido.cliente` mostraría el cliente viejo junto a los
          precios del nuevo. #}
       <h1 class="pn-titulo-cliente" id="ph-cliente-head">{{ cliente.nombre }}{% if (cliente.moneda or 'XCG') == 'USD' %} · USD{% endif %}</h1>
+      {% if not pedido and grupo_clave %}
+        <a class="pn-grupo-chip" id="ph-grupo-actual"
+           href="{{ url_for('nuevo_pedido', cliente=cliente.id) }}"
+           aria-label="Grupo del pedido: {{ grupo_etiqueta }}. Tocar para cambiarlo">
+          <span>{{ grupo_etiqueta }}</span>
+          <i class="fas fa-pen" aria-hidden="true"></i>
+        </a>
+      {% endif %}
       {% if hero_meta_texto %}<p class="pn-head-nota">{{ hero_meta_texto }}</p>{% endif %}
       {% if origen_texto %}<p class="pn-head-nota">{{ origen_texto }}</p>{% endif %}
     </div>
@@ -73,21 +82,6 @@
           </div>
           <p id="agregar-motivo" class="pn-motivo" role="status"></p>
         </div>
-
-        {# Con un grupo fijado el buscador esconde el resto del catálogo, y un
-           cliente de UN SOLO grupo nunca pasa por la re-pregunta del paso 1:
-           sin esta salida no había forma de tomarle el primer pedido de otra
-           categoría (Luna Park compra importados y no se le podían pedir
-           pesables). Solo en el alta: editando, cambiar de grupo es otro
-           pedido, no otro buscador. #}
-        {% if not pedido and grupo_clave %}
-          <p class="pn-otro-grupo">
-            Solo se ven productos de <strong>{{ grupo_etiqueta }}</strong>: un pedido no
-            puede mezclar impuestos.
-            <a href="{{ url_for('nuevo_pedido', cliente=cliente.id, grupo='nuevo') }}"
-               id="ph-otro-grupo">Pedir de otro grupo</a>
-          </p>
-        {% endif %}
       </div>
 
       <div class="pn-campo">
@@ -120,7 +114,7 @@
         <button type="button" class="pn-volver" id="pn-volver-pedido" aria-label="Volver al pedido">
           <i class="fas fa-chevron-left" aria-hidden="true"></i>
         </button>
-        <span class="pn-paso">03 / 03</span>
+        <span class="pn-paso">04 / 04</span>
       </div>
       <h1 class="pn-titulo">Revisa y envía</h1>
     </div>
@@ -592,33 +586,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tomProducto) tomProducto.focus();
     });
 
-    // «Cambiar cliente» sale de esta pantalla y vuelve al paso 1: las líneas
-    // cargadas a mano no van a ninguna parte (las sembradas se re-siembran).
-    const linkCambiar = $('ph-cambiar-cliente');
-    if (linkCambiar) {
-        linkCambiar.addEventListener('click', function (e) {
-            const manuales = productosAgregados.some(
-                p => p.activa && (p.habitual === null || p.habitual === undefined));
-            const aviso = esEdicion
-                ? 'Hay cambios sin guardar; se perderán al cambiar de cliente. ¿Continuar?'
-                : 'Tienes líneas añadidas a mano; al cambiar de cliente se pierden. ¿Continuar?';
-            if ((esEdicion || manuales) && !confirm(aviso)) e.preventDefault();
+    // Los dos caminos que salen de esta pantalla dejan atrás lo que hay en
+    // ella. Con la flecha, lo añadido a mano (lo sembrado se re-siembra al
+    // volver); con el chip del grupo, TODO, porque del otro lado se siembra
+    // el habitual del grupo nuevo. Por eso el chip avisa con cualquier línea
+    // y la flecha solo con las manuales.
+    function avisarAntesDeSalir(id, mensaje, conCualquierLinea) {
+        const link = $(id);
+        if (!link) return;
+        link.addEventListener('click', function (e) {
+            const hayQuePerder = conCualquierLinea
+                ? productosAgregados.some(p => p.activa)
+                : productosAgregados.some(
+                    p => p.activa && (p.habitual === null || p.habitual === undefined));
+            if ((esEdicion || hayQuePerder) && !confirm(mensaje)) e.preventDefault();
         });
     }
 
-    // «Pedir de otro grupo» abre el paso 2 vacío con el catálogo completo, así
-    // que se pierde TODO lo que hay acá — también lo sembrado, que no se
-    // re-siembra del otro lado. Por eso avisa con cualquier línea, no solo con
-    // las añadidas a mano.
-    const linkOtroGrupo = $('ph-otro-grupo');
-    if (linkOtroGrupo) {
-        linkOtroGrupo.addEventListener('click', function (e) {
-            if (!productosAgregados.some(p => p.activa)) return;
-            const aviso = 'Vas a empezar un pedido de otro grupo: las líneas de '
-                        + 'este pedido se pierden. ¿Continuar?';
-            if (!confirm(aviso)) e.preventDefault();
-        });
-    }
+    avisarAntesDeSalir('ph-cambiar-cliente', esEdicion
+        ? 'Hay cambios sin guardar; se perderán al cambiar de cliente. ¿Continuar?'
+        : 'Tienes líneas añadidas a mano; al volver a elegir grupo se pierden. ¿Continuar?',
+        false);
+    avisarAntesDeSalir('ph-grupo-actual',
+        'Vas a cambiar de grupo: las líneas de este pedido se pierden. ¿Continuar?',
+        true);
 
     /* ------------ Tom Select (búsqueda de productos) ------------ */
     tomProducto = new TomSelect('#producto-select', {

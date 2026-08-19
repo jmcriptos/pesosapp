@@ -6370,38 +6370,27 @@ def nuevo_pedido():
         flash('Cliente no válido para este vendedor', 'error')
         return redirect(url_for('nuevo_pedido'))
 
+    # ── Paso 02: el grupo de facturación, SIEMPRE ────────────────────
+    # Un pedido no puede mezclar grupos, así que hay que elegir uno antes de
+    # precargar nada. Se pregunta a todos por igual: cuando el sistema
+    # resolvía solo el grupo del cliente de un solo grupo, ese cliente no
+    # tenía forma de pedir de otra categoría (Luna Park, 28 pedidos de
+    # importados y ningún camino a los pesables). Una clave inválida —o la
+    # `grupo=nuevo` de la salida vieja, guardada en un marcador— vuelve acá en
+    # vez de colarse al paso siguiente sin grupo.
+    grupos_elegibles = _grupos_para_elegir(cliente.id)
     grupo_arg = request.args.get('grupo') or None
-    if grupo_arg == 'nuevo':
-        # Pedido de un grupo FUERA del historial: paso 2 vacío con el catálogo
-        # completo; la primera línea añadida fija el grupo (igual que un
-        # cliente sin historial). Sin esta salida, un cliente con historial
-        # quedaba bloqueado a sus grupos de siempre y no había forma de
-        # tomarle el primer pedido de una categoría nueva.
-        return render_template(
-            'pedido_form.html',
-            cliente=cliente,
-            productos=_productos_dicts_para_cliente(cliente.id),
-            productos_pedido=[],
-            pedido=None,
-            hero_meta_texto='',
-            origen_texto=('Pedido de otro grupo: busca en el catálogo '
-                          'completo; la primera línea fija el grupo.'),
-            grupo_clave='',
-            grupo_etiqueta='',
-            tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
-        )
-    lineas_hab, meta = _calcular_pedido_habitual(cliente.id, grupo_clave=grupo_arg)
-
-    if meta['grupo'] is None and len(meta['grupos']) > 1:
-        # Multi-grupo sin elegir (o clave inválida): re-preguntar en paso 1.
+    if grupo_arg not in {g['clave'] for g in grupos_elegibles}:
         return render_template(
             'pedido_cliente.html',
             clientes=clientes,
             clientes_ctx=_clientes_con_contexto(clientes),
             destino=url_for('nuevo_pedido'),
             cliente_pendiente=cliente,
-            grupos_cliente=meta['grupos'],
+            grupos_cliente=grupos_elegibles,
         )
+
+    lineas_hab, meta = _calcular_pedido_habitual(cliente.id, grupo_clave=grupo_arg)
 
     productos_pedido = [{
         'id': l['id'],
@@ -6419,8 +6408,8 @@ def nuevo_pedido():
         pedido=None,
         hero_meta_texto=_texto_hero_habitual(meta),
         origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
-        grupo_clave=meta['grupo'] or '',
-        grupo_etiqueta=_etiqueta_de_clave_grupo(meta['grupo']),
+        grupo_clave=grupo_arg,
+        grupo_etiqueta=_etiqueta_de_clave_grupo(grupo_arg),
         tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
     )
 
@@ -8703,6 +8692,50 @@ def _clave_grupo(grupo):
         return ''
     tipo, tax = grupo
     return f'{tipo}:{tax:g}'
+
+
+def _grupos_del_catalogo():
+    """Los grupos de facturación que se pueden pedir, en orden fijo.
+
+    Salen del CATÁLOGO, no del historial del cliente: por eso cada grupo
+    ocupa siempre la misma posición y el vendedor puede aprender el gesto.
+    Cuando las opciones salían de lo que el cliente ya había comprado, un
+    cliente de un solo grupo no tenía dónde elegir otro (bug de Luna Park) y
+    la lista se movía de sitio entre un cliente y otro.
+
+    Orden: importados antes que pesables, y dentro de cada tipo por impuesto
+    ascendente. Un impuesto nuevo entra en su posición sin tocar código, y un
+    grupo sin productos no aparece: no se podría pedir nada de él.
+    """
+    grupos = {}
+    for producto in Producto.query.all():
+        grupo = _grupo_facturable(producto)
+        if grupo is None:
+            continue
+        grupos.setdefault(grupo, []).append(producto.nombre)
+
+    return [{
+        'clave': _clave_grupo(grupo),
+        'etiqueta': _etiqueta_grupo(grupo),
+        # El tax_rate es un código de QuickBooks, no un porcentaje: sin dos
+        # productos a la vista, «Pesables · imp. 10» y «Pesables · imp. 14»
+        # son indistinguibles para el vendedor.
+        'ejemplos': sorted(nombres)[:2],
+    } for grupo, nombres in sorted(
+        grupos.items(), key=lambda kv: (kv[0][0] != 'importado', kv[0][1]))]
+
+
+def _grupos_para_elegir(cliente_id):
+    """Las opciones del paso 2, con el historial de ESTE cliente encima.
+
+    El historial decora (cuántos pedidos, cuándo fue el último); no decide
+    qué se ve ni en qué orden.
+    """
+    historial = {g['clave']: g for g in _grupos_del_cliente(cliente_id)}
+    return [{**grupo, **{
+        'pedidos': historial.get(grupo['clave'], {}).get('pedidos', 0),
+        'ultima_fecha': historial.get(grupo['clave'], {}).get('ultima_fecha'),
+    }} for grupo in _grupos_del_catalogo()]
 
 
 def _etiqueta_de_clave_grupo(clave):

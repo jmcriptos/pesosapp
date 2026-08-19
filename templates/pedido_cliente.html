@@ -20,7 +20,7 @@
       <a href="{{ url_for('lista_pedidos') }}" class="pn-volver" aria-label="Cerrar">
         <i class="fas fa-xmark" aria-hidden="true"></i>
       </a>
-      <span class="pn-paso">{% if grupos_cliente %}01b{% else %}01{% endif %} / 03</span>
+      <span class="pn-paso">{% if grupos_cliente %}02{% else %}01{% endif %} / 04</span>
     </div>
 
     {% if grupos_cliente %}
@@ -43,8 +43,8 @@
       {# Un pedido no puede mezclar grupos: QuickBooks no factura en un mismo
          documento líneas con impuestos distintos. #}
       <div class="pn-grupos-intro">
-        {{ cliente_pendiente.nombre }} compra de más de un grupo y un pedido no puede
-        mezclarlos: QuickBooks no factura junto lo que paga impuestos distintos.
+        Un pedido no puede mezclar grupos: QuickBooks no factura junto lo que paga
+        impuestos distintos.
       </div>
 
       {# `g.clave` la arma _clave_grupo con caracteres seguros ('pesable:10'):
@@ -54,17 +54,14 @@
           <span class="pn-grupo-nombre">{{ g.etiqueta }}</span>
           {% if g.ejemplos %}<span class="pn-grupo-ejemplos">{{ g.ejemplos|join(', ') }}…</span>{% endif %}
           <span class="pn-grupo-meta">
-            {{ g.pedidos }} {{ 'pedido' if g.pedidos == 1 else 'pedidos' }}{% if g.ultima_fecha %} · última vez {{ g.ultima_fecha|fecha_corta }}{% endif %}
+            {% if g.pedidos %}
+              {{ g.pedidos }} {{ 'pedido' if g.pedidos == 1 else 'pedidos' }}{% if g.ultima_fecha %} · última vez {{ g.ultima_fecha|fecha_corta }}{% endif %}
+            {% else %}
+              Sin pedidos
+            {% endif %}
           </span>
         </a>
       {% endfor %}
-
-      {# Salida del candado: sin esto, a un cliente con historial no se le
-         puede tomar el primer pedido de una categoría nueva. #}
-      <a class="pn-grupo pn-grupo-otro" href="{{ destino }}?cliente={{ cliente_pendiente.id }}&grupo=nuevo">
-        <span class="pn-grupo-nombre">Otro grupo</span>
-        <span class="pn-grupo-meta">Buscar en el catálogo completo</span>
-      </a>
 
     {% else %}
       <div class="pn-seccion">
