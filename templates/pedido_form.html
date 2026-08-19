@@ -73,6 +73,21 @@
           </div>
           <p id="agregar-motivo" class="pn-motivo" role="status"></p>
         </div>
+
+        {# Con un grupo fijado el buscador esconde el resto del catálogo, y un
+           cliente de UN SOLO grupo nunca pasa por la re-pregunta del paso 1:
+           sin esta salida no había forma de tomarle el primer pedido de otra
+           categoría (Luna Park compra importados y no se le podían pedir
+           pesables). Solo en el alta: editando, cambiar de grupo es otro
+           pedido, no otro buscador. #}
+        {% if not pedido and grupo_clave %}
+          <p class="pn-otro-grupo">
+            Solo se ven productos de <strong>{{ grupo_etiqueta }}</strong>: un pedido no
+            puede mezclar impuestos.
+            <a href="{{ url_for('nuevo_pedido', cliente=cliente.id, grupo='nuevo') }}"
+               id="ph-otro-grupo">Pedir de otro grupo</a>
+          </p>
+        {% endif %}
       </div>
 
       <div class="pn-campo">
@@ -153,8 +168,16 @@ const monedaActual = {{ (cliente.moneda or 'XCG')|tojson }};
    ni intentar. El servidor lo valida igual, porque esta pantalla no es la
    única puerta de entrada.
    Viene resuelto del paso 1 ('' cuando no hay: cliente sin historial, grupo
-   nuevo, o edición); si llega vacío lo fija la primera línea. */
-let grupoActual = {{ grupo_clave|tojson }} || null;
+   nuevo, o edición); si llega vacío lo fija la primera línea.
+
+   Se distingue de dónde viene el candado: el del SERVIDOR es el del pedido que
+   se está tomando (lo explica el aviso del panel y tiene su enlace de salida);
+   el que fija la primera línea es provisional y se suelta al quedarse sin
+   líneas — sin eso, tocar un producto del grupo equivocado y quitarlo dejaba
+   el buscador acotado a ese grupo para siempre, sin nada que lo explicara ni
+   forma de salir que no fuera recargar la página. */
+const grupoDelServidor = {{ grupo_clave|tojson }} || null;
+let grupoActual = grupoDelServidor;
 
 /* Tope duro de cajas por línea, el mismo que aplica `_parse_cajas` en el
    servidor. Vive acá arriba porque lo consultan el alta, la fusión y el
@@ -215,6 +238,16 @@ function formatearMonto(valor) {
    fracciones de cuarto cuando las tienen ("2.5"). */
 function fmtCajas(n) {
     return Number.isInteger(n) ? String(n) : String(n);
+}
+
+/* El candado que NO puso el servidor vale solo mientras haya líneas que
+   proteger: sin ninguna, el pedido vuelve a estar abierto a cualquier grupo. */
+function sincronizarCandadoProvisional() {
+    if (grupoDelServidor) return;
+    const hayLineas = productosAgregados.some(p => p.activa);
+    if (hayLineas || !grupoActual) return;
+    grupoActual = null;
+    cargarProductosEnSelect();
 }
 
 function grupoDeProducto(id) {
@@ -320,6 +353,7 @@ function cargarProductosEnSelect() {
 
 /* === Líneas === */
 function actualizarTablaProductos() {
+    sincronizarCandadoProvisional();
     tbody.innerHTML = '';
 
     if (productosAgregados.length === 0) {
@@ -569,6 +603,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? 'Hay cambios sin guardar; se perderán al cambiar de cliente. ¿Continuar?'
                 : 'Tienes líneas añadidas a mano; al cambiar de cliente se pierden. ¿Continuar?';
             if ((esEdicion || manuales) && !confirm(aviso)) e.preventDefault();
+        });
+    }
+
+    // «Pedir de otro grupo» abre el paso 2 vacío con el catálogo completo, así
+    // que se pierde TODO lo que hay acá — también lo sembrado, que no se
+    // re-siembra del otro lado. Por eso avisa con cualquier línea, no solo con
+    // las añadidas a mano.
+    const linkOtroGrupo = $('ph-otro-grupo');
+    if (linkOtroGrupo) {
+        linkOtroGrupo.addEventListener('click', function (e) {
+            if (!productosAgregados.some(p => p.activa)) return;
+            const aviso = 'Vas a empezar un pedido de otro grupo: las líneas de '
+                        + 'este pedido se pierden. ¿Continuar?';
+            if (!confirm(aviso)) e.preventDefault();
         });
     }
 

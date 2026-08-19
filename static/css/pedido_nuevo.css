@@ -481,6 +481,27 @@ body[data-pedido-nuevo-screen] .app-content {
 }
 .pn-motivo:empty { display: none; }
 
+/* Salida del candado de grupo: nota al pie del panel de añadir. Es texto de
+   apoyo, no un control principal — pesa menos que el botón «Añadir», pero el
+   enlace se subraya para que se lea como enlace y no como énfasis. */
+.pn-otro-grupo {
+    margin: 12px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--pn-gris-fuerte);
+}
+.pn-otro-grupo strong { color: var(--pn-tinta); font-weight: 600; }
+.pn-otro-grupo a {
+    display: inline-block;
+    /* El target táctil vive en una pantalla que se usa a una mano y en ruta:
+       el padding lo lleva a ~44 px de alto sin romper el flujo del párrafo. */
+    padding: 12px 0;
+    color: var(--pn-tinta);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 /* ── Entrega y notas (paso 02) ──────────────────────────────────────────── */
 
 .pn-campo { padding: 20px 24px; border-bottom: 1px solid var(--pn-regla); }
@@ -807,6 +828,9 @@ html:has(body[data-pedido-nuevo-screen]) {
     background: var(--pn-aviso-fondo) !important;
     color: var(--pn-aviso-tinta) !important;
 }
+.pn-shell .pn-otro-grupo { color: var(--pn-gris-fuerte) !important; }
+.pn-shell .pn-otro-grupo strong,
+.pn-shell .pn-otro-grupo a { color: var(--pn-tinta) !important; }
 .pn-shell .pn-linea.es-cambiada { background: var(--pn-realce) !important; }
 .pn-shell .pn-linea.es-quitada .pn-linea-nombre { color: var(--pn-apagado) !important; }
 

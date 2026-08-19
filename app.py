@@ -6387,6 +6387,7 @@ def nuevo_pedido():
             origen_texto=('Pedido de otro grupo: busca en el catálogo '
                           'completo; la primera línea fija el grupo.'),
             grupo_clave='',
+            grupo_etiqueta='',
             tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
         )
     lineas_hab, meta = _calcular_pedido_habitual(cliente.id, grupo_clave=grupo_arg)
@@ -6419,6 +6420,7 @@ def nuevo_pedido():
         hero_meta_texto=_texto_hero_habitual(meta),
         origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
         grupo_clave=meta['grupo'] or '',
+        grupo_etiqueta=_etiqueta_de_clave_grupo(meta['grupo']),
         tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
     )
 
@@ -6627,6 +6629,7 @@ def editar_pedido(pedido_id):
                              'hasta «Actualizar pedido».')
                             if cliente_efectivo.id != pedido.cliente_id else '',
         grupo_clave       = '',
+        grupo_etiqueta    = '',
         tipo_cambio_valor = (_tipo_cambio_para_cliente(cliente_efectivo)
                              if cliente_efectivo.id != pedido.cliente_id
                              else float(pedido.tipo_cambio or 1.0)),
@@ -8700,6 +8703,21 @@ def _clave_grupo(grupo):
         return ''
     tipo, tax = grupo
     return f'{tipo}:{tax:g}'
+
+
+def _etiqueta_de_clave_grupo(clave):
+    """Etiqueta legible a partir de la clave que viaja en la URL y el form.
+
+    El paso 2 tiene la clave ('importado:10'), no la tupla: para decirle al
+    vendedor QUÉ grupo tiene fijado el buscador hay que volver a la etiqueta.
+    """
+    if not clave:
+        return ''
+    tipo, _, tax = clave.partition(':')
+    try:
+        return _etiqueta_grupo((tipo, float(tax)))
+    except ValueError:
+        return ''
 
 
 def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VISITAS):
