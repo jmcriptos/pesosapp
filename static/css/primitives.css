@@ -3,6 +3,28 @@
    See docs/superpowers/specs/2026-04-17-glass-foundation-design.md
    ============================================================================= */
 
+/* ─── `hidden` gana siempre ──────────────────────────────────────────────
+   El navegador esconde `[hidden]` desde su hoja de agente de usuario, que es
+   la de MENOR prioridad de todas: alcanza con que una regla nuestra diga
+   `display:flex` sobre esa misma clase para que el elemento se vea SIEMPRE
+   —con el atributo puesto y con `el.hidden === true` en JS—. Como el estado se
+   lee correcto, el bug es invisible leyendo el código: solo aparece midiendo
+   el render.
+
+   Ya había mordido en seis pantallas, y cada una lo parcheó por su cuenta
+   (gestion, operaciones, pedido_nuevo, precios, detalles_pedido y, el
+   2026-08-28, el aviso de error del listado de pedidos, que se veía desde la
+   carga y hacía creer que la lista fallaba cuando el servidor devolvía 200).
+   Seis parches locales para el mismo bug significan que el hueco era del
+   sistema. Esta regla lo cierra para toda la app; los parches locales quedan
+   como redundancia inofensiva.
+
+   Va primero para que cualquier `display` posterior sin `!important` pierda,
+   y lleva `!important` porque la mitad de esta base de código pinta con él. */
+[hidden] {
+  display: none !important;
+}
+
 /* ─── .btn ───────────────────────────────────────────────────────────── */
 .btn {
   --btn-bg: var(--color-surface);

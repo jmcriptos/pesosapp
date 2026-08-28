@@ -165,3 +165,46 @@ def test_dashboard_snap_dots_slots_present(logged_client):
     html = response.data
     assert b'data-snap-dots-for="ventas"' in html, "snap-dots slot for Ventas missing"
     assert b'data-snap-dots-for="servicio"' in html, "snap-dots slot for Servicio missing"
+
+
+# ---------------------------------------------------------------------------
+# `hidden` tiene que ganar SIEMPRE
+# ---------------------------------------------------------------------------
+
+
+def test_hay_guarda_global_para_hidden():
+    """Sin un reset global, `hidden` pierde contra cualquier `display` propio.
+
+    El navegador esconde `[hidden]` con `display:none` desde su hoja de agente
+    de usuario, que es la de MENOR prioridad: basta con que una regla de autor
+    diga `display:flex` sobre esa misma clase para que el elemento se vea
+    siempre, con el atributo puesto y con `el.hidden === true`. Y como el estado
+    en JS se lee correcto, la revisión no lo detecta: hay que medir el render.
+
+    Llegó a producción dos veces (el buscador de clientes, y el aviso de error
+    del listado de pedidos el 2026-08-28, que se veía desde la carga y hacía
+    creer que la lista fallaba). Otras cinco pantallas ya lo habían parcheado
+    cada una por su lado —gestion, operaciones, pedido_nuevo, precios,
+    detalles_pedido—, que es la señal de que el hueco era del sistema y no de
+    una pantalla. La guarda vive en primitives.css, que carga base.html en
+    todas.
+    """
+    import re
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent
+    css = (raiz / 'static' / 'css' / 'primitives.css').read_text(encoding='utf-8')
+
+    regla = re.search(
+        r'\[hidden\][^{]*\{[^}]*display\s*:\s*none\s*!important', css, re.S
+    )
+    assert regla, (
+        "primitives.css perdió la guarda `[hidden] { display: none !important }`. "
+        "Sin ella, cualquier `display` de autor sobre un elemento con `hidden` "
+        "lo deja visible y el bug es invisible en el código."
+    )
+
+    base = (raiz / 'templates' / 'base.html').read_text(encoding='utf-8')
+    assert 'css/primitives.css' in base, (
+        "base.html dejó de cargar primitives.css: la guarda no llega a las pantallas"
+    )
