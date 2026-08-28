@@ -3309,6 +3309,50 @@ def _volver_a(endpoint_default, **kwargs):
     return redirect(url_for(endpoint_default, **kwargs))
 
 
+def _agrupar_tablero(pedidos, hoy_local):
+    """Reparte los pedidos del tablero en los cuatro grupos del spec.
+
+    Grupos DISJUNTOS y en orden de urgencia. Devuelve
+    `[(clave, etiqueta, pedidos), ...]` omitiendo los vacíos, para que la
+    plantilla no tenga que decidir qué dibujar: un encabezado «Atrasados 0»
+    es ruido, y una pantalla que afirma cosas que no son enseña a
+    desconfiar de ella.
+
+    «Hoy» lleva CUALQUIER estado, facturados incluidos: si desaparecieran al
+    facturarse, el tablero se vaciaría a media tarde y se perdería la otra
+    mitad del trabajo, que es ver si el día cerró completo.
+
+    «Sin fecha» es una guardia. Hoy estaría siempre vacío —el formulario
+    carga `fecha_entrega` en el 100% de los pedidos desde el 16/08— pero un
+    pedido sin facturar y sin fecha no entraría en ningún otro grupo y sería
+    trabajo INVISIBLE, que es el peor fallo posible en una herramienta
+    operativa.
+    """
+    atrasados, hoy, proximos, sin_fecha = [], [], [], []
+
+    for pedido in pedidos:
+        entrega = pedido.fecha_entrega
+        if entrega == hoy_local:
+            hoy.append(pedido)
+        elif pedido.estado == 'facturado':
+            # Facturado que no se entrega hoy: es archivo, no tablero.
+            continue
+        elif entrega is None:
+            sin_fecha.append(pedido)
+        elif entrega < hoy_local:
+            atrasados.append(pedido)
+        else:
+            proximos.append(pedido)
+
+    grupos = [
+        ('atrasados', 'Atrasados', atrasados),
+        ('hoy', 'Hoy', hoy),
+        ('proximos', 'Próximos', proximos),
+        ('sin_fecha', 'Sin fecha de entrega', sin_fecha),
+    ]
+    return [g for g in grupos if g[2]]
+
+
 def _user_can_view_cliente(cliente_id):
     """True si el usuario actual puede ver este cliente (super_admin o usuario
     legacy ven todo; un Vendedor solo sus clientes asignados)."""
