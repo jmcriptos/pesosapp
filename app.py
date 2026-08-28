@@ -11,7 +11,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_, or_, cast, String
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, selectinload, load_only
 import io
 from flask import make_response
@@ -2167,7 +2167,10 @@ class Producto(db.Model):
     facturaciones = db.relationship('Facturacion', back_populates='producto', cascade="all, delete-orphan")
     recepciones = db.relationship('Recepcion', back_populates='producto', lazy=True, cascade="all, delete-orphan")
     importaciones = db.relationship('Importacion', back_populates='producto', lazy=True, cascade="all, delete-orphan")
-    qbo_id = db.Column(db.String(20), unique=True)
+    # SIN unique: hay productos que se pesan y etiquetan por separado (cada uno
+    # con su lote y su peso) pero que en QuickBooks se facturan contra un mismo
+    # ítem de servicio. Todo lookup por qbo_id debe contemplar varios productos.
+    qbo_id = db.Column(db.String(20), index=True)
     tax_rate = db.Column(db.Float, nullable=False, default=0.0)  # Nueva columna para tasa de impuesto
     se_pesa = db.Column(db.Boolean, default=False, nullable=False)
     proveedor = db.Column(db.String(100))
@@ -7631,9 +7634,38 @@ def _comparar_precios_factura(pedido, factura_json):
 
     for linea in lineas_factura:
         qbo_id = linea.get('item_qbo_id')
-        producto = Producto.query.filter_by(qbo_id=qbo_id).first() if qbo_id else None
+        candidatos = Producto.query.filter_by(qbo_id=qbo_id).all() if qbo_id else []
         precio_qbo = float(linea.get('rate') or 0)
         qty = float(linea.get('qty') or 0)
+
+        if len(candidatos) > 1:
+            # Ítem de servicio compartido: varios productos se facturan contra
+            # el mismo código de QBO. La línea no se puede resolver a un
+            # producto, así que no hay a cuál escribirle el precio. Se muestra
+            # igual, y los productos del pedido se dan por cubiertos para que
+            # no salga además el aviso de "la factura no cubre todas las
+            # líneas del pedido".
+            productos_en_factura.update(
+                p.id for p in candidatos if p.id in facturado
+            )
+            nombres = ', '.join(sorted(p.nombre for p in candidatos))
+            filas.append({
+                'producto_id': None,
+                'nombre': linea.get('producto') or qbo_id,
+                'qty': qty,
+                'precio_qbo': precio_qbo,
+                'precio_facturado': None,
+                'precio_vigente': None,
+                'estado': 'codigo_compartido',
+                'motivo': (
+                    f'Este código de QuickBooks lo comparten varios productos '
+                    f'({nombres}), así que no se puede saber a cuál corresponde '
+                    f'el precio. Ajustalo a mano en el que haga falta.'
+                ),
+            })
+            continue
+
+        producto = candidatos[0] if candidatos else None
 
         if producto is None:
             # Nunca descartar en silencio: la línea existe en la factura y el
@@ -8075,7 +8107,8 @@ def revisar_precios_factura(pedido_id):
         desfasados=[f for f in filas if f['estado'] == 'pedido_desfasado'],
         no_aplicables=[
             f for f in filas
-            if f['estado'] in ('sin_producto', 'precio_invalido', 'precio_ambiguo')
+            if f['estado'] in ('sin_producto', 'precio_invalido', 'precio_ambiguo',
+                               'codigo_compartido')
         ],
     )
 
@@ -9207,6 +9240,39 @@ def _parse_unidades_por_caja(raw):
     return valor, None
 
 
+def _productos_que_comparten_qbo_id(qbo_id, excluir_id=None):
+    """Otros productos que ya usan ese código de QuickBooks."""
+    if not qbo_id:
+        return []
+    q = Producto.query.filter(Producto.qbo_id == qbo_id)
+    if excluir_id is not None:
+        q = q.filter(Producto.id != excluir_id)
+    return q.order_by(Producto.nombre.asc()).all()
+
+
+def _avisar_qbo_id_compartido(producto):
+    """Compartir código es válido (ítem de servicio en QBO), pero nunca es
+    silencioso: si fue un error de tipeo hay que verlo al guardar."""
+    otros = _productos_que_comparten_qbo_id(producto.qbo_id, excluir_id=producto.id)
+    if not otros:
+        return
+    nombres = ', '.join(sorted([producto.nombre] + [p.nombre for p in otros]))
+    flash(
+        f'El código QBO {producto.qbo_id} lo comparten {len(otros) + 1} '
+        f'productos: {nombres}. Se facturan como una sola línea en QuickBooks.',
+        'info',
+    )
+
+
+def _conteo_por_qbo_id(productos):
+    """Cuántos productos usan cada código de QBO, para marcar los compartidos."""
+    conteo = {}
+    for p in productos:
+        if p.qbo_id:
+            conteo[p.qbo_id] = conteo.get(p.qbo_id, 0) + 1
+    return conteo
+
+
 @app.route('/productos', methods=['GET', 'POST'])
 @login_required
 def productos():
@@ -9239,6 +9305,7 @@ def productos():
             )
             db.session.add(nuevo)
             db.session.commit()
+            _avisar_qbo_id_compartido(nuevo)
 
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({
@@ -9256,20 +9323,6 @@ def productos():
                 flash('Producto creado exitosamente.', 'success')
                 return redirect(url_for('productos'))
 
-        except IntegrityError as e:
-            db.session.rollback()
-            app.logger.warning(f"Producto duplicado al crear: {e}")
-            # qbo_id es la única restricción UNIQUE de la tabla producto.
-            mensaje = 'Ya existe un producto con ese QBO ID.'
-            if qbo_id:
-                existente = Producto.query.filter_by(qbo_id=qbo_id).first()
-                if existente:
-                    mensaje = f'El QBO ID {qbo_id} ya está asignado al producto "{existente.nombre}".'
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({'error': mensaje}), 400
-            flash(mensaje, 'danger')
-            return redirect(url_for('productos'))
-
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error al crear producto: {e}")
@@ -9280,7 +9333,8 @@ def productos():
 
     # GET → listamos todos los productos ordenados
     todos = Producto.query.order_by(Producto.id.asc()).all()
-    return render_template('productos.html', productos=todos)
+    return render_template('productos.html', productos=todos,
+                           conteo_qbo=_conteo_por_qbo_id(todos))
 
 
 
@@ -9311,6 +9365,7 @@ def editar_producto(producto_id):
 
         db.session.commit()
         flash('Producto actualizado correctamente.', 'success')
+        _avisar_qbo_id_compartido(producto)
         return redirect(url_for('productos'))
 
     return render_template('editar_producto.html', producto=producto)
@@ -10788,6 +10843,35 @@ def procesar_csv_precios():
         app.logger.error(f'Error procesando archivo: {e}')
         return jsonify({'error': 'Error procesando archivo'}), 500
 
+def _producto_desde_codigo_csv(codigo):
+    """Resuelve el `codigo_producto` de un CSV de precios a un Producto.
+
+    Devuelve `(producto, error)`. El código puede ser el ID interno, el código
+    de QuickBooks o parte del nombre, en ese orden de prioridad: el código de
+    QBO es exacto y le gana a la coincidencia difusa por nombre.
+
+    Un código de QBO puede pertenecer a varios productos (los que se facturan
+    contra un mismo ítem de servicio). En ese caso no hay a cuál aplicarle el
+    precio: se devuelve el error en vez de elegir uno al azar.
+    """
+    try:
+        return db.session.get(Producto, int(codigo)), None
+    except (TypeError, ValueError):
+        pass
+
+    por_qbo = Producto.query.filter(Producto.qbo_id == codigo).all()
+    if len(por_qbo) > 1:
+        nombres = ', '.join(sorted(p.nombre for p in por_qbo))
+        return None, (
+            f'el código {codigo} corresponde a varios productos ({nombres}); '
+            f'usá el ID del producto para indicar cuál'
+        )
+    if por_qbo:
+        return por_qbo[0], None
+
+    return Producto.query.filter(Producto.nombre.ilike(f'%{codigo}%')).first(), None
+
+
 def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
     """Procesar CSV para actualizar precios en una lista específica"""
     if not lista_precio_id:
@@ -10808,17 +10892,12 @@ def procesar_precios_por_lista(csv_input, lista_precio_id, resultados):
                 resultados['detalles'].append(f'Fila {fila_num}: Código producto y precio base son obligatorios')
                 continue
             
-            # CORRECCIÓN: Buscar producto por ID (ya que los valores en CSV son IDs)
-            try:
-                producto_id = int(codigo_producto)
-                producto = db.session.get(Producto, producto_id)
-            except ValueError:
-                # Si no es un número, intentar buscar por qbo_id o nombre
-                producto = Producto.query.filter(
-                    (Producto.qbo_id == codigo_producto) | 
-                    (Producto.nombre.ilike(f'%{codigo_producto}%'))
-                ).first()
-            
+            producto, error_codigo = _producto_desde_codigo_csv(codigo_producto)
+            if error_codigo:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: {error_codigo}')
+                continue
+
             if not producto:
                 resultados['errores'] += 1
                 resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')
@@ -10952,16 +11031,12 @@ def procesar_precios_especificos(csv_input, resultados):
                 resultados['detalles'].append(f'Fila {fila_num}: Cliente {codigo_cliente} no encontrado')
                 continue
             
-            # CORRECCIÓN: Buscar producto por ID (igual que arriba)
-            try:
-                producto_id = int(codigo_producto)
-                producto = db.session.get(Producto, producto_id)
-            except ValueError:
-                producto = Producto.query.filter(
-                    (Producto.qbo_id == codigo_producto) | 
-                    (Producto.nombre.ilike(f'%{codigo_producto}%'))
-                ).first()
-            
+            producto, error_codigo = _producto_desde_codigo_csv(codigo_producto)
+            if error_codigo:
+                resultados['errores'] += 1
+                resultados['detalles'].append(f'Fila {fila_num}: {error_codigo}')
+                continue
+
             if not producto:
                 resultados['errores'] += 1
                 resultados['detalles'].append(f'Fila {fila_num}: Producto {codigo_producto} no encontrado')

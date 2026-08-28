@@ -97,7 +97,13 @@
           {% if producto.se_pesa %}<span class="chip chip-info"><i class="fas fa-weight-hanging"></i> Se pesa</span>{% endif %}
           <span class="chip">{{ 'OB 6%' if producto.tax_rate|int == 10 else ('OB 0%' if producto.tax_rate|int == 14 else 'Tax ' ~ producto.tax_rate|int) }}</span>
           {% if producto.qbo_id %}
+          {% set comparten = conteo_qbo.get(producto.qbo_id, 1) if conteo_qbo else 1 %}
+          {% if comparten > 1 %}
+          <span class="chip chip-success" data-qbo-compartido="{{ comparten }}"
+                title="Integrado a QuickBooks. Este código lo comparten {{ comparten }} productos: se facturan como una sola línea.">QBO {{ producto.qbo_id }} &middot; &times;{{ comparten }}</span>
+          {% else %}
           <span class="chip chip-success" title="Integrado a QuickBooks">QBO {{ producto.qbo_id }}</span>
+          {% endif %}
           {% else %}
           <span class="chip" title="Sin QBO ID">Sin QBO</span>
           {% endif %}
