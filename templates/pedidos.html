@@ -18,61 +18,63 @@
     </a>
   </header>
 
-  {# Las dos cifras que la guía "Sistema UI" pone arriba: lo que hay por hacer
-     y lo que ya se pasó de fecha. Son botones porque filtran la lista.
-     "Vencidos" solo se pinta en rojo cuando hay alguno — un cero en rojo
-     alarma sin motivo. #}
-  <div class="pedidos-cifras">
-    {# Las cifras son los DOS filtros que no tienen píldora propia, y «Por
-       preparar» es además el que trae puesto la pantalla al abrir. Sin marcar
-       cuál está aplicado, la fila de filtros se lee como «sin filtrar» en cada
-       carga. #}
-    <button type="button"
-            class="cifra{% if filtros.estado == 'por_preparar' %} is-active{% endif %}"
-            data-estado="por_preparar"
-            aria-pressed="{{ 'true' if filtros.estado == 'por_preparar' else 'false' }}"
-            aria-label="Ver los {{ status_counts.por_preparar }} pedidos por preparar">
-      <span class="cifra-valor">{{ status_counts.por_preparar }}</span>
-      <span class="cifra-label">Por preparar</span>
-    </button>
-    <button type="button"
-            class="cifra{% if status_counts.vencido %} cifra-alerta{% endif %}{% if filtros.estado == 'vencido' %} is-active{% endif %}"
-            data-estado="vencido"
-            aria-pressed="{{ 'true' if filtros.estado == 'vencido' else 'false' }}"
-            aria-label="Ver los {{ status_counts.vencido }} pedidos vencidos">
-      <span class="cifra-valor">{{ status_counts.vencido }}</span>
-      <span class="cifra-label">Vencidos</span>
-    </button>
-  </div>
-
-  {# Toolbar: búsqueda + select de estado en una sola fila. Single GET form,
-     se submit cuando el usuario presiona Enter en la búsqueda o cambia
-     el dropdown. #}
+  {# Toolbar: búsqueda. Single GET form, se submit cuando el usuario presiona
+     Enter (con JS la búsqueda es en vivo y el submit se intercepta). #}
   <form class="filter-bar" method="GET" action="{{ url_for('lista_pedidos') }}" role="search">
-    <div class="search-pill">
+    {# <label> y no <div>: así tocar cualquier parte de la píldora enfoca el
+       campo (el input ocupa 42 de sus 52px, y la franja de arriba y la de abajo
+       no hacían nada), y el buscador pasa a tener etiqueta de verdad en vez de
+       apoyarse solo en el placeholder, que desaparece al escribir y que un
+       lector de pantalla no siempre anuncia. #}
+    <label class="search-pill" for="pedidos-search">
       <i class="fas fa-search" aria-hidden="true"></i>
+      <span class="sr-only">Buscar pedidos</span>
       <input type="search" placeholder="Buscar pedido, cliente…" id="pedidos-search"
              name="q" value="{{ filtros.q }}" autocomplete="off">
-    </div>
+    </label>
     {# El estado viaja en un hidden; los botones de abajo lo escriben. Así el
        formulario sigue funcionando sin JS (submit normal) y con JS la búsqueda
        lo lee igual que antes. #}
     <input type="hidden" name="estado" id="pedidos-estado" value="{{ filtros.estado }}">
+    <input type="hidden" name="orden" id="pedidos-orden" value="{{ filtros.orden or '' }}">
     {% if filtros.solo_notas %}<input type="hidden" name="solo_notas" value="1">{% endif %}
   </form>
 
-  {# Píldoras de 44px en vez de un <select>: la guía Sistema UI las prefiere
-     porque el estado activo se ve sin abrir nada. El activo va en tinta y no
-     en azul, para no competir con "+ Nuevo". #}
-  <div class="filters" id="pedidos-filtros" role="group" aria-label="Filtrar por estado">
-    {% for valor, etiqueta, cuenta in [
-        ('hoy', 'Hoy', status_counts.hoy),
-        ('todos', 'Todos', status_counts.total),
-        ('pendiente', 'Pendientes', status_counts.pendiente),
-        ('preparado', 'Preparados', status_counts.preparado),
-        ('facturado', 'Facturados', status_counts.facturado)] %}
+  {# UN solo control para UNA sola variable.
+     Antes había tres widgets escribiendo el mismo `estado`: dos «cifras» de
+     75px de alto arriba, cinco píldoras abajo, y el hidden. Entre los tres se
+     comían 417 de los 774px útiles del teléfono (54%) para dejar ver 1,8
+     tarjetas — y encima «Por preparar» (11) era literalmente Pendientes (7) +
+     Preparados (4), o sea la misma cifra contada dos veces más abajo. Se
+     quedan las cinco vistas que un vendedor realmente pide, en una fila:
+     lo urgente primero, lo terminado al final.
+
+     «Vencidos» conserva el rojo, y solo cuando hay alguno: un cero en rojo
+     alarma sin motivo. #}
+  {% set vistas = [
+      ('vencido', 'Vencidos', status_counts.vencido, true),
+      ('hoy', 'Hoy', status_counts.hoy, false),
+      ('por_preparar', 'Por preparar', status_counts.por_preparar, false),
+      ('facturado', 'Facturados', status_counts.facturado, false),
+      ('todos', 'Todos', status_counts.total, false)] %}
+
+  {# `pendiente` y `preparado` siguen siendo filtros válidos del servidor y hay
+     enlaces vivos que los usan (el aviso del dashboard apunta a
+     `/pedidos?estado=pendiente`). Al fusionarlos en «Por preparar» se quedaron
+     sin píldora, y entonces la pantalla se veía SIN FILTRAR mostrando una lista
+     filtrada: peor que tener una píldora de más. Así que si el estado que llega
+     no es ninguno de los cinco, se agrega su píldora al frente — solo en esa
+     visita, no en la vista normal. #}
+  {% set sueltos = {'pendiente': ('Pendientes', status_counts.pendiente),
+                    'preparado': ('Preparados', status_counts.preparado)} %}
+  {% if filtros.estado in sueltos %}
+    {% set vistas = [(filtros.estado, sueltos[filtros.estado][0], sueltos[filtros.estado][1], false)] + vistas %}
+  {% endif %}
+
+  <div class="filters" id="pedidos-filtros" role="group" aria-label="Filtrar pedidos">
+    {% for valor, etiqueta, cuenta, alerta in vistas %}
     <button type="button"
-            class="filter-pill{% if filtros.estado == valor %} is-active{% endif %}"
+            class="filter-pill{% if filtros.estado == valor %} is-active{% endif %}{% if alerta and cuenta %} filter-pill-alerta{% endif %}"
             data-estado="{{ valor }}"
             aria-pressed="{{ 'true' if filtros.estado == valor else 'false' }}">
       {{ etiqueta }}<span class="filter-pill-count">{{ cuenta }}</span>
@@ -82,18 +84,33 @@
 
   {# Los resultados viven en un parcial porque la búsqueda los recarga sola,
      sin recargar la página: en un teléfono un submit completo cierra el
-     teclado y obliga a volver a tocar el campo para seguir escribiendo. #}
-  <div id="pedidos-resultados">
+     teclado y obliga a volver a tocar el campo para seguir escribiendo.
+
+     El lector de pantalla no se enteraba de NADA de eso: se reemplazaba el
+     innerHTML en silencio absoluto. Esta región anuncia cuántos quedaron. #}
+  <p class="sr-only" id="pedidos-anuncio" role="status" aria-live="polite"></p>
+  <div id="pedidos-resultados" data-total="{{ pagination.total if pagination else 0 }}">
     {% include '_pedidos_resultados.html' %}
   </div>
+
+  {# El fallback silencioso del fetch (form.submit()) hacía que una conexión
+     mala se leyera como que la app se recarga sola. Ahora dice qué pasó. #}
+  <p class="pedidos-error" id="pedidos-error" hidden>
+    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+    No se pudo actualizar la lista. Revisá la conexión y tocá para reintentar.
+    <button type="button" id="pedidos-reintentar" class="pedidos-error-btn">Reintentar</button>
+  </p>
 
   <script nonce="{{ csp_nonce() }}">
   (function () {
     var form = document.querySelector('form.filter-bar');
     var searchInput = document.getElementById('pedidos-search');
     var estadoInput = document.getElementById('pedidos-estado');
+    var ordenInput = document.getElementById('pedidos-orden');
     var filtros = document.getElementById('pedidos-filtros');
     var resultados = document.getElementById('pedidos-resultados');
+    var anuncio = document.getElementById('pedidos-anuncio');
+    var errorBox = document.getElementById('pedidos-error');
 
     /* La búsqueda consulta al SERVIDOR, no el DOM.
        Antes filtraba las tarjetas ya renderizadas, pero la lista está paginada
@@ -116,6 +133,11 @@
       if (estadoInput && estadoInput.value) {
         p.set('estado', estadoInput.value);
       }
+      // El orden lo resuelve el servidor: viaja en la URL como todo lo demás,
+      // así que la vista ordenada es compartible y sobrevive a un recargar.
+      if (ordenInput && ordenInput.value) {
+        p.set('orden', ordenInput.value);
+      }
       {% if filtros.solo_notas %}p.set('solo_notas', '1');{% endif %}
       // Si el usuario venía con ?per_page, buscar no debe devolverlo a 20.
       var perPage = new URLSearchParams(location.search).get('per_page');
@@ -133,6 +155,7 @@
       var mio = ++peticion;
       resultados.setAttribute('aria-busy', 'true');
       resultados.classList.add('is-cargando');
+      if (errorBox) errorBox.hidden = true;
 
       fetch('{{ url_for("lista_pedidos") }}?' + params.toString(), {
         headers: { 'X-Requested-With': 'fetch' },
@@ -149,6 +172,7 @@
           resultados.removeAttribute('aria-busy');
           resultados.classList.remove('is-cargando');
           prepararResultados();
+          anunciarResultados();
           history.replaceState(null, '',
             '{{ url_for("lista_pedidos") }}' + (visible ? '?' + visible : ''));
         })
@@ -156,10 +180,27 @@
           if (mio !== peticion) return;
           resultados.removeAttribute('aria-busy');
           resultados.classList.remove('is-cargando');
-          // Sin conexión o error del servidor: se cae al submit de siempre,
-          // que recarga la página pero al menos busca de verdad.
-          if (form) form.submit();
+          // Antes se caía a `form.submit()` en silencio: en una conexión mala
+          // la pantalla se recargaba sola sin decir por qué, y parecía un bug
+          // de la app y no de la red. Ahora se dice qué pasó y se ofrece el
+          // reintento, sin tirar a la basura lo que ya está en pantalla.
+          if (errorBox) errorBox.hidden = false;
         });
+    }
+
+    /* Sin esto, cada búsqueda cambiaba la lista entera en silencio para quien
+       usa lector de pantalla: escribir tres letras y no oír nada es
+       indistinguible de que la búsqueda no funcione. */
+    function anunciarResultados() {
+      if (!anuncio) return;
+      var limpio = function (t) { return (t || '').replace(/\s+/g, ' ').trim(); };
+      var info = resultados.querySelector('.pagination-info-mobile, .pagination-info');
+      var vacio = resultados.querySelector('.pedidos-empty p');
+      if (vacio) {
+        anuncio.textContent = limpio(vacio.textContent);
+      } else if (info) {
+        anuncio.textContent = limpio(info.textContent) + ' pedidos en la lista.';
+      }
     }
 
     var debounce = null;
@@ -191,10 +232,6 @@
           p.setAttribute('aria-pressed', activo ? 'true' : 'false');
         });
       }
-      // "Vencidos" no tiene píldora propia, así que la cifra hace de indicador.
-      document.querySelectorAll('.pedidos-cifras .cifra').forEach(function (c) {
-        c.classList.toggle('is-active', c.dataset.estado === valor);
-      });
       cargarResultados();
     }
 
@@ -203,16 +240,27 @@
         var pill = e.target.closest('.filter-pill');
         if (pill) aplicarEstado(pill.dataset.estado);
       });
-    }
 
-    /* Las dos cifras de arriba son atajos al mismo filtro: tocar "Vencidos"
-       deja la lista en los vencidos y marca la píldora correspondiente. */
-    var cifras = document.querySelector('.pedidos-cifras');
-    if (cifras) {
-      cifras.addEventListener('click', function (e) {
-        var c = e.target.closest('.cifra');
-        if (c) aplicarEstado(c.dataset.estado);
-      });
+      /* La fila scrollea, y el filtro puesto no siempre entra en los 358px que
+         se ven: la pantalla abre en «Por preparar», que es la tercera píldora y
+         quedaba cortada por el borde derecho. Se lee como si no hubiera nada
+         aplicado. Sin animación —esto es el estado inicial, no una
+         transición— y sin tocar el scroll de la página. */
+      var activa = filtros.querySelector('.filter-pill.is-active');
+      if (activa && filtros.scrollWidth > filtros.clientWidth) {
+        var izq = activa.offsetLeft - (filtros.clientWidth - activa.offsetWidth) / 2;
+        filtros.scrollLeft = Math.max(0, izq);
+      }
+
+      // Y el degradado se pone del lado donde de verdad sigue habiendo fila.
+      function marcarBordes() {
+        var maxScroll = filtros.scrollWidth - filtros.clientWidth;
+        filtros.classList.toggle('tiene-mas-izquierda', filtros.scrollLeft > 2);
+        filtros.classList.toggle('tiene-mas-derecha', filtros.scrollLeft < maxScroll - 2);
+      }
+      marcarBordes();
+      filtros.addEventListener('scroll', marcarBordes, { passive: true });
+      window.addEventListener('resize', marcarBordes);
     }
 
     /* Todo lo que vive DENTRO del bloque reemplazable se re-engancha después
@@ -223,18 +271,39 @@
       resultados.querySelectorAll('[data-stop-propagation]').forEach(function (el) {
         el.addEventListener('click', function (ev) { ev.stopPropagation(); });
       });
-      prepararTablaOrdenable();
+    }
+
+    if (errorBox) {
+      var reintentar = document.getElementById('pedidos-reintentar');
+      if (reintentar) {
+        reintentar.addEventListener('click', function () { cargarResultados(); });
+      }
     }
 
     // Paginación por fetch, para no perder el foco ni el teclado.
     if (resultados) {
       resultados.addEventListener('click', function (e) {
-        var link = e.target.closest('a.pagination-btn-mobile[href]');
+        var link = e.target.closest('a.pagination-btn-mobile[href], a.pagination-btn[href]');
         if (!link) return;
         e.preventDefault();
         var page = new URL(link.href, location.origin).searchParams.get('page');
         cargarResultados({ page: parseInt(page, 10) || 1 });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Al TOPE DE LA LISTA, no al tope del documento. La paginación vive al
+        // final de un documento de ~1700px: saltar arriba de todo obligaba a
+        // bajar de nuevo con el pulgar hasta los botones para pasar de página,
+        // y con 46 páginas eso es el gesto que más se repite en la pantalla.
+        var y = resultados.getBoundingClientRect().top + window.pageYOffset - 12;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      });
+
+      /* Orden de columna: escribe `orden` y recarga por el mismo camino que la
+         búsqueda. El servidor ordena las 910, no las 20 de esta página. */
+      resultados.addEventListener('click', function (e) {
+        var th = e.target.closest('.th-orden[data-orden]');
+        if (!th) return;
+        e.preventDefault();
+        if (ordenInput) ordenInput.value = th.dataset.orden;
+        cargarResultados();
       });
 
       // Navegación de tarjetas y filas: delegada, así sobrevive a los swaps.
@@ -254,39 +323,11 @@
       });
     }
 
-    // Desktop table: sortable columns
-    function prepararTablaOrdenable() {
-    var table = document.querySelector('.tabla-pedidos');
-    if (table) {
-      var tbody = table.querySelector('tbody');
-      var headers = table.querySelectorAll('th.sortable');
-      var estadoPrioridad = { pendiente: 0, preparado: 1, facturado: 2, entregado: 3 };
-      var currentSort = { column: 'estado', direction: 'asc' };
-      function sortTable(column, type) {
-        var rows = Array.from(tbody.querySelectorAll('tr'));
-        var dir = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
-        rows.sort(function (a, b) {
-          var valA = a.dataset[column] || '';
-          var valB = b.dataset[column] || '';
-          if (type === 'number') { valA = parseFloat(valA) || 0; valB = parseFloat(valB) || 0; }
-          else if (type === 'date') { valA = valA ? new Date(valA).getTime() : 0; valB = valB ? new Date(valB).getTime() : 0; }
-          else if (type === 'estado') { valA = estadoPrioridad[valA] ?? 99; valB = estadoPrioridad[valB] ?? 99; }
-          else { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
-          if (valA < valB) return dir === 'asc' ? -1 : 1;
-          if (valA > valB) return dir === 'asc' ? 1 : -1;
-          return 0;
-        });
-        rows.forEach(function (row) { tbody.appendChild(row); });
-        headers.forEach(function (h) { h.classList.remove('asc', 'desc'); });
-        var activeHeader = table.querySelector('th[data-sort="' + column + '"]');
-        if (activeHeader) activeHeader.classList.add(dir);
-        currentSort = { column: column, direction: dir };
-      }
-      headers.forEach(function (header) {
-        header.addEventListener('click', function () { sortTable(header.dataset.sort, header.dataset.type); });
-      });
-    }
-    }
+    /* `prepararTablaOrdenable` (ordenamiento en el navegador) se eliminó: solo
+       reordenaba las 20 filas cargadas de las 910 de producción, así que "Total
+       descendente" nunca daba el pedido más grande, y comparaba por el
+       equivalente en XCG mientras la celda muestra la moneda nativa, con lo que
+       la columna se veía literalmente desordenada. Lo hace el servidor. */
 
     prepararResultados();
   })();

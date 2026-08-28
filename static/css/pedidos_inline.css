@@ -481,7 +481,10 @@ body[data-pedidos-list-screen] .estado-select {
    florines o dólares, y difieren ~78%. */
 .pedido-total-moneda {
     margin-left: 6px;
-    font-size: 0.72em;
+    /* 0.72em sobre la celda daba 10,6px: el código que decide qué SIGNIFICA el
+       número de al lado era el texto más chico de la tabla, y XCG y USD
+       difieren ~78%. Piso de 12px. */
+    font-size: 0.82em;
     font-weight: 700;
     color: #64748b;
 }
@@ -1255,15 +1258,22 @@ body[data-pedidos-list-screen] .pagination-btn-mobile.disabled {
         font-size: 0.95rem;
     }
 
-    /* Contexto column — "Sin notas" should read as ABSENCE not as a link */
+    /* Columna Nota: el vacío es un guion, no la frase "Sin notas" repetida fila
+       tras fila. #94a3b8 sobre blanco daba 2,57:1 —texto ilegible ocupando el
+       ancho del único dato que la columna existe para mostrar. */
     body[data-pedidos-list-screen] .pedido-context-empty {
         color: #94a3b8 !important;
         font-weight: 500 !important;
-        font-size: 0.85rem !important;
+        font-size: 0.95rem !important;
     }
-    body[data-pedidos-list-screen] .pedido-context-chip {
-        background: #f1f5f9 !important;
+    body[data-pedidos-list-screen] .pedido-nota-texto {
         color: #475569 !important;
+        font-size: 0.85rem !important;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
     body[data-pedidos-list-screen] .invoice-id-badge {
         background: #dcfce7 !important;

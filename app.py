@@ -3284,6 +3284,31 @@ def _user_can_manage_pedido(pedido):
     return current_user.puede_editar_pedido(pedido)
 
 
+def _volver_a(endpoint_default, **kwargs):
+    """Redirige al `next` que mandó el formulario, o al endpoint por defecto.
+
+    Facturar y eliminar devolvían SIEMPRE a `/pedidos` pelado, en todos los
+    caminos —éxito, error de validación, timeout de N8N—. Como el listado abre
+    por defecto en «Por preparar», quien estaba en «Facturados», página 3,
+    buscando un cliente, aterrizaba en la página 1 sin filtro y sin búsqueda, y
+    tenía que reconstruir todo. Facturar es una actividad por lote (se facturan
+    los cuatro que están listos), así que eso pasaba cuatro veces seguidas.
+
+    Solo se acepta una ruta RELATIVA del propio sitio: un `next` con esquema o
+    con host es un open redirect. `//evil.com` es protocol-relative y el
+    navegador lo trata como absoluto, por eso se rechaza aparte.
+    """
+    destino = (request.form.get('next') or '').strip()
+    if (
+        destino
+        and destino.startswith('/')
+        and not destino.startswith('//')
+        and '\\' not in destino
+    ):
+        return redirect(destino)
+    return redirect(url_for(endpoint_default, **kwargs))
+
+
 def _user_can_view_cliente(cliente_id):
     """True si el usuario actual puede ver este cliente (super_admin o usuario
     legacy ven todo; un Vendedor solo sus clientes asignados)."""
@@ -5801,9 +5826,29 @@ def lista_pedidos():
     q = (request.args.get('q', '', type=str) or '').strip()
     solo_notas = (request.args.get('solo_notas', '', type=str) or '').strip().lower() in {'1', 'true', 'on', 'yes'}
 
+    # Orden de la tabla de escritorio. Lo hacía el navegador sobre las 20 filas
+    # ya cargadas, o sea que con los 910 pedidos de producción "Total
+    # descendente" devolvía el mayor DE ESTA PÁGINA y no el mayor. Encima
+    # ordenaba por el equivalente en XCG mientras la celda muestra la moneda
+    # nativa, así que la columna se leía desordenada. Whitelist estricta: el
+    # valor entra en un order_by.
+    # `total` NO es ordenable, y es a propósito. El importe que muestra la celda
+    # sale de `_calcular_venta_pedido`, que para los pesables usa
+    # peso_real × precio_unitario vía CajaPesada — algo que esta consulta no
+    # reproduce (el SQL suma `subtotal`). Ordenar por el total del SQL dejaría
+    # la columna visiblemente desordenada en cuanto hubiera un pedido pesado, o
+    # sea justo en los que importan. Preferimos no ofrecer el orden a ofrecer
+    # uno que se contradice con lo que se lee. "El pedido más grande" es una
+    # pregunta de reporte, no de la cola de trabajo.
+    orden = (request.args.get('orden', '', type=str) or '').strip()
+    orden = orden if orden.lstrip('-') in {
+        'id', 'cliente', 'entrega', 'estado',
+    } else ''
+
     filtros = {
         'estado': estado,
         'q': q,
+        'orden': orden,
         'solo_notas': solo_notas,
     }
 
@@ -5960,8 +6005,33 @@ def lista_pedidos():
             Pedido.cliente.has(Cliente.nombre.ilike(q_like)),
         ))
 
-    # Aplicar ordenamiento
-    base_query = base_query.order_by(*orden_optimizado)
+    # Aplicar ordenamiento. El orden por urgencia es el DEFAULT; `?orden=` lo
+    # reemplaza solo si el usuario tocó un encabezado. `Pedido.id` cierra
+    # siempre para que la paginación sea estable (sin desempate determinista,
+    # dos pedidos con la misma fecha pueden cambiar de página entre requests y
+    # uno desaparece de la lista sin haberse borrado).
+    if orden:
+        campo = orden.lstrip('-')
+        desc = orden.startswith('-')
+        columna = {
+            'id': Pedido.id,
+            'cliente': Cliente.nombre,
+            'entrega': func.coalesce(Pedido.fecha_entrega, Pedido.fecha_pedido),
+            'estado': db.case(
+                (Pedido.estado == 'pendiente', 0),
+                (Pedido.estado == 'preparado', 1),
+                (Pedido.estado == 'facturado', 2),
+                else_=3,
+            ),
+        }[campo]
+        if campo == 'cliente':
+            base_query = base_query.join(Cliente, Pedido.cliente_id == Cliente.id)
+        base_query = base_query.order_by(
+            columna.desc() if desc else columna.asc(),
+            Pedido.id.desc(),
+        )
+    else:
+        base_query = base_query.order_by(*orden_optimizado)
 
     # Contar total para paginación
     total_count = base_query.count()
@@ -6019,12 +6089,24 @@ def lista_pedidos():
     # tocar el campo de nuevo para seguir escribiendo.
     plantilla = '_pedidos_resultados.html' if request.args.get('partial') else 'pedidos.html'
 
+    # A dónde vuelve el vendedor después de facturar o eliminar. Se arma acá y
+    # no con `request.full_path` en la plantilla porque en una petición parcial
+    # esa URL lleva `partial=1`: el redirect habría devuelto el fragmento de
+    # resultados como si fuera la página entera, sin barra ni pestañas. El
+    # parcial se re-renderiza en cada búsqueda, así que sus formularios llevan
+    # esta URL igual que los del primer render.
+    url_actual = url_for(
+        'lista_pedidos',
+        **{k: v for k, v in request.args.items() if k != 'partial'}
+    )
+
     return render_template(
         plantilla,
         pedidos=pedidos,
         pagination=pagination,
         filtros=filtros,
         status_counts=status_counts,
+        url_actual=url_actual,
         # La tarjeta marca "Vencido" y "entrega hoy" comparando contra el día
         # LOCAL (Curaçao, UTC−4), no contra date.today() del servidor.
         hoy_local=hoy_local,
@@ -6851,14 +6933,14 @@ def eliminar_pedido(pedido_id):
     # another territory's pedidos. super_admin passes through.
     if not _user_can_manage_pedido(pedido):
         flash('No tienes permisos para eliminar este pedido', 'error')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     # Estado guard: facturado pedidos must not be deleted — the QBO
     # invoice on the other side would be orphaned and the audit
     # trail destroyed.
     if pedido.estado == 'facturado':
         flash('No se puede eliminar un pedido facturado', 'error')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     # El rastro va a `evento_auditoria`, que NO tiene FK al pedido.
     # `pedido_evento` sí la tiene, con ON DELETE CASCADE: el evento que se
@@ -6877,7 +6959,7 @@ def eliminar_pedido(pedido_id):
     db.session.delete(pedido)
     db.session.commit()
     flash('Pedido eliminado.', 'success')
-    return redirect(url_for('lista_pedidos'))
+    return _volver_a('lista_pedidos')
 
 
 # ------------------------------------------------------------
@@ -7974,7 +8056,7 @@ def facturar_pedido(pedido_id):
     # ── Verificación de autorización IDOR ─────────────────────
     if not _user_can_manage_pedido(pedido):
         flash('No tienes permisos para facturar este pedido', 'error')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     # Sólo facturar si aún no fue facturado. Ojo: N8N no devuelve invoice_id, así
     # que invoice_id_qbo está NULL incluso en pedidos que sí se facturaron — no se
@@ -7983,7 +8065,7 @@ def facturar_pedido(pedido_id):
     if pedido.estado == 'facturado':
         if pedido.invoice_id_qbo:
             flash('El pedido ya está facturado.', 'info')
-            return redirect(url_for('lista_pedidos'))
+            return _volver_a('lista_pedidos')
         if not request.form.get('reintentar'):
             flash(
                 'Este pedido ya fue enviado a facturar. Verificá en QuickBooks '
@@ -7991,14 +8073,14 @@ def facturar_pedido(pedido_id):
                 'factura duplicada.',
                 'warning',
             )
-            return redirect(url_for('lista_pedidos'))
+            return _volver_a('lista_pedidos')
 
     traz_errores = _validar_preparacion_pedido(pedido)
     if traz_errores:
         flash('No se puede facturar. Datos de trazabilidad incompletos:', 'error')
         for err in traz_errores:
             flash(err, 'error')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     payload = pedido_a_json(pedido)
 
@@ -8008,7 +8090,7 @@ def facturar_pedido(pedido_id):
         flash('No se puede facturar. Datos incompletos para QuickBooks:', 'error')
         for err in datos_errores:
             flash(err, 'error')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     # Aviso, no error: una línea sin clase se factura igual, solo sale sin
     # clasificar. Bloquear dejaría la app inservible hasta clasificar los 64
@@ -8026,7 +8108,7 @@ def facturar_pedido(pedido_id):
     if not N8N_WEBHOOK_URL:
         app.logger.error(f'N8N_WEBHOOK_URL no configurada. No se puede facturar pedido {pedido_id}.')
         flash('Error de configuración: N8N_WEBHOOK_URL no está definida. Contacte al administrador.', 'danger')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     # ── Llamada al webhook N8N ──
     try:
@@ -8035,11 +8117,11 @@ def facturar_pedido(pedido_id):
     except requests.Timeout:
         app.logger.error(f'Timeout al enviar pedido {pedido_id} a n8n ({N8N_WEBHOOK_TIMEOUT}s)')
         flash(f'Timeout — N8N no respondió en {N8N_WEBHOOK_TIMEOUT}s. Reintentar o verificar conexión.', 'danger')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
     except requests.ConnectionError as e:
         app.logger.error(f'Error de conexión con n8n para pedido {pedido_id}: {e}')
         flash('Error de conexión con N8N. Verificar que el servicio está activo.', 'danger')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
     except requests.HTTPError as e:
         err_resp = e.response
         status_code = err_resp.status_code
@@ -8053,11 +8135,11 @@ def facturar_pedido(pedido_id):
             flash(f'Error en facturación (HTTP {status_code}): {error_msg}', 'danger')
         else:
             flash('Error temporal en QuickBooks. Reintentar en unos momentos.', 'danger')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
     except Exception as e:
         app.logger.error(f'Error inesperado al enviar pedido {pedido_id} a n8n: {e}')
         flash('Error al enviar a n8n. Intente de nuevo.', 'danger')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     # ── Extraer invoice_id de la respuesta N8N ──
     invoice_id = None
@@ -8088,7 +8170,7 @@ def facturar_pedido(pedido_id):
         app.logger.critical(f'CRITICAL: Webhook exitoso pero commit falló para pedido {pedido_id}: {e}')
         db.session.rollback()
         flash('Error interno al guardar. El pedido fue enviado a QuickBooks pero no se marcó como facturado. Contacte soporte.', 'danger')
-        return redirect(url_for('lista_pedidos'))
+        return _volver_a('lista_pedidos')
 
     if invoice_id:
         if doc_number:
@@ -8103,7 +8185,7 @@ def facturar_pedido(pedido_id):
             'Verificá en QuickBooks que la factura exista antes de reenviar.',
             'warning',
         )
-    return redirect(url_for('lista_pedidos'))
+    return _volver_a('lista_pedidos')
 
 
 def _sanitizar_para_archivo(texto):

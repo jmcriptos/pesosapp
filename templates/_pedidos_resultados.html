@@ -5,11 +5,19 @@
        botones. Anidar eso dentro de un <a> es HTML inválido, y el parser cerraba
        la tarjeta antes del .pc-foot y lo expulsaba fuera. Además de verse partida,
        el filtro de búsqueda ocultaba la tarjeta pero dejaba visibles el estado y
-       los botones de editar/borrar, huérfanos y sin decir a qué pedido eran. #}
+       los botones de editar/borrar, huérfanos y sin decir a qué pedido eran.
+
+       TAMPOCO `role="link"`: ese rol convierte a la tarjeta en un único nodo
+       cuyo nombre accesible es el `aria-label`, y todo lo de adentro deja de
+       anunciarse. Con lector de pantalla la lista eran 20 enlaces idénticos
+       («Ver detalles del pedido PED-N») sin cliente, sin estado, sin importe y
+       sin los días de atraso. Además anidaba <button> y <a> dentro de un rol
+       `link`, que es inválido. Ahora el enlace real es el nombre del cliente
+       —Cmd+click abre en pestaña nueva, cosa que antes no pasaba— y el resto de
+       la tarjeta se lee normal. El clic en cualquier parte sigue funcionando por
+       `data-href`, como conveniencia, no como el único camino. #}
     <div class="pedido-card"
-         role="link" tabindex="0"
          data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-         aria-label="Ver detalles del pedido PED-{{ pedido.id }}"
          data-estado="{{ (pedido.estado or '')|lower }}"
          {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}
          data-search="{{ (pedido.id|string ~ ' ' ~ (pedido.cliente.nombre if pedido.cliente else ''))|lower }}">
@@ -31,7 +39,9 @@
             <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
             {% endif %}
           </div>
-          <div class="pc-client">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</div>
+          <a class="pc-client" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">
+            {{ pedido.cliente.nombre if pedido.cliente else '—' }}<span class="sr-only"> — abrir el pedido PED-{{ pedido.id }}</span>
+          </a>
         </div>
         <div class="pc-amt">
           {{ '{:,.2f}'.format(pedido.total_calculado or 0) }}
@@ -44,6 +54,20 @@
          expulsaba el .pc-foot afuera—, y sumaba ~90px por tarjeta. Con los 910
          pedidos de producción facturados y sin invoice_id_qbo, ese panel
          quedaba VACÍO en toda la lista salvo por la píldora. #}
+      {# La nota, LEGIBLE. Era un icono de 13px cuyo title decía solamente «Este
+         pedido tiene una nota»: en el teléfono —el aparato donde se reparte— el
+         contenido era inalcanzable sin abrir el pedido, así que «entregar antes
+         de las 10» se enteraba el chofer cuando ya estaba en la puerta. En
+         escritorio el texto siempre se vio; era el dispositivo primario el que
+         no lo tenía. Cuesta una línea, y solo en los pedidos que sí tienen nota. #}
+      {% if pedido.notas %}
+      <p class="pc-nota">
+        <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
+        <span class="sr-only">Nota:</span>
+        <span class="pc-nota-texto" title="{{ pedido.notas }}">{{ pedido.notas }}</span>
+      </p>
+      {% endif %}
+
       {% set puede_editar   = pedido.estado != 'facturado' %}
       {% set puede_facturar = pedido.estado == 'preparado' %}
       {% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
@@ -68,21 +92,16 @@
             {% endif %}
           </span>
           {% elif pedido.fecha_pedido %}
+          {# Mismo formato corto que la entrega (dd/mm): tres formatos de fecha
+             distintos en una sola pantalla obligaban a leer dos veces para
+             saber si «08/09» era septiembre o el año. El año completo vive en
+             el title, donde no compite por ancho. #}
           <span title="Pedido tomado el {{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}">
-            <i class="fas fa-calendar" aria-hidden="true"></i> {{ pedido.fecha_pedido.strftime('%d/%m/%y') }}
+            <i class="fas fa-calendar" aria-hidden="true"></i> {{ pedido.fecha_pedido.strftime('%d/%m') }}
           </span>
           {% endif %}
           {% if pedido.detalles is defined and pedido.detalles %}
           <span><i class="fas fa-boxes" aria-hidden="true"></i> {{ pedido.detalles|length }} líneas</span>
-          {% endif %}
-          {# Solo el icono: con la palabra "Nota" la fila no entraba en 375px
-             cuando el pedido está preparado (tres botones) y los metadatos
-             saltaban a dos o tres líneas. #}
-          {% if pedido.notas %}
-          <span class="pc-meta-nota" title="Este pedido tiene una nota">
-            <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
-            <span class="sr-only">Tiene nota</span>
-          </span>
           {% endif %}
         </div>
 
@@ -122,14 +141,20 @@
             {% endif %}
           {% endif %}
           {% if puede_facturar %}
+          {# Facturar es la única acción irreversible de la pantalla —crea la
+             factura del cliente en QuickBooks— y estaba a 8px del tacho sin
+             ningún aviso, mientras que eliminar (recuperable) sí confirmaba.
+             El `data-confirm` va en el <form> y NO en el <button>: base.js
+             delega sobre `submit`, donde `e.target` ya es el formulario, así
+             que un atributo en el botón no se lee nunca. Estuvo en el botón y
+             por eso facturaba sin preguntar. #}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form">
+                class="pc-action-form"
+                data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {# Facturar es la única acción irreversible de la pantalla —crea la
-               factura del cliente en QuickBooks— y estaba a 8px del tacho sin
-               ningún aviso, mientras que eliminar (recuperable) sí confirmaba. #}
+            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
             <button type="submit" class="pc-action-main"
-                    data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?"
+                    data-submit-label="Facturando…"
                     aria-label="Facturar pedido PED-{{ pedido.id }}">
               <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
             </button>
@@ -151,6 +176,7 @@
                 data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}"
                 >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
             <button type="submit" class="pc-action-btn danger" title="Eliminar"
                     aria-label="Eliminar pedido #{{ pedido.id }}">
               <i class="fa fa-trash"></i>
@@ -210,8 +236,10 @@
     {% endfor %}
   </div>
 
-  {# Mobile pagination — siempre visible (incluso con 1 página o 0 pedidos)
-     para que el indicador de página sea constante y la fila no desaparezca. #}
+  {# Mobile pagination. Los controles solo aparecen si hay más de una página:
+     un «1 / 1» con las dos flechas apagadas, justo debajo de «1–11 de 11», son
+     dos controles diciendo lo mismo («no hay más») y uno de ellos parece roto.
+     El renglón de conteo sí queda siempre, que es el que da la constante. #}
   {% if pagination %}
   <div class="pagination-mobile">
     <div class="pagination-info-mobile">
@@ -221,25 +249,40 @@
         Sin pedidos
       {% endif %}
     </div>
+    {% if pagination.pages and pagination.pages > 1 %}
+    {# Primera y última también en móvil. Con 910 pedidos son 46 páginas, y solo
+       con anterior/siguiente llegar al final son 45 toques — mientras que en
+       escritorio, donde nadie reparte, sí estaban los saltos. #}
     <div class="pagination-controls-mobile">
       {% if pagination.has_prev %}
-      <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}"
+      <a href="{{ url_for('lista_pedidos', page=1, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}"
+         class="pagination-btn-mobile" aria-label="Primera página">
+        <i class="fa fa-angles-left" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}"
          class="pagination-btn-mobile" aria-label="Página anterior">
-        <i class="fa fa-chevron-left"></i>
+        <i class="fa fa-chevron-left" aria-hidden="true"></i>
       </a>
       {% else %}
-      <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-left"></i></span>
+      <span class="pagination-btn-mobile disabled" aria-hidden="true"><i class="fa fa-angles-left"></i></span>
+      <span class="pagination-btn-mobile disabled" aria-hidden="true"><i class="fa fa-chevron-left"></i></span>
       {% endif %}
-      <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+      <span class="pagination-current-mobile">{{ pagination.page }} / {{ pagination.pages }}</span>
       {% if pagination.has_next %}
-      <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}"
+      <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}"
          class="pagination-btn-mobile" aria-label="Página siguiente">
-        <i class="fa fa-chevron-right"></i>
+        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+      </a>
+      <a href="{{ url_for('lista_pedidos', page=pagination.pages, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}"
+         class="pagination-btn-mobile" aria-label="Última página">
+        <i class="fa fa-angles-right" aria-hidden="true"></i>
       </a>
       {% else %}
-      <span class="pagination-btn-mobile disabled"><i class="fa fa-chevron-right"></i></span>
+      <span class="pagination-btn-mobile disabled" aria-hidden="true"><i class="fa fa-chevron-right"></i></span>
+      <span class="pagination-btn-mobile disabled" aria-hidden="true"><i class="fa fa-angles-right"></i></span>
       {% endif %}
     </div>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -253,19 +296,44 @@
       {% if pedidos %}
       <div class="tabla-pedidos-scroll">
         <table class="tabla-pedidos">
+          {# El orden lo hace el SERVIDOR (`?orden=`), no el navegador.
+             Ordenar en el cliente reordenaba únicamente las 20 filas cargadas
+             de las 910 que hay en producción, así que «Total descendente» no
+             daba el pedido más grande sino el más grande de esta página — y
+             como comparaba por el equivalente en XCG mientras la celda muestra
+             la moneda nativa, la columna se leía literalmente desordenada
+             (…3146,08 XCG, 1939,07 USD, 2001,47 USD). Una columna que miente es
+             peor que una columna que no ordena. #}
+          {% macro th_orden(clave, etiqueta, extra_clase='') -%}
+            {% set activo = (filtros.orden or '').lstrip('-') == clave %}
+            {% set desc = activo and (filtros.orden or '').startswith('-') %}
+            <th class="sortable {{ extra_clase }}{% if activo %} {{ 'desc' if desc else 'asc' }}{% endif %}">
+              <button type="button" class="th-orden" data-orden="{{ '-' if activo and not desc else '' }}{{ clave }}"
+                      aria-label="Ordenar por {{ etiqueta|lower }}{{ ', descendente' if activo and not desc else ', ascendente' }}"
+                      {% if activo %}aria-sort="{{ 'descending' if desc else 'ascending' }}"{% endif %}>
+                {{ etiqueta }}
+                <i class="fa {% if activo %}{{ 'fa-sort-down' if desc else 'fa-sort-up' }}{% else %}fa-sort{% endif %}" aria-hidden="true"></i>
+              </button>
+            </th>
+          {%- endmacro %}
           <thead>
             <tr>
-              <th class="sortable" data-sort="id" data-type="number">ID <i class="fa fa-sort"></i></th>
-              <th class="sortable" data-sort="cliente" data-type="string">Cliente <i class="fa fa-sort"></i></th>
+              {{ th_orden('id', 'ID') }}
+              {{ th_orden('cliente', 'Cliente') }}
               {# La guía pone ENTREGA, no la fecha en que se tomó el pedido:
                  es el dato con el que se decide a quién atender primero. #}
-              <th class="sortable" data-sort="fecha" data-type="date">Entrega <i class="fa fa-sort"></i></th>
-              <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
+              {{ th_orden('entrega', 'Entrega') }}
+              {{ th_orden('estado', 'Estado') }}
               {# Sin moneda en el encabezado: cada fila trae la suya, porque los
-                 clientes facturan en XCG o en USD y ƒ450 no es $450. El sort usa
-                 `data-total`, que lleva el equivalente en XCG. #}
-              <th class="sortable text-right" data-sort="total" data-type="number">Total <i class="fa fa-sort"></i></th>
-              <th>Contexto</th>
+                 clientes facturan en XCG o en USD y ƒ450 no es $450.
+                 Y sin orden: el importe que se ve lo calcula Python con
+                 peso_real × precio (vía CajaPesada) y el SQL no lo reproduce,
+                 así que cualquier orden que pudiéramos pedirle a la base se
+                 contradiría con los números de la columna en cuanto hubiera un
+                 pedido pesado. Antes ordenaba —mal, y solo las 20 filas de esta
+                 página— por una clave XCG invisible. #}
+              <th class="text-right">Total</th>
+              <th>Nota</th>
               <th class="pedido-actions-header">Acciones</th>
             </tr>
           </thead>
@@ -281,12 +349,12 @@
               {# PED-N, igual que en la tarjeta y en la guía: "#20" no dice de
                  qué es el número cuando se lee suelto en una columna. #}
               <td class="pedido-id-cell">PED-{{ pedido.id }}</td>
+              {# La nota estaba DOS veces en la misma fila: acá abajo del cliente
+                 y otra vez como chip en la columna Contexto. Se queda en su
+                 columna, que es donde el encabezado la anuncia. #}
               <td>
                 <div class="pedido-client-stack">
-                  <span class="pedido-client-name">{{ pedido.cliente.nombre }}</span>
-                  {% if pedido.notas %}
-                  <span class="pedido-client-note">{{ pedido.notas|truncate(46) }}</span>
-                  {% endif %}
+                  <a class="pedido-client-name" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">{{ pedido.cliente.nombre }}</a>
                 </div>
               </td>
               {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
@@ -300,9 +368,10 @@
                   {% endif %}
                 {% else %}
                   {# Sin fecha de entrega (los 910 históricos): se muestra la
-                     del pedido y se dice que es esa, para no mentir. #}
-                  <span title="Sin fecha de entrega; se muestra la del pedido">
-                    {{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else 'N/A' }}
+                     del pedido y se dice que es esa, para no mentir. Formato
+                     corto igual que el resto de la pantalla; el año va al title. #}
+                  <span title="Sin fecha de entrega; se muestra la del pedido{{ ' (' ~ pedido.fecha_pedido.strftime('%d/%m/%Y') ~ ')' if pedido.fecha_pedido else '' }}">
+                    {{ pedido.fecha_pedido.strftime('%d/%m') if pedido.fecha_pedido else 'N/A' }}
                   </span>
                 {% endif %}
               </td>
@@ -322,14 +391,17 @@
               <td class="text-right pedido-total-cell">
                 {{ "%.2f"|format(pedido.total_calculado) }}<span class="pedido-total-moneda">{{ pedido.moneda }}</span>
               </td>
+              {# La nota, no un chip que dice «Nota». El valor dominante de esta
+                 columna era el literal «Sin notas» repetido fila tras fila a
+                 2,57:1 de contraste: ruido gris ocupando el ancho que necesita
+                 el único dato que la columna existe para mostrar. Vacío es un
+                 guion tenue; con nota, la nota. #}
               <td class="pedido-context-cell">
                 <div class="pedido-context-stack">
                   {% if pedido.notas %}
-                  <span class="pedido-context-chip" title="{{ pedido.notas }}">
-                    <i class="fa-solid fa-note-sticky"></i> Nota
-                  </span>
+                  <span class="pedido-nota-texto" title="{{ pedido.notas }}">{{ pedido.notas|truncate(60) }}</span>
                   {% else %}
-                  <span class="pedido-context-empty">Sin notas</span>
+                  <span class="pedido-context-empty" aria-hidden="true">—</span>
                   {% endif %}
                   {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
                   <span class="invoice-id-badge" title="QuickBooks Invoice ID">{{ pedido.invoice_id_qbo }}</span>
@@ -359,10 +431,14 @@
                     {% endif %}
                   {% endif %}
                   {% if pedido.estado == 'preparado' %}
-                  <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
+                  {# El data-confirm va en el <form>, igual que en la tarjeta:
+                     base.js delega sobre `submit` y ahí `e.target` es el form. #}
+                  <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
+                        data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
                     <button type="submit" class="row-action-main"
-                            data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?"
+                            data-submit-label="Facturando…"
                             aria-label="Facturar pedido PED-{{ pedido.id }}">
                       <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
                     </button>
@@ -378,6 +454,7 @@
                   <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form"
                         data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Seguro que quieres eliminar este pedido?{% endif %}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
                     <button type="submit" class="row-action row-action-danger"
                             title="Eliminar pedido #{{ pedido.id }}" aria-label="Eliminar pedido #{{ pedido.id }}">
                       <i class="fa-solid fa-trash-can"></i>
@@ -415,10 +492,10 @@
         </div>
         <div class="pagination-controls">
           {% if pagination.has_prev %}
-          <a href="{{ url_for('lista_pedidos', page=1, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Primera">
+          <a href="{{ url_for('lista_pedidos', page=1, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Primera">
             <i class="fa fa-angles-left"></i>
           </a>
-          <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Anterior">
+          <a href="{{ url_for('lista_pedidos', page=pagination.prev_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Anterior">
             <i class="fa fa-angle-left"></i>
           </a>
           {% else %}
@@ -427,10 +504,10 @@
           {% endif %}
           <span class="pagination-current">Página {{ pagination.page }} de {{ pagination.pages }}</span>
           {% if pagination.has_next %}
-          <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Siguiente">
+          <a href="{{ url_for('lista_pedidos', page=pagination.next_num, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Siguiente">
             <i class="fa fa-angle-right"></i>
           </a>
-          <a href="{{ url_for('lista_pedidos', page=pagination.pages, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Última">
+          <a href="{{ url_for('lista_pedidos', page=pagination.pages, per_page=pagination.per_page, estado=filtros.estado, q=filtros.q or None, orden=filtros.orden or None, solo_notas=1 if filtros.solo_notas else None) }}" class="pagination-btn" title="Última">
             <i class="fa fa-angles-right"></i>
           </a>
           {% else %}

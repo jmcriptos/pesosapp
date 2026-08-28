@@ -72,13 +72,21 @@ def _pedido(estado, dias_entrega=None):
 
 
 def _counts(logged_client):
-    """Lee las cifras del HTML sin acoplarse al markup exacto."""
+    """Lee las cifras del HTML sin acoplarse al markup exacto.
+
+    Las dos «cifras» de 75px que había arriba de la lista se eliminaron el
+    2026-08-28: eran un tercer widget escribiendo el mismo `estado` que las
+    píldoras, y «Por preparar» era literalmente Pendientes + Preparados
+    repetido más abajo. Los CONTEOS no cambiaron —los sigue calculando
+    `lista_pedidos` igual—, solo viven ahora en la píldora. Lo que se rompió
+    fue este lector, no la app.
+    """
     import re
     html = logged_client.get('/pedidos').get_data(as_text=True)
     out = {}
     for clave in ('por_preparar', 'vencido'):
         m = re.search(
-            r'data-estado="%s"[^>]*>\s*<span class="cifra-valor">(\d+)</span>' % clave,
+            r'data-estado="%s".*?<span class="filter-pill-count">(\d+)</span>' % clave,
             html, re.S)
         out[clave] = int(m.group(1)) if m else None
     return out

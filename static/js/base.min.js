@@ -79,17 +79,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (drawerToggle && drawer && drawerOverlay) {
         drawerToggle.setAttribute('aria-expanded', 'false');
+        // El drawer cerrado se esconde con `translateX(-280px)`, no con
+        // `display:none`, así que seguía siendo enfocable: quien navega con
+        // teclado se comía 13 paradas invisibles (Dashboard … Cerrar sesión)
+        // antes de llegar a un control que se ve.
+        drawer.inert = true;
 
         function openDrawer() {
             drawer.classList.add('open');
             drawerOverlay.classList.add('open');
             drawerToggle.setAttribute('aria-expanded', 'true');
+            drawer.inert = false;
             document.body.style.overflow = 'hidden';
         }
         function closeDrawer() {
             drawer.classList.remove('open');
             drawerOverlay.classList.remove('open');
             drawerToggle.setAttribute('aria-expanded', 'false');
+            drawer.inert = true;
             document.body.style.overflow = '';
         }
 
@@ -309,15 +316,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Form submit events with confirmation
+    // Form submit events with confirmation.
+    //
+    // El selector es `form[data-confirm]` y NO el del botón: en un evento
+    // `submit`, `e.target` YA ES el formulario, así que `.closest()` mira el
+    // form y sus ancestros — nunca el botón que lo disparó. Facturar llevaba el
+    // atributo en el <button> y por eso enviaba sin preguntar, mientras que
+    // eliminar (que lo tiene en el <form>) sí confirmaba. Si hace falta ponerlo
+    // en un botón, va también acá abajo, no en lugar de esto.
     document.addEventListener('submit', function(e) {
         const form = e.target.closest('form[data-confirm]');
-        if (form) {
-            const message = form.dataset.confirm;
-            if (!confirm(message)) {
-                e.preventDefault();
-                return false;
+        if (!form) return;
+        const message = form.dataset.confirm;
+        if (!confirm(message)) {
+            e.preventDefault();
+            return false;
+        }
+        // Confirmado: candado contra el doble toque. Facturar dispara un webhook
+        // síncrono a N8N->QuickBooks; en una conexión lenta el vendedor vuelve a
+        // tocar y salen dos facturas. El label cambia para que se vea que está
+        // trabajando, no solo que se apagó.
+        const boton = e.submitter || form.querySelector('button[type="submit"], button:not([type])');
+        if (boton && !boton.disabled) {
+            const etiqueta = boton.dataset.submitLabel;
+            if (etiqueta) {
+                const icono = boton.querySelector('i');
+                boton.innerHTML = '';
+                if (icono) {
+                    icono.className = 'fa-solid fa-spinner fa-spin';
+                    boton.appendChild(icono);
+                    boton.appendChild(document.createTextNode(' '));
+                }
+                boton.appendChild(document.createTextNode(etiqueta));
             }
+            // En el mismo tick el submit todavía no salió y deshabilitar el botón
+            // cancelaría el envío en algunos navegadores.
+            setTimeout(function() {
+                boton.disabled = true;
+                boton.setAttribute('aria-disabled', 'true');
+            }, 0);
         }
     });
 

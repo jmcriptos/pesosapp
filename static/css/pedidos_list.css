@@ -97,13 +97,21 @@ body[data-pedidos-list-screen] .hero-title {
   margin: 2px 0 0 !important;
 }
 
+/* Verde sólido, no degradado. Blanco sobre el degradado daba 2,54:1 en el
+   extremo claro y 3,77:1 en el oscuro —el texto del CTA primario fallaba AA en
+   toda su superficie—, y un degradado decorativo no aporta nada que el color
+   plano no diga. #047857 con blanco = 5,55:1. */
 body[data-pedidos-list-screen] .btn-nuevo-pedido {
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  background-image: linear-gradient(135deg, #10b981, #059669) !important;
+  background: #047857 !important;
+  background-image: none !important;
   color: #ffffff !important;
   border: 0 !important;
   border-radius: 12px !important;
-  padding: 10px 16px !important;
+  /* 48px de alto: es la acción primaria de la pantalla y medía 42, por debajo
+     del piso de toque de la guía. Se usa en ruta y en planta, muchas veces con
+     guantes. */
+  min-height: var(--touch-min, 48px) !important;
+  padding: 0 18px !important;
   font-weight: 700 !important;
   font-size: 0.9rem !important;
   text-decoration: none;
@@ -116,7 +124,8 @@ body[data-pedidos-list-screen] .btn-nuevo-pedido {
 
 body[data-pedidos-list-screen] .btn-nuevo-pedido:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px -10px rgba(16, 185, 129, 0.55);
+  background: #065f46 !important;
+  box-shadow: 0 14px 28px -10px rgba(4, 120, 87, 0.55);
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -146,72 +155,30 @@ body[data-pedidos-list-screen] .search-pill input[type="search"] {
   border: 0 !important;
   color: var(--color-text) !important;
   flex: 1;
-  padding: 10px 8px !important;
+  /* El input llenaba 42 de los 52px de la píldora, así que la franja de arriba
+     y la de abajo no enfocaban al tocarlas. Ahora el destino de toque es toda
+     la píldora, que es lo que se ve. */
+  align-self: stretch;
+  /* `height:auto` es necesario: hay una altura explícita (42px) heredada de
+     forms.css que le gana al `stretch` del flex. */
+  height: auto !important;
+  padding: 0 8px !important;
   font-size: 0.95rem !important;
   outline: none;
   box-shadow: none !important;
 }
 
+/* El `outline:none` de arriba quita el anillo del navegador y no lo reemplazaba
+   nada: el control MÁS usado de la pantalla no mostraba foco en absoluto
+   (verificado sobre 90 tabulaciones). El anillo se dibuja en la píldora, que es
+   la caja que se ve, no en el input transparente de adentro. */
+body[data-pedidos-list-screen] .search-pill:focus-within {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 28%, transparent) !important;
+}
+
 body[data-pedidos-list-screen] .search-pill input::placeholder {
   color: var(--color-text-subtle) !important;
-}
-
-/* ────────────────────────────────────────────────────────────
-   Filter chips (estado tabs)
-   ──────────────────────────────────────────────────────────── */
-body[data-pedidos-list-screen] .chips-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding: 0 4px;
-}
-
-body[data-pedidos-list-screen] .fchip {
-  background: var(--color-surface) !important;
-  color: var(--color-text-muted) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: 99px !important;
-  padding: 8px 14px !important;
-  font-size: 0.82rem !important;
-  font-weight: 700 !important;
-  text-decoration: none !important;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 160ms ease;
-  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.05);
-}
-
-body[data-pedidos-list-screen] .fchip:hover:not(.active) {
-  border-color: color-mix(in srgb, var(--indigo-500) 40%, var(--color-border)) !important;
-  color: var(--color-text) !important;
-}
-
-body[data-pedidos-list-screen] .fchip.active {
-  background: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
-  background-image: linear-gradient(135deg, var(--indigo-500), var(--violet-500)) !important;
-  color: #ffffff !important;
-  border-color: transparent !important;
-  box-shadow: 0 8px 20px -8px rgba(99, 102, 241, 0.55) !important;
-}
-
-body[data-pedidos-list-screen] .fchip .fchip-count,
-body[data-pedidos-list-screen] .fchip .count {
-  background: color-mix(in srgb, var(--color-bg-subtle) 80%, transparent);
-  color: inherit;
-  border-radius: 99px;
-  padding: 1px 7px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  min-width: 18px;
-  text-align: center;
-}
-
-body[data-pedidos-list-screen] .fchip.active .fchip-count,
-body[data-pedidos-list-screen] .fchip.active .count {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -285,9 +252,12 @@ body[data-pedidos-list-screen] .pc-id {
 /* Una sola línea con elipsis: "Hotel Renaissance Curacao" partía en dos y cada
    salto costaba ~21px por tarjeta. El nombre completo sigue disponible al
    abrir el pedido. */
+/* Ahora es un <a> de verdad (antes toda la tarjeta era un role="link" que se
+   tragaba su propio contenido para el lector de pantalla). Se sigue viendo como
+   texto: subrayarlo metería una línea en cada tarjeta de la lista. */
 body[data-pedidos-list-screen] .pc-client {
   color: var(--color-text) !important;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin-top: 2px;
@@ -295,6 +265,20 @@ body[data-pedidos-list-screen] .pc-client {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+  text-decoration: none;
+}
+
+body[data-pedidos-list-screen] .pc-client:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-pedidos-list-screen] .pc-client:focus-visible,
+body[data-pedidos-list-screen] .pedido-client-name:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 body[data-pedidos-list-screen] .pc-main {
@@ -315,14 +299,21 @@ body[data-pedidos-list-screen] .pc-id {
   flex: 0 0 auto;
 }
 
+/* 1rem/700, no 1.25rem/800. En una pantalla cuyo filtro por defecto es «Por
+   preparar», el importe era el elemento más grande y de mayor contraste de cada
+   tarjeta (20px/800 a 17,85:1) y el estado el más chico: la tarjeta estaba
+   maquetada como fila de dashboard financiero y no como orden de trabajo.
+   Nadie prepara pedidos en orden descendente de valor. El número sigue
+   perfectamente legible; deja de gritar. */
 body[data-pedidos-list-screen] .pc-amt {
   color: var(--color-text) !important;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* El código de moneda decide qué SIGNIFICA el número que tiene al lado, y era
@@ -362,74 +353,6 @@ body[data-pedidos-list-screen] .filter-bar .search-pill {
 body[data-pedidos-list-screen] #pedidos-filtros {
   margin: 0 0 var(--space-4);
   padding: 2px var(--space-1);
-}
-
-/* ── Las dos cifras de la guía ──
-   Van arriba de todo porque son la respuesta a "¿qué tengo que hacer hoy?".
-   Son botones: tocarlas filtra la lista. */
-body[data-pedidos-list-screen] .pedidos-cifras {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--touch-gap);
-  margin: var(--space-3) 0 var(--space-1);
-}
-
-/* En escritorio no tiene sentido que cada cifra mida 619px: se compactan a la
-   izquierda, que es donde la guía las pone como resumen del encabezado. */
-@media (min-width: 720px) {
-  body[data-pedidos-list-screen] .pedidos-cifras {
-    grid-template-columns: repeat(2, minmax(0, 200px));
-    justify-content: start;
-  }
-}
-
-/* Doble clase para ganarle al `:root button` que deja la llave sin cerrar de
-   styles.css, que si no las pinta de #007bff. */
-body[data-pedidos-list-screen] .pedidos-cifras .cifra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-height: var(--touch-glove);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-xs);
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-body[data-pedidos-list-screen] .pedidos-cifras .cifra.is-active {
-  border-color: var(--color-text);
-  box-shadow: inset 0 0 0 1px var(--color-text);
-}
-
-body[data-pedidos-list-screen] .cifra-valor {
-  font-size: var(--text-role-figure);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: var(--color-text);
-  font-variant-numeric: tabular-nums;
-}
-
-body[data-pedidos-list-screen] .cifra-label {
-  font-size: var(--text-role-meta);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-/* Rojo SOLO cuando hay vencidos: un cero en rojo alarma sin motivo. */
-body[data-pedidos-list-screen] .pedidos-cifras .cifra-alerta .cifra-valor,
-body[data-pedidos-list-screen] .pedidos-cifras .cifra-alerta .cifra-label {
-  color: var(--color-danger-soft-fg);
-}
-
-body[data-pedidos-list-screen] .pedidos-cifras .cifra-alerta {
-  background: var(--color-danger-soft);
-  border-color: transparent;
 }
 
 /* ── Acción principal de la tarjeta ──
@@ -497,15 +420,16 @@ body[data-pedidos-list-screen] .pedido-date-tarde {
   white-space: nowrap;
 }
 
-body[data-pedidos-list-screen] .estado-badge.estado-vencido {
-  background: var(--color-danger-soft) !important;
-  color: var(--color-danger-soft-fg) !important;
-}
-
-/* Vencido: fecha de entrega pasada y todavía sin facturar. */
+/* `--color-danger-soft-fg` es rose-600 (#e11d48) y sobre #ffe4e6 da 3,91:1:
+   falla AA a este tamaño, y es el único de los tres estados que fallaba
+   (pendiente da 6,17:1 y preparado 7,71:1, ambos pasan). Rose-800 sobre el
+   mismo fondo da 6,69:1 sin cambiar el rojo que el vendedor ya reconoce.
+   Va fijo y no por token porque el token lo comparten pantallas con otros
+   fondos donde sí pasa. */
+body[data-pedidos-list-screen] .estado-badge.estado-vencido,
 body[data-pedidos-list-screen] .status-pill.vencido {
   background: var(--color-danger-soft) !important;
-  color: var(--color-danger-soft-fg) !important;
+  color: #9f1239 !important;
 }
 
 body[data-pedidos-list-screen] .pedido-card[data-vencido="1"]::before {
@@ -626,15 +550,19 @@ body[data-pedidos-list-screen] .pc-foot .pedido-card:hover {
 }
 
 /* Status pill colors */
+/* 0.7rem = 11,2px. La píldora es lo ÚNICO que dice qué acción aplica (pesar,
+   facturar, nada) y era el texto más chico de la tarjeta, mientras el importe
+   —que en esta pantalla no decide nada— iba a 20px. Se lee en cámara fría y
+   bajo sol, con el brillo bajo. Sube al piso de 12px de la guía. */
 body[data-pedidos-list-screen] .status-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 12px;
   border-radius: 99px;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   border: 0 !important;
   background-image: none !important;
@@ -1015,7 +943,7 @@ body[data-pedidos-list-screen] .estado-badge {
   gap: 5px;
   padding: 4px 10px !important;
   border-radius: 99px !important;
-  font-size: 0.68rem !important;
+  font-size: 0.78rem !important;
   font-weight: 800 !important;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1038,9 +966,18 @@ body[data-pedidos-list-screen] .estado-badge.estado-facturado {
   color: #065f46 !important;
 }
 
+/* También es un <a> real ahora (Cmd+click, pestaña nueva, nombre accesible con
+   sentido). Sin subrayado permanente: veinte nombres subrayados convierten la
+   columna en una lista de enlaces y compiten con la fila, que ya es clicable. */
 body[data-pedidos-list-screen] .pedido-client-name {
   color: var(--color-text) !important;
   font-weight: 600;
+  text-decoration: none;
+}
+
+body[data-pedidos-list-screen] .pedido-client-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 body[data-pedidos-list-screen] .pedido-id-cell {
@@ -1082,7 +1019,7 @@ body[data-pedidos-list-screen] .estado-badge {
   border: 0 !important;
   padding: 4px 10px;
   border-radius: 99px;
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1113,3 +1050,200 @@ body[data-pedidos-list-screen] .pc-tarde {
 }
 
 
+
+/* ────────────────────────────────────────────────────────────
+   Añadidos de la revisión del 2026-08-28
+   ──────────────────────────────────────────────────────────── */
+
+/* La nota del pedido, en la tarjeta. Antes era un icono de 13px cuyo tooltip
+   decía solo "este pedido tiene una nota": en el teléfono el contenido era
+   inalcanzable, y "entregar antes de las 10" se enteraba el chofer en la
+   puerta. Dos líneas como máximo para que un párrafo largo no empuje las
+   acciones fuera de la vista. */
+body[data-pedidos-list-screen] .pc-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+body[data-pedidos-list-screen] .pc-nota i {
+  color: var(--color-text-subtle);
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+/* Máximo dos líneas: la nota informa, no es el contenido de la tarjeta, y hay
+   notas de cuatro renglones que empujarían las acciones fuera de la vista. El
+   clamp va en el <span> del texto: sobre el contenedor flex no aplica. */
+body[data-pedidos-list-screen] .pc-nota-texto {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* La fila de filtros SIGUE hacia la derecha, y hay que decirlo.
+   A 390px la fila mide 665px de contenido en 358 visibles: "Facturados" y
+   "Todos" quedan fuera de pantalla sin ningún borde, flecha ni asomo, así que
+   quien no sabe deslizar ahí no tiene forma de enterarse de que existen. El
+   degradado de máscara desvanece el último tramo: se ve que la fila continúa. */
+body[data-pedidos-list-screen] #pedidos-filtros {
+  display: flex;
+  gap: var(--touch-gap);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  padding-inline: 2px 16px;
+}
+
+/* El degradado se pone del lado donde REALMENTE hay más fila, y por eso lo
+   conducen dos clases y no una máscara fija: con una sola a la derecha, al
+   scrollear la izquierda quedaba con corte duro y parecía el borde de la fila
+   cuando no lo era. Sin JS no hay degradado y la fila sigue funcionando. */
+body[data-pedidos-list-screen] #pedidos-filtros.tiene-mas-derecha {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+
+body[data-pedidos-list-screen] #pedidos-filtros.tiene-mas-izquierda {
+  mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+}
+
+body[data-pedidos-list-screen] #pedidos-filtros.tiene-mas-izquierda.tiene-mas-derecha {
+  mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+}
+
+body[data-pedidos-list-screen] #pedidos-filtros::-webkit-scrollbar {
+  display: none;
+}
+
+body[data-pedidos-list-screen] #pedidos-filtros .filter-pill {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* Cuando entra entera no hay nada que insinuar, y la máscara comería el borde
+   de la última píldora. */
+@media (min-width: 720px) {
+  body[data-pedidos-list-screen] #pedidos-filtros,
+  body[data-pedidos-list-screen] #pedidos-filtros.tiene-mas-izquierda,
+  body[data-pedidos-list-screen] #pedidos-filtros.tiene-mas-derecha,
+  body[data-pedidos-list-screen] #pedidos-filtros.tiene-mas-izquierda.tiene-mas-derecha {
+    flex-wrap: wrap;
+    mask-image: none;
+    -webkit-mask-image: none;
+    padding-inline: 0;
+  }
+}
+
+/* "Vencidos" en rojo, y SOLO cuando hay alguno: un cero en rojo alarma sin
+   motivo. Es la única píldora que se pinta, porque es la única que significa
+   "esto ya se pasó de fecha". */
+body[data-pedidos-list-screen] .filter-pill.filter-pill-alerta:not(.is-active) {
+  background: var(--color-danger-soft);
+  border-color: transparent;
+  color: #9f1239;
+}
+
+body[data-pedidos-list-screen] .filter-pill.filter-pill-alerta:not(.is-active) .filter-pill-count {
+  color: #9f1239;
+}
+
+/* Encabezado ordenable: un <button> de verdad dentro del <th>, no un <th> con
+   un click listener. Así llega por teclado, se anuncia como control y el
+   navegador le pone su anillo de foco. */
+body[data-pedidos-list-screen] .tabla-pedidos th .th-orden {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos th .th-orden:hover {
+  color: var(--color-text);
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos th .th-orden:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+body[data-pedidos-list-screen] .tabla-pedidos th.asc .th-orden,
+body[data-pedidos-list-screen] .tabla-pedidos th.desc .th-orden {
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+/* Aviso de error de red. Reemplaza al `form.submit()` silencioso, que hacía
+   que una conexión mala se leyera como que la app se recarga sola. */
+body[data-pedidos-list-screen] .pedidos-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-control, 12px);
+  background: var(--color-danger-soft);
+  color: #9f1239;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+body[data-pedidos-list-screen] .pedidos-error-btn {
+  min-height: var(--touch-min);
+  padding: 0 16px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md, 10px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body[data-pedidos-list-screen] .pedidos-error-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Paginación móvil: cuatro destinos de toque (primera/anterior/siguiente/última)
+   tienen que seguir midiendo 48px cada uno en 390px de ancho. */
+body[data-pedidos-list-screen] .pagination-controls-mobile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+body[data-pedidos-list-screen] .pagination-btn-mobile {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body[data-pedidos-list-screen] .pagination-btn-mobile:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
