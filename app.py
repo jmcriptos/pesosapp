@@ -53,6 +53,7 @@ from markupsafe import Markup
 from zoneinfo import ZoneInfo
 from utils.label_utils import (
     draw_order_label, draw_expiration_label, get_logo_path, resolve_label_logo,
+    logo_tiene_fondo_de_color,
     create_single_label_pdf, create_letter_page_pdf, get_centered_x,
     LABEL_WIDTH, LABEL_HEIGHT,
     create_a4_page_pdf, get_a4_label_positions, draw_order_label_a4
@@ -10072,6 +10073,17 @@ def editar_cliente(cliente_id):
                     return redirect(url_for('editar_cliente', cliente_id=cliente.id))
                 cliente.logo_etiqueta = datos_logo
                 cliente.logo_mimetype = mimetype_logo
+                if logo_tiene_fondo_de_color(datos_logo):
+                    # No es un error: la etiqueta se imprime bien igual. Pero
+                    # sale distinta al archivo, y eso hay que decirlo antes de
+                    # que se impriman doscientas.
+                    flash(
+                        'Ojo: este logo tiene fondo de color y partes claras '
+                        'encima. La etiqueta se imprime en blanco y negro, así '
+                        'que el fondo sale en negro y esas partes en blanco. '
+                        'Mirá el PDF de una etiqueta antes de imprimir la tanda.',
+                        'info',
+                    )
 
             db.session.commit()
             flash('Cliente actualizado', 'success')

@@ -3,7 +3,9 @@ Utilidades para generación de etiquetas PDF.
 Centraliza el código común para etiquetas de pedidos y etiquetas de vencimiento.
 """
 import os
+from collections import Counter
 from io import BytesIO
+from PIL import Image as PILImage
 from reportlab.lib.units import inch, mm
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
@@ -161,16 +163,134 @@ def get_logo_path(basedir):
     return os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
 
+# =============================================================================
+# LOGO EN BLANCO Y NEGRO PARA LA IMPRESORA TÉRMICA
+# =============================================================================
+#
+# Las etiquetas salen a 1 bit: no hay grises. Si se manda el logo a color, el
+# que binariza es el driver de la impresora, y lo hace por LUMINANCIA. Ahí un
+# logo con marcas claras sobre un fondo de color medio pierde las marcas,
+# porque fondo y marcas caen del mismo lado del umbral. El logo de Deli Nova
+# se imprimía sin el "Deli": verde 155, blanco 224, umbral 128 → los dos sin
+# tinta. Ninguna conversión por brillo lo salva; bajar el umbral para que el
+# verde imprima funde el azul con el fondo.
+#
+# Por eso la conversión de acá usa el COLOR y no el brillo: el color dominante
+# es el campo del logo y pasa a tinta, y todo lo demás es marca y pasa a papel.
+
+TINTA = (0, 0, 0, 255)
+PAPEL = (0, 0, 0, 0)
+
+# Radio en RGB para considerar que un píxel pertenece al campo del logo.
+_RADIO_CAMPO = 90
+_ALPHA_OPACO = 128
+# Umbral típico de un driver monocromo, y el margen a partir del cual una marca
+# cuenta como "más clara que el campo".
+_UMBRAL_DRIVER = 128
+_MARGEN_MARCA = 20
+
+
+def _abrir_logo(logo_bytes):
+    return PILImage.open(BytesIO(logo_bytes)).convert('RGBA')
+
+
+def _luminancia(color):
+    r, g, b = color[:3]
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def _color_del_campo(imagen):
+    """Color más frecuente entre los píxeles opacos: el campo del logo.
+
+    Se cuantiza a saltos de 16 para que el antialiasing no parta un mismo
+    color en decenas de tonos y ninguno llegue a ser mayoría.
+    """
+    conteo = Counter(
+        (r // 16 * 16, g // 16 * 16, b // 16 * 16)
+        for r, g, b, a in imagen.getdata() if a >= _ALPHA_OPACO
+    )
+    return conteo.most_common(1)[0][0] if conteo else None
+
+
+def _es_del_campo(color, campo):
+    return sum((c - k) ** 2 for c, k in zip(color, campo)) <= _RADIO_CAMPO ** 2
+
+
+def logo_monocromo_para_etiqueta(logo_bytes):
+    """Convierte el logo de un cliente a tinta/papel. Devuelve bytes PNG.
+
+    El resultado es RGBA con dos estados únicos —negro opaco y transparente—
+    para que `drawImage(..., mask='auto')` siga sin pintar un recuadro blanco
+    sobre la etiqueta.
+    """
+    imagen = _abrir_logo(logo_bytes)
+    campo = _color_del_campo(imagen)
+    if campo is None:
+        return logo_bytes
+
+    salida = PILImage.new('RGBA', imagen.size, PAPEL)
+    salida.putdata([
+        TINTA if (a >= _ALPHA_OPACO and _es_del_campo((r, g, b), campo)) else PAPEL
+        for r, g, b, a in imagen.getdata()
+    ])
+    buf = BytesIO()
+    salida.save(buf, format='PNG')
+    return buf.getvalue()
+
+
+def logo_tiene_fondo_de_color(logo_bytes):
+    """True si el logo depende del color para leerse.
+
+    Es exactamente la condición que borra las marcas cuando el driver binariza
+    por luminancia: el campo es lo bastante claro como para irse a papel, y
+    encima tiene marcas todavía más claras, que se van con él.
+    """
+    try:
+        imagen = _abrir_logo(logo_bytes)
+    except Exception:
+        return False
+
+    campo = _color_del_campo(imagen)
+    if campo is None:
+        return False
+
+    lum_campo = _luminancia(campo)
+    if lum_campo < _UMBRAL_DRIVER:
+        # El campo imprime con tinta: las marcas se leen contra él.
+        return False
+
+    return any(
+        a >= _ALPHA_OPACO and _luminancia((r, g, b)) > lum_campo + _MARGEN_MARCA
+        for r, g, b, a in imagen.getdata()
+    )
+
+
 def resolve_label_logo(basedir, logo_bytes=None):
     """Logo a dibujar: el del cliente si tiene bytes, si no el de Jomar.
 
     Recibe bytes y no un objeto Cliente a propósito: este módulo no importa
     modelos de app.py. ReportLab dibuja desde memoria vía ImageReader, sin
     archivo temporal — nada que Heroku pueda perder al reiniciar el dyno.
+
+    El logo del cliente se convierte a blanco y negro acá y no al subirlo: así
+    el original queda intacto en la base y se puede cambiar la conversión sin
+    pedirle a nadie que vuelva a subir nada. El logo por defecto de Jomar ya es
+    artwork negro y no se toca.
     """
-    if logo_bytes:
+    if not logo_bytes:
+        return get_logo_path(basedir)
+
+    try:
+        logo_bytes = logo_monocromo_para_etiqueta(logo_bytes)
+    except Exception:
+        # Imprimir etiquetas es operativo: ante un logo que Pillow no puede
+        # leer se intenta con el original antes que romper la tanda.
+        pass
+
+    try:
         return ImageReader(BytesIO(logo_bytes))
-    return get_logo_path(basedir)
+    except Exception:
+        return get_logo_path(basedir)
 
 
 def _logo_dibujable(logo):
