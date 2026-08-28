@@ -1047,3 +1047,40 @@ body,
 @media (min-width: 1024px) {
   .tabbar { display: none; }
 }
+
+
+/* ── Texto suelto sobre el contenido claro ────────────────────────────────
+   `dark-theme.css` se carga en todas las pantallas y colorea elementos sueltos
+   pensando en fondo oscuro: `label { color:#f1f5f9 !important }` (:175) y el
+   bloque «Text Globals» (:968-974) con `p`, `small`, `strong`, `h1..h6`.
+
+   Pero el marco oscuro es solo el marco: medido en dashboard, precios,
+   productos y pedidos, el `<body>` es #0b0e14 y `main.app-content` es #f8fafc
+   en las cuatro. O sea que esos colores caen sobre fondo CLARO en todas: un
+   `label` daba 1.05:1 y un `p` 2.45:1. El caso real visto: la etiqueta del
+   checkbox «Se pesa» del form de productos, invisible sobre blanco.
+
+   Existía un guard equivalente en gestion.css, pero dentro de
+   `@media (prefers-color-scheme: dark)`: solo protegía a quien tuviera el
+   SISTEMA en oscuro, no el caso normal.
+
+   Va acá y no en dark-theme.css porque envolver aquellas reglas en
+   `body:not(...)` les subiría la especificidad de (0,0,1) a (0,3,1) y
+   empezarían a ganar donde hoy pierden. Esta hoja carga después (base.html:75,
+   «loaded LAST so its rules win by order»), así que alcanza con igualar el
+   !important donde el original lo usa.
+
+   Solo color de texto: no toca fondos, tamaños ni layout. Un componente que ya
+   declara su color no se ve afectado. */
+main.app-content label {
+  color: #475569 !important;
+}
+
+main.app-content p,
+main.app-content small {
+  color: #475569;
+}
+
+main.app-content strong {
+  color: #0f172a;
+}
