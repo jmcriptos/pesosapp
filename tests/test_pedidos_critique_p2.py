@@ -231,18 +231,36 @@ def test_un_pedido_con_productos_pesables_sigue_ofreciendo_pesar(app, logged_cli
         assert 'Pesar' in _fila(html, con_pesar.id)
 
 
-def test_sin_accion_principal_la_ranura_queda_reservada(app, logged_client):
-    """Si el botón simplemente desaparece, editar y borrar se corren 112px y
-    vuelve la deriva que se acaba de arreglar."""
+def test_un_pedido_sin_pesables_ofrece_preparar(app, logged_client):
+    """No hay nada que capturar en esos pedidos: las líneas de preparación se
+    crean solas al alta/edición y la validación solo pide lote y fechas para
+    productos pesables. Lo único que falta es marcarlo preparado, que vive en
+    el detalle con su confirmación. El botón LLEVA ahí; no cambia el estado
+    desde la lista."""
     with app.app_context():
         sin_pesar = _pedido_con(se_pesa=False)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
-        fila = _fila(html, sin_pesar.id)
+        fila = _fila(logged_client.get('/pedidos').get_data(as_text=True), sin_pesar.id)
 
-        assert 'row-action-slot' in fila, (
-            'falta el separador que reserva el puesto de la acción principal'
-        )
+        assert 'Preparar' in fila
+        # El botón es un enlace al detalle, no un submit: navega, no transiciona.
+        boton = re.search(r'<a[^>]*row-action-main[^>]*>.*?</a>', fila, re.S)
+        assert boton, 'la acción principal debe ser un enlace, no un formulario'
+        assert f'/pedidos/{sin_pesar.id}' in boton.group(0)
+
+
+def test_todo_pendiente_tiene_accion_principal(app, logged_client):
+    """Con «Preparar» cubriendo el caso sin pesables, ya no queda ningún
+    pendiente sin acción: la ranura vacía dejó de hacer falta."""
+    with app.app_context():
+        con = _pedido_con(se_pesa=True)
+        sin = _pedido_con(se_pesa=False)
+
+        html = logged_client.get('/pedidos').get_data(as_text=True)
+
+        assert 'row-action-main' in _fila(html, con.id)
+        assert 'row-action-main' in _fila(html, sin.id)
+        assert 'row-action-slot' not in html, 'la ranura vacia quedo sin uso'
 
 
 def test_la_tarjeta_movil_tampoco_ofrece_pesar_de_mas(app, logged_client):
@@ -255,3 +273,14 @@ def test_la_tarjeta_movil_tampoco_ofrece_pesar_de_mas(app, logged_client):
 
         assert tarjeta, 'no encontré la tarjeta'
         assert 'Pesar' not in tarjeta[0]
+
+
+def test_la_tarjeta_movil_sin_pesables_ofrece_preparar(app, logged_client):
+    with app.app_context():
+        sin_pesar = _pedido_con(se_pesa=False)
+
+        html = logged_client.get('/pedidos').get_data(as_text=True)
+        movil = html.split('tabla-pedidos-card')[0]
+        tarjeta = [b for b in movil.split('pedido-card') if f'PED-{sin_pesar.id}' in b]
+
+        assert tarjeta and 'Preparar' in tarjeta[0]

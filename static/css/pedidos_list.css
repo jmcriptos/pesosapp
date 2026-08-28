@@ -1113,10 +1113,3 @@ body[data-pedidos-list-screen] .pc-tarde {
 }
 
 
-/* Separador que ocupa el puesto de la acción principal cuando no hay ninguna
-   (un pendiente sin productos que se pesen). Mismo ancho que el botón, para
-   que editar y borrar no se muevan de fila a fila. */
-body[data-pedidos-list-screen] .pedido-row-actions .row-action-slot {
-  display: inline-block;
-  min-width: 112px;
-}

@@ -103,11 +103,23 @@
              iconos sin etiqueta para cerrar, volver, deshacer y borrar. Un
              pedido pendiente se va a pesar; uno preparado, a facturar. Es lo
              que el vendedor viene a hacer desde la lista. #}
-          {% if pedido.estado == 'pendiente' and pedido.tiene_pesables %}
-          <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
-             class="pc-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
-            <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
-          </a>
+          {% if pedido.estado == 'pendiente' %}
+            {% if pedido.tiene_pesables %}
+            <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
+               class="pc-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
+              <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
+            </a>
+            {% else %}
+            {# Sin nada que pesar no queda trabajo que capturar: las líneas de
+               preparación se crean solas al alta/edición y la validación solo
+               pide lote y fechas para pesables. Falta confirmarlo, y eso vive
+               en el detalle con su aviso. El botón LLEVA ahí; no cambia el
+               estado desde una lista que scrollea bajo el pulgar. #}
+            <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
+               class="pc-action-main" aria-label="Preparar pedido PED-{{ pedido.id }}">
+              <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Preparar
+            </a>
+            {% endif %}
           {% endif %}
           {% if puede_facturar %}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
@@ -331,16 +343,20 @@
                   {# Misma acción principal que en la tarjeta móvil, también
                      con palabra: la guía muestra "Pesar"/"Facturar" en la
                      tabla, no un icono suelto. #}
-                  {% if pedido.estado == 'pendiente' and pedido.tiene_pesables %}
-                  <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
-                     class="row-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
-                    <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
-                  </a>
-                  {% elif pedido.estado != 'facturado' %}
-                  {# Sin acción principal, pero la ranura se reserva: si el botón
-                     desaparece, editar y borrar se corren 112px y vuelve la
-                     deriva entre filas adyacentes. #}
-                  <span class="row-action-slot" aria-hidden="true"></span>
+                  {% if pedido.estado == 'pendiente' %}
+                    {% if pedido.tiene_pesables %}
+                    <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
+                       class="row-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
+                      <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
+                    </a>
+                    {% else %}
+                    {# Ver la nota en la tarjeta móvil: lleva al detalle, no
+                       cambia el estado desde la lista. #}
+                    <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
+                       class="row-action-main" aria-label="Preparar pedido PED-{{ pedido.id }}">
+                      <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Preparar
+                    </a>
+                    {% endif %}
                   {% endif %}
                   {% if pedido.estado == 'preparado' %}
                   <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
