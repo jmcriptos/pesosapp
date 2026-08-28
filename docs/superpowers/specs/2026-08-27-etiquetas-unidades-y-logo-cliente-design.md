@@ -23,7 +23,7 @@ Dos necesidades independientes que caen sobre el mismo código de etiquetas:
 | Decisión | Elección | Motivo |
 |---|---|---|
 | Qué número va en la etiqueta de caja | Unidades por caja, fijo del producto | Toda caja del mismo producto lleva la misma cantidad; no hace falta capturarlo por caja |
-| Cuántas etiquetas por pedido | Una por caja física | Cada caja se rotula individualmente |
+| Cuántas etiquetas por pedido | Una por porción: cajas enteras + el resto | Se venden cajas surtidas con media caja de cada producto; media caja lleva la mitad de las unidades |
 | Logo de Jomar vs cliente | El del cliente reemplaza al de Jomar | Es producto de marca del cliente |
 | Alcance del logo | Todas las etiquetas de ese cliente | Simple, sin decisión producto por producto |
 | Dónde se guarda el logo | Bytes en la base de datos | Heroku borra el disco en cada reinicio; permite cargar logos sin deploy |
@@ -84,21 +84,56 @@ que dejan de devolver `peso_label` y pasan a devolver `medida_rotulo` y
 |---|---|---|---|
 | Producto pesado (`CajaPesada`) | `Net Weight:` | `1.50 kg` | una por caja pesada (sin cambio) |
 | Línea legacy con `peso > 0` | `Net Weight:` | `1.50 kg` | una (sin cambio) |
-| Por caja **con** `unidades_por_caja` | `Units:` | `24` | **una por caja física** |
+| Por caja **con** `unidades_por_caja` | `Units:` | `24` / proporcional | **una por caja entera, más una por el resto** |
 | Por caja **sin** `unidades_por_caja` | `Boxes:` | `3` | una (solo cambia el rótulo) |
 
 La asimetría de la última fila es deliberada: cambiarle también la repetición
 alteraría la cantidad de etiquetas que hoy se imprimen para productos que no
 son parte de este pedido de cambio.
 
-### Cuántas etiquetas por caja física
+### Cuántas etiquetas, y con cuántas unidades
 
-`_build_label_items_for_pedido` repite el ítem `max(1, detalle.cajas_objetivo)`
-veces cuando el producto tiene `unidades_por_caja`. Se reutiliza la propiedad
-`DetallePedido.cajas_objetivo` (`app.py:2309`), que ya redondea hacia arriba
-con el criterio correcto: media caja pedida sigue siendo una caja física. El
-`max(1, ...)` cubre el caso degenerado de una línea con cajas en 0 o NULL, que
-si no produciría cero etiquetas.
+**No se redondea hacia arriba.** Se venden cajas surtidas que llevan media caja
+de cada producto: media caja es media caja de verdad, con la mitad de las
+unidades adentro. Rotularla como una caja entera diría una cantidad que la caja
+no contiene.
+
+`cajas_objetivo` (`app.py:2309`) **no se usa aquí**. Esa propiedad redondea
+hacia arriba porque nace del flujo de pesaje, donde media caja igual pasa entera
+por la báscula, y hoy se invoca solo sobre productos pesables
+(`app.py:3232`, `app.py:3370`). Aplicarla a productos por caja sería importar
+un supuesto de la báscula a un lugar donde es falso.
+
+La regla, en `_build_label_items_for_pedido`:
+
+```
+enteras = floor(cajas)
+resto   = cajas - enteras
+
+una etiqueta "Units: <unidades_por_caja>" por cada caja entera
+si resto > 0: una etiqueta más con round(unidades_por_caja * resto)
+```
+
+Ejemplos con un producto de 24 unidades por caja:
+
+| Cajas | Etiquetas |
+|---|---|
+| 3 | 3 × `Units: 24` |
+| 2,5 | 2 × `Units: 24` + 1 × `Units: 12` |
+| 0,5 | 1 × `Units: 12` |
+| 0,25 | 1 × `Units: 6` |
+
+**Caso borde — unidades fraccionarias.** Las cajas van en cuartos, así que el
+resto puede ser 0,25 / 0,5 / 0,75. Si `unidades_por_caja` no es divisible por
+esa fracción, el cálculo da una unidad partida: 10 unidades × 0,25 = 2,5. Como
+las unidades son discretas, **se redondea al entero más cercano** (2,5 → 3).
+Es una suposición: si en la práctica aparece, conviene revisar si esa
+combinación de fracción y unidades tiene sentido físico.
+
+**Caso borde — línea sin cajas.** Si `cajas` es 0 o NULL el cálculo daría cero
+etiquetas y la línea desaparecería del PDF sin aviso. En ese caso se emite una
+sola etiqueta con las unidades completas, preservando el comportamiento actual
+de una etiqueta por línea.
 
 ## Logo del cliente
 
@@ -185,8 +220,13 @@ sobre el kwarg `weight`; pasan a afirmar sobre `medida_rotulo`/`medida_valor`.
 
 - Producto con `unidades_por_caja=24` y 3 cajas → `draw_order_label` invocado
   3 veces con `medida_rotulo="Units:"`, `medida_valor="24"`.
-- Cajas fraccionarias: 2.25 cajas → 3 etiquetas.
-- Línea con cajas en 0 → 1 etiqueta, no cero.
+- Cajas fraccionarias: 2,5 cajas de un producto de 24 uds → 3 etiquetas, dos
+  con `medida_valor="24"` y una con `"12"`.
+- Media caja sola: 0,5 cajas → 1 etiqueta con `"12"`, **no** con `"24"`
+  (regresión contra el redondeo hacia arriba, que fue el error corregido).
+- Cuarto de caja: 0,25 cajas → 1 etiqueta con `"6"`.
+- Unidades no divisibles: 10 uds por caja × 0,25 → 1 etiqueta con `"3"`.
+- Línea con cajas en 0 → 1 etiqueta con las unidades completas, no cero.
 - Producto por caja sin `unidades_por_caja` → 1 invocación con
   `medida_rotulo="Boxes:"`.
 - Producto pesado → sigue recibiendo `medida_rotulo="Net Weight:"` (regresión).
@@ -239,6 +279,7 @@ Después del deploy, en producción:
 | Riesgo | Mitigación |
 |---|---|
 | Las etiquetas de Facturación cambian de espaciado | Comunicado y aceptado; verificar impresión antes de dar por cerrado |
+| Redondear mal las fracciones rotula cajas surtidas con unidades que no contienen | Regla explícita de enteras + resto, con tests sobre 0,25 / 0,5 / 2,5 |
 | Cambiar la firma de `draw_order_label` rompe llamadas | Solo 3 llamadas en `app.py` más los tests; todas se actualizan en el mismo cambio |
 | Servir imágenes subidas por usuarios | Lista blanca de mimetype, validación con Pillow, `nosniff` |
 | Peso de las filas de `cliente` en Postgres | ~100 KB por cliente con logo; despreciable a esta escala |
