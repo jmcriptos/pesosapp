@@ -135,6 +135,30 @@ etiquetas y la línea desaparecería del PDF sin aviso. En ese caso se emite una
 sola etiqueta con las unidades completas, preservando el comportamiento actual
 de una etiqueta por línea.
 
+## Aislamiento respecto de la facturación
+
+`unidades_por_caja` es **exclusivamente un dato de etiqueta**. No participa en
+precios, subtotales ni en el payload que va a QBO.
+
+Lo que ya hace `pedido_a_json` (`app.py:3485`) para productos por caja, y que
+este cambio **no toca**:
+
+- `qty` sale en cajas — `float(d.cajas or d.peso or 0)`, o sea 2,5 para dos
+  cajas y media.
+- `unit_price` es el precio por caja.
+- `amount` = precio por caja × cajas.
+
+El único consumidor de `unidades_por_caja` es `_detalle_legacy_to_label_item`.
+
+**Test de regresión obligatorio** (en `tests/test_pedido_a_json.py`): un pedido
+con un producto de `unidades_por_caja=24` y 2,5 cajas produce una línea con
+`qty == 2.5` y `unit_price` por caja — nunca 24, nunca 60. Sin este test, la
+garantía es una promesa que un cambio futuro puede romper en silencio.
+
+Nota aparte: el payload no lleva hoy ningún campo de unidad de medida, así que
+QBO recibe un número sin unidad. Hacer que la factura impresa diga "Cajas" es
+un pedido distinto y queda fuera de este cambio.
+
 ## Logo del cliente
 
 ### Resolución del logo
@@ -271,6 +295,9 @@ Después del deploy, en producción:
 - Etiquetas de vencimiento: siguen con el logo de Jomar.
 - Capturar unidades caja por caja: se descartó a favor del valor fijo del
   producto.
+- Mostrar la unidad de medida ("Cajas") en la factura de QBO: el payload no
+  tiene campo de unidad y agregarlo depende de qué soporte la edición de QBO.
+  Pedido distinto.
 - Eliminar la duplicación entre `draw_order_label` y `draw_order_label_a4`:
   deuda preexistente, no se toca en este cambio.
 
@@ -281,5 +308,6 @@ Después del deploy, en producción:
 | Las etiquetas de Facturación cambian de espaciado | Comunicado y aceptado; verificar impresión antes de dar por cerrado |
 | Redondear mal las fracciones rotula cajas surtidas con unidades que no contienen | Regla explícita de enteras + resto, con tests sobre 0,25 / 0,5 / 2,5 |
 | Cambiar la firma de `draw_order_label` rompe llamadas | Solo 3 llamadas en `app.py` más los tests; todas se actualizan en el mismo cambio |
+| Que `unidades_por_caja` se filtre a la facturación y cambie importes | Test de regresión sobre `pedido_a_json`: 2,5 cajas con 24 uds → `qty == 2.5` |
 | Servir imágenes subidas por usuarios | Lista blanca de mimetype, validación con Pillow, `nosniff` |
 | Peso de las filas de `cliente` en Postgres | ~100 KB por cliente con logo; despreciable a esta escala |
