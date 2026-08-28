@@ -7393,10 +7393,16 @@ def generar_etiqueta_detalle(pedido_id):
             basedir, getattr(getattr(pedido, "cliente", None), "logo_etiqueta", None)
         )
         cliente_nombre = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
+        # Con logo propio del cliente la fila «Client» sobra: el logo ya dice
+        # de quién es. Con el logo de Jomar (cliente sin logo) se conserva.
+        mostrar_cliente = not bool(
+            getattr(getattr(pedido, 'cliente', None), 'logo_etiqueta', None)
+        )
 
         for item in items:
             draw_order_label(
                 c, logo_path,
+                mostrar_cliente=mostrar_cliente,
                 client=cliente_nombre,
                 product=item['producto_nombre'],
                 temperature=item['temperatura'],
@@ -7498,6 +7504,11 @@ def generar_etiqueta_detalle_a4(pedido_id):
             basedir, getattr(getattr(pedido, "cliente", None), "logo_etiqueta", None)
         )
         cliente_nombre = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
+        # Con logo propio del cliente la fila «Client» sobra: el logo ya dice
+        # de quién es. Con el logo de Jomar (cliente sin logo) se conserva.
+        mostrar_cliente = not bool(
+            getattr(getattr(pedido, 'cliente', None), 'logo_etiqueta', None)
+        )
 
         etiqueta_contador = 0
 
@@ -7509,7 +7520,7 @@ def generar_etiqueta_detalle_a4(pedido_id):
                 c, logo_path, cliente_nombre, item['producto_nombre'],
                 item['temperatura'], item['lote'], item['fecha_fabricacion'], item['fecha_expiracion'],
                 item['medida_rotulo'], item['medida_valor'],
-                x_offset, y_offset
+                x_offset, y_offset, mostrar_cliente=mostrar_cliente
             )
 
             etiqueta_contador += 1
@@ -10350,6 +10361,8 @@ def generar_etiqueta():
         logo_path = resolve_label_logo(
             basedir, getattr(cliente_etiqueta, 'logo_etiqueta', None)
         )
+        # Mismo criterio que las etiquetas de pedido.
+        mostrar_cliente = not bool(getattr(cliente_etiqueta, 'logo_etiqueta', None))
         for facturacion in facturaciones:
             producto = facturacion.producto
             nombre_en_etiqueta = facturacion.cliente.nombre if facturacion.cliente else "N/A"
@@ -10364,7 +10377,7 @@ def generar_etiqueta():
                 facturacion.lote, facturacion.fecha_fabricacion,
                 facturacion.fecha_expiracion,
                 "Net Weight:", f"{facturacion.peso:.2f}",
-                x_offset, y_offset
+                x_offset, y_offset, mostrar_cliente=mostrar_cliente
             )
             etiqueta_contador += 1
             if etiqueta_contador % etiquetas_por_pagina == 0:

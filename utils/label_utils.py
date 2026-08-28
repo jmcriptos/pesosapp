@@ -347,7 +347,7 @@ def draw_separator(canvas_obj, x_base, y_base, separator_y):
 
 def draw_order_label(canvas_obj, logo_path, client, product, temperature, lot,
                      mfg_date, exp_date, medida_rotulo, medida_valor,
-                     x_base=0, y_base=0):
+                     x_base=0, y_base=0, mostrar_cliente=True):
     """
     Dibuja una etiqueta completa de pedido (con cliente y peso).
 
@@ -364,25 +364,32 @@ def draw_order_label(canvas_obj, logo_path, client, product, temperature, lot,
         medida_valor: Valor de la medida ("1.50 kg", "24", "3")
         x_base: Posición X base
         y_base: Posición Y base
+        mostrar_cliente: False cuando la etiqueta lleva el logo propio del
+            cliente. El logo ya dice de quién es, así que la fila "Client"
+            sobra y las cuatro restantes suben una posición.
     """
     # Logo
     draw_logo(canvas_obj, logo_path, x_base, y_base, use_margin=True)
 
-    # Labels (derecha)
-    canvas_obj.setFont("Helvetica-Bold", 9.5)
-    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_CLIENT, "Client:")
-    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_LOT, "Lot:")
-    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_MFG, "Manufactured:")
-    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_EXP, "Expiration:")
-    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_KEEP, "When Kept at:")
+    filas = [
+        ("Client:", client or ""),
+        ("Lot:", lot or ""),
+        ("Manufactured:", mfg_date or ""),
+        ("Expiration:", exp_date or ""),
+        ("When Kept at:", normalize_temperature(temperature)),
+    ]
+    if not mostrar_cliente:
+        filas.pop(0)
 
-    # Valores
-    canvas_obj.setFont("Helvetica", 9.5)
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_CLIENT, client or "")
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_LOT, lot or "")
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_MFG, mfg_date or "")
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_EXP, exp_date or "")
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_KEEP, normalize_temperature(temperature))
+    # Las filas se dibujan de arriba hacia abajo desde Y_CLIENT: al sacar la
+    # primera, el bloque conserva su tope y termina una fila más arriba.
+    alturas = [Y_CLIENT, Y_LOT, Y_MFG, Y_EXP, Y_KEEP]
+
+    for (rotulo, valor), altura in zip(filas, alturas):
+        canvas_obj.setFont("Helvetica-Bold", 9.5)
+        canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + altura, rotulo)
+        canvas_obj.setFont("Helvetica", 9.5)
+        canvas_obj.drawString(x_base + VALUE_X, y_base + altura, valor)
 
     # Medida (peso, unidades o cajas)
     canvas_obj.setFont("Helvetica-Bold", 15.6)
@@ -523,7 +530,7 @@ def get_a4_label_positions(page_width, page_height):
 
 def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot,
                         mfg_date, exp_date, medida_rotulo, medida_valor,
-                        x_offset, y_offset):
+                        x_offset, y_offset, mostrar_cliente=True):
     """
     Dibuja una etiqueta de pedido en formato A4.
     Usa las mismas posiciones Y que las etiquetas de vencimiento (Y_LOT_VENC style).
@@ -543,20 +550,23 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
                              width=LOGO_WIDTH, height=LOGO_HEIGHT,
                              preserveAspectRatio=True, mask='auto')
 
-    # Labels y valores (usando las constantes compartidas)
-    canvas_obj.setFont("Helvetica-Bold", 9.5)
-    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_client, "Client:")
-    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_lot, "Lot:")
-    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_mfg, "Manufactured:")
-    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_exp, "Expiration:")
-    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_keep, "When Kept at:")
+    # Labels y valores (mismo criterio que la 4x2: sin la fila "Client", las
+    # demás suben una posición y el bloque conserva su tope).
+    filas = [
+        ("Client:", client or ""),
+        ("Lot:", lot or ""),
+        ("Manufactured:", mfg_date or ""),
+        ("Expiration:", exp_date or ""),
+        ("When Kept at:", normalize_temperature(temperature)),
+    ]
+    if not mostrar_cliente:
+        filas.pop(0)
 
-    canvas_obj.setFont("Helvetica", 9.5)
-    canvas_obj.drawString(x_offset + VALUE_X, y_client, client or "")
-    canvas_obj.drawString(x_offset + VALUE_X, y_lot, lot or "")
-    canvas_obj.drawString(x_offset + VALUE_X, y_mfg, mfg_date or "")
-    canvas_obj.drawString(x_offset + VALUE_X, y_exp, exp_date or "")
-    canvas_obj.drawString(x_offset + VALUE_X, y_keep, normalize_temperature(temperature))
+    for (rotulo, valor), altura in zip(filas, [y_client, y_lot, y_mfg, y_exp, y_keep]):
+        canvas_obj.setFont("Helvetica-Bold", 9.5)
+        canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, altura, rotulo)
+        canvas_obj.setFont("Helvetica", 9.5)
+        canvas_obj.drawString(x_offset + VALUE_X, altura, valor)
 
     # Medida (peso, unidades o cajas)
     y_net_weight = y_offset + MARGIN + 0.46 * inch
