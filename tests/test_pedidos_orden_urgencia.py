@@ -183,18 +183,24 @@ def _cifra_activa(html, estado):
     return 'aria-pressed="true"' in tag and 'is-active' in tag
 
 
-def test_al_abrir_se_ve_que_el_filtro_por_preparar_esta_puesto(app, logged_client):
-    """Regresión: la pantalla abre filtrada, así que tiene que mostrarlo.
+def test_al_abrir_la_lista_se_ve_que_el_filtro_todos_esta_puesto(app, logged_client):
+    """Regresión: si la lista aplica un filtro, tiene que mostrar cuál.
 
-    Ninguna píldora tiene `data-estado="por_preparar"`, de modo que sin marcar
-    la cifra la fila de filtros se lee como «sin filtrar» en CADA carga.
+    Antes esto afirmaba `por_preparar`, porque `/pedidos` abría filtrado en la
+    bandeja del día. Desde el 2026-08-28 `/pedidos` sin parámetros es el
+    TABLERO —sin píldoras— y el default de la lista pasó a `todos`, para que
+    buscar desde el tablero alcance también el archivo. Lo que no cambió es el
+    bug que este test cuida: una fila de filtros que no marca el aplicado se
+    lee como «sin filtrar» en cada carga.
     """
     with app.app_context():
         _pedido('pendiente', dias_entrega=1)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        # `?page=1` entra en modo lista (parámetro reconocido, no vacío) sin
+        # fijar `estado`, así que el default real de la lista queda expuesto.
+        html = logged_client.get('/pedidos?page=1').get_data(as_text=True)
 
-        assert _cifra_activa(html, 'por_preparar')
+        assert _cifra_activa(html, 'todos')
         assert not _cifra_activa(html, 'vencido')
 
 

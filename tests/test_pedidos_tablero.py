@@ -106,3 +106,114 @@ def test_ningun_pedido_aparece_dos_veces():
     vistos = [p.id for _c, _e, ps in grupos for p in ps]
     assert sorted(vistos) == [1, 2, 3, 4]
     assert len(vistos) == len(set(vistos)), 'un pedido cayó en dos grupos'
+
+
+# ── Contrato de modos ────────────────────────────────────────────────────────
+
+@pytest.fixture
+def app():
+    from app import app as flask_app, db as _db
+    flask_app.config.update(
+        TESTING=True, WTF_CSRF_ENABLED=False,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+    )
+    with flask_app.app_context():
+        _db.create_all()
+        from app import Rol, Territorio, Vendedor, Cliente
+        rol = Rol(nombre='super_admin', descripcion='Admin')
+        _db.session.add(rol)
+        territorio = Territorio(nombre='test', descripcion='Test')
+        _db.session.add(territorio)
+        _db.session.flush()
+        vendedor = Vendedor(
+            username='admin', email='admin@test.com', nombre_completo='Admin',
+            rol_id=rol.id, territorio_id=territorio.id, activo=True,
+        )
+        vendedor.set_password('testpass')
+        _db.session.add(vendedor)
+        _db.session.add(Cliente(nombre='Cliente Uno', territorio_id=territorio.id))
+        _db.session.commit()
+        yield flask_app
+        _db.drop_all()
+
+
+@pytest.fixture
+def logged_client(app):
+    client = app.test_client()
+    client.post('/login', data={'username': 'admin', 'password': 'testpass'},
+                follow_redirects=True)
+    return client
+
+
+def _crear(estado, dias=None):
+    from app import Pedido, Cliente, db as _db, DASHBOARD_TIMEZONE
+    from datetime import datetime
+    hoy = datetime.now(DASHBOARD_TIMEZONE).date()
+    p = Pedido(cliente_id=Cliente.query.first().id, estado=estado)
+    if dias is not None:
+        p.fecha_entrega = hoy + timedelta(days=dias)
+    _db.session.add(p)
+    _db.session.commit()
+    return p
+
+
+def _sin_scripts(html):
+    """Quita los <script> antes de afirmar que algo NO se renderizó.
+
+    El script inline del listado vive fuera del `{% if modo_tablero %}` porque
+    sirve a los dos modos, y sus selectores mencionan las mismas clases que
+    algunos tests afirman ausentes (`.pagination-info-mobile`, `.pedidos-empty`).
+    Sin quitarlo, el test mide el código JS en vez del HTML renderizado.
+    """
+    import re
+    return re.sub(r'<script\b.*?</script>', '', html, flags=re.S)
+
+
+def test_pedidos_sin_parametros_es_tablero(logged_client):
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'data-tablero="1"' in html, 'no se renderizó el tablero'
+    assert 'pagination-info-mobile' not in _sin_scripts(html), 'el tablero no debe paginar'
+
+
+def test_un_parametro_reconocido_devuelve_la_lista(logged_client):
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
+    assert 'data-tablero="1"' not in html
+    assert 'filter-pill' in html, 'la lista conserva sus píldoras'
+
+
+def test_el_enlace_del_dashboard_sigue_funcionando(logged_client):
+    """`/pedidos?estado=pendiente` lo dispara el aviso del dashboard
+    (app.py:1915). Si se rompe, se rompe en producción sin que nadie toque
+    nada."""
+    _crear('pendiente', dias=0)
+    r = logged_client.get('/pedidos?estado=pendiente')
+    assert r.status_code == 200
+    html = r.get_data(as_text=True)
+    assert 'data-tablero="1"' not in html, 'un enlace viejo cayó en el tablero'
+
+
+def test_un_parametro_desconocido_no_cambia_el_modo(logged_client):
+    """Un `?utm_source=` pegado por un cliente de correo no puede convertir
+    el tablero en lista."""
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos?utm_source=whatsapp').get_data(as_text=True)
+    assert 'data-tablero="1"' in html
+
+
+def test_un_parametro_vacio_no_cambia_el_modo(logged_client):
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos?q=').get_data(as_text=True)
+    assert 'data-tablero="1"' in html
+
+
+def test_buscar_desde_el_tablero_busca_en_todo(logged_client):
+    """Sin esto, buscar «Mangusa» desde el tablero saldría filtrado a lo no
+    facturado y no encontraría NADA del archivo, que es justo lo que se
+    estaba buscando."""
+    _crear('facturado', dias=-40)
+    html = logged_client.get('/pedidos?q=Cliente').get_data(as_text=True)
+    assert 'pedidos-empty' not in _sin_scripts(html), (
+        'la búsqueda sin `estado` explícito no alcanzó el archivo'
+    )

@@ -35,11 +35,14 @@
     {# El estado viaja en un hidden; los botones de abajo lo escriben. Así el
        formulario sigue funcionando sin JS (submit normal) y con JS la búsqueda
        lo lee igual que antes. #}
-    <input type="hidden" name="estado" id="pedidos-estado" value="{{ filtros.estado }}">
+    <input type="hidden" name="estado" id="pedidos-estado" value="{{ '' if modo_tablero else filtros.estado }}">
     <input type="hidden" name="orden" id="pedidos-orden" value="{{ filtros.orden or '' }}">
     {% if filtros.solo_notas %}<input type="hidden" name="solo_notas" value="1">{% endif %}
   </form>
 
+  {% if modo_tablero %}
+  {% include '_pedidos_tablero.html' %}
+  {% else %}
   {# UN solo control para UNA sola variable.
      Antes había tres widgets escribiendo el mismo `estado`: dos «cifras» de
      75px de alto arriba, cinco píldoras abajo, y el hidden. Entre los tres se
@@ -92,6 +95,7 @@
   <div id="pedidos-resultados" data-total="{{ pagination.total if pagination else 0 }}">
     {% include '_pedidos_resultados.html' %}
   </div>
+  {% endif %}
 
   {# El fallback silencioso del fetch (form.submit()) hacía que una conexión
      mala se leyera como que la app se recarga sola. Ahora dice qué pasó. #}

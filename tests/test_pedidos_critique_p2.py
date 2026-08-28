@@ -122,7 +122,9 @@ def test_pendiente_y_preparado_ordenan_igual_sus_acciones(app, logged_client):
         pendiente = _pedido_con(se_pesa=True, estado='pendiente')
         preparado = _pedido('preparado')
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; el
+        # markup de fila/tarjeta que este archivo verifica vive en `?estado=todos`.
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         esperado = ['principal', 'editar', 'borrar']
         assert _orden_de_acciones(_bloque_acciones_escritorio(html, pendiente.id)) == esperado
@@ -152,7 +154,7 @@ def test_la_tarjeta_movil_dice_cuantos_dias_de_atraso(app, logged_client):
     with app.app_context():
         _pedido('pendiente', dias=-3)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
         tarjeta = re.search(r'<div class="pedido-card".*?<!-- /pedido-card -->|<div class="pedido-card".*?</div>\s*</div>\s*</div>', html, re.S)
 
         assert tarjeta, 'no encontré la tarjeta móvil'
@@ -163,7 +165,7 @@ def test_la_tarjeta_de_un_pedido_a_tiempo_no_habla_de_atraso(app, logged_client)
     with app.app_context():
         _pedido('pendiente', dias=4)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
         # La sección móvil entera: si «tarde» no está en ningún lado, no está
         # en la tarjeta.
         movil = html.split('tabla-pedidos-card')[0]
@@ -226,7 +228,7 @@ def test_un_pedido_con_productos_pesables_sigue_ofreciendo_pesar(app, logged_cli
     with app.app_context():
         con_pesar = _pedido_con(se_pesa=True)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         assert 'Pesar' in _fila(html, con_pesar.id)
 
@@ -240,7 +242,7 @@ def test_un_pedido_sin_pesables_ofrece_preparar(app, logged_client):
     with app.app_context():
         sin_pesar = _pedido_con(se_pesa=False)
 
-        fila = _fila(logged_client.get('/pedidos').get_data(as_text=True), sin_pesar.id)
+        fila = _fila(logged_client.get('/pedidos?estado=todos').get_data(as_text=True), sin_pesar.id)
 
         assert 'Preparar' in fila
         # El botón es un enlace al detalle, no un submit: navega, no transiciona.
@@ -256,7 +258,7 @@ def test_todo_pendiente_tiene_accion_principal(app, logged_client):
         con = _pedido_con(se_pesa=True)
         sin = _pedido_con(se_pesa=False)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         assert 'row-action-main' in _fila(html, con.id)
         assert 'row-action-main' in _fila(html, sin.id)
@@ -279,7 +281,7 @@ def test_la_tarjeta_movil_sin_pesables_ofrece_preparar(app, logged_client):
     with app.app_context():
         sin_pesar = _pedido_con(se_pesa=False)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
         movil = html.split('tabla-pedidos-card')[0]
         tarjeta = [b for b in movil.split('pedido-card') if f'PED-{sin_pesar.id}' in b]
 

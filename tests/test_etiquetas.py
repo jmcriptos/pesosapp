@@ -236,7 +236,9 @@ def test_etiquetas_a4_sin_fechas_retorna_400(logged_client, app):
 
 def test_vista_pedidos_carga_correctamente(logged_client, app):
     """AC #4: /pedidos carga con estados y datos correctos."""
-    resp = logged_client.get('/pedidos')
+    # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; el markup
+    # de lista que este test verifica vive en `?estado=todos`.
+    resp = logged_client.get('/pedidos?estado=todos')
     assert resp.status_code == 200
     assert b'Cliente Test' in resp.data
     assert b'Filtrar' in resp.data

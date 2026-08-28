@@ -82,7 +82,7 @@ def _counts(logged_client):
     fue este lector, no la app.
     """
     import re
-    html = logged_client.get('/pedidos').get_data(as_text=True)
+    html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
     out = {}
     for clave in ('por_preparar', 'vencido'):
         m = re.search(
@@ -192,7 +192,7 @@ def test_pendiente_ofrece_pesar_y_preparado_facturar(app, logged_client):
 
     p_prep = _pedido('preparado')
 
-    html = logged_client.get('/pedidos').get_data(as_text=True)
+    html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
     assert f'/pedidos/{p_pend.id}/pesar' in html
     assert '> Pesar' in html
     assert f'/pedidos/{p_prep.id}/facturar' in html

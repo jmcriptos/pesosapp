@@ -3353,6 +3353,27 @@ def _agrupar_tablero(pedidos, hoy_local):
     return [g for g in grupos if g[2]]
 
 
+def _decorar_pedido(pedido, total_sql):
+    """Los campos calculados que la lista y el tablero necesitan por igual.
+
+    El SQL computa el total como cajas pedidas × precio. Para reflejar el
+    avance real se sustituye por `_calcular_venta_pedido`, que para pesables
+    usa peso_real × precio y cae a la línea original solo si no hay cajas
+    pesadas todavía.
+    """
+    venta_real = _calcular_venta_pedido(pedido)
+    pedido.total_calculado = float(venta_real) if venta_real and venta_real > 0 else float(total_sql)
+    # El factor sale de la MONEDA y no del `tipo_cambio` guardado: XCG vale 1
+    # por definición, y hay 381 pedidos en XCG estampados con 1.78 en
+    # producción (expediente conocido, sin remediar) que se inflarían un 78%.
+    pedido.moneda = (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG'
+    pedido.tiene_pesables = _pedido_tiene_productos_pesables(pedido)
+    pedido.total_xcg = (
+        pedido.total_calculado if pedido.moneda == 'XCG'
+        else pedido.total_calculado * float(pedido.tipo_cambio or 1.78)
+    )
+
+
 def _user_can_view_cliente(cliente_id):
     """True si el usuario actual puede ver este cliente (super_admin o usuario
     legacy ven todo; un Vendedor solo sus clientes asignados)."""
@@ -5858,11 +5879,24 @@ def lista_pedidos():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
-    # La pantalla abre en lo que necesita trabajo, no en «Todos». Abrir en la
-    # lista completa —facturados incluidos— obligaba a un acto de descubrimiento
-    # (que las cifras de arriba eran botones) para llegar a lo pendiente, que es
-    # el trabajo real del vendedor. «Todos» sigue a un toque.
-    estado = (request.args.get('estado', 'por_preparar', type=str) or 'por_preparar').strip().lower()
+
+    # El modo lo decide la presencia de parámetros RECONOCIDOS, no un toggle:
+    # así todo enlace y marcador existente sigue funcionando sin tocarlo, en
+    # particular `/pedidos?estado=pendiente`, que dispara el aviso del
+    # dashboard. Se mira la lista blanca y no `request.args` a secas porque si
+    # no, un `?utm_source=` pegado a un enlace compartido convertiría el
+    # tablero en lista sin que nadie lo pidiera.
+    PARAMS_DE_LISTA = ('q', 'estado', 'page', 'orden', 'per_page', 'solo_notas')
+    modo_tablero = not any(
+        (request.args.get(p) or '').strip() for p in PARAMS_DE_LISTA
+    )
+
+    # El default pasa de `por_preparar` a `todos` porque el tablero ya se
+    # quedó con el trabajo del día. Si la lista siguiera abriendo en
+    # `por_preparar`, buscar «Mangusa» desde el tablero saldría filtrado a lo
+    # no facturado y no encontraría nada del archivo — que es exactamente lo
+    # que se estaba buscando.
+    estado = (request.args.get('estado', 'todos', type=str) or 'todos').strip().lower()
     estado = estado if estado in {
         'todos', 'pendiente', 'preparado', 'facturado',
         'hoy', 'vencido', 'por_preparar',
@@ -6019,6 +6053,9 @@ def lista_pedidos():
         Pedido.fecha_entrega == hoy_local,
     ).count()
 
+    # Copia sin los filtros de bandeja: el tablero arma los suyos.
+    base_query_tablero = base_query
+
     # Filtros de bandeja operativa. `hoy` y `vencido` no son estados de la
     # tabla: son vistas sobre fecha_entrega que la guía muestra como una
     # píldora más, al lado de los estados reales.
@@ -6091,29 +6128,24 @@ def lista_pedidos():
     # de detalles + cajas_pesadas + producto evita el N+1.
     pedidos = []
     for pedido, total in pedidos_query:
-        venta_real = _calcular_venta_pedido(pedido)
-        if venta_real and venta_real > 0:
-            pedido.total_calculado = float(venta_real)
-        else:
-            pedido.total_calculado = float(total)
-        # Equivalente en XCG para ORDENAR la tabla. La celda muestra el importe
-        # nativo con su moneda; comparar los números crudos ponía un pedido de
-        # USD 450 (=XCG 801) por debajo de uno de XCG 487.
-        #
-        # El factor sale de la MONEDA, no del `tipo_cambio` guardado: XCG es la
-        # moneda base y vale 1 por definición. Hay 381 pedidos en XCG estampados
-        # con 1.78 en producción (expediente conocido, sin remediar); usar la
-        # columna a ciegas los inflaría un 78% y los mandaría al tope.
-        pedido.moneda = (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG'
-        # Si no hay nada que pesar, la lista no debe ofrecer «Pesar»: la ruta ya
-        # lo rechaza y devuelve al detalle con un flash, así que el botón solo
-        # sirve para hacer rebotar al vendedor.
-        pedido.tiene_pesables = _pedido_tiene_productos_pesables(pedido)
-        if pedido.moneda == 'XCG':
-            pedido.total_xcg = pedido.total_calculado
-        else:
-            pedido.total_xcg = pedido.total_calculado * float(pedido.tipo_cambio or 1.78)
+        _decorar_pedido(pedido, total)
         pedidos.append(pedido)
+
+    # ── Tablero ──
+    # Consulta propia, no la paginada: el tablero son todos los pedidos con
+    # trabajo pendiente más las entregas de hoy. A 3 pedidos por día son unas
+    # pocas filas, así que no pagina.
+    grupos = None
+    if modo_tablero:
+        pedidos_tablero = base_query_tablero.filter(
+            or_(Pedido.estado != 'facturado', Pedido.fecha_entrega == hoy_local)
+        ).order_by(
+            Pedido.fecha_entrega.asc().nullslast(),
+            Pedido.id.desc(),
+        ).all()
+        for pedido, total in pedidos_tablero:
+            _decorar_pedido(pedido, total)
+        grupos = _agrupar_tablero([p for p, _t in pedidos_tablero], hoy_local)
 
     # Info de paginación para el template
     pagination = {
@@ -6151,6 +6183,8 @@ def lista_pedidos():
         filtros=filtros,
         status_counts=status_counts,
         url_actual=url_actual,
+        grupos=grupos,
+        modo_tablero=modo_tablero,
         # La tarjeta marca "Vencido" y "entrega hoy" comparando contra el día
         # LOCAL (Curaçao, UTC−4), no contra date.today() del servidor.
         hoy_local=hoy_local,

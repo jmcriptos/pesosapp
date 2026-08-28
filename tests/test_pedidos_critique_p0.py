@@ -112,7 +112,9 @@ def test_la_fila_de_escritorio_dice_su_moneda(app, logged_client):
         usd = _pedido('Almacen Sur', total=450.00)
         xcg = _pedido('Distribuidora Norte', total=450.00)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; el
+        # markup de fila que este archivo verifica vive en `?estado=todos`.
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         assert 'USD' in _fila_escritorio(html, usd.id)
         assert 'XCG' in _fila_escritorio(html, xcg.id)
@@ -125,7 +127,7 @@ def test_el_orden_por_total_compara_en_la_misma_moneda(app, logged_client):
         usd = _pedido('Almacen Sur', total=450.00)   # 450 * 1.78 = 801 XCG
         xcg = _pedido('Distribuidora Norte', total=487.00)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         def total_dato(pid):
             m = re.search(r'data-total="([0-9.]+)"', _fila_escritorio(html, pid))
@@ -215,7 +217,7 @@ def test_el_equivalente_ignora_un_tipo_de_cambio_corrupto(app, logged_client):
         Pedido.query.filter_by(id=pedido.id).update({'tipo_cambio': 1.78})
         _db.session.commit()
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
         m = re.search(r'data-total="([0-9.]+)"', _fila_escritorio(html, pedido.id))
 
         assert m, 'sin data-total'

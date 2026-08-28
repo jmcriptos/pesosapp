@@ -1,0 +1,12 @@
+<div class="pedidos-tablero" data-tablero="1">
+  {% for clave, etiqueta, pedidos_grupo in grupos %}
+  <section class="tablero-grupo tablero-grupo-{{ clave }}">
+    <h2 class="tablero-titulo">{{ etiqueta }} <span class="tablero-cuenta">{{ pedidos_grupo|length }}</span></h2>
+    <ul class="tablero-lista">
+      {% for pedido in pedidos_grupo %}
+      <li>PED-{{ pedido.id }} — {{ pedido.cliente.nombre if pedido.cliente else '—' }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
