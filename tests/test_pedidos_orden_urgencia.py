@@ -216,3 +216,44 @@ def test_con_todos_ninguna_cifra_queda_marcada(app, logged_client):
 
         assert not _cifra_activa(html, 'por_preparar')
         assert not _cifra_activa(html, 'vencido')
+
+
+# === Regresión: el cliente y el servidor tienen que coincidir en el default ===
+
+def test_el_js_manda_el_estado_explicito_siempre(app, logged_client):
+    """El buscador arma su consulta parcial en JS y omitía `estado` cuando valía
+    «todos», porque «todos» ERA el default del servidor: omitirlo daba lo mismo
+    y dejaba la URL limpia.
+
+    Al pasar el default a `por_preparar`, omitirlo pasó a significar lo
+    contrario de lo que el vendedor pidió: tocar «Todos» traía los 16 por
+    preparar con la píldora «Todos 26» marcada, y `history.replaceState`
+    guardaba esa URL, así que recargar tampoco lo arreglaba.
+
+    Se afirma sobre el template porque el bug vive en el JS embebido: los tests
+    que pegaban a `?estado=todos` pasaban porque salteaban justamente esta capa.
+    """
+    with open(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'templates/pedidos.html'), encoding='utf-8') as fh:
+        tpl = fh.read()
+
+    assert "!== 'todos'" not in tpl, (
+        'el JS no puede omitir `estado` cuando vale «todos»: el default del '
+        'servidor ya no es «todos»'
+    )
+
+
+def test_pedir_todos_por_la_ruta_parcial_devuelve_todo(app, logged_client):
+    """El mismo camino que usa el buscador en vivo (`partial=1`)."""
+    with app.app_context():
+        pendiente = _pedido('pendiente', dias_entrega=1)
+        facturado = _pedido('facturado', dias_entrega=2)
+
+        html = logged_client.get(
+            '/pedidos?estado=todos&partial=1',
+            headers={'X-Requested-With': 'fetch'},
+        ).get_data(as_text=True)
+
+        assert f'PED-{pendiente.id}' in html
+        assert f'PED-{facturado.id}' in html, 'el parcial debe respetar estado=todos'

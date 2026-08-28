@@ -108,7 +108,12 @@
       var p = new URLSearchParams();
       var q = searchInput ? searchInput.value.trim() : '';
       if (q) p.set('q', q);
-      if (estadoInput && estadoInput.value && estadoInput.value !== 'todos') {
+      // El estado va SIEMPRE explícito. Antes se omitía cuando valía «todos»
+      // porque «todos» era el default del servidor y omitirlo daba lo mismo.
+      // Desde que el default es `por_preparar`, omitirlo significa lo contrario
+      // de lo que el vendedor pidió: tocar «Todos» traía los por preparar, y
+      // `history.replaceState` dejaba esa URL guardada.
+      if (estadoInput && estadoInput.value) {
         p.set('estado', estadoInput.value);
       }
       {% if filtros.solo_notas %}p.set('solo_notas', '1');{% endif %}
