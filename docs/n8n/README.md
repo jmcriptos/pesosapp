@@ -2,10 +2,17 @@
 
 `generar-numero-factura.js` es el contenido del nodo **Code** llamado
 `Generar Numero Factura`. Vive acá para que quede versionado junto al payload
-que lo alimenta (`pedido_a_json` en `app.py`) y para poder copiarlo desde un
-editor: **copiarlo desde texto renderizado (chat, markdown, navegador) mete
-espacios duros invisibles** y n8n falla con
-`Invalid or unexpected token` — pasó el 2026-08-28.
+que lo alimenta (`pedido_a_json` en `app.py`) y, sobre todo, para poder
+copiarlo desde un editor.
+
+> **No lo copies desde el chat ni desde markdown renderizado.** El 2026-08-28
+> se pegó desde un terminal y **todas las líneas de más de ~78 caracteres
+> llegaron cortadas** — el bloque se renderizó con ancho fijo y el copiado se
+> llevó solo lo visible. n8n respondió `Invalid or unexpected token`, y como
+> el nodo tiene su salida de error desconectada, el síntoma que llegó a la app
+> fue un genérico «Error temporal en QuickBooks».
+>
+> Por eso el archivo **no pasa de 72 columnas**: aunque se copie mal, sobrevive.
 
 ## Cómo actualizarlo
 
