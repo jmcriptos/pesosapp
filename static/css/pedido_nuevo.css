@@ -726,6 +726,21 @@ body[data-pedido-nuevo-screen] .app-content {
 /* El desplegable cuelga de <body> (dropdownParent), así que va fuera de
    `.pn-shell` y necesita sus propios colores. */
 .ts-dropdown.pn-dropdown {
+    /* `.pn-shell` es la pantalla entera: `position: fixed; inset: 0;
+       z-index: 1200`, y opaca. Este dropdown se monta en `<body>`
+       (`dropdownParent: 'body'`) para escapar del `overflow: hidden` de las
+       tarjetas, así que queda FUERA del shell, en el contexto de apilado
+       raíz. Con el z-index 1000 que trae Tom Select por defecto, la pantalla
+       se pintaba encima y las opciones quedaban renderizadas, bien
+       posicionadas y opacas — pero tapadas: al buscar un producto no
+       aparecía ninguno. Tiene que superar a `.pn-shell`.
+
+       El `!important` no es decorativo: `forms.css` clava
+       `.ts-dropdown { z-index: 1000 !important }` para TODOS los dropdowns de
+       la app, y sin `!important` esta regla no le gana. La especificidad de
+       `.ts-dropdown.pn-dropdown` (0,2,0) le gana a `.ts-dropdown` (0,1,0)
+       entre reglas `!important`, y solo afecta a esta pantalla. */
+    z-index: 1300 !important;
     margin-top: 6px;
     border: 0;
     border-radius: 22px;
