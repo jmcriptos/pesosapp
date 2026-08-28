@@ -290,7 +290,8 @@
 {% endblock %}
 
 {% block extra_css %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+{# Font Awesome ya viene de base.html (6.7.2). Cargar acá 6.4.2 bajaba una
+   segunda fuente de iconos completa, para el mismo juego de glifos. #}
 {# Inline-extracted styles (formerly an 858-line <style> block in this file). #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedidos_inline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pedidos_list.css') }}">
