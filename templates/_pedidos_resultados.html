@@ -107,7 +107,11 @@
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {# Facturar es la única acción irreversible de la pantalla —crea la
+               factura del cliente en QuickBooks— y estaba a 8px del tacho sin
+               ningún aviso, mientras que eliminar (recuperable) sí confirmaba. #}
             <button type="submit" class="pc-action-main"
+                    data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?"
                     aria-label="Facturar pedido PED-{{ pedido.id }}">
               <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
             </button>
@@ -160,17 +164,30 @@
       </div>
     </div>
     {% else %}
+    {# Dos situaciones distintas con dos salidas distintas. Antes compartían
+       bloque: solo cambiaba la frase y el botón decía siempre «Crear primer
+       pedido», así que a quien tipeaba mal un cliente la pantalla le afirmaba,
+       en su voz más fuerte, que no tenía ningún pedido. #}
     <div class="pedidos-empty">
       <i class="fa fa-clipboard-list"></i>
-      <p>{% if filtros.q or filtros.estado != 'todos' or filtros.solo_notas %}
-        No encontramos pedidos con estos filtros.
-        <a href="{{ url_for('lista_pedidos') }}" class="clear-link">Limpiar filtros</a>
+      {% if filtros.q or filtros.estado != 'todos' or filtros.solo_notas %}
+      <p>
+        {% if filtros.q %}
+        Ningún pedido coincide con «{{ filtros.q }}».
+        {% else %}
+        Ningún pedido coincide con este filtro.
+        {% endif %}
+      </p>
+      <p class="pedidos-empty-hint">Se busca por número de pedido, cliente y notas.</p>
+      <a href="{{ url_for('lista_pedidos', estado='todos') }}" class="btn-limpiar-filtros">
+        <i class="fa fa-rotate-left"></i> Ver todos los pedidos
+      </a>
       {% else %}
-        No hay pedidos cargados.
-      {% endif %}</p>
+      <p>No hay pedidos cargados.</p>
       <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
         <i class="fa fa-plus"></i> Crear primer pedido
       </a>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
@@ -226,7 +243,10 @@
                  es el dato con el que se decide a quién atender primero. #}
               <th class="sortable" data-sort="fecha" data-type="date">Entrega <i class="fa fa-sort"></i></th>
               <th class="sortable" data-sort="estado" data-type="estado">Estado <i class="fa fa-sort"></i></th>
-              <th class="sortable text-right" data-sort="total" data-type="number">Total (XCG) <i class="fa fa-sort"></i></th>
+              {# Sin moneda en el encabezado: cada fila trae la suya, porque los
+                 clientes facturan en XCG o en USD y ƒ450 no es $450. El sort usa
+                 `data-total`, que lleva el equivalente en XCG. #}
+              <th class="sortable text-right" data-sort="total" data-type="number">Total <i class="fa fa-sort"></i></th>
               <th>Contexto</th>
               <th class="pedido-actions-header">Acciones</th>
             </tr>
@@ -238,7 +258,7 @@
                 data-cliente="{{ pedido.cliente.nombre }}"
                 data-fecha="{{ (pedido.fecha_entrega or pedido.fecha_pedido).strftime('%Y-%m-%d') if (pedido.fecha_entrega or pedido.fecha_pedido) else '' }}"
                 data-estado="{{ pedido.estado }}"
-                data-total="{{ pedido.total_calculado }}"
+                data-total="{{ pedido.total_xcg }}"
                 data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">
               {# PED-N, igual que en la tarjeta y en la guía: "#20" no dice de
                  qué es el número cuando se lee suelto en una columna. #}
@@ -281,7 +301,9 @@
                 </span>
                 {% endif %}
               </td>
-              <td class="text-right pedido-total-cell">{{ "%.2f"|format(pedido.total_calculado) }}</td>
+              <td class="text-right pedido-total-cell">
+                {{ "%.2f"|format(pedido.total_calculado) }}<span class="pedido-total-moneda">{{ pedido.moneda }}</span>
+              </td>
               <td class="pedido-context-cell">
                 <div class="pedido-context-stack">
                   {% if pedido.notas %}
@@ -319,6 +341,7 @@
                   <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" class="inline-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="row-action-main"
+                            data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?"
                             aria-label="Facturar pedido PED-{{ pedido.id }}">
                       <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
                     </button>
@@ -396,12 +419,22 @@
       {% endif %}
 
       {% else %}
+      {# Mismo criterio que el vacío de móvil: sin resultados la salida es volver
+         a la lista completa, no crear un pedido que nadie pidió crear. #}
       <div class="pedidos-empty pedidos-empty-desktop">
         <i class="fa fa-clipboard-list"></i>
-        <p>{% if filtros.q or filtros.estado != 'todos' or filtros.solo_notas %}No encontramos pedidos con estos filtros.{% else %}No hay pedidos cargados.{% endif %}</p>
+        {% if filtros.q or filtros.estado != 'todos' or filtros.solo_notas %}
+        <p>{% if filtros.q %}Ningún pedido coincide con «{{ filtros.q }}».{% else %}Ningún pedido coincide con este filtro.{% endif %}</p>
+        <p class="pedidos-empty-hint">Se busca por número de pedido, cliente y notas.</p>
+        <a href="{{ url_for('lista_pedidos', estado='todos') }}" class="btn-limpiar-filtros">
+          <i class="fa fa-rotate-left"></i> Ver todos los pedidos
+        </a>
+        {% else %}
+        <p>No hay pedidos cargados.</p>
         <a href="{{ url_for('nuevo_pedido') }}" class="btn-nuevo-pedido">
           <i class="fa fa-plus"></i> Crear primer pedido
         </a>
+        {% endif %}
       </div>
       {% endif %}
     </div>

@@ -441,9 +441,50 @@ body[data-pedidos-list-screen] .estado-select {
     color: #b9c7df;
 }
 
-.pedidos-empty i { font-size: 2.6rem; color: #7e90b3; }
-.pedidos-empty p { margin: 0; font-size: 1rem; }
-.clear-link { color: #9fd0ff; margin-left: 4px; }
+.pedidos-empty i { font-size: 2.6rem; color: #94a3b8; }
+.pedidos-empty p { margin: 0; font-size: 1rem; color: var(--orders-text); }
+
+/* Pista de qué cubre la búsqueda: secundaria, pero legible (4.76:1). */
+.pedidos-empty-hint {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* La salida del filtro es la acción PRIMARIA de este estado. Era `.clear-link`,
+   un enlace en #9fd0ff —color de tema oscuro varado sobre blanco, 1.62:1— con
+   una caja de 107x18px, debajo de un CTA verde a pantalla completa que ofrecía
+   crear el primer pedido. La jerarquía estaba invertida y el texto mentía. */
+.btn-limpiar-filtros {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 20px;
+    border: 1px solid #0f172a;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.btn-limpiar-filtros:hover,
+.btn-limpiar-filtros:focus-visible {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: #ffffff;
+}
+
+/* Moneda al lado del total en la tabla: el número sin ella no dice si son
+   florines o dólares, y difieren ~78%. */
+.pedido-total-moneda {
+    margin-left: 6px;
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #64748b;
+}
 
 /* ── Mobile Pagination — light card to match the rest of the screen ── */
 .pagination-mobile {

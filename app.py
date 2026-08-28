@@ -5860,6 +5860,19 @@ def lista_pedidos():
             pedido.total_calculado = float(venta_real)
         else:
             pedido.total_calculado = float(total)
+        # Equivalente en XCG para ORDENAR la tabla. La celda muestra el importe
+        # nativo con su moneda; comparar los números crudos ponía un pedido de
+        # USD 450 (=XCG 801) por debajo de uno de XCG 487.
+        #
+        # El factor sale de la MONEDA, no del `tipo_cambio` guardado: XCG es la
+        # moneda base y vale 1 por definición. Hay 381 pedidos en XCG estampados
+        # con 1.78 en producción (expediente conocido, sin remediar); usar la
+        # columna a ciegas los inflaría un 78% y los mandaría al tope.
+        pedido.moneda = (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG'
+        if pedido.moneda == 'XCG':
+            pedido.total_xcg = pedido.total_calculado
+        else:
+            pedido.total_xcg = pedido.total_calculado * float(pedido.tipo_cambio or 1.78)
         pedidos.append(pedido)
 
     # Info de paginación para el template

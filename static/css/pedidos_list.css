@@ -325,11 +325,14 @@ body[data-pedidos-list-screen] .pc-amt {
   font-variant-numeric: tabular-nums;
 }
 
+/* El código de moneda decide qué SIGNIFICA el número que tiene al lado, y era
+   lo más chico y tenue de la tarjeta: 10.56px a 2.56:1. Bajo sol, el vendedor
+   leía un importe sin saber si eran florines o dólares. */
 body[data-pedidos-list-screen] .pc-amt small,
 body[data-pedidos-list-screen] .pc-amt .moneda {
-  font-size: 0.66rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
   margin-left: 2px;
 }
 
@@ -744,6 +747,16 @@ body[data-pedidos-list-screen] .pedidos-empty p {
   margin: 0 0 4px;
   font-weight: 700;
   color: var(--color-text);
+}
+
+/* La pista de qué cubre la búsqueda es secundaria: si sale en el mismo peso y
+   tamaño que el mensaje, compiten y ninguna de las dos se lee primero.
+   Va con la especificidad de la regla de arriba en vez de con !important. */
+body[data-pedidos-list-screen] .pedidos-empty p.pedidos-empty-hint {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 /* Pagination */
