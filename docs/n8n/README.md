@@ -77,3 +77,26 @@ El código real (10 / 13 / 14) va **únicamente** en
 
 El código viejo mandaba siempre `TAX` en la línea, así que un producto exento
 no tenía forma de salir al 0% y había que corregir la factura a mano.
+
+### QBO no calcula el impuesto solo
+
+Mandar únicamente `TxnTaxCodeRef` **no alcanza**: la factura 5848 salió con 0%
+llevando el código 10. Hay que mandarle `TotalTax` y `TaxLine` calculados,
+como hacía el código viejo — pero con el porcentaje que de verdad corresponde
+al código, no interpretando el código como porcentaje:
+
+| TaxCode | Porcentaje |
+|---|---|
+| `10` | 6% |
+| `11` | 9% |
+| `13` | 0% |
+| `14` | 0% |
+
+Con 0% **no se manda `TxnTaxDetail`** en absoluto: comprobado en la 5848, una
+factura sin ese bloque sale exenta.
+
+> **Pendiente de confirmar:** el `TaxRateRef` está fijo en `'25'`, que es el
+> que traía el código viejo y con el que la factura 5842 salió al 6%. No está
+> verificado contra la lista de TaxRate de QuickBooks (que es una entidad
+> distinta de los TaxCode). Si algún día se factura al 9%, casi seguro
+> necesita otro `TaxRateRef`.

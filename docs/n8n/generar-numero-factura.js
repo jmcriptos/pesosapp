@@ -157,6 +157,23 @@ const CODIGOS_EXENTOS = new Set([
 const lineaGravable = (codigo) =>
   CODIGOS_EXENTOS.has(codigo) ? 'NON' : 'TAX';
 
+// Porcentaje que corresponde a cada TaxCode. QBO NO calcula el
+// impuesto solo con TxnTaxCodeRef: la factura 5848 salio con 0%
+// mandando unicamente el codigo. Hay que mandarle TotalTax y
+// TaxLine, como hacia el codigo viejo.
+const PCT_POR_CODIGO = {
+  '10': 6,   // OB 6%
+  '11': 9,   // OB 9%
+  '13': 0,   // Non Tax (exportacion)
+  '14': 0    // OB Non Tax Local Prod
+};
+
+// TaxRate de QBO usado para el calculo. Es el que venia en el
+// codigo viejo y con el que la factura 5842 salio al 6%.
+// PENDIENTE: confirmar la lista de TaxRate de QBO; si el 9%
+// necesita otro TaxRateRef, hay que agregarlo aca.
+const TAX_RATE_REF = '25';
+
 const taxCodeFactura = taxCodeDe(body.lines?.[0]);
 console.log(`TaxCode de QBO: ${taxCodeFactura || '(ninguno)'}`);
 
@@ -224,6 +241,7 @@ if (body.currency_qbo) {
 console.log(`DocNumber generado: ${factura.DocNumber}`);
 
 // ---------- agrupar lineas ----------
+let subtotal = 0;
 const map = new Map();
 for (const l of body.lines ?? []) {
   const key = `${l.product_qbo_id}_${l.unit_price}`;
@@ -286,17 +304,35 @@ for (const l of map.values()) {
     console.log(`Sin clase: ${fullProductName}`);
   }
 
+  subtotal += lineItem.Amount;
   factura.Line.push(lineItem);
 }
 
 // ---------- impuesto de la transaccion ----------
-// Sin TotalTax ni TaxLine calculados a mano: con
-// GlobalTaxCalculation 'TaxExcluded' y el TaxCode correcto, QBO
-// aplica la tasa que corresponda.
-if (taxCodeFactura) {
+// Con 0% NO se manda TxnTaxDetail: comprobado en la factura 5848,
+// una factura sin TxnTaxDetail sale exenta. Con tasa > 0 hay que
+// mandar TotalTax y TaxLine o QBO no calcula nada.
+const pct = PCT_POR_CODIGO[taxCodeFactura] ?? 0;
+
+if (pct > 0) {
+  const impuesto = round2((subtotal * pct) / 100);
   factura.TxnTaxDetail = {
-    TxnTaxCodeRef: { value: taxCodeFactura }
+    TotalTax: impuesto,
+    TxnTaxCodeRef: { value: taxCodeFactura },
+    TaxLine: [{
+      Amount: impuesto,
+      DetailType: 'TaxLineDetail',
+      TaxLineDetail: {
+        TaxPercent: pct,
+        NetAmountTaxable: round2(subtotal),
+        PercentBased: true,
+        TaxRateRef: { value: TAX_RATE_REF }
+      }
+    }]
   };
+  console.log(`Impuesto ${pct}% = ${impuesto} sobre ${subtotal}`);
+} else {
+  console.log(`Sin impuesto (codigo ${taxCodeFactura})`);
 }
 
 console.log('Factura lista:', JSON.stringify(factura));
