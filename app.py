@@ -15,6 +15,8 @@ from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy.orm import joinedload, selectinload, load_only
 import io
 from flask import make_response
+# Alias: reportlab.platypus también exporta `Image` y pisaría este nombre.
+from PIL import Image as PILImage
 import csv
 import tempfile
 import logging
@@ -35,7 +37,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import locale
 import traceback
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from time import perf_counter
 # from models.extensions import db  # Comentado para evitar conflictos
 import requests
@@ -50,7 +52,7 @@ from urllib.parse import urlparse, urljoin
 from markupsafe import Markup
 from zoneinfo import ZoneInfo
 from utils.label_utils import (
-    draw_order_label, draw_expiration_label, get_logo_path,
+    draw_order_label, draw_expiration_label, get_logo_path, resolve_label_logo,
     create_single_label_pdf, create_letter_page_pdf, get_centered_x,
     LABEL_WIDTH, LABEL_HEIGHT,
     create_a4_page_pdf, get_a4_label_positions, draw_order_label_a4
@@ -2169,6 +2171,9 @@ class Producto(db.Model):
     tax_rate = db.Column(db.Float, nullable=False, default=0.0)  # Nueva columna para tasa de impuesto
     se_pesa = db.Column(db.Boolean, default=False, nullable=False)
     proveedor = db.Column(db.String(100))
+    # Solo para etiquetas: cuántas unidades trae una caja. NULL = sin declarar.
+    # NO participa en precios, subtotales ni en el payload de facturación.
+    unidades_por_caja = db.Column(db.Integer, nullable=True)
 
     def to_dict(self):
         return {
@@ -2179,7 +2184,8 @@ class Producto(db.Model):
             'qbo_id': self.qbo_id,
             'tax_rate': self.tax_rate,
             'se_pesa': self.se_pesa,
-            'proveedor': self.proveedor
+            'proveedor': self.proveedor,
+            'unidades_por_caja': self.unidades_por_caja
         }
 
 class Cliente(db.Model):
@@ -2193,6 +2199,10 @@ class Cliente(db.Model):
     pedidos = db.relationship('Pedido', back_populates='cliente', cascade="all, delete-orphan")
     qbo_id = db.Column(db.String(20), unique=True)
     moneda = db.Column(db.String(3), default='XCG', nullable=False)
+    # Logo de marca del cliente para sus etiquetas. Se guardan los bytes en la
+    # base y no un archivo: Heroku borra el disco en cada reinicio.
+    logo_etiqueta = db.Column(db.LargeBinary, nullable=True)
+    logo_mimetype = db.Column(db.String(50), nullable=True)
 
     def to_dict(self):
         return {'id': self.id, 'nombre': self.nombre, 'qbo_id': self.qbo_id, 'moneda': self.moneda}
@@ -3292,24 +3302,70 @@ def _caja_pesada_to_label_item(caja):
     return {
         'producto_nombre': producto.nombre if producto else 'N/A',
         'temperatura': getattr(producto, 'temperatura', None) or 'N/A',
-        'peso_label': f'{Decimal(str(caja.peso or 0)).quantize(Decimal("0.01")):.2f} kg',
+        'medida_rotulo': 'Net Weight:',
+        'medida_valor': f'{Decimal(str(caja.peso or 0)).quantize(Decimal("0.01")):.2f} kg',
         'lote': caja.lote or 'N/A',
         'fecha_fabricacion': _date_to_iso(caja.fecha_elaboracion) or 'N/A',
         'fecha_expiracion': _date_to_iso(caja.fecha_vencimiento) or 'N/A',
     }
 
 
-def _detalle_legacy_to_label_item(detalle):
+def _unidades_por_etiqueta(cajas, unidades_por_caja):
+    """Unidades de cada etiqueta: una por caja entera, más una por el resto.
+
+    NO se redondea hacia arriba, y por eso `cajas_objetivo` no sirve acá: esa
+    propiedad nace del pesaje, donde media caja igual pasa entera por la
+    báscula. Acá se venden cajas surtidas con media caja de cada producto, y
+    media caja lleva la mitad de las unidades adentro.
+
+    Las unidades son discretas, así que un resto fraccionario redondea al
+    entero más cercano (10 uds x 0,25 = 2,5 -> 3).
+
+    Sin cajas (0 o NULL) se emite una etiqueta con las unidades completas,
+    preservando el comportamiento de una etiqueta por línea.
+    """
+    total = float(cajas or 0)
+    if total <= 0:
+        return [unidades_por_caja]
+
+    enteras = int(math.floor(total))
+    resto = total - enteras
+    valores = [unidades_por_caja] * enteras
+
+    if resto > 0:
+        parcial = int(
+            Decimal(str(unidades_por_caja * resto)).quantize(
+                Decimal('1'), rounding=ROUND_HALF_UP
+            )
+        )
+        if parcial > 0:
+            valores.append(parcial)
+
+    return valores or [unidades_por_caja]
+
+
+def _detalle_legacy_to_label_item(detalle, medida_valor=None):
     peso_float = float(detalle.peso or 0)
+    producto = getattr(detalle, 'producto', None)
+    unidades_por_caja = getattr(producto, 'unidades_por_caja', None)
+
     if peso_float > 0:
-        peso_label = f'{peso_float:.2f} kg'
+        medida_rotulo = 'Net Weight:'
+        medida_valor = f'{peso_float:.2f} kg'
+    elif unidades_por_caja:
+        medida_rotulo = 'Units:'
+        medida_valor = str(medida_valor if medida_valor is not None else unidades_por_caja)
     else:
-        peso_label = f'{_fmt_cajas(detalle.cajas)} uds'
+        # Producto por caja sin unidades declaradas: ninguna etiqueta de caja
+        # debe decir "Net Weight".
+        medida_rotulo = 'Boxes:'
+        medida_valor = _fmt_cajas(detalle.cajas)
 
     return {
         'producto_nombre': detalle.producto.nombre if getattr(detalle, 'producto', None) else 'N/A',
         'temperatura': getattr(detalle.producto, 'temperatura', None) or 'N/A',
-        'peso_label': peso_label,
+        'medida_rotulo': medida_rotulo,
+        'medida_valor': medida_valor,
         'lote': detalle.lote or 'N/A',
         'fecha_fabricacion': _date_to_iso(detalle.fecha_fabricacion) or 'N/A',
         'fecha_expiracion': _date_to_iso(detalle.fecha_expiracion) or 'N/A',
@@ -3347,7 +3403,14 @@ def _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin):
         fecha_fab = _date_like_to_date(detalle.fecha_fabricacion)
         if not fecha_fab or not (inicio <= fecha_fab <= fin):
             continue
-        items.append(_detalle_legacy_to_label_item(detalle))
+
+        unidades_por_caja = getattr(detalle.producto, 'unidades_por_caja', None)
+        if unidades_por_caja and float(detalle.peso or 0) <= 0:
+            # Una etiqueta por caja entera, más una por el resto.
+            for unidades in _unidades_por_etiqueta(detalle.cajas, unidades_por_caja):
+                items.append(_detalle_legacy_to_label_item(detalle, medida_valor=unidades))
+        else:
+            items.append(_detalle_legacy_to_label_item(detalle))
 
     return items
 
@@ -7247,7 +7310,9 @@ def generar_etiqueta_detalle(pedido_id):
 
         # Crear PDF
         output, c = create_single_label_pdf()
-        logo_path = get_logo_path(basedir)
+        logo_path = resolve_label_logo(
+            basedir, getattr(getattr(pedido, "cliente", None), "logo_etiqueta", None)
+        )
         cliente_nombre = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
         for item in items:
@@ -7259,7 +7324,8 @@ def generar_etiqueta_detalle(pedido_id):
                 lot=item['lote'],
                 mfg_date=item['fecha_fabricacion'],
                 exp_date=item['fecha_expiracion'],
-                weight=item['peso_label']
+                medida_rotulo=item['medida_rotulo'],
+                medida_valor=item['medida_valor']
             )
             c.showPage()
 
@@ -7348,7 +7414,9 @@ def generar_etiqueta_detalle_a4(pedido_id):
         # Crear PDF A4
         output, c, page_width, page_height = create_a4_page_pdf()
         x_offset, y_top, y_bottom = get_a4_label_positions(page_width, page_height)
-        logo_path = get_logo_path(basedir)
+        logo_path = resolve_label_logo(
+            basedir, getattr(getattr(pedido, "cliente", None), "logo_etiqueta", None)
+        )
         cliente_nombre = pedido.cliente.nombre if getattr(pedido, "cliente", None) else ""
 
         etiqueta_contador = 0
@@ -7359,7 +7427,8 @@ def generar_etiqueta_detalle_a4(pedido_id):
 
             draw_order_label_a4(
                 c, logo_path, cliente_nombre, item['producto_nombre'],
-                item['temperatura'], item['lote'], item['fecha_fabricacion'], item['fecha_expiracion'], item['peso_label'],
+                item['temperatura'], item['lote'], item['fecha_fabricacion'], item['fecha_expiracion'],
+                item['medida_rotulo'], item['medida_valor'],
                 x_offset, y_offset
             )
 
@@ -9776,6 +9845,57 @@ def nuevo_cliente():
         db.session.rollback()
         return jsonify({"error": "Error interno del servidor"}), 500
 
+# Logos de cliente: 1 MB medido sobre los bytes leídos. MAX_CONTENT_LENGTH es
+# de 16 MB y no sirve como control acá.
+MAX_LOGO_BYTES = 1024 * 1024
+_LOGO_MIMETYPES = {'PNG': 'image/png', 'JPEG': 'image/jpeg'}
+
+
+def _validar_logo_cliente(data):
+    """Valida un logo subido. Devuelve (mimetype, None) o (None, motivo).
+
+    El mimetype sale de la lista blanca según lo que detecta Pillow, nunca del
+    content-type que manda el navegador.
+    """
+    if not data:
+        return None, 'El archivo está vacío'
+    if len(data) > MAX_LOGO_BYTES:
+        return None, 'El logo no puede superar 1 MB'
+    try:
+        imagen = PILImage.open(BytesIO(data))
+        imagen.verify()
+    except Exception:
+        return None, 'El archivo no es una imagen válida'
+    formato = (imagen.format or '').upper()
+    if formato not in _LOGO_MIMETYPES:
+        return None, 'El logo debe ser PNG o JPEG'
+    return _LOGO_MIMETYPES[formato], None
+
+
+@app.route('/clientes/<int:cliente_id>/logo')
+@login_required
+def logo_cliente(cliente_id):
+    """Sirve el logo del cliente para la vista previa del formulario."""
+    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
+        if not current_user.puede_ver_cliente(cliente_id):
+            abort(403)
+
+    cliente = Cliente.query.get_or_404(cliente_id)
+    if not cliente.logo_etiqueta:
+        abort(404)
+
+    respuesta = make_response(bytes(cliente.logo_etiqueta))
+    # Contenido subido por usuarios: mimetype de la lista blanca y nosniff.
+    respuesta.headers['Content-Type'] = (
+        cliente.logo_mimetype
+        if cliente.logo_mimetype in _LOGO_MIMETYPES.values()
+        else 'application/octet-stream'
+    )
+    respuesta.headers['X-Content-Type-Options'] = 'nosniff'
+    respuesta.headers['Cache-Control'] = 'no-store'
+    return respuesta
+
+
 @app.route('/clientes/<int:cliente_id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_cliente(cliente_id):
@@ -9803,6 +9923,22 @@ def editar_cliente(cliente_id):
             moneda = request.form.get('moneda', 'XCG').upper()
             if moneda in ('XCG', 'USD'):
                 cliente.moneda = moneda
+
+            archivo_logo = request.files.get('logo')
+            if request.form.get('quitar_logo'):
+                cliente.logo_etiqueta = None
+                cliente.logo_mimetype = None
+            elif archivo_logo and archivo_logo.filename:
+                datos_logo = archivo_logo.read()
+                mimetype_logo, motivo = _validar_logo_cliente(datos_logo)
+                if motivo:
+                    # No se toca el logo guardado.
+                    db.session.rollback()
+                    flash(motivo, 'danger')
+                    return redirect(url_for('editar_cliente', cliente_id=cliente.id))
+                cliente.logo_etiqueta = datos_logo
+                cliente.logo_mimetype = mimetype_logo
+
             db.session.commit()
             flash('Cliente actualizado', 'success')
             return redirect(url_for('mostrar_clientes'))
@@ -10010,51 +10146,33 @@ def generar_etiqueta():
         ).all()
         if not facturaciones:
             return jsonify({"error": "No se encontraron facturaciones para los criterios seleccionados"}), 404
-        output = BytesIO()
-        page_width, page_height = A4
-        etiqueta_ancho = 100.16 / 25.4 * inch
-        etiqueta_alto = 50.8 / 25.4 * inch
-        x_offset = (page_width - etiqueta_ancho) / 2
-        y_offset_top = page_height - etiqueta_alto + 3
-        y_offset_bottom = y_offset_top - etiqueta_alto - 3
-        c = canvas.Canvas(output, pagesize=A4)
+        # Mismo dibujo que las etiquetas del pedido (label_utils): el bloque de
+        # coordenadas a mano que había acá duplicaba el layout y dejaba que un
+        # nombre de producto largo se saliera de la etiqueta.
+        output, c, page_width, page_height = create_a4_page_pdf()
+        x_offset, y_offset_top, y_offset_bottom = get_a4_label_positions(page_width, page_height)
         etiquetas_por_pagina = 2
         etiqueta_contador = 0
-        basedir = os.path.abspath(os.path.dirname(__file__))
-        logo_path = os.path.join(basedir, 'static', 'logo_etiquetas.png')
-        if not os.path.exists(logo_path):
-            return jsonify({"error": f"El archivo {logo_path} no existe"}), 500
+        cliente_etiqueta = facturaciones[0].cliente
+        logo_path = resolve_label_logo(
+            basedir, getattr(cliente_etiqueta, 'logo_etiqueta', None)
+        )
         for facturacion in facturaciones:
             producto = facturacion.producto
-            cliente_nombre = facturacion.cliente.nombre if facturacion.cliente else "N/A"
+            nombre_en_etiqueta = facturacion.cliente.nombre if facturacion.cliente else "N/A"
             producto_nombre = producto.nombre if producto else "N/A"
             temperatura = producto.temperatura if producto and producto.temperatura else "N/A"
             if etiqueta_contador % etiquetas_por_pagina == 0:
                 y_offset = y_offset_top
             else:
                 y_offset = y_offset_bottom
-            shift_left = 25
-            logo_shift_up = 20
-            logo_shift_right = 20
-            c.drawImage(logo_path, x_offset + 10 - shift_left + logo_shift_right, y_offset + 30 + logo_shift_up, width=1.2 * inch, height=1.2 * inch)
-            c.setFont("Helvetica-Bold", 10)
-            label_x = x_offset + 2.8 * inch - shift_left
-            value_x = label_x + 0.2 * inch
-            c.drawRightString(label_x, y_offset + 1.7 * inch, "Client:")
-            c.drawRightString(label_x, y_offset + 1.5 * inch, "Lot:")
-            c.drawRightString(label_x, y_offset + 1.3 * inch, "Manufactured:")
-            c.drawRightString(label_x, y_offset + 1.1 * inch, "Expiration:")
-            c.drawRightString(label_x, y_offset + 0.9 * inch, "When Kept at:")
-            c.drawString(value_x, y_offset + 1.7 * inch, cliente_nombre)
-            c.drawString(value_x, y_offset + 1.5 * inch, facturacion.lote)
-            c.drawString(value_x, y_offset + 1.3 * inch, facturacion.fecha_fabricacion)
-            c.drawString(value_x, y_offset + 1.1 * inch, facturacion.fecha_expiracion)
-            c.drawString(value_x, y_offset + 0.9 * inch, temperatura)
-            c.setFont("Helvetica-Bold", 14)
-            c.drawRightString(label_x, y_offset + 0.5 * inch, f"Net Weight:")
-            c.drawString(value_x, y_offset + 0.5 * inch, f"{facturacion.peso:.2f}")
-            c.setFont("Helvetica-Bold", 18)
-            c.drawCentredString(x_offset + (etiqueta_ancho / 2), y_offset + 0.15 * inch, producto_nombre)
+            draw_order_label_a4(
+                c, logo_path, nombre_en_etiqueta, producto_nombre, temperatura,
+                facturacion.lote, facturacion.fecha_fabricacion,
+                facturacion.fecha_expiracion,
+                "Net Weight:", f"{facturacion.peso:.2f}",
+                x_offset, y_offset
+            )
             etiqueta_contador += 1
             if etiqueta_contador % etiquetas_por_pagina == 0:
                 c.showPage()

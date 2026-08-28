@@ -8,6 +8,7 @@ from reportlab.lib.units import inch, mm
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
+from reportlab.lib.utils import ImageReader
 
 
 # =============================================================================
@@ -160,6 +161,29 @@ def get_logo_path(basedir):
     return os.path.join(basedir, 'static', 'logo_etiquetas.png')
 
 
+def resolve_label_logo(basedir, logo_bytes=None):
+    """Logo a dibujar: el del cliente si tiene bytes, si no el de Jomar.
+
+    Recibe bytes y no un objeto Cliente a propósito: este módulo no importa
+    modelos de app.py. ReportLab dibuja desde memoria vía ImageReader, sin
+    archivo temporal — nada que Heroku pueda perder al reiniciar el dyno.
+    """
+    if logo_bytes:
+        return ImageReader(BytesIO(logo_bytes))
+    return get_logo_path(basedir)
+
+
+def _logo_dibujable(logo):
+    """True si el logo se puede dibujar.
+
+    `os.path.exists` explota con un ImageReader, así que primero se mira el
+    tipo: un ImageReader ya trae la imagen en memoria y siempre es dibujable.
+    """
+    if isinstance(logo, ImageReader):
+        return True
+    return bool(logo) and os.path.exists(logo)
+
+
 def draw_logo(canvas_obj, logo_path, x_base=0, y_base=0, use_margin=True):
     """
     Dibuja el logo en la etiqueta si existe.
@@ -171,7 +195,7 @@ def draw_logo(canvas_obj, logo_path, x_base=0, y_base=0, use_margin=True):
         y_base: Posición Y base (para etiquetas en página letter)
         use_margin: Si incluir margen superior (True para pedidos, False para vencimiento)
     """
-    if os.path.exists(logo_path):
+    if _logo_dibujable(logo_path):
         logo_y = (
             LABEL_HEIGHT - MARGIN - LOGO_HEIGHT
             if use_margin
@@ -202,7 +226,8 @@ def draw_separator(canvas_obj, x_base, y_base, separator_y):
 
 
 def draw_order_label(canvas_obj, logo_path, client, product, temperature, lot,
-                     mfg_date, exp_date, weight, x_base=0, y_base=0):
+                     mfg_date, exp_date, medida_rotulo, medida_valor,
+                     x_base=0, y_base=0):
     """
     Dibuja una etiqueta completa de pedido (con cliente y peso).
 
@@ -215,7 +240,8 @@ def draw_order_label(canvas_obj, logo_path, client, product, temperature, lot,
         lot: Número de lote
         mfg_date: Fecha de fabricación
         exp_date: Fecha de expiración
-        weight: Peso neto
+        medida_rotulo: Rótulo de la medida ("Net Weight:", "Units:", "Boxes:")
+        medida_valor: Valor de la medida ("1.50 kg", "24", "3")
         x_base: Posición X base
         y_base: Posición Y base
     """
@@ -238,11 +264,11 @@ def draw_order_label(canvas_obj, logo_path, client, product, temperature, lot,
     canvas_obj.drawString(x_base + VALUE_X, y_base + Y_EXP, exp_date or "")
     canvas_obj.drawString(x_base + VALUE_X, y_base + Y_KEEP, normalize_temperature(temperature))
 
-    # Net Weight
+    # Medida (peso, unidades o cajas)
     canvas_obj.setFont("Helvetica-Bold", 15.6)
-    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_NET_WEIGHT, "Net Weight:")
+    canvas_obj.drawRightString(x_base + LABEL_X_RIGHT, y_base + Y_NET_WEIGHT, medida_rotulo)
     canvas_obj.setFont("Helvetica-Bold", 16.8)
-    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_NET_WEIGHT, str(weight))
+    canvas_obj.drawString(x_base + VALUE_X, y_base + Y_NET_WEIGHT, str(medida_valor))
 
     # Separador
     draw_separator(canvas_obj, x_base, y_base, SEPARATOR_Y)
@@ -376,7 +402,8 @@ def get_a4_label_positions(page_width, page_height):
 
 
 def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot,
-                        mfg_date, exp_date, weight, x_offset, y_offset):
+                        mfg_date, exp_date, medida_rotulo, medida_valor,
+                        x_offset, y_offset):
     """
     Dibuja una etiqueta de pedido en formato A4.
     Usa las mismas posiciones Y que las etiquetas de vencimiento (Y_LOT_VENC style).
@@ -391,7 +418,7 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
 
     # Logo (sin margen superior, igual que etiquetas vencimiento)
     logo_y = y_offset + A4_LABEL_HEIGHT - LOGO_HEIGHT
-    if os.path.exists(logo_path):
+    if _logo_dibujable(logo_path):
         canvas_obj.drawImage(logo_path, x_offset + LOGO_X, logo_y,
                              width=LOGO_WIDTH, height=LOGO_HEIGHT,
                              preserveAspectRatio=True, mask='auto')
@@ -411,12 +438,12 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
     canvas_obj.drawString(x_offset + VALUE_X, y_exp, exp_date or "")
     canvas_obj.drawString(x_offset + VALUE_X, y_keep, normalize_temperature(temperature))
 
-    # Net Weight
+    # Medida (peso, unidades o cajas)
     y_net_weight = y_offset + MARGIN + 0.46 * inch
     canvas_obj.setFont("Helvetica-Bold", 15.6)
-    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_net_weight, "Net Weight:")
+    canvas_obj.drawRightString(x_offset + LABEL_X_RIGHT, y_net_weight, medida_rotulo)
     canvas_obj.setFont("Helvetica-Bold", 16.8)
-    canvas_obj.drawString(x_offset + VALUE_X, y_net_weight, str(weight))
+    canvas_obj.drawString(x_offset + VALUE_X, y_net_weight, str(medida_valor))
 
     # Separador
     draw_separator(canvas_obj, x_offset, y_offset, SEPARATOR_Y)

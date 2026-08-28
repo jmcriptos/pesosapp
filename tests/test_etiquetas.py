@@ -159,7 +159,7 @@ def test_etiquetas_a4_genera_pdf(logged_client, app):
 
 @patch('app.draw_order_label', wraps=__import__('app').draw_order_label)
 def test_etiquetas_4x2_peso_kg_verificado(mock_draw, logged_client, app):
-    """AC #3: se_pesa=True → draw_order_label recibe weight con 'kg'."""
+    """AC #3: se_pesa=True → draw_order_label recibe 'Net Weight:' y los kg."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
@@ -178,13 +178,14 @@ def test_etiquetas_4x2_peso_kg_verificado(mock_draw, logged_client, app):
         assert resp.status_code == 200
         assert mock_draw.call_count == 1
         _, kwargs = mock_draw.call_args
-        assert 'kg' in kwargs['weight']
-        assert '12.50' in kwargs['weight']
+        assert kwargs['medida_rotulo'] == 'Net Weight:'
+        assert 'kg' in kwargs['medida_valor']
+        assert '12.50' in kwargs['medida_valor']
 
 
 @patch('app.draw_order_label', wraps=__import__('app').draw_order_label)
 def test_etiquetas_4x2_peso_uds_verificado(mock_draw, logged_client, app):
-    """AC #3: se_pesa=False → draw_order_label recibe weight con 'uds'."""
+    """AC #3: se_pesa=False sin unidades declaradas → rótulo 'Boxes:'."""
     with app.app_context():
         from app import Pedido, DetallePedido, Producto
         pedido = Pedido.query.first()
@@ -203,8 +204,8 @@ def test_etiquetas_4x2_peso_uds_verificado(mock_draw, logged_client, app):
         assert resp.status_code == 200
         assert mock_draw.call_count == 1
         _, kwargs = mock_draw.call_args
-        assert 'uds' in kwargs['weight']
-        assert '10' in kwargs['weight']
+        assert kwargs['medida_rotulo'] == 'Boxes:'
+        assert kwargs['medida_valor'] == '10' 
 
 
 # === AC #3: Validación de fechas ===
