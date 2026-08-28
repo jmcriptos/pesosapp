@@ -161,8 +161,27 @@ def test_estado_desconocido_cae_a_todos(app, logged_client):
 
 
 def test_pendiente_ofrece_pesar_y_preparado_facturar(app, logged_client):
-    """La acción principal de la tarjeta, con palabra, según el estado."""
+    """La acción principal de la tarjeta, con palabra, según el estado.
+
+    El pendiente lleva una línea de un producto que SE PESA: la lista ya no
+    ofrece «Pesar» cuando no hay nada que pesar, porque la ruta rechaza ese
+    caso y devuelve al detalle con un flash.
+    """
+    from app import Producto, DetallePedido
+    from decimal import Decimal
+
     p_pend = _pedido('pendiente')
+    prod = Producto(nombre='Pesable', temperatura='-18°C', se_pesa=True,
+                    tax_rate=10.0, qbo_id='Q-PESA')
+    _db.session.add(prod)
+    _db.session.flush()
+    _db.session.add(DetallePedido(
+        pedido_id=p_pend.id, producto_id=prod.id, cajas=1, cajas_pedidas=1,
+        peso=0, precio_unitario=Decimal('10'), subtotal=Decimal('10'),
+        es_linea_pedido=True,
+    ))
+    _db.session.commit()
+
     p_prep = _pedido('preparado')
 
     html = logged_client.get('/pedidos').get_data(as_text=True)

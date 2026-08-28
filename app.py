@@ -5869,6 +5869,10 @@ def lista_pedidos():
         # con 1.78 en producción (expediente conocido, sin remediar); usar la
         # columna a ciegas los inflaría un 78% y los mandaría al tope.
         pedido.moneda = (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG'
+        # Si no hay nada que pesar, la lista no debe ofrecer «Pesar»: la ruta ya
+        # lo rechaza y devuelve al detalle con un flash, así que el botón solo
+        # sirve para hacer rebotar al vendedor.
+        pedido.tiene_pesables = _pedido_tiene_productos_pesables(pedido)
         if pedido.moneda == 'XCG':
             pedido.total_xcg = pedido.total_calculado
         else:

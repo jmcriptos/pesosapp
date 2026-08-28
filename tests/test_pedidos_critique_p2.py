@@ -111,9 +111,15 @@ def _orden_de_acciones(bloque):
 # === Las acciones ocupan siempre el mismo puesto ===
 
 def test_pendiente_y_preparado_ordenan_igual_sus_acciones(app, logged_client):
-    """Principal, editar, borrar. En las dos filas, en el mismo orden."""
+    """Principal, editar, borrar. En las dos filas, en el mismo orden.
+
+    El pendiente lleva un producto que SÍ se pesa: es el caso donde las dos
+    filas tienen acción principal («Pesar» y «Facturar») y por tanto donde se
+    veía la deriva. El pendiente sin nada que pesar no tiene principal y su
+    alineación la cubre `test_sin_accion_principal_la_ranura_queda_reservada`.
+    """
     with app.app_context():
-        pendiente = _pedido('pendiente')
+        pendiente = _pedido_con(se_pesa=True, estado='pendiente')
         preparado = _pedido('preparado')
 
         html = logged_client.get('/pedidos').get_data(as_text=True)
@@ -174,3 +180,78 @@ def test_font_awesome_se_carga_una_sola_vez(app, logged_client):
         html = logged_client.get('/pedidos').get_data(as_text=True)
 
         assert len(re.findall(r'font-awesome/[\d.]+/css/all\.min\.css', html)) == 1
+
+
+# === «Pesar» solo donde hay algo que pesar ===
+
+def _pedido_con(se_pesa, estado='pendiente'):
+    """Pedido cuyo único producto se pesa o no."""
+    from app import Pedido, Cliente, Producto, DetallePedido
+    prod = Producto(nombre=f'Prod {se_pesa}', temperatura='4°C', se_pesa=se_pesa,
+                    tax_rate=10.0, qbo_id=f'Q-{se_pesa}-{id(se_pesa)}')
+    _db.session.add(prod)
+    _db.session.flush()
+    p = Pedido(cliente_id=Cliente.query.first().id, estado=estado, tipo_cambio=1.0)
+    p.fecha_entrega = _hoy_local() + timedelta(days=1)
+    _db.session.add(p)
+    _db.session.flush()
+    _db.session.add(DetallePedido(
+        pedido_id=p.id, producto_id=prod.id, cajas=1, cajas_pedidas=1, peso=0,
+        precio_unitario=Decimal('10'), subtotal=Decimal('10'), es_linea_pedido=True,
+    ))
+    _db.session.commit()
+    return p
+
+
+def _fila(html, pedido_id):
+    for tr in re.findall(r'<tr[^>]*>.*?</tr>', html, re.S):
+        if f'PED-{pedido_id}<' in tr:
+            return tr
+    return ''
+
+
+def test_un_pedido_sin_productos_pesables_no_ofrece_pesar(app, logged_client):
+    """El servidor ya rechaza pesar esos pedidos (app.py:6924) y devuelve al
+    detalle con un flash. Ofrecer el botón igual es mandar al vendedor a un
+    rebote: toca «Pesar» y no pasa nada útil."""
+    with app.app_context():
+        sin_pesar = _pedido_con(se_pesa=False)
+
+        html = logged_client.get('/pedidos').get_data(as_text=True)
+
+        assert 'Pesar' not in _fila(html, sin_pesar.id)
+
+
+def test_un_pedido_con_productos_pesables_sigue_ofreciendo_pesar(app, logged_client):
+    with app.app_context():
+        con_pesar = _pedido_con(se_pesa=True)
+
+        html = logged_client.get('/pedidos').get_data(as_text=True)
+
+        assert 'Pesar' in _fila(html, con_pesar.id)
+
+
+def test_sin_accion_principal_la_ranura_queda_reservada(app, logged_client):
+    """Si el botón simplemente desaparece, editar y borrar se corren 112px y
+    vuelve la deriva que se acaba de arreglar."""
+    with app.app_context():
+        sin_pesar = _pedido_con(se_pesa=False)
+
+        html = logged_client.get('/pedidos').get_data(as_text=True)
+        fila = _fila(html, sin_pesar.id)
+
+        assert 'row-action-slot' in fila, (
+            'falta el separador que reserva el puesto de la acción principal'
+        )
+
+
+def test_la_tarjeta_movil_tampoco_ofrece_pesar_de_mas(app, logged_client):
+    with app.app_context():
+        sin_pesar = _pedido_con(se_pesa=False)
+
+        html = logged_client.get('/pedidos').get_data(as_text=True)
+        movil = html.split('tabla-pedidos-card')[0]
+        tarjeta = [b for b in movil.split('pedido-card') if f'PED-{sin_pesar.id}' in b]
+
+        assert tarjeta, 'no encontré la tarjeta'
+        assert 'Pesar' not in tarjeta[0]
