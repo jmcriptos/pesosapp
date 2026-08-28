@@ -226,7 +226,6 @@
     }, true);
   })();
 </script>
-<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     {% set current_path = request.path or '' %}
     {% set is_dashboard = current_path.startswith('/dashboard') or current_path in ['/', '/home'] %}
     {% set is_pedidos = current_path.startswith('/pedidos') or current_path.startswith('/detalles_pedido') or current_path.startswith('/generar_etiqueta_detalle') %}
@@ -337,15 +336,19 @@
                     <span class="nav-pill-dot" aria-hidden="true"></span>
                     {% endif %}
                 </button>
-                <button type="button"
-                        data-theme-toggle
-                        aria-pressed="true"
-                        class="nav-pill"
-                        title="Alternar tema claro/oscuro"
-                        aria-label="Alternar tema claro/oscuro">
-                  <i class="fas fa-moon theme-icon-dark" aria-hidden="true"></i>
-                  <i class="fas fa-sun theme-icon-light" aria-hidden="true"></i>
-                </button>
+                {# El toggle de tema se eliminó el 2026-08-28 (decisión de JM:
+                   la app no lleva modo oscuro). Era además un control muerto en
+                   la práctica: el contenido de todas las pantallas está clavado
+                   en claro con `!important` —el listado de pedidos lo hace en
+                   pedidos_list.css:6-12, y el resto igual—, así que alternar
+                   `data-theme` solo cambiaba la barra superior y la inferior.
+                   Verificado en el navegador: con `dark` y con `light` los
+                   estilos del contenido salían byte por byte idénticos.
+
+                   `data-theme="dark"` SIGUE en el <body> a propósito: no es
+                   "modo oscuro", es el marco fijo de la app (topbar y tabbar
+                   oscuros), y de él cuelgan reglas reales en app-mobile.css y
+                   registros.css. #}
             </div>
 
             <div class="desktop-header-shell">

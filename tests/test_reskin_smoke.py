@@ -104,11 +104,26 @@ def test_body_has_reskin_data_attributes(logged_client):
 # ---------------------------------------------------------------------------
 
 
-def test_theme_toggle_script_is_linked(logged_client):
+def test_theme_toggle_is_gone(logged_client):
+    """La app no lleva modo oscuro: el toggle se eliminó el 2026-08-28.
+
+    Era además un control muerto en la práctica —el contenido de todas las
+    pantallas está clavado en claro con `!important`, así que alternar
+    `data-theme` solo cambiaba topbar y tabbar—, y un control visible que no
+    hace nada le enseña al usuario a desconfiar de los otros.
+
+    Ojo: esto NO es lo mismo que quitar `data-theme="dark"` del <body>, que
+    sigue y debe seguir (ver test_body_has_reskin_data_attributes). Ese
+    atributo es el marco fijo de la app, no una preferencia del usuario.
+    """
     response = logged_client.get("/dashboard")
-    assert b"js/theme-toggle.js" in response.data, (
-        "theme-toggle.js link missing from /dashboard"
+    assert b"js/theme-toggle.js" not in response.data, (
+        "volvió a linkearse theme-toggle.js"
     )
+    assert b"data-theme-toggle" not in response.data, (
+        "volvió el botón de alternar tema"
+    )
+    assert b"Alternar tema" not in response.data
 
 
 # ---------------------------------------------------------------------------

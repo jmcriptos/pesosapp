@@ -64,10 +64,6 @@
         }
     }
 
-    /* Theme-toggle icon swap */
-    [data-theme="dark"] .theme-icon-light { display: none; }
-    [data-theme="light"] .theme-icon-dark { display: none; }
-
     /* Barra de carga superior (estilo NProgress). El ancho lo conduce un
        script inline en base.html; se desvanece al completar. Sin overlay. */
     .app-loading-bar {
