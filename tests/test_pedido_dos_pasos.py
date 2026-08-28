@@ -50,10 +50,10 @@ def app():
         # tercero: `se_pesa` NO determina el impuesto — hay pesables con
         # tax_rate 10 y con 14, así que el grupo es el par (se_pesa, tax_rate).
         for nombre, se_pesa, tax in [
-            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # pesable:10
-            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # pesable:10
-            ('Ham di Pasku 4 kg', True, 14.0),               # pesable:14
-            ('Aceite vegetal 12 x 1 L', False, 10.0),        # importado:10
+            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # imp:10, pesable
+            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # imp:10, pesable
+            ('Ham di Pasku 4 kg', True, 14.0),               # imp:14, pesable
+            ('Aceite vegetal 12 x 1 L', False, 10.0),        # imp:10, importado
         ]:
             _db.session.add(Producto(
                 nombre=nombre, descripcion='x', temperatura='Congelado',
@@ -152,7 +152,7 @@ def test_paso2_cliente_con_historial_siembra_lineas(app, logged_client):
     chuleta = prods['Chuleta de cerdo ahumada 5 kg']
     _crear_pedido(cliente_id, [(chuleta, 7)], dias_atras=3)
 
-    resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}&grupo=pesable:10')
+    resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10')
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
     assert 'id="form-nuevo-pedido"' in html
@@ -167,7 +167,7 @@ def test_paso2_orden_de_secciones(app, logged_client):
     cliente_id, prods = _ids()
     _crear_pedido(cliente_id, [(prods['Chuleta de cerdo ahumada 5 kg'], 7)], dias_atras=3)
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente_id}&grupo=pesable:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10').get_data(as_text=True)
 
     i_head = html.index('id="ph-cliente-head"')
     i_lineas = html.index('id="productos-body"')
@@ -188,7 +188,7 @@ def test_paso2_sin_historial_abre_panel(app, logged_client):
     from app import Cliente
     nuevo = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={nuevo.id}&grupo=pesable:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={nuevo.id}&grupo=imp:10').get_data(as_text=True)
     assert 'Sin pedidos anteriores' in html
     assert 'id="ph-add-panel"' in html
     # El panel arranca abierto: `hidden` no está en su tag de apertura. Se mira
@@ -208,7 +208,7 @@ def test_paso2_multigrupo_sin_grupo_repregunta(app, logged_client):
     html = resp.get_data(as_text=True)
     assert 'data-paso="cliente"' in html
     assert 'Qué pedido vas a tomar' in html
-    assert f'cliente={cliente_id}&amp;grupo=pesable:10' in html or f'cliente={cliente_id}&grupo=pesable:10' in html
+    assert f'cliente={cliente_id}&amp;grupo=imp:10' in html or f'cliente={cliente_id}&grupo=imp:10' in html
 
 
 def test_paso2_multigrupo_con_grupo_precarga_solo_ese(app, logged_client):
@@ -217,7 +217,7 @@ def test_paso2_multigrupo_con_grupo_precarga_solo_ese(app, logged_client):
         _crear_pedido(cliente_id, [(prods['Chuleta de cerdo ahumada 5 kg'], 3)], dias_atras=dias)
         _crear_pedido(cliente_id, [(prods['Ham di Pasku 4 kg'], 2)], dias_atras=dias - 1)
 
-    resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}&grupo=pesable:10')
+    resp = logged_client.get(f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10')
     html = resp.get_data(as_text=True)
     assert 'id="form-nuevo-pedido"' in html
     assert 'Chuleta de cerdo ahumada 5 kg' in html
@@ -242,7 +242,7 @@ def test_catalogo_paso2_trae_precio_del_cliente(app, logged_client):
     _crear_pedido(cliente_id, [(pid, 3)], dias_atras=3)
 
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente_id}&grupo=pesable:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10').get_data(as_text=True)
     assert '99.55' in html
 
 

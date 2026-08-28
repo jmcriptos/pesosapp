@@ -51,11 +51,11 @@ def app():
 
         # Los tres grupos de producción: `se_pesa` NO determina el impuesto.
         for nombre, se_pesa, tax in [
-            ('Aceite vegetal 12 x 1 L', False, 10.0),        # importado:10
-            ('Atun en lata 24 x 170 g', False, 10.0),        # importado:10
-            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # pesable:10
-            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # pesable:10
-            ('Ham di Pasku 4 kg', True, 14.0),               # pesable:14
+            ('Aceite vegetal 12 x 1 L', False, 10.0),        # imp:10, importado
+            ('Atun en lata 24 x 170 g', False, 10.0),        # imp:10, importado
+            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # imp:10, pesable
+            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # imp:10, pesable
+            ('Ham di Pasku 4 kg', True, 14.0),               # imp:14, pesable
         ]:
             _db.session.add(Producto(
                 nombre=nombre, descripcion='x', temperatura='Congelado',
@@ -142,7 +142,7 @@ def test_las_opciones_son_las_mismas_para_todos(app, logged_client, nombre):
 
     html = logged_client.get(f'/pedidos/nuevo?cliente={cliente.id}').get_data(as_text=True)
 
-    assert _claves_en_orden(html) == ['importado:10', 'pesable:10', 'pesable:14']
+    assert _claves_en_orden(html) == ['imp:10', 'imp:14']
 
 
 def test_el_orden_no_depende_del_historial(app, logged_client):
@@ -152,13 +152,13 @@ def test_el_orden_no_depende_del_historial(app, logged_client):
     que compró» movía las opciones de sitio entre un cliente y otro.
     """
     _sembrar_historial()
-    # El multigrupo compró pesable:14 lo último; el otro solo importados.
+    # El multigrupo compró imp:14 lo último; el otro solo del imp:10.
     a = _claves_en_orden(logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Multigrupo').id}").get_data(as_text=True))
     b = _claves_en_orden(logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Un Solo Grupo').id}").get_data(as_text=True))
 
-    assert a == b == ['importado:10', 'pesable:10', 'pesable:14']
+    assert a == b == ['imp:10', 'imp:14']
 
 
 def test_un_grupo_nuevo_del_catalogo_entra_en_su_posicion(app, logged_client):
@@ -173,8 +173,7 @@ def test_un_grupo_nuevo_del_catalogo_entra_en_su_posicion(app, logged_client):
     html = logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Sin Historial').id}").get_data(as_text=True)
 
-    assert _claves_en_orden(html) == [
-        'importado:5', 'importado:10', 'pesable:10', 'pesable:14']
+    assert _claves_en_orden(html) == ['imp:5', 'imp:10', 'imp:14']
 
 
 # ── El historial decora, no filtra ─────────────────────────────────────────
@@ -184,7 +183,7 @@ def test_cada_tarjeta_trae_el_historial_de_ese_cliente(app, logged_client):
     html = logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Un Solo Grupo').id}").get_data(as_text=True)
 
-    # Compró importados dos veces; de los pesables, nunca.
+    # Compró del imp:10 dos veces; del imp:14, nunca.
     assert '2 pedidos' in html
     assert 'Sin pedidos' in html
 
@@ -193,15 +192,14 @@ def test_cliente_sin_historial_no_muestra_conteos_inventados(app, logged_client)
     html = logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Sin Historial').id}").get_data(as_text=True)
 
-    assert html.count('Sin pedidos') == 3
+    assert html.count('Sin pedidos') == 2
     assert 'última vez' not in html
 
 
 def test_las_tarjetas_muestran_productos_de_ejemplo_del_catalogo(app, logged_client):
     """`tax_rate` es un código de QuickBooks, no un porcentaje: sin ejemplos el
-    vendedor no distingue «Pesables · imp. 10» de «Pesables · imp. 14». Y los
-    ejemplos salen del catálogo, así que un grupo que nunca compró también los
-    tiene."""
+    vendedor no distingue «Impuesto 10» de «Impuesto 14». Y los ejemplos salen
+    del catálogo, así que un grupo que nunca compró también los tiene."""
     html = logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Sin Historial').id}").get_data(as_text=True)
 
@@ -250,10 +248,10 @@ def test_elegir_grupo_lleva_al_pedido_con_su_habitual(app, logged_client):
     cliente = _cliente('Un Solo Grupo')
 
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente.id}&grupo=importado:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
 
     assert 'id="form-nuevo-pedido"' in html
-    assert 'name="grupo" value="importado:10"' in html
+    assert 'name="grupo" value="imp:10"' in html
 
 
 def test_grupo_sin_historial_abre_el_pedido_vacio(app, logged_client):
@@ -263,10 +261,10 @@ def test_grupo_sin_historial_abre_el_pedido_vacio(app, logged_client):
     cliente = _cliente('Un Solo Grupo')
 
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente.id}&grupo=pesable:14').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:14').get_data(as_text=True)
 
     assert 'id="form-nuevo-pedido"' in html
-    assert 'name="grupo" value="pesable:14"' in html
+    assert 'name="grupo" value="imp:14"' in html
     # El panel de añadir arranca abierto porque no hay líneas sembradas.
     panel = re.search(r'<div[^>]*id="ph-add-panel"[^>]*>', html).group(0)
     assert 'hidden' not in panel
@@ -281,11 +279,11 @@ def test_el_pedido_muestra_el_grupo_como_boton_que_vuelve_a_elegir(app, logged_c
     cliente = _cliente('Un Solo Grupo')
 
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente.id}&grupo=importado:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
 
     boton = re.search(r'<a[^>]*id="ph-grupo-actual"[^>]*>.*?</a>', html, re.S)
     assert boton, 'falta el botón de grupo en el paso del pedido'
-    assert 'Importados · imp. 10' in boton.group(0)
+    assert 'Impuesto 10' in boton.group(0)
     # Vuelve a la pantalla de grupos: `?cliente=` sin grupo.
     destino = re.search(r'href="([^"]*)"', boton.group(0)).group(1)
     assert destino.endswith(f'/pedidos/nuevo?cliente={cliente.id}')
@@ -296,7 +294,7 @@ def test_el_pedido_ya_no_trae_el_parrafo_de_la_salida_vieja(app, logged_client):
     pantalla, y una de ellas apuntaba a `grupo=nuevo`, que ya no existe."""
     _sembrar_historial()
     html = logged_client.get(
-        f"/pedidos/nuevo?cliente={_cliente('Un Solo Grupo').id}&grupo=importado:10"
+        f"/pedidos/nuevo?cliente={_cliente('Un Solo Grupo').id}&grupo=imp:10"
     ).get_data(as_text=True)
 
     assert 'pn-otro-grupo' not in html
@@ -310,7 +308,7 @@ def test_la_flecha_de_volver_del_pedido_lleva_a_los_grupos(app, logged_client):
     cliente = _cliente('Multigrupo')
 
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente.id}&grupo=pesable:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
 
     volver = re.search(r'<a[^>]*id="ph-cambiar-cliente"[^>]*>', html).group(0)
     href = re.search(r'href="([^"]*)"', volver).group(1)
@@ -323,7 +321,7 @@ def test_los_contadores_cuentan_cuatro_pasos(app, logged_client):
 
     grupos = logged_client.get(f'/pedidos/nuevo?cliente={cliente.id}').get_data(as_text=True)
     pedido = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente.id}&grupo=pesable:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
     clientes = logged_client.get('/pedidos/nuevo').get_data(as_text=True)
 
     assert '01 / 04' in clientes

@@ -50,10 +50,10 @@ def app():
                                 moneda='USD'))
 
         for nombre, se_pesa, tax in [
-            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # pesable:10
-            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # pesable:10
-            ('Ham di Pasku 4 kg', True, 14.0),               # pesable:14
-            ('Aceite vegetal 12 x 1 L', False, 10.0),        # importado:10
+            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # imp:10, pesable
+            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # imp:10, pesable
+            ('Ham di Pasku 4 kg', True, 14.0),               # imp:14, pesable
+            ('Aceite vegetal 12 x 1 L', False, 10.0),        # imp:10, importado
         ]:
             _db.session.add(Producto(
                 nombre=nombre, descripcion='x', temperatura='Congelado',
@@ -219,7 +219,7 @@ def test_paso2_no_escala_queries_con_el_catalogo(app, logged_client):
     event.listen(engine, 'before_cursor_execute', _contar)
     try:
         resp = logged_client.get(
-            f'/pedidos/nuevo?cliente={cliente_id}&grupo=importado:10')
+            f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10')
         assert resp.status_code == 200
     finally:
         event.remove(engine, 'before_cursor_execute', _contar)
@@ -414,7 +414,7 @@ def test_error_en_nuevo_conserva_el_grupo(app, logged_client):
 
     resp = logged_client.post('/pedidos/nuevo', data={
         'cliente_id': cliente_id, 'notas': '',
-        'grupo': 'pesable:10',
+        'grupo': 'imp:10',
         'productos[0][id]': prods['Chuleta de cerdo ahumada 5 kg'],
         'productos[0][cajas]': 'no-es-numero',
         'productos[0][precio]': '20.00',
@@ -422,7 +422,7 @@ def test_error_en_nuevo_conserva_el_grupo(app, logged_client):
     assert resp.status_code in (302, 303)
     location = resp.headers['Location']
     assert f'cliente={cliente_id}' in location
-    assert 'grupo=pesable' in location.replace('%3A', ':')
+    assert 'grupo=imp' in location.replace('%3A', ':')
 
 
 def test_paso2_lleva_el_grupo_en_un_hidden(app, logged_client):
@@ -434,9 +434,9 @@ def test_paso2_lleva_el_grupo_en_un_hidden(app, logged_client):
                       dias_atras=dias - 1)
 
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente_id}&grupo=pesable:10'
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10'
     ).get_data(as_text=True)
-    assert re.search(r'name="grupo"[^>]*value="pesable:10"', html.replace("'", '"'))
+    assert re.search(r'name="grupo"[^>]*value="imp:10"', html.replace("'", '"'))
 
 
 # ── Auditoría ──────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ def test_paso2_sin_hidden_nombre_muerto(app, logged_client):
     cliente_id, prods = _ids()
     _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 3)], dias_atras=3)
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente_id}&grupo=importado:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10').get_data(as_text=True)
     assert '[nombre]' not in html
 
 
@@ -550,5 +550,5 @@ def test_paso2_muestra_precio_unitario_en_las_lineas(app, logged_client):
     cliente_id, prods = _ids()
     _crear_pedido(cliente_id, [(prods['Aceite vegetal 12 x 1 L'], 3)], dias_atras=3)
     html = logged_client.get(
-        f'/pedidos/nuevo?cliente={cliente_id}&grupo=importado:10').get_data(as_text=True)
+        f'/pedidos/nuevo?cliente={cliente_id}&grupo=imp:10').get_data(as_text=True)
     assert 'c/u' in html

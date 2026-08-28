@@ -43,14 +43,14 @@ def app():
         _db.session.add(Cliente(nombre='Van den Tweel', territorio_id=territorio.id))
         _db.session.add(Cliente(nombre='Cliente Nuevo', territorio_id=territorio.id))
 
-        # Los tres grupos de facturación que existen en producción. Ojo con el
-        # tercero: `se_pesa` NO determina el impuesto — hay pesables con
-        # tax_rate 10 y con 14, así que el grupo es el par (se_pesa, tax_rate).
+        # Los dos grupos de facturación de producción son los dos impuestos.
+        # `se_pesa` no los parte: un pesable y un importado con el mismo
+        # impuesto van en el mismo pedido.
         for nombre, se_pesa, tax in [
-            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # pesable:10
-            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # pesable:10
-            ('Ham di Pasku 4 kg', True, 14.0),               # pesable:14
-            ('Aceite vegetal 12 x 1 L', False, 10.0),        # importado:10
+            ('Chuleta de cerdo ahumada 5 kg', True, 10.0),   # imp:10, pesable
+            ('Salchicha Frankfurter 2.5 kg', True, 10.0),    # imp:10, pesable
+            ('Ham di Pasku 4 kg', True, 14.0),               # imp:14, pesable
+            ('Aceite vegetal 12 x 1 L', False, 10.0),        # imp:10, importado
         ]:
             _db.session.add(Producto(
                 nombre=nombre, descripcion='x', temperatura='Congelado',
@@ -270,10 +270,10 @@ def test_servidor_rechaza_pedido_mezclado(app, logged_client):
     resp = logged_client.post('/pedidos/nuevo', data={
         'cliente_id': str(cliente_id),
         'tipo_cambio': '1.0',
-        'productos[0][id]': str(prods['Chuleta de cerdo ahumada 5 kg']),
+        'productos[0][id]': str(prods['Aceite vegetal 12 x 1 L']),
         'productos[0][cajas]': '3',
         'productos[0][precio]': '10.00',
-        'productos[1][id]': str(prods['Aceite vegetal 12 x 1 L']),
+        'productos[1][id]': str(prods['Ham di Pasku 4 kg']),
         'productos[1][cajas]': '2',
         'productos[1][precio]': '5.00',
     }, follow_redirects=True)
@@ -281,6 +281,33 @@ def test_servidor_rechaza_pedido_mezclado(app, logged_client):
     assert resp.status_code == 200
     assert Pedido.query.count() == antes, 'no debe crearse un pedido mezclado'
     assert 'impuestos distintos' in resp.get_data(as_text=True)
+
+
+def test_servidor_acepta_pesable_e_importado_del_mismo_impuesto(app, logged_client):
+    """La contracara: mezclar TIPOS con un mismo impuesto sí se factura.
+
+    Producción tiene 7 pedidos así (agosto 2026) y QuickBooks los facturó sin
+    quejarse; el guard es por impuesto, no por `se_pesa`.
+    """
+    from app import Pedido
+
+    cliente_id, prods = _ids()
+    antes = Pedido.query.count()
+
+    resp = logged_client.post('/pedidos/nuevo', data={
+        'cliente_id': str(cliente_id),
+        'tipo_cambio': '1.0',
+        'productos[0][id]': str(prods['Chuleta de cerdo ahumada 5 kg']),  # pesable, imp 10
+        'productos[0][cajas]': '3',
+        'productos[0][precio]': '10.00',
+        'productos[1][id]': str(prods['Aceite vegetal 12 x 1 L']),        # importado, imp 10
+        'productos[1][cajas]': '2',
+        'productos[1][precio]': '5.00',
+    }, follow_redirects=True)
+
+    assert resp.status_code == 200
+    assert Pedido.query.count() == antes + 1, 'el pedido debía crearse'
+    assert 'impuestos distintos' not in resp.get_data(as_text=True)
 
 
 def test_servidor_rechaza_mezcla_entre_dos_pesables(app, logged_client):
@@ -330,13 +357,13 @@ def test_cliente_multigrupo_no_precarga_sin_elegir(app, logged_client):
     """Precargar mezclado sería armar un pedido imposible de facturar."""
     cliente_id, prods = _ids()
     chuleta = prods['Chuleta de cerdo ahumada 5 kg']
-    aceite = prods['Aceite vegetal 12 x 1 L']
+    ham = prods['Ham di Pasku 4 kg']
 
     # Dos visitas de cada grupo, en pedidos separados (como en producción).
     _crear_pedido(cliente_id, [(chuleta, 8)], dias_atras=28)
     _crear_pedido(cliente_id, [(chuleta, 8)], dias_atras=21)
-    _crear_pedido(cliente_id, [(aceite, 3)], dias_atras=14)
-    _crear_pedido(cliente_id, [(aceite, 3)], dias_atras=7)
+    _crear_pedido(cliente_id, [(ham, 3)], dias_atras=14)
+    _crear_pedido(cliente_id, [(ham, 3)], dias_atras=7)
 
     datos = logged_client.get(f'/api/clientes/{cliente_id}/pedido-habitual').get_json()
 
@@ -344,27 +371,27 @@ def test_cliente_multigrupo_no_precarga_sin_elegir(app, logged_client):
     assert datos['grupo'] is None
     assert len(datos['grupos']) == 2
     # El grupo del pedido más reciente va primero en la lista.
-    assert datos['grupos'][0]['clave'] == 'importado:10'
+    assert datos['grupos'][0]['clave'] == 'imp:14'
 
 
 def test_elegir_grupo_precarga_solo_ese_grupo(app, logged_client):
     cliente_id, prods = _ids()
     chuleta = prods['Chuleta de cerdo ahumada 5 kg']
-    aceite = prods['Aceite vegetal 12 x 1 L']
+    ham = prods['Ham di Pasku 4 kg']
 
     _crear_pedido(cliente_id, [(chuleta, 8)], dias_atras=28)
     _crear_pedido(cliente_id, [(chuleta, 8)], dias_atras=21)
-    _crear_pedido(cliente_id, [(aceite, 3)], dias_atras=14)
-    _crear_pedido(cliente_id, [(aceite, 3)], dias_atras=7)
+    _crear_pedido(cliente_id, [(ham, 3)], dias_atras=14)
+    _crear_pedido(cliente_id, [(ham, 3)], dias_atras=7)
 
     datos = logged_client.get(
-        f'/api/clientes/{cliente_id}/pedido-habitual?grupo=pesable:10'
+        f'/api/clientes/{cliente_id}/pedido-habitual?grupo=imp:10'
     ).get_json()
 
-    assert datos['grupo'] == 'pesable:10'
+    assert datos['grupo'] == 'imp:10'
     ids = [l['id'] for l in datos['lineas']]
     assert ids == [chuleta]
-    assert aceite not in ids
+    assert ham not in ids
 
 
 def test_visitas_se_cuentan_dentro_del_grupo(app, logged_client):
@@ -376,15 +403,15 @@ def test_visitas_se_cuentan_dentro_del_grupo(app, logged_client):
     """
     cliente_id, prods = _ids()
     chuleta = prods['Chuleta de cerdo ahumada 5 kg']
-    aceite = prods['Aceite vegetal 12 x 1 L']
+    ham = prods['Ham di Pasku 4 kg']
 
     for dias in (8, 6, 4, 2):
         _crear_pedido(cliente_id, [(chuleta, 8)], dias_atras=dias)
     for dias in (7, 5, 3, 1):
-        _crear_pedido(cliente_id, [(aceite, 3)], dias_atras=dias)
+        _crear_pedido(cliente_id, [(ham, 3)], dias_atras=dias)
 
     datos = logged_client.get(
-        f'/api/clientes/{cliente_id}/pedido-habitual?grupo=pesable:10'
+        f'/api/clientes/{cliente_id}/pedido-habitual?grupo=imp:10'
     ).get_json()
 
     assert datos['visitas'] == 4
@@ -402,7 +429,7 @@ def test_cliente_de_un_solo_grupo_precarga_directo(app, logged_client):
 
     datos = logged_client.get(f'/api/clientes/{cliente_id}/pedido-habitual').get_json()
 
-    assert datos['grupo'] == 'pesable:10'
+    assert datos['grupo'] == 'imp:10'
     assert len(datos['grupos']) == 1
     assert [l['id'] for l in datos['lineas']] == [chuleta]
 

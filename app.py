@@ -6033,29 +6033,30 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
 
 
 def _grupo_facturable(producto):
-    """Grupo de facturación al que pertenece un producto.
+    """Grupo de facturación al que pertenece un producto: su impuesto.
 
-    Un pedido NO puede mezclar grupos: QuickBooks no factura en un mismo
-    documento líneas con impuestos distintos. Y el impuesto no se deduce de
-    `se_pesa` — en producción hay pesables con tax_rate 10 y con 14 — así que
-    el grupo es el par (se_pesa, tax_rate), no una sola de las dos columnas.
+    Un pedido NO puede mezclar grupos porque QuickBooks no factura en un mismo
+    documento líneas con impuestos distintos. Esa es toda la restricción.
 
-    Los 910 pedidos históricos cumplen esta partición sin una sola excepción.
+    `se_pesa` estuvo en esta clave y salió: no es una regla de facturación
+    sino cómo se prepara el producto, y partía en dos grupos lo que QuickBooks
+    factura junto. La evidencia de producción lo confirma — de 941 pedidos,
+    NINGUNO mezcla impuestos, pero 7 mezclan pesable con importado bajo un
+    mismo impuesto y los 7 se facturaron sin problema (agosto 2026).
     """
     if producto is None:
         return None
-    return ('pesable' if producto.se_pesa else 'importado', float(producto.tax_rate or 0))
+    return float(producto.tax_rate or 0)
 
 
 def _etiqueta_grupo(grupo):
     """Nombre legible del grupo para mostrarle al vendedor."""
-    if not grupo:
+    if grupo is None:
         return '—'
-    tipo, tax = grupo
-    base = 'Pesables' if tipo == 'pesable' else 'Importados'
-    # El tax_rate va en la etiqueta porque hay DOS grupos de pesables: sin él,
-    # el selector mostraría dos opciones llamadas igual.
-    return f'{base} · imp. {tax:g}'
+    # El tax_rate es un código de QuickBooks, no un porcentaje, así que por sí
+    # solo no le dice nada al vendedor: la tarjeta lo acompaña con dos
+    # productos de ejemplo.
+    return f'Impuesto {grupo:g}'
 
 
 def _validar_grupo_unico(lineas):
@@ -6365,7 +6366,7 @@ def nuevo_pedido():
         # + `?grupo=`): sin el cliente el form arranca de cero en el paso 1, y
         # sin el grupo un cliente multi-grupo caía en la re-pregunta de grupo
         # con el flash del error flotando sobre una pantalla sin líneas.
-        grupo_form = request.form.get('grupo') or None
+        grupo_form = _normalizar_clave_grupo(request.form.get('grupo')) or None
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, cliente_id)
         except _PedidoFormError as e:
@@ -6442,7 +6443,7 @@ def nuevo_pedido():
     # `grupo=nuevo` de la salida vieja, guardada en un marcador— vuelve acá en
     # vez de colarse al paso siguiente sin grupo.
     grupos_elegibles = _grupos_para_elegir(cliente.id)
-    grupo_arg = request.args.get('grupo') or None
+    grupo_arg = _normalizar_clave_grupo(request.args.get('grupo')) or None
     if grupo_arg not in {g['clave'] for g in grupos_elegibles}:
         return render_template(
             'pedido_cliente.html',
@@ -8757,10 +8758,27 @@ def _grupos_del_cliente(cliente_id, historial=None):
 
 def _clave_grupo(grupo):
     """Identificador estable del grupo, para viajar en la URL y el form."""
-    if not grupo:
+    # `is None` y no `not grupo`: el impuesto 0 es un grupo válido y falsy.
+    if grupo is None:
         return ''
-    tipo, tax = grupo
-    return f'{tipo}:{tax:g}'
+    return f'imp:{grupo:g}'
+
+
+def _normalizar_clave_grupo(clave):
+    """Acepta las claves viejas («pesable:14», «importado:14») además de la actual.
+
+    Antes el tipo viajaba en la clave. Un enlace guardado o una pestaña que
+    quedó abierta desde antes del cambio traen la forma vieja; lo que define
+    el grupo hoy es solo el impuesto, así que se conserva esa parte en vez de
+    mandar al vendedor de vuelta a elegir.
+    """
+    if not clave:
+        return ''
+    _, _, tax = str(clave).rpartition(':')
+    try:
+        return _clave_grupo(float(tax))
+    except ValueError:
+        return ''
 
 
 def _grupos_del_catalogo():
@@ -8772,9 +8790,9 @@ def _grupos_del_catalogo():
     cliente de un solo grupo no tenía dónde elegir otro (bug de Luna Park) y
     la lista se movía de sitio entre un cliente y otro.
 
-    Orden: importados antes que pesables, y dentro de cada tipo por impuesto
-    ascendente. Un impuesto nuevo entra en su posición sin tocar código, y un
-    grupo sin productos no aparece: no se podría pedir nada de él.
+    Orden: por impuesto ascendente. Un impuesto nuevo entra en su posición sin
+    tocar código, y un grupo sin productos no aparece: no se podría pedir nada
+    de él.
     """
     grupos = {}
     for producto in Producto.query.all():
@@ -8787,11 +8805,10 @@ def _grupos_del_catalogo():
         'clave': _clave_grupo(grupo),
         'etiqueta': _etiqueta_grupo(grupo),
         # El tax_rate es un código de QuickBooks, no un porcentaje: sin dos
-        # productos a la vista, «Pesables · imp. 10» y «Pesables · imp. 14»
-        # son indistinguibles para el vendedor.
+        # productos a la vista, «Impuesto 10» e «Impuesto 14» son
+        # indistinguibles para el vendedor.
         'ejemplos': sorted(nombres)[:2],
-    } for grupo, nombres in sorted(
-        grupos.items(), key=lambda kv: (kv[0][0] != 'importado', kv[0][1]))]
+    } for grupo, nombres in sorted(grupos.items(), key=lambda kv: kv[0])]
 
 
 def _grupos_para_elegir(cliente_id):
@@ -8810,16 +8827,13 @@ def _grupos_para_elegir(cliente_id):
 def _etiqueta_de_clave_grupo(clave):
     """Etiqueta legible a partir de la clave que viaja en la URL y el form.
 
-    El paso 2 tiene la clave ('importado:10'), no la tupla: para decirle al
-    vendedor QUÉ grupo tiene fijado el buscador hay que volver a la etiqueta.
+    El paso 2 tiene la clave ('imp:10'), no el valor: para decirle al vendedor
+    QUÉ grupo tiene fijado el buscador hay que volver a la etiqueta.
     """
+    clave = _normalizar_clave_grupo(clave)
     if not clave:
         return ''
-    tipo, _, tax = clave.partition(':')
-    try:
-        return _etiqueta_grupo((tipo, float(tax)))
-    except ValueError:
-        return ''
+    return _etiqueta_grupo(float(clave.partition(':')[2]))
 
 
 def _calcular_pedido_habitual(cliente_id, grupo_clave=None, visitas=_HABITUAL_VISITAS):
