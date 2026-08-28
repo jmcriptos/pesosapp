@@ -232,15 +232,36 @@ El nodo HTTP ya tiene el condicional de `CurrencyRef`; hay que agregarle
 `CustomField` de `DefinitionId: '1'` en vez del mapa local, y agregar el
 `Currency2` — **sujeto a la verificación de abajo**.
 
+## Ids de TaxCode (confirmados por JM, 2026-08-28)
+
+| Id | Nombre | Activo |
+|---|---|---|
+| `10` | OB 6% | Sí |
+| `11` | OB 9% | Sí |
+| `13` | Non Tax | Sí |
+| `14` | OB Non Tax Local Prod | Sí |
+| `12` | OB 6 - Inactive | **No** |
+| `TAX` / `NON` / `CustomSalesTax` | genéricos del sistema | Sí |
+
+`Producto.tax_rate` guarda exactamente uno de estos Ids, así que **la app ya
+manda el valor correcto** y no hace falta ningún campo nuevo para el impuesto:
+alcanza con que n8n lo use como código en vez de como porcentaje.
+
+Propiedad útil que sale de esto: como el código viaja tal cual, dar de alta un
+producto al **9% (`11`)** o exento (`13`) no requiere tocar código en ningún
+lado — solo cargar ese valor en el producto. Hoy solo se usan `10` y `14`.
+
+El `TaxCodeRef: 'TAX'` que n8n pone en cada línea se conserva: marca la línea
+como gravable, y la tasa la define el `TxnTaxCodeRef` de la transacción junto
+con `GlobalTaxCalculation: 'TaxExcluded'`.
+
 ## Pendiente de confirmar antes de implementar
 
-1. **Ids de TaxCode.** Hay que confirmar en QuickBooks que `10` y `14` son los
-   Ids reales de los TaxCode de 6% y 0%. El diseño del impuesto depende de
-   esto; si no lo son, la app tiene que mandar un campo `tax_code_qbo` aparte.
-2. **`Currency2` por API.** Los campos personalizados nuevos de QBO (`udcf_*`)
+1. **`Currency2` por API.** Los campos personalizados nuevos de QBO (`udcf_*`)
    no siempre son escribibles por el array `CustomField` de la API v3, que
    históricamente solo admite los tres legacy (DefinitionId 1–3). Si no se
    puede, ese campo sigue cargándose a mano y hay que decirlo, no simularlo.
+   Es el único de los cuatro que puede quedar sin resolver.
 
 ## Fuera de alcance
 
@@ -266,5 +287,9 @@ El nodo HTTP ya tiene el condicional de `CurrencyRef`; hay que agregarle
 - **El cambio de n8n y el de la app tienen que ir juntos.** El payload nuevo es
   retrocompatible (solo agrega), así que se puede desplegar la app primero; el
   impuesto y el tipo de cambio no mejoran hasta que n8n se actualice.
-- Si los ids de TaxCode no son 10/14, el arreglo del impuesto queda a medias y
-  hay que rediseñar esa parte.
+- **El impuesto se arregla solo del lado de n8n.** Es el único de los cuatro
+  que no necesita nada de la app: si se actualiza n8n y nada más, la tasa ya
+  sale bien. Conviene hacerlo primero por ser el de mayor impacto y menor
+  riesgo.
+- Los 64 productos arrancan sin clase. Hasta que se carguen, las facturas
+  salen igual que hoy en ese aspecto (sin `ClassRef`), no peor.
