@@ -193,7 +193,8 @@ siguen viviendo.
 | `app.py` (`lista_pedidos`) | Decidir modo por presencia de parámetros; construir los cuatro grupos para el tablero |
 | `templates/pedidos.html` | Tablero vs lista; el buscador queda en los dos |
 | `templates/_pedidos_tablero.html` (nuevo) | Los grupos |
-| `templates/_pedidos_resultados.html` | Sin cambios de fondo: es el modo lista |
+| `templates/_pedido_card_cuerpo.html` (nuevo) | El cuerpo de la tarjeta, extraído para que el tablero y la lista usen literalmente la misma |
+| `templates/_pedidos_resultados.html` | Es el modo lista. Solo cambia por la extracción de la tarjeta a su parcial: nada de su lógica se toca |
 | `static/css/pedidos_list.css` | Encabezados de grupo, marca de «hecho» |
 | `tests/test_pedidos_tablero.py` (nuevo) | Agrupación y contrato de modos |
 | `tests/test_pedidos_lista_entrega.py` | Apuntar a `?estado=todos` |
