@@ -8,7 +8,12 @@
  *
  *  CAMBIOS 2026-08-28
  *  1. IMPUESTO: `tax_rate` NO es un porcentaje, es el Id del
- *     TaxCode de QBO (10 = OB 6%, 14 = OB Non Tax Local Prod).
+ *     TaxCode de QBO. OJO: esta empresa esta en modo US, asi que
+ *     el TaxCodeRef DE LINEA solo acepta 'TAX' o 'NON' (error
+ *     6100 si se manda otra cosa). El codigo real va solo en
+ *     TxnTaxDetail.TxnTaxCodeRef.
+ *     Codigos: 10 = OB 6%, 13 = Non Tax (exportacion),
+ *     14 = OB Non Tax Local Prod.
  *     Las tablas viejas solo tenian 0/6/9, asi que 10 y 14 caian
  *     las dos al mismo fallback y ademas se calculaba un
  *     TotalTax inventado. Ahora el codigo viaja tal cual y QBO
@@ -139,6 +144,19 @@ const taxCodeDe = (l) => {
   return String(Number(v));
 };
 
+// QBO tiene esta empresa en modo US: el TaxCodeRef DE LINEA solo
+// acepta 'TAX' o 'NON'. Mandar el codigo real ahi devuelve
+// "Valid line TaxCodes for US should be TAX or NON" (error 6100,
+// visto el 2026-08-28). El codigo real va SOLO a nivel de
+// transaccion, en TxnTaxDetail.TxnTaxCodeRef.
+const CODIGOS_EXENTOS = new Set([
+  '13',  // Non Tax (exportacion)
+  '14'   // OB Non Tax Local Prod
+]);
+
+const lineaGravable = (codigo) =>
+  CODIGOS_EXENTOS.has(codigo) ? 'NON' : 'TAX';
+
 const taxCodeFactura = taxCodeDe(body.lines?.[0]);
 console.log(`TaxCode de QBO: ${taxCodeFactura || '(ninguno)'}`);
 
@@ -229,7 +247,7 @@ for (const l of map.values()) {
     console.log(`Linea sin nombre: ${l.product_qbo_id}`);
   }
 
-  const lineTaxCode = taxCodeDe(l) || taxCodeFactura;
+  const codigoLinea = taxCodeDe(l) || taxCodeFactura;
 
   const lineItem = {
     DetailType: 'SalesItemLineDetail',
@@ -245,11 +263,9 @@ for (const l of map.values()) {
     }
   };
 
-  if (lineTaxCode) {
-    lineItem.SalesItemLineDetail.TaxCodeRef = {
-      value: lineTaxCode
-    };
-  }
+  lineItem.SalesItemLineDetail.TaxCodeRef = {
+    value: lineaGravable(codigoLinea)
+  };
 
   // ---- clase ----
   let lineClass = null;

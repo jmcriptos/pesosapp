@@ -48,8 +48,32 @@ El payload lo arma `pedido_a_json`. Campos que el nodo consume:
 | `lines[].product_qbo_id` | `ItemRef.value` |
 | `lines[].descripcion` | `ItemRef.name` (n8n también acepta `product_name`) |
 | `lines[].class_ref` | `ClassRef` — gana sobre la detección por palabras clave |
-| `lines[].tax_rate` | **Id de TaxCode de QBO**, no un porcentaje: `TaxCodeRef` de la línea y `TxnTaxCodeRef` de la transacción |
+| `lines[].tax_rate` | **Id de TaxCode de QBO**, no un porcentaje. Va a `TxnTaxDetail.TxnTaxCodeRef` (transacción). En la **línea** se traduce a `TAX`/`NON` — ver abajo |
 | `lines[].qty` / `unit_price` | `Qty` / `UnitPrice`; se agrupa por `(product_qbo_id, unit_price)` |
 
 Diseño completo:
 `docs/superpowers/specs/2026-08-28-factura-qbo-sin-correcciones-design.md`
+
+
+## La trampa del impuesto (modo US)
+
+Esta empresa está configurada en QuickBooks en **modo US**. Eso significa que
+`Line.SalesItemLineDetail.TaxCodeRef` **solo acepta `TAX` o `NON`**. Mandarle
+el código real devuelve:
+
+```
+6100 — Invalid Line TaxCode in the request
+Valid line TaxCodes for US should be TAX or NON. Supplied value: 10
+```
+
+El código real (10 / 13 / 14) va **únicamente** en
+`TxnTaxDetail.TxnTaxCodeRef`. La línea se marca:
+
+| `tax_rate` de la app | Línea | Transacción |
+|---|---|---|
+| `10` — OB 6% | `TAX` | `10` |
+| `13` — Non Tax (exportación) | `NON` | `13` |
+| `14` — OB Non Tax Local Prod | `NON` | `14` |
+
+El código viejo mandaba siempre `TAX` en la línea, así que un producto exento
+no tenía forma de salir al 0% y había que corregir la factura a mano.
