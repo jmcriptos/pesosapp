@@ -9143,6 +9143,28 @@ def api_precios_cliente(cliente_id):
 ############################################
 
 
+def _parse_unidades_por_caja(raw):
+    """Normaliza el campo del form. Devuelve (valor, motivo_del_error).
+
+    - vacío            -> (None, None)   el producto vuelve a rotular «Boxes:»
+    - entero >= 1      -> (n, None)
+    - cualquier otra   -> (None, motivo) quien llama conserva lo que ya había
+
+    Un valor inválido NO borra el que estaba guardado: perder un 24 por un
+    typo recién se notaría en la etiqueta ya impresa.
+    """
+    texto = (raw or '').strip()
+    if not texto:
+        return None, None
+    try:
+        valor = int(texto)
+    except (TypeError, ValueError):
+        return None, 'Unidades por caja: se ignoró «%s», tiene que ser un número entero.' % texto
+    if valor < 1:
+        return None, 'Unidades por caja: se ignoró «%s», tiene que ser 1 o más.' % texto
+    return valor, None
+
+
 @app.route('/productos', methods=['GET', 'POST'])
 @login_required
 def productos():
@@ -9157,6 +9179,11 @@ def productos():
             tax_rate    = float(request.form.get('tax_rate', 0.0))
 
             proveedor   = request.form.get('proveedor', '').strip() or None
+            unidades_por_caja, error_unidades = _parse_unidades_por_caja(
+                request.form.get('unidades_por_caja')
+            )
+            if error_unidades:
+                flash(error_unidades, 'warning')
 
             nuevo = Producto(
                 nombre=nombre,
@@ -9165,7 +9192,8 @@ def productos():
                 qbo_id=qbo_id,
                 tax_rate=tax_rate,
                 se_pesa='se_pesa' in request.form,
-                proveedor=proveedor
+                proveedor=proveedor,
+                unidades_por_caja=unidades_por_caja
             )
             db.session.add(nuevo)
             db.session.commit()
@@ -9230,6 +9258,15 @@ def editar_producto(producto_id):
         producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
         producto.se_pesa     = 'se_pesa' in request.form
         producto.proveedor   = request.form.get('proveedor', '').strip() or None
+
+        unidades_por_caja, error_unidades = _parse_unidades_por_caja(
+            request.form.get('unidades_por_caja')
+        )
+        if error_unidades:
+            flash(error_unidades, 'warning')
+        else:
+            producto.unidades_por_caja = unidades_por_caja
+
         db.session.commit()
         flash('Producto actualizado correctamente.', 'success')
         return redirect(url_for('productos'))

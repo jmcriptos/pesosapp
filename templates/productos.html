@@ -42,6 +42,16 @@
                  placeholder="Ej: Distribuidora ABC">
         </div>
         <div class="mobile-form-group">
+          <label for="unidades-por-caja" class="mobile-form-label">Unidades por caja:</label>
+          <input type="number" id="unidades-por-caja" name="unidades_por_caja"
+                 min="1" step="1" inputmode="numeric"
+                 class="mobile-form-control" placeholder="Ej: 24">
+          <small class="fs-08" style="color:#64748b;">
+            Solo para productos que se venden por caja: la etiqueta rotula
+            «Units: 24» en vez de «Boxes:». Vacío = sin declarar.
+          </small>
+        </div>
+        <div class="mobile-form-group">
           <label for="qbo-producto" class="mobile-form-label">QBO ID (opcional):</label>
           <input type="text" id="qbo-producto" name="qbo_id" class="mobile-form-control">
         </div>

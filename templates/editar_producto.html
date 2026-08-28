@@ -58,6 +58,19 @@
                 </div>
 
                 <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="unidades_por_caja">Unidades por caja:</label>
+                    <input type="number" id="unidades_por_caja" name="unidades_por_caja"
+                           value="{{ producto.unidades_por_caja or '' }}"
+                           min="1" step="1" inputmode="numeric"
+                           class="mobile-form-control" placeholder="Ej: 24">
+                    <small class="fs-08" style="color:#64748b;">
+                        Solo para productos que se venden por caja. La etiqueta rotula
+                        «Units: 24» en vez de «Boxes:». Media caja lleva la mitad.
+                        Vacío = sin declarar.
+                    </small>
+                </div>
+
+                <div class="mobile-form-group">
                     <label class="mobile-form-label" for="proveedor">Proveedor:</label>
                     <input type="text" id="proveedor" name="proveedor" value="{{ producto.proveedor or '' }}"
                            class="mobile-form-control" placeholder="Ej: Distribuidora ABC">
