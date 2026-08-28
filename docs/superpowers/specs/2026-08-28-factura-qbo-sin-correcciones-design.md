@@ -100,22 +100,67 @@ sin sentido (10% o 14%). Evidencia en producción:
 Ese es el «a veces sale bien»: cuando corresponde 6% coincide con el fallback;
 cuando corresponde 0%, no.
 
-### 3. El tipo de cambio no sale de la app ni se usa en n8n
+### 3 y 4. La moneda del cliente está mal en la app — una sola causa
 
-`Pedido.tipo_cambio` existe (1.0 para XCG, 1.78 para USD) y **no está en el
-payload**. El nodo de código dice `/** SIN CurrencyRef **/` y nunca setea
-`CurrencyRef` ni `ExchangeRate`; el condicional del nodo HTTP siempre resuelve
-a vacío. La moneda y la tasa las decide QBO por la ficha del cliente.
+Los clientes de exportación **son USD en QuickBooks**. Verificado en facturas
+reales: la 5838 (Caribe Nobo) y la 5821 (Famoso) salen con
+`currency_info: { symbol: "$", currency: "USD" }`.
+
+En la app, en cambio, están cargados como **XCG**. De ahí salen dos de las
+cuatro correcciones manuales:
+
+- **El campo personalizado «Currency»** dice «XCG - Caribbean Guilder» sobre
+  una factura en dólares. n8n lo deriva de `body.currency`, que la app manda
+  como `XCG` porque `Cliente.moneda` lo dice.
+- **El tipo de cambio** nunca aparece: con `moneda = XCG`,
+  `Pedido.tipo_cambio` queda en 1.0 y la app cree que no aplica.
+
+Además, `pedido_a_json` no manda `tipo_cambio` y el nodo de código de n8n dice
+`/** SIN CurrencyRef **/` y nunca setea `CurrencyRef` ni `ExchangeRate`.
 
 Dato relevante: QBO reporta la moneda base como **`ANG`** (símbolo ƒ), no
 `XCG`. El `CurrencyRef` tiene que usar el código de QBO, no el de la app.
 
-### 4. n8n solo carga tres de los cuatro campos personalizados
+**Consecuencia que nadie había mirado:** como esos pedidos quedan con
+`tipo_cambio = 1.0`, el dashboard cuenta las ventas de exportación 1:1 en vez
+de multiplicarlas por 1.78. Las está subestimando un 44%.
 
-Escribe `CustomField` con `DefinitionId` 1 (Currency), 2 (Sales Rep) y 3
+### 5. `Currency2` no lo escribe nadie
+
+n8n escribe `CustomField` con `DefinitionId` 1 (Currency), 2 (Sales Rep) y 3
 (Tax ID). Las facturas tienen además **`Currency2`** (`udcf_1000000003`), una
-lista con XCG / USD / ANG que **n8n nunca toca**. Por eso a veces está vacío
-(factura 5835) y a veces cargado (las ya corregidas).
+lista con XCG / USD / ANG que **n8n nunca toca**.
+
+## Exportación
+
+Regla de negocio confirmada por JM (2026-08-28): **moneda USD ⇒ es
+exportación ⇒ TaxCode `13` (Non Tax)**, cualquiera sea el producto.
+
+Clientes de exportación (todos de Bonaire):
+
+| Id | Cliente | `moneda` en la app | Acción |
+|---|---|---|---|
+| 20 | Caribe Nobo | XCG | corregir a USD |
+| 21 | Carniceria Latino | XCG | corregir a USD |
+| 25 | Famoso | XCG | corregir a USD |
+| 133 | Caribe Sup | XCG | corregir a USD |
+| 529 | Liza Convenience Store | USD | ya está bien |
+
+Hasta hoy esas facturas salieron con el código del **producto**: `14` para los
+cárnicos y `10` (¡6%!) para atunes y aceites. Hay pedidos históricos de Caribe
+Nobo y Caribe Sup con productos al 10 desde agosto de 2025 — cada una de esas
+facturas se corrigió a mano.
+
+**La corrección de moneda no cambia lo que se le cobra al cliente**: el cliente
+en QBO ya es USD, así que la factura ya salía en dólares con esos mismos
+números. Lo que cambia es del lado de la app (tipo de cambio y dashboard) y el
+campo personalizado.
+
+**Fuera de alcance, en manos de JM:** revisar si las listas de precios de esos
+clientes están cargadas en USD o en XCG. Varios productos tienen el mismo
+precio que para un cliente local (Aglio Oil 51,00 en ambos), lo que bajo un
+cliente USD significa cobrar un 78% de más. Eso condiciona si la corrección del
+dashboard queda bien, no si la factura sale bien.
 
 ## Diseño
 
@@ -188,6 +233,36 @@ hoy (sin `ClassRef`), no se bloquea nada.
 **Payload.** `pedido_a_json` agrega los campos de arriba. `class_ref` se omite
 de la línea cuando el producto no tiene clase, para no mandar `null`.
 
+**Impuesto de exportación.** El `tax_rate` de cada línea deja de salir
+directamente del producto: si el cliente es USD, todas las líneas llevan `13`.
+Un solo helper con la regla, para que no se copie en dos lados:
+
+```python
+TAX_CODE_EXPORTACION = '13'  # Non Tax — ver tabla de TaxCodes
+
+def _tax_code_de_linea(pedido, producto):
+    """Código de impuesto de QBO para una línea.
+
+    La exportación manda sobre el producto: a un cliente en USD se le factura
+    exento sea cual sea la mercadería. Sin esto, un atún (código 10, OB 6%)
+    se le cobraba con 6% a un cliente de Bonaire.
+    """
+    if (pedido.cliente.moneda or 'XCG').upper() == 'USD':
+        return TAX_CODE_EXPORTACION
+    return producto.tax_rate
+```
+
+**Corrección de datos en producción.** Los cuatro clientes de exportación
+cargados como XCG pasan a USD:
+
+```sql
+UPDATE cliente SET moneda = 'USD' WHERE id IN (20, 21, 25, 133);
+```
+
+No toca pedidos históricos: `Pedido.tipo_cambio` ya está guardado en cada uno y
+se conserva — misma decisión que en `tipo-cambio-expediente` («olvida los
+pedidos viejos»). Solo los pedidos nuevos toman 1.78.
+
 **Validación.** `_validar_datos_facturacion` suma un aviso —no un error— por
 cada producto sin clase: «X: sin clase de QuickBooks; la línea saldrá sin
 clasificar». Se muestra igual que los errores actuales pero no impide
@@ -255,13 +330,25 @@ El `TaxCodeRef: 'TAX'` que n8n pone en cada línea se conserva: marca la línea
 como gravable, y la tasa la define el `TxnTaxCodeRef` de la transacción junto
 con `GlobalTaxCalculation: 'TaxExcluded'`.
 
-## Pendiente de confirmar antes de implementar
+## Pendiente
 
 1. **`Currency2` por API.** Los campos personalizados nuevos de QBO (`udcf_*`)
    no siempre son escribibles por el array `CustomField` de la API v3, que
    históricamente solo admite los tres legacy (DefinitionId 1–3). Si no se
    puede, ese campo sigue cargándose a mano y hay que decirlo, no simularlo.
    Es el único de los cuatro que puede quedar sin resolver.
+
+2. **El paso de «grupo de facturación» para clientes de exportación.** Pregunta
+   abierta, no decidida: el grupo se deriva del `tax_rate` del **producto** y
+   existe para impedir que un pedido mezcle impuestos. Para un cliente USD todo
+   va al `13`, así que la restricción deja de tener sentido — hoy Caribe Nobo
+   no puede pedir atún (10) y jamón (14) en el mismo pedido aunque los dos se
+   facturen exentos.
+
+   **No se toca en esta implementación.** Es una limitación que ya existe, no
+   una regresión, y el paso 2 se hizo obligatorio a propósito hace poco
+   («el grupo de facturación se elige siempre»). Deshacerlo de costado sería
+   peor que dejarlo. Queda anotado para decidir aparte.
 
 ## Fuera de alcance
 
@@ -275,12 +362,26 @@ con `GlobalTaxCalculation: 'TaxExcluded'`.
 
 - Tests de `pedido_a_json`: los campos nuevos con sus valores, y que
   `class_ref` se omita cuando el producto no tiene clase.
+- Test del impuesto de exportación: un cliente USD factura **todas** sus líneas
+  con `13`, incluso las de un producto con `tax_rate = 10`; un cliente XCG
+  conserva el código del producto.
 - Test de la pantalla de productos: la clase se guarda y se relee.
 - Test de `_validar_datos_facturacion`: avisa por producto sin clase y **no**
   bloquea la facturación.
 - Prueba de punta a punta: un pedido de un cliente XCG y otro de un cliente
   USD, verificando en QBO la clase por línea, la tasa, la moneda y el tipo de
   cambio **sin tocar nada a mano**.
+
+## Orden de despliegue
+
+1. **n8n** (JM, ya entregado): arregla el impuesto por sí solo. Los campos de
+   moneda quedan dormidos hasta que la app los mande.
+2. **App**: columna, pantalla, payload y el helper de impuesto de exportación.
+   Es aditivo: con el n8n viejo no empeora nada.
+3. **Datos**: el `UPDATE cliente` de moneda. Es el que activa el impuesto de
+   exportación, el tipo de cambio y el campo «Currency».
+4. **Clasificar los 64 productos** (JM), con las clases presugeridas por las
+   palabras clave del workflow.
 
 ## Riesgos
 
