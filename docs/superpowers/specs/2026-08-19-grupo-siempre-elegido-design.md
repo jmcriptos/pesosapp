@@ -1,7 +1,13 @@
 # Toma de pedido: el grupo se elige siempre
 
 Fecha: 2026-08-19
-Estado: aprobado, pendiente de implementar
+Estado: implementado (v869). **La partición de grupos que describe quedó
+superada el 2026-08-28**: el grupo pasó a ser el `tax_rate` solo, sin
+`se_pesa`, así que donde este documento dice tres o cuatro grupos
+(«Importados · imp. 10», «Pesables · imp. 14») hoy hay uno por impuesto. El
+resto —que el grupo se elige siempre, sale del catálogo y va en orden fijo—
+sigue vigente. Ver
+[2026-08-28-grupo-por-impuesto-design.md](2026-08-28-grupo-por-impuesto-design.md).
 
 ## El problema
 
