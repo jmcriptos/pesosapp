@@ -8,24 +8,22 @@
    so the override chain is greppable from the static dir.
    ============================================================================= */
 
+/* Paleta de la pantalla de pedidos.
+   Estos valores eran los de un tema oscuro que nunca llegó a mandar: la
+   pantalla se renderiza clara porque `pedidos_list.css` los pisaba uno por uno
+   con !important. El más caro era `--orders-text: #f3f7ff`, que `.app-shell`
+   hereda: dejaba el texto del contenedor en 1.06:1 contra el fondo, así que
+   todo lo visible sobrevivía redeclarando su propio color y cualquier cosa
+   agregada sin hacerlo nacía invisible.
+   Ahora los valores dicen lo que la pantalla muestra. Los 11 tokens que no
+   consumía nadie se borraron. */
 :root {
-    --orders-bg: transparent;
-    --orders-panel: rgba(11, 18, 30, 0.88);
-    --orders-panel-soft: rgba(20, 30, 49, 0.88);
-    --orders-panel-strong: rgba(10, 15, 27, 0.96);
-    --orders-border: rgba(96, 165, 250, 0.18);
-    --orders-border-strong: rgba(96, 165, 250, 0.32);
-    --orders-text: #f3f7ff;
-    --orders-muted: #93a4c3;
-    --orders-blue: #1f8bff;
-    --orders-blue-soft: rgba(31, 139, 255, 0.16);
-    --orders-green: #22c55e;
-    --orders-green-soft: rgba(34, 197, 94, 0.16);
-    --orders-amber: #fbbf24;
-    --orders-amber-soft: rgba(251, 191, 36, 0.16);
-    --orders-red: #fb7185;
-    --orders-red-soft: rgba(251, 113, 133, 0.16);
-    --orders-shadow: 0 22px 48px rgba(2, 8, 23, 0.34);
+    --orders-panel: #ffffff;
+    --orders-border: #f1f5f9;
+    --orders-border-strong: #e2e8f0;
+    --orders-text: #0f172a;
+    --orders-blue: #2563eb;
+    --orders-shadow: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
 }
 
 /* ── App Shell (mobile wrapper) ── */
