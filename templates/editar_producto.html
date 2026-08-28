@@ -49,6 +49,16 @@
                 </div>
 
                 <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="clase_qbo">Clase (QuickBooks):</label>
+                    <select id="clase_qbo" name="clase_qbo" class="mobile-form-control">
+                        <option value="">Sin clase</option>
+                        {% for id, nombre in (clases_qbo or {}).items() %}
+                        <option value="{{ id }}" {{ 'selected' if producto.clase_qbo == id }}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mobile-form-group">
                     <label class="mobile-checkbox-label">
                         <input type="checkbox" name="se_pesa" value="1"
                                class="mobile-checkbox"

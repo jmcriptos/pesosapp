@@ -2172,6 +2172,10 @@ class Producto(db.Model):
     # con su lote y su peso) pero que en QuickBooks se facturan contra un mismo
     # ítem de servicio. Todo lookup por qbo_id debe contemplar varios productos.
     qbo_id = db.Column(db.String(20), index=True)
+    # Id de Class de QuickBooks. n8n ya respeta `class_ref` por línea con
+    # máxima prioridad; hasta que la app lo mandó, NINGUNA línea salía
+    # clasificada y había que ponerle la clase a mano a cada factura.
+    clase_qbo = db.Column(db.String(30), nullable=True)
     tax_rate = db.Column(db.Float, nullable=False, default=0.0)  # Nueva columna para tasa de impuesto
     se_pesa = db.Column(db.Boolean, default=False, nullable=False)
     proveedor = db.Column(db.String(100))
@@ -2186,6 +2190,7 @@ class Producto(db.Model):
             'descripcion': self.descripcion,
             'temperatura': self.temperatura,
             'qbo_id': self.qbo_id,
+            'clase_qbo': self.clase_qbo,
             'tax_rate': self.tax_rate,
             'se_pesa': self.se_pesa,
             'proveedor': self.proveedor,
@@ -3575,6 +3580,86 @@ def _htmx_error_response(message, status=422):
 # --------------------------------------------------
 # Actualizar la función pedido_a_json en app.py
 
+# Clases de QuickBooks. Los ids salen del workflow de n8n, que ya las usaba
+# para adivinar por palabras clave. Agregar una clase nueva en QBO exige
+# agregar una línea acá; son cinco valores estables, una tabla propia sería
+# sobreingeniería.
+CLASES_QBO = {
+    '600000000005541105': 'Cocidos y Ahumados',
+    '600000000005391641': 'Atún Van Camps',
+    '529395': 'Mantova',
+    '600000000005012031': 'Tomate',
+    '600000000005391660': 'Untables Underwood',
+}
+
+# TaxCode de QuickBooks para exportación. Ver la tabla de TaxCodes en
+# docs/superpowers/specs/2026-08-28-factura-qbo-sin-correcciones-design.md
+TAX_CODE_EXPORTACION = '13'
+
+# QBO llama ANG a la moneda local; la app la llama XCG.
+MONEDA_QBO = {'XCG': 'ANG', 'ANG': 'ANG', 'USD': 'USD'}
+MONEDA_ETIQUETA = {
+    'XCG': 'XCG - Caribbean Guilder',
+    'ANG': 'XCG - Caribbean Guilder',
+    'USD': 'USD - US Dollar',
+}
+
+
+def _es_exportacion(cliente):
+    """Un cliente en USD es una exportación (regla de negocio, 2026-08-28)."""
+    return (getattr(cliente, 'moneda', None) or 'XCG').upper() == 'USD'
+
+
+def _tax_code_de_linea(pedido, producto):
+    """Código de impuesto de QBO para una línea.
+
+    La exportación manda sobre el producto: a un cliente en USD se le factura
+    exento sea cual sea la mercadería. Sin esto, un atún (código 10, OB 6%) se
+    le cobraba con 6% a un cliente de Bonaire y había que corregir la factura.
+    """
+    if _es_exportacion(pedido.cliente):
+        return TAX_CODE_EXPORTACION
+    return producto.tax_rate
+
+
+def _linea_factura(pedido, producto, descripcion, qty, precio, subtotal):
+    """Una línea del payload, con todo lo que la factura necesita.
+
+    `product_name` es un alias de `descripcion`: n8n busca ese nombre y sin él
+    dejaba `ItemRef.name` vacío. `class_ref` se omite —no se manda null— para
+    que n8n no lo tome como una clase y pise su propia detección.
+    """
+    linea = {
+        "product_qbo_id": producto.qbo_id,
+        "descripcion": descripcion,
+        "product_name": producto.nombre,
+        "qty": qty,
+        "unit_price": float(precio),
+        "amount": round(subtotal, 2),
+        "tax_rate": _tax_code_de_linea(pedido, producto),
+    }
+    if producto.clase_qbo:
+        linea["class_ref"] = producto.clase_qbo
+    return linea
+
+
+def _productos_sin_clase(payload):
+    """Nombres de los productos del payload que van sin clasificar.
+
+    Es un AVISO, no un error: `_validar_datos_facturacion` bloquea la
+    facturación con cualquier string que devuelva, y arrancar exigiendo la
+    clase dejaría la app inservible hasta clasificar los 64 productos.
+    """
+    vistos = []
+    for linea in payload.get('lines') or []:
+        if linea.get('class_ref'):
+            continue
+        nombre = linea.get('product_name') or linea.get('descripcion') or '?'
+        if nombre not in vistos:
+            vistos.append(nombre)
+    return vistos
+
+
 def pedido_a_json(pedido: Pedido) -> dict:
     lineas = []
     total  = 0
@@ -3598,14 +3683,10 @@ def pedido_a_json(pedido: Pedido) -> dict:
                 continue
             subtotal = float(detalle.precio_unitario) * qty
             total += subtotal
-            lineas.append({
-                "product_qbo_id": detalle.producto.qbo_id,
-                "descripcion": detalle.producto.nombre,
-                "qty": qty,
-                "unit_price": float(detalle.precio_unitario),
-                "amount": round(subtotal, 2),
-                "tax_rate": detalle.producto.tax_rate,
-            })
+            lineas.append(_linea_factura(
+                pedido, detalle.producto, detalle.producto.nombre,
+                qty, detalle.precio_unitario, subtotal,
+            ))
 
     # Productos que aún tienen línea original (lo que pidió el cliente). Una
     # línea de preparación sin su línea original es huérfana (el producto fue
@@ -3635,20 +3716,22 @@ def pedido_a_json(pedido: Pedido) -> dict:
         subtotal = float(d.precio_unitario) * qty
         total   += subtotal
 
-        lineas.append({
-            "product_qbo_id": d.producto.qbo_id,
-            "descripcion"   : descripcion,
-            "qty"           : qty,
-            "unit_price"    : float(d.precio_unitario),
-            "amount"        : round(subtotal, 2),
-            "tax_rate"      : d.producto.tax_rate
-        })
+        lineas.append(_linea_factura(
+            pedido, d.producto, descripcion, qty, d.precio_unitario, subtotal,
+        ))
 
+    moneda = (pedido.cliente.moneda or 'XCG').upper()
     return {
         "order_id"        : pedido.id,
         "order_date"      : pedido.fecha_pedido.isoformat(),
         "customer_qbo_id" : pedido.cliente.qbo_id,
-        "currency"        : pedido.cliente.moneda or 'XCG',
+        "currency"        : moneda,
+        # QBO llama ANG a la moneda local. `currency_display` es el texto del
+        # campo personalizado «Currency», que salía «XCG - Caribbean Guilder»
+        # sobre facturas en dólares porque el cliente estaba mal cargado.
+        "currency_qbo"    : MONEDA_QBO.get(moneda, 'ANG'),
+        "currency_display": MONEDA_ETIQUETA.get(moneda, MONEDA_ETIQUETA['XCG']),
+        "exchange_rate"   : float(pedido.tipo_cambio or 1),
         "notes"           : pedido.notas,
         "lines"           : lineas,
         "total"           : round(total, 2)
@@ -7927,6 +8010,18 @@ def facturar_pedido(pedido_id):
             flash(err, 'error')
         return redirect(url_for('lista_pedidos'))
 
+    # Aviso, no error: una línea sin clase se factura igual, solo sale sin
+    # clasificar. Bloquear dejaría la app inservible hasta clasificar los 64
+    # productos, y hasta hoy NINGUNA línea salía clasificada.
+    sin_clase = _productos_sin_clase(payload)
+    if sin_clase:
+        flash(
+            'Estos productos se facturaron sin clase de QuickBooks: '
+            f'{", ".join(sin_clase)}. Cargásela en Productos para que la '
+            'próxima factura salga clasificada.',
+            'warning',
+        )
+
     # ── Guard: verificar que N8N está configurado ──
     if not N8N_WEBHOOK_URL:
         app.logger.error(f'N8N_WEBHOOK_URL no configurada. No se puede facturar pedido {pedido_id}.')
@@ -9299,6 +9394,13 @@ def _parse_unidades_por_caja(raw):
     return valor, None
 
 
+def _parse_clase_qbo(valor):
+    """Clase de QBO del formulario. Solo se aceptan ids del catálogo conocido:
+    un id inventado haría fallar la factura entera del lado de QuickBooks."""
+    valor = (valor or '').strip()
+    return valor if valor in CLASES_QBO else None
+
+
 def _productos_que_comparten_qbo_id(qbo_id, excluir_id=None):
     """Otros productos que ya usan ese código de QuickBooks."""
     if not qbo_id:
@@ -9357,6 +9459,7 @@ def productos():
                 descripcion=descripcion,
                 temperatura=temperatura,
                 qbo_id=qbo_id,
+                clase_qbo=_parse_clase_qbo(request.form.get('clase_qbo')),
                 tax_rate=tax_rate,
                 se_pesa='se_pesa' in request.form,
                 proveedor=proveedor,
@@ -9393,7 +9496,8 @@ def productos():
     # GET → listamos todos los productos ordenados
     todos = Producto.query.order_by(Producto.id.asc()).all()
     return render_template('productos.html', productos=todos,
-                           conteo_qbo=_conteo_por_qbo_id(todos))
+                           conteo_qbo=_conteo_por_qbo_id(todos),
+                           clases_qbo=CLASES_QBO)
 
 
 
@@ -9410,6 +9514,7 @@ def editar_producto(producto_id):
         producto.descripcion = request.form.get('descripcion', '')
         producto.temperatura = request.form.get('temperatura', '')
         producto.qbo_id      = request.form.get('qbo_id', '').strip() or None
+        producto.clase_qbo   = _parse_clase_qbo(request.form.get('clase_qbo'))
         producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
         producto.se_pesa     = 'se_pesa' in request.form
         producto.proveedor   = request.form.get('proveedor', '').strip() or None
@@ -9427,7 +9532,8 @@ def editar_producto(producto_id):
         _avisar_qbo_id_compartido(producto)
         return redirect(url_for('productos'))
 
-    return render_template('editar_producto.html', producto=producto)
+    return render_template('editar_producto.html', producto=producto,
+                           clases_qbo=CLASES_QBO)
 
 
 

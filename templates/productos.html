@@ -56,6 +56,16 @@
           <input type="text" id="qbo-producto" name="qbo_id" class="mobile-form-control">
         </div>
         <div class="mobile-form-group">
+          <label for="clase-producto" class="mobile-form-label">Clase (QuickBooks):</label>
+          <select id="clase-producto" name="clase_qbo" class="mobile-form-control">
+            <option value="">Sin clase</option>
+            {% for id, nombre in (clases_qbo or {}).items() %}
+            <option value="{{ id }}">{{ nombre }}</option>
+            {% endfor %}
+          </select>
+          <small class="mobile-form-help">Sin clase, la línea sale sin clasificar en la factura.</small>
+        </div>
+        <div class="mobile-form-group">
           <label for="tax_rate" class="mobile-form-label">TaxCode ID:</label>
           <select id="tax_rate" name="tax_rate" class="mobile-form-control">
             <option value="10">OB 6%</option>
