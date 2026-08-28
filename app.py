@@ -5676,7 +5676,11 @@ def lista_pedidos():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # Máximo 100 por página
-    estado = (request.args.get('estado', 'todos', type=str) or 'todos').strip().lower()
+    # La pantalla abre en lo que necesita trabajo, no en «Todos». Abrir en la
+    # lista completa —facturados incluidos— obligaba a un acto de descubrimiento
+    # (que las cifras de arriba eran botones) para llegar a lo pendiente, que es
+    # el trabajo real del vendedor. «Todos» sigue a un toque.
+    estado = (request.args.get('estado', 'por_preparar', type=str) or 'por_preparar').strip().lower()
     estado = estado if estado in {
         'todos', 'pendiente', 'preparado', 'facturado',
         'hoy', 'vencido', 'por_preparar',
@@ -5728,14 +5732,21 @@ def lista_pedidos():
         Pedido.estado != 'entregado'
     )
 
-    # Orden: 1) Estado (pendiente → preparado → facturado), 2) ID desc
+    # Orden: 1) el trabajo terminado al final, 2) urgencia por fecha de entrega,
+    # 3) id desc para desempatar.
+    #
+    # Antes agrupaba por estado y después ordenaba por `id`, o sea por orden de
+    # inserción: los vencidos quedaban desparramados y un preparado con cuatro
+    # días de atraso caía debajo de un pendiente de la semana que viene. La
+    # urgencia manda por encima del estado; lo único que se hunde es lo ya
+    # facturado, que no compite por el tope aunque sea viejo.
+    #
+    # Los pedidos sin `fecha_entrega` (los históricos, anteriores a la columna)
+    # van al final del bloque activo: no son urgentes, pero no desaparecen.
     orden_optimizado = [
-        db.case(
-            (Pedido.estado == 'pendiente', 0),
-            (Pedido.estado == 'preparado', 1),
-            (Pedido.estado == 'facturado', 2),
-            else_=3
-        ),
+        db.case((Pedido.estado == 'facturado', 1), else_=0),
+        db.case((Pedido.fecha_entrega.is_(None), 1), else_=0),
+        Pedido.fecha_entrega.asc(),
         Pedido.id.desc(),
     ]
 

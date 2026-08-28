@@ -23,13 +23,22 @@
      "Vencidos" solo se pinta en rojo cuando hay alguno — un cero en rojo
      alarma sin motivo. #}
   <div class="pedidos-cifras">
-    <button type="button" class="cifra" data-estado="por_preparar"
+    {# Las cifras son los DOS filtros que no tienen píldora propia, y «Por
+       preparar» es además el que trae puesto la pantalla al abrir. Sin marcar
+       cuál está aplicado, la fila de filtros se lee como «sin filtrar» en cada
+       carga. #}
+    <button type="button"
+            class="cifra{% if filtros.estado == 'por_preparar' %} is-active{% endif %}"
+            data-estado="por_preparar"
+            aria-pressed="{{ 'true' if filtros.estado == 'por_preparar' else 'false' }}"
             aria-label="Ver los {{ status_counts.por_preparar }} pedidos por preparar">
       <span class="cifra-valor">{{ status_counts.por_preparar }}</span>
       <span class="cifra-label">Por preparar</span>
     </button>
-    <button type="button" class="cifra{% if status_counts.vencido %} cifra-alerta{% endif %}"
+    <button type="button"
+            class="cifra{% if status_counts.vencido %} cifra-alerta{% endif %}{% if filtros.estado == 'vencido' %} is-active{% endif %}"
             data-estado="vencido"
+            aria-pressed="{{ 'true' if filtros.estado == 'vencido' else 'false' }}"
             aria-label="Ver los {{ status_counts.vencido }} pedidos vencidos">
       <span class="cifra-valor">{{ status_counts.vencido }}</span>
       <span class="cifra-label">Vencidos</span>
