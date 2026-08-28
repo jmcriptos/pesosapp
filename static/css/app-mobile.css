@@ -91,6 +91,19 @@ body {
   cursor: pointer;
   color: var(--color-text);
   transition: transform 140ms ease;
+  position: relative;
+}
+
+/* El destino de toque llega a 48px sin que la píldora crezca.
+   Medían 36×36, por debajo del piso de la guía, y la barra superior mide
+   exactamente 48px de alto: agrandarlas de verdad las dejaba pegadas al borde
+   de arriba y al de abajo. Así que crece el área que recibe el dedo, no el
+   dibujo — 36 + 6 por lado = 48, que es justo el alto de la barra, con lo que
+   tampoco se desborda. La app se opera en ruta, muchas veces con una mano. */
+.nav-pill::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 .nav-pill:hover { transform: translateY(-1px); }
 .nav-pill[aria-pressed="true"] {
@@ -203,6 +216,10 @@ body {
 /* ============================================================================
    Mobile topbar: brand mark + actions
    ============================================================================ */
+/* El logo es un enlace al dashboard y medía 32px de alto —el alto de su propio
+   cuadradito—, por debajo del piso de toque. Sube a 48 por padding: no mueve
+   nada porque la barra ya mide 48 y centra su contenido, y el cuadradito sigue
+   igual de grande. */
 .mobile-brand {
   display: inline-flex;
   align-items: center;
@@ -210,6 +227,7 @@ body {
   text-decoration: none;
   color: var(--color-text);
   padding: 0 8px;
+  min-height: 48px;
 }
 .mobile-brand-mark {
   width: 32px;
@@ -229,10 +247,13 @@ body {
   font-weight: 700;
   letter-spacing: -0.01em;
 }
+/* 12px y no 6: cada píldora extiende su área táctil 6px por lado, así que con
+   6px de separación las dos áreas se pisaban y en esa franja el dedo caía en el
+   control de al lado. Con 12 se tocan justo, sin solaparse. */
 .mobile-topbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   margin-left: auto;
 }
 .nav-pill-bell {
