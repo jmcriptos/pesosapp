@@ -5747,10 +5747,19 @@ def lista_pedidos():
     #
     # Los pedidos sin `fecha_entrega` (los históricos, anteriores a la columna)
     # van al final del bloque activo: no son urgentes, pero no desaparecen.
+    #
+    # Dentro de los FACTURADOS no hay urgencia que ordenar: el trabajo terminó y
+    # lo que se busca es el último. Ordenarlos por `fecha_entrega` ascendente
+    # como a los activos dejaba el recién facturado ÚLTIMO de su bloque, fuera
+    # de la primera página — que es de donde salió "se perdió el pedido después
+    # de facturarlo". Por eso las dos claves de fecha se anulan para ellos y el
+    # desempate cae en `id desc`: lo último facturado, primero.
     orden_optimizado = [
         db.case((Pedido.estado == 'facturado', 1), else_=0),
-        db.case((Pedido.fecha_entrega.is_(None), 1), else_=0),
-        Pedido.fecha_entrega.asc(),
+        db.case((Pedido.estado == 'facturado', 0),
+                (Pedido.fecha_entrega.is_(None), 1), else_=0),
+        db.case((Pedido.estado == 'facturado', None),
+                else_=Pedido.fecha_entrega).asc(),
         Pedido.id.desc(),
     ]
 
@@ -6742,14 +6751,18 @@ def eliminar_pedido(pedido_id):
         flash('No se puede eliminar un pedido facturado', 'error')
         return redirect(url_for('lista_pedidos'))
 
-    # Audit before the cascade kicks in so we can reconstruct what
-    # was lost from the event log.
+    # El rastro va a `evento_auditoria`, que NO tiene FK al pedido.
+    # `pedido_evento` sí la tiene, con ON DELETE CASCADE: el evento que se
+    # escribía acá se lo llevaba por delante el propio DELETE de abajo, así que
+    # de un pedido borrado no quedaba absolutamente nada (comprobado el
+    # 2026-08-28 con los pedidos 1300, 1302 y 1303, de los que no hay registro).
     cajas_count = sum(d.cajas_pesadas_count for d in pedido.detalles)
-    _log_pedido_evento(
-        pedido,
-        'eliminado',
-        f'Pedido eliminado (estado={pedido.estado}, líneas={len(pedido.detalles)}, cajas_pesadas={cajas_count})',
-        commit=True,
+    cliente_nombre = pedido.cliente.nombre if pedido.cliente else 'sin cliente'
+    _audit(
+        'pedido',
+        f'Eliminó el pedido {pedido.id}',
+        f'{cliente_nombre[:60]} · estado={pedido.estado} · '
+        f'líneas={len(pedido.detalles)} · cajas_pesadas={cajas_count}',
     )
 
     db.session.delete(pedido)
