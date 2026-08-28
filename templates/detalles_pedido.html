@@ -242,23 +242,18 @@ function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, ca
     const editFabGroup = document.getElementById('edit_fecha_fabricacion').closest('.mobile-form-group');
     const editExpGroup = document.getElementById('edit_fecha_expiracion').closest('.mobile-form-group');
 
-    if (sePesa) {
-        // Manufactura: todos los campos visibles y requeridos
-        editLoteGroup.style.display = '';
-        editFabGroup.style.display = '';
-        editExpGroup.style.display = '';
-        document.getElementById('edit_lote').required = true;
-        document.getElementById('edit_fecha_fabricacion').required = true;
-        document.getElementById('edit_fecha_expiracion').required = true;
-    } else {
-        // Importación: solo Cajas + F. Expiración (opcional)
-        editLoteGroup.style.display = 'none';
-        editFabGroup.style.display = 'none';
-        editExpGroup.style.display = '';
-        document.getElementById('edit_lote').required = false;
-        document.getElementById('edit_fecha_fabricacion').required = false;
-        document.getElementById('edit_fecha_expiracion').required = false;
-    }
+    // Lote y fechas van SIEMPRE, se pese el producto o se venda por caja: la
+    // etiqueta las imprime en los dos casos. Antes se ocultaban para los
+    // productos por caja, así que quedaban en NULL — y como el generador de
+    // etiquetas filtra por fecha de fabricación, esas líneas se descartaban
+    // sin aviso. Le pasó al pedido 1305 (2026-08-28), que salió con las
+    // etiquetas del pesable y ninguna de sus dos productos por caja.
+    editLoteGroup.style.display = '';
+    editFabGroup.style.display = '';
+    editExpGroup.style.display = '';
+    document.getElementById('edit_lote').required = true;
+    document.getElementById('edit_fecha_fabricacion').required = true;
+    document.getElementById('edit_fecha_expiracion').required = true;
 
     // Mostrar el modal
     editModalOverlay.classList.add('show');

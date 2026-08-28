@@ -175,6 +175,8 @@ def test_editar_cantidad_importado_sincroniza(logged_client, app):
     resp = logged_client.post(
         f'/detalles_pedido/{prep_id}/editar',
         data={'producto_id': producto_id, 'peso': '4',
+              # Trazabilidad obligatoria también por caja (2026-08-28).
+              'lote': 'L-TEST', 'fecha_fabricacion': '2026-08-01',
               'fecha_expiracion': '2026-12-31'},
         follow_redirects=True,
     )

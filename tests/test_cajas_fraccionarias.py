@@ -249,9 +249,11 @@ def test_actualizar_detalle_media_caja_sincroniza_original(app, logged_client):
     resp = logged_client.post(f'/detalles_pedido/{prep_id}/editar', data={
         'producto_id': importado_id,
         'peso': '0.5',   # el modal manda cajas en el campo peso
-        'lote': '',
-        'fecha_fabricacion': '',
-        'fecha_expiracion': '',
+        # Obligatorios también para productos por caja desde 2026-08-28: la
+        # etiqueta los imprime y sin ellos la línea no genera etiqueta.
+        'lote': 'L-TEST',
+        'fecha_fabricacion': '2026-08-01',
+        'fecha_expiracion': '2026-12-31',
     }, follow_redirects=True)
     assert resp.status_code == 200
 
@@ -287,9 +289,11 @@ def test_actualizar_detalle_rechaza_fraccion_invalida(app, logged_client):
     resp = logged_client.post(f'/detalles_pedido/{prep_id}/editar', data={
         'producto_id': importado_id,
         'peso': '0.3',
-        'lote': '',
-        'fecha_fabricacion': '',
-        'fecha_expiracion': '',
+        # Obligatorios también para productos por caja desde 2026-08-28: la
+        # etiqueta los imprime y sin ellos la línea no genera etiqueta.
+        'lote': 'L-TEST',
+        'fecha_fabricacion': '2026-08-01',
+        'fecha_expiracion': '2026-12-31',
     }, follow_redirects=True)
     assert resp.status_code == 200
     assert b'cuarto' in resp.data

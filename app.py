@@ -3377,12 +3377,25 @@ def _detalle_legacy_to_label_item(detalle, medida_valor=None):
 
 
 def _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin):
+    items, _omitidas = _label_items_y_omitidas(pedido, fecha_ini, fecha_fin)
+    return items
+
+
+def _label_items_y_omitidas(pedido, fecha_ini, fecha_fin):
+    """(etiquetas, omitidas) para un pedido.
+
+    `omitidas` son las líneas de preparación que NO producen etiqueta, con su
+    motivo. La ruta solo avisaba cuando no salía ninguna etiqueta: si el pedido
+    mezcla un producto pesado (que sí las genera) con uno por caja sin fecha,
+    el PDF salía corto y nada lo decía. Pasó con el pedido 1305 (2026-08-28).
+    """
     inicio = _date_like_to_date(fecha_ini)
     fin = _date_like_to_date(fecha_fin)
     if not inicio or not fin:
-        return []
+        return [], []
 
     items = []
+    omitidas = []
     productos_con_cajas = set()
 
     for detalle in _pedido_detalles_pesables(pedido):
@@ -3404,8 +3417,13 @@ def _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin):
     for detalle in legacy_detalles:
         if detalle.producto and detalle.producto.se_pesa and detalle.producto_id in productos_con_cajas:
             continue
+        nombre = detalle.producto.nombre if detalle.producto else 'N/A'
         fecha_fab = _date_like_to_date(detalle.fecha_fabricacion)
-        if not fecha_fab or not (inicio <= fecha_fab <= fin):
+        if not fecha_fab:
+            omitidas.append((nombre, 'sin fecha de fabricación'))
+            continue
+        if not (inicio <= fecha_fab <= fin):
+            omitidas.append((nombre, 'fuera del rango de fechas'))
             continue
 
         unidades_por_caja = getattr(detalle.producto, 'unidades_por_caja', None)
@@ -3416,7 +3434,15 @@ def _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin):
         else:
             items.append(_detalle_legacy_to_label_item(detalle))
 
-    return items
+    return items, omitidas
+
+
+def _avisar_lineas_sin_etiqueta(omitidas):
+    """Deja constancia de lo que el PDF NO trae, en vez de callarlo."""
+    if not omitidas:
+        return
+    detalle = ', '.join(f'{nombre} ({motivo})' for nombre, motivo in omitidas)
+    flash(f'No se generaron etiquetas de: {detalle}.', 'warning')
 
 
 def _validar_preparacion_pedido(pedido):
@@ -7265,6 +7291,12 @@ def editar_detalle_pedido(detalle_id):
         if not all([peso, lote, fecha_fabricacion, fecha_expiracion]):
             flash('Peso, lote, fecha fabricación y fecha expiración son requeridos', 'error')
             return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+    elif not all([lote, fecha_fabricacion, fecha_expiracion]):
+        # Los productos por caja también llevan trazabilidad en su etiqueta, y
+        # sin fecha de fabricación el generador los descarta. El `required` del
+        # modal se puede saltear, así que la guarda tiene que estar acá.
+        flash('Lote, fecha fabricación y fecha expiración son requeridos', 'error')
+        return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     # Actualizar el detalle
     detalle.producto_id = producto_id
@@ -7345,7 +7377,8 @@ def generar_etiqueta_detalle(pedido_id):
             flash("Formato de fecha inválido", "danger")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        items = _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin)
+        items, omitidas = _label_items_y_omitidas(pedido, fecha_ini, fecha_fin)
+        _avisar_lineas_sin_etiqueta(omitidas)
 
         if not items:
             error_msg = "No hay detalles en ese rango de fechas"
@@ -7448,7 +7481,8 @@ def generar_etiqueta_detalle_a4(pedido_id):
             flash("Formato de fecha inválido", "danger")
             return redirect(url_for('detalles_pedido', pedido_id=pedido_id))
 
-        items = _build_label_items_for_pedido(pedido, fecha_ini, fecha_fin)
+        items, omitidas = _label_items_y_omitidas(pedido, fecha_ini, fecha_fin)
+        _avisar_lineas_sin_etiqueta(omitidas)
 
         if not items:
             error_msg = "No hay detalles en ese rango de fechas"
