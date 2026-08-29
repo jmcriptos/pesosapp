@@ -184,6 +184,22 @@ def test_al_borrar_la_busqueda_se_vuelve_al_tablero(logged_client):
     assert 'data-tablero="1"' in html
 
 
+def test_el_tablero_incluye_la_rama_de_busqueda_del_js(logged_client):
+    """Guarda de humo, no de comportamiento: este proyecto no tiene suite de
+    JS, así que no se puede ejercitar acá el debounce, `enTablero` ni el
+    submit nativo del form. Lo único que este test afirma es que la rama de
+    JS que hace que buscar desde el tablero navegue a la lista (`var
+    enTablero = ...`, en templates/pedidos.html) sigue presente en el HTML
+    servido. Si alguien la borra en un refactor sin querer, este test avisa;
+    si la rompe de otra forma (typo en el nombre del evento, url_for mal
+    armado, etc.), este test NO lo detecta — para eso hace falta un navegador
+    de verdad, como en la verificación manual de la Tarea 4."""
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'data-tablero="1"' in html, 'este test asume que /pedidos es tablero'
+    assert 'enTablero' in html, 'se perdió la rama de búsqueda del tablero'
+
+
 def test_un_parametro_reconocido_devuelve_la_lista(logged_client):
     _crear('pendiente', dias=0)
     html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)

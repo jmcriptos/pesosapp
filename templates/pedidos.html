@@ -116,6 +116,31 @@
     var anuncio = document.getElementById('pedidos-anuncio');
     var errorBox = document.getElementById('pedidos-error');
 
+    // La navegación de la tarjeta vale en los DOS modos: en el tablero el
+    // contenedor es .pedidos-tablero y en la lista es #pedidos-resultados.
+    // Estaba atada solo al segundo, así que en el tablero la tarjeta se veía
+    // tocable —cursor:pointer, :active con escala— y no navegaba: solo
+    // funcionaba si el toque caía justo sobre el link del nombre del
+    // cliente. Delegado (no por tarjeta) porque en la lista el contenedor
+    // se reemplaza entero en cada fetch.
+    var contenedorTarjetas = resultados || document.querySelector('.pedidos-tablero');
+    if (contenedorTarjetas) {
+      contenedorTarjetas.addEventListener('click', function (event) {
+        var el = event.target.closest('.pedido-row[data-href], .pedido-card[data-href]');
+        if (!el) return;
+        if (event.target.closest('a, button, form, input, label')) return;
+        window.location.href = el.dataset.href;
+      });
+      contenedorTarjetas.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        var el = event.target.closest('.pedido-row[data-href], .pedido-card[data-href]');
+        if (!el) return;
+        if (event.target.closest('a, button, form, input, label')) return;
+        event.preventDefault();
+        window.location.href = el.dataset.href;
+      });
+    }
+
     // En el tablero no hay bloque de resultados que reemplazar: buscar navega
     // a la lista. Desde la lista sí se hace por fetch, para no cerrar el
     // teclado de iOS a cada tecla.
@@ -170,6 +195,20 @@
     function cargarResultados(extra) {
       if (!resultados) return;
       var params = urlDeConsulta(extra);
+
+      // El estado va SIEMPRE explícito en la URL (ver urlDeConsulta), así que
+      // `estado=todos` no cuenta como un filtro elegido: es el default. Si no
+      // queda ningún OTRO parámetro reconocido, borrar la búsqueda debe
+      // devolver al tablero —el trabajo del día— en vez de recargar el
+      // parcial con una lista sin filtrar. Mismo contrato que ya cumple una
+      // navegación fresca a `/pedidos?q=` (server-side, PARAMS_DE_LISTA).
+      var comparacion = new URLSearchParams(params.toString());
+      if (comparacion.get('estado') === 'todos') comparacion.delete('estado');
+      if (!comparacion.toString()) {
+        location.href = '{{ url_for("lista_pedidos") }}';
+        return;
+      }
+
       var visible = params.toString();
       params.set('partial', '1');
 
@@ -325,22 +364,6 @@
         e.preventDefault();
         if (ordenInput) ordenInput.value = th.dataset.orden;
         cargarResultados();
-      });
-
-      // Navegación de tarjetas y filas: delegada, así sobrevive a los swaps.
-      resultados.addEventListener('click', function (event) {
-        var el = event.target.closest('.pedido-row[data-href], .pedido-card[data-href]');
-        if (!el) return;
-        if (event.target.closest('a, button, form, input, label')) return;
-        window.location.href = el.dataset.href;
-      });
-      resultados.addEventListener('keydown', function (event) {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        var el = event.target.closest('.pedido-row[data-href], .pedido-card[data-href]');
-        if (!el) return;
-        if (event.target.closest('a, button, form, input, label')) return;
-        event.preventDefault();
-        window.location.href = el.dataset.href;
       });
     }
 
