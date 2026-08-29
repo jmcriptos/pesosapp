@@ -522,7 +522,9 @@ button.action-btn-mobile.action-delete { background: rgba(248,113,113,0.1) !impo
 .pagination-current-mobile { color: #f1f5f9 !important; }
 /* Empty state */
 .pedidos-empty { color: #64748b !important; }
-.pedidos-empty i { color: #3b4a5c !important; }
+/* Hijo directo: descendiente pintaba de gris oscuro el icono de dentro de
+   los botones del vacío —1,65:1 sobre el verde del CTA— con !important. */
+.pedidos-empty > i { color: #3b4a5c !important; }
 
 /* ── 13. Detalles Pedido Page ── */
 /* Status bar */

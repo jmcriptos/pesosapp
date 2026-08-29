@@ -47,6 +47,11 @@ body[data-pedidos-list-screen] .app-shell {
      ese ajuste es específico de ESE fondo (#ffe4e6) y este texto va sobre
      blanco liso: rose-600 ya da ~4,7:1 ahí. */
   --color-danger-soft-fg: #e11d48;
+
+  /* Y su fondo, por lo mismo: sin fijar, en oscuro resuelve a
+     rgba(244,63,94,0.15) y la píldora «Vencidos» deja de tener el fondo rosa
+     sólido sobre el que se calculó su tinta. */
+  --color-danger-soft: #ffe4e6;
 }
 
 body[data-pedidos-list-screen] .app-shell {
@@ -692,7 +697,13 @@ body[data-pedidos-list-screen] .pedidos-empty {
   box-shadow: var(--shadow-card);
 }
 
-body[data-pedidos-list-screen] .pedidos-empty i {
+/* Hijo DIRECTO, no descendiente. Sin el `>`, esta regla alcanzaba al
+   `<i class="fa fa-plus">` que vive DENTRO de los botones del propio vacío: el
+   «+» de «Cargar un pedido» se dibujaba a 35px, display:block y en gris oscuro
+   sobre el verde del botón —1,65:1 y desalineado, pisando el texto—. Son los
+   dos CTA del estado por defecto de producción y del vacío de búsqueda, o sea
+   la primera impresión diaria de la app. */
+body[data-pedidos-list-screen] .pedidos-empty > i {
   font-size: 2.2rem;
   color: var(--color-text-subtle);
   margin-bottom: 10px;
@@ -1489,4 +1500,101 @@ body[data-pedidos-list-screen] .tablero-volver:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Crítica del 2026-08-29, tercera pasada — modo oscuro del sistema
+   ──────────────────────────────────────────────────────────── */
+
+/* Tercera vez que se amplía esta lista, y las dos anteriores quedaron cortas.
+   La causa está en `static/styles.css:2`: un `:root {` que nunca cierra deja
+   342 bloques anidados adentro, todos con especificidad prestada, y su @media
+   de modo oscuro pinta `button` sin que las reglas de autor le ganen.
+   Cerrar esa llave es el arreglo de fondo y tiene su propio spec: cambia la
+   cascada de 342 reglas en toda la app y necesita verificación pantalla por
+   pantalla. Esto de acá es la contención mientras tanto. */
+
+/* El BUSCADOR escribía blanco sobre blanco en modo oscuro: medido
+   rgb(248,249,250) sobre rgb(255,255,255) = 1,05:1. Invisible. Y el buscador
+   es la puerta al archivo —lo dice el spec del tablero—, así que en oscuro la
+   única vía a los 950 pedidos facturados no mostraba lo que se tecleaba.
+   Va con literal y no con token: comprobado que un literal inline SÍ gana,
+   o sea que el token no era el problema, la cascada sí. */
+body[data-pedidos-list-screen] .search-pill input,
+body[data-pedidos-list-screen] .search-pill input[type="text"],
+body[data-pedidos-list-screen] .search-pill input[type="search"] {
+  color: #0f172a !important;
+  /* `-webkit-text-fill-color` NO es decorativo acá: es lo que de verdad dibuja
+     el texto. La regla ganadora sobre `color` en modo oscuro es una de las 342
+     que el `:root` sin cerrar de styles.css anida, y ni siquiera se puede
+     enumerar desde el CSSOM —`matches()` lanza excepción sobre esos selectores
+     generados—, así que no hay guarda de especificidad que la pueda apuntar.
+     Verificado por captura: con esto el texto se dibuja oscuro sobre la
+     píldora blanca. Es un puente hasta que se cierre la llave; cuando eso pase,
+     esta línea se puede borrar. */
+  -webkit-text-fill-color: #0f172a;
+}
+
+body[data-pedidos-list-screen] .search-pill input::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8;
+}
+
+/* Las PÍLDORAS DE FILTRO son <button>, así que las alcanzaba el mismo bleed:
+   medido en oscuro, cuatro de las cinco quedaban en blanco sobre blanco
+   (1,00:1) y la de «Vencidos» en blanco sobre rosa (1,20:1). Solo se veía la
+   activa, porque su fondo oscuro la salvaba por casualidad. Son la única
+   respuesta a «¿qué estoy viendo?» en una pantalla de 960 registros. */
+body[data-pedidos-list-screen] .filters button.filter-pill {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+  color: var(--color-text-muted) !important;
+  border-color: var(--color-border) !important;
+}
+
+body[data-pedidos-list-screen] .filters button.filter-pill .filter-pill-count {
+  color: var(--color-text-muted) !important;
+}
+
+/* La activa se distingue por FONDO, no por un borde de 1px: en oscuro la
+   diferencia entre puesta y no puesta era el color de un borde. */
+body[data-pedidos-list-screen] .filters button.filter-pill.is-active {
+  background: var(--color-text) !important;
+  color: #ffffff !important;
+  border-color: var(--color-text) !important;
+}
+
+body[data-pedidos-list-screen] .filters button.filter-pill.is-active .filter-pill-count {
+  color: #ffffff !important;
+}
+
+body[data-pedidos-list-screen] .filters button.filter-pill.filter-pill-alerta:not(.is-active),
+body[data-pedidos-list-screen] .filters button.filter-pill.filter-pill-alerta:not(.is-active) .filter-pill-count {
+  background: var(--color-danger-soft) !important;
+  color: #9f1239 !important;
+  border-color: transparent !important;
+}
+
+/* Los ENCABEZADOS ORDENABLES también son <button>: en oscuro los cuatro se
+   pintaban de azul lleno y la fila de encabezado se leía como cuatro botones
+   encendidos, mientras TOTAL / NOTA / ACCIONES quedaban planos. */
+body[data-pedidos-list-screen] .tabla-pedidos th button.th-orden {
+  background: transparent !important;
+  background-image: none !important;
+  color: inherit !important;
+}
+
+/* El TÍTULO DE GRUPO se queda a la vista mientras se recorre el grupo.
+   El tablero mide ~2585px con diez pedidos —tres pantallas—, y el título es lo
+   ÚNICO que dice si lo que estás mirando es Atrasados, Hoy o Próximos: la
+   barrita lateral de color codifica el estado, no el grupo, así que un
+   pendiente que entrega hoy y uno que entrega en cuatro días se ven iguales.
+   Sin esto, dos tercios del recorrido son tarjetas sin contexto. */
+body[data-pedidos-list-screen] .tablero-titulo {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  padding-block: var(--space-2, 8px);
+  margin-block: 0 var(--space-2, 8px);
 }

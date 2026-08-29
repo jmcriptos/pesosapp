@@ -6023,7 +6023,30 @@ def lista_pedidos():
             )
         base_query = base_query.filter(Pedido.cliente_id.in_(clientes_ids))
 
-    # Conteos globales de la bandeja visible antes de aplicar filtros
+    # La búsqueda y `solo_notas` se aplican ANTES de los conteos, y el filtro de
+    # estado después. Es a propósito: los conteos son «cuántos hay de cada
+    # estado DENTRO de lo que estás mirando», y la búsqueda define qué estás
+    # mirando mientras que el estado es lo que la píldora te deja cambiar.
+    #
+    # Estaban después, y por eso la pantalla se contradecía a sí misma: al
+    # buscar «Mangusa» decía «Todos 960» arriba y «1–20 de 129» al pie, y al
+    # buscar algo inexistente llegaba a afirmar tres cosas a la vez —«Todos
+    # 960», «Ningún pedido coincide» y «Sin pedidos»—. El propio diseño de esta
+    # pantalla argumenta que una pantalla que afirma cosas que no son entrena a
+    # desconfiar de ella, y lo hacía justo en el estado de error de búsqueda,
+    # que es donde el vendedor ya está dudando.
+    if solo_notas:
+        base_query = base_query.filter(Pedido.notas.isnot(None), Pedido.notas != '')
+
+    if q:
+        q_like = f'%{q}%'
+        base_query = base_query.filter(or_(
+            cast(Pedido.id, String).ilike(q_like),
+            Pedido.notas.ilike(q_like),
+            Pedido.cliente.has(Cliente.nombre.ilike(q_like)),
+        ))
+
+    # Conteos de la bandeja visible, ya acotados por la búsqueda
     raw_status_counts = base_query.with_entities(
         Pedido.estado,
         func.count(Pedido.id)
@@ -6081,16 +6104,8 @@ def lista_pedidos():
     elif estado != 'todos':
         base_query = base_query.filter(Pedido.estado == estado)
 
-    if solo_notas:
-        base_query = base_query.filter(Pedido.notas.isnot(None), Pedido.notas != '')
-
-    if q:
-        q_like = f'%{q}%'
-        base_query = base_query.filter(or_(
-            cast(Pedido.id, String).ilike(q_like),
-            Pedido.notas.ilike(q_like),
-            Pedido.cliente.has(Cliente.nombre.ilike(q_like)),
-        ))
+    # `solo_notas` y `q` ya se aplicaron más arriba, antes de los conteos, para
+    # que las píldoras no afirmen un número que la lista contradice.
 
     # Aplicar ordenamiento. El orden por urgencia es el DEFAULT; `?orden=` lo
     # reemplaza solo si el usuario tocó un encabezado. `Pedido.id` cierra

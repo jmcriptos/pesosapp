@@ -441,7 +441,9 @@ body[data-pedidos-list-screen] .estado-select {
     color: #b9c7df;
 }
 
-.pedidos-empty i { font-size: 2.6rem; color: #94a3b8; }
+/* Hijo directo: si no, alcanza al icono que va DENTRO de los botones del
+   vacío y lo dibuja a 41,6px display:block, pisando el texto del CTA. */
+.pedidos-empty > i { font-size: 2.6rem; color: #94a3b8; }
 .pedidos-empty p { margin: 0; font-size: 1rem; color: var(--orders-text); }
 
 /* Pista de qué cubre la búsqueda: secundaria, pero legible (4.76:1). */

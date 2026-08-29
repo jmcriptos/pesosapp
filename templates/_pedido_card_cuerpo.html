@@ -163,12 +163,12 @@
           {% if puede_eliminar %}
           <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form"
-                data-confirm="{% if pedido.estado == 'preparado' %}Este pedido ya está PREPARADO (puede tener pesos registrados). ¿Eliminarlo de todas formas?{% else %}¿Eliminar pedido #{{ pedido.id }}?{% endif %}"
+                data-confirm="Se eliminará PED-{{ pedido.id }} de {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }}{% if pedido.estado == 'preparado' %}, que ya está PREPARADO y puede tener pesos registrados{% endif %}. No se puede deshacer y no queda rastro. ¿Eliminarlo?"
                 >
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
             <button type="submit" class="pc-action-btn danger" title="Eliminar"
-                    aria-label="Eliminar pedido #{{ pedido.id }}">
+                    aria-label="Eliminar pedido PED-{{ pedido.id }}">
               <i class="fa fa-trash"></i>
             </button>
           </form>
