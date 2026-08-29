@@ -5,38 +5,83 @@
 {% set hero_total_cajas = 0 %}
 {% set hero_total_peso = 0 %}
 {% if lineas_originales %}
+  {# El PESO suma lo mismo que muestran las filas de producto y la tira de
+     resumen: `peso_real` en las líneas pesables y `prep.peso` en las que no lo
+     son. Sumaba solo las pesables, así que el hero decía «PESO 0.0 KG» encima
+     de cinco filas con kg. Tres cifras de la misma pantalla tienen que decir
+     lo mismo. #}
   {% set ns = namespace(cajas=0, peso=0) %}
   {% for linea in lineas_originales %}
     {% set ns.cajas = ns.cajas + (linea.cajas_pedidas or linea.cajas or 0) %}
     {% if linea.producto and linea.producto.se_pesa %}
       {% set ns.peso = ns.peso + linea.peso_real|float %}
+    {% else %}
+      {% set prep_linea = prep_by_producto.get(linea.producto_id) %}
+      {% if prep_linea and prep_linea.peso %}
+        {% set ns.peso = ns.peso + prep_linea.peso|float %}
+      {% endif %}
     {% endif %}
   {% endfor %}
   {% set hero_total_cajas = ns.cajas %}
   {% set hero_total_peso = ns.peso %}
 {% endif %}
 
+{# La vuelta al listado. No existía ninguna: la pantalla más profunda del flujo
+   no tenía salida, mientras el listado —un nivel más arriba— sí tiene su
+   «← Volver al tablero de hoy». La única forma de salir era la pestaña
+   «Pedidos» de la barra inferior, que además se renderiza `active` mientras
+   estás acá, o sea que el camino de vuelta decía «ya estás ahí».
+   `next` conserva de dónde veniste: si llegaste buscando «Mangusa», volvés a
+   esa búsqueda y no al tablero desde arriba. #}
+<a class="detail-volver" href="{{ request.args.get('next') if request.args.get('next', '').startswith('/pedidos') else url_for('lista_pedidos') }}">
+  <i class="fa fa-arrow-left" aria-hidden="true"></i> Pedidos
+</a>
+
 <header class="detail-hero-card">
   <div class="detail-hero-top">
     <span class="detail-hero-status detail-hero-status-{{ estado }}">
-      {% if estado == 'pendiente' %}<i class="fas fa-clock"></i>
-      {% elif estado == 'preparado' %}<i class="fas fa-check"></i>
-      {% elif estado == 'facturado' %}<i class="fas fa-file-invoice"></i>
-      {% elif estado == 'entregado' %}<i class="fas fa-truck"></i>
+      {% if estado == 'pendiente' %}<i class="fas fa-clock" aria-hidden="true"></i>
+      {% elif estado == 'preparado' %}<i class="fas fa-check" aria-hidden="true"></i>
+      {% elif estado == 'facturado' %}<i class="fas fa-file-invoice" aria-hidden="true"></i>
+      {% elif estado == 'entregado' %}<i class="fas fa-truck" aria-hidden="true"></i>
       {% endif %}
       {{ pedido.estado|capitalize }}
     </span>
     <div class="detail-hero-meta">
+      {# LA ENTREGA, que es el eje sobre el que el listado agrupa, ordena y
+         colorea, y que acá no aparecía en ninguna de las siete plantillas: se
+         abría un pedido con tres días de atraso y no había forma de saberlo.
+         Misma redacción que la tarjeta del listado, para que el vendedor lea
+         lo mismo en las dos pantallas. #}
+      {% if pedido.fecha_entrega %}
+        <div class="detail-hero-entrega{% if hoy_local and pedido.fecha_entrega < hoy_local and estado != 'facturado' %} esta-tarde{% endif %}">
+          <i class="fas fa-truck" aria-hidden="true"></i>
+          entrega {{ 'hoy' if hoy_local and pedido.fecha_entrega == hoy_local else pedido.fecha_entrega.strftime('%d/%m') }}
+          {% if hoy_local and pedido.fecha_entrega < hoy_local and estado != 'facturado' %}
+            <strong>· {{ (hoy_local - pedido.fecha_entrega).days }} d tarde</strong>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="detail-hero-entrega detail-hero-entrega-sin">Sin fecha de entrega</div>
+      {% endif %}
       {% if pedido.fecha_pedido %}
         <div>Creado {{ pedido.fecha_pedido.strftime('%d/%m · %H:%M') }}</div>
       {% endif %}
-      {% if pedido.fecha_facturacion %}
+      {# La fecha de facturación solo si el pedido ESTÁ facturado. Se imprimía
+         sin mirar el estado, así que un pedido reabierto mostraría «Facturado
+         27/06» al lado de la píldora «Preparado» y del stepper marcando
+         facturado como pendiente: tres afirmaciones contradictorias en 200px.
+         Hoy en producción no pasa (942 pedidos, 942 facturados, cero casos
+         sucios), pero la guarda faltaba. #}
+      {% if pedido.fecha_facturacion and estado in ['facturado', 'entregado'] %}
         <div>Facturado {{ pedido.fecha_facturacion.strftime('%d/%m') }}</div>
       {% endif %}
     </div>
   </div>
 
-  <h2 class="detail-hero-title">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</h2>
+  {# <h1> y no <h2>: es el título de la página y el árbol de encabezados
+     arrancaba en h2, así que un lector de pantalla no encontraba el nivel 1. #}
+  <h1 class="detail-hero-title">{{ pedido.cliente.nombre if pedido.cliente else '—' }}</h1>
   {% if pedido.cliente and pedido.cliente.territorio %}
     <div class="detail-hero-sub">{{ pedido.cliente.territorio.nombre }}</div>
   {% endif %}
@@ -56,8 +101,14 @@
     </div>
     <div class="detail-hero-stat">
       <div class="detail-hero-stat-label">TOTAL</div>
+      {# Con DECIMALES y con la moneda del CLIENTE.
+         Estaba redondeado a entero y con «XCG» escrito a mano, en la pantalla
+         desde la que se emite la factura de QuickBooks: no se podía conciliar
+         3.988 contra 3.988,47, y a un cliente que factura en USD le decía XCG
+         mientras la pestaña «Detalles», a dos toques, mostraba «Moneda: USD».
+         Un pedido de USD 450 no es uno de XCG 450: difieren un 78%. #}
       <div class="detail-hero-stat-value detail-hero-stat-total">
-        {{ '{:,.0f}'.format(pedido_total_xcg|float) if pedido_total_xcg else '—' }}<small>XCG</small>
+        {{ '{:,.2f}'.format(pedido_total_xcg|float) if pedido_total_xcg else '—' }}<small>{{ (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG' }}</small>
       </div>
     </div>
   </div>

@@ -1,13 +1,18 @@
 {% if pedido.estado != 'facturado' %}
 <!-- Modal de edición de producto -->
+{# `role="dialog"` + `aria-modal`: sin esto, para un lector de pantalla el
+   modal era un div más y el contenido de atrás seguía siendo navegable, así
+   que no había forma de saber que se había abierto algo ni dónde terminaba.
+   La trampa de foco vive en el JS de detalles_pedido.html. #}
 <div class="edit-modal-overlay" id="editModalOverlay">
-    <div class="edit-modal">
+    <div class="edit-modal" role="dialog" aria-modal="true"
+         aria-labelledby="editModalTitulo">
         <div class="edit-modal-header">
-            <div class="edit-modal-title">
+            <div class="edit-modal-title" id="editModalTitulo">
                 <i class="fas fa-edit"></i>
                 Editar producto
             </div>
-            <button type="button" class="edit-modal-close" data-edit-close>
+            <button type="button" class="edit-modal-close" data-edit-close aria-label="Cerrar">
                 <i class="fas fa-times"></i>
             </button>
         </div>

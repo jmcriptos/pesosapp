@@ -4,7 +4,26 @@
 {% set pesables = lineas_originales|selectattr('producto.se_pesa')|list if lineas_originales else [] %}
 {% set cajas_pesadas_total = pesables|sum(attribute='cajas_pesadas_count') if pesables else 0 %}
 {% set cajas_objetivo_total = pesables|sum(attribute='cajas_objetivo') if pesables else 0 %}
-{% set peso_real = pesables|sum(attribute='peso_real') if pesables else 0 %}
+{# El total tiene que sumar LO QUE LAS FILAS MUESTRAN.
+   Sumaba solo las líneas `se_pesa`, mientras la tarjeta imprime kg también
+   para las que no lo son (usa `prep.peso`, ver _detail_productos_card:81-82).
+   Resultado visible en pantalla: «0.0 kg total» encima de cinco filas que
+   dicen 17.6, 106.3, 18.2… La pantalla se contradecía a sí misma de un
+   vistazo, y el número de arriba es el que alguien va a copiar.
+   Ahora recorre las mismas líneas que se dibujan y toma de cada una el mismo
+   peso que la fila enseña. #}
+{% set ns_peso = namespace(total=0) %}
+{% for linea in (lineas_originales or []) %}
+  {% if linea.producto and linea.producto.se_pesa %}
+    {% set ns_peso.total = ns_peso.total + (linea.peso_real|float) %}
+  {% else %}
+    {% set prep = prep_by_producto.get(linea.producto_id) %}
+    {% if prep and prep.peso %}
+      {% set ns_peso.total = ns_peso.total + (prep.peso|float) %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+{% set peso_real = ns_peso.total %}
 
 {% if total_productos > 0 %}
 <div class="detail-summary-strip">

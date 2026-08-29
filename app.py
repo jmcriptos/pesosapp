@@ -7206,6 +7206,14 @@ def detalles_pedido(pedido_id):
 
     return render_template('detalles_pedido.html',
                            pedido   = pedido,
+                           # Sin esto la pantalla no podía saber si el pedido va
+                           # tarde: `fecha_entrega` no se mostraba en ninguna de
+                           # las siete plantillas del detalle, y «vencido» y
+                           # «N d tarde» eran incalculables. El listado agrupa,
+                           # ordena y colorea por ese campo, y toda esa
+                           # estructura se evaporaba al abrir el pedido.
+                           # Día LOCAL (Curaçao, UTC−4), como en lista_pedidos.
+                           hoy_local=datetime.now(DASHBOARD_TIMEZONE).date(),
                            productos= productos,
                            saved_detalle_context=saved_detalle_context,
                            conteo_por_producto=conteo_por_producto,

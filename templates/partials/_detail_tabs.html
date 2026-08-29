@@ -1,14 +1,31 @@
+{# Pestañas con el patrón ARIA COMPLETO.
+   Estaba a medias: había `role="tablist"`, `role="tab"` y `aria-selected`, pero
+   ningún `aria-controls`, ningún `role="tabpanel"` y ningún id. Un lector de
+   pantalla anunciaba «pestaña seleccionada» sobre algo que no controlaba nada,
+   lo cual es peor que no declarar el patrón: promete una relación que no
+   existe.
+
+   `tabindex` rotativo: solo la pestaña activa entra en el orden de tabulación
+   y entre pestañas se navega con las flechas, que es lo que el patrón espera y
+   lo que un usuario de teclado va a intentar. Sin esto, tabular por la pantalla
+   obligaba a pasar por las tres. #}
 <div class="detail-tabs" role="tablist" aria-label="Secciones del pedido">
-  <button type="button" class="detail-tab is-active" role="tab" aria-selected="true" data-tab="productos">
-    <i class="fas fa-box"></i>
+  <button type="button" class="detail-tab is-active" role="tab"
+          id="tab-productos" aria-controls="panel-productos"
+          aria-selected="true" tabindex="0" data-tab="productos">
+    <i class="fas fa-box" aria-hidden="true"></i>
     <span>Productos</span>
   </button>
-  <button type="button" class="detail-tab" role="tab" aria-selected="false" data-tab="detalles">
-    <i class="fas fa-info-circle"></i>
+  <button type="button" class="detail-tab" role="tab"
+          id="tab-detalles" aria-controls="panel-detalles"
+          aria-selected="false" tabindex="-1" data-tab="detalles">
+    <i class="fas fa-info-circle" aria-hidden="true"></i>
     <span>Detalles</span>
   </button>
-  <button type="button" class="detail-tab" role="tab" aria-selected="false" data-tab="historial">
-    <i class="fas fa-clock-rotate-left"></i>
+  <button type="button" class="detail-tab" role="tab"
+          id="tab-historial" aria-controls="panel-historial"
+          aria-selected="false" tabindex="-1" data-tab="historial">
+    <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
     <span>Historial</span>
     {% if eventos and eventos|length > 0 %}
       <span class="detail-tab-badge">{{ eventos|length }}</span>

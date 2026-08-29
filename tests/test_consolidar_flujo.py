@@ -182,24 +182,30 @@ def test_lineas_originales_se_listan_en_detalle(logged_client, app):
         assert 'IMPORTADO' in html
 
 
-def test_detalles_incluye_contexto_persistente_por_pedido(logged_client, app):
-    """Regresión: el formulario de detalles persiste producto/lote/fechas por pedido."""
-    with app.app_context():
-        from app import Pedido
-        pedido = Pedido.query.first()
-
-        resp = logged_client.get(f'/pedidos/{pedido.id}/detalles')
-        html = resp.data.decode('utf-8')
-
-        assert resp.status_code == 200
-        assert f"const LS_KEY = 'lastDetalle:{pedido.id}'" in html
-        assert 'producto_id: $prod.value' in html
-        assert 'fecha_fabricacion: $fab.value' in html
-        assert 'fecha_expiracion: $exp.value' in html
+# `test_detalles_incluye_contexto_persistente_por_pedido` se eliminó el 2026-08-29.
+#
+# Afirmaba cuatro literales de JavaScript —`const LS_KEY = 'lastDetalle:N'`,
+# `producto_id: $prod.value`…— de un script que operaba sobre `#form-detalle`,
+# `#producto_id`, `#peso`, `#lote`, `#fecha_fabricacion` y `#fecha_expiracion`.
+# Ninguno de esos seis ids existe en ninguna plantilla del proyecto: el
+# formulario que ese script rellenaba se había ido de la pantalla, y con él la
+# conducta. Sus 299 líneas seguían emitiéndose a cada carga, y el test seguía
+# verde, porque el test miraba el TEXTO del script y no lo que hacía.
+#
+# Un test que solo puede fallar si alguien borra el código muerto es una traba
+# para limpiar, no una red. Se fue junto con el script.
 
 
-def test_detalles_rellena_contexto_tras_agregar_y_deja_peso_vacio(logged_client, app):
-    """Regresión: tras agregar un detalle, el form conserva contexto y limpia solo peso."""
+def test_detalles_muestra_la_linea_recien_agregada(logged_client, app):
+    """Tras agregar un detalle, la vista muestra el lote y el peso registrados.
+
+    Se llamaba `…_rellena_contexto_tras_agregar_y_deja_peso_vacio` y cerraba
+    afirmando `lastDetalle:<id>`, un literal del script de localStorage que se
+    eliminó el 2026-08-29 por operar sobre un formulario inexistente (ver la
+    nota de arriba). Esa parte del nombre describía una conducta que la
+    pantalla ya no tiene; lo que el test SÍ ejerce —el POST y su resultado
+    visible— se queda tal cual.
+    """
     with app.app_context():
         from app import Pedido, Producto
 
@@ -225,8 +231,6 @@ def test_detalles_rellena_contexto_tras_agregar_y_deja_peso_vacio(logged_client,
         # La línea agregada queda reflejada en la vista (lote y peso registrados)
         assert 'L100' in html
         assert '4.5' in html
-        # La persistencia de contexto del formulario es ahora client-side (localStorage)
-        assert f"lastDetalle:{pedido.id}" in html
 
 
 def test_editar_pedido_cambiando_cliente_preserva_lineas_preparadas(logged_client, app):
@@ -516,13 +520,28 @@ def test_pedido_a_json_sin_prep_lines(app):
 # === AC #8: Botón "Marcar como Preparado" visible solo en estado pendiente ===
 
 def test_boton_marcar_preparado_visible_pendiente(logged_client, app):
-    """AC #8: Botón 'Marcar como Preparado' visible cuando estado=pendiente."""
+    """AC #8: la acción de marcar preparado está disponible cuando estado=pendiente.
+
+    Afirmaba el TEXTO «Marcar como Preparado», con P mayúscula, y pasaba por una
+    `.sticky-preparado-bar` legada que se renderizaba SIEMPRE con
+    `style="display:none"` — o sea que verificaba un elemento que nadie podía
+    ver. El botón real, el de la barra de acciones, dice «Marcar como
+    preparado» en minúscula, así que el test nunca lo había mirado. La barra
+    oculta se eliminó el 2026-08-29.
+
+    Ahora afirma el FORMULARIO, que es lo que hace la acción, en vez de una
+    etiqueta que puede cambiar sin que cambie la conducta.
+    """
     with app.app_context():
         from app import Pedido
         pedido = Pedido.query.first()
         resp = logged_client.get(f'/pedidos/{pedido.id}/detalles')
         assert resp.status_code == 200
-        assert 'Marcar como Preparado' in resp.data.decode()
+        html = resp.data.decode()
+        assert f'/pedidos/{pedido.id}/marcar_preparado' in html, (
+            'el detalle de un pendiente no ofrece marcarlo como preparado'
+        )
+        assert 'marcar como preparado' in html.lower()
 
 
 def test_boton_marcar_preparado_oculto_facturado(logged_client, app):

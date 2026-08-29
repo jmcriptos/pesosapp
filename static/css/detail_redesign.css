@@ -752,3 +752,117 @@ body[data-detalles-screen] .detail-hero,
 body[data-detalles-screen] .productos-summary {
   display: none !important;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Primera crítica de esta pantalla (2026-08-29) — 12/40
+   ──────────────────────────────────────────────────────────── */
+
+/* Los DATOS dejan de estar pintados como texto deshabilitado.
+   #94a3b8 sobre blanco da 2,56:1, y ese era el color de los kg, de las cajas,
+   del precio por kilo y de las etiquetas CAJAS/PESO/TOTAL del hero. O sea: la
+   carga útil de una app que pesa carne, más floja que el nombre del producto,
+   en un teléfono y bajo sol de Curaçao. #475569 da 7,24:1 y sigue leyéndose
+   como secundario. El gris claro queda para las unidades decorativas. */
+body[data-detalles-screen] .detail-product-meta,
+body[data-detalles-screen] .detail-product-subtotal,
+body[data-detalles-screen] .detail-hero-stat-label {
+  color: #475569 !important;
+}
+
+/* Destinos de toque de la línea de producto.
+   «Editar» medía 78×27 y el tacho 30×30, a 8px uno del otro: dos pulgares de
+   distancia entre corregir una cantidad y borrar la línea. En el listado esos
+   mismos dos controles son cuadrados de 44px, separados y de colores
+   distintos; acá eran la mitad y casi iguales. */
+body[data-detalles-screen] .detail-product-actions {
+  gap: 14px;
+}
+
+body[data-detalles-screen] .detail-product-action {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.85rem;
+}
+
+body[data-detalles-screen] .detail-product-delete {
+  width: 44px !important;
+  height: 44px !important;
+  border: 1px solid #fecaca !important;
+  background: #fef2f2 !important;
+}
+
+/* La vuelta al listado. Mismo peso que el «Volver al tablero» del listado. */
+body[data-detalles-screen] .detail-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch-min, 48px);
+  color: #4338ca;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+body[data-detalles-screen] .detail-volver:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-detalles-screen] .detail-volver:focus-visible {
+  outline: 2px solid #4338ca;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* La entrega en el hero, con el mismo código de color que el listado:
+   el atraso en rojo, y «sin fecha» dicho con todas las letras en vez de
+   ausente. */
+body[data-detalles-screen] .detail-hero-entrega {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+body[data-detalles-screen] .detail-hero-entrega.esta-tarde,
+body[data-detalles-screen] .detail-hero-entrega.esta-tarde strong {
+  color: #9f1239;
+  font-weight: 700;
+}
+
+body[data-detalles-screen] .detail-hero-entrega-sin {
+  font-style: italic;
+}
+
+/* Las dos acciones que le quedan a un pedido facturado NO parecen apagadas.
+   `.btn-secondary` era blanco sobre #95a5a6: 2,56:1, o sea el aspecto de un
+   control deshabilitado, en «Factura PDF» y «Revisar precios» — las únicas
+   dos cosas que se pueden hacer con un pedido ya facturado. Y en modo oscuro
+   del sistema el <button> se volvía azul mientras el <a> hermano seguía gris:
+   dos controles idénticos pintados distinto. Guarda de especificidad como en
+   pedidos_list.css. */
+body[data-detalles-screen] .btn-secondary,
+body[data-detalles-screen] a.btn-secondary,
+body[data-detalles-screen] button.btn-secondary {
+  background: #e0e7ff !important;
+  background-image: none !important;
+  color: #4338ca !important;
+  border: 1px solid #c7d2fe !important;
+  text-decoration: none !important;
+  min-height: var(--touch-min, 48px);
+}
+
+/* Las pestañas tampoco se invierten en oscuro: el bleed de styles.css pintaba
+   de azul sólido las INACTIVAS y dejaba blanca la activa, así que la
+   navegación mentía sobre dónde estabas. Y la inactiva estaba en 4,20:1. */
+body[data-detalles-screen] .detail-tabs button.detail-tab {
+  background: #eef1f5 !important;
+  background-image: none !important;
+  color: #475569 !important;
+  min-height: 44px;
+}
+
+body[data-detalles-screen] .detail-tabs button.detail-tab.is-active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+}

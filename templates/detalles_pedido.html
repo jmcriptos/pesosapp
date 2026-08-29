@@ -39,26 +39,14 @@
     {% include 'partials/_detail_tabs.html' %}
 
     <!-- Panel: Productos (default activo) -->
-    <div class="detail-panel is-active" data-panel="productos">
+    <div class="detail-panel is-active" data-panel="productos"
+         id="panel-productos" role="tabpanel" aria-labelledby="tab-productos" tabindex="0">
 
-    <!-- Barra de estado (legado — oculta en mobile, visible en desktop para reintentar) -->
-    <div class="status-bar" style="display:none;">
-        <span class="status-badge status-badge-{{ pedido.estado }}">
-            {% if pedido.estado == 'pendiente' %}<i class="fas fa-clock"></i>{% elif pedido.estado == 'preparado' %}<i class="fas fa-check"></i>{% else %}<i class="fas fa-file-invoice-dollar"></i>{% endif %}
-            {{ pedido.estado|capitalize }}
-        </span>
-        <span class="status-info">{{ detalles_ordenados|length if detalles_ordenados else 0 }} líneas</span>
-        {% if pedido.estado == 'facturado' and not pedido.invoice_id_qbo %}
-        <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST" style="margin:0"
-              data-confirm="Este pedido ya fue enviado a facturar. Si la factura ya existe en QuickBooks, reenviarlo crea un DUPLICADO. ¿Reenviar de todas formas?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="reintentar" value="1">
-            <button type="submit" class="status-badge" style="background:#fff3e0;color:#e65100;border:none;cursor:pointer;font-weight:600;font-size:.82rem;padding:6px 12px;border-radius:20px;">
-                <i class="fas fa-redo"></i> Reintentar
-            </button>
-        </form>
-        {% endif %}
-    </div>
+    {# Acá había una `.status-bar` legada que se renderizaba SIEMPRE con
+       `style="display:none"`. Su comentario decía «visible en desktop», y era
+       falso: ninguna regla CSS la revive, así que el style inline gana en todos
+       los anchos. Incluía una copia del formulario de reintento de facturación
+       —con su token CSRF— que ya existe, visible, unas líneas más abajo. #}
 
     <!-- Botón Reintentar facturación (si está facturado sin QBO ID) -->
     {% if pedido.estado == 'facturado' and not pedido.invoice_id_qbo %}
@@ -106,18 +94,9 @@
     <!-- Productos agregados -->
     {% include 'partials/_detail_productos_card.html' %}
 
-    <!-- Botón Marcar como Preparado (sticky legado — oculto, reemplazado por action-bar) -->
-    {% if pedido.estado == 'pendiente' %}
-    <div class="sticky-preparado-bar" style="display:none;">
-        <form action="{{ url_for('marcar_preparado', pedido_id=pedido.id) }}" method="POST" data-confirm="¿Marcar este pedido como preparado? Se validará la trazabilidad de todos los productos.">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="mobile-btn mobile-btn-preparado">
-                <i class="fas fa-check-circle"></i>
-                Marcar como Preparado
-            </button>
-        </form>
-    </div>
-    {% endif %}
+    {# Y acá una `.sticky-preparado-bar`, también siempre oculta por style
+       inline, con otro POST completo de `marcar_preparado`. La acción viva es
+       la de `_detail_action_bar.html`. #}
 
     <!-- Sección de etiquetas (collapsible) -->
     {% include 'partials/_detail_etiquetas.html' %}
@@ -125,12 +104,14 @@
     </div><!-- /.detail-panel[productos] -->
 
     <!-- Panel: Detalles -->
-    <div class="detail-panel" data-panel="detalles" hidden>
+    <div class="detail-panel" data-panel="detalles" hidden
+         id="panel-detalles" role="tabpanel" aria-labelledby="tab-detalles" tabindex="0">
       {% include 'partials/_detail_tab_detalles.html' %}
     </div>
 
     <!-- Panel: Historial -->
-    <div class="detail-panel" data-panel="historial" hidden>
+    <div class="detail-panel" data-panel="historial" hidden
+         id="panel-historial" role="tabpanel" aria-labelledby="tab-historial" tabindex="0">
       {% include 'partials/_detail_tab_historial.html' %}
     </div>
 
@@ -160,6 +141,10 @@
       const isActive = t.dataset.tab === tabName;
       t.classList.toggle('is-active', isActive);
       t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      // tabindex rotativo: solo la activa entra en el orden de tabulación, y
+      // entre pestañas se navega con flechas. Es lo que el patrón ARIA espera
+      // y lo que un usuario de teclado va a intentar.
+      t.setAttribute('tabindex', isActive ? '0' : '-1');
     });
     panels.forEach((p) => {
       const isActive = p.dataset.panel === tabName;
@@ -178,6 +163,24 @@
 
   tabs.forEach((t) => {
     t.addEventListener('click', () => activate(t.dataset.tab));
+  });
+
+  /* Flechas entre pestañas, Inicio y Fin a los extremos. Sin esto el
+     `role="tablist"` promete una navegación que no existía: había que tabular
+     por las tres. */
+  const orden = Array.from(tabs);
+  document.querySelector('.detail-tabs').addEventListener('keydown', (ev) => {
+    const i = orden.indexOf(document.activeElement);
+    if (i === -1) return;
+    let destino = null;
+    if (ev.key === 'ArrowRight') destino = orden[(i + 1) % orden.length];
+    else if (ev.key === 'ArrowLeft') destino = orden[(i - 1 + orden.length) % orden.length];
+    else if (ev.key === 'Home') destino = orden[0];
+    else if (ev.key === 'End') destino = orden[orden.length - 1];
+    if (!destino) return;
+    ev.preventDefault();
+    activate(destino.dataset.tab);
+    destino.focus();
   });
 
   const initial = (location.hash || '').replace(/^#/, '');
@@ -210,6 +213,9 @@ document.addEventListener('click', function(ev) {
 });
 
 function openEditModal(detalleId, productoId, peso, lote, fechaFab, fechaExp, cajas, sePesa) {
+    // Recordar desde dónde se abrió, para devolver el foco al cerrar.
+    focoPrevioAlModal = document.activeElement;
+
     // Establecer la URL de acción del formulario
     editForm.action = `/detalles_pedido/${detalleId}/editar`;
 
@@ -271,6 +277,38 @@ function closeEditModal() {
 
     // Limpiar el formulario
     editForm.reset();
+
+    // Devolver el foco a donde estaba. Sin esto, cerrar el modal deja el foco
+    // en el <body> y quien navega con teclado tiene que volver a recorrer la
+    // pantalla entera para retomar donde estaba.
+    if (focoPrevioAlModal && document.contains(focoPrevioAlModal)) {
+        focoPrevioAlModal.focus();
+    }
+    focoPrevioAlModal = null;
+}
+
+/* Trampa de foco del modal.
+   Sin esto, con el modal abierto, Tab recorría los 13 campos y se ESCAPABA a
+   la página de atrás —que sigue ahí, debajo del overlay—: se podía tabular
+   hasta la barra de navegación inferior mientras el diálogo estaba abierto.
+   Un diálogo que no retiene el foco no es un diálogo. */
+let focoPrevioAlModal = null;
+
+function atraparFocoEnModal(ev) {
+    if (ev.key !== 'Tab') return;
+    if (!editModalOverlay.classList.contains('show')) return;
+    const foco = editModalOverlay.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+    );
+    if (!foco.length) return;
+    const primero = foco[0], ultimo = foco[foco.length - 1];
+    if (ev.shiftKey && document.activeElement === primero) {
+        ev.preventDefault();
+        ultimo.focus();
+    } else if (!ev.shiftKey && document.activeElement === ultimo) {
+        ev.preventDefault();
+        primero.focus();
+    }
 }
 
 // El modal de edición sólo se renderiza para pedidos no facturados
@@ -279,6 +317,8 @@ function closeEditModal() {
 // TypeError y cortaría el resto del <script nonce="{{ csp_nonce() }}"> (incluido el handler de
 // generación de etiquetas).
 if (editModalOverlay && editForm && editPesoField) {
+    document.addEventListener('keydown', atraparFocoEnModal);
+
     // Cerrar modal al hacer clic fuera
     editModalOverlay.addEventListener('click', function(e) {
         if (e.target === editModalOverlay) {
@@ -314,305 +354,19 @@ if (editModalOverlay && editForm && editPesoField) {
     });
 }
 
+
 // ========================================================================
-// CONFIGURACIÓN Y REFERENCIAS
+// (Acá vivían ~295 líneas de JavaScript muerto, borradas el 2026-08-29.)
+// Controlaban #form-detalle, #producto_id, #peso, #lote, #fecha_fabricacion
+// y #fecha_expiracion: el formulario de captura que se sacó de esta pantalla
+// hace tiempo. NINGUNO de esos ids existe ya en el DOM —lo que hay hoy son
+// campos `name=` del modal de edición, que es otro form con otros ids—, así
+// que `getElementById` devolvía null en todos y nada de eso corría. Se seguía
+// enviando en cada carga, dentro de los 84 KB de HTML de la pantalla.
+// Incluía `localStorage lastDetalle:<id>`, `calcExp`, `adaptFormToProduct` y
+// la navegación con Enter entre campos. Si alguna vez vuelve un formulario de
+// captura acá, esto se reescribe contra el DOM que exista, no se resucita.
 // ========================================================================
-const LS_KEY = 'lastDetalle:{{ pedido.id }}';
-const DEFAULT_SHELF_LIFE_DAYS = 365;
-const shelfLife = {
-    /* idProducto : díasVidaÚtil */
-    // Hoy todos los productos usan 365 días por defecto.
-};
-
-// Referencias a elementos del formulario de detalles
-const $prod = document.getElementById('producto_id');
-const $peso = document.getElementById('peso');
-const $lote = document.getElementById('lote');
-const $fab = document.getElementById('fecha_fabricacion');
-const $exp = document.getElementById('fecha_expiracion');
-const $form = document.getElementById('form-detalle');
-
-if ($prod && $peso && $lote && $fab && $exp && $form) {
-    let restoringDetalleContext = false;
-
-    // ====================================================================
-    // HELPERS DE PERSISTENCIA
-    // ====================================================================
-    function getCurrentDetalleContext() {
-        return {
-            producto_id: $prod.value,
-            lote: $lote.value.trim(),
-            fecha_fabricacion: $fab.value,
-            fecha_expiracion: $exp.value,
-        };
-    }
-
-    function hasDetalleContext(context) {
-        return Boolean(
-            context && (
-                context.producto_id ||
-                context.lote ||
-                context.fecha_fabricacion ||
-                context.fecha_expiracion
-            )
-        );
-    }
-
-    function readSavedDetalleContext() {
-        try {
-            return JSON.parse(localStorage.getItem(LS_KEY) || 'null');
-        } catch (_) {
-            return null;
-        }
-    }
-
-    function writeSavedDetalleContext() {
-        try {
-            localStorage.setItem(LS_KEY, JSON.stringify(getCurrentDetalleContext()));
-        } catch (_) {
-            // No bloquear la captura si el storage no está disponible
-        }
-    }
-
-    function setProductValue(productId) {
-        if (!productId) return;
-
-        const normalizedId = String(productId);
-        const tsProd = $prod.tomselect;
-
-        if (tsProd) {
-            tsProd.setValue(normalizedId);
-        } else {
-            $prod.value = normalizedId;
-        }
-    }
-
-    // ====================================================================
-    // CÁLCULO AUTOMÁTICO DE FECHA DE EXPIRACIÓN
-    // ====================================================================
-    function calcExp(options = {}) {
-        const { force = false } = options;
-
-        if (restoringDetalleContext && !force) {
-            return;
-        }
-
-        if (!$fab.value) {
-            $exp.value = '';
-            return;
-        }
-
-        const id = +$prod.value;
-        const days = shelfLife.hasOwnProperty(id) ? shelfLife[id] : DEFAULT_SHELF_LIFE_DAYS;
-
-        // Si días = 0, el producto no tiene expiración
-        if (days === 0) {
-            $exp.value = '';
-            $exp.disabled = true;
-            return;
-        }
-
-        $exp.disabled = false;
-        const d = new Date($fab.value + 'T00:00');
-        d.setDate(d.getDate() + days);
-        $exp.value = d.toISOString().slice(0, 10);
-    }
-
-    // ====================================================================
-    // ADAPTAR FORMULARIO SEGÚN TIPO DE PRODUCTO (se_pesa)
-    // ====================================================================
-    const $cantidadLabel = document.getElementById('cantidad_label');
-    const $expGroup = $exp.closest('.mobile-form-group');
-    const $loteGroup = $lote.closest('.mobile-form-group');
-    const $fabGroup = $fab.closest('.mobile-form-group');
-
-    function adaptFormToProduct() {
-        const selectedOption = $prod.options[$prod.selectedIndex];
-        const sePesa = selectedOption && selectedOption.dataset.sePesa === 'true';
-
-        if (sePesa || !selectedOption || !selectedOption.value) {
-            // Manufactura: todos los campos visibles y requeridos
-            $cantidadLabel.textContent = 'Peso (kg)';
-            $peso.placeholder = '0.00';
-            $peso.inputMode = 'decimal';
-            $loteGroup.style.display = '';
-            $fabGroup.style.display = '';
-            $expGroup.style.display = '';
-            $lote.disabled = false;
-            $fab.disabled = false;
-            $lote.required = true;
-            $fab.required = true;
-            $exp.required = true;
-        } else {
-            // Importación: solo Cajas + F. Expiración (opcional)
-            $cantidadLabel.textContent = 'Cajas';
-            $peso.placeholder = '0';
-            // decimal, no numeric: se venden fracciones de caja (media = 0.5)
-            $peso.inputMode = 'decimal';
-            $loteGroup.style.display = 'none';
-            $fabGroup.style.display = 'none';
-            $expGroup.style.display = '';
-            $lote.disabled = true;
-            $fab.disabled = true;
-            $lote.required = false;
-            $fab.required = false;
-            $exp.required = false;
-        }
-    }
-
-    function restoreSavedDetalleContext() {
-        const currentContext = getCurrentDetalleContext();
-        const saved = hasDetalleContext(currentContext) ? currentContext : readSavedDetalleContext();
-
-        if (!saved) return;
-
-        restoringDetalleContext = true;
-
-        if (saved.producto_id) {
-            setProductValue(saved.producto_id);
-        }
-
-        if (typeof saved.lote === 'string') $lote.value = saved.lote;
-        if (typeof saved.fecha_fabricacion === 'string') $fab.value = saved.fecha_fabricacion;
-        if (typeof saved.fecha_expiracion === 'string') $exp.value = saved.fecha_expiracion;
-
-        adaptFormToProduct();
-
-        restoringDetalleContext = false;
-
-        if ($fab.value && !$exp.value) {
-            calcExp({ force: true });
-        }
-
-        writeSavedDetalleContext();
-        $peso.value = '';
-        $peso.focus();
-    }
-
-    function restoreSavedDetalleContextWhenReady(attempt = 0) {
-        if ($prod.tomselect || !$prod.classList.contains('ts-select') || attempt >= 6) {
-            restoreSavedDetalleContext();
-            return;
-        }
-
-        window.setTimeout(() => restoreSavedDetalleContextWhenReady(attempt + 1), 60);
-    }
-
-    // ====================================================================
-    // PREFILL: Restaurar valores desde localStorage (excepto Peso)
-    // ====================================================================
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => restoreSavedDetalleContextWhenReady());
-    } else {
-        restoreSavedDetalleContextWhenReady();
-    }
-
-    window.addEventListener('pageshow', function(event) {
-        if (event.persisted) {
-            restoreSavedDetalleContextWhenReady();
-        }
-    });
-
-    $prod.addEventListener('change', function() {
-        adaptFormToProduct();
-        calcExp();
-        writeSavedDetalleContext();
-    });
-
-    $fab.addEventListener('change', function() {
-        calcExp({ force: true });
-        writeSavedDetalleContext();
-    });
-
-    $lote.addEventListener('input', writeSavedDetalleContext);
-    $exp.addEventListener('change', writeSavedDetalleContext);
-
-    adaptFormToProduct();
-
-    // ====================================================================
-    // GUARDAR EN LOCALSTORAGE Y LIMPIAR PESO AL ENVIAR
-    // ====================================================================
-    $form.addEventListener('submit', () => {
-        // Normalizar coma → punto en el campo peso
-        $peso.value = $peso.value.replace(',', '.').trim();
-
-        // Guardar valores en localStorage (excepto peso)
-        writeSavedDetalleContext();
-
-        // Limpiar peso después de que el form ha sido enviado
-        setTimeout(() => {
-            $peso.value = '';
-            $peso.focus(); // Mantener foco en peso para siguiente entrada
-        }, 50);
-    });
-
-    // ====================================================================
-    // CONVERSIÓN EN TIEMPO REAL DE COMA A PUNTO EN PESO
-    // ====================================================================
-    $peso.addEventListener('input', function() {
-        // Convertir coma a punto mientras el usuario escribe
-        const cursorPos = this.selectionStart;
-        const hadComma = this.value.includes(',');
-        this.value = this.value.replace(',', '.');
-
-        // Mantener posición del cursor
-        if (hadComma) {
-            this.setSelectionRange(cursorPos, cursorPos);
-        }
-
-        // Validar que solo contenga números y un punto decimal
-        this.value = this.value.replace(/[^0-9.]/g, '');
-
-        // Evitar múltiples puntos decimales
-        const parts = this.value.split('.');
-        if (parts.length > 2) {
-            this.value = parts[0] + '.' + parts.slice(1).join('');
-        }
-    });
-
-    // ====================================================================
-    // NAVEGACIÓN CON ENTER ENTRE CAMPOS
-    // ====================================================================
-    $prod.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            $peso.focus();
-        }
-    });
-
-    $peso.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (!$lote.disabled) {
-                $lote.focus();
-            } else {
-                $exp.focus();
-            }
-        }
-    });
-
-    $lote.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            $fab.focus();
-        }
-    });
-
-    $fab.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            $exp.focus();
-        }
-    });
-
-    $exp.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            $form.querySelector('button[type="submit"]').click();
-        }
-    });
-}
-
 // ========================================================================
 // DESCARGA DE ETIQUETAS — submit nativo a iframe oculto (Android+iOS+desktop)
 // El form ya tiene action=4x2 y target=etiquetas-download-frame en la
