@@ -1250,7 +1250,7 @@ body[data-pedidos-list-screen] .pagination-btn-mobile:focus-visible {
 
 /* ── Tablero de entregas ───────────────────────────────────────────────── */
 body[data-pedidos-list-screen] .tablero-grupo {
-  margin-bottom: var(--space-5, 24px);
+  margin-bottom: var(--space-5, 20px);
 }
 
 body[data-pedidos-list-screen] .tablero-titulo {
@@ -1277,14 +1277,15 @@ body[data-pedidos-list-screen] .tablero-grupo-atrasados .tablero-titulo {
   color: #9f1239;
 }
 
-/* Hecho: se ve, pero deja de pedir atención. No se esconde, porque media
-   parte de «trabajar lo de hoy» es ver que el día cerró completo. */
-body[data-pedidos-list-screen] .tablero-hecho {
+/* «Hecho» atenúa lo que ya no hay que leer, no lo que todavía hay que tocar.
+   Estaba sobre la tarjeta entera con un `opacity:1` en las acciones para
+   rescatarlas, y eso NO funciona: un `opacity<1` compone todo el subárbol y el
+   hijo no puede escapar. Los botones de un facturado (revisar precios, factura
+   PDF) quedaban al 62%. */
+body[data-pedidos-list-screen] .tablero-hecho .pc-top,
+body[data-pedidos-list-screen] .tablero-hecho .pc-nota,
+body[data-pedidos-list-screen] .tablero-hecho .pc-meta {
   opacity: 0.62;
-}
-
-body[data-pedidos-list-screen] .tablero-hecho .pc-actions {
-  opacity: 1;
 }
 
 body[data-pedidos-list-screen] .tablero-archivo,

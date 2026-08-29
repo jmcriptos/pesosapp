@@ -385,3 +385,8 @@ def test_el_tablero_corta_en_50_por_grupo(logged_client):
     html = logged_client.get('/pedidos').get_data(as_text=True)
     assert html.count('tablero-fila') <= 50
     assert 'y 5 más' in html
+    # El corte de filas no debe descuadrar el encabezado: dice cuántos hay
+    # de verdad (55), no cuántos se dibujaron (50).
+    assert '<span class="tablero-cuenta">55</span>' in html, (
+        'el encabezado del grupo miente sobre cuántos pedidos hay'
+    )
