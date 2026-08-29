@@ -3357,6 +3357,47 @@ def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
     return max(int(round(mediana)), 1), True
 
 
+def _agrupar_radar(filas, hoy_local):
+    """Reparte los clientes en los cuatro grupos del radar.
+
+    DISJUNTOS: un dormido está pasadísimo de su ritmo, pero aparece sólo en
+    Dormidos. Y las cuatro claves se devuelven SIEMPRE, aunque vengan vacías
+    —al revés que `_agrupar_tablero`—, porque «Atrasados: 0» no es ruido: es un
+    buen resultado y tiene su propio estado vacío tranquilo, y la plantilla
+    necesita poder distinguirlo de «no hay clientes».
+    """
+    atrasados, al_dia, dormidos, sin_pedidos = [], [], [], []
+
+    for fila in filas:
+        if not fila.get('n_pedidos') or not fila.get('ultimo'):
+            sin_pedidos.append(fila)
+            continue
+
+        dias = (hoy_local - fila['ultimo']).days
+        ritmo = max(fila.get('ritmo') or _RADAR_RITMO_NEGOCIO, 1)
+        fila['dias_sin_comprar'] = dias
+        fila['veces_su_ritmo'] = round(dias / ritmo, 1)
+
+        if dias > _RADAR_DORMIDO_DIAS:
+            dormidos.append(fila)
+        elif dias > _RADAR_UMBRAL * ritmo:
+            atrasados.append(fila)
+        else:
+            al_dia.append(fila)
+
+    atrasados.sort(key=lambda f: f['veces_su_ritmo'], reverse=True)
+    al_dia.sort(key=lambda f: f['veces_su_ritmo'], reverse=True)
+    dormidos.sort(key=lambda f: (f['n_pedidos'], -f['dias_sin_comprar']), reverse=True)
+    sin_pedidos.sort(key=lambda f: (f['nombre'] or '').lower())
+
+    return [
+        ('atrasados', 'Atrasados', atrasados),
+        ('al_dia', 'Al día', al_dia),
+        ('dormidos', 'Dormidos', dormidos),
+        ('sin_pedidos', 'Nunca compraron', sin_pedidos),
+    ]
+
+
 def _agrupar_tablero(pedidos, hoy_local):
     """Reparte los pedidos del tablero en los cuatro grupos del spec.
 
