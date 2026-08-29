@@ -220,3 +220,59 @@ def test_total_no_se_ofrece_ordenable(logged_client):
     html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
     assert 'data-orden="total"' not in html
     assert 'data-orden="id"' in html, 'las columnas que SÍ ordenan bien siguen'
+
+
+# ── Facturar desde el DETALLE del pedido ──────────────────────────────────────
+
+def test_facturar_desde_el_detalle_tambien_confirma(logged_client):
+    """La otra pantalla desde la que se factura, y la que más se usa para eso.
+
+    Tenía el guard invertido: el form de `facturar_pedido` llevaba solo el token
+    CSRF, mientras el de «Marcar como preparado» —que es REVERSIBLE— sí
+    confirmaba. Y en el listado, un toque atrás, Facturar sí preguntaba con
+    estos mismos datos: el vendedor ya había aprendido que pregunta.
+
+    Es la misma clase de fallo que `test_facturar_confirma_en_el_form_no_en_el_boton`
+    cuida en el listado, en un archivo distinto que nadie había abierto.
+    """
+    p = _pedido('preparado')
+    html = logged_client.get(f'/pedidos/{p.id}/detalles').get_data(as_text=True)
+
+    forms = _forms(html, '/facturar')
+    assert forms, 'el detalle de un pedido preparado no ofrece facturar'
+    for f in forms:
+        assert 'data-confirm=' in f, (
+            'facturar sin confirmación en el <form> del detalle: base.js delega '
+            'sobre `submit`, donde e.target es el formulario'
+        )
+        assert 'No se puede deshacer' in f
+
+    assert 'data-submit-label="Facturando' in html, (
+        'falta el candado contra el doble toque'
+    )
+
+
+def test_en_el_detalle_lo_irreversible_avisa_mas_que_lo_reversible(logged_client):
+    """La jerarquía de seguridad, afirmada como invariante.
+
+    Marcar como preparado se puede deshacer; facturar escribe en QuickBooks y
+    no. El aviso del segundo tiene que ser al menos tan explícito como el del
+    primero — estaba al revés.
+    """
+    p = _pedido('pendiente')
+    html = logged_client.get(f'/pedidos/{p.id}/detalles').get_data(as_text=True)
+    preparado = _forms(html, '/marcar_preparado')
+    assert preparado and 'data-confirm=' in preparado[0], (
+        'cambió el aviso de marcar preparado; revisar el invariante'
+    )
+
+    p2 = _pedido('preparado')
+    html2 = logged_client.get(f'/pedidos/{p2.id}/detalles').get_data(as_text=True)
+    facturar = _forms(html2, '/facturar')
+    import re
+    aviso_facturar = re.search(r'data-confirm="([^"]*)"', facturar[0]).group(1)
+    aviso_preparado = re.search(r'data-confirm="([^"]*)"', preparado[0]).group(1)
+    assert len(aviso_facturar) > len(aviso_preparado), (
+        'el aviso de facturar (irreversible) es más corto que el de preparar '
+        '(reversible): la jerarquía de seguridad está invertida'
+    )

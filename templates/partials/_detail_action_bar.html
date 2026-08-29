@@ -29,11 +29,25 @@
       </button>
     </form>
   {% elif estado == 'preparado' %}
+    {# Facturar avisa, igual que en el listado.
+       Acá no lo hacía: el form llevaba el token CSRF y nada más, mientras el
+       de «Marcar como preparado» —que es REVERSIBLE— sí confirmaba. O sea que
+       la jerarquía de seguridad estaba invertida justo en la pantalla desde la
+       que más se factura, y con un botón de 290×56 a 19px de la barra de
+       navegación, bajo el pulgar de alguien que va en la camioneta.
+
+       Peor: en el listado, un toque atrás, Facturar SÍ pregunta con estos
+       mismos datos. El vendedor ya aprendió que pregunta, y acá no lo hacía.
+
+       El `data-confirm` va en el <form> y no en el <button>: base.js delega
+       sobre `submit`, donde `e.target` YA ES el formulario. #}
     <form method="post"
           action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}"
-          class="action-bar-form">
+          class="action-bar-form"
+          data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido_total_xcg or 0) }} {{ (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG' }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="action-bar-primary">
+      <input type="hidden" name="next" value="{{ request.full_path }}">
+      <button type="submit" class="action-bar-primary" data-submit-label="Facturando…">
         Facturar
       </button>
     </form>
