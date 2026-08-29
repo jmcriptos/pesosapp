@@ -30,6 +30,16 @@
     --border-radius: 12px;
     --admin-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --admin-gold-gradient: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+}
+/* ↑ Cierra el :root. Faltaba, y como los navegadores soportan anidamiento
+   CSS, las 339 reglas siguientes se parseaban ANIDADAS dentro de :root y se
+   llevaban su especificidad (+0,1,0): `button {}` valía como `:root button {}`
+   y le ganaba a `.filter-pill`. De ahí salieron tres rondas de guardas de
+   especificidad en pedidos_list.css y buena parte de los ~738 !important de
+   dark-theme.css. Efecto más visible de cerrarla: la app deja de renderizar
+   en Arial (`html, body { font-family: Arial }`, acá abajo, le ganaba a la
+   pila de fuentes real) y vuelve a -apple-system. */
+
 
 /* Reset y estilos base */
 * {
