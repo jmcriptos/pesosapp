@@ -27,6 +27,8 @@
     --border-radius: 12px;
     --admin-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --admin-gold-gradient: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -1459,162 +1461,7 @@ form.inline-form {
         box-sizing: border-box;
     }
 }
-@media (prefers-color-scheme: dark) {
-    form {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    input[type="text"],
-    input[type="number"],
-    input[type="date"],
-    input[type="email"],
-    input[type="tel"],
-    select,
-    textarea {
-        background-color: #3a3a3a !important;
-        border: 1px solid #4a4a4a !important;
-        color: #f8f9fa !important;
-        box-shadow: inset 0 1px 2px rgba(255,255,255,0.1) !important;
-    }
-    input::placeholder,
-    textarea::placeholder {
-        color: #a0a0a0 !important;
-        opacity: 1;
-    }
-    label {
-        color: #f8f9fa !important;
-    }
-    select {
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f8f9fa' stroke-width='2'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e") !important;
-        background-repeat: no-repeat !important;
-        background-position: right 12px center !important;
-        background-size: 16px !important;
-    }
-    input[type="text"]:focus,
-    input[type="number"]:focus,
-    input[type="date"]:focus,
-    input[type="email"]:focus,
-    input[type="tel"]:focus,
-    select:focus,
-    textarea:focus {
-        background-color: #404040 !important;
-        border-color: #1877ff !important;
-        outline: 0 !important;
-        box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.25) !important;
-    }
-    .mobile-card {
-        background: #2d2d2d !important;
-        color: #f8f9fa !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-    }
-    .mobile-card-header {
-        background: #383838 !important;
-        color: #f8f9fa !important;
-        border-bottom: 1px solid #4a4a4a !important;
-    }
-    .mobile-form-control {
-        background: #3a3a3a !important;
-        border-color: #4a4a4a !important;
-        color: #f8f9fa !important;
-    }
-    .mobile-form-control:focus {
-        background: #404040 !important;
-        border-color: #1877ff !important;
-        box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.25) !important;
-    }
-    table {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    th {
-        background-color: #1a1a1a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    td {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    tr:nth-child(even) td {
-        background-color: #363636 !important;
-    }
-    .mobile-suggestions {
-        background: #2d2d2d !important;
-        border: 1px solid #4a4a4a !important;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5) !important;
-    }
-    .suggestion-item:hover {
-        background: #3a3a3a !important;
-    }
-    .suggestion-name {
-        color: #f8f9fa !important;
-    }
-    button:not(.btn-chip):not(.cam-edit) {
-        background-color: #1877ff !important;
-        color: #ffffff !important;
-    }
-    button:not(.btn-chip):not(.cam-edit):hover {
-        background-color: #0056b3 !important;
-    }
-    .alert-success {
-        background-color: #1e4d3e !important;
-        color: #a7f3d0 !important;
-        border-color: #047857 !important;
-    }
-    .alert-error {
-        background-color: #4c1d24 !important;
-        color: #fca5a5 !important;
-        border-color: #dc2626 !important;
-    }
-    .mobile-form-container {
-        background-color: #1a1a1a !important;
-    }
-    textarea.form-control {
-        background: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    textarea.form-control:focus {
-        background: #404040 !important;
-        border-color: #1877ff !important;
-    }
-    #producto_id {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    #producto_id option {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    #cajas {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    #cliente_id {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    #cliente_id option {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    .mobile-total-amount {
-        color: #10b981 !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    }
-    input:disabled,
-    select:disabled,
-    textarea:disabled {
-        background-color: #1a1a1a !important;
-        color: #6b7280 !important;
-        border-color: #374151 !important;
-        opacity: 0.7;
-    }
-}
+
 [data-theme="dark"] form,
 .dark-mode form {
     background-color: #2d2d2d !important;
@@ -1630,18 +1477,7 @@ form.inline-form {
     border: 1px solid #4a4a4a !important;
     color: #f8f9fa !important;
 }
-@media (prefers-color-scheme: dark) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    select:not([class*="btn"]) {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-}
+
 @media (max-width: 768px) {
     .btn-chip-edit,
     .btn-chip-danger {

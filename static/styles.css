@@ -30,6 +30,16 @@
     --border-radius: 12px;
     --admin-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --admin-gold-gradient: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+}
+/* ↑ Cierra el :root. Faltaba, y como los navegadores soportan anidamiento
+   CSS, las 339 reglas siguientes se parseaban ANIDADAS dentro de :root y se
+   llevaban su especificidad (+0,1,0): `button {}` valía como `:root button {}`
+   y le ganaba a `.filter-pill`. De ahí salieron tres rondas de guardas de
+   especificidad en pedidos_list.css y buena parte de los ~738 !important de
+   dark-theme.css. Efecto más visible de cerrarla: la app deja de renderizar
+   en Arial (`html, body { font-family: Arial }`, acá abajo, le ganaba a la
+   pila de fuentes real) y vuelve a -apple-system. */
+
 
 /* Reset y estilos base */
 * {
@@ -1786,213 +1796,14 @@ form.inline-form {
    ================================================== */
 
 /* Estilos específicos para modo oscuro/nocturno */
-@media (prefers-color-scheme: dark) {
-    
-    /* Formularios principales */
-    form {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    
-    /* Campos de entrada - CRÍTICO PARA EL CONTRASTE */
-    input[type="text"],
-    input[type="number"],
-    input[type="date"],
-    input[type="email"],
-    input[type="tel"],
-    select,
-    textarea {
-        background-color: #3a3a3a !important;
-        border: 1px solid #4a4a4a !important;
-        color: #f8f9fa !important;
-        box-shadow: inset 0 1px 2px rgba(255,255,255,0.1) !important;
-    }
-    
-    /* Placeholders en modo oscuro */
-    input::placeholder,
-    textarea::placeholder {
-        color: #a0a0a0 !important;
-        opacity: 1;
-    }
-    
-    /* Labels */
-    label {
-        color: #f8f9fa !important;
-    }
-    
-    /* Select específico con fondo oscuro */
-    select {
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f8f9fa' stroke-width='2'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e") !important;
-        background-repeat: no-repeat !important;
-        background-position: right 12px center !important;
-        background-size: 16px !important;
-    }
-    
-    /* Estados focus para mejor contraste */
-    input[type="text"]:focus,
-    input[type="number"]:focus,
-    input[type="date"]:focus,
-    input[type="email"]:focus,
-    input[type="tel"]:focus,
-    select:focus,
-    textarea:focus {
-        background-color: #404040 !important;
-        border-color: #1877ff !important;
-        outline: 0 !important;
-        box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.25) !important;
-    }
-    
-    /* ESPECÍFICO PARA PEDIDOS/NUEVO - Mobile Cards */
-    .mobile-card {
-        background: #2d2d2d !important;
-        color: #f8f9fa !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-    }
-    
-    .mobile-card-header {
-        background: #383838 !important;
-        color: #f8f9fa !important;
-        border-bottom: 1px solid #4a4a4a !important;
-    }
-    
-    .mobile-form-control {
-        background: #3a3a3a !important;
-        border-color: #4a4a4a !important;
-        color: #f8f9fa !important;
-    }
-    
-    .mobile-form-control:focus {
-        background: #404040 !important;
-        border-color: #1877ff !important;
-        box-shadow: 0 0 0 2px rgba(24, 119, 255, 0.25) !important;
-    }
-    
-    /* Tablas en modo oscuro */
-    table {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    
-    th {
-        background-color: #1a1a1a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    
-    td {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    
-    tr:nth-child(even) td {
-        background-color: #363636 !important;
-    }
-    
-    /* Dropdown suggestions */
-    .mobile-suggestions {
-        background: #2d2d2d !important;
-        border: 1px solid #4a4a4a !important;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5) !important;
-    }
-    
-    .suggestion-item:hover {
-        background: #3a3a3a !important;
-    }
-    
-    .suggestion-name {
-        color: #f8f9fa !important;
-    }
-    
-    /* Botones - mantener legibilidad. Excluye .cam-edit (botones de ícono de las
-       pantallas ops/HACCP): este bloque vive en un :root sin cerrar (CSS nesting),
-       lo que dispara su especificidad y pintaba los íconos de azul en modo oscuro. */
-    button:not(.btn-chip):not(.cam-edit) {
-        background-color: #1877ff !important;
-        color: #ffffff !important;
-    }
+/* Aca vivia un bloque de modo oscuro por preferencia del sistema.
+   El modo oscuro se descarto como producto el 2026-08-28 y el toggle se
+   elimino de toda la app, pero estos bloques seguian activandose solos
+   segun el sistema operativo: un iPhone en oscuro veia una app que ya no
+   se mantenia. Eliminado el 2026-08-29. El marco oscuro (topbar/tabbar)
+   NO viene de aca: vive en dark-theme.css y en las reglas [data-theme]
+   de app-mobile.css, que se conservan a proposito. */
 
-    button:not(.btn-chip):not(.cam-edit):hover {
-        background-color: #0056b3 !important;
-    }
-    
-    /* Alertas en modo oscuro */
-    .alert-success {
-        background-color: #1e4d3e !important;
-        color: #a7f3d0 !important;
-        border-color: #047857 !important;
-    }
-    
-    .alert-error {
-        background-color: #4c1d24 !important;
-        color: #fca5a5 !important;
-        border-color: #dc2626 !important;
-    }
-    
-    /* Container principal */
-    .mobile-form-container {
-        background-color: #1a1a1a !important;
-    }
-    
-    /* Text areas específicas */
-    textarea.form-control {
-        background: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    
-    textarea.form-control:focus {
-        background: #404040 !important;
-        border-color: #1877ff !important;
-    }
-    
-    /* Dropdown de productos específico */
-    #producto_id {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    
-    #producto_id option {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    
-    /* Input de cajas */
-    #cajas {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    
-    /* Cliente select */
-    #cliente_id {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-    
-    #cliente_id option {
-        background-color: #2d2d2d !important;
-        color: #f8f9fa !important;
-    }
-    
-    /* Mejoras adicionales para lectura */
-    .mobile-total-amount {
-        color: #10b981 !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    }
-    
-    /* Estados disabled en modo oscuro */
-    input:disabled,
-    select:disabled,
-    textarea:disabled {
-        background-color: #1a1a1a !important;
-        color: #6b7280 !important;
-        border-color: #374151 !important;
-        opacity: 0.7;
-    }
-}
 
 /* ================================================== 
    FALLBACK PARA NAVEGADORES SIN SOPORTE COMPLETO
@@ -2021,21 +1832,14 @@ form.inline-form {
    ================================================== */
 
 /* Forzar estilos para casos específicos problemáticos */
-@media (prefers-color-scheme: dark) {
-    /* Para cualquier input que no haya sido capturado */
-    input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
+/* Aca vivia un bloque de modo oscuro por preferencia del sistema.
+   El modo oscuro se descarto como producto el 2026-08-28 y el toggle se
+   elimino de toda la app, pero estos bloques seguian activandose solos
+   segun el sistema operativo: un iPhone en oscuro veia una app que ya no
+   se mantenia. Eliminado el 2026-08-29. El marco oscuro (topbar/tabbar)
+   NO viene de aca: vive en dark-theme.css y en las reglas [data-theme]
+   de app-mobile.css, que se conservan a proposito. */
 
-    /* Asegurar que todos los selects tengan el estilo correcto */
-    select:not([class*="btn"]) {
-        background-color: #3a3a3a !important;
-        color: #f8f9fa !important;
-        border-color: #4a4a4a !important;
-    }
-}
 
 /* ==================================================
    MEJORAS DE BOTONES Y DISTINCIÓN VISUAL - PEDIDOS

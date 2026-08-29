@@ -532,66 +532,14 @@ body[data-precios-screen] .precios-badge-primary { background: #e0e7ff; color: #
 /* ── 14 · Escudo dark-mode del sistema (idéntico mecanismo verificado en
       gestion.css sección 6 — mismos ofensores, mismo truco de especificidad,
       adaptado al prefijo data-precios-screen). ─────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  html body[data-precios-screen] .precios-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
-  html body[data-precios-screen] .precios-wrap select,
-  html body[data-precios-screen] .precios-wrap textarea,
-  html body[data-precios-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
-  html body[data-precios-screen] .mobile-form-container select,
-  html body[data-precios-screen] .mobile-form-container textarea {
-    background: #ffffff !important;
-    background-image: none !important;
-    border: 1px solid #e2e8f0 !important;
-    color: #0f172a !important;
-    box-shadow: none !important;
-  }
-  html body[data-precios-screen] .precios-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
-  html body[data-precios-screen] .precios-wrap select:focus,
-  html body[data-precios-screen] .precios-wrap textarea:focus,
-  html body[data-precios-screen] .mobile-form-container input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
-  html body[data-precios-screen] .mobile-form-container select:focus,
-  html body[data-precios-screen] .mobile-form-container textarea:focus {
-    background: #ffffff !important;
-    border-color: #2563eb !important;
-  }
-  html body[data-precios-screen] .precios-wrap input::placeholder,
-  html body[data-precios-screen] .mobile-form-container input::placeholder {
-    color: #94a3b8 !important;
-  }
-  html body[data-precios-screen] .precios-wrap label,
-  html body[data-precios-screen] .mobile-form-container label {
-    color: #475569 !important;
-  }
-  html body[data-precios-screen] .precios-wrap form,
-  html body[data-precios-screen] .mobile-form-container form {
-    background: transparent !important;
-  }
-  html body[data-precios-screen] .mobile-card {
-    background: #ffffff !important;
-    color: #0f172a !important;
-  }
-  html body[data-precios-screen] .mobile-card-header {
-    background: #f8fafc !important;
-    color: #0f172a !important;
-  }
-  html body[data-precios-screen] .mobile-btn-secondary:not(.btn-chip):not(.cam-edit) {
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border: 1px solid #e2e8f0 !important;
-  }
-  html body[data-precios-screen] .precios-input:not(.btn-chip):not(.cam-edit) {
-    background: #ffffff !important;
-    color: #0f172a !important;
-  }
-  html body[data-precios-screen] .precios-icon-edit:not(.btn-chip):not(.cam-edit) {
-    background: #eef4ff !important;
-    color: #2b7cff !important;
-  }
-  html body[data-precios-screen] .precios-icon-delete:not(.btn-chip):not(.cam-edit) {
-    background: #ffecec !important;
-    color: #dc3545 !important;
-  }
-}
+/* Aca vivia un bloque de modo oscuro por preferencia del sistema.
+   El modo oscuro se descarto como producto el 2026-08-28 y el toggle se
+   elimino de toda la app, pero estos bloques seguian activandose solos
+   segun el sistema operativo: un iPhone en oscuro veia una app que ya no
+   se mantenia. Eliminado el 2026-08-29. El marco oscuro (topbar/tabbar)
+   NO viene de aca: vive en dark-theme.css y en las reglas [data-theme]
+   de app-mobile.css, que se conservan a proposito. */
+
 
 /* ---------------------------------------------------------------------------
    Tablas de precios en pantallas angostas

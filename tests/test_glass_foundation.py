@@ -74,22 +74,59 @@ def test_color_semantic_light_references_primitives():
     assert '--focus-ring:' in css
 
 
-def test_dark_mode_media_query_overrides_semantic_tokens():
-    css = _read_tokens()
-    # The dark block must be present
-    assert '@media (prefers-color-scheme: dark)' in css
-    # Find the dark block content
-    dark_start = css.find('@media (prefers-color-scheme: dark)')
-    dark_end = css.find('@media', dark_start + 1)
-    if dark_end == -1:
-        dark_end = len(css)
-    dark_block = css[dark_start:dark_end]
-    # Key dark overrides
-    assert '--color-bg:' in dark_block
-    assert '--color-text:' in dark_block
-    assert '--color-surface:' in dark_block
-    assert '--glass-bg:' in dark_block
-    assert '--color-primary:' in dark_block
+def test_no_hay_modo_oscuro_por_preferencia_del_sistema():
+    """La app NO tiene modo oscuro, y no debe volver a tenerlo por la ventana.
+
+    Reemplaza a `test_dark_mode_media_query_overrides_semantic_tokens` y a
+    `test_dark_mode_shadow_overrides_present`, que exigían lo contrario: que
+    `tokens.css` trajera un bloque `@media (prefers-color-scheme: dark)` con
+    sus overrides. Codificaban la intención de diseño de entonces.
+
+    El 2026-08-28 se descartó el modo oscuro como producto y se quitó el toggle
+    de toda la app. Pero esos bloques no dependían del toggle: se activaban
+    solos según el sistema operativo, así que un iPhone con el sistema en
+    oscuro seguía viendo una variante que ya nadie mantenía. De ahí salieron
+    tres rondas de guardas de especificidad en `pedidos_list.css` y buena parte
+    de los ~738 !important de `dark-theme.css`. Los 9 bloques se eliminaron el
+    2026-08-29 (823 líneas) y la verificación por render dio 0 divergencias
+    entre claro y oscuro sobre 2434 elementos.
+
+    OJO: el marco oscuro —topbar y tabbar— NO es esto. Vive en `dark-theme.css`
+    y en las reglas `[data-theme]` de `app-mobile.css`, es incondicional y es el
+    diseño. Este test no lo toca.
+    """
+    import glob
+    import re
+
+    def sin_comentarios(texto):
+        # Enmascara el CONTENIDO de los comentarios conservando las posiciones.
+        # Varias hojas EXPLICAN este problema en prosa y nombran la at-rule; sin
+        # esto, el test fallaría por su propia documentación.
+        out = list(texto)
+        for m in re.finditer(r'/\*.*?\*/', texto, re.S):
+            for i in range(m.start(), m.end()):
+                if out[i] != '\n':
+                    out[i] = ' '
+        return ''.join(out)
+
+    raiz = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
+    hojas = glob.glob(os.path.join(raiz, '*.css')) + glob.glob(os.path.join(raiz, 'css', '*.css'))
+    assert hojas, 'no se encontró ninguna hoja de estilos'
+
+    culpables = []
+    for hoja in hojas:
+        with open(hoja, encoding='utf-8') as fh:
+            codigo = sin_comentarios(fh.read())
+        n = len(re.findall(r'@media[^{]*prefers-color-scheme\s*:\s*dark', codigo))
+        if n:
+            culpables.append(f'{os.path.relpath(hoja, raiz)}: {n}')
+
+    assert not culpables, (
+        'volvió a aparecer modo oscuro por preferencia del sistema en: '
+        + ', '.join(culpables)
+        + '. El producto lo descartó el 2026-08-28; ver el spec '
+        '2026-08-29-styles-root-sin-cerrar-design.md antes de reintroducirlo.'
+    )
 
 
 # ─── Typography ─────────────────────────────────────────────────────────
@@ -149,18 +186,6 @@ def test_structural_tokens_present():
     # Blur
     for t in ['--blur-sm', '--blur-md', '--blur-lg', '--blur-xl']:
         assert f'{t}:' in css
-
-
-def test_dark_mode_shadow_overrides_present():
-    css = _read_tokens()
-    dark_start = css.find('@media (prefers-color-scheme: dark)')
-    dark_end_candidates = [css.find('@media', dark_start + 1)]
-    dark_end = min(i for i in dark_end_candidates if i != -1) if any(
-        i != -1 for i in dark_end_candidates) else len(css)
-    dark_block = css[dark_start:dark_end]
-    # Dark mode should reduce solid shadows (black-on-black loses them)
-    assert '--shadow-sm:' in dark_block
-    assert '--shadow-md:' in dark_block
 
 
 def test_reduced_motion_override_present():

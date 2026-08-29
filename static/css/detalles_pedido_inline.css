@@ -800,138 +800,14 @@
 /* ============================================
    DARK MODE SUPPORT
    ============================================ */
-@media (prefers-color-scheme: dark) {
-    .mobile-form-container {
-        background: #111827;
-    }
+/* Aca vivia un bloque de modo oscuro por preferencia del sistema.
+   El modo oscuro se descarto como producto el 2026-08-28 y el toggle se
+   elimino de toda la app, pero estos bloques seguian activandose solos
+   segun el sistema operativo: un iPhone en oscuro veia una app que ya no
+   se mantenia. Eliminado el 2026-08-29. El marco oscuro (topbar/tabbar)
+   NO viene de aca: vive en dark-theme.css y en las reglas [data-theme]
+   de app-mobile.css, que se conservan a proposito. */
 
-    .mobile-card {
-        background: #1f2937;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    }
-
-    .mobile-card-body {
-        color: #e5e7eb;
-    }
-
-    .mobile-form-label {
-        color: #d1d5db;
-    }
-
-    .mobile-form-control {
-        background: #374151;
-        border-color: #4b5563;
-        color: #f9fafb;
-    }
-
-    .mobile-form-control:focus {
-        background: #4b5563;
-        border-color: #1877ff;
-    }
-
-    .mobile-form-control::placeholder {
-        color: #9ca3af;
-    }
-
-    .producto-item-mobile {
-        background: #374151;
-        border-color: #4b5563;
-    }
-
-    .producto-item-name,
-    .producto-detail-value {
-        color: #f9fafb;
-    }
-
-    .producto-detail-label {
-        color: #9ca3af;
-    }
-
-    .producto-item-footer {
-        border-top-color: #4b5563;
-    }
-
-    .mobile-notes-section {
-        background: linear-gradient(135deg, #422006 0%, #78350f 100%);
-        border-bottom-color: #92400e;
-    }
-
-    .mobile-notes-label {
-        color: #fcd34d;
-    }
-
-    .mobile-notes-content {
-        color: #fef3c7;
-    }
-
-    .mobile-table td {
-        background: #1f2937;
-        color: #e5e7eb;
-        border-bottom-color: #374151;
-    }
-
-    .mobile-table tr:hover td {
-        background: #374151;
-    }
-
-    select option {
-        background: #374151;
-        color: #f9fafb;
-    }
-
-    .edit-modal {
-        background: #1f2937;
-    }
-
-    .edit-modal-body {
-        color: #e5e7eb;
-    }
-
-    .edit-modal-footer {
-        border-top-color: #374151;
-    }
-
-    .mobile-btn-secondary {
-        background: #374151;
-        color: #e5e7eb;
-    }
-
-    .mobile-btn-secondary:active {
-        background: #4b5563;
-    }
-
-    .mobile-empty-state {
-        color: #9ca3af;
-    }
-
-    .status-bar {
-        background: #1f2937;
-        border-bottom-color: #374151;
-    }
-
-    .status-info {
-        color: #9ca3af;
-    }
-
-    .status-badge-pendiente {
-        background: #78350f;
-        color: #fcd34d;
-    }
-
-    .status-badge-preparado {
-        background: #064e3b;
-        color: #6ee7b7;
-    }
-
-    .status-badge-facturado {
-        background: #1e3a5f;
-        color: #93c5fd;
-    }
-
-    .sticky-preparado-bar {
-        background: linear-gradient(to top, rgba(17,24,39,1) 60%, rgba(17,24,39,0));
-    }
-}
 
 /* ============================================
    LÍNEAS DE PEDIDO ORIGINAL (es_linea_pedido)
