@@ -161,3 +161,53 @@ un modo oscuro que el producto ya decidió no tener.
 Eliminar ese bloque es candidato a ser el arreglo de fondo, y es más barato que
 seguir escribiendo guardas. Pero es una decisión de producto y no entra en este
 spec.
+
+---
+
+## Continuación: se elimina el modo oscuro por sistema (2026-08-29)
+
+Decisión de JM sobre el cabo suelto que dejó la sección anterior. Se eliminan
+los **9 bloques `@media (prefers-color-scheme: dark)`** que quedaban repartidos
+en 7 hojas (823 líneas), y con ellos la regla que causaba los cuatro síntomas.
+
+El modo oscuro se había descartado como producto el 2026-08-28 y el toggle se
+quitó de toda la app, pero estos bloques no dependían del toggle: se activaban
+solos según el sistema operativo. Un iPhone con el sistema en oscuro veía una
+variante que ya nadie mantenía.
+
+**Se conserva el marco oscuro** —topbar y tabbar— que vive en `dark-theme.css`
+y en las reglas `[data-theme]` de `app-mobile.css`. No es un tema alternativo:
+es el diseño.
+
+### Criterio de aceptación, y su resultado
+
+1. **En claro no cambia nada.** Huella por pantalla de color, fondo compuesto,
+   tamaño y peso de cada elemento con texto visible, sobre 28 combinaciones
+   pantalla × ancho: las 28 idénticas a la línea base. ✅
+2. **En oscuro deja de haber divergencia.** De 72 elementos que renderizaban
+   distinto en oscuro (19 en `/recepciones`, 6 en `/registros/temperaturas`,
+   1 por pantalla en el resto) a **0**. 2434 elementos medidos. ✅
+3. Criterios 3 y 4 del spec original, imposibles antes, ahora cumplidos: las
+   tres rondas de guardas de `pedidos_list.css` quedaron muertas al irse
+   `button:not(.btn-chip):not(.cam-edit)` y se eliminaron (−4432 caracteres),
+   incluido el `-webkit-text-fill-color` del buscador. Verificado que su
+   ausencia no mueve ni un píxel: las 28 huellas siguen idénticas. ✅
+
+### Dos errores propios durante la ejecución, por si alguien repite esto
+
+Ambos de la misma familia: **buscar `@media (prefers-color-scheme: dark)` con
+una expresión regular que no distingue código de comentario.**
+
+1. La nota que insertaba en lugar de cada bloque contenía esa misma cadena. El
+   bucle re-escaneaba, matcheaba su propia nota y seguía borrando: `styles.css`
+   pasó de 371 llaves a 310.
+2. Ya sin la cadena en la nota, `app-mobile.css` y `gestion.css` **tienen
+   comentarios que explican el problema** y por tanto la contienen. El escaneo
+   los matcheó y se llevó CSS incondicional, entre otras cosas
+   `main.app-content label { color: #475569 !important }`. Esto sí se coló a la
+   verificación y apareció como «8 de 28 pantallas cambiaron en claro» — que es
+   justamente lo que la comprobación existe para atrapar.
+
+La versión correcta enmascara el contenido de los comentarios en una copia de
+igual longitud antes de buscar y de contar llaves, y recoge todos los tramos en
+una sola pasada para borrarlos de atrás hacia adelante.
