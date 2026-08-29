@@ -271,9 +271,15 @@ body[data-pedidos-list-screen] .pc-id {
 /* Ahora es un <a> de verdad (antes toda la tarjeta era un role="link" que se
    tragaba su propio contenido para el lector de pantalla). Se sigue viendo como
    texto: subrayarlo metería una línea en cada tarjeta de la lista. */
+/* El CLIENTE manda en la tarjeta (decisión de JM, 2026-08-29).
+   Dos críticas seguidas marcaron lo mismo: el dato de mayor peso visual era el
+   importe, que es lo menos accionable para quien está cargando una camioneta.
+   Nadie prepara ni entrega pedidos en orden descendente de plata; se busca al
+   cliente. El importe baja a dato secundario —sigue perfectamente legible para
+   verificar antes de facturar— y deja de gritar. */
 body[data-pedidos-list-screen] .pc-client {
   color: var(--color-text) !important;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   margin-top: 2px;
@@ -321,11 +327,13 @@ body[data-pedidos-list-screen] .pc-id {
    maquetada como fila de dashboard financiero y no como orden de trabajo.
    Nadie prepara pedidos en orden descendente de valor. El número sigue
    perfectamente legible; deja de gritar. */
+/* Secundario, no protagonista. Ver el comentario de `.pc-client`: el importe
+   se lee para verificar antes de facturar, no para decidir a quién atender. */
 body[data-pedidos-list-screen] .pc-amt {
-  color: var(--color-text) !important;
+  color: var(--color-text-muted) !important;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1300,10 +1308,31 @@ body[data-pedidos-list-screen] .tablero-grupo-atrasados .tablero-titulo {
    rescatarlas, y eso NO funciona: un `opacity<1` compone todo el subárbol y el
    hijo no puede escapar. Los botones de un facturado (revisar precios, factura
    PDF) quedaban al 62%. */
-body[data-pedidos-list-screen] .tablero-hecho .pc-top,
+/* «Hecho» se atenúa con COLOR, no con opacidad.
+   La versión anterior ponía `opacity: 0.62` sobre estas tres zonas. Corregía el
+   problema que venía a corregir —los botones dejaron de heredar la atenuación—
+   pero nadie midió el resultado: aplicar 0.62 sobre texto que ya era gris medio
+   lo hunde por debajo de AA. Medido componiendo la opacidad heredada:
+   `.pc-id` 3,00:1, la fecha 3,00:1 y la píldora de estado 3,15:1, contra el
+   piso de 4,5:1. Bajo sol de Curaçao eso no se lee.
+   #64748b da 4,82:1 sobre blanco y sigue leyéndose claramente como «esto ya
+   está»: la jerarquía se mantiene, la legibilidad vuelve. Va con !important
+   porque las reglas base de .pc-id y .pc-client también lo llevan. */
+body[data-pedidos-list-screen] .tablero-hecho .pc-id,
+body[data-pedidos-list-screen] .tablero-hecho .pc-client,
+body[data-pedidos-list-screen] .tablero-hecho .pc-amt,
 body[data-pedidos-list-screen] .tablero-hecho .pc-nota,
-body[data-pedidos-list-screen] .tablero-hecho .pc-meta {
-  opacity: 0.62;
+body[data-pedidos-list-screen] .tablero-hecho .pc-meta,
+body[data-pedidos-list-screen] .tablero-hecho .pc-meta span,
+body[data-pedidos-list-screen] .tablero-hecho .pc-meta i {
+  color: #64748b !important;
+}
+
+/* La píldora de estado se queda a color pleno: es la que dice «FACTURADO», o
+   sea justamente el dato que hace que la tarjeta esté atenuada. Atenuar la
+   explicación de la atenuación es circular. */
+body[data-pedidos-list-screen] .tablero-hecho .status-pill {
+  opacity: 1;
 }
 
 body[data-pedidos-list-screen] .tablero-archivo,
@@ -1322,4 +1351,142 @@ body[data-pedidos-list-screen] .tablero-archivo:hover,
 body[data-pedidos-list-screen] .tablero-mas:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Crítica del 2026-08-29
+   ──────────────────────────────────────────────────────────── */
+
+/* «Facturar» deja de ser el botón más gritón de la pantalla en modo oscuro.
+   `styles.css` tiene un `:root` sin cerrar (371 llaves abiertas contra 370
+   cerradas) que, dentro de su @media de modo oscuro, anida
+   `button:not(.btn-chip){background:#1877ff}` con !important. Efecto medido:
+   «Facturar» —que es un <button>— pasa de #4338ca sobre #e0e7ff (6,41:1) a
+   blanco sobre #1877ff (4,10:1, por debajo del piso AA de 4,5 para 13px),
+   mientras «Preparar» —que es un <a> de la MISMA clase— no cambia.
+
+   Lo grave no es el número: es que invierte la jerarquía de seguridad. La
+   única acción irreversible de la pantalla, la que crea la factura del cliente
+   en QuickBooks y por eso lleva un confirm detallado, se vuelve el CTA más
+   brillante; la acción segura y reversible queda suave. El CSS contradice al
+   producto.
+
+   Guarda de especificidad, el mismo patrón que ya usan las pantallas .ops-*.
+   Arreglar el `:root` sin cerrar es lo correcto de fondo, pero toca toda la
+   app y no entra en una crítica de esta pantalla. */
+body[data-pedidos-list-screen] .pc-actions button.pc-action-main,
+body[data-pedidos-list-screen] .pedido-row-actions button.row-action-main {
+  background: var(--color-primary-soft) !important;
+  background-image: none !important;
+  color: var(--color-primary-soft-fg) !important;
+}
+
+body[data-pedidos-list-screen] .pc-actions button.pc-action-btn,
+body[data-pedidos-list-screen] .pedido-row-actions button.row-action {
+  background: var(--color-bg-elevated) !important;
+  background-image: none !important;
+  color: var(--color-text-muted) !important;
+}
+
+body[data-pedidos-list-screen] .pc-actions button.pc-action-btn.danger,
+body[data-pedidos-list-screen] .pedido-row-actions button.row-action-danger {
+  color: #b91c1c !important;
+}
+
+body[data-pedidos-list-screen] .pedidos-error-btn {
+  background: transparent !important;
+  background-image: none !important;
+  color: inherit !important;
+}
+
+/* El tablero en escritorio.
+   `.pedidos-list` se oculta arriba de 900px y aparece la tabla, pero
+   `.pedidos-tablero` no estaba en ninguna de las dos reglas: heredaba la
+   tarjeta móvil a sangre completa. Medido a 1440: tarjeta de 1406px con el
+   cliente en x=47 y el importe en x=1387 — 1340px de vacío entre los dos datos
+   de la misma tarjeta, y 3 tarjetas en 900px de alto. El supervisor es uno de
+   los dos usuarios y trabaja acá. */
+@media (min-width: 900px) {
+  body[data-pedidos-list-screen] .pedidos-tablero {
+    max-width: 1100px;
+  }
+
+  /* Dos columnas: la cola del día se ve de un vistazo en vez de en tres
+     pantallas. Los grupos siguen apilados, porque su orden ES la urgencia. */
+  body[data-pedidos-list-screen] .tablero-grupo .pedido-card {
+    display: block;
+  }
+
+  body[data-pedidos-list-screen] .tablero-grupo {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+
+  /* El encabezado del grupo ocupa la fila entera de la grilla. */
+  body[data-pedidos-list-screen] .tablero-titulo,
+  body[data-pedidos-list-screen] .tablero-mas {
+    grid-column: 1 / -1;
+  }
+}
+
+/* La estructura tiene que pesar más que su contenido.
+   Los títulos de grupo eran más chicos y más claros que los nombres de cliente
+   que organizan, así que la jerarquía quedaba invertida: el índice subordinado
+   a las entradas. */
+body[data-pedidos-list-screen] .tablero-titulo {
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+/* El vacío del lunes.
+   Es el estado más frecuente en producción —942 pedidos, todos facturados— y
+   era el menos diseñado. El borde punteado es el vocabulario visual de «acá
+   falta algo» o de zona donde soltar un archivo: decía lo contrario del «día
+   bien cerrado» que se buscaba. Y no ofrecía la acción que su propio texto
+   nombraba. */
+body[data-pedidos-list-screen] .tablero-vacio {
+  border: 0 !important;
+  background: transparent !important;
+  padding: var(--space-6, 32px) var(--space-4, 16px) !important;
+}
+
+body[data-pedidos-list-screen] .tablero-vacio i {
+  color: var(--color-text-subtle);
+}
+
+body[data-pedidos-list-screen] .tablero-vacio-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--touch-gap, 8px);
+  margin-top: var(--space-4, 16px);
+}
+
+/* Volver al tablero desde el archivo.
+   Entrar a las 48 páginas era un enlace al pie; salir no tenía ninguno: el
+   único camino era tocar la pestaña «Pedidos», que ya se ve activa. */
+body[data-pedidos-list-screen] .tablero-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch-min, 48px);
+  margin-bottom: var(--space-2, 8px);
+  color: var(--color-primary-soft-fg);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+body[data-pedidos-list-screen] .tablero-volver:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-pedidos-list-screen] .tablero-volver:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
 }

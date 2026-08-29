@@ -123,10 +123,14 @@
           {% macro th_orden(clave, etiqueta, extra_clase='') -%}
             {% set activo = (filtros.orden or '').lstrip('-') == clave %}
             {% set desc = activo and (filtros.orden or '').startswith('-') %}
-            <th class="sortable {{ extra_clase }}{% if activo %} {{ 'desc' if desc else 'asc' }}{% endif %}">
+            {# `aria-sort` va en el <th>, NO en el <button>: en un botón el
+               atributo se ignora, así que un lector de pantalla no anunciaba
+               qué columna estaba ordenada ni en qué sentido. Solo es válido en
+               un encabezado de tabla. #}
+            <th class="sortable {{ extra_clase }}{% if activo %} {{ 'desc' if desc else 'asc' }}{% endif %}"
+                aria-sort="{{ ('descending' if desc else 'ascending') if activo else 'none' }}">
               <button type="button" class="th-orden" data-orden="{{ '-' if activo and not desc else '' }}{{ clave }}"
-                      aria-label="Ordenar por {{ etiqueta|lower }}{{ ', descendente' if activo and not desc else ', ascendente' }}"
-                      {% if activo %}aria-sort="{{ 'descending' if desc else 'ascending' }}"{% endif %}>
+                      aria-label="Ordenar por {{ etiqueta|lower }}{{ ', descendente' if activo and not desc else ', ascendente' }}">
                 {{ etiqueta }}
                 <i class="fa {% if activo %}{{ 'fa-sort-down' if desc else 'fa-sort-up' }}{% else %}fa-sort{% endif %}" aria-hidden="true"></i>
               </button>

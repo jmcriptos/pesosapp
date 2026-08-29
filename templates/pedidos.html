@@ -43,6 +43,15 @@
   {% if modo_tablero %}
   {% include '_pedidos_tablero.html' %}
   {% else %}
+  {# La puerta de vuelta. Entrar al archivo es un enlace al pie del tablero;
+     salir no tenía ninguno. Los únicos enlaces a `/pedidos` sin parámetros son
+     los de navegación rotulados «Pedidos», que desde acá ya se ven ACTIVOS —o
+     sea que el camino de vuelta parecía decir «ya estás ahí»—. El cambio de
+     modo era invisible y, desde adentro, irreversible. #}
+  <a class="tablero-volver" href="{{ url_for('lista_pedidos') }}">
+    <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver al tablero de hoy
+  </a>
+
   {# UN solo control para UNA sola variable.
      Antes había tres widgets escribiendo el mismo `estado`: dos «cifras» de
      75px de alto arriba, cinco píldoras abajo, y el hidden. Entre los tres se

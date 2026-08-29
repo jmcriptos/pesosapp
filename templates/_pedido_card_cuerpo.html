@@ -19,7 +19,12 @@
             <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
             {% endif %}
           </div>
-          <a class="pc-client" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">
+          {# `title` con el nombre completo: se trunca a una línea con elipsis
+             («Van den Tweel Supermar…») y sin esto no había forma de ver el
+             resto sin abrir el pedido. En táctil el title no aparece, pero en
+             escritorio —donde trabaja el supervisor— sí, y no cuesta nada. #}
+          <a class="pc-client" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
+             title="{{ pedido.cliente.nombre if pedido.cliente else 'Sin cliente' }}">
             {{ pedido.cliente.nombre if pedido.cliente else '—' }}<span class="sr-only"> — abrir el pedido PED-{{ pedido.id }}</span>
           </a>
         </div>
@@ -72,12 +77,17 @@
             {% endif %}
           </span>
           {% elif pedido.fecha_pedido %}
-          {# Mismo formato corto que la entrega (dd/mm): tres formatos de fecha
-             distintos en una sola pantalla obligaban a leer dos veces para
-             saber si «08/09» era septiembre o el año. El año completo vive en
-             el title, donde no compite por ancho. #}
-          <span title="Pedido tomado el {{ pedido.fecha_pedido.strftime('%d/%m/%Y') }}">
-            <i class="fas fa-calendar" aria-hidden="true"></i> {{ pedido.fecha_pedido.strftime('%d/%m') }}
+          {# Lleva la palabra «pedido», no solo el icono de calendario.
+             Sin ella, una tarjeta del grupo «Sin fecha de entrega» mostraba
+             «02/04» al lado de un almanaque y se contradecía con su propio
+             encabezado: el grupo afirmaba que no había fecha y la tarjeta
+             mostraba una. La distinción vivía únicamente en el `title`, que en
+             el teléfono no existe.
+             Formato corto (dd/mm) como la entrega: tres formatos de fecha en
+             una sola pantalla obligaban a leer dos veces para saber si «08/09»
+             era septiembre o el año. El año completo queda en el title. #}
+          <span title="Pedido tomado el {{ pedido.fecha_pedido.strftime('%d/%m/%Y') }} · sin fecha de entrega cargada">
+            <i class="fas fa-calendar" aria-hidden="true"></i> pedido {{ pedido.fecha_pedido.strftime('%d/%m') }}
           </span>
           {% endif %}
           {% if pedido.detalles is defined and pedido.detalles %}

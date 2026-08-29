@@ -434,15 +434,28 @@ def test_el_tablero_vacio_no_alarma(logged_client):
     de red (`#pedidos-error`) vive fuera del tablero y está en el HTML siempre,
     escondido. Buscar «error» en toda la página lo encontraría y el test
     fallaría sin que nada esté mal.
+
+    Desde la crítica del 2026-08-29 el texto dice «No hay entregas pendientes»
+    y no «Nada para entregar hoy»: `grupos` vacío significa bastante más que
+    hoy —nada atrasado, nada próximo y nada sin fecha tampoco—, y hablar solo
+    del día invitaba a preguntar «¿y mañana?» sin dar forma de saberlo.
     """
     import re
     html = logged_client.get('/pedidos').get_data(as_text=True)
-    assert 'Nada para entregar hoy' in html
-    bloque = re.search(r'tablero-vacio.*?</div>', html, re.S)
+    assert 'No hay entregas pendientes' in html
+    assert 'El día está cerrado' in html
+
+    bloque = re.search(r'tablero-vacio.*?(?=</div>\s*(?:<a|\{|</div>))', html, re.S)
     assert bloque, 'no se renderizó el bloque de vacío'
     texto = bloque.group(0).lower()
     for palabra in ('error', 'falló', 'no se pudo', 'problema'):
         assert palabra not in texto, f'el vacío del tablero alarma: «{palabra}»'
+
+    # Y ofrece la acción que su propio texto nombra: antes decía «cuando
+    # cargues un pedido…» sin dar el botón, teniendo el patrón a mano.
+    assert 'Cargar un pedido' in texto or 'cargar un pedido' in texto, (
+        'el vacío describe una acción que no ofrece'
+    )
 
 
 def test_el_tablero_ofrece_la_salida_al_archivo(logged_client):

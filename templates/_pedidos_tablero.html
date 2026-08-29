@@ -32,14 +32,34 @@
   {% endfor %}
 
   {% if not grupos %}
+  {# El estado MÁS FRECUENTE de esta pantalla en producción, y por eso importa
+     que esté bien: con los 942 pedidos facturados, el tablero abre así todos
+     los días hasta que se carga el primero.
+
+     Dice «no hay entregas pendientes» y no «nada para hoy» porque `grupos`
+     vacío significa bastante más: nada atrasado, nada hoy, nada próximo y nada
+     sin fecha. El pipeline entero está limpio, y afirmar solo lo de hoy invita
+     a preguntar «¿y mañana?» sin dar forma de saberlo.
+
+     Y ofrece la acción que nombra. Antes el texto decía «cuando cargues un
+     pedido…» sin dar el botón, teniendo el patrón a mano en el vacío de la
+     búsqueda. #}
   <div class="pedidos-empty tablero-vacio">
     <i class="fa fa-clipboard-check" aria-hidden="true"></i>
-    <p>Nada para entregar hoy.</p>
-    <p class="pedidos-empty-hint">Cuando cargues un pedido con fecha de entrega, aparece acá.</p>
+    <p>No hay entregas pendientes.</p>
+    <p class="pedidos-empty-hint">Ni atrasadas ni próximas. El día está cerrado.</p>
+    <div class="tablero-vacio-acciones">
+      <a class="btn-nuevo-pedido" href="{{ url_for('nuevo_pedido') }}">
+        <i class="fa fa-plus" aria-hidden="true"></i> Cargar un pedido
+      </a>
+      <a class="tablero-archivo" href="{{ url_for('lista_pedidos', estado='todos') }}">
+        Ver los {{ status_counts.total }} pedidos
+      </a>
+    </div>
   </div>
-  {% endif %}
-
+  {% else %}
   <a class="tablero-archivo" href="{{ url_for('lista_pedidos', estado='todos') }}">
     Ver los {{ status_counts.total }} pedidos
   </a>
+  {% endif %}
 </div>
