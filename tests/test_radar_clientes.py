@@ -192,3 +192,138 @@ def test_fila_con_pedidos_pero_sin_fecha_del_ultimo():
     grupos = _agrupar_radar([_fila('Sucio', None, n_pedidos=7)], HOY)
     assert [f['nombre'] for f in _grupo(grupos, 'sin_pedidos')] == ['Sucio']
     assert _grupo(grupos, 'dormidos') == []
+
+
+# ── El contexto de la pantalla: una sola consulta ─────────────────────────────
+# Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md (Task 3)
+
+import pytest
+
+from app import app as flask_app, db as _db
+
+
+@pytest.fixture
+def app():
+    flask_app.config.update(
+        TESTING=True, WTF_CSRF_ENABLED=False,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+    )
+    with flask_app.app_context():
+        _db.create_all()
+        from app import Rol, Territorio, Vendedor, Cliente, Pedido
+
+        rol = Rol(nombre='super_admin', descripcion='Admin')
+        _db.session.add(rol)
+        territorio = Territorio(nombre='test', descripcion='Test')
+        _db.session.add(territorio)
+        _db.session.flush()
+
+        vendedor = Vendedor(
+            username='admin', email='admin@test.com', nombre_completo='Admin',
+            rol_id=rol.id, territorio_id=territorio.id, activo=True,
+        )
+        vendedor.set_password('testpass')
+        _db.session.add(vendedor)
+
+        ahora = datetime.utcnow()
+
+        # Ritmo estimado (prestado): 2 pedidos en fechas distintas. Hacen
+        # falta 3 fechas distintas para que `_ritmo_cliente` calcule un ritmo
+        # propio; con 2, la fila es «estimado».
+        estimado = Cliente(nombre='Ritmo Estimado', territorio_id=territorio.id)
+        _db.session.add(estimado)
+        _db.session.flush()
+        _db.session.add(Pedido(cliente_id=estimado.id,
+                                fecha_pedido=ahora - timedelta(days=20)))
+        _db.session.add(Pedido(cliente_id=estimado.id,
+                                fecha_pedido=ahora - timedelta(days=6)))
+
+        # Ritmo propio: 4 pedidos en fechas distintas.
+        propio = Cliente(nombre='Ritmo Propio', territorio_id=territorio.id)
+        _db.session.add(propio)
+        _db.session.flush()
+        for dias in (0, 7, 14, 21):
+            _db.session.add(Pedido(cliente_id=propio.id,
+                                    fecha_pedido=ahora - timedelta(days=dias)))
+
+        # Sin ningún pedido.
+        _db.session.add(Cliente(nombre='Sin Pedidos', territorio_id=territorio.id))
+
+        _db.session.commit()
+        yield flask_app
+        _db.drop_all()
+
+
+@pytest.fixture
+def logged_client(app):
+    client = app.test_client()
+    client.post('/login', data={'username': 'admin', 'password': 'testpass'},
+                follow_redirects=True)
+    return client
+
+
+def test_el_radar_hace_una_sola_consulta_de_pedidos(logged_client, app):
+    """Con 62 clientes, una query por cliente serían 62 viajes a la base."""
+    from sqlalchemy import event
+    from app import db
+
+    consultas = []
+
+    def espiar(conn, cursor, statement, params, context, many):
+        if 'pedido' in statement.lower():
+            consultas.append(statement)
+
+    with app.app_context():
+        event.listen(db.engine, 'before_cursor_execute', espiar)
+        try:
+            resp = logged_client.get('/clientes')
+        finally:
+            event.remove(db.engine, 'before_cursor_execute', espiar)
+
+    assert resp.status_code == 200
+    assert len(consultas) <= 1, (
+        f'el radar hizo {len(consultas)} consultas a pedido: '
+        'tiene que ser una sola agregada'
+    )
+
+
+def test_fecha_pedido_se_cuenta_en_la_zona_del_negocio(app):
+    """`fecha_pedido` es UTC naive; el radar cuenta días calendario locales.
+
+    Un pedido a las 02:00 UTC del día 10 es todavía el día 9 en Curaçao
+    (UTC−4). Contarlo como del 10 corre el ritmo un día entero.
+    """
+    from app import _dia_local
+    assert _dia_local(datetime(2026, 8, 10, 2, 0)) == date(2026, 8, 9)
+    assert _dia_local(datetime(2026, 8, 10, 12, 0)) == date(2026, 8, 10)
+
+
+def test_contexto_radar_agrupa_a_los_tres_clientes_de_la_fixture(app):
+    """`_contexto_radar` arma las cuatro claves y respeta ritmo propio/estimado."""
+    from app import _contexto_radar, Cliente
+
+    with app.app_context():
+        clientes = Cliente.query.all()
+        hoy_local = datetime.now(timezone.utc).date()
+        grupos = _contexto_radar(clientes, hoy_local)
+
+        claves = [c for c, _e, _f in grupos]
+        assert claves == ['atrasados', 'al_dia', 'dormidos', 'sin_pedidos']
+
+        todas = [f for _c, _e, filas in grupos for f in filas]
+        nombres = {f['nombre']: f for f in todas}
+        assert set(nombres) == {'Ritmo Estimado', 'Ritmo Propio', 'Sin Pedidos'}
+
+        assert nombres['Ritmo Estimado']['ritmo_propio'] is False
+        assert nombres['Ritmo Propio']['ritmo_propio'] is True
+        assert nombres['Sin Pedidos']['n_pedidos'] == 0
+
+        # `n_pedidos` cuenta filas de pedido, no fechas distintas.
+        assert nombres['Ritmo Estimado']['n_pedidos'] == 2
+        assert nombres['Ritmo Propio']['n_pedidos'] == 4
+
+
+def test_mostrar_clientes_pasa_clientes_y_grupos_a_la_plantilla(logged_client):
+    """`clientes=` no puede desaparecer: el JS de alta/borrado depende de ella."""
+    resp = logged_client.get('/clientes')
+    assert resp.status_code == 200

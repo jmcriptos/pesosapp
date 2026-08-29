@@ -6,6 +6,7 @@ import secrets
 import hmac
 import base64
 import json
+from collections import defaultdict
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
@@ -3396,6 +3397,44 @@ def _agrupar_radar(filas, hoy_local):
         ('dormidos', 'Dormidos', dormidos),
         ('sin_pedidos', 'Nunca compraron', sin_pedidos),
     ]
+
+
+def _contexto_radar(clientes, hoy_local):
+    """Arma las filas del radar con UNA consulta de pedidos.
+
+    Trae `(cliente_id, fecha_pedido)` de todos los clientes visibles de una vez
+    y agrupa en Python. La mediana se calcula acá y no en SQL a propósito:
+    `percentile_cont` no existe en SQLite y los tests corren sobre SQLite, así
+    que la regla viviría sin cobertura justo donde es más fácil equivocarse.
+    """
+    por_id = {c.id: c for c in clientes}
+    if not por_id:
+        return _agrupar_radar([], hoy_local)
+
+    fechas_por_cliente = defaultdict(list)
+    filas = (db.session.query(Pedido.cliente_id, Pedido.fecha_pedido)
+             .filter(Pedido.cliente_id.in_(list(por_id)))
+             .all())
+    for cliente_id, fecha in filas:
+        local = _dia_local(fecha)
+        if local is not None:
+            fechas_por_cliente[cliente_id].append(local)
+
+    radar = []
+    for cliente_id, cliente in por_id.items():
+        fechas = fechas_por_cliente.get(cliente_id, [])
+        ritmo, propio = _ritmo_cliente(fechas)
+        radar.append({
+            'id': cliente_id,
+            'nombre': cliente.nombre,
+            'moneda': cliente.moneda,
+            'qbo_id': cliente.qbo_id,
+            'ultimo': max(fechas) if fechas else None,
+            'n_pedidos': len(fechas),
+            'ritmo': ritmo,
+            'ritmo_propio': propio,
+        })
+    return _agrupar_radar(radar, hoy_local)
 
 
 def _agrupar_tablero(pedidos, hoy_local):
@@ -10386,7 +10425,12 @@ def mostrar_clientes():
             # Ordenar por ID para mantener consistencia
             clientes = sorted(clientes, key=lambda c: c.id)
 
-    return render_template('clientes.html', clientes=clientes)
+    hoy_local = datetime.now(DASHBOARD_TIMEZONE).date()
+    return render_template(
+        'clientes.html',
+        clientes=clientes,
+        grupos=_contexto_radar(clientes, hoy_local),
+    )
 
 
 # TAMBIÉN modifica estas rutas si existen:
