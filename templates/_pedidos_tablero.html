@@ -13,7 +13,8 @@
     {% set hecho = pedido.estado == 'facturado' %}
     <div class="pedido-card tablero-fila{% if hecho %} tablero-hecho{% endif %}"
          data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-         data-estado="{{ (pedido.estado or '')|lower }}">
+         data-estado="{{ (pedido.estado or '')|lower }}"
+         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}>
       {% include '_pedido_card_cuerpo.html' %}
     </div>
     {% endfor %}

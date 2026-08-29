@@ -31,6 +31,22 @@ body[data-pedidos-list-screen] .app-shell {
   --color-border-subtle: #f1f5f9;
   --shadow-card: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
   --shadow-card-strong: 0 20px 48px -16px rgba(15, 23, 42, 0.14);
+
+  /* Este bloque re-declara en claro los tokens que la pantalla usa, porque el
+     contenido va clavado en claro aunque el marco sea oscuro. Faltaba éste, y
+     en modo oscuro del sistema resolvía a indigo-300 (#93c5fd con data-hue
+     blue) sobre el #f8fafc forzado: 1,76:1. Afectaba a «Pesar» y «Facturar». */
+  --color-primary-soft-fg: #4338ca;
+  --color-primary-soft: #e0e7ff;
+
+  /* Mismo problema, mismo origen: sin redeclarar, en modo oscuro del sistema
+     resuelve a rose-400 (#fb7185) sobre el fondo forzado — ~2,69:1, falla AA.
+     Afecta los días de atraso en la tarjeta y en la tabla de escritorio
+     (`.pedido-date-tarde`, `.pc-tarde`). Fijo al valor claro (rose-600), no
+     al rose-800 que ya usa `.estado-badge.estado-vencido` más abajo, porque
+     ese ajuste es específico de ESE fondo (#ffe4e6) y este texto va sobre
+     blanco liso: rose-600 ya da ~4,7:1 ahí. */
+  --color-danger-soft-fg: #e11d48;
 }
 
 body[data-pedidos-list-screen] .app-shell {
@@ -1265,10 +1281,12 @@ body[data-pedidos-list-screen] .tablero-titulo {
   color: var(--color-text-muted);
 }
 
+/* Es un dato (cuántos pedidos hay en el grupo), no chrome decorativo:
+   --color-text-subtle da ~2,5:1 sobre el fondo forzado de esta pantalla. */
 body[data-pedidos-list-screen] .tablero-cuenta {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
 }
 
 /* Atrasados es el único grupo que se pinta: es el único que significa

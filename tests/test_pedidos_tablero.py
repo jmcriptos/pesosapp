@@ -200,6 +200,54 @@ def test_el_tablero_incluye_la_rama_de_busqueda_del_js(logged_client):
     assert 'enTablero' in html, 'se perdió la rama de búsqueda del tablero'
 
 
+def test_el_tablero_ofrece_pesar_y_facturar(logged_client):
+    """La tarjeta del tablero es la MISMA que la de la lista
+    (`_pedido_card_cuerpo.html` es compartido), pero eso nunca se probó
+    contra el tablero: los tests de acciones existentes (p.ej.
+    `test_pendiente_ofrece_pesar_y_preparado_facturar` en
+    test_pedidos_lista_entrega.py) siempre fuerzan modo lista con
+    `?estado=todos`. Un pendiente con un producto que SE PESA ofrece
+    «Pesar»; un preparado ofrece el formulario de «Facturar»."""
+    from app import Producto, DetallePedido, db as _db
+    from decimal import Decimal
+
+    p_pend = _crear('pendiente', dias=0)
+    prod = Producto(nombre='Pesable', temperatura='-18°C', se_pesa=True,
+                     tax_rate=10.0, qbo_id='Q-PESA-TABLERO')
+    _db.session.add(prod)
+    _db.session.flush()
+    _db.session.add(DetallePedido(
+        pedido_id=p_pend.id, producto_id=prod.id, cajas=1, cajas_pedidas=1,
+        peso=0, precio_unitario=Decimal('10'), subtotal=Decimal('10'),
+        es_linea_pedido=True,
+    ))
+    _db.session.commit()
+
+    p_prep = _crear('preparado', dias=0)
+
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'data-tablero="1"' in html, 'este test asume que /pedidos sin parámetros es tablero'
+
+    assert f'/pedidos/{p_pend.id}/pesar' in html
+    assert '> Pesar' in html
+
+    assert f'/pedidos/{p_prep.id}/facturar' in html
+    assert '> Facturar' in html
+
+
+def test_el_next_de_facturar_en_el_tablero_es_el_tablero(logged_client):
+    """La diferencia de comportamiento más visible entre modos: facturar (o
+    eliminar) desde el tablero tiene que volver al tablero, no a una lista
+    con `?estado=...` colgando. Hoy eso descansa entera en que
+    `request.args` esté vacío en `/pedidos` (ver `url_actual` en
+    `lista_pedidos`, app.py) — nada lo fuerza explícitamente, así que un
+    cambio ahí podría romperlo sin que ningún otro test lo note."""
+    _crear('preparado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'data-tablero="1"' in html, 'este test asume que /pedidos sin parámetros es tablero'
+    assert 'name="next" value="/pedidos"' in html
+
+
 def test_un_parametro_reconocido_devuelve_la_lista(logged_client):
     _crear('pendiente', dias=0)
     html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)

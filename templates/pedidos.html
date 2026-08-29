@@ -158,6 +158,23 @@
       return;   // nada más de este script aplica al tablero
     }
 
+    // El cambio de modo tablero→lista navega con `location.href` (arriba):
+    // recarga la página entera y, en el iPhone, cierra el teclado y pierde el
+    // cursor justo cuando el vendedor sigue escribiendo ("Man" + duda medio
+    // segundo + recarga + volver a tocar el campo). La recarga no se puede
+    // evitar —el cambio de modo la exige, no hay bloque de resultados que
+    // reemplazar en el tablero—, pero sí devolver el foco al aterrizar: si
+    // esta carga de la página ya trae una búsqueda puesta, el campo la
+    // recibe de vuelta enfocado y con el cursor al final, listo para seguir
+    // escribiendo sin tener que volver a tocarlo.
+    {% if filtros.q %}
+    if (searchInput) {
+      searchInput.focus();
+      var posCursorBusqueda = searchInput.value.length;
+      searchInput.setSelectionRange(posCursorBusqueda, posCursorBusqueda);
+    }
+    {% endif %}
+
     /* La búsqueda consulta al SERVIDOR, no el DOM.
        Antes filtraba las tarjetas ya renderizadas, pero la lista está paginada
        de a 20 y en producción hay 910 pedidos: buscar un cliente cuyos pedidos

@@ -19,8 +19,7 @@
     <div class="pedido-card"
          data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
          data-estado="{{ (pedido.estado or '')|lower }}"
-         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}
-         data-search="{{ (pedido.id|string ~ ' ' ~ (pedido.cliente.nombre if pedido.cliente else ''))|lower }}">
+         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}>
 
       {% include '_pedido_card_cuerpo.html' %}
     </div>
