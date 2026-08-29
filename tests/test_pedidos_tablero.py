@@ -176,6 +176,14 @@ def test_pedidos_sin_parametros_es_tablero(logged_client):
     assert 'pagination-info-mobile' not in _sin_scripts(html), 'el tablero no debe paginar'
 
 
+def test_al_borrar_la_busqueda_se_vuelve_al_tablero(logged_client):
+    """Sin parámetros con valor, vuelve el tablero. Es el contrato que hace
+    que borrar el buscador devuelva al trabajo del día."""
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos?q=').get_data(as_text=True)
+    assert 'data-tablero="1"' in html
+
+
 def test_un_parametro_reconocido_devuelve_la_lista(logged_client):
     _crear('pendiente', dias=0)
     html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)

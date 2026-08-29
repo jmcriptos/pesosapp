@@ -116,6 +116,23 @@
     var anuncio = document.getElementById('pedidos-anuncio');
     var errorBox = document.getElementById('pedidos-error');
 
+    // En el tablero no hay bloque de resultados que reemplazar: buscar navega
+    // a la lista. Desde la lista sí se hace por fetch, para no cerrar el
+    // teclado de iOS a cada tecla.
+    var enTablero = !resultados;
+    if (enTablero && searchInput) {
+      var debounceTablero = null;
+      searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTablero);
+        var q = searchInput.value.trim();
+        if (!q) return;
+        debounceTablero = setTimeout(function () {
+          location.href = '{{ url_for("lista_pedidos") }}?q=' + encodeURIComponent(q);
+        }, 450);
+      });
+      return;   // nada más de este script aplica al tablero
+    }
+
     /* La búsqueda consulta al SERVIDOR, no el DOM.
        Antes filtraba las tarjetas ya renderizadas, pero la lista está paginada
        de a 20 y en producción hay 910 pedidos: buscar un cliente cuyos pedidos
