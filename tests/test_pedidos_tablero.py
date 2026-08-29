@@ -345,3 +345,43 @@ def test_el_tablero_respeta_los_clientes_visibles_del_vendedor(app):
         'el tablero mostró un pedido de un cliente que este vendedor no '
         'tiene asignado — fuga de datos entre territorios'
     )
+
+
+# ── El tablero de verdad (Tarea 3) ──────────────────────────────────────────
+
+def test_el_facturado_de_hoy_se_ve_marcado_como_hecho(logged_client):
+    _crear('facturado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'tablero-hecho' in html, 'el facturado de hoy no se marca como hecho'
+
+
+def test_el_tablero_vacio_no_alarma(logged_client):
+    """Un día sin entregas pendientes es un día bien cerrado, no un error.
+
+    Se afirma sobre el bloque del vacío y NO sobre la página entera: el aviso
+    de red (`#pedidos-error`) vive fuera del tablero y está en el HTML siempre,
+    escondido. Buscar «error» en toda la página lo encontraría y el test
+    fallaría sin que nada esté mal.
+    """
+    import re
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'Nada para entregar hoy' in html
+    bloque = re.search(r'tablero-vacio.*?</div>', html, re.S)
+    assert bloque, 'no se renderizó el bloque de vacío'
+    texto = bloque.group(0).lower()
+    for palabra in ('error', 'falló', 'no se pudo', 'problema'):
+        assert palabra not in texto, f'el vacío del tablero alarma: «{palabra}»'
+
+
+def test_el_tablero_ofrece_la_salida_al_archivo(logged_client):
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'estado=todos' in html, 'falta el enlace de escape al archivo'
+
+
+def test_el_tablero_corta_en_50_por_grupo(logged_client):
+    for i in range(55):
+        _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert html.count('tablero-fila') <= 50
+    assert 'y 5 más' in html

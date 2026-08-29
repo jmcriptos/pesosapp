@@ -1247,3 +1247,60 @@ body[data-pedidos-list-screen] .pagination-btn-mobile:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* ── Tablero de entregas ───────────────────────────────────────────────── */
+body[data-pedidos-list-screen] .tablero-grupo {
+  margin-bottom: var(--space-5, 24px);
+}
+
+body[data-pedidos-list-screen] .tablero-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+body[data-pedidos-list-screen] .tablero-cuenta {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-subtle);
+}
+
+/* Atrasados es el único grupo que se pinta: es el único que significa
+   «esto ya se pasó de fecha». Si se pintaran todos, ninguno destacaría. */
+body[data-pedidos-list-screen] .tablero-grupo-atrasados .tablero-titulo {
+  color: #9f1239;
+}
+
+/* Hecho: se ve, pero deja de pedir atención. No se esconde, porque media
+   parte de «trabajar lo de hoy» es ver que el día cerró completo. */
+body[data-pedidos-list-screen] .tablero-hecho {
+  opacity: 0.62;
+}
+
+body[data-pedidos-list-screen] .tablero-hecho .pc-actions {
+  opacity: 1;
+}
+
+body[data-pedidos-list-screen] .tablero-archivo,
+body[data-pedidos-list-screen] .tablero-mas {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min, 48px);
+  padding: 0 16px;
+  color: var(--color-primary-soft-fg);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+body[data-pedidos-list-screen] .tablero-archivo:hover,
+body[data-pedidos-list-screen] .tablero-mas:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

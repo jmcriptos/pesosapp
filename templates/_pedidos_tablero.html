@@ -1,12 +1,44 @@
+{# El tablero de entregas. Cuatro grupos fijos por `fecha_entrega`, sin
+   píldoras de estado, sin paginación y sin orden por columna: a 3 pedidos por
+   día son unas pocas filas y entran enteras en una pantalla.
+   Spec: docs/superpowers/specs/2026-08-28-pedidos-tablero-design.md #}
 <div class="pedidos-tablero" data-tablero="1">
   {% for clave, etiqueta, pedidos_grupo in grupos %}
   <section class="tablero-grupo tablero-grupo-{{ clave }}">
-    <h2 class="tablero-titulo">{{ etiqueta }} <span class="tablero-cuenta">{{ pedidos_grupo|length }}</span></h2>
-    <ul class="tablero-lista">
-      {% for pedido in pedidos_grupo %}
-      <li>PED-{{ pedido.id }} — {{ pedido.cliente.nombre if pedido.cliente else '—' }}</li>
-      {% endfor %}
-    </ul>
+    <h2 class="tablero-titulo">
+      {{ etiqueta }}<span class="tablero-cuenta">{{ pedidos_grupo|length }}</span>
+    </h2>
+
+    {% for pedido in pedidos_grupo[:50] %}
+    {% set hecho = pedido.estado == 'facturado' %}
+    <div class="pedido-card tablero-fila{% if hecho %} tablero-hecho{% endif %}"
+         data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
+         data-estado="{{ (pedido.estado or '')|lower }}">
+      {% include '_pedido_card_cuerpo.html' %}
+    </div>
+    {% endfor %}
+
+    {% if pedidos_grupo|length > 50 %}
+    {# Techo de seguridad. Con 3 pedidos por día no debería verse nunca; es
+       barato contra que una anomalía de datos dibuje 942 filas. Apunta a la
+       lista completa y no a un filtro por grupo porque «Próximos» y «Sin
+       fecha» no tienen equivalente en la lista blanca de `estado`. #}
+    <a class="tablero-mas" href="{{ url_for('lista_pedidos', estado='todos') }}">
+      y {{ pedidos_grupo|length - 50 }} más
+    </a>
+    {% endif %}
   </section>
   {% endfor %}
+
+  {% if not grupos %}
+  <div class="pedidos-empty tablero-vacio">
+    <i class="fa fa-clipboard-check" aria-hidden="true"></i>
+    <p>Nada para entregar hoy.</p>
+    <p class="pedidos-empty-hint">Cuando cargues un pedido con fecha de entrega, aparece acá.</p>
+  </div>
+  {% endif %}
+
+  <a class="tablero-archivo" href="{{ url_for('lista_pedidos', estado='todos') }}">
+    Ver los {{ status_counts.total }} pedidos
+  </a>
 </div>
