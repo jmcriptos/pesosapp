@@ -249,6 +249,26 @@ def app():
         # Sin ningún pedido.
         _db.session.add(Cliente(nombre='Sin Pedidos', territorio_id=territorio.id))
 
+        # Dos pedidos el MISMO día calendario, más otros dos en días
+        # distintos: la fila cuenta 4 pedidos (filas), pero el ritmo se mide
+        # sobre 3 fechas distintas (15, 25 y 35 días atrás). Horas fijas al
+        # mediodía UTC para no depender de a qué hora corre el test ni
+        # arriesgar cruzar medianoche local.
+        mismo_dia = Cliente(nombre='Mismo Día', territorio_id=territorio.id)
+        _db.session.add(mismo_dia)
+        _db.session.flush()
+        dia_a = (ahora - timedelta(days=15)).date()
+        _db.session.add(Pedido(cliente_id=mismo_dia.id,
+                                fecha_pedido=datetime(dia_a.year, dia_a.month, dia_a.day, 12, 0)))
+        _db.session.add(Pedido(cliente_id=mismo_dia.id,
+                                fecha_pedido=datetime(dia_a.year, dia_a.month, dia_a.day, 15, 0)))
+        dia_b = (ahora - timedelta(days=25)).date()
+        _db.session.add(Pedido(cliente_id=mismo_dia.id,
+                                fecha_pedido=datetime(dia_b.year, dia_b.month, dia_b.day, 12, 0)))
+        dia_c = (ahora - timedelta(days=35)).date()
+        _db.session.add(Pedido(cliente_id=mismo_dia.id,
+                                fecha_pedido=datetime(dia_c.year, dia_c.month, dia_c.day, 12, 0)))
+
         _db.session.commit()
         yield flask_app
         _db.drop_all()
@@ -298,7 +318,7 @@ def test_fecha_pedido_se_cuenta_en_la_zona_del_negocio(app):
     assert _dia_local(datetime(2026, 8, 10, 12, 0)) == date(2026, 8, 10)
 
 
-def test_contexto_radar_agrupa_a_los_tres_clientes_de_la_fixture(app):
+def test_contexto_radar_agrupa_a_los_clientes_de_la_fixture(app):
     """`_contexto_radar` arma las cuatro claves y respeta ritmo propio/estimado."""
     from app import _contexto_radar, Cliente
 
@@ -312,7 +332,9 @@ def test_contexto_radar_agrupa_a_los_tres_clientes_de_la_fixture(app):
 
         todas = [f for _c, _e, filas in grupos for f in filas]
         nombres = {f['nombre']: f for f in todas}
-        assert set(nombres) == {'Ritmo Estimado', 'Ritmo Propio', 'Sin Pedidos'}
+        assert set(nombres) == {
+            'Ritmo Estimado', 'Ritmo Propio', 'Sin Pedidos', 'Mismo Día',
+        }
 
         assert nombres['Ritmo Estimado']['ritmo_propio'] is False
         assert nombres['Ritmo Propio']['ritmo_propio'] is True
@@ -323,7 +345,72 @@ def test_contexto_radar_agrupa_a_los_tres_clientes_de_la_fixture(app):
         assert nombres['Ritmo Propio']['n_pedidos'] == 4
 
 
-def test_mostrar_clientes_pasa_clientes_y_grupos_a_la_plantilla(logged_client):
-    """`clientes=` no puede desaparecer: el JS de alta/borrado depende de ella."""
-    resp = logged_client.get('/clientes')
+def test_n_pedidos_cuenta_filas_mientras_el_ritmo_cuenta_dias(logged_client, app):
+    """Las dos reglas conviven y se confunden fácil.
+
+    Un cliente con DOS pedidos el mismo día compró dos veces —eso es lo que la
+    fila promete— pero para el ritmo ese día es UNO solo. Ninguna fixture
+    anterior tenía dos pedidos el mismo día, así que cambiar `len(fechas)` por
+    `len(set(fechas))` dejaba los 21 tests en verde.
+    """
+    from app import _contexto_radar, Cliente
+
+    with app.app_context():
+        clientes = Cliente.query.all()
+        hoy_local = datetime.now(timezone.utc).date()
+        grupos = _contexto_radar(clientes, hoy_local)
+        todas = [f for _c, _e, filas in grupos for f in filas]
+        fila = next(f for f in todas if f['nombre'] == 'Mismo Día')
+
+        # 4 filas de pedido (dos el mismo día + dos en días distintos), pero
+        # solo 3 fechas calendario distintas: si `n_pedidos` contara fechas en
+        # vez de filas, saldría 3, no 4.
+        assert fila['n_pedidos'] == 4, (
+            'n_pedidos tiene que contar CADA pedido, incluidos los dos del '
+            'mismo día, no las fechas distintas'
+        )
+
+        # El ritmo se mide sobre las 3 fechas distintas (15/25/35 días
+        # atrás): intervalos [10, 10] → mediana 10. Si el ritmo se calculara
+        # sobre las filas en vez de las fechas, los dos pedidos del mismo día
+        # meterían un intervalo de 0 días y correrían el resultado.
+        assert fila['ritmo_propio'] is True
+        assert fila['ritmo'] == 10, (
+            f"ritmo salió {fila['ritmo']}, se esperaba 10 (mediana de fechas "
+            'distintas, no de filas de pedido)'
+        )
+        assert fila['n_pedidos'] != fila['ritmo'], (
+            'los dos números tienen que ser distintos para que el test '
+            'distinga cuál regla se está afirmando'
+        )
+
+
+def test_mostrar_clientes_le_pasa_los_grupos_a_la_plantilla(logged_client, app):
+    """`grupos=` no lo protegía nada.
+
+    La plantilla todavía no usa `grupos` —se cablea en la tarea siguiente—, así
+    que borrar `grupos=_contexto_radar(...)` del render dejaba la suite entera
+    en verde. Este test mira el CONTEXTO que recibe la plantilla, que es lo que
+    de verdad se quiere afirmar, y no el HTML que sale.
+    """
+    from flask import template_rendered
+
+    capturado = []
+
+    def registrar(sender, template, context, **extra):
+        capturado.append(context)
+
+    template_rendered.connect(registrar, app)
+    try:
+        resp = logged_client.get('/clientes')
+    finally:
+        template_rendered.disconnect(registrar, app)
+
     assert resp.status_code == 200
+    assert capturado, 'no se renderizó ninguna plantilla'
+    ctx = capturado[0]
+    assert 'clientes' in ctx, 'el JS de alta y borrado depende de `clientes`'
+    assert 'grupos' in ctx, 'la plantilla del radar necesita `grupos`'
+    assert [clave for clave, _etiqueta, _filas in ctx['grupos']] == [
+        'atrasados', 'al_dia', 'dormidos', 'sin_pedidos'
+    ]
