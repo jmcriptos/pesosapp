@@ -163,3 +163,32 @@ def test_cada_cliente_cae_en_un_solo_grupo():
     vistos = [f['nombre'] for _c, _e, fs in grupos for f in fs]
     assert sorted(vistos) == ['a', 'b', 'c', 'd']
     assert len(vistos) == len(set(vistos))
+
+
+def test_una_fila_con_ritmo_roto_no_divide_por_cero():
+    """La defensa existe en el código, pero nada la estaba protegiendo.
+
+    `_ritmo_cliente` ya no puede devolver 0, pero `_agrupar_radar` recibe
+    dicts armados por el llamador y no puede confiar en eso: un `ritmo` en 0
+    o en None tiene que caer al ritmo del negocio, no reventar.
+    """
+    for ritmo_roto in (0, None):
+        fila = _fila('Roto', 30, ritmo=ritmo_roto)
+        grupos = _agrupar_radar([fila], HOY)
+        # cae al ritmo del negocio (13): 30 días son 2,3x → atrasado
+        assert [f['nombre'] for f in _grupo(grupos, 'atrasados')] == ['Roto'], (
+            f'con ritmo={ritmo_roto!r} el cliente no se clasificó'
+        )
+        assert fila['veces_su_ritmo'] > 0
+
+
+def test_fila_con_pedidos_pero_sin_fecha_del_ultimo():
+    """Dato inconsistente: afirma tener pedidos y no trae la última fecha.
+
+    Sin fecha no hay atraso que calcular. Va a «sin pedidos» y NO a Dormidos:
+    mandarlo a Dormidos por un dato faltante sería afirmar que hace más de 90
+    días que no compra, que es una cosa que la pantalla no sabe.
+    """
+    grupos = _agrupar_radar([_fila('Sucio', None, n_pedidos=7)], HOY)
+    assert [f['nombre'] for f in _grupo(grupos, 'sin_pedidos')] == ['Sucio']
+    assert _grupo(grupos, 'dormidos') == []
