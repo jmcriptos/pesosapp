@@ -3318,19 +3318,19 @@ _RADAR_UMBRAL = 1.5          # se pasó de su ritmo esta cantidad de veces
 _RADAR_DORMIDO_DIAS = 90
 
 
-def _fecha_local(dt):
-    """La fecha CALENDARIO de un `fecha_pedido`, en la zona del negocio.
+def _dia_local(valor):
+    """El día CALENDARIO local de un valor de fecha, venga como venga.
 
-    `Pedido.fecha_pedido` se guarda UTC naive (`default=datetime.utcnow`) y el
-    radar cuenta días contra `hoy_local` (America/Curaçao, UTC−4). Sin
-    convertir, un pedido cargado a la 01:00 UTC cuenta como del día siguiente y
-    corre el ritmo un día. Mismo patrón que `_camaras_con_lectura_hoy`.
+    `_ritmo_cliente` normaliza su propia entrada en vez de confiar en el
+    llamador: con `datetime` crudos, dos pedidos del mismo día con horas
+    distintas sobreviven al `set()` y el intervalo entre ellos da 0 días,
+    que es exactamente el bug que esta función existe para evitar.
     """
-    if dt is None:
+    if valor is None:
         return None
-    if hasattr(dt, 'hour'):
-        return dt.replace(tzinfo=timezone.utc).astimezone(DASHBOARD_TIMEZONE).date()
-    return dt
+    if isinstance(valor, datetime):
+        return _to_dashboard_date(valor)
+    return valor
 
 
 def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
@@ -3346,7 +3346,7 @@ def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
     negocio y `es_propio=False`, para que la fila pueda decir «estimado» en vez
     de fingir una precisión que no existe.
     """
-    unicas = sorted({f for f in fechas if f is not None})
+    unicas = sorted({_dia_local(f) for f in fechas if _dia_local(f) is not None})
     intervalos = sorted((b - a).days for a, b in zip(unicas, unicas[1:]))
     if len(intervalos) < _RADAR_MIN_INTERVALOS:
         return ritmo_negocio, False

@@ -5,8 +5,6 @@ Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md
 import os
 from datetime import date, datetime, timedelta, timezone
 
-import pytest
-
 os.environ.setdefault('SECRET_KEY', 'test-secret')
 os.environ.setdefault('FLASK_ENV', 'testing')
 os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
@@ -56,6 +54,19 @@ def test_varios_pedidos_el_mismo_dia_no_dan_ritmo_cero():
     assert ritmo > 0, 'un ritmo de 0 días divide por cero al calcular el atraso'
 
 
-def test_el_ritmo_nunca_es_menor_a_un_dia():
-    ritmo, _ = _ritmo_cliente(_fechas(0, 1, 2, 3))
-    assert ritmo >= 1
+def test_datetimes_del_mismo_dia_cuentan_como_una_sola_fecha():
+    """El contrato que impide que vuelva el bug de Best Buy.
+
+    Si `_ritmo_cliente` no normaliza a día calendario, estos tres `datetime`
+    del mismo día sobreviven como fechas distintas, los intervalos dan 0 y el
+    ritmo sale 0 — que es división por cero al calcular el atraso.
+    """
+    base = datetime(2026, 8, 15, 9, 0)
+    fechas = [
+        base, base.replace(hour=11), base.replace(hour=16),   # un solo día
+        datetime(2026, 8, 29, 10, 0),
+        datetime(2026, 9, 12, 10, 0),
+    ]
+    ritmo, propio = _ritmo_cliente(fechas)
+    assert ritmo == 14, 'los tres del 15/08 tienen que colapsar en una sola fecha'
+    assert propio is True
