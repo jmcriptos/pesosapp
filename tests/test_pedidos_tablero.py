@@ -435,15 +435,22 @@ def test_el_tablero_vacio_no_alarma(logged_client):
     escondido. Buscar «error» en toda la página lo encontraría y el test
     fallaría sin que nada esté mal.
 
-    Desde la crítica del 2026-08-29 el texto dice «No hay entregas pendientes»
-    y no «Nada para entregar hoy»: `grupos` vacío significa bastante más que
-    hoy —nada atrasado, nada próximo y nada sin fecha tampoco—, y hablar solo
-    del día invitaba a preguntar «¿y mañana?» sin dar forma de saberlo.
+    El texto pasó por dos vueltas. Primero decía «Nada para entregar hoy»;
+    después «No hay entregas pendientes / El día está cerrado», para no hablar
+    solo del día cuando `grupos` vacío significa más que eso. La cuarta crítica
+    señaló que esa segunda versión afirma algo que la pantalla no puede saber:
+    a las 7 de la mañana el día no cerró, todavía no se cargó nada. Ahora dice
+    lo único que es cierto a cualquier hora.
+
+    Y el botón de «cargar un pedido» se fue: duplicaba el «+ Nuevo» del hero a
+    250px de distancia, con el mismo verde. Queda la puerta al archivo, que con
+    942 pedidos facturados es a lo que la gente viene cuando el tablero está
+    vacío.
     """
     import re
     html = logged_client.get('/pedidos').get_data(as_text=True)
-    assert 'No hay entregas pendientes' in html
-    assert 'El día está cerrado' in html
+    assert 'Nada que entregar hoy' in html
+    assert 'Los pedidos con fecha de entrega aparecen acá' in html
 
     bloque = re.search(r'tablero-vacio.*?(?=</div>\s*(?:<a|\{|</div>))', html, re.S)
     assert bloque, 'no se renderizó el bloque de vacío'
@@ -451,10 +458,11 @@ def test_el_tablero_vacio_no_alarma(logged_client):
     for palabra in ('error', 'falló', 'no se pudo', 'problema'):
         assert palabra not in texto, f'el vacío del tablero alarma: «{palabra}»'
 
-    # Y ofrece la acción que su propio texto nombra: antes decía «cuando
-    # cargues un pedido…» sin dar el botón, teniendo el patrón a mano.
-    assert 'Cargar un pedido' in texto or 'cargar un pedido' in texto, (
-        'el vacío describe una acción que no ofrece'
+    # Y ofrece la salida al archivo, que es lo que hace falta un día vacío.
+    # NO ofrece «cargar un pedido»: eso duplicaba el «+ Nuevo» del hero.
+    assert 'estado=todos' in texto, 'el vacío no ofrece la puerta al archivo'
+    assert 'cargar un pedido' not in texto.lower(), (
+        'volvió el botón que duplica el «+ Nuevo» del hero'
     )
 
 

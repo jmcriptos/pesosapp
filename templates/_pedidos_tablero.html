@@ -46,13 +46,15 @@
      búsqueda. #}
   <div class="pedidos-empty tablero-vacio">
     <i class="fa fa-clipboard-check" aria-hidden="true"></i>
-    <p>No hay entregas pendientes.</p>
-    <p class="pedidos-empty-hint">Ni atrasadas ni próximas. El día está cerrado.</p>
+    <p>Nada que entregar hoy.</p>
+    <p class="pedidos-empty-hint">Los pedidos con fecha de entrega aparecen acá.</p>
+    {# Sin botón de «cargar un pedido»: el hero ya tiene «+ Nuevo» a 250px de
+       acá, y eran dos verdes idénticos para la misma acción. Lo que sí queda
+       es la puerta al archivo, que en producción —942 pedidos, todos
+       facturados— es a lo que la gente viene realmente cuando el tablero está
+       vacío. Antes era un enlace de texto debajo del botón duplicado. #}
     <div class="tablero-vacio-acciones">
-      <a class="btn-nuevo-pedido" href="{{ url_for('nuevo_pedido') }}">
-        <i class="fa fa-plus" aria-hidden="true"></i> Cargar un pedido
-      </a>
-      <a class="tablero-archivo" href="{{ url_for('lista_pedidos', estado='todos') }}">
+      <a class="btn-nuevo-pedido" href="{{ url_for('lista_pedidos', estado='todos') }}">
         Ver los {{ status_counts.total }} pedidos
       </a>
     </div>

@@ -13,11 +13,15 @@
           {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
           <div class="pc-idrow">
             <span class="pc-id">PED-{{ pedido.id }}</span>
-            {% if vencido %}
-            <span class="status-pill vencido">Vencido</span>
-            {% else %}
-            <span class="status-pill {{ (pedido.estado or '')|lower }}">{{ pedido.estado }}</span>
-            {% endif %}
+            {# La píldora dice SIEMPRE el estado real, también cuando está
+               vencido. Antes lo reemplazaba por «Vencido», y entonces un
+               atrasado que hay que pesar y uno listo para facturar se veían
+               idénticos: misma barra rosa, misma píldora, y lo único que los
+               distinguía era la etiqueta del botón. Encima el atraso ya se
+               afirma tres veces —el encabezado del grupo, la barra lateral y
+               el «· N d tarde»—, así que la píldora estaba gastando el único
+               lugar donde cabía el dato que faltaba. #}
+            <span class="status-pill {{ (pedido.estado or '')|lower }}{% if vencido %} esta-vencido{% endif %}">{{ pedido.estado }}</span>
           </div>
           {# `title` con el nombre completo: se trunca a una línea con elipsis
              («Van den Tweel Supermar…») y sin esto no había forma de ver el

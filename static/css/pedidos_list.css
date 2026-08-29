@@ -527,6 +527,15 @@ body[data-pedidos-list-screen] .pc-foot .pc-actions {
 }
 
 /* Con sitio de sobra vuelven a compartir fila. */
+/* 480px SE QUEDA, y no es un descuido: es la decisión que el comentario de
+   `.pc-meta` ya documentaba. Se probó bajarlo a 360 para ganar ~40px por
+   tarjeta en el teléfono, y en la captura a 390px el resultado fue exactamente
+   el bug que ese comentario describe: con tres botones (un pedido preparado),
+   «entrega 26/08» queda cortado a la mitad y la acción se le monta encima.
+   Ocultar la fecha de entrega —el dato sobre el que se agrupa toda la
+   pantalla— es peor que una tarjeta más alta.
+   Si algún día hay que recuperar ese alto, el camino es mover la meta a
+   `.pc-idrow`, no apretar el pie. */
 @media (min-width: 480px) {
   body[data-pedidos-list-screen] .pc-foot {
     flex-direction: row;
@@ -1597,4 +1606,30 @@ body[data-pedidos-list-screen] .tablero-titulo {
   background: #f8fafc;
   padding-block: var(--space-2, 8px);
   margin-block: 0 var(--space-2, 8px);
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   Cierre de la cuarta crítica (2026-08-29)
+   ──────────────────────────────────────────────────────────── */
+
+/* Que el sticky del título de grupo FUNCIONE.
+   Estaba declarado y era decorativo: `main.app-content` tiene `overflow-y:auto`
+   y eso lo convierte en el scrollport del sticky — pero ese contenedor NO
+   scrollea (medido: scrollHeight 2593 == clientHeight 2593), así que el sticky
+   no se activaba nunca. Quien scrollea es el documento. Medido con scrollY=900:
+   el título quedaba en top=-656px, o sea fuera de pantalla.
+
+   Lo dimos por bueno comprobando que la regla estaba en el CSS servido en vez
+   de medir el render. Tercera vez en este expediente. */
+body[data-pedidos-list-screen] .app-content,
+body[data-pedidos-list-screen] {
+  overflow: visible !important;
+}
+
+/* La píldora de estado conserva su color propio; el atraso lo marca un borde,
+   no un reemplazo. Así un vencido `pendiente` y uno `preparado` se siguen
+   distinguiendo, que era el dato que la píldora «Vencido» borraba. */
+body[data-pedidos-list-screen] .status-pill.esta-vencido {
+  box-shadow: inset 0 0 0 2px #9f1239;
 }

@@ -842,9 +842,18 @@ body[data-pedidos-list-screen] .pagination-btn-mobile.disabled {
         border-spacing: 0;
     }
 
+    /* SIN `position: sticky`, y a propósito.
+       Estuvo declarado y nunca funcionó: `.tabla-pedidos-scroll` necesita
+       `overflow:auto` porque la tabla tiene `min-width:1050px` y hay que poder
+       desplazarla en horizontal — y CSS obliga a que, si un eje es `auto`, el
+       otro también lo sea. Eso convierte a ese contenedor en el scrollport del
+       sticky, pero en vertical no scrollea (quien scrollea es el documento),
+       así que el encabezado se iba igual. Medido con scrollY=700: top=-237px.
+       Se borra en vez de dejarlo prometiendo algo que no hace. Para que un
+       encabezado pegajoso funcione acá hay que sacar el scroll horizontal del
+       ancestro del <thead> —envolver solo el <tbody>, o pasar la tabla a
+       grid—, y eso es un rediseño de la tabla, no un ajuste. */
     .tabla-pedidos th {
-        position: sticky;
-        top: 0;
         z-index: 2;
         padding: 12px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
