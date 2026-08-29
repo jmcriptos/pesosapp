@@ -196,17 +196,23 @@
       if (!resultados) return;
       var params = urlDeConsulta(extra);
 
-      // El estado va SIEMPRE explícito en la URL (ver urlDeConsulta), así que
-      // `estado=todos` no cuenta como un filtro elegido: es el default. Si no
-      // queda ningún OTRO parámetro reconocido, borrar la búsqueda debe
-      // devolver al tablero —el trabajo del día— en vez de recargar el
-      // parcial con una lista sin filtrar. Mismo contrato que ya cumple una
-      // navegación fresca a `/pedidos?q=` (server-side, PARAMS_DE_LISTA).
-      var comparacion = new URLSearchParams(params.toString());
-      if (comparacion.get('estado') === 'todos') comparacion.delete('estado');
-      if (!comparacion.toString()) {
-        location.href = '{{ url_for("lista_pedidos") }}';
-        return;
+      // Volver al tablero solo cuando el buscador se vació de verdad —marca
+      // EXPLÍCITA (`extra.desdeBusqueda`), no inferida del contenido de los
+      // parámetros. Antes se inferían mirando si, tras sacar el `estado=todos`
+      // por default, no quedaba ningún parámetro: esa condición también se
+      // cumple cuando el vendedor toca la píldora «Todos» desde OTRO filtro
+      // (ej. `?estado=facturado`) sin haber tocado el buscador —mismo estado
+      // final de parámetros, intención completamente distinta— y esa vista
+      // aterrizaba en el tablero en vez de la lista completa que prometía la
+      // píldora. «Borré lo que había escrito» y «elegí el filtro Todos» arman
+      // la misma URL; solo quien dispara la llamada sabe cuál de las dos es.
+      if (extra && extra.desdeBusqueda) {
+        var comparacion = new URLSearchParams(params.toString());
+        if (comparacion.get('estado') === 'todos') comparacion.delete('estado');
+        if (!comparacion.toString()) {
+          location.href = '{{ url_for("lista_pedidos") }}';
+          return;
+        }
       }
 
       var visible = params.toString();
@@ -267,7 +273,7 @@
     if (searchInput) {
       searchInput.addEventListener('input', function () {
         clearTimeout(debounce);
-        debounce = setTimeout(function () { cargarResultados(); }, 350);
+        debounce = setTimeout(function () { cargarResultados({ desdeBusqueda: true }); }, 350);
       });
     }
 
@@ -276,7 +282,7 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         clearTimeout(debounce);
-        cargarResultados();
+        cargarResultados({ desdeBusqueda: true });
       });
     }
 
