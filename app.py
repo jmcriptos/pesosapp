@@ -3309,6 +3309,54 @@ def _volver_a(endpoint_default, **kwargs):
     return redirect(url_for(endpoint_default, **kwargs))
 
 
+# ── El radar de clientes ──────────────────────────────────────────────────────
+# Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md
+
+_RADAR_RITMO_NEGOCIO = 13    # mediana global entre días distintos con pedido
+_RADAR_MIN_INTERVALOS = 2    # o sea, 3 fechas distintas
+_RADAR_UMBRAL = 1.5          # se pasó de su ritmo esta cantidad de veces
+_RADAR_DORMIDO_DIAS = 90
+
+
+def _fecha_local(dt):
+    """La fecha CALENDARIO de un `fecha_pedido`, en la zona del negocio.
+
+    `Pedido.fecha_pedido` se guarda UTC naive (`default=datetime.utcnow`) y el
+    radar cuenta días contra `hoy_local` (America/Curaçao, UTC−4). Sin
+    convertir, un pedido cargado a la 01:00 UTC cuenta como del día siguiente y
+    corre el ritmo un día. Mismo patrón que `_camaras_con_lectura_hoy`.
+    """
+    if dt is None:
+        return None
+    if hasattr(dt, 'hour'):
+        return dt.replace(tzinfo=timezone.utc).astimezone(DASHBOARD_TIMEZONE).date()
+    return dt
+
+
+def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
+    """Cada cuántos días vuelve este cliente, y si el dato es suyo o prestado.
+
+    Mide entre FECHAS DISTINTAS con pedido, no entre pedidos. Hay clientes que
+    cargan varios pedidos la misma fecha; entre pedidos su mediana da 0 días,
+    lo que los marca atrasados por división contra cero y además imprime
+    «ritmo 0d» en la fila. Best Buy era exactamente ese caso y salía como falso
+    positivo en la validación contra producción.
+
+    Con menos de tres fechas no hay ritmo que calcular: se devuelve el del
+    negocio y `es_propio=False`, para que la fila pueda decir «estimado» en vez
+    de fingir una precisión que no existe.
+    """
+    unicas = sorted({f for f in fechas if f is not None})
+    intervalos = sorted((b - a).days for a, b in zip(unicas, unicas[1:]))
+    if len(intervalos) < _RADAR_MIN_INTERVALOS:
+        return ritmo_negocio, False
+    n = len(intervalos)
+    medio = n // 2
+    mediana = (intervalos[medio] if n % 2
+               else (intervalos[medio - 1] + intervalos[medio]) / 2)
+    return max(int(round(mediana)), 1), True
+
+
 def _agrupar_tablero(pedidos, hoy_local):
     """Reparte los pedidos del tablero en los cuatro grupos del spec.
 
