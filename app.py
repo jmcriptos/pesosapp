@@ -3367,7 +3367,13 @@ def _decorar_pedido(pedido, total_sql):
     # por definición, y hay 381 pedidos en XCG estampados con 1.78 en
     # producción (expediente conocido, sin remediar) que se inflarían un 78%.
     pedido.moneda = (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG'
+    # Si no hay nada que pesar, la lista no debe ofrecer «Pesar»: la ruta ya
+    # lo rechaza y devuelve al detalle con un flash, así que el botón solo
+    # sirve para hacer rebotar al vendedor.
     pedido.tiene_pesables = _pedido_tiene_productos_pesables(pedido)
+    # Equivalente en XCG para ORDENAR la tabla. La celda muestra el importe
+    # nativo con su moneda; comparar los números crudos ponía un pedido de
+    # USD 450 (=XCG 801) por debajo de uno de XCG 487.
     pedido.total_xcg = (
         pedido.total_calculado if pedido.moneda == 'XCG'
         else pedido.total_calculado * float(pedido.tipo_cambio or 1.78)

@@ -180,7 +180,10 @@ def test_un_parametro_reconocido_devuelve_la_lista(logged_client):
     _crear('pendiente', dias=0)
     html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
     assert 'data-tablero="1"' not in html
-    assert 'filter-pill' in html, 'la lista conserva sus píldoras'
+    # `filter-pill` a secas también aparece en el <script> inline (selectores
+    # y comentarios de pedidos.html): `filter-pill-count` solo existe en el
+    # markup real de cada píldora.
+    assert 'filter-pill-count' in html, 'la lista conserva sus píldoras'
 
 
 def test_el_enlace_del_dashboard_sigue_funcionando(logged_client):
@@ -212,8 +215,133 @@ def test_buscar_desde_el_tablero_busca_en_todo(logged_client):
     """Sin esto, buscar «Mangusa» desde el tablero saldría filtrado a lo no
     facturado y no encontraría NADA del archivo, que es justo lo que se
     estaba buscando."""
-    _crear('facturado', dias=-40)
+    pedido = _crear('facturado', dias=-40)
     html = logged_client.get('/pedidos?q=Cliente').get_data(as_text=True)
-    assert 'pedidos-empty' not in _sin_scripts(html), (
+    # Presencia del pedido buscado, no ausencia de una clase: así el test
+    # prueba lo que su nombre dice y no se muere si alguien renombra
+    # `pedidos-empty`.
+    assert f'PED-{pedido.id}' in html, (
         'la búsqueda sin `estado` explícito no alcanzó el archivo'
+    )
+
+
+# ── Consulta del tablero a nivel de ruta ────────────────────────────────────
+#
+# `_agrupar_tablero` (Tarea 1) ya está cubierta a nivel unitario: reparte una
+# lista en memoria. Pero la ruta arma esa lista con SU PROPIA consulta SQL
+# (`base_query_tablero.filter(or_(...))...order_by(...)`), que reimplementa
+# dos reglas de negocio por su cuenta: qué facturados entran (mismo criterio
+# que `_agrupar_tablero`, pero en SQL) y en qué orden. Ninguno de los tests
+# de arriba —todos de selección de modo— toca esa consulta. Estos sí.
+
+def test_facturado_viejo_no_aparece_pero_el_de_hoy_si(logged_client):
+    """El `or_(Pedido.estado != 'facturado', Pedido.fecha_entrega == hoy_local)`
+    de la consulta es una segunda implementación de la misma regla de
+    archivo que `_agrupar_tablero` ya aplica sobre la lista en memoria. Si el
+    SQL se desincroniza (por ejemplo, alguien lo cambia a `estado !=
+    'facturado'` a secas y se olvida del `or_`), un facturado viejo dejaría
+    de llegar al tablero directamente y `_agrupar_tablero` nunca tendría la
+    oportunidad de descartarlo — el test unitario seguiría en verde.
+    """
+    viejo = _crear('facturado', dias=-40)
+    de_hoy = _crear('facturado', dias=0)
+
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+
+    assert f'PED-{de_hoy.id}' in html, (
+        'un facturado de HOY debe verse: es el cierre del día'
+    )
+    assert f'PED-{viejo.id}' not in html, 'un facturado viejo es archivo, no tablero'
+
+
+def test_el_orden_del_tablero_es_mas_atrasado_primero_y_sin_fecha_al_final(logged_client):
+    """El orden es responsabilidad de la consulta
+    (`.order_by(Pedido.fecha_entrega.asc().nullslast(), Pedido.id.desc())`),
+    no de `_agrupar_tablero` —que reparte, no ordena—. Los tests unitarios de
+    la Tarea 1 verifican el orden ENTRE grupos (atrasados antes que hoy,
+    antes que próximos, antes que sin fecha); ninguno verifica el orden
+    DENTRO de un grupo, porque reciben la lista ya armada a mano. Este test
+    cubre lo que falta: que el SQL de verdad ordene por urgencia.
+    """
+    mas_atrasado = _crear('pendiente', dias=-10)
+    menos_atrasado = _crear('pendiente', dias=-1)
+    sin_fecha = _crear('pendiente', dias=None)
+
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+
+    pos_mas = html.find(f'PED-{mas_atrasado.id}')
+    pos_menos = html.find(f'PED-{menos_atrasado.id}')
+    pos_sin_fecha = html.find(f'PED-{sin_fecha.id}')
+
+    assert -1 not in (pos_mas, pos_menos, pos_sin_fecha), (
+        'faltó algún pedido en el tablero'
+    )
+    assert pos_mas < pos_menos, (
+        'dentro de "Atrasados", el más atrasado (dias=-10) debe ir primero'
+    )
+    assert pos_menos < pos_sin_fecha, (
+        'los pedidos sin fecha van al final ("Sin fecha de entrega")'
+    )
+
+
+def test_el_tablero_respeta_los_clientes_visibles_del_vendedor(app):
+    """El filtro de permisos que blinda la lista tiene que blindar también
+    la consulta propia del tablero.
+
+    `base_query_tablero = base_query` es un alias POSICIONAL: se copia
+    después del filtro `Pedido.cliente_id.in_(clientes_ids)` (aplicado más
+    arriba, para vendedores no super_admin) pero antes de los filtros de
+    bandeja. Hoy el código está bien — pero si un refactor mueve esa línea
+    por encima del filtro de clientes visibles, el tablero de un vendedor
+    empezaría a mostrar pedidos de territorio ajeno EN SILENCIO, con la
+    suite en verde salvo por este test.
+    """
+    from datetime import datetime
+    from app import (Rol, Vendedor, Cliente, ClienteVendedor, Pedido,
+                      Territorio, db as _db, DASHBOARD_TIMEZONE)
+
+    territorio = Territorio.query.first()
+    cliente_visible = Cliente.query.filter_by(nombre='Cliente Uno').first()
+    cliente_ajeno = Cliente(nombre='Cliente Ajeno', territorio_id=territorio.id)
+    _db.session.add(cliente_ajeno)
+
+    rol_vendedor = Rol(nombre='vendedor', descripcion='Vendedor')
+    _db.session.add(rol_vendedor)
+    _db.session.flush()
+
+    vendedor = Vendedor(
+        username='vend_limitado', email='vend_limitado@test.com',
+        nombre_completo='Vendedor Limitado', rol_id=rol_vendedor.id,
+        territorio_id=territorio.id, activo=True,
+    )
+    vendedor.set_password('testpass')
+    _db.session.add(vendedor)
+    _db.session.flush()
+
+    # Solo asignado al cliente visible; el ajeno queda fuera a propósito.
+    _db.session.add(ClienteVendedor(
+        cliente_id=cliente_visible.id, vendedor_id=vendedor.id, activo=True,
+    ))
+    _db.session.commit()
+
+    hoy = datetime.now(DASHBOARD_TIMEZONE).date()
+    p_visible = Pedido(cliente_id=cliente_visible.id, estado='pendiente',
+                       fecha_entrega=hoy)
+    p_ajeno = Pedido(cliente_id=cliente_ajeno.id, estado='pendiente',
+                     fecha_entrega=hoy)
+    _db.session.add_all([p_visible, p_ajeno])
+    _db.session.commit()
+
+    cliente_test = app.test_client()
+    cliente_test.post('/login', data={'username': 'vend_limitado',
+                                      'password': 'testpass'},
+                      follow_redirects=True)
+    html = cliente_test.get('/pedidos').get_data(as_text=True)
+
+    assert f'PED-{p_visible.id}' in html, (
+        'el pedido de un cliente asignado debe verse en el tablero'
+    )
+    assert f'PED-{p_ajeno.id}' not in html, (
+        'el tablero mostró un pedido de un cliente que este vendedor no '
+        'tiene asignado — fuga de datos entre territorios'
     )

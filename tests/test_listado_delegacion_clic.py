@@ -67,6 +67,17 @@ def logged_client(app):
     return c
 
 
+def _sin_scripts(html):
+    """Quita los <script> antes de afirmar presencia/ausencia de markup.
+
+    `data-factura-share` y `filter-pill` también aparecen como texto DENTRO
+    del `<script>` inline de `pedidos.html` (comentarios y selectores), así
+    que un assert sobre el HTML completo puede pasar por ese texto de JS en
+    vez de por el DOM renderizado.
+    """
+    return re.sub(r'<script\b.*?</script>', '', html, flags=re.S)
+
+
 def test_el_boton_de_factura_no_queda_dentro_de_stop_propagation(app, logged_client):
     """Si un ancestro corta la propagación, el handler delegado nunca corre.
 
@@ -74,9 +85,13 @@ def test_el_boton_de_factura_no_queda_dentro_de_stop_propagation(app, logged_cli
     el contenedor de acciones es el único ancestro del botón que llevaba
     data-stop-propagation, así que basta con que ese atributo ya no esté ahí.
     """
-    html = logged_client.get('/pedidos').get_data(as_text=True)
+    # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; el markup
+    # de tarjeta que este test verifica vive en `?estado=todos`.
+    html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
-    assert 'data-factura-share' in html, 'el listado debe renderizar el botón'
+    assert 'data-factura-share' in _sin_scripts(html), (
+        'el listado debe renderizar el botón'
+    )
 
     contenedores_que_cortan = re.findall(
         r'<div class="pc-actions"[^>]*data-stop-propagation', html)
@@ -89,7 +104,9 @@ def test_el_boton_de_factura_no_queda_dentro_de_stop_propagation(app, logged_cli
 
 def test_los_forms_de_accion_tampoco_cortan_la_propagacion(app, logged_client):
     """Mismo motivo: cualquier ancestro que corte deja sordo al handler."""
-    html = logged_client.get('/pedidos').get_data(as_text=True)
+    # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; el markup
+    # de tarjeta que este test verifica vive en `?estado=todos`.
+    html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
     assert 'class="pc-action-form"' not in html or \
         not re.findall(r'class="pc-action-form"[^>]*data-stop-propagation', html), (
         'un form de acción sigue cortando la propagación del clic'

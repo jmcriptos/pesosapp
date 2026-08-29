@@ -101,7 +101,9 @@ def test_el_encabezado_no_afirma_una_moneda_fija(app, logged_client):
     with app.app_context():
         _pedido('Almacen Sur')
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; el
+        # encabezado que este test verifica vive en `?estado=todos`.
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         assert 'Total (XCG)' not in html
 

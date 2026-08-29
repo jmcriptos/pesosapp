@@ -219,7 +219,9 @@ def test_un_pedido_sin_productos_pesables_no_ofrece_pesar(app, logged_client):
     with app.app_context():
         sin_pesar = _pedido_con(se_pesa=False)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; la
+        # fila que este test verifica vive en `?estado=todos`.
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
 
         assert 'Pesar' not in _fila(html, sin_pesar.id)
 
@@ -269,7 +271,9 @@ def test_la_tarjeta_movil_tampoco_ofrece_pesar_de_mas(app, logged_client):
     with app.app_context():
         sin_pesar = _pedido_con(se_pesa=False)
 
-        html = logged_client.get('/pedidos').get_data(as_text=True)
+        # `/pedidos` sin parámetros es el TABLERO desde el 2026-08-28; la
+        # tarjeta móvil que este test verifica vive en `?estado=todos`.
+        html = logged_client.get('/pedidos?estado=todos').get_data(as_text=True)
         movil = html.split('tabla-pedidos-card')[0]
         tarjeta = [b for b in movil.split('pedido-card') if f'PED-{sin_pesar.id}' in b]
 
