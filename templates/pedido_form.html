@@ -180,6 +180,7 @@ const productos_pedido = {{ productos_pedido|tojson }};
 let productosAgregados = productos_pedido.map(p => ({ ...p, activa: true }));
 const esEdicion = {{ 'true' if pedido else 'false' }};
 const monedaActual = {{ (cliente.moneda or 'XCG')|tojson }};
+const clienteId = {{ cliente.id }};
 
 /* Grupo de facturación del pedido en curso ('pesable:14', 'importado:10'…).
    Un pedido NO puede mezclar grupos: QuickBooks no factura en un mismo
@@ -317,6 +318,84 @@ function decirMotivo(texto) {
     motivo.textContent = texto || '';
 }
 
+/* === Borrador (localStorage) ===
+   El vendedor puede perder un pedido entero sin aviso — cerrar la PWA,
+   quedarse sin batería, o el swipe que sale sin querer (ver `entrarARevision`
+   más abajo). La clave junta cliente Y grupo porque un pedido no puede
+   mezclarlos: dos borradores del mismo cliente en grupos distintos son dos
+   pedidos distintos, no se pisan.
+
+   Sin `grupoActual` conocido (cliente sin habitual recién entrando al paso
+   03, antes de la primera línea) no hay clave posible: se sigue sin
+   borrador para ESE momento, y en cuanto se agrega la primera línea
+   `grupoActual` queda fijo y el borrador empieza a guardarse normal.
+
+   `localStorage` puede fallar (modo privado de Safari, cuota llena): cada
+   lectura y escritura va en su propio try/catch, y el peor caso es
+   quedarse sin borrador — nunca romper la pantalla. */
+function claveBorrador() {
+    if (!grupoActual) return null;
+    return `borrador:${clienteId}:${grupoActual}`;
+}
+
+function guardarBorrador() {
+    const clave = claveBorrador();
+    if (!clave) return;
+
+    const activas = productosAgregados.filter(p => p.activa);
+    if (!activas.length) {
+        // Sin líneas no hay nada que proteger; y si quedaba un borrador de
+        // antes (se quitaron todas a mano) mejor limpiarlo, o la próxima
+        // vez se ofrecería «seguir» un pedido vacío.
+        borrarBorrador();
+        return;
+    }
+
+    const datos = {
+        lineas: productosAgregados,
+        fecha_entrega: inputFechaEntrega.value,
+        notas: $('notas') ? $('notas').value : '',
+    };
+    try {
+        localStorage.setItem(clave, JSON.stringify(datos));
+    } catch (_) { /* modo privado, cuota llena: se sigue sin borrador */ }
+}
+
+function borrarBorrador() {
+    const clave = claveBorrador();
+    if (!clave) return;
+    try { localStorage.removeItem(clave); } catch (_) { /* nada que limpiar */ }
+}
+
+/* Se llama una sola vez, al entrar al paso 03 (arranque de la pantalla,
+   antes de pintar nada), y ofrece retomar el borrador con un confirm — el
+   mismo patrón que ya usa `avisarAntesDeSalir` más abajo. Si se acepta, deja
+   `productosAgregados`/la fecha/las notas listas ANTES de que el resto del
+   arranque las pinte, para no tener que repintar dos veces. */
+function ofrecerBorrador() {
+    const clave = claveBorrador();
+    if (!clave) return;
+
+    let crudo;
+    try { crudo = localStorage.getItem(clave); } catch (_) { return; }
+    if (!crudo) return;
+
+    let datos;
+    try { datos = JSON.parse(crudo); } catch (_) { borrarBorrador(); return; }
+    if (!datos || !Array.isArray(datos.lineas) || !datos.lineas.length) {
+        borrarBorrador();
+        return;
+    }
+
+    if (!confirm('Hay un pedido sin enviar para este cliente y grupo. ¿Quieres continuar donde lo dejaste?')) {
+        return;
+    }
+
+    productosAgregados = datos.lineas;
+    if (typeof datos.fecha_entrega === 'string') inputFechaEntrega.value = datos.fecha_entrega;
+    if (typeof datos.notas === 'string' && $('notas')) $('notas').value = datos.notas;
+}
+
 /* === Fecha de entrega === */
 function construirChipsEntrega() {
     const hoy = new Date();
@@ -395,6 +474,7 @@ function seleccionarEntrega(iso) {
         chipOtra.textContent = usaOtra ? etiquetaFecha(iso) : 'Otra';
     }
     actualizarResumen();
+    guardarBorrador();
 }
 
 /* === Catálogo === */
@@ -428,6 +508,7 @@ function actualizarTablaProductos() {
     if (productosAgregados.length === 0) {
         tbody.innerHTML = '<p class="pn-vacio">Todavía no hay líneas en este pedido</p>';
         actualizarResumen();
+        guardarBorrador();
         return;
     }
 
@@ -495,6 +576,7 @@ function actualizarTablaProductos() {
     });
 
     actualizarResumen();
+    guardarBorrador();
 }
 
 function actualizarResumen() {
@@ -558,6 +640,52 @@ function mostrarPaso(paso) {
     const cuerpo = $(enRevision ? 'pn-cuerpo-revision' : 'pn-cuerpo-pedido');
     cuerpo.scrollTop = 0;
 }
+
+/* `mostrarPaso` por sí sola solo togglea `hidden`: no es una entrada de
+   historial. En la PWA instalada en iPhone, el swipe desde el borde
+   izquierdo —el gesto de «atrás» que todo el mundo hace— no volvía al paso
+   03, salía del formulario entero y destruía el pedido. Pasa justo donde
+   más duele: en la revisión, cuando el cliente pide un cambio de último
+   momento.
+
+   `entrarARevision` empuja una entrada al entrar; el swipe (o el botón
+   «atrás» del navegador) dispara `popstate` en esta misma página en vez de
+   navegar afuera, y el handler de abajo es quien de verdad muestra el paso
+   03. El botón «volver» (`salirDeRevision`) pasa por el MISMO camino
+   (`history.back()`), así que un vendedor que va y viene varias veces entre
+   los pasos 03 y 04 nunca deja una entrada de más: cada empuje se consume
+   con su propio retroceso. */
+function entrarARevision() {
+    mostrarPaso('revision');
+    try {
+        history.pushState({ pnPaso: 'revision' }, '', location.href);
+    } catch (_) {
+        // Sin historial disponible (Safari en modo privado, o algún bloqueo
+        // raro): el botón «volver» sigue funcionando porque cae al camino
+        // directo en `salirDeRevision` — solo el swipe físico deja de poder
+        // interceptarse, y no hay nada más que hacer acá.
+    }
+}
+
+function salirDeRevision() {
+    // `history.state` es el de la entrada donde estamos parados AHORA. Si es
+    // la que empujó `entrarARevision`, `history.back()` la consume y
+    // dispara `popstate` (que muestra el paso 03) — mismo camino que el
+    // swipe. Si no se pudo empujar nada, se cae al camino directo.
+    if (history.state && history.state.pnPaso === 'revision') {
+        history.back();
+    } else {
+        mostrarPaso('pedido');
+    }
+}
+
+window.addEventListener('popstate', function (event) {
+    if (event.state && event.state.pnPaso === 'revision') {
+        mostrarPaso('revision');
+    } else {
+        mostrarPaso('pedido');
+    }
+});
 
 /* Código de impuesto (10, 14…) del grupo fijado del pedido en curso. Un
    pedido nunca mezcla grupos, así que el código de la primera línea vale
@@ -669,6 +797,12 @@ function construirRevision() {
 
 /* === Arranque === */
 document.addEventListener('DOMContentLoaded', () => {
+    // Antes de pintar nada: si hay un borrador de este cliente y grupo, se
+    // ofrece (con un confirm, igual que `avisarAntesDeSalir`) y deja
+    // `productosAgregados`/la fecha lista para que el arranque de abajo la
+    // pinte de una — repintar dos veces sería doble trabajo sin ganar nada.
+    ofrecerBorrador();
+
     construirChipsEntrega();
     // Editando un pedido que ya existe, su grupo sale de las líneas que trae:
     // así el buscador queda acotado también acá y no se puede mezclar.
@@ -712,6 +846,11 @@ document.addEventListener('DOMContentLoaded', () => {
     inputOtraFecha.addEventListener('change', function () {
         if (this.value) seleccionarEntrega(this.value);
     });
+
+    // Notas: las líneas y la entrega ya guardan por su cuenta (dentro de
+    // `actualizarTablaProductos`/`seleccionarEntrega`); las notas no pasan
+    // por ninguna de las dos, así que necesitan su propio disparador.
+    $('notas').addEventListener('input', guardarBorrador);
 
     addToggle.addEventListener('click', function () {
         const abierto = addPanel.hidden;
@@ -894,15 +1033,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         construirRevision();
-        mostrarPaso('revision');
+        entrarARevision();
     });
 
-    $('pn-volver-pedido').addEventListener('click', () => mostrarPaso('pedido'));
+    $('pn-volver-pedido').addEventListener('click', salirDeRevision);
 
     // Envío. El botón se bloquea al primer toque: en la PWA, con red lenta, el
     // vendedor no ve respuesta, vuelve a tocar y se creaban DOS pedidos
     // completos (con sus líneas de preparación) que además llegaban a QBO.
     let enviando = false;
+
+    // Swipe, cerrar la pestaña/PWA, o cualquier salida que no pase por
+    // `entrarARevision`/`salirDeRevision` (por ejemplo, salir directo desde
+    // el paso 03): si hay líneas activas, el navegador pregunta antes de
+    // tirarlas. No aplica mientras se está enviando — avisar justo cuando
+    // el propio envío es la causa de la navegación sería absurdo.
+    window.addEventListener('beforeunload', function (e) {
+        if (enviando) return;
+        if (!productosAgregados.some(p => p.activa)) return;
+        e.preventDefault();
+        e.returnValue = '';
+    });
+
     formPedido.addEventListener('submit', function (e) {
         if (enviando) { e.preventDefault(); return; }
         if (!productosAgregados.some(p => p.activa)) {
@@ -912,6 +1064,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         enviando = true;
+        // Un borrador que sobrevive al envío hace que el vendedor reabra
+        // (con "¿seguir donde lo dejaste?") un pedido que ya mandó. Este es
+        // un POST clásico con redirect —no hay AJAX que confirme el éxito
+        // real del servidor— así que se limpia acá, al dejar pasar el
+        // envío: es el mismo momento en que la pantalla ya no vuelve atrás
+        // sola. Si el servidor lo rechaza (precio inválido, etc.) y
+        // redirige de vuelta a este mismo cliente+grupo, esa recarga arranca
+        // sin borrador que ofrecer — mismo comportamiento que ya tenía el
+        // form antes de este arreglo, no es una regresión nueva.
+        borrarBorrador();
         const btn = $('pn-enviar');
         btn.disabled = true;
         btn.textContent = 'Enviando…';
