@@ -82,7 +82,10 @@
           {% for f in filas %}
           <li class="gestion-row radar-row" id="cliente-{{ f.id }}" data-buscar="{{ f.nombre|lower }}">
             <div class="gestion-row-main">
-              <span class="gestion-row-name">{{ f.nombre }}</span>
+              <span class="gestion-row-name">
+                {{ f.nombre }}
+                <span class="chip radar-chip-moneda {{ 'chip-warning' if f.moneda == 'USD' else '' }}">{{ f.moneda or 'XCG' }}</span>
+              </span>
               <span class="gestion-row-sub radar-meta">
                 {% if f.n_pedidos %}
                   {{ f.dias_sin_comprar }} días sin comprar

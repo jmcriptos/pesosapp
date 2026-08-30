@@ -459,11 +459,49 @@ def test_el_ritmo_prestado_se_declara_estimado(logged_client, app):
 
 
 def test_la_accion_principal_es_crear_un_pedido_para_ese_cliente(logged_client, app):
+    """Anclado con la comilla de cierre: sin ella, `?cliente=1` es substring
+    de `?cliente=10`/`?cliente=11` en cuanto haya diez clientes o más."""
     with app.app_context():
         from app import Cliente
         cid = Cliente.query.first().id
     html = logged_client.get('/clientes').get_data(as_text=True)
-    assert f'/pedidos/nuevo?cliente={cid}' in html
+    assert f'/pedidos/nuevo?cliente={cid}"' in html
+
+
+def test_la_fila_muestra_la_moneda_del_cliente(logged_client, app):
+    """Un pedido en USD no es el mismo importe que uno en XCG (~78% de
+    diferencia): la moneda es información operativa, no decorativa, y tiene
+    que estar en la fila desde la que se arranca el pedido nuevo.
+
+    Anclado a la fila del cliente concreto (no `'USD' in html` suelto, que
+    se satisface con cualquier otra cosa en la página que diga USD).
+
+    OJO de sesión: NO envolver esta mutación en un `with app.app_context()`
+    propio. El fixture `app` deja su contexto pusheado durante todo el test
+    (el `yield` está DENTRO del `with`), y `logged_client.get(...)` lo
+    reutiliza (Flask reusa el app-context de arriba de la pila cuando ya es
+    de la misma app). Mutar en un contexto nuevo aparte usa una sesión
+    DISTINTA: el commit es real en la base, pero el objeto `Cliente` que la
+    sesión del fixture ya tenía cacheado en su identity map no se refresca,
+    y la fila sale con la moneda vieja aunque la base ya tenga la nueva.
+    Mutando acá, en el contexto ambiente, se evita el problema.
+    """
+    from app import Cliente, db as _db
+    estimado = Cliente.query.filter_by(nombre='Ritmo Estimado').first()
+    estimado.moneda = 'USD'
+    _db.session.commit()
+    id_estimado = estimado.id
+    propio_id = Cliente.query.filter_by(nombre='Ritmo Propio').first().id
+
+    html = logged_client.get('/clientes').get_data(as_text=True)
+
+    fila_estimado = re.search(rf'id="cliente-{id_estimado}".*?</li>', html, re.S)
+    fila_propio = re.search(rf'id="cliente-{propio_id}".*?</li>', html, re.S)
+    assert fila_estimado and '>USD<' in fila_estimado.group(0)
+    assert fila_propio and '>USD<' not in fila_propio.group(0), (
+        'el cliente en XCG no puede mostrar el chip de USD'
+    )
+    assert fila_propio and '>XCG<' in fila_propio.group(0)
 
 
 def test_sigue_estando_el_id_de_fila_que_usa_el_borrado(logged_client, app):
