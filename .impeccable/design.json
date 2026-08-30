@@ -123,6 +123,51 @@
           "#7dd3fc",
           "#bae6fd"
         ]
+      },
+      "conforme-marca": {
+        "role": "status-good",
+        "displayName": "Marca de Conforme",
+        "canonical": "#0f9d6e",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#0f9d6e",
+          "#34d399",
+          "#6ee7b7",
+          "#ecfdf5"
+        ]
+      },
+      "aviso-marca": {
+        "role": "status-warning",
+        "displayName": "Marca de Aviso",
+        "canonical": "#d97706",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fcd34d",
+          "#fffbeb"
+        ]
+      },
+      "falla-marca": {
+        "role": "status-critical",
+        "displayName": "Marca de Falla",
+        "canonical": "#be123c",
+        "tonalRamp": [
+          "#4c0519",
+          "#881337",
+          "#9f1239",
+          "#be123c",
+          "#e11d48",
+          "#fb7185",
+          "#fda4af",
+          "#fff1f2"
+        ]
       }
     },
     "typographyMeta": {
@@ -149,6 +194,18 @@
       "input": {
         "displayName": "Input",
         "purpose": "Campos de formulario. 16px obligatorio: por debajo, iOS Safari hace zoom al enfocar."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Cifra de segundo orden: el total de una tarjeta de gráfico."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Micro-etiqueta: chips, leyendas, unidades, umbrales."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Piso absoluto. Solo etiquetas de la tabbar."
       }
     },
     "shadows": [
@@ -291,6 +348,14 @@
       "description": "Navegación fija al pie, cinco destinos, cristal fuerte. Respeta el área segura de iOS.",
       "html": "<nav class=\"ds-tabbar\"><a class=\"ds-tab is-active\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z\"/></svg>Inicio</a><a class=\"ds-tab\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M6 2h9l4 4v16H6z\" opacity=\".9\"/></svg>Pedidos</a><a class=\"ds-tab\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z\"/></svg>Nuevo</a></nav>",
       "css": ".ds-tabbar{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px 10px;max-width:480px;margin:0 auto;background:rgba(10,10,15,.8);backdrop-filter:blur(30px) saturate(1.8);-webkit-backdrop-filter:blur(30px) saturate(1.8);border-top:1px solid rgba(255,255,255,.05)}.ds-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border-radius:12px;font:600 10px/1 var(--font-sans,system-ui,sans-serif);color:#94a3b8;text-decoration:none;transition:color 120ms cubic-bezier(.25,1,.5,1),background 120ms cubic-bezier(.25,1,.5,1)}.ds-tab:hover{color:#e2e8f0}.ds-tab.is-active{color:#fff;background:rgba(99,102,241,.18)}.ds-tab:focus-visible{outline:2px solid #818cf8;outline-offset:-2px}"
+    },
+    {
+      "name": "Riel de planta",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Firma del dashboard. Un riel por estado del pipeline con los pedidos bandeados por edad contra la regla de 2 días. El ancho es proporcional entre estados, así la geometría cuenta volumen y composición a la vez.",
+      "html": "<div class=\"ds-riel\"><a class=\"ds-riel-fila\" href=\"#\"><span class=\"ds-riel-estado\">Pendiente</span><span class=\"ds-riel-wrap\"><span class=\"ds-riel-pista\" style=\"width:100%\" role=\"img\" aria-label=\"19 pendientes: 12 en tiempo, 0 en el límite, 7 vencidos\"><span class=\"ds-riel-seg ds-seg-ok\" style=\"flex-grow:12\"></span><span class=\"ds-riel-seg ds-seg-danger\" style=\"flex-grow:7\"></span></span></span><span class=\"ds-riel-total\">19</span></a><a class=\"ds-riel-fila\" href=\"#\"><span class=\"ds-riel-estado\">Preparado</span><span class=\"ds-riel-wrap\"><span class=\"ds-riel-pista\" style=\"width:21%\" role=\"img\" aria-label=\"4 preparados: 4 vencidos\"><span class=\"ds-riel-seg ds-seg-danger\" style=\"flex-grow:4\"></span></span></span><span class=\"ds-riel-total\">4</span></a></div>",
+      "css": ".ds-riel{padding:14px 16px 12px;border:1px solid rgba(15,23,42,.06);border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.08)}.ds-riel-fila{display:flex;align-items:center;gap:10px;min-height:44px;color:inherit;text-decoration:none;border-radius:8px}.ds-riel-fila:hover .ds-riel-pista{filter:saturate(1.15)}.ds-riel-fila:focus-visible{outline:2px solid #4338ca;outline-offset:2px}.ds-riel-estado{flex:0 0 74px;font:700 12px/1.3 var(--font-sans,system-ui,sans-serif);color:#475569}.ds-riel-wrap{flex:1 1 auto;min-width:0}.ds-riel-pista{display:flex;gap:2px;height:14px;min-width:6px;border-radius:0 4px 4px 0;overflow:hidden}.ds-riel-seg{display:block;min-width:3px}.ds-seg-ok{background:#0f9d6e}.ds-seg-limite{background:#d97706}.ds-seg-danger{background:#be123c}.ds-riel-total{flex:0 0 auto;min-width:26px;text-align:right;font:800 15px/1 var(--font-sans,system-ui,sans-serif);color:#0f172a;font-variant-numeric:tabular-nums}"
     }
   ],
   "narrative": {

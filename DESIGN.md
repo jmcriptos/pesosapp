@@ -17,6 +17,15 @@ colors:
   ambar-de-aviso: "#f59e0b"
   rojo-de-falla: "#f43f5e"
   azul-de-dato: "#0ea5e9"
+  conforme-marca: "#0f9d6e"
+  conforme-fondo: "#ecfdf5"
+  conforme-tinta: "#065f46"
+  aviso-marca: "#d97706"
+  aviso-fondo: "#fffbeb"
+  aviso-tinta: "#92400e"
+  falla-marca: "#be123c"
+  falla-fondo: "#fff1f2"
+  falla-tinta: "#9f1239"
 typography:
   figure:
     fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', Inter, 'Segoe UI', Roboto, system-ui, sans-serif"
@@ -49,6 +58,24 @@ typography:
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.4
+  label:
+    fontFamily: "{typography.figure.fontFamily}"
+    fontSize: "11px"
+    fontWeight: 700
+    lineHeight: 1.3
+    letterSpacing: "0.06em"
+  micro:
+    fontFamily: "{typography.figure.fontFamily}"
+    fontSize: "10px"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "0.08em"
+  headline:
+    fontFamily: "{typography.figure.fontFamily}"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-0.02em"
 rounded:
   xs: "4px"
   sm: "8px"
@@ -170,9 +197,21 @@ se prestan a nada más.
 - **Línea** (`#e2e8f0`): bordes y divisiones.
 
 ### Status
-- **Verde de Conforme** (`#10b981`): dentro de objetivo, entregado, facturado.
-- **Ámbar de Aviso** (`#f59e0b`): al límite, requiere atención.
-- **Rojo de Falla** (`#f43f5e`): vencido, fuera de objetivo, error.
+Cada estado tiene dos usos y por eso dos valores: el **tono nominal**, que es el que
+vive en `tokens.css`, y la **marca medida**, que es la que se pinta cuando el color
+tiene que distinguirse de sus vecinos sobre blanco.
+
+- **Verde de Conforme** (`#10b981`) · marca `#0f9d6e`, chip `#ecfdf5` sobre `#065f46`:
+  dentro de objetivo, entregado, facturado.
+- **Ámbar de Aviso** (`#f59e0b`) · marca `#d97706`, chip `#fffbeb` sobre `#92400e`:
+  al límite, requiere atención.
+- **Rojo de Falla** (`#f43f5e`) · marca `#be123c`, chip `#fff1f2` sobre `#9f1239`:
+  vencido, fuera de objetivo, error.
+
+**Por qué dos.** El ámbar y el rojo nominales, uno al lado del otro sobre blanco,
+separan ΔE 5.7 bajo deuteranopía y 11.5 con visión normal: por debajo del piso de 15,
+o sea indistinguibles incluso viendo todos los colores. Las marcas medidas separan
+ΔE 8.7 y 20.0, y las tres superan 3:1 contra el blanco.
 
 ### Named Rules
 
@@ -207,12 +246,18 @@ porque se lee a un brazo de distancia.
 - **Body** (400, 15px, 1.4): texto de interfaz.
 - **Meta** (500, 13px, 1.4): dato secundario, fechas, unidades.
 - **Input** (400, 16px): campos, y **solo** campos.
+- **Headline** (700, 24px, -0.02em): cifra de segundo orden — el total de una tarjeta de gráfico.
+- **Label** (700, 11px, 0.06em): micro-etiqueta. Chips, leyendas, unidades, umbrales.
+- **Micro** (700, 10px, 0.08em): el piso absoluto. Solo etiquetas de la tabbar.
 
 ### Named Rules
 
-**La Regla de los Cinco Roles.** Hay cinco roles y se piden por significado
-(`--text-role-figure`, `-screen`, `-client`, `-body`, `-meta`), no por tamaño. Una
-pantalla nueva no elige un `font-size`: elige qué es ese texto.
+**La Regla de los Cinco Roles.** El texto de contenido tiene cinco roles y se piden por
+significado (`--text-role-figure`, `-screen`, `-client`, `-body`, `-meta`), no por
+tamaño. Una pantalla nueva no elige un `font-size`: elige qué es ese texto. Por debajo
+de esos cinco viven tres tamaños de servicio —headline (24px), label (11px) y micro
+(10px)— para cifras de segundo orden y micro-etiquetas; están en la escala
+(`--text-xl`, `--text-xs`, `--text-2xs`) y no admiten valores intermedios.
 
 **La Regla de los 16px.** Todo campo de formulario va a 16px (`--text-input`). Por debajo
 de eso, iOS Safari hace zoom al enfocar y rompe el layout. No es una preferencia
@@ -364,7 +409,12 @@ quien toque estas hojas.
 - **Tres hojas se pisan en el dashboard** (`dashboard_inline` → `dashboard_light` →
   `dashboard_snap`) y el orden de carga es load-bearing.
 - **No hay tokens de breakpoint.** Los cortes 768/900/1024 se repiten a mano.
-- **El par de estado accesible no está tokenizado.** `#d97706` contra `#be123c` es el
-  único par ámbar/rojo medido que separa bajo deuteranopía (ΔE 8.7) y con visión normal
-  (ΔE 20.0). `--color-warning` (`#f59e0b`) contra `--color-danger` (`#f43f5e`) no está
-  verificado para ese uso.
+- **El par de estado accesible no tiene variable CSS.** Está documentado arriba
+  (`conforme-marca`, `aviso-marca`, `falla-marca`) pero vive como hex en las hojas del
+  dashboard. `#d97706` contra `#be123c` es el único par ámbar/rojo medido que separa
+  bajo deuteranopía (ΔE 8.7) y con visión normal (ΔE 20.0); `--color-warning`
+  (`#f59e0b`) contra `--color-danger` (`#f43f5e`) no está verificado para ese uso, así
+  que no se puede tokenizar reusando los nombres existentes sin antes medirlos.
+- **Tamaños y radios fuera de escala en el dashboard.** El detector cuenta 12px (×12),
+  14px (×3), 22px, 18px, 10.5px y 9px, más radios de 1, 2, 3, 6 y 10px. Ninguno está en
+  `tokens.css`. Es la deriva más mecánica de todas y la más fácil de cerrar.
