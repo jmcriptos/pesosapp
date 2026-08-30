@@ -178,7 +178,7 @@ body[data-gestion-screen] .gestion-row-sub {
   gap: 6px;
 }
 
-/* Acciones por fila (touch targets 40px, aria-label en el template) */
+/* Acciones por fila (touch targets 44px, aria-label en el template) */
 .gestion-row-actions {
   display: flex;
   gap: 8px;
@@ -188,8 +188,8 @@ body[data-gestion-screen] .gestion-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   border: 1px solid transparent;
   cursor: pointer;
