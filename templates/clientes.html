@@ -55,33 +55,67 @@
          placeholder="Buscar cliente…" autocomplete="off"
          aria-label="Buscar cliente">
 
-  <ul id="lista-clientes" class="gestion-list">
-    {% for c in clientes %}
-    <li class="gestion-row" id="cliente-{{ c.id }}" data-buscar="{{ c.nombre|lower }}">
-      <div class="gestion-row-main">
-        <span class="gestion-row-name">{{ c.nombre }}</span>
-        <span class="gestion-row-badges">
-          <span class="chip {{ 'chip-warning' if c.moneda == 'USD' else '' }}">{{ c.moneda or 'XCG' }}</span>
-          {% if c.qbo_id %}
-          <span class="chip chip-success" title="Integrado a QuickBooks">QBO {{ c.qbo_id }}</span>
-          {% else %}
-          <span class="chip" title="Sin QBO ID">Sin QBO</span>
-          {% endif %}
-        </span>
-      </div>
-      <div class="gestion-row-actions">
-        <a href="{{ url_for('editar_cliente', cliente_id=c.id) }}"
-           class="gestion-icon-btn gestion-icon-edit" title="Editar"
-           aria-label="Editar {{ c.nombre }}"><i class="fas fa-pen"></i></a>
-        <button type="button"
-                class="gestion-icon-btn gestion-icon-delete eliminar-cliente"
-                data-id="{{ c.id }}" title="Eliminar"
-                aria-label="Eliminar {{ c.nombre }}"><i class="fas fa-trash"></i></button>
-      </div>
-    </li>
+  <ul id="lista-clientes" class="gestion-list radar-list">
+    {% if clientes %}
+      {% for clave, etiqueta, filas in grupos %}
+      <li class="radar-seccion" data-radar-grupo="{{ clave }}">
+        {% if clave in ['dormidos', 'sin_pedidos'] %}
+        <button type="button" class="radar-titulo radar-titulo-plegable"
+                aria-expanded="false" aria-controls="radar-{{ clave }}">
+          <i class="fas fa-chevron-right radar-chevron" aria-hidden="true"></i>
+          {{ etiqueta }} <span class="radar-cuenta">{{ filas|length }}</span>
+        </button>
+        {% else %}
+        <h2 class="radar-titulo">
+          {% if clave == 'atrasados' %}<i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{% endif %}
+          {{ etiqueta }} <span class="radar-cuenta">{{ filas|length }}</span>
+        </h2>
+        {% endif %}
+
+        {# «Atrasados» vacío es un buen resultado y se dice así, tranquilo: la
+           pantalla no puede parecer rota cuando el trabajo está al día. #}
+        {% if clave == 'atrasados' and not filas %}
+          <p class="radar-vacio">Todos al día. Nadie se pasó de su ritmo.</p>
+        {% else %}
+        <ul class="radar-grupo" id="radar-{{ clave }}"
+            {% if clave in ['dormidos', 'sin_pedidos'] %}hidden{% endif %}>
+          {% for f in filas %}
+          <li class="gestion-row radar-row" id="cliente-{{ f.id }}" data-buscar="{{ f.nombre|lower }}">
+            <div class="gestion-row-main">
+              <span class="gestion-row-name">
+                {{ f.nombre }}
+                <span class="chip radar-chip-moneda {{ 'chip-warning' if f.moneda == 'USD' else '' }}">{{ f.moneda or 'XCG' }}</span>
+              </span>
+              <span class="gestion-row-sub radar-meta">
+                {% if f.n_pedidos %}
+                  {{ f.dias_sin_comprar }} días sin comprar
+                  · su ritmo: {{ f.ritmo }} d{% if not f.ritmo_propio %} <em>(estimado)</em>{% endif %}
+                  · {{ f.n_pedidos }} pedido{{ 's' if f.n_pedidos != 1 }}
+                {% else %}
+                  Sin pedidos todavía
+                {% endif %}
+              </span>
+            </div>
+            <div class="gestion-row-actions">
+              <a class="radar-action-main" href="{{ url_for('nuevo_pedido', cliente=f.id) }}">
+                <i class="fas fa-plus" aria-hidden="true"></i> Pedido
+              </a>
+              <a href="{{ url_for('editar_cliente', cliente_id=f.id) }}"
+                 class="gestion-icon-btn gestion-icon-edit"
+                 aria-label="Editar {{ f.nombre }}"><i class="fas fa-pen" aria-hidden="true"></i></a>
+              <button type="button" class="gestion-icon-btn gestion-icon-delete eliminar-cliente"
+                      data-id="{{ f.id }}"
+                      aria-label="Eliminar {{ f.nombre }}"><i class="fas fa-trash" aria-hidden="true"></i></button>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </li>
+      {% endfor %}
     {% else %}
     <li class="gestion-empty">No hay clientes registrados todavía.</li>
-    {% endfor %}
+    {% endif %}
   </ul>
 </div>
 {% endblock %}
@@ -120,12 +154,68 @@
     createCard.hidden = true;
   });
 
-  // Búsqueda client-side
+  // Búsqueda client-side. Ahora hay secciones, así que esconder filas no
+  // alcanza: una sección cuyo encabezado dice «Atrasados 5» encima de cero
+  // filas visibles estaría afirmando algo falso.
+  //
+  // OJO con el ciclo buscar → borrar la búsqueda: la plantilla dibuja SIEMPRE
+  // las cuatro secciones, también «Atrasados» vacío por diseño (muestra
+  // «Todos al día» y no tiene ninguna .radar-row). Si escondiéramos toda
+  // sección con cero filas visibles, ese mensaje —y cualquier sección vacía
+  // legítima— desaparecería al buscar y NO volvería al borrar la búsqueda,
+  // porque nunca tuvo filas que "reaparecer". Por eso sin término de
+  // búsqueda todas las secciones vuelven incondicionalmente.
+  function seccionesVacias(q) {
+    document.querySelectorAll('.radar-seccion').forEach(function (sec) {
+      if (!q) { sec.hidden = false; return; }   // sin búsqueda, vuelven todas
+      sec.hidden = sec.querySelectorAll('.radar-row:not([hidden])').length === 0;
+    });
+  }
+
+  // La cuenta del encabezado («Atrasados 5») cuenta las filas VISIBLES, no
+  // el total de la sección: buscando «man» con 1 fila a la vista, un «5»
+  // fijo estaría afirmando lo mismo que este archivo dice prevenir arriba
+  // (seccionesVacias), un caso más adentro — con búsqueda parcial, no sólo
+  // sin resultados. Sin búsqueda ninguna fila queda oculta, así que cuenta
+  // el total solo, sin ninguna rama especial; y como cuenta el DOM en vivo,
+  // borrar un cliente (`row.remove()`) también la deja al día sin que haga
+  // falta otra función.
+  function actualizarContadores() {
+    document.querySelectorAll('.radar-seccion').forEach(function (sec) {
+      var cuenta = sec.querySelector('.radar-cuenta');
+      if (!cuenta) return;
+      cuenta.textContent = sec.querySelectorAll('.radar-row:not([hidden])').length;
+    });
+  }
+
   document.getElementById('buscar-cliente').addEventListener('input', function () {
     var q = this.value.trim().toLowerCase();
-    document.querySelectorAll('#lista-clientes .gestion-row').forEach(function (row) {
+    document.querySelectorAll('#lista-clientes .radar-row').forEach(function (row) {
       row.hidden = !!q && row.dataset.buscar.indexOf(q) === -1;
     });
+    // Buscando se abren los grupos plegados: si el cliente que buscás está en
+    // «Dormidos», encontrarlo y no verlo es peor que no encontrarlo.
+    document.querySelectorAll('.radar-grupo').forEach(function (g) {
+      if (q) g.hidden = false;
+    });
+    document.querySelectorAll('.radar-titulo-plegable').forEach(function (b) {
+      if (q) b.setAttribute('aria-expanded', 'true');
+    });
+    seccionesVacias(q);
+    actualizarContadores();
+  });
+
+  // Plegado de «Dormidos» y «Nunca compraron». Mismo elemento que el
+  // borrado de abajo: los dos listeners conviven, cada uno con su propio
+  // `closest` sobre una clase distinta. No reemplazar uno por el otro.
+  document.getElementById('lista-clientes').addEventListener('click', function (e) {
+    var btn = e.target.closest('.radar-titulo-plegable');
+    if (!btn) return;
+    var grupo = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!grupo) return;
+    var abrir = grupo.hidden;
+    grupo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
   });
 
   // Crear cliente — el endpoint SIEMPRE responde JSON (app.py nuevo_cliente),
@@ -174,6 +264,7 @@
         if (res.message) {
           var row = document.getElementById('cliente-' + btn.dataset.id);
           if (row) row.remove();
+          actualizarContadores();   // la cuenta del encabezado no puede quedar vieja
           aviso(res.message, 'success');
         } else {
           aviso(res.error || 'Error al eliminar', 'error');

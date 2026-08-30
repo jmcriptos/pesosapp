@@ -6,6 +6,7 @@ import secrets
 import hmac
 import base64
 import json
+from collections import defaultdict
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
@@ -3307,6 +3308,132 @@ def _volver_a(endpoint_default, **kwargs):
     ):
         return redirect(destino)
     return redirect(url_for(endpoint_default, **kwargs))
+
+
+# ── El radar de clientes ──────────────────────────────────────────────────────
+# Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md
+
+_RADAR_RITMO_NEGOCIO = 13    # mediana global entre días distintos con pedido
+_RADAR_MIN_INTERVALOS = 2    # o sea, 3 fechas distintas
+_RADAR_UMBRAL = 1.5          # se pasó de su ritmo esta cantidad de veces
+_RADAR_DORMIDO_DIAS = 90
+
+
+def _dia_local(valor):
+    """El día CALENDARIO local de un valor de fecha, venga como venga.
+
+    `_ritmo_cliente` normaliza su propia entrada en vez de confiar en el
+    llamador: con `datetime` crudos, dos pedidos del mismo día con horas
+    distintas sobreviven al `set()` y el intervalo entre ellos da 0 días,
+    que es exactamente el bug que esta función existe para evitar.
+    """
+    if valor is None:
+        return None
+    if isinstance(valor, datetime):
+        return _to_dashboard_date(valor)
+    return valor
+
+
+def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
+    """Cada cuántos días vuelve este cliente, y si el dato es suyo o prestado.
+
+    Mide entre FECHAS DISTINTAS con pedido, no entre pedidos. Hay clientes que
+    cargan varios pedidos la misma fecha; entre pedidos su mediana da 0 días,
+    lo que los marca atrasados por división contra cero y además imprime
+    «ritmo 0d» en la fila. Best Buy era exactamente ese caso y salía como falso
+    positivo en la validación contra producción.
+
+    Con menos de tres fechas no hay ritmo que calcular: se devuelve el del
+    negocio y `es_propio=False`, para que la fila pueda decir «estimado» en vez
+    de fingir una precisión que no existe.
+    """
+    unicas = sorted({_dia_local(f) for f in fechas if _dia_local(f) is not None})
+    intervalos = sorted((b - a).days for a, b in zip(unicas, unicas[1:]))
+    if len(intervalos) < _RADAR_MIN_INTERVALOS:
+        return ritmo_negocio, False
+    n = len(intervalos)
+    medio = n // 2
+    mediana = (intervalos[medio] if n % 2
+               else (intervalos[medio - 1] + intervalos[medio]) / 2)
+    return max(int(round(mediana)), 1), True
+
+
+def _agrupar_radar(filas, hoy_local):
+    """Reparte los clientes en los cuatro grupos del radar.
+
+    DISJUNTOS: un dormido está pasadísimo de su ritmo, pero aparece sólo en
+    Dormidos. Y las cuatro claves se devuelven SIEMPRE, aunque vengan vacías
+    —al revés que `_agrupar_tablero`—, porque «Atrasados: 0» no es ruido: es un
+    buen resultado y tiene su propio estado vacío tranquilo, y la plantilla
+    necesita poder distinguirlo de «no hay clientes».
+    """
+    atrasados, al_dia, dormidos, sin_pedidos = [], [], [], []
+
+    for fila in filas:
+        if not fila.get('n_pedidos') or not fila.get('ultimo'):
+            sin_pedidos.append(fila)
+            continue
+
+        dias = (hoy_local - fila['ultimo']).days
+        ritmo = max(fila.get('ritmo') or _RADAR_RITMO_NEGOCIO, 1)
+        fila['dias_sin_comprar'] = dias
+        fila['veces_su_ritmo'] = round(dias / ritmo, 1)
+
+        if dias > _RADAR_DORMIDO_DIAS:
+            dormidos.append(fila)
+        elif dias > _RADAR_UMBRAL * ritmo:
+            atrasados.append(fila)
+        else:
+            al_dia.append(fila)
+
+    atrasados.sort(key=lambda f: f['veces_su_ritmo'], reverse=True)
+    al_dia.sort(key=lambda f: f['veces_su_ritmo'], reverse=True)
+    dormidos.sort(key=lambda f: (f['n_pedidos'], -f['dias_sin_comprar']), reverse=True)
+    sin_pedidos.sort(key=lambda f: (f['nombre'] or '').lower())
+
+    return [
+        ('atrasados', 'Atrasados', atrasados),
+        ('al_dia', 'Al día', al_dia),
+        ('dormidos', 'Dormidos', dormidos),
+        ('sin_pedidos', 'Nunca compraron', sin_pedidos),
+    ]
+
+
+def _contexto_radar(clientes, hoy_local):
+    """Arma las filas del radar con UNA consulta de pedidos.
+
+    Trae `(cliente_id, fecha_pedido)` de todos los clientes visibles de una vez
+    y agrupa en Python. La mediana se calcula acá y no en SQL a propósito:
+    `percentile_cont` no existe en SQLite y los tests corren sobre SQLite, así
+    que la regla viviría sin cobertura justo donde es más fácil equivocarse.
+    """
+    por_id = {c.id: c for c in clientes}
+    if not por_id:
+        return _agrupar_radar([], hoy_local)
+
+    fechas_por_cliente = defaultdict(list)
+    filas = (db.session.query(Pedido.cliente_id, Pedido.fecha_pedido)
+             .filter(Pedido.cliente_id.in_(list(por_id)))
+             .all())
+    for cliente_id, fecha in filas:
+        local = _dia_local(fecha)
+        if local is not None:
+            fechas_por_cliente[cliente_id].append(local)
+
+    radar = []
+    for cliente_id, cliente in por_id.items():
+        fechas = fechas_por_cliente.get(cliente_id, [])
+        ritmo, propio = _ritmo_cliente(fechas)
+        radar.append({
+            'id': cliente_id,
+            'nombre': cliente.nombre,
+            'moneda': cliente.moneda,
+            'ultimo': max(fechas) if fechas else None,
+            'n_pedidos': len(fechas),
+            'ritmo': ritmo,
+            'ritmo_propio': propio,
+        })
+    return _agrupar_radar(radar, hoy_local)
 
 
 def _agrupar_tablero(pedidos, hoy_local):
@@ -10297,7 +10424,12 @@ def mostrar_clientes():
             # Ordenar por ID para mantener consistencia
             clientes = sorted(clientes, key=lambda c: c.id)
 
-    return render_template('clientes.html', clientes=clientes)
+    hoy_local = datetime.now(DASHBOARD_TIMEZONE).date()
+    return render_template(
+        'clientes.html',
+        clientes=clientes,
+        grupos=_contexto_radar(clientes, hoy_local),
+    )
 
 
 # TAMBIÉN modifica estas rutas si existen:
