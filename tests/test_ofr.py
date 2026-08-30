@@ -104,7 +104,8 @@ def test_ofr_100_percent_manufactura(logged_client, app):
         resp = logged_client.get('/dashboard')
         assert resp.status_code == 200
         html = resp.data.decode('utf-8')
-        assert 'Order Fill Rate' in html
+        assert 'OFR' in html
+        assert 'Cajas entregadas' in html
         assert '100.0%' in html
 
 

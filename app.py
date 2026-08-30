@@ -5856,8 +5856,27 @@ def dashboard():
         )
 
         pedidos_operativos = []
+
+        # Vencidos y preparados se cuentan sobre la MISMA población que
+        # `pedidos_pendientes` (toda la carga, ~6 meses), no sobre los últimos
+        # 30 días. Antes la tarjeta decía "19 pendientes · 0 vencidos" porque
+        # los pendientes viejos caían fuera de la ventana de 30 días y eran
+        # incapaces de contarse como vencidos: justo los más atrasados.
         pedidos_vencidos = 0
         pedidos_preparados_activos = 0
+        for p in pedidos_base_list:
+            estado_p = (p.estado or '').strip().lower()
+            if estado_p not in ('pendiente', 'preparado'):
+                continue
+            if estado_p == 'preparado':
+                pedidos_preparados_activos += 1
+            fecha_p_local = _to_dashboard_date(p.fecha_pedido)
+            if fecha_p_local and (hoy - fecha_p_local).days > 2:
+                pedidos_vencidos += 1
+
+        # El donut de "Estado de pedidos" sí promete 30 días en su encabezado,
+        # así que conserva su propio conteo.
+        vencidos_30_dias = 0
 
         estado_priority = {
             'pendiente': 0,
@@ -5875,9 +5894,7 @@ def dashboard():
 
             es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
             if es_urgente:
-                pedidos_vencidos += 1
-            if estado == 'preparado':
-                pedidos_preparados_activos += 1
+                vencidos_30_dias += 1
 
             if estado == 'facturado':
                 sla_text = 'Facturado'
@@ -6003,6 +6020,7 @@ def dashboard():
             pedidos_recientes=pedidos_recientes_data,
             pedidos_operativos=pedidos_operativos,
             pedidos_vencidos=pedidos_vencidos,
+            vencidos_30_dias=vencidos_30_dias,
             pedidos_preparados_activos=pedidos_preparados_activos,
             pedidos_facturados_hoy=pedidos_facturados_hoy,
             fecha_actual=hoy,
@@ -6013,7 +6031,14 @@ def dashboard():
             kpis_historicos=kpis_historicos,
 
             # Configuración
-            moneda='XCG'
+            moneda='XCG',
+
+            # Estado de la propia pantalla: en el camino normal los números son
+            # reales. El except de más abajo renderiza esta MISMA plantilla con
+            # ceros, así que sin esta bandera una caída se ve igual que un día
+            # sin movimiento.
+            degradado=False,
+            datos_actualizados_en=datetime.now(DASHBOARD_TIMEZONE)
         )
         mark_dashboard_perf('render_template')
         log_dashboard_perf('ok')
@@ -6061,13 +6086,19 @@ def dashboard():
             'pedidos_recientes': [],
             'pedidos_operativos': [],
             'pedidos_vencidos': 0,
+            'vencidos_30_dias': 0,
             'pedidos_preparados_activos': 0,
             'pedidos_facturados_hoy': 0,
             'fecha_actual': datetime.now().date(),
             'ventas_dias': [],
             'tiempo_respuesta_data': [],
             'kpis_historicos': [],
-            'moneda': 'XCG'
+            'moneda': 'XCG',
+
+            # La plantilla usa esto para avisar que los ceros de arriba son
+            # producto del fallo, no del negocio.
+            'degradado': True,
+            'datos_actualizados_en': None
         }
         
         try:

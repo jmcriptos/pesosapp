@@ -6,7 +6,9 @@
 {% set est_facturado_tl = (estados_pedidos_tl.get('facturado', 0) or 0)|int %}
 {% set est_preparado_tl = (estados_pedidos_tl.get('preparado', 0) or 0)|int %}
 {% set est_pendiente_tl = (estados_pedidos_tl.get('pendiente', 0) or 0)|int %}
-{% set pedidos_vencidos_tl = (pedidos_vencidos or 0)|int %}
+{# El donut de estados promete "últimos 30 días": usa el conteo de esa ventana,
+   no el total que muestran el hero y la tarjeta Pendientes. #}
+{% set pedidos_vencidos_tl = (vencidos_30_dias or 0)|int %}
 
 {% block title %}Dashboard — PesosApp{% endblock %}
 {% block header_title %}Dashboard{% endblock %}
@@ -65,6 +67,11 @@
 {% set lead_time_promedio_v   = (lead_time_promedio or 0)|float %}
 {% set pedidos_vencidos_v     = (pedidos_vencidos or 0)|int %}
 {% set pedidos_preparados_activos_v = (pedidos_preparados_activos or 0)|int %}
+{# `degradado` lo pasa la ruta cuando cae al except de app.py y renderiza esta
+   misma plantilla con ceros. Sin esta bandera, una caída de la base se ve
+   idéntica a un lunes tranquilo. #}
+{% set degradado_v            = degradado|default(false) %}
+{% set datos_al               = datos_actualizados_en %}
 {% set day_count              = (fecha_actual.day if fecha_actual else 30)|int %}
 {% set prom_dia               = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
 {% set estados_pedidos_v      = estados_pedidos or {} %}
@@ -96,18 +103,41 @@
      inglés y salía "16 de August, 2026" en una app en español. #}
   {% set meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio',
                      'agosto','septiembre','octubre','noviembre','diciembre'] %}
+  {% if degradado_v %}
+  <div class="dash-degradado" role="alert">
+    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+    <div class="dash-degradado-texto">
+      <strong>No pudimos cargar los datos.</strong>
+      Los ceros de abajo son una falla de la consulta, no falta de movimiento.
+    </div>
+    <a class="dash-degradado-accion" href="{{ url_for('dashboard') }}">Reintentar</a>
+  </div>
+  {% endif %}
+
   <div class="hero">
-    <div class="hero-kicker">Buenos días{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %} ☀</div>
+    {# Sin saludo cuando la pantalla está avisando de una falla: "Buenos días ☀"
+       ocho píxeles debajo de "No pudimos cargar los datos" es un tono equivocado. #}
+    {% if not degradado_v %}<div class="hero-kicker">Buenos días{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %} ☀</div>{% endif %}
     <h1 class="hero-title">
       {# El titular se deriva de los datos. Antes era un texto fijo que decía
-         "Tu semana va bien" incluso sin ventas y con pedidos vencidos. #}
-      {% if not ventas_mes_v %}Todavía no hay ventas este mes.
+         "Tu semana va bien" incluso sin ventas y con pedidos vencidos.
+
+         Orden de prioridad: primero lo que exige acción hoy (vencidos, luego
+         pendientes) y recién después el estado del mes. Antes `not ventas_mes_v`
+         iba primero, así que una caída de QuickBooks —de donde sale ventas_mes—
+         tapaba el aviso de pedidos vencidos con un "no hay ventas este mes". #}
+      {% if degradado_v %}Datos no disponibles.
       {% elif pedidos_vencidos_v %}Hay {{ pedidos_vencidos_v }} pedido{{ 's' if pedidos_vencidos_v != 1 }} vencido{{ 's' if pedidos_vencidos_v != 1 }}.
       {% elif pedidos_pendientes_v %}Tenés {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} por atender.
+      {% elif not ventas_mes_v %}Todavía no hay ventas este mes.
       {% else %}Todo al día.{% endif %}
     </h1>
     <div class="hero-sub">
-      {% if fecha_actual %}{{ fecha_actual.day }} de {{ meses_es[fecha_actual.month - 1] }}, {{ fecha_actual.year }} · {% endif %}{{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} requiere{{ 'n' if pedidos_pendientes_v != 1 }} atención
+      {%- if fecha_actual %}{{ fecha_actual.day }} de {{ meses_es[fecha_actual.month - 1] }}, {{ fecha_actual.year }}{% endif -%}
+      {%- if degradado_v %} · sin datos
+      {%- else %} · {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} requiere{{ 'n' if pedidos_pendientes_v != 1 }} atención
+        {%- if datos_al %} · datos al {{ datos_al.strftime('%H:%M') }}{% endif -%}
+      {%- endif -%}
     </div>
   </div>
 
@@ -169,7 +199,7 @@
           {{ progress_ring(otd_rate_v, otd_state) }}
         </div>
         <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>
-        <div class="kpi-sub">OFR {{ '%.0f'|format(order_completion_rate_v) }}% · ≤2 días</div>
+        <div class="kpi-sub">Facturadas en 2 días o menos</div>
       </div>
 
       {# 4: Pendientes #}
@@ -186,7 +216,7 @@
 
     {# Tendencia section header #}
     <div class="sec-head">
-      <h3 class="sec-title">Tendencia · últimos 12 meses</h3>
+      <h3 class="sec-title">Tendencia · últimos 6 meses</h3>
       <a class="sec-action" href="/pedidos">Ver más ›</a>
     </div>
 
@@ -195,6 +225,9 @@
       <div class="chart-head">
         <div>
           <div class="chart-big">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG · esta semana</small></div>
+          {# Con datos degradados delta_pct siempre da 0 y el chip salía verde
+             hacia arriba: falsa tranquilidad sobre cifras que no son reales. #}
+          {% if not degradado_v %}
           <div class="chart-legend">
             <span class="kpi-trend{{ ' down' if delta_pct < 0 else '' }}">
               <i class="fas fa-arrow-{{ 'down' if delta_pct < 0 else 'up' }}"></i>
@@ -202,6 +235,7 @@
             </span>
             <span>vs. semana anterior</span>
           </div>
+          {% endif %}
         </div>
       </div>
       <div class="trend-chart-wrap">
@@ -238,12 +272,12 @@
     {% set lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
     {% set lt_state = 'success' if lead_time_promedio_v <= 2 else ('warning' if lead_time_promedio_v <= 4 else 'danger') %}
     {% set svc_items = [
-      {'label': 'OTD', 'full': 'On-Time Delivery',    'val': otd_rate_v,              'unit': '%', 'desc': 'Entregas ≤ 2 días',             'pct': otd_rate_v,             'state': 'success' if otd_rate_v >= 95 else ('warning' if otd_rate_v >= 85 else 'danger')},
-      {'label': 'OFR', 'full': 'Order Fill Rate',      'val': order_completion_rate_v, 'unit': '%', 'desc': 'Cajas entregadas vs pedidas',   'pct': order_completion_rate_v,'state': 'success' if order_completion_rate_v >= 95 else ('warning' if order_completion_rate_v >= 85 else 'danger')},
-      {'label': 'POR', 'full': 'Perfect Order Rate',   'val': perfect_order_rate_v,    'unit': '%', 'desc': 'Entregas perfectas',            'pct': perfect_order_rate_v,   'state': 'success' if perfect_order_rate_v >= 95 else ('warning' if perfect_order_rate_v >= 85 else 'danger')},
-      {'label': 'CE',  'full': 'Customer Engagement',  'val': customer_engagement_v,   'unit': '%', 'desc': 'Clientes activos del mes',      'pct': customer_engagement_v,  'state': 'success' if customer_engagement_v >= 80 else 'warning'},
-      {'label': 'LT',  'full': 'Lead Time',             'val': lead_time_promedio_v,    'unit': 'd', 'desc': 'Promedio de procesamiento',    'pct': lt_pct,                 'state': lt_state},
-      {'label': 'PED', 'full': 'Pendientes',            'val': pedidos_pendientes_v,    'unit': '',  'desc': 'Requieren atención',           'pct': pend_pct,               'state': pend_state}
+      {'label': 'OTD', 'full': 'Entregas a tiempo',  'val': otd_rate_v,              'unit': '%', 'desc': 'Facturadas en 2 días o menos',  'pct': otd_rate_v,             'state': 'success' if otd_rate_v >= 95 else ('warning' if otd_rate_v >= 85 else 'danger')},
+      {'label': 'OFR', 'full': 'Cajas entregadas',   'val': order_completion_rate_v, 'unit': '%', 'desc': 'De cada 100 cajas pedidas',     'pct': order_completion_rate_v,'state': 'success' if order_completion_rate_v >= 95 else ('warning' if order_completion_rate_v >= 85 else 'danger')},
+      {'label': 'POR', 'full': 'Pedidos perfectos',  'val': perfect_order_rate_v,    'unit': '%', 'desc': 'A tiempo y completos',          'pct': perfect_order_rate_v,   'state': 'success' if perfect_order_rate_v >= 95 else ('warning' if perfect_order_rate_v >= 85 else 'danger')},
+      {'label': 'CE',  'full': 'Clientes activos',   'val': customer_engagement_v,   'unit': '%', 'desc': 'Compraron este mes',            'pct': customer_engagement_v,  'state': 'success' if customer_engagement_v >= 80 else 'warning'},
+      {'label': 'LT',  'full': 'Tiempo de proceso',  'val': lead_time_promedio_v,    'unit': 'd', 'desc': 'Del pedido a la factura',       'pct': lt_pct,                 'state': lt_state},
+      {'label': 'PED', 'full': 'Pendientes',         'val': pedidos_pendientes_v,    'unit': '',  'desc': 'Requieren atención',            'pct': pend_pct,               'state': pend_state}
     ] %}
 
     <div class="svc-kpi-grid">
@@ -252,7 +286,7 @@
         <div class="kpi-top">
           <div>
             <div class="kpi-label">{{ item.label }}</div>
-            <div style="font-size:9px;color:var(--color-text-subtle);margin-top:2px;">{{ item.full }}</div>
+            <div class="svc-kpi-full">{{ item.full }}</div>
           </div>
           {{ progress_ring(item.pct, item.state, label=(item.val|round(1)|string ~ item.unit)) }}
         </div>
@@ -404,7 +438,7 @@
         <div class="estados-legend-item">
           <span class="estados-legend-dot" style="background:#f43f5e"></span>
           <span>Vencidos</span>
-          <span class="estados-legend-val">{{ pedidos_vencidos_v }}</span>
+          <span class="estados-legend-val">{{ pedidos_vencidos_tl }}</span>
         </div>
       </div>
     </div>

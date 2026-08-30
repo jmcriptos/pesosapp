@@ -70,17 +70,20 @@ def test_dashboard_no_order_accuracy_in_response(logged_client):
 
 
 def test_dashboard_has_order_fill_rate(logged_client):
-    """OFR real reemplaza Order Completion Rate en el template."""
+    """OFR real reemplaza Order Completion Rate en el template.
+
+    La sigla se conserva; el nombre completo se muestra en español."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Order Fill Rate' in html
+    assert 'OFR' in html
+    assert 'Cajas entregadas' in html
 
 
 def test_dashboard_has_customer_engagement(logged_client):
-    """AC #5: Customer Engagement se muestra en el dashboard."""
+    """AC #5: Customer Engagement (CE) se muestra en el dashboard."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Customer Engagement' in html
+    assert 'Clientes activos' in html
 
 
 # === Tests de cálculo de KPIs (via la función helper interna) ===
@@ -93,8 +96,8 @@ def test_kpis_empty_period_returns_defaults(app):
         response = resp.get('/dashboard')
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        # El dashboard renderiza el KPI Order Fill Rate (antes order_completion_rate)
-        assert 'Order Fill Rate' in html
+        # El dashboard renderiza el KPI OFR (antes order_completion_rate)
+        assert 'Cajas entregadas' in html
         assert 'order_accuracy' not in html
 
 
@@ -107,11 +110,11 @@ def test_kpi_evolution_chart_no_accuracy(logged_client):
 
 
 def test_kpi_evolution_chart_has_ofr(logged_client):
-    """El chart de evolución usa OFR (Order Fill Rate)."""
+    """El chart de evolución usa OFR (Cajas entregadas)."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
     assert 'OFR' in html
-    assert 'Order Fill Rate' in html
+    assert 'Cajas entregadas' in html
 
 
 def test_dashboard_no_palabras_error(app):
@@ -162,10 +165,11 @@ def test_dashboard_has_proyeccion(logged_client):
 
 
 def test_dashboard_has_perfect_order_rate(logged_client):
-    """AC #2: Perfect Order Rate visible en Nivel de Servicio."""
+    """AC #2: Perfect Order Rate (POR) visible en Nivel de Servicio."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Perfect Order Rate' in html
+    assert 'POR' in html
+    assert 'Pedidos perfectos' in html
 
 
 def test_meta_configurable_env_var(app):
