@@ -275,20 +275,55 @@
       </a>
     </div>
 
-    <div class="queue-stats">
-      <a class="queue-stat{{ ' is-alarm' if pedidos_vencidos_v else '' }}" href="{{ url_for('lista_pedidos') }}?estado=pendiente">
-        <span class="queue-stat-val">{{ pedidos_vencidos_v }}</span>
-        <span class="queue-stat-lbl">vencido{{ 's' if pedidos_vencidos_v != 1 }}</span>
+    {# ══════ EL RIEL DE PLANTA ══════
+       Un riel por estado del pipeline, con los pedidos bandeados por edad
+       contra la regla de los 2 días. Reemplaza a tres contadores sueltos:
+       "cuántos hay" no dice a quién llamar primero; "cuánto llevan esperando"
+       sí. El ancho de cada riel es proporcional entre estados, así la
+       geometría cuenta el volumen y la composición a la vez.
+
+       Las bandas salen del mismo recorrido que los conteos del titular, así
+       que no pueden discrepar. #}
+    {% set bandas = bandas_planta or {} %}
+    {% set b_pend = bandas.get('pendiente', {}) %}
+    {% set b_prep = bandas.get('preparado', {}) %}
+    {% set riel_max = [b_pend.get('total', 0), b_prep.get('total', 0), 1]|max %}
+    {% set estados_riel = [
+      ('Pendiente', b_pend, 'pendiente'),
+      ('Preparado', b_prep, 'preparado')
+    ] %}
+
+    {% if b_pend.get('total', 0) or b_prep.get('total', 0) %}
+    <div class="riel">
+      {% for etiqueta, b, filtro in estados_riel %}
+      {% set total_b = b.get('total', 0) %}
+      <a class="riel-fila" href="{{ url_for('lista_pedidos') }}?estado={{ filtro }}">
+        <span class="riel-estado">{{ etiqueta }}</span>
+        <span class="riel-pista-wrap">
+          <span class="riel-pista" style="width:{{ '%.2f'|format(total_b / riel_max * 100) }}%"
+                role="img"
+                aria-label="{{ total_b }} {{ etiqueta|lower }}{{ 's' if total_b != 1 }}: {{ b.get('en_tiempo', 0) }} en tiempo, {{ b.get('limite', 0) }} en el límite, {{ b.get('vencido', 0) }} vencido{{ 's' if b.get('vencido', 0) != 1 }}">
+            {% for clave, clase in [('en_tiempo', 'seg-ok'), ('limite', 'seg-limite'), ('vencido', 'seg-vencido')] %}
+              {% if b.get(clave, 0) %}<span class="riel-seg {{ clase }}" style="flex-grow:{{ b[clave] }}"></span>{% endif %}
+            {% endfor %}
+          </span>
+        </span>
+        <span class="riel-total">{{ total_b }}</span>
       </a>
-      <a class="queue-stat" href="{{ url_for('lista_pedidos') }}?estado=pendiente">
-        <span class="queue-stat-val">{{ pedidos_pendientes_v }}</span>
-        <span class="queue-stat-lbl">pendiente{{ 's' if pedidos_pendientes_v != 1 }}</span>
-      </a>
-      <a class="queue-stat" href="{{ url_for('lista_pedidos') }}?estado=preparado">
-        <span class="queue-stat-val">{{ pedidos_preparados_activos_v }}</span>
-        <span class="queue-stat-lbl">por preparar</span>
-      </a>
+      {% endfor %}
+
+      <div class="riel-pie">
+        <span class="riel-leyenda">
+          <span><i class="riel-punto seg-ok"></i>en tiempo</span>
+          <span><i class="riel-punto seg-limite"></i>límite hoy</span>
+          <span><i class="riel-punto seg-vencido"></i>vencido · más de 2 días</span>
+        </span>
+        {% if pedidos_facturados_hoy %}
+        <span class="riel-cierre">{{ pedidos_facturados_hoy }} facturado{{ 's' if pedidos_facturados_hoy != 1 }} hoy</span>
+        {% endif %}
+      </div>
     </div>
+    {% endif %}
 
     <div class="gcard queue-card">
       {% if urgentes %}

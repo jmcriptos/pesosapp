@@ -377,33 +377,6 @@
 .chart-title-row { margin: 2px 0 8px; font-size: 12px; font-weight: 700; color: #475569; }
 
 /* ── Cola de trabajo ─────────────────────────────────────────────────── */
-.queue-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.queue-stat {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  min-height: 56px;
-  padding: 10px 12px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: 14px;
-  background: #ffffff;
-  color: #0f172a;
-  text-decoration: none;
-}
-/* Sin tabular-nums: a 22px las cifras de ancho fijo dejan huecos.
-   Se reserva para columnas que se alinean (.rank-amt, .queue-amt). */
-.queue-stat-val { font-size: 22px; font-weight: 800; line-height: 1; }
-.queue-stat-lbl { font-size: 11px; color: #475569; }
-.queue-stat.is-alarm { border-color: #fecdd3; background: #fff1f2; }
-.queue-stat.is-alarm .queue-stat-val { color: #9f1239; }
-.queue-stat:hover { border-color: #cbd5e1; }
-.queue-stat:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
 
 .queue-card { padding-top: 4px; padding-bottom: 4px; }
 .queue-row {
@@ -421,12 +394,15 @@
 .queue-row:focus-visible { outline: 2px solid #4338ca; outline-offset: -2px; border-radius: 10px; }
 .queue-row-main { flex: 1 1 auto; min-width: 0; }
 .queue-client {
+  /* Entero, igual que el nombre del producto. "Hotel Renaissance Cura…" es
+     el cliente al que hay que llamar: recortarlo le quita justo lo que sirve. */
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: break-word;
 }
 /* El número de pedido es lo que se lee en voz alta cruzando el almacén:
    12px y #475569 (7.5:1), no 11px a 2.56:1 como antes. */
@@ -570,3 +546,83 @@
   gap: 4px 8px;
   min-width: 0;
 }
+
+/* ── El riel de planta ──────────────────────────────────────────────────
+   Un riel por estado del pipeline, con los pedidos bandeados por edad contra
+   la regla de los 2 días. Los tres colores son los mismos de los chips de SLA
+   —medidos: ΔE 8.7 con deuteranopía, 20.0 con visión normal— así que el mismo
+   estado se ve igual en toda la pantalla. La banda no informa sola: la leyenda
+   la nombra y cada riel lleva su aria-label completo. */
+.riel {
+  padding: 14px 16px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.riel-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.riel-fila:hover .riel-pista { filter: saturate(1.15); }
+.riel-fila:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+.riel-estado {
+  flex: 0 0 74px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+.riel-pista-wrap { flex: 1 1 auto; min-width: 0; }
+/* El ancho es proporcional entre estados: si los dos rieles llenaran su fila,
+   "4 preparados" se vería igual de grande que "19 pendientes". */
+.riel-pista {
+  display: flex;
+  gap: 2px;          /* hueco del color de la superficie, no un borde */
+  height: 14px;
+  min-width: 6px;
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
+}
+.riel-seg { display: block; min-width: 3px; }
+.seg-ok      { background: #0f9d6e; }
+.seg-limite  { background: #d97706; }
+.seg-vencido { background: #be123c; }
+.riel-total {
+  flex: 0 0 auto;
+  min-width: 26px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.riel-pie {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+.riel-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: #475569;
+}
+.riel-leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+.riel-punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+.riel-cierre { font-size: 11px; color: #475569; }

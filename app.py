@@ -6025,6 +6025,13 @@ def dashboard():
         # antigüedad. Reemplaza a una lista equivalente de 30 días que la ruta
         # armaba en cada request y que ninguna plantilla llegó a usar.
         pedidos_urgentes = []
+        # Bandas de edad contra el SLA de 2 días, por estado. Se tallan en el
+        # MISMO recorrido que produce los conteos, así el riel no puede
+        # contradecir al titular. Cero consultas extra.
+        bandas_planta = {
+            'pendiente': {'en_tiempo': 0, 'limite': 0, 'vencido': 0, 'total': 0},
+            'preparado': {'en_tiempo': 0, 'limite': 0, 'vencido': 0, 'total': 0},
+        }
         for p in pedidos_base_list:
             estado_p = (p.estado or '').strip().lower()
             if estado_p not in ('pendiente', 'preparado'):
@@ -6037,11 +6044,14 @@ def dashboard():
                 pedidos_vencidos += 1
 
             if edad_p <= 1:
-                sla_text_p, sla_class_p = 'En tiempo', 'sla-ok'
+                sla_text_p, sla_class_p, banda = 'En tiempo', 'sla-ok', 'en_tiempo'
             elif edad_p == 2:
-                sla_text_p, sla_class_p = 'Límite hoy', 'sla-warn'
+                sla_text_p, sla_class_p, banda = 'Límite hoy', 'sla-warn', 'limite'
             else:
-                sla_text_p, sla_class_p = f'Vencido {edad_p - 2}d', 'sla-danger'
+                sla_text_p, sla_class_p, banda = f'Vencido {edad_p - 2}d', 'sla-danger', 'vencido'
+
+            bandas_planta[estado_p][banda] += 1
+            bandas_planta[estado_p]['total'] += 1
 
             pedidos_urgentes.append({
                 'id': p.id,
@@ -6144,6 +6154,7 @@ def dashboard():
             pedidos_recientes=pedidos_recientes_data,
             pedidos_vencidos=pedidos_vencidos,
             pedidos_urgentes=pedidos_urgentes,
+            bandas_planta=bandas_planta,
             pedidos_urgentes_total=pedidos_urgentes_total,
             pedidos_preparados_activos=pedidos_preparados_activos,
             pedidos_facturados_hoy=pedidos_facturados_hoy,
@@ -6216,6 +6227,10 @@ def dashboard():
             'pedidos_recientes': [],
             'pedidos_vencidos': 0,
             'pedidos_urgentes': [],
+            'bandas_planta': {
+                'pendiente': {'en_tiempo': 0, 'limite': 0, 'vencido': 0, 'total': 0},
+                'preparado': {'en_tiempo': 0, 'limite': 0, 'vencido': 0, 'total': 0},
+            },
             'pedidos_urgentes_total': 0,
             'pedidos_preparados_activos': 0,
             'pedidos_facturados_hoy': 0,
