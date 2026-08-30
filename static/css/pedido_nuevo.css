@@ -1195,3 +1195,62 @@ a.pn-btn-capsula {
 /* El alto del desplegable NO se fija acá: lo calcula `onDropdownOpen` con el
    espacio real que queda después de replegar la cabecera, y un valor inline
    le ganaría a esta regla igual. */
+
+/* ── El origen de las líneas, plegado ───────────────────────────────────────
+   El párrafo entero («Partimos de su pedido habitual: 3 líneas cargadas con
+   las cantidades de sus últimas 4 visitas. Ajusta lo que cambie y envía»)
+   ocupaba tres renglones de una cabecera que ya se llevaba 318px del iPhone.
+   Plegado deja a la vista el hecho accionable y guarda la explicación. */
+.pn-head-detalle {
+    margin-top: 6px;
+}
+
+.pn-head-detalle > summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    list-style: none;
+    margin: 0;
+    /* El área táctil llega a 44px sin agrandar el texto: el objetivo es el
+       renglón entero, no la flechita. */
+    min-height: 44px;
+}
+
+/* Safari/iOS dibuja su propio triángulo con este pseudo-elemento. */
+.pn-head-detalle > summary::-webkit-details-marker { display: none; }
+
+.pn-head-detalle > summary::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translate(-1px, -1px);
+    opacity: 0.75;
+    transition: transform 0.15s ease;
+}
+
+.pn-head-detalle[open] > summary::after {
+    transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.pn-head-detalle > summary:focus-visible {
+    outline: 2px solid var(--pn-tinta);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* El plegado se escribe EXPLÍCITO en vez de confiar en el navegador.
+   Medido: con `<details>` cerrado el párrafo conservaba su caja (65px de alto)
+   y se derramaba fuera de la cabecera; lo único que lo tapaba era el fondo
+   pintándose encima —`elementFromPoint` devolvía `.pn-head` en ese punto—.
+   Es el mismo modo de fallo que ya llegó a producción con `[hidden]` perdiendo
+   contra un `display` de autor: nunca dar por escondido lo que no se midió. */
+.pn-head-detalle:not([open]) .pn-head-detalle-cuerpo {
+    display: none;
+}
+
+.pn-head-detalle-cuerpo {
+    margin: 2px 0 4px;
+}

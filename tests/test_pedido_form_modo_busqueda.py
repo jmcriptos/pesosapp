@@ -113,3 +113,48 @@ def test_el_css_repliega_la_cabecera_y_esconde_el_pie():
     assert '--pn-head-alto' in panel, (
         'el tope se clava con un número fijo en vez del alto real de la cabecera'
     )
+
+
+# ── El origen de las líneas, plegado ─────────────────────────────────────────
+
+def test_el_parrafo_del_habitual_va_plegado_con_un_resumen_a_la_vista():
+    """Presente pero plegado: el hecho a la vista, la explicación a un toque.
+
+    `<details>`/`<summary>` y no un toggle a mano: trae el plegado, el teclado
+    y el anuncio a lectores de pantalla sin una línea de JS.
+    """
+    fuente = _texto(PLANTILLA)
+    assert '<details class="pn-head-detalle">' in fuente
+    assert 'pn-head-resumen' in fuente, 'falta el resumen visible del plegado'
+    assert 'origen_resumen' in fuente, 'el resumen no viene del servidor'
+
+
+def test_el_parrafo_plegado_NO_deja_caja_en_pantalla():
+    """El bug que este test existe para impedir, cometido al escribir esto.
+
+    Con el `<details>` cerrado, el párrafo conservaba su caja —65px de alto—
+    y se derramaba fuera de la cabecera; lo único que lo tapaba era el fondo
+    pintándose encima (`elementFromPoint` devolvía `.pn-head` en ese punto).
+    O sea: plegado a medias, ocupando el espacio que el plegado venía a
+    liberar.
+
+    Es el mismo modo de fallo que ya llegó a producción con `[hidden]`
+    perdiendo contra un `display` de autor. Por eso el plegado se escribe
+    explícito en vez de confiar en el navegador.
+    """
+    css = _texto(CSS)
+    assert re.search(
+        r'\.pn-head-detalle:not\(\[open\]\)\s+\.pn-head-detalle-cuerpo\s*\{[^}]*display:\s*none',
+        css,
+    ), (
+        'falta el `display: none` explícito del cuerpo plegado: sin él el '
+        'párrafo sigue ocupando su caja aunque el <details> esté cerrado'
+    )
+
+
+def test_el_resumen_llega_a_44px_de_area_tactil():
+    """El objetivo es el renglón entero, no la flechita."""
+    css = _texto(CSS)
+    bloque = css[css.index('.pn-head-detalle > summary {'):]
+    bloque = bloque[:bloque.index('}')]
+    assert 'min-height: 44px' in bloque, 'el resumen no llega al mínimo táctil'
