@@ -9,7 +9,7 @@ os.environ.setdefault('SECRET_KEY', 'test-secret')
 os.environ.setdefault('FLASK_ENV', 'testing')
 os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
 
-from app import _ritmo_cliente, _RADAR_RITMO_NEGOCIO
+from app import _ritmo_cliente, _RADAR_RITMO_NEGOCIO, _RADAR_RAFAGA_DIAS
 
 
 HOY = date(2026, 8, 29)
@@ -915,3 +915,60 @@ def test_las_areas_tactiles_del_radar_son_de_44px():
     css = _css_radar()
     assert re.search(r'\.radar-titulo-plegable\s*\{[^}]*min-height:\s*44px', css)
     assert re.search(r'\.radar-action-main\s*\{[^}]*min-height:\s*44px', css)
+
+
+# ── Ráfagas de compra ────────────────────────────────────────────────────────
+
+def test_una_rafaga_de_compras_es_UNA_visita():
+    """El falso positivo de Roberto Da Silva, encontrado contra producción.
+
+    Compró quince veces en una semana de octubre de 2025 y después desapareció
+    diez meses. Contando FECHAS sueltas, la mediana de sus intervalos daba 3
+    días —los de adentro de la ráfaga—, así que a los quince días de silencio
+    figuraba como «5,0x su ritmo» y salía SEGUNDO en Atrasados, por encima de
+    Arco Iris, que sí había dejado de comprar de verdad.
+
+    Es el mismo error que el de Best Buy un escalón más arriba: si un día con
+    varios pedidos es UNA compra, una semana con varios días también.
+    """
+    rafaga = [date(2025, 10, 6) + timedelta(days=d) for d in (0, 1, 2, 3, 4)]
+    fechas = rafaga + [date(2026, 3, 15), date(2026, 8, 14)]
+
+    ritmo, propio = _ritmo_cliente(fechas)
+
+    assert propio is True
+    assert ritmo > 100, (
+        f'ritmo {ritmo}d: la ráfaga se está contando como cadencia. '
+        'Su cadencia real entre visitas es de meses, no de días.'
+    )
+
+
+def test_el_cliente_regular_no_lo_toca_el_colapso():
+    """Colapsar ráfagas no debe mover a quien compra con cadencia normal."""
+    fechas = [HOY - timedelta(days=7 * i) for i in range(6)]
+    assert _ritmo_cliente(fechas) == (7, True)
+
+
+def test_el_limite_exacto_de_la_rafaga():
+    """En el borde: hasta `_RADAR_RAFAGA_DIAS` es la misma visita; uno más, no."""
+    base = date(2026, 1, 1)
+    juntas = [base, base + timedelta(days=_RADAR_RAFAGA_DIAS),
+              base + timedelta(days=20), base + timedelta(days=40)]
+    separadas = [base, base + timedelta(days=_RADAR_RAFAGA_DIAS + 1),
+                 base + timedelta(days=20), base + timedelta(days=40)]
+
+    # juntas → 3 visitas, intervalos [20, 20]
+    assert _ritmo_cliente(juntas) == (20, True)
+    # separadas → 4 visitas, intervalos [4, 16, 20] → mediana 16
+    assert _ritmo_cliente(separadas) == (16, True)
+
+
+def test_una_rafaga_sola_no_alcanza_para_tener_ritmo_propio():
+    """Quince compras en una semana y nada más: una visita, cero intervalos.
+
+    No hay cadencia que medir, así que corresponde el ritmo del negocio
+    marcado como estimado — no un ritmo propio de un día.
+    """
+    rafaga = [date(2026, 8, 1) + timedelta(days=d) for d in range(5)]
+    ritmo, propio = _ritmo_cliente(rafaga)
+    assert (ritmo, propio) == (_RADAR_RITMO_NEGOCIO, False)

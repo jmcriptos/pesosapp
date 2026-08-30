@@ -41,23 +41,23 @@ Y mientras tanto, medido hoy en producción:
 
 Los cinco atrasados, con su ritmo propio:
 
-> **Nota (2026-08-29):** estos números se recalcularon después de normalizar
-> las fechas de pedido a la hora local del negocio (antes se agrupaban en
-> UTC), que es lo que movió los ritmos respecto de la primera versión de
-> esta tabla. El caso más visible es Roberto Da Silva: la versión original
-> lo daba en 6 días de ritmo y 2,3×; hoy sale en 3 días y 5,0×, producto de
-> una ráfaga real de 15 pedidos en una semana de octubre de 2025. Es un caso
-> legítimo para la discusión abierta sobre compradores en ráfaga — no se
-> corrigió acá porque esa discusión la resuelve el usuario, no el código. El
-> reparto general (5 / 26 / 18 / 13) no cambió.
+> **Nota (2026-08-29, segunda revisión):** la tabla original de este spec quedó
+> desactualizada dos veces. Primero al normalizar las fechas a hora local, que
+> movió los ritmos. Y después al corregir el fallo que esa corrección dejó a la
+> vista: **los compradores en ráfaga distorsionaban la cadencia**. Roberto Da
+> Silva —quince pedidos en una semana de octubre de 2025 y después diez meses
+> de silencio— salía con «ritmo 3 días» y segundo en Atrasados a los quince
+> días, por encima de clientes que habían dejado de comprar de verdad. Desde
+> que el ritmo se mide entre VISITAS y no entre fechas sueltas, su cadencia
+> sale en 158 días y queda al día (0,09×). Los atrasados pasan de cinco a
+> cuatro; el reparto general queda 4 / 27 / 18 / 13.
 
 | Cliente | Días sin comprar | Su ritmo | Veces su ritmo | Pedidos |
 |---|---|---|---|---|
-| Rio Frio Center | 86 | 15 d | 5,7× | 15 |
-| Roberto Da Silva | 15 | 3 d | 5,0× | 16 |
-| Arco Iris | 51 | 18 d | 2,8× | 27 |
-| Liza Convenience Store | 33 | 13 d (estimado) | 2,5× | 1 |
-| New California | 80 | 41 d | 2,0× | 11 |
+| Rio Frio Center | 85 | 15 d | 5,7× | 15 |
+| Liza Convenience Store | 32 | 13 d (estimado) | 2,5× | 1 |
+| Arco Iris | 50 | 22 d | 2,3× | 27 |
+| New California | 79 | 41 d | 1,9× | 11 |
 
 Arco Iris hizo 27 pedidos y lleva 51 días sin comprar. Rio Frio Center, 15
 pedidos y 86 días. **Nada en la app muestra eso.** Son relaciones que se
@@ -70,15 +70,24 @@ existiendo pero dejan de ser el contenido principal.
 
 ### La regla
 
-**Ritmo propio** = mediana de días entre **días distintos con pedido** del
-cliente.
+**Ritmo propio** = mediana de días entre **visitas**. Una visita es un día con
+pedido más todos los días con pedido que le siguen dentro de 3 días.
 
-Entre días distintos, no entre pedidos: hay clientes que cargan varios pedidos
-la misma fecha, y midiendo entre pedidos su mediana da **0 días**. Con esa
-cuenta, Best Buy aparecía atrasado con «ritmo 0d» —un falso positivo y encima
-ilegible—. Midiendo entre fechas, su ritmo real lo saca de la lista y a Roberto
-Da Silva le da su ritmo verdadero de 3 días (ver la nota de 2026-08-29 más
-abajo sobre la normalización a hora local, que fue lo que movió este número).
+La misma cuenta se equivocó dos veces, las dos por tomar como cadencia lo que
+era una sola compra partida en varios registros:
+
+- Contando **pedidos**, un cliente que carga tres el mismo día daba mediana 0.
+  Best Buy salía atrasado con «ritmo 0d»: ilegible, y dividía por cero.
+- Contando **fechas**, un cliente que compró quince veces en una semana y
+  después desapareció diez meses daba mediana 3. Roberto Da Silva quedaba
+  segundo en Atrasados a los quince días de silencio.
+
+Colapsar la ráfaga es el mismo arreglo que el primero, un escalón más arriba:
+si un día de pedidos es una compra, una semana de pedidos también.
+
+El umbral de 3 días **no es delicado**: medido contra los 62 clientes de
+producción, cualquier valor entre 2 y 10 devuelve exactamente la misma lista de
+atrasados. Se eligió 3 por ser el más chico del tramo estable.
 
 Hace falta un mínimo de **2 intervalos** (3 fechas distintas con pedido) para
 que el ritmo sea propio. Por debajo se usa el **ritmo del negocio: 13 días**
