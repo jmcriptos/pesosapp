@@ -238,6 +238,20 @@ const motivo = $('agregar-motivo');
 const formPedido = $('form-nuevo-pedido');
 let tomProducto = null;
 
+/* Foco programático (no un toque real): dispara el mismo onFocus() de Tom
+   Select, y con openOnFocus en su default (true — hojear el catálogo sin
+   escribir es una función real, no un bug) eso abría el desplegable entero
+   sin que el vendedor lo pidiera. La bandera se levanta justo antes de cada
+   foco programático; onDropdownOpen la consulta y, si está prendida, cierra
+   en la misma pasada síncrona (antes de que el navegador pinte nada) y la
+   apaga. Un toque real nunca pasa por acá, así que sigue abriendo normal. */
+let focoProgramatico = false;
+function enfocarProductoSinAbrir() {
+    if (!tomProducto) return;
+    focoProgramatico = true;
+    tomProducto.focus();
+}
+
 /* === Utilidades === */
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
@@ -710,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // vista y recién después se enfoca, porque enfocar también hace
         // scroll y pelearía con este.
         addPanel.scrollIntoView({ block: 'end', behavior: 'smooth' });
-        if (tomProducto) tomProducto.focus();
+        enfocarProductoSinAbrir();
     });
 
     // Los dos caminos que salen de esta pantalla dejan atrás lo que hay en
@@ -745,14 +759,13 @@ document.addEventListener('DOMContentLoaded', () => {
         placeholder: 'Buscar producto…',
         dropdownParent: 'body',
         dropdownClass: 'ts-dropdown pn-dropdown',
-        // `false`: al abrir "Añadir producto" se hace scroll y se enfoca el
-        // campo (más abajo) para que el teclado quede listo. Con el default
-        // (true) eso abría el desplegable en el mismo instante, con el panel
-        // recién posicionado al fondo de la pantalla — tapaba el botón
-        // «Añadir» (justo debajo) y la etiqueta «Entrega» (más abajo
-        // todavía), sin que el vendedor hubiera tocado nada. Al escribir (o
-        // tocar el campo) el desplegable se sigue abriendo normalmente.
-        openOnFocus: false,
+        // openOnFocus queda en su default (true): un toque real en el campo
+        // tiene que poder hojear el catálogo sin escribir — con 57 productos
+        // filtrados por grupo, el vendedor que no recuerda el nombre exacto
+        // necesita esa lista. Lo que había que cortar no era "abrir al
+        // enfocar" sino el foco PROGRAMÁTICO (`enfocarProductoSinAbrir`,
+        // arriba) que dispara el mismo evento sin que nadie lo haya pedido:
+        // eso se corta en onDropdownOpen, más abajo.
         onType: function () { this.clear(); },
         sortField: { field: 'text', direction: 'asc' },
         // El desplegable cuelga de <body> (dropdownParent), fuera del flujo, y
@@ -762,8 +775,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // ninguno de los dos se puede usar igual (no hay producto elegido
         // todavía), así que se ocultan en vez de dejarlos tapados — no se
         // pierde nada: sus valores siguen en el estado de JS y reaparecen
-        // igual al cerrar.
+        // igual al cerrar. Esto vale para CUALQUIER apertura (toque real o
+        // búsqueda), a diferencia del corte de abajo que es solo para la
+        // apertura fantasma del foco programático.
         onDropdownOpen: function (dropdown) {
+            // El foco programático (scroll a "Añadir producto", o volver a
+            // enfocar tras "Elige un producto") dispara este mismo evento.
+            // `open()` (fuente de Tom Select 2.2.2) reenfoca el control al
+            // final de sí mismo, y ESE reenfoque programa su propio refresh
+            // diferido (setTimeout 0) que reabriría solo si para entonces
+            // `isOpen` ya está en false. Cerrar acá mismo, síncrono, deja
+            // `isOpen` en false ANTES de que corra ese refresh diferido —y lo
+            // hace reabrir de verdad, sin bandera que lo frene (se comprobó
+            // con `tomProducto.on('dropdown_open', …)`: un cierre síncrono
+            // deja un segundo `dropdown_open` sin interceptar). Por eso acá
+            // solo se esconde (sin parpadeo) y el cierre real se difiere un
+            // tick, después de que ese refresh fantasma ya corrió, vio
+            // `isOpen` todavía en true y no hizo nada.
+            if (focoProgramatico) {
+                dropdown.style.visibility = 'hidden';
+                setTimeout(() => {
+                    focoProgramatico = false;
+                    this.close();
+                }, 0);
+                return;
+            }
             addFila.hidden = true;
             camposDebajoDelBuscador().forEach(campo => { campo.hidden = true; });
             const disponible = window.innerHeight - 16 - dropdown.getBoundingClientRect().top;
@@ -795,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!producto) {
             decirMotivo('Elige un producto');
-            if (tomProducto) tomProducto.focus();
+            enfocarProductoSinAbrir();
             return;
         }
         if (!isFinite(cajas) || cajas <= 0 || cajas > MAX_CAJAS) {
