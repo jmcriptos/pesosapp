@@ -414,3 +414,74 @@ def test_mostrar_clientes_le_pasa_los_grupos_a_la_plantilla(logged_client, app):
     assert [clave for clave, _etiqueta, _filas in ctx['grupos']] == [
         'atrasados', 'al_dia', 'dormidos', 'sin_pedidos'
     ]
+
+
+# ── Task 4: la plantilla dibuja el radar ───────────────────────────────────
+# Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md (Task 4)
+
+import re
+
+
+def test_la_pantalla_dibuja_las_secciones_del_radar(logged_client):
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    for clave in ['atrasados', 'al_dia', 'dormidos', 'sin_pedidos']:
+        assert f'data-radar-grupo="{clave}"' in html
+
+
+def test_la_fila_dice_dias_ritmo_y_pedidos(logged_client):
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert 'días sin comprar' in html
+    assert 'su ritmo' in html
+
+
+def test_el_ritmo_prestado_se_declara_estimado(logged_client, app):
+    """Un cliente sin ritmo propio lleva la marca; uno con ritmo propio no.
+
+    OJO: el cliente de la fixture se llama «Ritmo Estimado» y su nombre
+    lowercaseado ('ritmo estimado') termina en `data-buscar` de CUALQUIER
+    forma, incluso sin la marca — así que buscar 'estimado' suelto en todo
+    el HTML pasaría con una plantilla rota. Hay que anclar el texto entre
+    paréntesis (la marca que la plantilla agrega, no el nombre del cliente)
+    y, además, comprobar que la fila de «Ritmo Propio» NO la lleva.
+    """
+    with app.app_context():
+        from app import Cliente
+        id_estimado = Cliente.query.filter_by(nombre='Ritmo Estimado').first().id
+        id_propio = Cliente.query.filter_by(nombre='Ritmo Propio').first().id
+    html = logged_client.get('/clientes').get_data(as_text=True)
+
+    assert '(estimado)' in html
+
+    fila_estimado = re.search(rf'id="cliente-{id_estimado}".*?</li>', html, re.S)
+    fila_propio = re.search(rf'id="cliente-{id_propio}".*?</li>', html, re.S)
+    assert fila_estimado and '(estimado)' in fila_estimado.group(0)
+    assert fila_propio and '(estimado)' not in fila_propio.group(0)
+
+
+def test_la_accion_principal_es_crear_un_pedido_para_ese_cliente(logged_client, app):
+    with app.app_context():
+        from app import Cliente
+        cid = Cliente.query.first().id
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert f'/pedidos/nuevo?cliente={cid}' in html
+
+
+def test_sigue_estando_el_id_de_fila_que_usa_el_borrado(logged_client, app):
+    """`eliminar-cliente` hace getElementById('cliente-'+id) para sacar la fila."""
+    with app.app_context():
+        from app import Cliente
+        cid = Cliente.query.first().id
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert f'id="cliente-{cid}"' in html
+    assert 'data-buscar=' in html, 'la búsqueda client-side depende de este atributo'
+
+
+def test_sin_atrasados_la_pantalla_lo_dice_con_calma(logged_client, app):
+    """El vacío de «Atrasados» es un buen resultado, no una pantalla rota."""
+    with app.app_context():
+        from app import Pedido, db as _db
+        _db.session.query(Pedido).delete()
+        _db.session.commit()
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert 'Todos al día' in html
+    assert 'data-radar-grupo="atrasados"' in html
