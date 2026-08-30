@@ -305,3 +305,193 @@ def test_editar_por_post_clasico_sigue_igual(app, logged_client):
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
     assert 'Pedido actualizado.' in html
+
+
+# ── Ronda de corrección 1: idempotencia con intento_id ─────────────────────
+#
+# El reintento que agregó esta tarea (fetch + botón "Reintentar") puede
+# tocar un pedido que el servidor YA comiteó — el H12 de Heroku relanzando
+# la request a los 30s mientras el dyno original sigue vivo, un 502/504 de
+# Cloudflare sobre una request que el origen completó, o la señal
+# cortándose literalmente entre el POST y la respuesta (el escenario del
+# brief). Sin idempotencia, "Reintentar" crea un SEGUNDO pedido con sus
+# líneas de preparación y una segunda factura en QuickBooks. `intento_id`
+# (columna única en `Pedido`, generada en el navegador una sola vez por
+# pedido-en-curso) cierra eso: un segundo POST con el MISMO intento_id no
+# crea nada, devuelve la confirmación del que ya existe.
+
+def test_reintento_con_mismo_intento_id_no_crea_segundo_pedido(app, logged_client):
+    cliente_id, con_precio_id, _ = _ids()
+    payload = {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '2',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-idempotente-1',
+    }
+    resp1 = _post_fetch(logged_client, '/pedidos/nuevo', payload)
+    assert resp1.status_code == 200
+    datos1 = resp1.get_json()
+    assert datos1['ok'] is True
+
+    resp2 = _post_fetch(logged_client, '/pedidos/nuevo', payload)
+    assert resp2.status_code == 200
+    datos2 = resp2.get_json()
+    assert datos2['ok'] is True
+
+    # Misma confirmación — mismo pedido, no uno nuevo.
+    assert datos2['pedido_id'] == datos1['pedido_id']
+
+    from app import Pedido
+    with app.app_context():
+        pedidos_con_ese_intento = Pedido.query.filter_by(
+            intento_id='intento-idempotente-1').all()
+        assert len(pedidos_con_ese_intento) == 1
+        total_pedidos_cliente = Pedido.query.filter_by(
+            cliente_id=cliente_id).count()
+        assert total_pedidos_cliente == 1, (
+            'el reintento con el mismo intento_id creó un segundo pedido'
+        )
+
+
+def test_reintento_post_clasico_con_mismo_intento_id_tampoco_crea_segundo(app, logged_client):
+    """El mismo mecanismo, sin el header de fetch — por si algún camino
+    manda el hidden sin pasar por AJAX (no debería, pero el índice único no
+    depende de eso para proteger)."""
+    cliente_id, con_precio_id, _ = _ids()
+    payload = {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '2',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-idempotente-clasico',
+    }
+    logged_client.post('/pedidos/nuevo', data=payload, follow_redirects=True)
+    logged_client.post('/pedidos/nuevo', data=payload, follow_redirects=True)
+
+    from app import Pedido
+    with app.app_context():
+        assert Pedido.query.filter_by(
+            intento_id='intento-idempotente-clasico').count() == 1
+
+
+def test_intento_id_distinto_crea_pedido_distinto(app, logged_client):
+    cliente_id, con_precio_id, _ = _ids()
+
+    def _payload(intento):
+        return {
+            'cliente_id': cliente_id, 'notas': '',
+            'productos[0][id]': con_precio_id,
+            'productos[0][cajas]': '1',
+            'productos[0][precio]': '25.50',
+            'intento_id': intento,
+        }
+
+    r1 = _post_fetch(logged_client, '/pedidos/nuevo', _payload('intento-a'))
+    r2 = _post_fetch(logged_client, '/pedidos/nuevo', _payload('intento-b'))
+    assert r1.get_json()['pedido_id'] != r2.get_json()['pedido_id'], (
+        'dos intento_id distintos tienen que crear dos pedidos distintos '
+        '— dos pedidos-en-curso genuinos no pueden fusionarse en uno'
+    )
+
+
+def test_sin_intento_id_se_comporta_como_siempre(app, logged_client):
+    """Sin el hidden (un cliente viejo, o el form sin JS) cada POST crea su
+    propio pedido — nunca se activa la idempotencia sobre la nada."""
+    cliente_id, con_precio_id, _ = _ids()
+    payload = {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '1',
+        'productos[0][precio]': '25.50',
+    }
+    r1 = _post_fetch(logged_client, '/pedidos/nuevo', payload)
+    r2 = _post_fetch(logged_client, '/pedidos/nuevo', payload)
+    assert r1.get_json()['pedido_id'] != r2.get_json()['pedido_id']
+
+
+def test_editar_reintento_con_mismo_intento_id_no_reaplica(app, logged_client):
+    """Un reintento de la MISMA edición (mismo intento_id) no se vuelve a
+    aplicar — si lo hiciera dos veces con datos DISTINTOS (el escenario más
+    revelador: el segundo toque llega con basura, o con un valor que el
+    vendedor ya cambió de vuelta), la segunda aplicación pisaría la
+    primera."""
+    cliente_id, con_precio_id, _ = _ids()
+    pedido_id = _crear_pedido(logged_client, cliente_id, con_precio_id)
+
+    payload_1 = {
+        'cliente_id': cliente_id, 'notas': 'primera edición',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '4',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-edicion-1',
+    }
+    resp1 = _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', payload_1)
+    assert resp1.get_json()['lineas'][0]['cajas'] == pytest.approx(4)
+
+    # "Reintento" con el MISMO intento_id pero cajas/notas DISTINTAS —si el
+    # servidor lo reaplicara, ganaría 999 y "reintento espurio".
+    payload_2 = dict(payload_1)
+    payload_2['productos[0][cajas]'] = '999'
+    payload_2['notas'] = 'reintento espurio'
+    resp2 = _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', payload_2)
+    datos2 = resp2.get_json()
+    assert datos2['ok'] is True
+    assert datos2['lineas'][0]['cajas'] == pytest.approx(4), (
+        'el reintento con el mismo intento_id volvió a aplicar la edición '
+        '— con datos distintos, la segunda aplicación pisó la primera'
+    )
+    assert datos2['notas'] == 'primera edición'
+
+    from app import DetallePedido
+    with app.app_context():
+        detalle = DetallePedido.query.filter_by(
+            pedido_id=pedido_id, es_linea_pedido=True).first()
+        assert float(detalle.cajas) == pytest.approx(4), (
+            'la DB terminó con las cajas del reintento espurio, no las de '
+            'la edición original'
+        )
+
+
+def test_intento_id_distinto_si_permite_una_segunda_edicion_real(app, logged_client):
+    """Dos ediciones GENUINAS (intento_id distinto cada vez, como dos
+    cargas de página distintas) tienen que aplicarse las dos — la
+    idempotencia es sobre el MISMO intento, no un candado que trabe seguir
+    editando."""
+    cliente_id, con_precio_id, _ = _ids()
+    pedido_id = _crear_pedido(logged_client, cliente_id, con_precio_id)
+
+    _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '4',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-edicion-a',
+    })
+    resp2 = _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '6',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-edicion-b',
+    })
+    assert resp2.get_json()['lineas'][0]['cajas'] == pytest.approx(6), (
+        'una edición genuina con OTRO intento_id no se aplicó — la '
+        'idempotencia está trabando ediciones reales, no solo reintentos'
+    )
+
+
+def test_intento_id_largo_no_revienta_el_guardado(app, logged_client):
+    """Un intento_id absurdamente largo (la columna es VARCHAR(36)) se
+    trunca y sigue el flujo normal en vez de un 500 por overflow de
+    columna."""
+    cliente_id, con_precio_id, _ = _ids()
+    resp = _post_fetch(logged_client, '/pedidos/nuevo', {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '1',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'x' * 500,
+    })
+    assert resp.status_code == 200
+    assert resp.get_json()['ok'] is True

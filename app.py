@@ -12,7 +12,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_, or_, cast, String
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy.orm import joinedload, selectinload, load_only
 import io
 from flask import make_response
@@ -2301,6 +2301,19 @@ class Pedido(db.Model):
     invoice_id_qbo = db.Column(db.String(100), nullable=True)
     doc_number_qbo = db.Column(db.String(20), nullable=True)
     tipo_cambio = db.Column(db.Float, default=1.0, nullable=False)
+    # Idempotencia del envío desde `pedido_form.html`: un UUID generado en el
+    # navegador AL EMPEZAR el pedido (no en cada intento de envío), guardado
+    # junto al borrador para sobrevivir a una recarga a mitad de camino. Si
+    # el `fetch` se corta después de que el servidor ya comiteó (H12 de
+    # Heroku a los 30s, un 502/504 de Cloudflare sobre una request que el
+    # origen sí completó, o la señal que se corta literalmente entre el POST
+    # y la respuesta), "Reintentar" manda el MISMO intento_id: el índice
+    # único lo detecta y la ruta devuelve la confirmación del pedido que YA
+    # existe, en vez de crear un segundo pedido con sus líneas de
+    # preparación y una segunda factura en QuickBooks. `nullable=True`
+    # porque los pedidos históricos y los que entran por otro camino
+    # (n8n, imports) no lo tienen.
+    intento_id = db.Column(db.String(36), nullable=True, unique=True)
     cliente = db.relationship('Cliente', back_populates='pedidos')
     detalles = db.relationship('DetallePedido', back_populates='pedido', cascade="all, delete-orphan")
 
@@ -6375,7 +6388,11 @@ def lista_pedidos():
 
 
 
-def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None):
+_SIN_PRECIO_LISTA_PRECARGADO = object()
+
+
+def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None,
+                                     precio_lista=_SIN_PRECIO_LISTA_PRECARGADO):
     """Precio unitario de una línea del pedido, SIEMPRE resuelto por jerarquía.
 
     El formulario manda `productos[i][precio]`, sembrado con el precio de la
@@ -6393,8 +6410,19 @@ def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None):
 
     Cuando el formulario manda algo distinto de lo resuelto se registra en el log:
     es la señal de que el JS de precios por cliente no llegó a correr.
+
+    `precio_lista`: cuando el caller YA resolvió el precio de este producto
+    en lote (`_precios_vigentes_para_cliente`, `nuevo_pedido`/`editar_pedido`
+    lo hacen antes de este loop para no pagar una consulta extra por línea),
+    se lo pasa acá y esta función no vuelve a preguntarle a `_precio_vigente`
+    — mismo resultado, sin la query repetida. Default = "no me pasaron
+    nada, resolvé vos" (comportamiento de siempre, y el que siguen usando
+    los tests que llaman a esta función directo).
     """
-    precio = _precio_vigente(cliente_id, producto_id, 'base')
+    if precio_lista is _SIN_PRECIO_LISTA_PRECARGADO:
+        precio = _precio_vigente(cliente_id, producto_id, 'base')
+    else:
+        precio = precio_lista
 
     if precio is None:
         # Sin precio configurado en ningún lado: mejor lo que trajo el formulario
@@ -6476,6 +6504,24 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
     Raises _PedidoFormError on bad input — callers should catch and
     flash + redirect rather than 500.
     """
+    # Primera pasada, solo para juntar los producto_id y resolver TODA la
+    # jerarquía de precios en un lote (`_precios_vigentes_para_cliente`, 4
+    # queries fijas) en vez de una consulta extra por línea — importa en la
+    # ruta de `nuevo_pedido`/`editar_pedido`, que además puede estar
+    # reintentando tras un H12 (más motivo para no sumarle queries). Un id
+    # ilegible acá no revienta nada: la segunda pasada, abajo, es la que
+    # valida de verdad y tira el `_PedidoFormError` con el mensaje puntual.
+    producto_ids_crudo = []
+    idx = 0
+    while f'productos[{idx}][id]' in form_data:
+        try:
+            producto_ids_crudo.append(int(form_data.get(f'productos[{idx}][id]')))
+        except (TypeError, ValueError):
+            pass
+        idx += 1
+    precios_lista = _precios_vigentes_para_cliente(
+        cliente_id, [pid for pid in producto_ids_crudo if pid > 0])
+
     lineas_por_producto = {}
     idx = 0
 
@@ -6493,19 +6539,24 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
         if prod_id <= 0:
             raise _PedidoFormError(f'Producto inválido en línea {idx + 1}')
 
+        # `.get(prod_id)` devuelve `None` tanto si la jerarquía de verdad no
+        # tiene precio como si `prod_id` no estaba en el lote de arriba (no
+        # debería pasar, todo `prod_id` válido se recolectó ahí) — en los dos
+        # casos el resolutor cae al mismo último recurso que sin el lote.
+        precio_lista = precios_lista.get(prod_id)
         precio_unitario = _resolver_precio_unitario_pedido(
             cliente_id,
             prod_id,
             form_data.get(f'productos[{idx}][precio]'),
+            precio_lista=precio_lista,
         )
-        # Segunda consulta, misma jerarquía (`_precio_vigente`, único dueño): no
-        # es re-implementar la precedencia, es preguntarle si encontró algo.
-        # El resolutor de arriba SIEMPRE devuelve un Decimal (0 de último
-        # recurso), así que no hay forma de distinguir desde su resultado un
-        # precio real de 0 de "no había precio en ninguna lista" — y esa
-        # distinción es la que necesita el flash/la confirmación para no
-        # mentir sobre un pedido con líneas sin precio de lista.
-        sin_precio = _precio_vigente(cliente_id, prod_id, 'base') is None
+        # `precio_lista is None` es "no había precio en ninguna lista" — el
+        # resolutor de arriba SIEMPRE devuelve un Decimal (0 de último
+        # recurso), así que no hay forma de distinguir desde SU resultado un
+        # precio real de 0 de "sin precio" — y esa distinción es la que
+        # necesita el flash/la confirmación para no mentir sobre un pedido
+        # con líneas sin precio de lista.
+        sin_precio = precio_lista is None
 
         if prod_id in lineas_por_producto:
             lineas_por_producto[prod_id]['cajas'] += cajas
@@ -6918,6 +6969,71 @@ def _pedido_confirmacion_json(pedido, cliente, lineas_form, productos_por_id, si
     }
 
 
+def _pedido_confirmacion_json_desde_pedido(pedido):
+    """Misma confirmación que `_pedido_confirmacion_json`, pero leyendo la
+    DB en vez del form recién validado — es el camino de un REINTENTO
+    idempotente (mismo `intento_id`): el pedido en cuestión ya está
+    comiteado desde un intento anterior, así que la fuente de verdad es lo
+    que quedó guardado, no lo que el form manda en el segundo toque (que
+    puede venir con datos ligeramente distintos si el vendedor tocó algo
+    entre medio, aunque el intento_id sea el mismo — la respuesta tiene que
+    ser indistinguible de la que hubiera dado el primer intento si no se
+    hubiera perdido).
+    """
+    detalles = DetallePedido.query.filter_by(
+        pedido_id=pedido.id, es_linea_pedido=True).all()
+    lineas = []
+    subtotal = Decimal('0')
+    sin_precio_alguna = False
+    for d in detalles:
+        precio = d.precio_unitario if d.precio_unitario is not None else Decimal('0')
+        sub = d.subtotal if d.subtotal is not None else Decimal('0')
+        subtotal += sub
+        # Sin las líneas del form original no sabemos si ESTE precio salió
+        # de la jerarquía o de un respaldo: se aproxima con "el catálogo
+        # tiene precio HOY" (misma pregunta que resuelve `_precio_vigente`),
+        # que puede diferir del intento original solo si el catálogo cambió
+        # en la ventana de segundos entre los dos intentos.
+        falta = _precio_vigente(pedido.cliente_id, d.producto_id, 'base') is None
+        if falta:
+            sin_precio_alguna = True
+        lineas.append({
+            'producto_id': d.producto_id,
+            'nombre': d.producto.nombre if d.producto else f'Producto {d.producto_id}',
+            'cajas': float(d.cajas),
+            'precio': float(precio),
+            'subtotal': float(sub),
+            'sin_precio': falta,
+        })
+    return {
+        'ok': True,
+        'pedido_id': pedido.id,
+        'cliente_nombre': pedido.cliente.nombre,
+        'moneda': pedido.cliente.moneda or 'XCG',
+        'fecha_entrega': pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else None,
+        'notas': pedido.notas or '',
+        'lineas': lineas,
+        'subtotal': float(subtotal),
+        'sin_precio': sin_precio_alguna,
+    }
+
+
+def _intento_id_del_form():
+    """`intento_id` del hidden de `pedido_form.html`, saneado.
+
+    Un valor vacío (form sin JS, o un `<input>` que nunca se rellenó) se
+    trata como "no hay intento_id" — no como una cadena vacía que competiría
+    por el índice único. Se corta a 36 (el largo de un UUID con guiones,
+    la columna es VARCHAR(36)) para que un valor absurdo no reviente el
+    INSERT/UPDATE con un error de longitud — un intento_id truncado
+    simplemente no va a matchear nada, se comporta como uno nuevo.
+    """
+    valor = (request.form.get('intento_id') or '').strip()
+    if not valor:
+        return None
+    return valor[:36]
+
+
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'crear')
@@ -6951,6 +7067,24 @@ def nuevo_pedido():
                     'No tienes permisos para crear pedidos para este cliente',
                     403, 'nuevo_pedido')
 
+        # Idempotencia: si este intento_id ya creó un pedido (la respuesta
+        # se perdió pero el commit sí llegó — H12 de Heroku a los 30s, un
+        # 502/504 de Cloudflare sobre una request que el origen completó, o
+        # la señal cortándose literalmente entre el POST y la respuesta), NO
+        # se crea un segundo pedido: se devuelve la MISMA confirmación,
+        # indistinguible del éxito para el vendedor. Corre ANTES de validar
+        # líneas — un reintento no tiene por qué volver a pagar esa cuenta,
+        # y si el form llegó con algo raro en el segundo toque (poco
+        # probable, mismo intento_id) igual no importa: no se va a usar.
+        intento_id = _intento_id_del_form()
+        if intento_id:
+            existente = Pedido.query.filter_by(intento_id=intento_id).first()
+            if existente is not None:
+                if _pedido_form_quiere_json():
+                    return jsonify(_pedido_confirmacion_json_desde_pedido(existente))
+                flash('Pedido creado con precios registrados.', 'success')
+                return redirect(url_for('lista_pedidos'))
+
         notas = request.form.get('notas')
         # El rate sale de la moneda del cliente, no de un hidden del form (un
         # hidden confiado escribía cualquier rate en la DB).
@@ -6979,9 +7113,27 @@ def nuevo_pedido():
             notas=notas,
             tipo_cambio=tipo_cambio,
             fecha_entrega=_parsear_fecha_entrega(request.form.get('fecha_entrega')),
+            intento_id=intento_id,
         )
         db.session.add(pedido)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Carrera real (no el reintento secuencial de arriba, que ya lo
+            # hubiera atajado): dos requests con el MISMO intento_id
+            # llegaron casi juntas — el H12 relanzando la request mientras
+            # la original sigue viva, o un doble toque que le ganó al guard
+            # del JS — y la otra ganó la carrera del índice único. Mismo
+            # desenlace: se devuelve SU confirmación, no un segundo pedido.
+            db.session.rollback()
+            existente = (Pedido.query.filter_by(intento_id=intento_id).first()
+                        if intento_id else None)
+            if existente is None:
+                raise
+            if _pedido_form_quiere_json():
+                return jsonify(_pedido_confirmacion_json_desde_pedido(existente))
+            flash('Pedido creado con precios registrados.', 'success')
+            return redirect(url_for('lista_pedidos'))
         _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
 
         # 2) Detalle + líneas de preparación de los importados, desde las
@@ -7113,6 +7265,19 @@ def editar_pedido(pedido_id):
                 'No se puede editar un pedido facturado', 409,
                 'detalles_pedido', pedido_id=pedido.id)
 
+        # Idempotencia (mismo mecanismo que `nuevo_pedido`): si ESTE
+        # intento_id ya quedó registrado en `pedido.intento_id` es que un
+        # intento anterior de esta MISMA edición ya se aplicó — la respuesta
+        # se perdió, pero el commit sí llegó. No se vuelve a aplicar (evita,
+        # como mínimo, una entrada de auditoría duplicada): se devuelve el
+        # estado actual, que es exactamente el que dejó ese intento.
+        intento_id = _intento_id_del_form()
+        if intento_id and pedido.intento_id == intento_id:
+            if _pedido_form_quiere_json():
+                return jsonify(_pedido_confirmacion_json_desde_pedido(pedido))
+            flash('Pedido actualizado.', 'success')
+            return redirect(url_for('lista_pedidos'))
+
         nuevo_cliente_id = request.form.get('cliente_id', type=int)
         cliente_destino = db.session.get(Cliente, nuevo_cliente_id) if nuevo_cliente_id else None
         if cliente_destino is None:
@@ -7206,7 +7371,29 @@ def editar_pedido(pedido_id):
                    'cliente_nuevo': nuevo_cliente_id}
                   if nuevo_cliente_id != cliente_anterior_id else None),
         )
-        db.session.commit()
+        # Marca ESTE intento como aplicado — si la respuesta se pierde y el
+        # mismo intento_id vuelve, el chequeo de arriba lo va a reconocer y
+        # no lo va a volver a aplicar. Pisa el intento_id anterior (el de la
+        # creación, o el de una edición previa) a propósito: solo el ÚLTIMO
+        # intento importa para detectar SU reintento.
+        if intento_id:
+            pedido.intento_id = intento_id
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Carrera real entre dos requests con el mismo intento_id (poco
+            # probable en una edición, pero el mismo argumento que
+            # `nuevo_pedido`): la otra ganó el índice único. El cambio de
+            # ESTA request en cajas/precios ya se perdió con el rollback —
+            # se devuelve el estado que sí quedó (el de la otra request, que
+            # llevaba los mismos datos si de verdad es un reintento) en vez
+            # de un 500.
+            db.session.rollback()
+            pedido_actual = db.session.get(Pedido, pedido.id)
+            if _pedido_form_quiere_json():
+                return jsonify(_pedido_confirmacion_json_desde_pedido(pedido_actual))
+            flash('Pedido actualizado.', 'success')
+            return redirect(url_for('lista_pedidos'))
 
         # Actualizar total del pedido (solo líneas originales)
         if hasattr(pedido, 'total'):

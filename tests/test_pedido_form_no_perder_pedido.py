@@ -43,6 +43,27 @@ def _cuerpo_funcion(texto, nombre):
     return texto[inicio:i - 1]
 
 
+def _cuerpo_bloque(texto, patron_apertura):
+    r"""Como `_cuerpo_funcion`, pero para cualquier bloque `{...}` que no es
+    una función con nombre (un `try`, un `catch`, un `if`): `patron_apertura`
+    es una regex que tiene que terminar justo en la `{` de apertura. Mismo
+    rastreo de llaves — nunca acoplado a cuántos espacios de indentación
+    tiene el bloque, a diferencia de un regex `\n\s{N}\}` que se rompe si
+    alguien reordena o reindenta el código sin cambiar su estructura."""
+    m = re.search(patron_apertura, texto)
+    assert m, f'no se encontró el patrón {patron_apertura!r}'
+    inicio = m.end()
+    profundidad = 1
+    i = inicio
+    while profundidad > 0:
+        if texto[i] == '{':
+            profundidad += 1
+        elif texto[i] == '}':
+            profundidad -= 1
+        i += 1
+    return texto[inicio:i - 1]
+
+
 # ── 1. El paso 04 entra al historial ────────────────────────────────────────
 
 def test_entrar_a_revision_empuja_historial():
@@ -346,9 +367,12 @@ def test_fallo_de_red_o_rechazo_del_servidor_muestran_error_en_el_shell():
     texto = _js()
     cuerpo_enviar = _cuerpo_funcion(texto, 'enviarPedido')
 
-    m_catch = re.search(r'catch\s*\([^)]*\)\s*\{([\s\S]*?)\n\s{8}\}', cuerpo_enviar)
-    assert m_catch, 'no se encontró el catch del fetch en enviarPedido'
-    assert 'mostrarErrorEnvio(' in m_catch.group(1), (
+    # Rastreo de llaves, no `\n\s{8}\}`: acoplarse a la indentación exacta
+    # rompería este test por el motivo equivocado si alguien reordena las
+    # funciones del bloque (cambia la profundidad de anidamiento) sin tocar
+    # la estructura que el test dice proteger.
+    cuerpo_catch = _cuerpo_bloque(cuerpo_enviar, r'catch\s*\([^)]*\)\s*\{')
+    assert 'mostrarErrorEnvio(' in cuerpo_catch, (
         'el catch del fetch (fallo de red) no llama a mostrarErrorEnvio'
     )
 
@@ -379,6 +403,293 @@ def test_confirmacion_apaga_lineas_activas_para_no_avisar_de_mas():
         'confirmarEnvio no desactiva las líneas — beforeunload seguiría '
         'avisando sobre un pedido ya enviado'
     )
+
+
+# ── Ronda de corrección 1 (revisión externa, sobre este mismo lote) ────────
+
+def _llamadas_seguidas_de_return(texto, nombre_funcion):
+    """Para cada llamada `nombre_funcion(...)` en `texto`, dice si el `;`
+    que la cierra está seguido (ignorando espacios) de `return;` — con
+    rastreo de paréntesis, no un `[^)]*` que se corta en el primer `)`
+    interno de un argumento (ej.
+    `mostrarErrorEnvio((datos && datos.error) || '...')`)."""
+    resultados = []
+    for m in re.finditer(re.escape(nombre_funcion) + r'\(', texto):
+        i = m.end()
+        profundidad = 1
+        while profundidad > 0:
+            if texto[i] == '(':
+                profundidad += 1
+            elif texto[i] == ')':
+                profundidad -= 1
+            i += 1
+        resto = texto[i:]
+        resultados.append(bool(re.match(r'\s*;\s*return\s*;', resto)))
+    return resultados
+
+
+def test_cada_mostrarerrorenvio_va_seguido_de_return():
+    """Si a algún `mostrarErrorEnvio(...)` de `enviarPedido` se le cae el
+    `return;` de después, un pedido RECHAZADO sigue de largo a
+    `confirmarEnvio`: borra el borrador y pinta "Pedido PED-undefined
+    enviado" sobre un pedido que el servidor nunca guardó. Es la propiedad
+    central de la Task 4 y no tenía ni un test que la protegiera."""
+    texto = _js()
+    cuerpo_enviar = _cuerpo_funcion(texto, 'enviarPedido')
+    resultados = _llamadas_seguidas_de_return(cuerpo_enviar, 'mostrarErrorEnvio')
+    assert len(resultados) >= 3, (
+        f'se esperaban al menos 3 llamadas a mostrarErrorEnvio en '
+        f'enviarPedido (red cortada, sesión expirada, rechazo del '
+        f'servidor), se encontraron {len(resultados)}'
+    )
+    assert all(resultados), (
+        'alguna llamada a mostrarErrorEnvio() en enviarPedido no está '
+        'seguida de return; — el flujo seguiría de largo hacia '
+        'confirmarEnvio() con un pedido que el servidor rechazó o que '
+        'nunca llegó a guardarse'
+    )
+
+
+def test_guard_anti_doble_submit_corta_antes_de_marcar_enviando():
+    """El guard cambió de forma en este mismo lote (pasó a estar DESPUÉS
+    de un `e.preventDefault()` incondicional) sin que ni una línea lo
+    protegiera. Tiene que cortar (`if (enviando) return;`) ANTES de
+    `enviando = true` y de deshabilitar el botón — si no, dos toques casi
+    simultáneos podrían colarse los dos antes de que la bandera se
+    levante."""
+    texto = _js()
+    m_submit = re.search(
+        r"formPedido\.addEventListener\('submit', function \(e\) \{(.*?)\n    \}\);",
+        texto, re.S,
+    )
+    assert m_submit, 'no se encontró el listener de submit'
+    cuerpo_submit = m_submit.group(1)
+
+    m_guard = re.search(r'if\s*\(\s*enviando\s*\)\s*return;', cuerpo_submit)
+    assert m_guard, 'no se encontró el guard if (enviando) return; en el submit'
+
+    idx_guard = m_guard.start()
+    idx_enviando_true = cuerpo_submit.index('enviando = true;')
+    idx_disabled = cuerpo_submit.index('btn.disabled = true;')
+    assert idx_guard < idx_enviando_true < idx_disabled, (
+        'el guard anti-doble-submit no corre ANTES de enviando = true y de '
+        'deshabilitar el botón — un doble toque casi simultáneo podría '
+        'colarse'
+    )
+
+
+def test_mostrarpaso_conoce_los_ids_de_confirmacion():
+    """`mostrarPaso` es la única función que decide qué se ve. Si no
+    conociera `pn-head-confirmacion`/`pn-footer-confirmacion`, nada los
+    volvería a ocultar y un swipe de atrás después de enviar apilaría la
+    cabecera de "revisar y enviar" sobre la de la confirmación — el bug
+    que describió el revisor."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'mostrarPaso')
+    for ident in ('pn-head-confirmacion', 'pn-footer-confirmacion'):
+        assert ident in cuerpo, (
+            f"mostrarPaso no toca #{ident} — queda sin ocultar/mostrar "
+            "según el paso"
+        )
+    # El cuerpo de la revisión se REUTILIZA en 'confirmado', no es una
+    # pantalla nueva (ver el comentario junto al head de confirmación).
+    assert re.search(r'esRevision\s*\|\|\s*esConfirmado', cuerpo), (
+        "pn-cuerpo-revision no se muestra también en el paso 'confirmado' "
+        "— la confirmación dejaría de reutilizar el cuerpo de la revisión"
+    )
+
+
+def test_confirmarenvio_reemplaza_la_entrada_de_revision():
+    """`entrarARevision` empujó `{pnPaso:'revision'}`; si `confirmarEnvio`
+    no la consume (con `replaceState`, no un `pushState` nuevo), esa
+    entrada queda viva en el historial y un swipe de atrás cae ahí, con la
+    revisión editable sobre un pedido ya enviado."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'confirmarEnvio')
+    assert ("mostrarPaso('confirmado')" in cuerpo
+            or 'mostrarPaso("confirmado")' in cuerpo), (
+        "confirmarEnvio no llama a mostrarPaso('confirmado')"
+    )
+    assert re.search(
+        r"history\.replaceState\(\s*\{[^}]*pnPaso[^}]*:\s*['\"]confirmado['\"]",
+        cuerpo,
+    ), (
+        "confirmarEnvio no hace history.replaceState({pnPaso:'confirmado'}) "
+        "— la entrada de 'revision' que empujó entrarARevision queda sin "
+        "consumir"
+    )
+    assert 'history.pushState' not in cuerpo, (
+        'confirmarEnvio usa pushState en vez de replaceState — eso apila '
+        "una entrada nueva en vez de reemplazar la de 'revision'"
+    )
+
+
+def test_popstate_no_reabre_nada_en_estado_confirmado():
+    texto = _js()
+    m = re.search(
+        r"addEventListener\(\s*['\"]popstate['\"]\s*,\s*function[^{]*\{(.*?)\n\}\);",
+        texto, re.S,
+    )
+    assert m, 'no se encontró un listener de popstate a nivel de window'
+    cuerpo = m.group(1)
+    assert ("mostrarPaso('confirmado')" in cuerpo
+            or 'mostrarPaso("confirmado")' in cuerpo), (
+        "popstate no tiene una rama para pnPaso:'confirmado' — un swipe de "
+        "atrás justo después de enviar caería en la rama de 'revision' o "
+        "'pedido', reabriendo el form sobre un pedido ya mandado"
+    )
+
+
+def test_confirmarenvio_no_pinta_sin_precio_si_se_cobro_un_respaldo():
+    """`sin_precio` del servidor es "no está en la lista de precios
+    ACTUAL", no "se cobró gratis": `editar_pedido` siembra el precio
+    HISTÓRICO como último recurso (`_resolver_precio_unitario_pedido`), así
+    que puede haber `sin_precio: true` con un `precio` real que SÍ se
+    cobró (ej. 25.50, subtotal 102.00). Nulear el precio ahí pintaría "SIN
+    PRECIO" y un total que EXCLUYE una línea que la base cobró de verdad —
+    la misma mentira que este arreglo cerró en el flash, pero al revés."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'confirmarEnvio')
+    m = re.search(
+        r'linea\.precio\s*=\s*\(([^)]*)\)\s*\?\s*null\s*:\s*l\.precio;',
+        cuerpo,
+    )
+    assert m, (
+        'no se encontró la asignación condicional de linea.precio en '
+        'confirmarEnvio'
+    )
+    condicion = m.group(1)
+    assert 'sin_precio' in condicion, (
+        'la condición para nulear el precio ya no mira l.sin_precio'
+    )
+    assert re.search(r'precio\s*===\s*0', condicion), (
+        'confirmarEnvio nulea el precio con solo sin_precio (sin exigir '
+        'precio === 0): una línea con sin_precio=true pero un precio real '
+        'cobrado (respaldo histórico de editar_pedido) se pintaría "SIN '
+        'PRECIO" con un total que la excluye, mintiendo sobre lo que se '
+        'cobró de verdad'
+    )
+
+
+def test_sesion_expirada_detecta_el_redirect_a_login_antes_de_parsear_json():
+    """Una sesión vencida no devuelve un 401 acá: devuelve un 302 a
+    /login que `fetch` sigue solo (`resp.ok` da `true`, con el HTML del
+    login adentro). Sin detectar esto ANTES de `resp.json()`, la sesión
+    dura 8 h en una PWA que vive abierta todo el día — un vendedor con la
+    sesión vencida caía en el genérico "el servidor rechazó el pedido" y
+    reintentaba para siempre sin saber que tenía que volver a entrar."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'enviarPedido')
+    assert 'resp.redirected' in cuerpo, (
+        'enviarPedido no chequea resp.redirected — no puede distinguir un '
+        '302 a /login de una respuesta JSON normal'
+    )
+    assert '/login' in cuerpo, (
+        'enviarPedido no busca /login en la URL de la respuesta'
+    )
+    # El código en sí (no la línea del `if`, que un comentario que MENCIONE
+    # "resp.json()" en prosa podría adelantar en el texto): el chequeo real
+    # tiene que preceder a la llamada real `await resp.json()`.
+    m_check = re.search(r'if\s*\(\s*resp\.redirected', cuerpo)
+    m_call = re.search(r'await\s+resp\.json\(\)', cuerpo)
+    assert m_check, 'no se encontró el if (resp.redirected...) real'
+    assert m_call, 'no se encontró la llamada real await resp.json()'
+    assert m_check.start() < m_call.start(), (
+        'el chequeo de sesión expirada corre DESPUÉS de la llamada real a '
+        'resp.json() — para entonces ya reventó parseando el HTML del '
+        'login como JSON'
+    )
+    idx_mostrar_sesion = cuerpo.index('mostrarErrorEnvio', m_check.start())
+    assert idx_mostrar_sesion < m_call.start(), (
+        'el aviso de sesión expirada no corre antes de intentar resp.json()'
+    )
+
+
+def test_intento_id_se_genera_una_sola_vez_no_en_cada_envio():
+    """Si `crypto.randomUUID()` se llamara DENTRO de `enviarPedido`, cada
+    intento (incluido un reintento) mandaría un id distinto y el servidor
+    nunca podría reconocer dos intentos como el mismo pedido — el índice
+    único quedaría de adorno."""
+    texto = _js()
+    assert re.search(r'let\s+intentoId\s*=\s*crypto\.randomUUID\(\)\s*;', texto), (
+        'intentoId no se genera con crypto.randomUUID() en el scope de '
+        'módulo, al cargar la pantalla'
+    )
+    cuerpo_enviar = _cuerpo_funcion(texto, 'enviarPedido')
+    assert 'randomUUID' not in cuerpo_enviar, (
+        'enviarPedido llama a crypto.randomUUID() — el intento_id se '
+        'regeneraría en cada envío/reintento y el servidor nunca vería el '
+        'mismo id dos veces'
+    )
+
+
+def test_hidden_intento_id_se_sincroniza_antes_de_enviar():
+    texto = _js()
+    assert 'name="intento_id"' in texto, (
+        'no está el <input type="hidden" name="intento_id"> en el form'
+    )
+    m_submit = re.search(
+        r"formPedido\.addEventListener\('submit', function \(e\) \{(.*?)\n    \}\);",
+        texto, re.S,
+    )
+    assert m_submit, 'no se encontró el listener de submit'
+    cuerpo_submit = m_submit.group(1)
+    assert "$('intento_id').value = intentoId;" in cuerpo_submit, (
+        'el submit no sincroniza el hidden intento_id con la variable '
+        'intentoId antes de mandar el fetch — FormData(formPedido) '
+        'levantaría un valor viejo o vacío'
+    )
+    idx_sync = cuerpo_submit.index("$('intento_id').value = intentoId;")
+    idx_enviar = cuerpo_submit.index('enviarPedido();')
+    assert idx_sync < idx_enviar, (
+        'el hidden se sincroniza DESPUÉS de llamar a enviarPedido()'
+    )
+
+
+def test_borrador_guarda_y_restaura_el_intento_id():
+    """Sin esto, una recarga a mitad de camino (`ofrecerBorrador` restaura
+    el borrador) generaría un intentoId NUEVO al cargar la página — un
+    reintento después de esa recarga ya no sería reconocible como el mismo
+    intento para el servidor, y crearía un segundo pedido."""
+    texto = _js()
+    cuerpo_guardar = _cuerpo_funcion(texto, 'guardarBorrador')
+    assert 'intento_id: intentoId' in cuerpo_guardar, (
+        'guardarBorrador no guarda intentoId junto con las líneas/fecha/notas'
+    )
+
+    cuerpo_ofrecer = _cuerpo_funcion(texto, 'ofrecerBorrador')
+    assert re.search(r'intentoId\s*=\s*datos\.intento_id', cuerpo_ofrecer), (
+        'ofrecerBorrador no restaura intentoId desde el borrador'
+    )
+
+
+def test_banner_de_error_tiene_role_alert():
+    texto = _js()
+    m = re.search(r'<div class="pn-aviso" id="pn-envio-error"[^>]*>', texto)
+    assert m, 'no se encontró el div #pn-envio-error'
+    assert 'role="alert"' in m.group(0), (
+        'el banner de error de envío no tiene role="alert"'
+    )
+
+
+def test_banner_de_error_se_limpia_al_volver_a_entrar_a_revision():
+    """Un rechazo o un corte de red deja el banner visible en el footer de
+    la revisión; si el vendedor vuelve al paso 02 a corregir algo y entra
+    de nuevo, ese banner viejo no puede seguir ahí sobre un intento nuevo
+    que todavía no falló."""
+    texto = _js()
+    m = re.search(
+        r"\$\('pn-continuar'\)\.addEventListener\('click', function \(\) \{(.*?)\n    \}\);",
+        texto, re.S,
+    )
+    assert m, 'no se encontró el listener de pn-continuar'
+    cuerpo = m.group(1)
+    assert 'ocultarErrorEnvio()' in cuerpo, (
+        'pn-continuar no limpia el banner de error al volver a entrar a '
+        'revisión — un rechazo viejo seguiría visible sobre un intento '
+        'nuevo que todavía no falló'
+    )
+
 
 
 def test_notas_dispara_guardado_de_borrador():
