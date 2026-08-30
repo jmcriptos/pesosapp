@@ -5279,6 +5279,10 @@ def dashboard():
             raise Exception("Base de datos no inicializada")
             
         app.logger.info("Iniciando cálculo de dashboard...")
+        # Si una consulta falla, la pantalla se queda en ceros. Sin esta bandera
+        # ese fallo parcial se ve idéntico a un día sin movimiento, que es
+        # justamente lo que el aviso de degradado existe para evitar.
+        datos_incompletos = False
         # === FECHAS DE REFERENCIA ===
         hoy = datetime.now(DASHBOARD_TIMEZONE).date()
         inicio_mes = hoy.replace(day=1)
@@ -5397,6 +5401,8 @@ def dashboard():
         except Exception as e:
             app.logger.error(f"Error en consultas dashboard: {e}")
             # Fallback con datos vacíos
+            datos_incompletos = True
+            pedidos_base_list = []
             pedidos_base_with_dates = []
             pedidos_mes_list = []
             pedidos_semana_list = []
@@ -5532,6 +5538,7 @@ def dashboard():
             
         except Exception as e:
             app.logger.error(f"Error en cálculos de ventas: {e}")
+            datos_incompletos = True
             ventas_mes = 0
             ventas_semana = 0
             ventas_mes_anterior = 0
@@ -5856,8 +5863,56 @@ def dashboard():
         )
 
         pedidos_operativos = []
+
+        # Vencidos y preparados se cuentan sobre la MISMA población que
+        # `pedidos_pendientes` (toda la carga, ~6 meses), no sobre los últimos
+        # 30 días. Antes la tarjeta decía "19 pendientes · 0 vencidos" porque
+        # los pendientes viejos caían fuera de la ventana de 30 días y eran
+        # incapaces de contarse como vencidos: justo los más atrasados.
         pedidos_vencidos = 0
         pedidos_preparados_activos = 0
+        # `pedidos_urgentes` es la cola de trabajo que la pantalla muestra: los
+        # mismos pedidos que producen el conteo de vencidos, ordenados por
+        # antigüedad. Antes el dashboard calculaba una lista equivalente
+        # (`pedidos_operativos`, 30 días) y no la usaba en ninguna plantilla.
+        pedidos_urgentes = []
+        for p in pedidos_base_list:
+            estado_p = (p.estado or '').strip().lower()
+            if estado_p not in ('pendiente', 'preparado'):
+                continue
+            if estado_p == 'preparado':
+                pedidos_preparados_activos += 1
+            fecha_p_local = _to_dashboard_date(p.fecha_pedido)
+            edad_p = (hoy - fecha_p_local).days if fecha_p_local else 0
+            if fecha_p_local and edad_p > 2:
+                pedidos_vencidos += 1
+
+            if edad_p <= 1:
+                sla_text_p, sla_class_p = 'En tiempo', 'sla-ok'
+            elif edad_p == 2:
+                sla_text_p, sla_class_p = 'Límite hoy', 'sla-warn'
+            else:
+                sla_text_p, sla_class_p = f'Vencido {edad_p - 2}d', 'sla-danger'
+
+            pedidos_urgentes.append({
+                'id': p.id,
+                'cliente': p.cliente.nombre if p.cliente and p.cliente.nombre else 'Sin cliente',
+                'estado': estado_p,
+                'fecha': fecha_p_local.strftime('%d/%m') if fecha_p_local else '',
+                'edad_dias': edad_p,
+                'sla_text': sla_text_p,
+                'sla_class': sla_class_p,
+                'total': round(_coerce_float(_calcular_venta_pedido(p), 0.0), 2),
+            })
+
+        # Lo más atrasado primero: es el orden en que hay que atacarlos.
+        pedidos_urgentes.sort(key=lambda x: (-x['edad_dias'], x['id']))
+        pedidos_urgentes_total = len(pedidos_urgentes)
+        pedidos_urgentes = pedidos_urgentes[:6]
+
+        # El donut de "Estado de pedidos" sí promete 30 días en su encabezado,
+        # así que conserva su propio conteo.
+        vencidos_30_dias = 0
 
         estado_priority = {
             'pendiente': 0,
@@ -5875,9 +5930,7 @@ def dashboard():
 
             es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
             if es_urgente:
-                pedidos_vencidos += 1
-            if estado == 'preparado':
-                pedidos_preparados_activos += 1
+                vencidos_30_dias += 1
 
             if estado == 'facturado':
                 sla_text = 'Facturado'
@@ -6003,6 +6056,9 @@ def dashboard():
             pedidos_recientes=pedidos_recientes_data,
             pedidos_operativos=pedidos_operativos,
             pedidos_vencidos=pedidos_vencidos,
+            vencidos_30_dias=vencidos_30_dias,
+            pedidos_urgentes=pedidos_urgentes,
+            pedidos_urgentes_total=pedidos_urgentes_total,
             pedidos_preparados_activos=pedidos_preparados_activos,
             pedidos_facturados_hoy=pedidos_facturados_hoy,
             fecha_actual=hoy,
@@ -6013,7 +6069,14 @@ def dashboard():
             kpis_historicos=kpis_historicos,
 
             # Configuración
-            moneda='XCG'
+            moneda='XCG',
+
+            # Estado de la propia pantalla. Se degrada por dos vías: un fallo
+            # parcial de consulta (datos_incompletos) o el except de más abajo,
+            # que renderiza esta MISMA plantilla con ceros. Sin la bandera, las
+            # dos se ven igual que un día sin movimiento.
+            degradado=datos_incompletos,
+            datos_actualizados_en=None if datos_incompletos else datetime.now(DASHBOARD_TIMEZONE)
         )
         mark_dashboard_perf('render_template')
         log_dashboard_perf('ok')
@@ -6061,13 +6124,21 @@ def dashboard():
             'pedidos_recientes': [],
             'pedidos_operativos': [],
             'pedidos_vencidos': 0,
+            'vencidos_30_dias': 0,
+            'pedidos_urgentes': [],
+            'pedidos_urgentes_total': 0,
             'pedidos_preparados_activos': 0,
             'pedidos_facturados_hoy': 0,
             'fecha_actual': datetime.now().date(),
             'ventas_dias': [],
             'tiempo_respuesta_data': [],
             'kpis_historicos': [],
-            'moneda': 'XCG'
+            'moneda': 'XCG',
+
+            # La plantilla usa esto para avisar que los ceros de arriba son
+            # producto del fallo, no del negocio.
+            'degradado': True,
+            'datos_actualizados_en': None
         }
         
         try:

@@ -5,7 +5,8 @@
    Keeps the file name for stability of the <link> reference but the design
    is now a clean 2-col KPI grid with all cards visible at once, a chart
    card below, and a section header with a "Ver más" action — matches the
-   provided mockup. The snap-dots indicator is hidden everywhere.
+   provided mockup. El carrusel y sus puntos de snap ya no existen: la
+   pantalla es un solo scroll.
    ============================================================================= */
 
 @media (max-width: 1023px) {
@@ -38,52 +39,12 @@
     margin: 4px 0 4px !important;
   }
   body[data-dashboard-screen] .hero-sub {
-    color: #64748b !important;
+    color: #475569 !important;
     font-size: 0.92rem !important;
     font-weight: 500;
   }
 
-  /* ─── Tab pills ────────────────────────────────────────────────────── */
-  body[data-dashboard-screen] .dash-seg {
-    background: #eef1f5 !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    padding: 5px !important;
-    margin: 0 16px 18px !important;
-    overflow: visible;
-  }
-  body[data-dashboard-screen] .dash-seg button {
-    border-radius: 999px !important;
-    padding: 11px 16px !important;
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    color: #64748b !important;
-    background: transparent !important;
-    background-image: none !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-  body[data-dashboard-screen] .dash-seg button.active {
-    background: #ffffff !important;
-    background-image: none !important;
-    color: #0f172a !important;
-    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.12) !important;
-  }
-
-  /* ─── Carousel containers stay flow-based (no snap, no fixed height) ── */
-  body[data-dashboard-screen] .panels-viewport,
-  body[data-dashboard-screen] .panels-track,
-  body[data-dashboard-screen] .dash-panel {
-    height: auto !important;
-    overflow: visible !important;
-    scroll-snap-type: none !important;
-  }
-  body[data-dashboard-screen] .panels-viewport::-webkit-scrollbar,
-  body[data-dashboard-screen] .dash-panel::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Reduce the dash-body lateral padding so KPI cards can use the full
+      /* Reduce the dash-body lateral padding so KPI cards can use the full
      device width (the 16px each side from dashboard_light.css combined with
      the inner card margin was leaving cards ~159px wide on iPhone). */
   body[data-dashboard-screen] .app-shell.dash-body {
@@ -91,9 +52,8 @@
     padding-right: 8px !important;
   }
 
-  /* ─── KPI grid: 2-col, full device width with 10px gutter ───────────── */
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="ventas"] .kpi-grid,
-  body[data-dashboard-screen] .dash-panel[data-dash-panel="servicio"] .svc-kpi-grid {
+  /* ─── KPI grid: 2 columnas a lo ancho del teléfono ─────────────────── */
+  body[data-dashboard-screen] .kpi-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 10px !important;
@@ -101,10 +61,7 @@
     flex-direction: initial !important;
   }
 
-  /* ─── KPI card: white panel, label+ring on top, big value, sub ──────── */
-  body[data-dashboard-screen] .kpi,
-  body[data-dashboard-screen] .dash-panel .kpi,
-  body[data-dashboard-screen] .svc-kpi-grid .kpi {
+  /* ─── KPI card: white panel, label+ring on top, big value, sub ──────── */body[data-dashboard-screen] .kpi {
     background: #ffffff !important;
     background-image: none !important;
     border: 1px solid rgba(15, 23, 42, 0.06) !important;
@@ -120,14 +77,6 @@
     min-height: 0;
   }
 
-  body[data-dashboard-screen] .kpi-top {
-    display: flex !important;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 0;
-  }
-
   body[data-dashboard-screen] .kpi-label {
     color: #64748b !important;
     font-size: 0.78rem !important;
@@ -139,9 +88,8 @@
     min-width: 0;
   }
 
-  /* Ring stays at native 44px (macro's SVG has no viewBox, so resizing the
-     container would shift the circles off-center). Container is just a
-     positioned wrapper for the centered .ring-label overlay. */
+  /* El anillo se queda en sus 44px nativos. Ya no lleva etiqueta adentro:
+     el valor va en grande en la tarjeta. */
   body[data-dashboard-screen] .kpi .ring-wrap {
     width: 44px !important;
     height: 44px !important;
@@ -155,21 +103,6 @@
     height: 44px !important;
     display: block;
   }
-  body[data-dashboard-screen] .kpi .ring-wrap circle:first-child {
-    stroke: rgba(15, 23, 42, 0.08) !important;
-  }
-  body[data-dashboard-screen] .ring-label {
-    color: #0f172a !important;
-    font-size: 0.72rem !important;
-    font-weight: 800 !important;
-    line-height: 1;
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
   body[data-dashboard-screen] .kpi-value {
     color: #0f172a !important;
     font-size: clamp(1.7rem, 7vw, 2.1rem) !important;
@@ -183,7 +116,7 @@
     flex-wrap: nowrap;
   }
   body[data-dashboard-screen] .kpi-value small {
-    color: #94a3b8 !important;
+    color: #64748b !important;
     font-size: 0.72rem !important;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -249,7 +182,7 @@
     gap: 6px;
   }
   body[data-dashboard-screen] .chart-big small {
-    color: #94a3b8 !important;
+    color: #64748b !important;
     font-size: 0.85rem !important;
     font-weight: 500;
     letter-spacing: 0;
@@ -261,7 +194,7 @@
     gap: 8px;
     margin-top: 8px;
     font-size: 0.85rem;
-    color: #94a3b8 !important;
+    color: #64748b !important;
   }
   body[data-dashboard-screen] .kpi-trend {
     display: inline-flex;
@@ -305,8 +238,8 @@
     box-shadow: 0 4px 14px -8px rgba(15, 23, 42, 0.08) !important;
   }
   body[data-dashboard-screen] .week-mini-label {
-    color: #94a3b8 !important;
-    font-size: 0.66rem !important;
+    color: #475569 !important;
+    font-size: 0.7rem !important;
     font-weight: 800 !important;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -319,13 +252,21 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ─── Snap dots: hidden everywhere now (no snap behaviour) ──────────── */
-  body[data-dashboard-screen] .snap-dots {
-    display: none !important;
   }
-}
 
 /* Desktop (≥1024px): native grid widens to 4 cols (handled by base CSS) */
+
+/* Escritorio (≥1024px): las grillas de dos tarjetas no se estiran a cuatro
+   columnas. dashboard_light.css pone 4 desde 900px con la misma
+   especificidad, así que hace falta ganarle por orden de carga. */
 @media (min-width: 1024px) {
-  body[data-dashboard-screen] .snap-dots { display: none !important; }
+  body[data-dashboard-screen] .kpi-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* En tarjetas de 513px el space-between dejaba el anillo a 300px del número
+     que representa. Pegado al valor, la relación se lee sola. */
+  body[data-dashboard-screen] .kpi-valrow {
+    justify-content: flex-start;
+    gap: 20px;
+  }
 }

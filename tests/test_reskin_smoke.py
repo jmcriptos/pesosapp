@@ -139,32 +139,10 @@ def test_dashboard_snap_css_is_linked(logged_client):
     )
 
 
-def test_dashboard_snap_dots_js_is_linked(logged_client):
-    response = logged_client.get("/dashboard")
-    assert b"js/dashboard-snap-dots.js" in response.data, (
-        "dashboard-snap-dots.js link missing from /dashboard"
-    )
-
-
-def test_dashboard_ventas_panel_has_snap_cards(logged_client):
-    """Spec: 4 snap targets in Ventas (4 KPIs + chart + week mini = 6 total)."""
-    response = logged_client.get("/dashboard")
-    html = response.data
-    # Coarse but reliable: count occurrences of the marker inside the rendered HTML.
-    # Ventas panel has 4 KPIs + 1 chart + 1 week-mini = 6 snap cards minimum.
-    # Servicio adds 6 more = 12 total.
-    snap_card_count = html.count(b'data-snap-card="1"')
-    assert snap_card_count >= 12, (
-        "Expected at least 12 snap-card markers (Ventas 6 + Servicio 6); "
-        f"found {snap_card_count}"
-    )
-
-
-def test_dashboard_snap_dots_slots_present(logged_client):
-    response = logged_client.get("/dashboard")
-    html = response.data
-    assert b'data-snap-dots-for="ventas"' in html, "snap-dots slot for Ventas missing"
-    assert b'data-snap-dots-for="servicio"' in html, "snap-dots slot for Servicio missing"
+# Los tres tests que seguían acá (snap-dots JS, marcadores data-snap-card y
+# slots de puntos) verificaban el carrusel de cuatro paneles. Se eliminaron el
+# 2026-08-30 junto con el carrusel: la pantalla es un solo scroll y
+# static/js/dashboard-snap-dots.js ya no existe.
 
 
 # ---------------------------------------------------------------------------

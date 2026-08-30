@@ -1,12 +1,15 @@
-{# templates/dashboard.html — Prototype-faithful rewrite (R2 Glass Mobile Reskin) #}
-{% extends "base.html" %}
+{# templates/dashboard.html — Un solo scroll.
 
-{# Top-level sets — accessible from both {% block content %} and {% block scripts %} #}
-{% set estados_pedidos_tl = estados_pedidos or dict() %}
-{% set est_facturado_tl = (estados_pedidos_tl.get('facturado', 0) or 0)|int %}
-{% set est_preparado_tl = (estados_pedidos_tl.get('preparado', 0) or 0)|int %}
-{% set est_pendiente_tl = (estados_pedidos_tl.get('pendiente', 0) or 0)|int %}
-{% set pedidos_vencidos_tl = (pedidos_vencidos or 0)|int %}
+   Antes esta pantalla eran cuatro paneles en un carrusel horizontal con swipe
+   y sin ninguna señal de que se pudiera deslizar (los puntos de snap estaban
+   en display:none con el JS vivo). Cada panel medía distinto —899 / 555 / 297 /
+   735px— así que cambiar de pestaña colapsaba el viewport hasta 600px a media
+   animación, y en escritorio sobraban ~380px de blanco.
+
+   El orden del scroll responde primero "¿llegamos a la meta del mes?" y
+   enseguida "¿qué está atrasado?", que son las dos preguntas con las que se
+   entra a esta pantalla. #}
+{% extends "base.html" %}
 
 {% block title %}Dashboard — PesosApp{% endblock %}
 {% block header_title %}Dashboard{% endblock %}
@@ -17,32 +20,38 @@
 {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-dashboard-screen="1"{% endblock %}
 
 {# ══════════════════════════════════════════════════════════════
-   MACRO: Progress Ring (44px SVG, matches prototype ProgressRing)
+   MACRO: Progress Ring (44px SVG)
+
+   El anillo ya no lleva el valor dentro: el número está impreso en grande en
+   la tarjeta y repetirlo dentro de 44px hacía que "100.0%" midiera 51.9px y
+   cruzara el trazo de color. El track toma el color del estado en alpha baja,
+   así un anillo en `danger` al 0% —que no dibuja arco— sigue leyéndose como
+   alarma y no como elemento inerte.
    ══════════════════════════════════════════════════════════════ #}
-{% macro progress_ring(pct, state='neutral', label=None, size=44) %}
+{% macro progress_ring(pct, state='neutral', size=44) %}
   {% set r = (size - 4) / 2 %}
   {% set c = 2 * 3.14159265 * r %}
   {% set clamped = pct if pct <= 100 else 100 %}
   {% set clamped = clamped if clamped >= 0 else 0 %}
   {% set offset = c - (clamped / 100) * c %}
-  {% set color_map = {'success': 'var(--color-success, #10b981)', 'warning': 'var(--color-warning, #f59e0b)', 'danger': 'var(--color-danger, #f43f5e)', 'neutral': 'var(--indigo-500, #6366f1)'} %}
-  {% set color_var = color_map.get(state, 'var(--indigo-500, #6366f1)') %}
-  <div class="ring-wrap" style="width:{{ size }}px;height:{{ size }}px;">
-    <svg width="{{ size }}" height="{{ size }}">
-      <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ r }}" fill="none" stroke="rgba(99,102,241,0.15)" stroke-width="4"/>
+  {% set color_map = {'success': '#0f9d6e', 'warning': '#b45309', 'danger': '#be123c', 'neutral': '#4f46e5'} %}
+  {% set track_map = {'success': 'rgba(15,157,110,0.22)', 'warning': 'rgba(180,83,9,0.22)', 'danger': 'rgba(190,18,60,0.28)', 'neutral': 'rgba(79,70,229,0.18)'} %}
+  {% set color_var = color_map.get(state, '#4f46e5') %}
+  {% set track_var = track_map.get(state, 'rgba(79,70,229,0.18)') %}
+  <div class="ring-wrap ring-{{ state }}" style="width:{{ size }}px;height:{{ size }}px;" aria-hidden="true">
+    <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 {{ size }} {{ size }}">
+      <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ r }}" fill="none" stroke="{{ track_var }}" stroke-width="4"/>
       <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ r }}" fill="none" stroke="{{ color_var }}" stroke-width="4" stroke-linecap="round"
         stroke-dasharray="{{ '%.2f'|format(c) }}" stroke-dashoffset="{{ '%.2f'|format(offset) }}"
-        style="transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 480ms cubic-bezier(0.25,1,0.5,1);"/>
+        transform="rotate(-90 {{ size/2 }} {{ size/2 }})"/>
     </svg>
-    <div class="ring-label">{{ label if label is not none else (pct|int ~ '%') }}</div>
   </div>
 {% endmacro %}
 
 {% block extra_css %}
-{# Inline-extracted styles (formerly a 478-line <style> block in this file). #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_inline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_light.css') }}">
-{# dashboard_snap.css MUST load AFTER dashboard_light.css — snap rules override light defaults. #}
+{# dashboard_snap.css MUST load AFTER dashboard_light.css — sus reglas ganan por orden. #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_snap.css') }}">
 {% endblock %}
 
@@ -60,25 +69,24 @@
 {% set porcentaje_proyeccion_v = (porcentaje_proyeccion or 0)|float %}
 {% set otd_rate_v             = (otd_rate or 0)|float %}
 {% set order_completion_rate_v = (order_completion_rate or 0)|float %}
-{% set perfect_order_rate_v   = (perfect_order_rate or 0)|float %}
-{% set customer_engagement_v  = (customer_engagement or 0)|float %}
-{% set lead_time_promedio_v   = (lead_time_promedio or 0)|float %}
 {% set pedidos_vencidos_v     = (pedidos_vencidos or 0)|int %}
 {% set pedidos_preparados_activos_v = (pedidos_preparados_activos or 0)|int %}
+{% set urgentes               = pedidos_urgentes or [] %}
+{% set urgentes_total         = (pedidos_urgentes_total or 0)|int %}
+{# `degradado` lo pasa la ruta cuando cae al except de app.py y renderiza esta
+   misma plantilla con ceros. Sin esta bandera, una caída de la base se ve
+   idéntica a un lunes tranquilo. #}
+{% set degradado_v            = degradado|default(false) %}
+{% set datos_al               = datos_actualizados_en %}
 {% set day_count              = (fecha_actual.day if fecha_actual else 30)|int %}
 {% set prom_dia               = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
-{% set estados_pedidos_v      = estados_pedidos or {} %}
-{% set est_pendiente          = (estados_pedidos_v.get('pendiente', 0) or 0)|int %}
-{% set est_preparado          = (estados_pedidos_v.get('preparado', 0) or 0)|int %}
-{% set est_facturado          = (estados_pedidos_v.get('facturado', 0) or 0)|int %}
-{% set est_total              = est_pendiente + est_preparado + est_facturado %}
 
-{# Ring states #}
+{# Umbrales de estado. Ahora se muestran en la interfaz (`.kpi-ref`) para que el
+   usuario aprenda qué es "bien" en vez de deducirlo del color. #}
 {% set meta_state = 'success' if porcentaje_meta_v >= 85 else ('warning' if porcentaje_meta_v >= 70 else 'danger') %}
 {% set proy_state = 'success' if porcentaje_proyeccion_v >= 100 else ('warning' if porcentaje_proyeccion_v >= 85 else 'danger') %}
 {% set otd_state  = 'success' if otd_rate_v >= 95 else ('warning' if otd_rate_v >= 85 else 'danger') %}
-{% set pend_pct   = [0, 100 - pedidos_pendientes_v * 15]|max %}
-{% set pend_state = 'success' if pedidos_pendientes_v == 0 else ('warning' if pedidos_pendientes_v <= 3 else 'danger') %}
+{% set ofr_state  = 'success' if order_completion_rate_v >= 95 else ('warning' if order_completion_rate_v >= 85 else 'danger') %}
 
 {# Week-over-week delta #}
 {% if ventas_mes_anterior_v > 0 %}
@@ -91,129 +99,194 @@
 <div class="app-shell dash-body">
 <div class="screen-body">
 
+  {# ══════ AVISO DE DATOS DEGRADADOS ══════ #}
+  {% if degradado_v %}
+  <div class="dash-degradado" role="alert">
+    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+    <div class="dash-degradado-texto">
+      <strong>No pudimos cargar los datos.</strong>
+      Los ceros de abajo son una falla de la consulta, no falta de movimiento.
+    </div>
+    <a class="dash-degradado-accion" href="{{ url_for('dashboard') }}">Reintentar</a>
+  </div>
+  {% endif %}
+
   {# ══════ HERO ══════
      El mes va de una lista propia y no de strftime('%B'): el locale del dyno es
      inglés y salía "16 de August, 2026" en una app en español. #}
   {% set meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio',
                      'agosto','septiembre','octubre','noviembre','diciembre'] %}
   <div class="hero">
-    <div class="hero-kicker">Buenos días{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %} ☀</div>
+    {# Sin saludo cuando la pantalla está avisando de una falla: "Buenos días ☀"
+       ocho píxeles debajo de "No pudimos cargar los datos" es un tono equivocado. #}
+    {% if not degradado_v %}<div class="hero-kicker">Buenos días{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %} ☀</div>{% endif %}
     <h1 class="hero-title">
       {# El titular se deriva de los datos. Antes era un texto fijo que decía
-         "Tu semana va bien" incluso sin ventas y con pedidos vencidos. #}
-      {% if not ventas_mes_v %}Todavía no hay ventas este mes.
+         "Tu semana va bien" incluso sin ventas y con pedidos vencidos.
+
+         Orden de prioridad: primero lo que exige acción hoy (vencidos, luego
+         pendientes) y recién después el estado del mes. Antes `not ventas_mes_v`
+         iba primero, así que una caída de QuickBooks —de donde sale ventas_mes—
+         tapaba el aviso de pedidos vencidos con un "no hay ventas este mes". #}
+      {% if degradado_v %}Datos no disponibles.
       {% elif pedidos_vencidos_v %}Hay {{ pedidos_vencidos_v }} pedido{{ 's' if pedidos_vencidos_v != 1 }} vencido{{ 's' if pedidos_vencidos_v != 1 }}.
       {% elif pedidos_pendientes_v %}Tenés {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} por atender.
+      {% elif not ventas_mes_v %}Todavía no hay ventas este mes.
       {% else %}Todo al día.{% endif %}
     </h1>
     <div class="hero-sub">
-      {% if fecha_actual %}{{ fecha_actual.day }} de {{ meses_es[fecha_actual.month - 1] }}, {{ fecha_actual.year }} · {% endif %}{{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} requiere{{ 'n' if pedidos_pendientes_v != 1 }} atención
+      {%- if fecha_actual %}{{ fecha_actual.day }} de {{ meses_es[fecha_actual.month - 1] }}, {{ fecha_actual.year }}{% endif -%}
+      {%- if degradado_v %} · sin datos
+      {%- else %} · {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} requiere{{ 'n' if pedidos_pendientes_v != 1 }} atención
+        {%- if datos_al %} · datos al {{ datos_al.strftime('%H:%M') }}{% endif -%}
+      {%- endif -%}
     </div>
   </div>
 
-  {# ══════ SEGMENTED TABS ══════ #}
-  <div class="dash-seg" id="dash-tabs">
-    <button data-panel="ventas" class="active">Ventas</button>
-    <button data-panel="servicio">Servicio</button>
-    <button data-panel="top">Top</button>
-    <button data-panel="actividad">Actividad</button>
-  </div>
+  {# ══════════════════════════════════════════════════════════
+     1 · META DEL MES — la pregunta con la que se entra
+     ══════════════════════════════════════════════════════════ #}
+  <section class="dash-section" data-dash-section="ventas" aria-labelledby="sec-meta">
+    <div class="sec-head">
+      <h2 class="sec-title" id="sec-meta">Meta del mes</h2>
+      <a class="sec-action" href="{{ url_for('lista_pedidos') }}">Ver pedidos ›</a>
+    </div>
 
-  {# ══════════════════════════════════════
-     PANELS CAROUSEL (Twitter-style swipe)
-     All 4 panels live in a horizontal flex track; JS translates the track.
-     Viewport height is animated to the active panel's natural height.
-     ══════════════════════════════════════ #}
-  <div class="snap-dots" data-snap-dots-for="ventas" aria-hidden="true"></div>
-  <div class="snap-dots" data-snap-dots-for="servicio" aria-hidden="true"></div>
-
-  <div class="panels-viewport" id="dash-viewport">
-    <div class="panels-track" id="dash-track">
-
-  {# ══════════════════════════════════════
-     PANEL VENTAS
-     ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="ventas">
-
-    {# KPI Grid #}
-    <div class="kpi-grid">
-
-      {# 1: Ventas del Mes #}
-      <div class="kpi" data-snap-card="1" data-kpi-state="{{ meta_state }}">
-        <div class="kpi-top">
-          <div class="kpi-label">Ventas del Mes</div>
+    <div class="kpi-grid kpi-grid-2">
+      {# Ventas del Mes #}
+      <div class="kpi" data-kpi-state="{{ meta_state }}">
+        <div class="kpi-label">Ventas del Mes</div>
+        <div class="kpi-valrow">
+          <div class="kpi-value">{{ '{:,.0f}'.format(ventas_mes_v) }}<small>XCG</small></div>
           {{ progress_ring(porcentaje_meta_v, meta_state) }}
         </div>
-        <div class="kpi-value">{{ '{:,.0f}'.format(ventas_mes_v) }}<small>XCG</small></div>
-        <div class="kpi-sub">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} · {{ pedidos_mes_v }} ped</div>
+        <div class="kpi-sub">{{ '%.0f'|format(porcentaje_meta_v) }}% de la meta · {{ pedidos_mes_v }} pedido{{ 's' if pedidos_mes_v != 1 }}</div>
+        <div class="kpi-ref">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} XCG</div>
       </div>
 
-      {# 2: Proyección #}
-      <div class="kpi" data-snap-card="1" data-kpi-state="{{ proy_state }}">
-        <div class="kpi-top">
-          <div class="kpi-label">Proyección</div>
+      {# Proyección #}
+      <div class="kpi" data-kpi-state="{{ proy_state }}">
+        <div class="kpi-label">Proyección</div>
+        <div class="kpi-valrow">
+          {% if proyeccion_ventas_v > 0 %}
+          <div class="kpi-value">{{ '{:,.0f}'.format(proyeccion_ventas_v) }}<small>XCG</small></div>
+          {% else %}
+          <div class="kpi-value kpi-value-vacio">Sin datos</div>
+          {% endif %}
           {{ progress_ring(porcentaje_proyeccion_v, proy_state) }}
         </div>
         {% if proyeccion_ventas_v > 0 %}
-        <div class="kpi-value">{{ '{:,.0f}'.format(proyeccion_ventas_v) }}<small>XCG</small></div>
+        <div class="kpi-sub">{{ '%.0f'|format(porcentaje_proyeccion_v) }}% de la meta al cierre</div>
         {% else %}
-        <div class="kpi-value" style="font-size:14px;color:var(--color-text-subtle)">Sin datos</div>
+        <div class="kpi-sub">Hacen falta ventas del mes para proyectar</div>
         {% endif %}
-        <div class="kpi-sub">{{ '%.0f'|format(porcentaje_proyeccion_v) }}% de meta mensual</div>
+        <div class="kpi-ref">Al ritmo de los primeros {{ day_count }} día{{ 's' if day_count != 1 }}</div>
       </div>
-
-      {# 3: On-Time Delivery #}
-      <div class="kpi" data-snap-card="1" data-kpi-state="{{ otd_state }}">
-        <div class="kpi-top">
-          <div class="kpi-label">Entregas a tiempo</div>
-          {{ progress_ring(otd_rate_v, otd_state) }}
-        </div>
-        <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>
-        <div class="kpi-sub">OFR {{ '%.0f'|format(order_completion_rate_v) }}% · ≤2 días</div>
-      </div>
-
-      {# 4: Pendientes #}
-      <div class="kpi" data-snap-card="1" data-kpi-state="{{ pend_state }}">
-        <div class="kpi-top">
-          <div class="kpi-label">Pendientes</div>
-          {{ progress_ring(pend_pct, pend_state, label=pedidos_pendientes_v) }}
-        </div>
-        <div class="kpi-value" style="font-size:28px;">{{ pedidos_pendientes_v }}</div>
-        <div class="kpi-sub">{{ pedidos_vencidos_v }} vencido{{ 's' if pedidos_vencidos_v != 1 else '' }} · {{ pedidos_preparados_activos_v }} por preparar</div>
-      </div>
-
-    </div>{# /kpi-grid #}
-
-    {# Tendencia section header #}
-    <div class="sec-head">
-      <h3 class="sec-title">Tendencia · últimos 12 meses</h3>
-      <a class="sec-action" href="/pedidos">Ver más ›</a>
     </div>
 
-    {# Chart card #}
-    <div class="gcard chart-card" data-snap-card="1">
+    {# Gráfico de tendencia #}
+    <div class="gcard chart-card">
       <div class="chart-head">
-        <div>
-          <div class="chart-big">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG · esta semana</small></div>
-          <div class="chart-legend">
-            <span class="kpi-trend{{ ' down' if delta_pct < 0 else '' }}">
-              <i class="fas fa-arrow-{{ 'down' if delta_pct < 0 else 'up' }}"></i>
-              {{ '+' if delta_pct >= 0 else '' }}{{ '%.0f'|format(delta_pct) }}%
-            </span>
-            <span>vs. semana anterior</span>
-          </div>
+        <div class="chart-big">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG · esta semana</small></div>
+        {# Con datos degradados delta_pct siempre da 0 y el chip salía verde
+           hacia arriba: falsa tranquilidad sobre cifras que no son reales. #}
+        {% if not degradado_v %}
+        <div class="chart-legend">
+          <span class="kpi-trend{{ ' down' if delta_pct < 0 else '' }}">
+            <i class="fas fa-arrow-{{ 'down' if delta_pct < 0 else 'up' }}" aria-hidden="true"></i>
+            {{ '+' if delta_pct >= 0 else '' }}{{ '%.0f'|format(delta_pct) }}%
+          </span>
+          <span>vs. semana anterior</span>
         </div>
+        {% endif %}
       </div>
+      <div class="chart-title-row">Tendencia · últimos 6 meses</div>
+      {# Sin datos el canvas quedaba como un hueco blanco de ~280px. #}
+      {% if tendencia_semanal %}
       <div class="trend-chart-wrap">
-        <canvas id="salesTrendChart"></canvas>
+        <canvas id="salesTrendChart" role="img" aria-label="Ventas semanales de los últimos 6 meses"></canvas>
       </div>
+      {% else %}
+      <div class="empty-state">
+        {% if degradado_v %}
+        <p class="empty-state-title">Sin datos.</p>
+        <p class="empty-state-sub">La tendencia no se pudo cargar.</p>
+        {% else %}
+        <p class="empty-state-title">Todavía no hay tendencia.</p>
+        <p class="empty-state-sub">Hace falta al menos una semana facturada.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════════════════════
+     2 · LO QUE ESPERA — la cola de trabajo, accionable
+
+     Los pedidos salen de `pedidos_urgentes`, que la ruta arma sobre la MISMA
+     población que produce el conteo de vencidos del titular. Si arriba dice
+     11 vencidos, acá están esos pedidos y no otros.
+     ══════════════════════════════════════════════════════════ #}
+  <section class="dash-section" data-dash-section="pendientes" aria-labelledby="sec-espera">
+    <div class="sec-head">
+      <h2 class="sec-title" id="sec-espera">Lo que espera</h2>
+      <a class="sec-action" href="{{ url_for('lista_pedidos') }}?estado=pendiente">
+        {%- if urgentes_total > urgentes|length %}Ver los {{ urgentes_total }} ›{% else %}Ver todos ›{% endif -%}
+      </a>
     </div>
 
-    {# Esta semana #}
-    <div class="sec-head">
-      <h3 class="sec-title">Esta semana</h3>
+    <div class="queue-stats">
+      <a class="queue-stat{{ ' is-alarm' if pedidos_vencidos_v else '' }}" href="{{ url_for('lista_pedidos') }}?estado=pendiente">
+        <span class="queue-stat-val">{{ pedidos_vencidos_v }}</span>
+        <span class="queue-stat-lbl">vencido{{ 's' if pedidos_vencidos_v != 1 }}</span>
+      </a>
+      <a class="queue-stat" href="{{ url_for('lista_pedidos') }}?estado=pendiente">
+        <span class="queue-stat-val">{{ pedidos_pendientes_v }}</span>
+        <span class="queue-stat-lbl">pendiente{{ 's' if pedidos_pendientes_v != 1 }}</span>
+      </a>
+      <a class="queue-stat" href="{{ url_for('lista_pedidos') }}?estado=preparado">
+        <span class="queue-stat-val">{{ pedidos_preparados_activos_v }}</span>
+        <span class="queue-stat-lbl">por preparar</span>
+      </a>
     </div>
-    <div class="week-mini-grid" data-snap-card="1">
+
+    <div class="gcard queue-card">
+      {% if urgentes %}
+        {% for ped in urgentes %}
+        <a class="queue-row" href="{{ url_for('detalles_pedido', pedido_id=ped.id) }}">
+          <div class="queue-row-main">
+            <div class="queue-client">{{ ped.cliente }}</div>
+            <div class="queue-meta">#{{ ped.id }} · {{ ped.fecha }} · {{ ped.estado }}</div>
+          </div>
+          <div class="queue-row-side">
+            <span class="queue-sla {{ ped.sla_class }}">{{ ped.sla_text }}</span>
+            <span class="queue-amt">{{ '{:,.0f}'.format(ped.total) }}<small>XCG</small></span>
+          </div>
+          <i class="fas fa-chevron-right queue-chev" aria-hidden="true"></i>
+        </a>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          {% if degradado_v %}
+          <p class="empty-state-title">No sabemos qué está esperando.</p>
+          <p class="empty-state-sub">La cola no se pudo cargar.</p>
+          {% else %}
+          <p class="empty-state-title">No hay nada esperando.</p>
+          <p class="empty-state-sub">Todos los pedidos están facturados.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════════════════════
+     3 · ESTA SEMANA
+     ══════════════════════════════════════════════════════════ #}
+  <section class="dash-section" data-dash-section="semana" aria-labelledby="sec-semana">
+    <div class="sec-head">
+      <h2 class="sec-title" id="sec-semana">Esta semana</h2>
+    </div>
+    <div class="week-mini-grid">
       <div class="week-mini-card">
         <span class="week-mini-label">Ventas</span>
         <span class="week-mini-val">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG</small></span>
@@ -227,70 +300,63 @@
         <span class="week-mini-val">{{ '%.1f'|format(prom_dia) }}</span>
       </div>
     </div>
+  </section>
 
-  </div>{# /panel ventas #}
+  {# ══════════════════════════════════════════════════════════
+     4 · NIVEL DE SERVICIO
 
-  {# ══════════════════════════════════════
-     PANEL SERVICIO
-     ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="servicio">
-
-    {% set lt_pct = [0, [100 - lead_time_promedio_v * 10, 100]|min]|max %}
-    {% set lt_state = 'success' if lead_time_promedio_v <= 2 else ('warning' if lead_time_promedio_v <= 4 else 'danger') %}
-    {% set svc_items = [
-      {'label': 'OTD', 'full': 'On-Time Delivery',    'val': otd_rate_v,              'unit': '%', 'desc': 'Entregas ≤ 2 días',             'pct': otd_rate_v,             'state': 'success' if otd_rate_v >= 95 else ('warning' if otd_rate_v >= 85 else 'danger')},
-      {'label': 'OFR', 'full': 'Order Fill Rate',      'val': order_completion_rate_v, 'unit': '%', 'desc': 'Cajas entregadas vs pedidas',   'pct': order_completion_rate_v,'state': 'success' if order_completion_rate_v >= 95 else ('warning' if order_completion_rate_v >= 85 else 'danger')},
-      {'label': 'POR', 'full': 'Perfect Order Rate',   'val': perfect_order_rate_v,    'unit': '%', 'desc': 'Entregas perfectas',            'pct': perfect_order_rate_v,   'state': 'success' if perfect_order_rate_v >= 95 else ('warning' if perfect_order_rate_v >= 85 else 'danger')},
-      {'label': 'CE',  'full': 'Customer Engagement',  'val': customer_engagement_v,   'unit': '%', 'desc': 'Clientes activos del mes',      'pct': customer_engagement_v,  'state': 'success' if customer_engagement_v >= 80 else 'warning'},
-      {'label': 'LT',  'full': 'Lead Time',             'val': lead_time_promedio_v,    'unit': 'd', 'desc': 'Promedio de procesamiento',    'pct': lt_pct,                 'state': lt_state},
-      {'label': 'PED', 'full': 'Pendientes',            'val': pedidos_pendientes_v,    'unit': '',  'desc': 'Requieren atención',           'pct': pend_pct,               'state': pend_state}
-    ] %}
-
-    <div class="svc-kpi-grid">
-      {% for item in svc_items %}
-      <div class="kpi" data-snap-card="1" data-kpi-state="{{ item.state }}">
-        <div class="kpi-top">
-          <div>
-            <div class="kpi-label">{{ item.label }}</div>
-            <div style="font-size:9px;color:var(--color-text-subtle);margin-top:2px;">{{ item.full }}</div>
-          </div>
-          {{ progress_ring(item.pct, item.state, label=(item.val|round(1)|string ~ item.unit)) }}
-        </div>
-        <div class="kpi-value" style="font-size:22px;">
-          {% if item.unit == '%' %}{{ '%.1f'|format(item.val) }}{% else %}{{ item.val }}{% endif %}<small>{{ item.unit }}</small>
-        </div>
-        <div class="kpi-sub">{{ item.desc }}</div>
-      </div>
-      {% endfor %}
+     Quedan las dos métricas sobre las que se actúa. Se retiraron POR (es un
+     compuesto de estas dos), CE (el radar de /clientes lo cuenta mejor: cliente
+     por cliente y contra su propio ritmo) y LT (se solapa con entregas a
+     tiempo). Cada una lleva su umbral a la vista.
+     ══════════════════════════════════════════════════════════ #}
+  <section class="dash-section" data-dash-section="servicio" aria-labelledby="sec-servicio">
+    <div class="sec-head">
+      <h2 class="sec-title" id="sec-servicio">Nivel de servicio</h2>
     </div>
+    <div class="kpi-grid kpi-grid-2">
+      <div class="kpi" data-kpi-state="{{ otd_state }}">
+        <div class="kpi-label">Entregas a tiempo <span class="kpi-sigla">OTD</span></div>
+        <div class="kpi-valrow">
+          <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>
+          {{ progress_ring(otd_rate_v, otd_state) }}
+        </div>
+        <div class="kpi-sub">Facturadas en 2 días o menos</div>
+        <div class="kpi-ref">Objetivo 95%</div>
+      </div>
 
-  </div>{# /panel servicio #}
+      <div class="kpi" data-kpi-state="{{ ofr_state }}">
+        <div class="kpi-label">Cajas entregadas <span class="kpi-sigla">OFR</span></div>
+        <div class="kpi-valrow">
+          <div class="kpi-value">{{ '%.1f'|format(order_completion_rate_v) }}%</div>
+          {{ progress_ring(order_completion_rate_v, ofr_state) }}
+        </div>
+        <div class="kpi-sub">De cada 100 cajas pedidas</div>
+        <div class="kpi-ref">Objetivo 95%</div>
+      </div>
+    </div>
+  </section>
 
-  {# ══════════════════════════════════════
-     PANEL TOP
-     ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="top">
-
-    {# Top Productos #}
-    <div class="sec-head" style="padding-top:12px;">
-      <h3 class="sec-title">Top Productos</h3>
-      <span style="font-size:11px;color:var(--color-text-subtle)">Este mes</span>
+  {# ══════════════════════════════════════════════════════════
+     5 · TOP DEL MES
+     ══════════════════════════════════════════════════════════ #}
+  <section class="dash-section" data-dash-section="top" aria-labelledby="sec-top-prod">
+    <div class="sec-head">
+      <h2 class="sec-title" id="sec-top-prod">Top Productos</h2>
+      <span class="sec-note">Este mes</span>
     </div>
     <div class="gcard">
       {% set top_prods = top_productos or [] %}
       {% set max_ing = ((top_prods[0].ingresos or 1)|float) if top_prods else 1 %}
-      {% set rank_colors = ['#f59e0b','#6366f1','#10b981','#8b5cf6','#f43f5e'] %}
       {% if top_prods %}
         {% for producto in top_prods %}
-          {% set idx = loop.index0 %}
-          {% set color = rank_colors[idx] if idx < 5 else '#94a3b8' %}
           {% set ingresos = (producto.ingresos or 0)|float %}
           {% set bar_pct = (ingresos / max_ing * 100) if max_ing > 0 else 0 %}
           <div class="rank">
             <span class="rank-pos rc-{{ loop.index }}">{{ loop.index }}</span>
             <div class="rank-body">
               <div class="rank-name">{{ producto.nombre }}</div>
-              <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div></div>
+              <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
               <div class="rank-meta">
                 {% if (producto.cajas or 0) > 0 %}<span>{{ producto.cajas|fmt_cajas }} cajas</span>{% endif %}
                 {% if (producto.peso or 0) > 0 %}<span>{{ '{:,.1f}'.format(producto.peso|float) }} kg</span>{% endif %}
@@ -301,14 +367,23 @@
           </div>
         {% endfor %}
       {% else %}
-        <div style="padding:20px;text-align:center;color:var(--color-text-subtle);font-size:13px;">Sin datos este mes</div>
+        <div class="empty-state">
+          {% if degradado_v %}
+          <p class="empty-state-title">Sin datos.</p>
+          <p class="empty-state-sub">El ranking no se pudo cargar.</p>
+          {% else %}
+          <p class="empty-state-title">Sin ventas este mes.</p>
+          <p class="empty-state-sub">Los más vendidos aparecen acá cuando se factura el primer pedido.</p>
+          {% endif %}
+        </div>
       {% endif %}
     </div>
+  </section>
 
-    {# Top Clientes #}
+  <section class="dash-section" data-dash-section="top-clientes" aria-labelledby="sec-top-cli">
     <div class="sec-head">
-      <h3 class="sec-title">Top Clientes</h3>
-      <span style="font-size:11px;color:var(--color-text-subtle)">Este mes</span>
+      <h2 class="sec-title" id="sec-top-cli">Top Clientes</h2>
+      <a class="sec-action" href="/clientes">Ver radar ›</a>
     </div>
     <div class="gcard">
       {% set top_clis = top_clientes or [] %}
@@ -321,7 +396,7 @@
             <span class="rank-pos rc-{{ loop.index }}">{{ loop.index }}</span>
             <div class="rank-body">
               <div class="rank-name">{{ nombre }}</div>
-              <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="width:{{ bar_pct }}%"></div></div>
+              <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
               <div class="rank-meta">
                 <span>{{ datos.pedidos or 0 }} pedidos</span>
                 {% if datos.ultimo_pedido %}<span>Último {{ datos.ultimo_pedido.strftime('%d/%m') }}</span>{% endif %}
@@ -331,88 +406,18 @@
           </div>
         {% endfor %}
       {% else %}
-        <div style="padding:20px;text-align:center;color:var(--color-text-subtle);font-size:13px;">Sin datos este mes</div>
+        <div class="empty-state">
+          {% if degradado_v %}
+          <p class="empty-state-title">Sin datos.</p>
+          <p class="empty-state-sub">El ranking no se pudo cargar.</p>
+          {% else %}
+          <p class="empty-state-title">Sin compras este mes.</p>
+          <p class="empty-state-sub">El radar de clientes muestra quién dejó de comprar.</p>
+          {% endif %}
+        </div>
       {% endif %}
     </div>
-
-  </div>{# /panel top #}
-
-  {# ══════════════════════════════════════
-     PANEL ACTIVIDAD
-     ══════════════════════════════════════ #}
-  <div class="dash-panel" data-dash-panel="actividad">
-
-    <div class="sec-head" style="padding-top:12px;">
-      <h3 class="sec-title">Pedidos recientes</h3>
-      <a class="sec-action" href="/pedidos">Ver todos ›</a>
-    </div>
-
-    <div class="gcard">
-      {% set recientes = pedidos_recientes or [] %}
-      {% if recientes %}
-        {% for pedido in recientes[:5] %}
-          {% set estado = pedido.estado or 'sin_estado' %}
-          {% set icon_class = 'fas fa-check' if estado == 'facturado' else ('fas fa-box' if estado == 'preparado' else 'fas fa-clock') %}
-          {# Compute total from detalles #}
-          {% set total_xcg = namespace(val=0) %}
-          {% for detalle in pedido.detalles %}
-            {% if detalle.es_linea_pedido %}
-              {% set total_xcg.val = total_xcg.val + (detalle.subtotal|float * (pedido.tipo_cambio or 1)|float) %}
-            {% endif %}
-          {% endfor %}
-          <div class="act-row">
-            <div class="act-icon {{ estado }}">
-              <i class="{{ icon_class }}"></i>
-            </div>
-            <div class="act-info">
-              <div class="act-client">{{ pedido.cliente.nombre if pedido.cliente else 'Sin cliente' }}</div>
-              <div class="act-meta">#{{ pedido.id }} · {{ pedido.fecha_pedido.strftime('%d/%m/%Y') if pedido.fecha_pedido else '' }}</div>
-            </div>
-            <div class="act-amt">{{ '{:,.0f}'.format(total_xcg.val) }}<small>XCG</small></div>
-          </div>
-        {% endfor %}
-      {% else %}
-        <div style="padding:20px;text-align:center;color:var(--color-text-subtle);font-size:13px;">No hay pedidos recientes</div>
-      {% endif %}
-    </div>
-
-    <div class="sec-head">
-      <h3 class="sec-title">Estado de pedidos</h3>
-      <span style="font-size:11px;color:var(--color-text-subtle)">Últimos 30 días</span>
-    </div>
-
-    <div class="gcard">
-      <div class="estados-donut-wrap">
-        <canvas id="estadosDonutChart"></canvas>
-      </div>
-      <div class="estados-legend">
-        <div class="estados-legend-item">
-          <span class="estados-legend-dot" style="background:#60a5fa"></span>
-          <span>Facturados</span>
-          <span class="estados-legend-val">{{ est_facturado }}</span>
-        </div>
-        <div class="estados-legend-item">
-          <span class="estados-legend-dot" style="background:#10b981"></span>
-          <span>Preparados</span>
-          <span class="estados-legend-val">{{ est_preparado }}</span>
-        </div>
-        <div class="estados-legend-item">
-          <span class="estados-legend-dot" style="background:#f59e0b"></span>
-          <span>Pendientes</span>
-          <span class="estados-legend-val">{{ est_pendiente }}</span>
-        </div>
-        <div class="estados-legend-item">
-          <span class="estados-legend-dot" style="background:#f43f5e"></span>
-          <span>Vencidos</span>
-          <span class="estados-legend-val">{{ pedidos_vencidos_v }}</span>
-        </div>
-      </div>
-    </div>
-
-  </div>{# /panel actividad #}
-
-    </div>{# /panels-track #}
-  </div>{# /panels-viewport #}
+  </section>
 
 </div>{# /screen-body #}
 </div>{# /app-shell dash-body #}
@@ -420,153 +425,19 @@
 
 
 {% block scripts %}
-<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/dashboard-snap-dots.js') }}" defer></script>
 <script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script nonce="{{ csp_nonce() }}">
 (function() {
-  // Data (declared first so it's available when charts initialize).
-  // Values come from top-level set blocks so they are in scope here.
   var tendenciaData = {{ (tendencia_semanal or [])|tojson|safe }};
-  var estadosData = {
-    facturados: {{ est_facturado_tl }},
-    preparados: {{ est_preparado_tl }},
-    pendientes: {{ est_pendiente_tl }},
-    vencidos:   {{ pedidos_vencidos_tl }}
-  };
 
-  var tabs = document.querySelectorAll('#dash-tabs button');
-  var panelOrder = ['ventas', 'servicio', 'top', 'actividad'];
-  var viewport = document.getElementById('dash-viewport');
-  var track = document.getElementById('dash-track');
-  var panelEls = track ? track.querySelectorAll('.dash-panel') : [];
-  var currentIdx = 0;
-  var salesChart = null;
-  var estadosChart = null;
+  if (typeof Chart === 'undefined') return;
 
-  // ── Chart.js global config (once, if Chart is loaded) ──
-  if (typeof Chart !== 'undefined') {
-    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
-    Chart.defaults.color = '#94a3b8';
-    Chart.defaults.borderColor = 'rgba(31,41,55,0.8)';
-  }
-
-  function setViewportHeight(idx) {
-    if (!viewport || !panelEls[idx]) return;
-    // Use offsetHeight of panel content
-    var h = panelEls[idx].offsetHeight;
-    if (h > 0) viewport.style.height = h + 'px';
-  }
-
-  function setPanel(idx, animate) {
-    idx = Math.max(0, Math.min(panelOrder.length - 1, idx));
-    currentIdx = idx;
-    var id = panelOrder[idx];
-
-    tabs.forEach(function(t) {
-      t.classList.toggle('active', t.dataset.panel === id);
-    });
-
-    if (track) {
-      if (!animate) track.classList.add('is-dragging');
-      else track.classList.remove('is-dragging');
-      track.style.transform = 'translate3d(' + (-idx * 100) + '%, 0, 0)';
-    }
-
-    try {
-      if (id === 'ventas') initSalesTrend();
-      if (id === 'actividad') initEstadosDonut();
-    } catch (err) {
-      console.warn('[dashboard] chart init failed:', err);
-    }
-
-    // Update viewport height after any potential chart render/layout shift
-    requestAnimationFrame(function() { setViewportHeight(idx); });
-    setTimeout(function() { setViewportHeight(idx); }, 380);
-  }
-
-  // ── Tab clicks ──
-  tabs.forEach(function(t) {
-    t.addEventListener('click', function() {
-      var id = t.dataset.panel;
-      var idx = panelOrder.indexOf(id);
-      if (idx >= 0) setPanel(idx, true);
-    });
-  });
-
-  // ── Twitter-style follow-finger swipe ──
-  var startX = null, startY = null, dragging = false, horizLocked = false;
-  if (track) {
-    track.addEventListener('touchstart', function(e) {
-      if (!e.touches || !e.touches[0]) return;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      dragging = false;
-      horizLocked = false;
-    }, { passive: true });
-
-    track.addEventListener('touchmove', function(e) {
-      if (startX == null || !e.touches || !e.touches[0]) return;
-      var dx = e.touches[0].clientX - startX;
-      var dy = e.touches[0].clientY - startY;
-
-      if (!horizLocked) {
-        if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
-          // vertical scroll — bail for the rest of this gesture
-          startX = null;
-          return;
-        }
-        if (Math.abs(dx) < 10) return;
-        horizLocked = true;
-        dragging = true;
-        track.classList.add('is-dragging');
-      }
-
-      var w = viewport.offsetWidth || 1;
-      var translatePct = -currentIdx * 100 + (dx / w) * 100;
-      // rubber-band at edges
-      if ((currentIdx === 0 && dx > 0) || (currentIdx === panelOrder.length - 1 && dx < 0)) {
-        translatePct = -currentIdx * 100 + (dx / w) * 30;
-      }
-      track.style.transform = 'translate3d(' + translatePct + '%, 0, 0)';
-      if (e.cancelable) e.preventDefault();
-    }, { passive: false });
-
-    track.addEventListener('touchend', function(e) {
-      if (!dragging || startX == null) {
-        startX = null;
-        if (track) track.classList.remove('is-dragging');
-        return;
-      }
-      var dx = e.changedTouches[0].clientX - startX;
-      var w = viewport.offsetWidth || 1;
-      var threshold = w * 0.20; // commit if dragged ≥ 20% of viewport
-      var newIdx = currentIdx;
-      if (dx < -threshold && currentIdx < panelOrder.length - 1) newIdx = currentIdx + 1;
-      else if (dx > threshold && currentIdx > 0) newIdx = currentIdx - 1;
-      setPanel(newIdx, true);
-      startX = null;
-      dragging = false;
-      horizLocked = false;
-    });
-  }
-
-  // ── Initial render ──
-  function startup() {
-    setPanel(0, false);
-    // After initial layout, update height with animation enabled
-    requestAnimationFrame(function() {
-      setViewportHeight(0);
-    });
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startup);
-  } else {
-    startup();
-  }
-
-  // ── Keep viewport height in sync on resize and after images/fonts load ──
-  window.addEventListener('resize', function() { setViewportHeight(currentIdx); });
-  window.addEventListener('load',   function() { setViewportHeight(currentIdx); });
+  // Ejes y grillas sobre tarjeta clara. Antes heredaban una configuración
+  // pensada para fondo oscuro: #94a3b8 sobre blanco da 2.56:1 y la grilla iba
+  // en rgba(31,41,55,0.6), casi negra.
+  Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.borderColor = 'rgba(148,163,184,0.35)';
 
   function buildTrendLine(values, w) {
     w = w || 3;
@@ -581,14 +452,13 @@
 
   function initSalesTrend() {
     var ctx = document.getElementById('salesTrendChart');
-    if (!ctx || salesChart) return;
+    if (!ctx) return;
     if (!tendenciaData || tendenciaData.length === 0) return;
 
     var salesValues = tendenciaData.map(function(d) { return d.ventas || 0; });
     var trendValues = buildTrendLine(salesValues);
-    var indigo = getComputedStyle(document.body).getPropertyValue('--indigo-500').trim() || '#6366f1';
 
-    salesChart = new Chart(ctx, {
+    new Chart(ctx, {
       type: 'bar',
       data: {
         labels: tendenciaData.map(function(d) { return d.semana || ''; }),
@@ -598,7 +468,7 @@
             data: salesValues,
             type: 'bar',
             backgroundColor: 'rgba(16,185,129,0.45)',
-            borderColor: '#10b981',
+            borderColor: '#0f9d6e',
             borderWidth: 1,
             borderRadius: 3,
             order: 2
@@ -607,13 +477,13 @@
             label: 'Tendencia',
             data: trendValues,
             type: 'line',
-            borderColor: indigo,
-            backgroundColor: 'rgba(99,102,241,0.1)',
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79,70,229,0.1)',
             borderWidth: 2.5,
             fill: false,
             tension: 0.35,
             pointRadius: 3,
-            pointBackgroundColor: indigo,
+            pointBackgroundColor: '#4f46e5',
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
             pointHoverRadius: 6,
@@ -633,17 +503,16 @@
             labels: { usePointStyle: true, padding: 12, font: { size: 11, weight: '500' } }
           },
           tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.85)',
+            backgroundColor: 'rgba(15,23,42,0.92)',
             padding: 10,
             cornerRadius: 8,
             titleFont: { size: 12, weight: 'bold' },
             bodyFont: { size: 11 },
             callbacks: {
               title: function(items) { return 'Sem ' + items[0].label; },
-              label: function(ctx) {
-                return ctx.datasetIndex === 0
-                  ? 'Ventas: XCG ' + ctx.parsed.y.toLocaleString('es-ES')
-                  : 'Tendencia: XCG ' + ctx.parsed.y.toLocaleString('es-ES');
+              label: function(c) {
+                return (c.datasetIndex === 0 ? 'Ventas: XCG ' : 'Tendencia: XCG ') +
+                  c.parsed.y.toLocaleString('es-ES');
               }
             }
           }
@@ -651,62 +520,26 @@
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: 'rgba(31,41,55,0.6)' },
+            grid: { color: 'rgba(148,163,184,0.3)' },
             ticks: {
               callback: function(v) { return v >= 1000 ? (v/1000).toFixed(0)+'k' : v; },
-              font: { size: 10 }
+              font: { size: 11 }
             }
           },
           x: {
             grid: { display: false },
-            ticks: { font: { size: 10 }, maxRotation: 45 }
+            ticks: { font: { size: 11 }, maxRotation: 45 }
           }
         }
       }
     });
   }
 
-  // ── Estados donut ──
-  function initEstadosDonut() {
-    var ctx = document.getElementById('estadosDonutChart');
-    if (!ctx || estadosChart) return;
-    var total = estadosData.facturados + estadosData.preparados + estadosData.pendientes + estadosData.vencidos;
-    if (total === 0) return;
-
-    estadosChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Facturados', 'Preparados', 'Pendientes', 'Vencidos'],
-        datasets: [{
-          data: [estadosData.facturados, estadosData.preparados, estadosData.pendientes, estadosData.vencidos],
-          backgroundColor: ['#60a5fa', '#10b981', '#f59e0b', '#f43f5e'],
-          borderColor: 'rgba(10,10,15,0.8)',
-          borderWidth: 2,
-          hoverOffset: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '62%',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            padding: 10,
-            cornerRadius: 8,
-            callbacks: {
-              label: function(ctx) {
-                var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
-                return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
-              }
-            }
-          }
-        }
-      }
-    });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSalesTrend);
+  } else {
+    initSalesTrend();
   }
-
 })();
 </script>
 {% endblock %}
