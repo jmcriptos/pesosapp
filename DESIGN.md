@@ -404,8 +404,8 @@ quien toque estas hojas.
 - **`static/css/app-mobile.css:988`** afirma «Default theme in this app is dark; light is
   an opt-in toggle». Es falso desde el 2026-08-28: no hay toggle y no hay modo oscuro.
 - **El dashboard usa hex hardcodeados** (`#4f46e5`, `#d97706`, `#be123c`, `#475569`) en
-  vez de tokens, resultado de un pase de color validado a mano el 2026-08-30. Los valores
-  son correctos; el que no exista un token para el par de estado accesible, no.
+  vez de variables CSS. Los valores están todos documentados arriba y validados; lo que
+  falta es la variable, no el criterio.
 - **Tres hojas se pisan en el dashboard** (`dashboard_inline` → `dashboard_light` →
   `dashboard_snap`) y el orden de carga es load-bearing.
 - **No hay tokens de breakpoint.** Los cortes 768/900/1024 se repiten a mano.
@@ -415,6 +415,8 @@ quien toque estas hojas.
   bajo deuteranopía (ΔE 8.7) y con visión normal (ΔE 20.0); `--color-warning`
   (`#f59e0b`) contra `--color-danger` (`#f43f5e`) no está verificado para ese uso, así
   que no se puede tokenizar reusando los nombres existentes sin antes medirlos.
-- **Tamaños y radios fuera de escala en el dashboard.** El detector cuenta 12px (×12),
-  14px (×3), 22px, 18px, 10.5px y 9px, más radios de 1, 2, 3, 6 y 10px. Ninguno está en
-  `tokens.css`. Es la deriva más mecánica de todas y la más fácil de cerrar.
+- **Tamaños y radios del dashboard: cerrado el 2026-08-30.** Los 27 valores fuera de
+  escala (12px ×12, 14px ×3, 22px, 18px, 9px, y radios de 1, 2, 3, 6 y 10px) se
+  alinearon a `tokens.css`. Queda un único hallazgo del detector, y es un falso
+  positivo: lee la plantilla sin poder resolver `{{ url_for('static', ...) }}`, así que
+  no carga las hojas y asume texto negro en un `<div>` que hereda `#0f172a`.

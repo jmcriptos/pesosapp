@@ -24,14 +24,14 @@
   margin-bottom: 4px;
 }
 .hero-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1.2;
   margin: 0 0 4px;
   color: var(--color-text, #f1f5f9);
 }
 .hero-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-subtle, #64748b);
 }
 
@@ -46,17 +46,17 @@
   gap: 10px;
   margin: 0 16px 10px; /* misma columna que .kpi-grid / .gcard en ambos anchos */
   padding: 12px 14px;
-  border: 1px solid #f0c36d;
+  border: 1px solid #f59e0b;
   border-radius: 12px;
-  background: #fffaeb;
-  box-shadow: 0 1px 2px rgba(120, 53, 15, 0.08);
-  color: #713f12;
+  background: #fffbeb;
+  box-shadow: 0 1px 2px rgba(146, 64, 14, 0.08);
+  color: #92400e;
 }
 .dash-degradado > .fa-triangle-exclamation {
   flex: 0 0 auto;
   margin-top: 1px;
   font-size: 15px;
-  color: #b45309;
+  color: #d97706;
 }
 .dash-degradado-texto {
   flex: 1 1 220px;
@@ -76,8 +76,8 @@
   align-items: center;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid #d9a441;
-  border-radius: 10px;
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
   background: #fff;
   color: #92400e;
   font-size: 13px;
@@ -85,13 +85,14 @@
   text-decoration: none;
   white-space: nowrap;
 }
+/* Al hover se afirman borde y tinta en vez de inventar un fondo propio. */
 .dash-degradado-accion:hover,
 .dash-degradado-accion:focus-visible {
-  background: #fdf1d6;
-  color: #78350f;
+  border-color: #d97706;
+  color: #92400e;
 }
 .dash-degradado-accion:focus-visible {
-  outline: 2px solid #b45309;
+  outline: 2px solid #d97706;
   outline-offset: 2px;
 }
 
@@ -124,7 +125,7 @@
   color: var(--color-text-subtle, #64748b);
 }
 .kpi-value {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--color-text, #f1f5f9);
   line-height: 1.2;
@@ -190,7 +191,7 @@
   line-height: 1.1;
 }
 .chart-big small {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--color-text-subtle, #64748b);
   margin-left: 4px;
@@ -199,7 +200,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-subtle, #64748b);
   margin-top: 4px;
 }
@@ -207,7 +208,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 999px;
@@ -281,7 +282,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   color: #fff;
   flex-shrink: 0;
@@ -310,7 +311,7 @@
   /* Pista un paso por encima del fondo; el relleno es la marca. */
   height: 12px;
   background: #eef1f6;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .rank-bar-fill {
@@ -324,7 +325,7 @@
   height: 100%;
   background: #4f46e5;
   /* Extremo redondeado del lado del dato, recto contra la línea base. */
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 4px 4px 0;
   /* Se escala por transform (el template pone scaleX) en vez de animar width:
      animar el ancho provoca relayout en cada cuadro. */
   transform-origin: left center;
@@ -339,7 +340,7 @@
 }
 .rank-amt {
   text-align: right;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-text, #f1f5f9);
@@ -347,7 +348,7 @@
 }
 .rank-amt small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--color-text-subtle, #64748b);
 }
@@ -372,9 +373,9 @@
    que deducir del color qué contaba como "bien". */
 .kpi-ref { margin-top: 2px; font-size: 11px; color: #64748b; }
 .kpi-sigla { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #64748b; }
-.kpi-value-vacio { font-size: 18px; color: #475569; }
+.kpi-value-vacio { font-size: 17px; color: #475569; }
 
-.chart-title-row { margin: 2px 0 8px; font-size: 12px; font-weight: 700; color: #475569; }
+.chart-title-row { margin: 2px 0 8px; font-size: 13px; font-weight: 700; color: #475569; }
 
 /* ── Cola de trabajo ─────────────────────────────────────────────────── */
 
@@ -391,12 +392,12 @@
 }
 .queue-row:last-child { border-bottom: 0; }
 .queue-row:hover { background: #f8fafc; }
-.queue-row:focus-visible { outline: 2px solid #4338ca; outline-offset: -2px; border-radius: 10px; }
+.queue-row:focus-visible { outline: 2px solid #4338ca; outline-offset: -2px; border-radius: 12px; }
 .queue-row-main { flex: 1 1 auto; min-width: 0; }
 .queue-client {
   /* Entero, igual que el nombre del producto. "Hotel Renaissance Cura…" es
      el cliente al que hay que llamar: recortarlo le quita justo lo que sirve. */
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   white-space: normal;
@@ -406,7 +407,7 @@
 }
 /* El número de pedido es lo que se lee en voz alta cruzando el almacén:
    12px y #475569 (7.5:1), no 11px a 2.56:1 como antes. */
-.queue-meta { font-size: 12px; color: #475569; }
+.queue-meta { font-size: 13px; color: #475569; }
 .queue-row-side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .queue-sla {
   padding: 3px 8px;
@@ -420,12 +421,12 @@
 .queue-sla.sla-danger { background: #fff1f2; color: #9f1239; }
 .queue-amt { font-size: 13px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
 .queue-amt small { margin-left: 3px; font-size: 11px; font-weight: 600; color: #475569; }
-.queue-chev { flex: 0 0 auto; font-size: 12px; color: #64748b; }
+.queue-chev { flex: 0 0 auto; font-size: 13px; color: #64748b; }
 
 /* ── Estados vacíos ──────────────────────────────────────────────────── */
 .empty-state { padding: 22px 16px; text-align: center; }
-.empty-state-title { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: #0f172a; }
-.empty-state-sub { margin: 0; font-size: 12px; color: #475569; }
+.empty-state-title { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #0f172a; }
+.empty-state-sub { margin: 0; font-size: 13px; color: #475569; }
 
 /* Los enlaces de sección eran de 17px de alto; ahora llegan al mínimo táctil. */
 .sec-action { display: inline-flex; align-items: center; min-height: 44px; }
@@ -466,14 +467,14 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #4338ca;
   cursor: pointer;
 }
 .chart-tabla > summary:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
 .chart-tabla-scroll { max-height: 260px; overflow: auto; }
-.chart-tabla table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.chart-tabla table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .chart-tabla th,
 .chart-tabla td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
 .chart-tabla thead th {
@@ -503,9 +504,10 @@
    lo largo de toda la barra. Extremo redondeado del lado del dato, recto
    contra la línea base. */
 .kpi-meter {
+  color: #0f172a;
   position: relative;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   /* Sin overflow:hidden: recortaba la marca del objetivo dentro de los 6px de
      la barra, donde quedaba oscura sobre el relleno y no se leía. El relleno
      ya redondea su propio extremo, así que el recorte no hacía falta. */
@@ -514,7 +516,7 @@
 .kpi-meter-fill {
   width: 100%;
   height: 100%;
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 4px 4px 0;
   transform-origin: left center;
   transition: transform 480ms cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -525,7 +527,7 @@
   top: -2px;
   bottom: -2px;
   width: 2px;
-  border-radius: 1px;
+  border-radius: 9999px;
   background: #0f172a;
   opacity: 0.55;
 }
@@ -573,7 +575,7 @@
 .riel-fila:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
 .riel-estado {
   flex: 0 0 74px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #475569;
 }
@@ -622,7 +624,7 @@
 .riel-punto {
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 4px;
   flex: 0 0 auto;
 }
 .riel-cierre { font-size: 11px; color: #475569; }
