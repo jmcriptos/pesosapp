@@ -1127,3 +1127,71 @@ a.pn-btn-capsula {
     border-bottom: 0;
     border-radius: 14px;
 }
+
+/* ── Modo búsqueda: la lista de productos se queda con la pantalla ──────────
+   Medido en el iPhone con el teclado abierto (visor 508px): la cabecera se
+   llevaba 318px y el pie 166, así que el cuerpo donde el vendedor trabaja
+   quedaba en **25px** — el 5% de la pantalla. Buscando un producto entre 41,
+   entraban 3 enteros.
+
+   La cabecera dice cosas que valen al entrar (de quién es el pedido, de dónde
+   salieron las líneas) y que no valen nada mientras se elige un producto: el
+   párrafo del pedido habitual es cierto la primera vez y ruido las otras
+   cuatrocientas. Mientras el panel de alta está abierto, se repliega a lo
+   mínimo —volver, el paso y el nombre del cliente en una línea— y el pie
+   desaparece: el total corriendo no ayuda a elegir un producto.
+
+   Se ancla en `#pn-shell` porque el `:root` roto del proyecto le gana a
+   cualquier selector de clases (ver la nota de pantalla-pedido-nuevo-ab). */
+#pn-shell.pn-modo-busqueda .pn-sobretitulo,
+#pn-shell.pn-modo-busqueda .pn-head-nota,
+#pn-shell.pn-modo-busqueda .pn-grupo-chip {
+    display: none;
+}
+
+#pn-shell.pn-modo-busqueda .pn-head {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: 10px;
+}
+
+#pn-shell.pn-modo-busqueda .pn-head-row {
+    margin-bottom: 0;
+}
+
+/* El nombre del cliente se queda, pero deja de ser un titular: sigue diciendo
+   para quién es el pedido sin comerse la pantalla. */
+#pn-shell.pn-modo-busqueda .pn-titulo-cliente {
+    font-size: 1rem;
+    line-height: 1.25;
+    margin: 6px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#pn-shell.pn-modo-busqueda .pn-footer {
+    display: none;
+}
+
+/* El buscador se CLAVA debajo de la cabecera replegada.
+   Replegar la cabecera sola no alcanzaba: el espacio se libera arriba, pero el
+   control sigue donde estaba en el scroll. Medido, quedaba en y=423 de un
+   visor de 508 —29px por debajo— y el desplegable seguía entrando 3 productos
+   de 41. Fijándolo arriba, la lista se queda con el resto de la pantalla.
+   `--pn-head-alto` lo escribe `onDropdownOpen` con el alto real de la cabecera
+   ya replegada, para no clavar un número que envejezca con el contenido. */
+#pn-shell.pn-modo-busqueda #ph-add-panel {
+    position: fixed;
+    top: var(--pn-head-alto, 98px);
+    left: 0;
+    right: 0;
+    z-index: 60;
+    margin: 0;
+    padding: 10px 16px 12px;
+    background: var(--pn-papel);
+    border-bottom: 2px solid var(--pn-tinta);
+}
+
+/* El alto del desplegable NO se fija acá: lo calcula `onDropdownOpen` con el
+   espacio real que queda después de replegar la cabecera, y un valor inline
+   le ganaría a esta regla igual. */

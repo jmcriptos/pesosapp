@@ -332,6 +332,24 @@ let tomProducto = null;
    en la misma pasada síncrona (antes de que el navegador pinte nada) y la
    apaga. Un toque real nunca pasa por acá, así que sigue abriendo normal. */
 let focoProgramatico = false;
+
+/* Mientras el vendedor elige un producto, la LISTA es la pantalla.
+
+   Medido en el iPhone con el teclado abierto (visor de 508px): la cabecera se
+   llevaba 318px y el pie 166, así que el cuerpo útil quedaba en **25px** —el
+   5%— y de 41 productos entraban 3 enteros. La cabecera dice cosas que valen
+   al entrar (de quién es el pedido, de dónde salieron las líneas) y que no
+   valen nada mientras se elige: el párrafo del pedido habitual es cierto la
+   primera vez y ruido las otras cuatrocientas.
+
+   Se ata a la apertura del desplegable y no a la del panel de alta, porque el
+   panel queda abierto DESPUÉS de añadir: atarlo ahí escondería el total justo
+   cuando el vendedor quiere ver que su línea entró. */
+function modoBusqueda(activo) {
+    const shell = document.getElementById('pn-shell');
+    if (shell) shell.classList.toggle('pn-modo-busqueda', !!activo);
+}
+
 function enfocarProductoSinAbrir() {
     if (!tomProducto) return;
     focoProgramatico = true;
@@ -1147,10 +1165,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             addFila.hidden = true;
             camposDebajoDelBuscador().forEach(campo => { campo.hidden = true; });
-            const disponible = window.innerHeight - 16 - dropdown.getBoundingClientRect().top;
-            dropdown.style.maxHeight = Math.max(120, disponible) + 'px';
+            // Replegar la cabecera y clavar el buscador arriba MUEVE el
+            // control, y el desplegable vive en <body> con coordenadas
+            // absolutas que Tom Select calculó antes de todo eso. Así que:
+            // primero se cambia el layout, después se lee la posición NUEVA
+            // del control, y recién ahí se recoloca el desplegable. Leerlo
+            // antes daba 3 productos de 41 con la pantalla medio vacía.
+            modoBusqueda(true);
+            const cabecera = document.querySelector('.pn-head:not([hidden])');
+            if (cabecera) {
+                document.getElementById('pn-shell').style.setProperty(
+                    '--pn-head-alto', Math.round(cabecera.getBoundingClientRect().height) + 'px');
+            }
+            const control = this.control.getBoundingClientRect();
+            dropdown.style.top = (control.bottom + window.scrollY + 2) + 'px';
+            const disponible = Math.max(160, window.innerHeight - 12 - control.bottom);
+            dropdown.style.maxHeight = disponible + 'px';
+            // Tom Select le pone `max-height: 200px` a su PROPIO
+            // `.ts-dropdown-content`, un nivel más adentro: sin esto el
+            // desplegable quedaba clavado en 202px por más pantalla libre que
+            // hubiera, y entraban 6 productos de 41.
+            const contenido = dropdown.querySelector('.ts-dropdown-content');
+            if (contenido) contenido.style.maxHeight = disponible + 'px';
         },
         onDropdownClose: function () {
+            modoBusqueda(false);
             addFila.hidden = false;
             camposDebajoDelBuscador().forEach(campo => { campo.hidden = false; });
         },
