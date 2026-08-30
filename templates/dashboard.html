@@ -82,17 +82,19 @@
 {# ══════════════════════════════════════════════════════════════
    MACRO: selector de periodo del Top
 
-   La ruta ya calculaba los rankings a mes / 4 semanas / 3 meses / 6 meses y
-   tiraba tres de los cuatro. El control los pone a la vista sin una consulta
-   más: los cuatro periodos viajan en el mismo request.
+   La ruta ya calculaba los rankings a mes / 3 meses / 6 meses y tiraba dos de
+   los tres. El control los pone a la vista sin una consulta más: los tres
+   periodos viajan en el mismo request.
 
-   Botones con `aria-pressed` y no un tablist: no hay cuatro paneles, hay una
+   Botones con `aria-pressed` y no un tablist: no hay tres paneles, hay una
    lista que cambia de contenido. Anunciar pestañas que no existen le miente al
    lector de pantalla.
    ══════════════════════════════════════════════════════════════ #}
 {% macro selector_periodo(destino, etiqueta) %}
   <div class="periodo-tabs" role="group" aria-label="{{ etiqueta }}" data-periodo-para="{{ destino }}">
-    {% for clave, texto in [('month', 'Mes'), ('4w', '4 sem'), ('3m', '3 meses'), ('6m', '6 meses')] %}
+    {# Sin "4 sem": se solapaba con "Mes" —a fin de mes son casi la misma
+       ventana— y tres destinos separan mejor que cuatro que se pisan. #}
+    {% for clave, texto in [('month', 'Mes'), ('3m', '3 meses'), ('6m', '6 meses')] %}
     <button type="button" class="periodo-chip{{ ' is-on' if clave == 'month' }}"
             data-periodo="{{ clave }}" aria-pressed="{{ 'true' if clave == 'month' else 'false' }}">{{ texto }}</button>
     {% endfor %}
@@ -756,17 +758,23 @@
   // escrita en el propio DESIGN.md —«un color de estado nunca es la serie de
   // un gráfico»— y además mentía: pintaba de "conforme" una semana floja.
   //
-  // Las dos series son la MISMA medida (ventas semanales; la línea es su media
-  // móvil de 3 semanas), así que van en la misma familia índigo separadas por
-  // claridad, y la forma —barra contra línea— es la que carga la identidad.
-  // Validado con el validador de la skill dataviz: ΔE 23.0 con visión normal y
-  // 20.3 bajo protanopía; el aviso de contraste del índigo claro lo cubre la
-  // tabla "Ver los datos" que acompaña al gráfico.
+  // Barras en Índigo de Lectura (el dato) y línea de tendencia en Tinta (su
+  // media móvil de 3 semanas). Dos índigos separados solo por claridad no
+  // alcanzaban: la línea no se despegaba de las barras. Y "otro azul" tampoco
+  // es la salida —Azul de Dato contra el índigo separa ΔE 2,9 bajo
+  // deuteranopía, o sea indistinguible—; el único hueco de color que quedaría
+  // es el ámbar, y DESIGN.md lo reserva para estado.
   //
-  // --indigo-400/-700 y no -500: `data-hue="blue"` en el <body> reescribe
-  // --indigo-500 y --indigo-300, así que esos dos no valen lo que dicen.
-  var cVentas = token('--indigo-400', '#818cf8');
-  var cTendencia = token('--indigo-700', '#4338ca');
+  // Medido con el validador de la skill dataviz: ΔE 41,2 con visión normal y
+  // 40,4 bajo deuteranopía, y es la ÚNICA combinación probada donde las dos
+  // marcas superan 3:1 contra el fondo, sin avisos que haya que relevar.
+  //
+  // Se leen de la escala cruda (--indigo-500, --gray-900) y no de tokens
+  // semánticos como --color-text: los tokens claros están scopeados al área de
+  // contenido, así que en :root --color-text devuelve el valor OSCURO. Es el
+  // mismo error que dejó la firma en blanco en las pantallas ops.
+  var cVentas = token('--indigo-500', '#6366f1');
+  var cTendencia = token('--gray-900', '#0f172a');
 
   // Ejes y grillas sobre tarjeta clara. Antes heredaban una configuración
   // pensada para fondo oscuro: #94a3b8 sobre blanco da 2.56:1 y la grilla iba

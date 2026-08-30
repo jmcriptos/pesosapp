@@ -122,7 +122,6 @@ _PAYLOAD_QB = {
         },
         '6m': {'top_productos': [], 'top_clientes': []},
         '3m': {'top_productos': [], 'top_clientes': []},
-        '4w': {'top_productos': [], 'top_clientes': []},
     },
 }
 
@@ -148,11 +147,11 @@ def test_quickbooks_manda_sobre_las_cifras_de_la_pantalla(logged_client, monkeyp
 
 
 def test_con_quickbooks_completo_no_se_construye_ningun_ranking_local(logged_client, monkeypatch):
-    """Con los cuatro periodos servidos, el segundo recorrido tampoco corre."""
+    """Con los tres periodos servidos, el segundo recorrido tampoco corre."""
     payload = dict(_PAYLOAD_QB)
     payload['rankings_periodos'] = {
         k: dict(_PAYLOAD_QB['rankings_periodos']['month'])
-        for k in ('month', '6m', '3m', '4w')
+        for k in ('month', '6m', '3m')
     }
     monkeypatch.setattr(app_module, '_obtener_metricas_ventas_quickbooks',
                         lambda *a, **kw: payload)

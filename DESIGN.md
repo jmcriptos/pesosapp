@@ -223,6 +223,16 @@ centro, es un bug, no una variante.
 Nunca son «el cuarto color de la serie» en un gráfico ni un acento decorativo. Y al
 revés: un estado nunca viaja solo en el color — siempre lleva icono o palabra.
 
+**El costo de esa regla, y cómo se paga.** Reservar el ámbar deja al sistema sin el
+único hue que contrasta de verdad contra el índigo, así que **una segunda serie sobre
+índigo se separa por tinta, no por hue**. Medido: Azul de Dato contra Índigo de
+Lectura separa ΔE 2,9 bajo deuteranopía —indistinguible— y 10,4 con visión normal;
+Tinta contra Índigo separa 40,4 y 41,2, y es la única combinación probada donde las
+dos marcas superan 3:1 contra el fondo. Por eso el gráfico de tendencia son barras en
+Índigo de Lectura (el dato) y una línea en Tinta (su media móvil). Agregar un cuarto
+hue al sistema para gráficos es una decisión abierta; mientras no se tome, la
+respuesta a «que la línea resalte» es tinta, no otro azul.
+
 **La Regla de los Dos Grises.** Sobre tarjeta blanca, el texto secundario es Tinta
 Tenue (`#64748b`, 4.76:1). Sobre el fondo de la pantalla (`#f4f6fa`/`#f8fafc`) ese mismo
 gris cae a 4.4:1 y hay que usar Tinta Media (`#475569`). El fondo decide el gris.
@@ -380,7 +390,7 @@ en esa posición: es lo que convierte el color en algo que se puede aprender. Re
 los anillos de progreso, que competían por el ancho con la cifra.
 
 ### Selector de periodo (componente propio)
-Una fila de chips en píldora —Mes · 4 sem · 3 meses · 6 meses— que cambia el alcance
+Una fila de chips en píldora —Mes · 3 meses · 6 meses— que cambia el alcance
 de una lista sin recargar la página. Son `<button>` con `aria-pressed`, **no** un
 `role="tablist"`: no hay cuatro paneles, hay una lista que cambia de contenido, y
 anunciar pestañas que no existen le miente al lector de pantalla. El chip activo

@@ -223,7 +223,9 @@ def test_el_grafico_no_pinta_las_barras_con_verde_de_estado(app):
     for prohibido in ('--mark-good', '--mark-warning', '--mark-critical',
                       '16,185,129', '#10b981'):
         assert prohibido not in script, f'color de estado {prohibido} en el gráfico'
-    assert '--indigo-400' in html and '--indigo-700' in html
+    # Barras en el índigo de marca y línea de tendencia en tinta: dos índigos
+    # separados solo por claridad no despegaban la línea de las barras.
+    assert '--indigo-500' in html and '--gray-900' in html
 
 
 # === El selector de periodo del Top ===
@@ -247,7 +249,7 @@ def test_selector_de_periodo_lleva_su_javascript(app):
             'max_ventas': 4333.0,
             'max_total_clientes': 4333.0,
         }
-        for clave in ('month', '4w', '3m', '6m')
+        for clave in ('month', '3m', '6m')
     }
 
     with app.test_request_context():
@@ -259,7 +261,10 @@ def test_selector_de_periodo_lleva_su_javascript(app):
 
     # La mitad visible: dos grupos de chips, uno por ranking.
     assert html.count('data-periodo-para=') == 2
-    assert 'data-periodo="4w"' in html and 'data-periodo="6m"' in html
+    assert 'data-periodo="3m"' in html and 'data-periodo="6m"' in html
+    # '4w' se retiró el 2026-08-30: a fin de mes esa ventana y 'month' son casi
+    # la misma, y tres destinos separan mejor que cuatro que se pisan.
+    assert 'data-periodo="4w"' not in html
     # La mitad que lo hace funcionar.
     assert 'function pintar' in html
     assert 'data-rank-lista="productos"' in html
@@ -281,7 +286,7 @@ def test_sin_datos_de_mas_de_un_periodo_no_hay_selector(app):
 def test_la_pantalla_degradada_no_ofrece_otros_periodos(app):
     """Con los datos caídos, cambiar de periodo no puede traer nada mejor."""
     periodos = {c: {'top_productos': [], 'top_clientes': []}
-                for c in ('month', '4w', '3m', '6m')}
+                for c in ('month', '3m', '6m')}
     with app.test_request_context():
         html = flask_app.jinja_env.get_template('dashboard.html').render(
             rankings_periodos_json=periodos,

@@ -1757,11 +1757,14 @@ def _normalizar_metricas_ventas_quickbooks(
             'pedidos': len(datos.get('_invoices', set()))
         })
 
+    # Sin '4w': a fin de mes esa ventana y 'month' son casi la misma, y el
+    # selector del Top ya no la ofrece. Ningún otro consumidor del helper lee
+    # los rankings —los demás solo usan ventas_mes y ventas_diarias_idx—, así
+    # que el periodo se retira entero y no solo su botón.
     period_starts = {
         'month': inicio_mes,
         '6m': inicio_tendencia,
         '3m': inicio_semana - timedelta(weeks=12),
-        '4w': inicio_semana - timedelta(weeks=3),
     }
 
     if ranking_client_rows or ranking_product_rows:
@@ -5593,11 +5596,10 @@ def dashboard():
         inicio_mes_anterior = fin_mes_anterior.replace(day=1)
         inicio_tendencia = inicio_semana - timedelta(weeks=25)
         inicio_ultimos_7_dias = hoy - timedelta(days=6)
-        pedidos_period_starts = {
-            '6m': hoy - timedelta(days=181),
-            '3m': hoy - timedelta(days=90),
-            '4w': hoy - timedelta(days=27),
-        }
+        # Era un diccionario de tres periodos del que solo se lee '6m': los
+        # otros dos alimentaban las series diarias que se borraron con el resto
+        # del contexto muerto.
+        inicio_pedidos_6m = hoy - timedelta(days=181)
 
         # === CLIENTE EXCLUIDO (ALMACÉN INTERNO) ===
         # AL01 es usado para registrar pesos e imprimir etiquetas de almacén, no son pedidos reales
@@ -5616,7 +5618,7 @@ def dashboard():
             # Cargar una sola vez pedidos de los últimos ~6 meses con relaciones necesarias,
             # para evitar N+1 y múltiples consultas solapadas por período.
             inicio_historico_mensual = (inicio_mes - relativedelta(months=5)).replace(day=1)
-            inicio_carga_pedidos = min(inicio_historico_mensual, pedidos_period_starts['6m'])
+            inicio_carga_pedidos = min(inicio_historico_mensual, inicio_pedidos_6m)
             pedido_load_options = (
                 load_only(
                     Pedido.id,
@@ -5682,7 +5684,7 @@ def dashboard():
             ]
             pedidos_6m_list = [
                 p for p, fecha in pedidos_base_with_dates
-                if fecha >= pedidos_period_starts['6m']
+                if fecha >= inicio_pedidos_6m
             ]
 
             pedidos_facturados_list = [
@@ -5926,11 +5928,12 @@ def dashboard():
         mark_dashboard_perf('kpis_servicio')
 
         # === RANKINGS DE PRODUCTOS/CLIENTES (MES + 6M/3M/4S) ===
+        # Mismos periodos que el helper de QuickBooks, y sin '4w' por la misma
+        # razón: se solapaba con el mes.
         period_starts_rankings = {
             'month': inicio_mes,
             '6m': inicio_tendencia,
             '3m': inicio_semana - timedelta(weeks=12),
-            '4w': inicio_semana - timedelta(weeks=3),
         }
 
         # El ranking local es el SEGUNDO recorrido completo de los facturados,
