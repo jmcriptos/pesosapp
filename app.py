@@ -5862,8 +5862,6 @@ def dashboard():
             if obtener_metricas_pedido(p)['fecha_fact_local'] == hoy
         )
 
-        pedidos_operativos = []
-
         # Vencidos y preparados se cuentan sobre la MISMA población que
         # `pedidos_pendientes` (toda la carga, ~6 meses), no sobre los últimos
         # 30 días. Antes la tarjeta decía "19 pendientes · 0 vencidos" porque
@@ -5873,8 +5871,8 @@ def dashboard():
         pedidos_preparados_activos = 0
         # `pedidos_urgentes` es la cola de trabajo que la pantalla muestra: los
         # mismos pedidos que producen el conteo de vencidos, ordenados por
-        # antigüedad. Antes el dashboard calculaba una lista equivalente
-        # (`pedidos_operativos`, 30 días) y no la usaba en ninguna plantilla.
+        # antigüedad. Reemplaza a una lista equivalente de 30 días que la ruta
+        # armaba en cada request y que ninguna plantilla llegó a usar.
         pedidos_urgentes = []
         for p in pedidos_base_list:
             estado_p = (p.estado or '').strip().lower()
@@ -5909,67 +5907,6 @@ def dashboard():
         pedidos_urgentes.sort(key=lambda x: (-x['edad_dias'], x['id']))
         pedidos_urgentes_total = len(pedidos_urgentes)
         pedidos_urgentes = pedidos_urgentes[:6]
-
-        # El donut de "Estado de pedidos" sí promete 30 días en su encabezado,
-        # así que conserva su propio conteo.
-        vencidos_30_dias = 0
-
-        estado_priority = {
-            'pendiente': 0,
-            'preparado': 1,
-            'facturado': 2,
-        }
-
-        for p in pedidos_30_dias:
-            pedido_metricas = obtener_metricas_pedido(p)
-            estado = pedido_metricas['estado'] or 'sin_estado'
-            fecha_pedido_local = pedido_metricas['fecha_pedido_local']
-            edad_dias = (hoy - fecha_pedido_local).days if fecha_pedido_local else 0
-            total_xcg = round(pedido_metricas['venta'], 2)
-            cliente_nombre = p.cliente.nombre if p.cliente and p.cliente.nombre else 'Sin cliente'
-
-            es_urgente = estado in ('pendiente', 'preparado') and edad_dias > 2
-            if es_urgente:
-                vencidos_30_dias += 1
-
-            if estado == 'facturado':
-                sla_text = 'Facturado'
-                sla_class = 'sla-ok'
-            elif edad_dias <= 1:
-                sla_text = 'En tiempo'
-                sla_class = 'sla-ok'
-            elif edad_dias == 2:
-                sla_text = 'Límite hoy'
-                sla_class = 'sla-warn'
-            else:
-                sla_text = f'Vencido {edad_dias - 2}d'
-                sla_class = 'sla-danger'
-
-            pedidos_operativos.append({
-                'id': p.id,
-                'cliente': cliente_nombre,
-                'estado': estado,
-                'fecha_pedido': fecha_pedido_local.strftime('%d/%m') if fecha_pedido_local else 'N/A',
-                'fecha_pedido_full': p.fecha_pedido.strftime('%d/%m %H:%M') if p.fecha_pedido else '',
-                'edad_dias': max(0, edad_dias),
-                'total_xcg': total_xcg,
-                'sla_text': sla_text,
-                'sla_class': sla_class,
-                'es_urgente': es_urgente,
-                'puede_preparar': estado == 'pendiente',
-                'puede_facturar': estado == 'preparado',
-                'puede_editar': estado != 'facturado',
-            })
-
-        pedidos_operativos.sort(
-            key=lambda x: (
-                estado_priority.get(x['estado'], 3),
-                -x['edad_dias'],
-                -x['total_xcg'],
-                -x['id']
-            )
-        )
-        pedidos_operativos = pedidos_operativos[:20]
 
         # === VENTAS DIARIAS (excluyendo AL01) ===
         ventas_dias = []
@@ -6054,9 +5991,7 @@ def dashboard():
             pedidos_resumen_periodos=pedidos_resumen_periodos,
             tendencia_semanal=tendencia_semanal,
             pedidos_recientes=pedidos_recientes_data,
-            pedidos_operativos=pedidos_operativos,
             pedidos_vencidos=pedidos_vencidos,
-            vencidos_30_dias=vencidos_30_dias,
             pedidos_urgentes=pedidos_urgentes,
             pedidos_urgentes_total=pedidos_urgentes_total,
             pedidos_preparados_activos=pedidos_preparados_activos,
@@ -6122,9 +6057,7 @@ def dashboard():
             },
             'tendencia_semanal': [],
             'pedidos_recientes': [],
-            'pedidos_operativos': [],
             'pedidos_vencidos': 0,
-            'vencidos_30_dias': 0,
             'pedidos_urgentes': [],
             'pedidos_urgentes_total': 0,
             'pedidos_preparados_activos': 0,
