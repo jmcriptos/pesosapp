@@ -712,6 +712,112 @@ def test_el_css_del_radar_no_usa_el_gris_de_bajo_contraste():
     assert not re.search(r':\s*#94a3b8\b', css)
 
 
+def _valor_regla(css, selector, propiedad):
+    """Extrae `propiedad: #xxxxxx` del bloque `{...}` de `selector` en `css`.
+
+    Lee el valor QUE ESTÁ HOY en el archivo, no uno copiado a mano: así, si
+    alguien cambia el color de `.radar-cuenta` y no toca este test, el
+    cálculo de contraste corre igual sobre el valor nuevo (y puede fallar de
+    verdad), en vez de seguir comparando contra un literal viejo que ya no
+    describe el CSS.
+    """
+    m = re.search(re.escape(selector) + r'\s*\{([^}]*)\}', css, re.S)
+    assert m, f'no se encontró la regla {selector!r} en el CSS'
+    pm = re.search(propiedad + r'\s*:\s*(#[0-9a-fA-F]{6})', m.group(1))
+    assert pm, f'{selector!r} no define {propiedad!r}'
+    return pm.group(1)
+
+
+def test_los_colores_del_radar_llegan_al_minimo_de_contraste():
+    """Calcula la razón WCAG real, contra el fondo REAL de cada regla —
+    leyendo los colores DEL ARCHIVO, no copiados a mano en el test.
+
+    El test `..._no_usa_el_gris_de_bajo_contraste` de arriba sólo prohibía
+    el literal `#94a3b8`. No habría cazado el fallo que motivó este test:
+    `.radar-cuenta` en `#64748b` sobre `#f1f5f9` (su propio fondo) daba
+    4,34:1 —por debajo del 4,5 de 12px bold— y el comentario del CSS
+    afirmaba 4,76 porque estaba calculado contra BLANCO y no contra el
+    fondo real del badge. Medir contra el fondo equivocado es el error que
+    este test existe para impedir.
+
+    Comprobado a mano que este test puede fallar: con `.radar-cuenta`
+    devuelto a `color: #64748b` (el valor de antes de la corrección), esta
+    misma función reporta `cuenta de sección (badge): #64748b sobre
+    #f1f5f9 = 4.34:1 (mínimo 4.5)` y el assert final se dispara — porque
+    lee el color de la regla en vivo, no un texto fijo en el test.
+    """
+    def luminancia(hex_color):
+        h = hex_color.lstrip('#')
+        canales = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+
+        def lineal(v):
+            return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+        r, g, b = (lineal(c) for c in canales)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    def razon(fg, bg):
+        l1, l2 = luminancia(fg), luminancia(bg)
+        alto, bajo = max(l1, l2), min(l1, l2)
+        return (alto + 0.05) / (bajo + 0.05)
+
+    css_completo = _GESTION_CSS.read_text(encoding='utf-8')
+    css = _css_radar()
+
+    # Fondos compartidos, fuera del bloque `.radar-*` (los pinta el patrón
+    # de gestión para toda pantalla, no el radar) — también leídos en vivo,
+    # de las reglas que ya existían antes de esta tarea.
+    pagina_bg = _valor_regla(css_completo, 'body[data-gestion-screen] .app-content,\nbody[data-gestion-screen] .mobile-form-container', 'background')
+    fila_bg = _valor_regla(css_completo, 'body[data-gestion-screen] .gestion-row', 'background')
+
+    # (qué es, color, fondo real, mínimo) — todo leído del CSS salvo el
+    # nombre y el mínimo. Ninguno de estos textos califica como "texto
+    # grande" de WCAG (18px normal o 14pt/~18,7px bold): todos van entre
+    # 12px y 14.4px, así que el mínimo es 4,5:1 en todos los casos.
+    pares = [
+        # Encabezado de sección: sin fondo propio, se apoya en el área de
+        # contenido (regla 1 de gestion.css).
+        ('título de sección', _valor_regla(css, '.radar-titulo', 'color'), pagina_bg, 4.5),
+        # El badge de cuenta SÍ trae fondo propio: éste es el par que
+        # estaba mal, calculado antes contra blanco en vez de contra el
+        # suyo.
+        ('cuenta de sección (badge)',
+         _valor_regla(css, '.radar-cuenta', 'color'),
+         _valor_regla(css, '.radar-cuenta', 'background'), 4.5),
+        ('título de atrasados',
+         _valor_regla(css, '[data-radar-grupo="atrasados"] .radar-titulo', 'color'),
+         pagina_bg, 4.5),
+        ('cuenta de atrasados (badge)',
+         _valor_regla(css, '[data-radar-grupo="atrasados"] .radar-cuenta', 'color'),
+         _valor_regla(css, '[data-radar-grupo="atrasados"] .radar-cuenta', 'background'), 4.5),
+        # La fila (.gestion-row) SÍ trae fondo propio blanco, así que estos
+        # dos van contra ese blanco de verdad.
+        ('meta de la fila (días/ritmo/pedidos)',
+         _valor_regla(css, 'body[data-gestion-screen] .gestion-row-sub.radar-meta', 'color'),
+         fila_bg, 4.5),
+        ('meta de la fila, "(estimado)"',
+         _valor_regla(css, '.radar-meta em', 'color'), fila_bg, 4.5),
+        ('acción principal ("+ Pedido")',
+         _valor_regla(css, '.radar-action-main', 'color'),
+         _valor_regla(css, '.radar-action-main', 'background'), 4.5),
+        ('acción principal, hover',
+         _valor_regla(css, '.radar-action-main', 'color'),
+         _valor_regla(css, '.radar-action-main:hover', 'background'), 4.5),
+        # Mismo fondo que el encabezado de sección: #f8fafc explícito
+        # dentro de la propia regla `.radar-vacio`.
+        ('mensaje "Todos al día"',
+         _valor_regla(css, '.radar-vacio', 'color'),
+         _valor_regla(css, '.radar-vacio', 'background'), 4.5),
+    ]
+
+    flojos = [
+        f'{que}: {fg} sobre {bg} = {razon(fg, bg):.2f}:1 (mínimo {minimo})'
+        for que, fg, bg, minimo in pares
+        if razon(fg, bg) < minimo
+    ]
+    assert not flojos, 'colores por debajo del mínimo: ' + '; '.join(flojos)
+
+
 def test_radar_meta_gana_la_guerra_de_especificidad_contra_gestion_row_sub():
     """`body[data-gestion-screen] .gestion-row-sub` (arriba en este mismo
     archivo) ya trae un color propio con especificidad (0,2,1) — un

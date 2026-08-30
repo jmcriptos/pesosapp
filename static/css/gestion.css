@@ -260,18 +260,21 @@ body[data-gestion-screen] .chip-primary { background: var(--color-primary-soft);
   display: flex; align-items: center; gap: 8px;
   margin: 0 0 8px; padding: 0;
   font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em;
-  text-transform: uppercase; color: #475569;   /* 7,58:1 sobre blanco */
+  text-transform: uppercase; color: #475569;   /* 7,24:1 sobre #f8fafc (fondo real del área) */
   background: none; border: 0; width: 100%; text-align: left;
 }
 .radar-titulo-plegable { min-height: 44px; cursor: pointer; }
 .radar-titulo-plegable[aria-expanded="true"] .radar-chevron { transform: rotate(90deg); }
 .radar-chevron { transition: transform 0.15s ease; }
 .radar-cuenta {
-  font-weight: 700; color: #64748b;             /* 4,76:1 */
+  font-weight: 700; color: #475569;             /* 6,92:1 sobre #f1f5f9 (el fondo real
+                                                     del badge, no blanco: #64748b daba
+                                                     solo 4,34:1 ahí, por debajo del
+                                                     mínimo de 4,5:1) */
   background: #f1f5f9; border-radius: 99px; padding: 1px 8px; font-size: 0.75rem;
 }
-[data-radar-grupo="atrasados"] .radar-titulo { color: #b45309; }     /* 5,02:1 */
-[data-radar-grupo="atrasados"] .radar-cuenta { color: #92400e; background: #fef3c7; } /* 7,09:1 */
+[data-radar-grupo="atrasados"] .radar-titulo { color: #b45309; }     /* 4,80:1 sobre #f8fafc */
+[data-radar-grupo="atrasados"] .radar-cuenta { color: #92400e; background: #fef3c7; } /* 6,37:1 sobre #fef3c7 */
 
 .radar-grupo { list-style: none; padding: 0; margin: 0; }
 .radar-grupo[hidden] { display: none !important; }
@@ -293,12 +296,13 @@ body[data-gestion-screen] .gestion-row-sub.radar-meta { color: #475569; }
 .radar-action-main {
   display: inline-flex; align-items: center; gap: 6px;
   min-height: 44px; padding: 0 14px; border-radius: 10px;
-  background: #e0e7ff; color: #4338ca;        /* 7,9:1 */
+  background: #e0e7ff; color: #4338ca;        /* 6,41:1 sobre #e0e7ff (el fondo real
+                                               del chip, no blanco) */
   font-size: 0.85rem; font-weight: 700; text-decoration: none;
 }
 .radar-action-main:hover { background: #c7d2fe; }
 .radar-vacio {
   margin: 0; padding: 14px 12px; border-radius: 12px;
-  background: #f8fafc; color: #475569; font-size: 0.9rem;   /* 7,58:1 */
+  background: #f8fafc; color: #475569; font-size: 0.9rem;   /* 7,24:1 sobre #f8fafc */
 }
 
