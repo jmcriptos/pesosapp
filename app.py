@@ -1672,6 +1672,40 @@ def _normalizar_metricas_ventas_quickbooks(
     }
 
 
+_qb_refresh_lock = threading.Lock()
+_qb_refresh_en_curso = False
+
+
+def _lanzar_refresco_qb_en_segundo_plano(*args_fechas):
+    """Refresca la caché de ventas de QuickBooks sin bloquear al usuario.
+
+    La llamada a n8n/QuickBooks tarda ~7,6s y agota los 8s de timeout con
+    frecuencia. Antes, el primero que abría el dashboard después de vencer el
+    TTL se comía esa espera entera; y si el timeout ganaba, la pantalla caía a
+    los números locales —que son otra métrica— sin decir nada. Ahora ese
+    usuario recibe lo último bueno que haya en caché y el refresco corre acá.
+
+    Un solo hilo a la vez: si ya hay uno en curso, esta llamada no hace nada.
+    """
+    global _qb_refresh_en_curso
+    with _qb_refresh_lock:
+        if _qb_refresh_en_curso:
+            return
+        _qb_refresh_en_curso = True
+
+    def _correr():
+        global _qb_refresh_en_curso
+        try:
+            _obtener_metricas_ventas_quickbooks(*args_fechas, _refrescando=True)
+        except Exception as e:
+            app.logger.warning(f'Refresco de ventas QuickBooks en segundo plano falló: {e}')
+        finally:
+            with _qb_refresh_lock:
+                _qb_refresh_en_curso = False
+
+    threading.Thread(target=_correr, name='qb-sales-refresh', daemon=True).start()
+
+
 def _obtener_metricas_ventas_quickbooks(
     hoy,
     inicio_mes,
@@ -1680,6 +1714,7 @@ def _obtener_metricas_ventas_quickbooks(
     fin_mes_anterior,
     inicio_tendencia,
     inicio_ultimos_7_dias,
+    _refrescando=False,
 ):
     global _qb_sales_cache
 
@@ -1714,26 +1749,45 @@ def _obtener_metricas_ventas_quickbooks(
     )
 
     if (
-        N8N_QB_CACHE_TTL > 0
+        not _refrescando
+        and N8N_QB_CACHE_TTL > 0
         and cache_hit_for_key
         and _qb_sales_cache.get('expires_at', 0.0) > now_ts
     ):
         return _qb_sales_cache.get('value')
     if (
-        N8N_QB_FAILURE_CACHE_TTL > 0
+        not _refrescando
+        and N8N_QB_FAILURE_CACHE_TTL > 0
         and cache_hit_for_key
         and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
     ):
         return cached_value if has_stale_value else None
-    if (
-        has_stale_value
-        and N8N_QB_REFRESH_THROTTLE_SEC > 0
-        and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
-    ):
+
+    # Con un valor servible en mano nadie espera la red: se devuelve lo
+    # cacheado al instante y, si pasó el throttle, el refresco va por detrás.
+    if has_stale_value and not _refrescando:
+        dentro_del_throttle = (
+            N8N_QB_REFRESH_THROTTLE_SEC > 0
+            and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
+        )
+        if not dentro_del_throttle:
+            _lanzar_refresco_qb_en_segundo_plano(
+                hoy,
+                inicio_mes,
+                inicio_semana,
+                inicio_mes_anterior,
+                fin_mes_anterior,
+                inicio_tendencia,
+                inicio_ultimos_7_dias,
+            )
         return cached_value
 
-    blocking_timeout = N8N_QB_SALES_TIMEOUT
-    if N8N_QB_BLOCKING_TIMEOUT_MS > 0:
+    # N8N_QB_BLOCKING_TIMEOUT_MS es el presupuesto de "cuánto puede esperar un
+    # usuario". En el refresco de segundo plano no espera nadie, así que ahí se
+    # usa el timeout completo: con 8s la llamada expiraba seguido y la pantalla
+    # caía a los números locales, que son otra métrica.
+    blocking_timeout = float(N8N_QB_SALES_TIMEOUT)
+    if not _refrescando and N8N_QB_BLOCKING_TIMEOUT_MS > 0:
         blocking_timeout = min(
             float(N8N_QB_SALES_TIMEOUT),
             float(N8N_QB_BLOCKING_TIMEOUT_MS) / 1000.0
