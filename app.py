@@ -3317,6 +3317,12 @@ _RADAR_RITMO_NEGOCIO = 13    # mediana global entre días distintos con pedido
 _RADAR_MIN_INTERVALOS = 2    # o sea, 3 fechas distintas
 _RADAR_UMBRAL = 1.5          # se pasó de su ritmo esta cantidad de veces
 _RADAR_DORMIDO_DIAS = 90
+# Fechas separadas por esto o menos son la MISMA visita, encadenando mientras
+# las compras sigan seguidas. Ver `_ritmo_cliente`. Medido contra los 62
+# clientes de producción el 2026-08-29, cualquier valor entre 2 y 10 daba la
+# misma lista de atrasados; es una foto de esos datos, no una garantía del
+# algoritmo.
+_RADAR_RAFAGA_DIAS = 3
 
 
 def _dia_local(valor):
@@ -3337,18 +3343,47 @@ def _dia_local(valor):
 def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
     """Cada cuántos días vuelve este cliente, y si el dato es suyo o prestado.
 
-    Mide entre FECHAS DISTINTAS con pedido, no entre pedidos. Hay clientes que
-    cargan varios pedidos la misma fecha; entre pedidos su mediana da 0 días,
-    lo que los marca atrasados por división contra cero y además imprime
-    «ritmo 0d» en la fila. Best Buy era exactamente ese caso y salía como falso
-    positivo en la validación contra producción.
+    Mide entre VISITAS, no entre pedidos ni entre fechas sueltas. Una visita es
+    un día con pedido más todos los días con pedido que le siguen dentro de
+    `_RADAR_RAFAGA_DIAS`.
 
-    Con menos de tres fechas no hay ritmo que calcular: se devuelve el del
+    Las dos veces que esta cuenta se equivocó fue por lo mismo: tomar por
+    cadencia lo que era una sola compra partida en varios registros.
+
+    - Contando PEDIDOS, un cliente que carga tres el mismo día daba mediana 0.
+      Best Buy salía atrasado con «ritmo 0d» —ilegible, y dividía por cero—.
+      De ahí salió medir entre fechas distintas.
+    - Contando FECHAS, un cliente que compró quince veces en una semana y
+      después desapareció diez meses daba mediana 3. Roberto Da Silva quedaba
+      segundo en «Atrasados» a los quince días de silencio, por encima de
+      clientes que dejaron de comprar de verdad. Su cadencia real es 158 días.
+      Colapsar la ráfaga es el mismo arreglo que el anterior, un escalón más
+      arriba: si un día de pedidos es una compra, una semana de pedidos
+      también.
+
+    Con menos de tres visitas no hay ritmo que calcular: se devuelve el del
     negocio y `es_propio=False`, para que la fila pueda decir «estimado» en vez
     de fingir una precisión que no existe.
     """
     unicas = sorted({_dia_local(f) for f in fechas if _dia_local(f) is not None})
-    intervalos = sorted((b - a).days for a, b in zip(unicas, unicas[1:]))
+
+    # Se compara contra la fecha ANTERIOR, no contra el inicio de la visita: la
+    # ráfaga se encadena mientras las compras sigan siendo seguidas, dure lo que
+    # dure. Anclando al inicio, la ventana es fija y una ráfaga más larga que
+    # ella se parte en visitas falsas: con 21 días seguidos de compras el ritmo
+    # volvía a salir 4 días, que es el mismo fallo que esto arregla.
+    #
+    # A cambio, un cliente que SIEMPRE compra dentro de la ventana —a diario,
+    # digamos— colapsa entero en una visita y queda con ritmo estimado. Es lo
+    # honesto: de una compra continua no se puede leer una cadencia. Anclando al
+    # inicio salía «ritmo propio: 4 días», un número inventado con cara de dato.
+    visitas, anterior = [], None
+    for dia in unicas:
+        if anterior is None or (dia - anterior).days > _RADAR_RAFAGA_DIAS:
+            visitas.append(dia)
+        anterior = dia
+
+    intervalos = sorted((b - a).days for a, b in zip(visitas, visitas[1:]))
     if len(intervalos) < _RADAR_MIN_INTERVALOS:
         return ritmo_negocio, False
     n = len(intervalos)
