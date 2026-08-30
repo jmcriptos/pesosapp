@@ -561,3 +561,12 @@
 .med-danger  .kpi-meter-fill { background: #be123c; }
 .med-neutral { background: rgba(79, 70, 229, 0.18); }
 .med-neutral .kpi-meter-fill { background: #4f46e5; }
+
+/* Título + sello a la izquierda, acción a la derecha. */
+.sec-head-main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}

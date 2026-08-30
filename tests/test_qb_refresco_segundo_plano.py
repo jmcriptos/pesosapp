@@ -237,3 +237,95 @@ def test_las_fechas_del_helper_son_las_que_usa_la_clave_de_cache():
     assert (f['inicio_semana'] - f['inicio_tendencia']).days == 25 * 7
     assert f['fin_mes_anterior'] < f['inicio_mes']
     assert f['inicio_mes_anterior'].day == 1
+
+
+# ── Sello de frescura ───────────────────────────────────────────────────────
+
+def test_sin_datos_traidos_no_hay_sello(monkeypatch):
+    monkeypatch.setattr(app_module, '_qb_sales_cache', {
+        'key': None, 'value': None, 'expires_at': 0.0, 'stale_expires_at': 0.0,
+        'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    })
+    assert app_module._qb_datos_traidos_en() is None
+
+
+def test_el_sello_es_la_hora_del_dato_no_la_del_render(monkeypatch):
+    """El caso que motivó el arreglo.
+
+    Con la ventana stale en 24h un valor servido puede tener horas encima. El
+    sello tiene que decir cuándo se trajo, no cuándo se dibujó la pantalla.
+    """
+    url = 'https://n8n.test/qb-sello'
+    args = _fechas()
+    ahora = time.time()
+    hace_20_horas = ahora - 20 * 3600
+    valor = {'ventas_mes': 999.0}
+    cache = {
+        'key': _clave_de_cache(url, args),
+        'value': valor,
+        'expires_at': ahora - 1,             # ya no está fresco
+        'stale_expires_at': ahora + 4 * 3600,  # pero sigue servible (24h)
+        'failure_expires_at': 0.0,
+        'last_refresh_attempt': ahora,       # dentro del throttle: sin refresco
+        'fetched_at': hace_20_horas,
+    }
+    llamadas = _preparar(monkeypatch, url, demora=0.05, args=args, cache=cache)
+
+    resultado = app_module._obtener_metricas_ventas_quickbooks(*args)
+    assert resultado is valor
+    assert llamadas['n'] == 0
+
+    sello = app_module._qb_datos_traidos_en()
+    assert sello is not None
+    edad_horas = (time.time() - sello.timestamp()) / 3600
+    assert 19.5 < edad_horas < 20.5, f'el sello dice {edad_horas:.1f}h, debía decir ~20h'
+
+
+def test_una_consulta_exitosa_deja_su_marca(monkeypatch):
+    url = 'https://n8n.test/qb-sello-nuevo'
+    args = _fechas()
+    cache = {
+        'key': None, 'value': None, 'expires_at': 0.0, 'stale_expires_at': 0.0,
+        'failure_expires_at': 0.0, 'last_refresh_attempt': 0.0,
+    }
+    _preparar(monkeypatch, url, demora=0.02, args=args, cache=cache)
+
+    app_module._obtener_metricas_ventas_quickbooks(*args)
+
+    sello = app_module._qb_datos_traidos_en()
+    assert sello is not None
+    assert abs(time.time() - sello.timestamp()) < 10
+
+
+def test_un_fallo_no_borra_la_marca_del_valor_que_sigue_sirviendo(monkeypatch):
+    """Si la consulta falla pero se sigue mostrando el valor viejo, el sello
+    tiene que seguir siendo el de ese valor viejo."""
+    import requests as _rq
+    url = 'https://n8n.test/qb-sello-fallo'
+    args = _fechas()
+    ahora = time.time()
+    hace_3_horas = ahora - 3 * 3600
+    valor = {'ventas_mes': 777.0}
+    cache = {
+        'key': _clave_de_cache(url, args),
+        'value': valor,
+        'expires_at': ahora - 1,
+        'stale_expires_at': ahora + 3600,
+        'failure_expires_at': 0.0,
+        'last_refresh_attempt': 0.0,
+        'fetched_at': hace_3_horas,
+    }
+    _preparar(monkeypatch, url, demora=0.01, args=args, cache=cache)
+
+    def revienta(*_a, **_kw):
+        raise _rq.RequestException('n8n caído')
+
+    monkeypatch.setattr(app_module.requests, 'post', revienta)
+
+    # `_refrescando=True` recorre el camino de red directo, como el hilo.
+    app_module._obtener_metricas_ventas_quickbooks(*args, _refrescando=True)
+
+    sello = app_module._qb_datos_traidos_en()
+    assert sello is not None
+    edad_horas = (time.time() - sello.timestamp()) / 3600
+    assert 2.5 < edad_horas < 3.5, f'el sello dice {edad_horas:.1f}h, debía conservar ~3h'

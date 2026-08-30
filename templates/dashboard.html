@@ -87,7 +87,11 @@
    misma plantilla con ceros. Sin esta bandera, una caída de la base se ve
    idéntica a un lunes tranquilo. #}
 {% set degradado_v            = degradado|default(false) %}
-{% set datos_al               = datos_actualizados_en %}
+{# El sello de frescura acompaña a las VENTAS, que son lo único que puede
+   venir de caché. Lo demás —pedidos, cola, rankings— se calcula en cada
+   request. Antes vivía en el hero y mostraba la hora del render, así que con
+   la ventana stale en 24h podía decir "datos al 13:52" sobre cifras de ayer. #}
+{% set ventas_al              = ventas_actualizadas_en %}
 {% set day_count              = (fecha_actual.day if fecha_actual else 30)|int %}
 {% set prom_dia               = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
 
@@ -148,7 +152,6 @@
       {%- if fecha_actual %}{{ fecha_actual.day }} de {{ meses_es[fecha_actual.month - 1] }}, {{ fecha_actual.year }}{% endif -%}
       {%- if degradado_v %} · sin datos
       {%- else %} · {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} requiere{{ 'n' if pedidos_pendientes_v != 1 }} atención
-        {%- if datos_al %} · datos al {{ datos_al.strftime('%H:%M') }}{% endif -%}
       {%- endif -%}
     </div>
   </div>
@@ -158,7 +161,16 @@
      ══════════════════════════════════════════════════════════ #}
   <section class="dash-section" data-dash-section="ventas" aria-labelledby="sec-meta">
     <div class="sec-head">
-      <h2 class="sec-title" id="sec-meta">Meta del mes</h2>
+      <div class="sec-head-main">
+        <h2 class="sec-title" id="sec-meta">Meta del mes</h2>
+        {% if ventas_al %}
+        {# Con fecha cuando el dato no es de hoy: "al 14:07" a secas se lee
+           como de hace un rato aunque sea de ayer. #}
+        <span class="sec-note" title="Momento en que se trajeron las ventas de QuickBooks">
+          Ventas al {% if fecha_actual and ventas_al.date() != fecha_actual %}{{ ventas_al.strftime('%d/%m') }} {% endif %}{{ ventas_al.strftime('%H:%M') }}
+        </span>
+        {% endif %}
+      </div>
       <a class="sec-action" href="{{ url_for('lista_pedidos') }}">Ver pedidos ›</a>
     </div>
 

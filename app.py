@@ -1698,6 +1698,19 @@ _qb_refresh_lock = threading.Lock()
 _qb_refresh_en_curso = False
 
 
+def _qb_datos_traidos_en():
+    """Cuándo se trajeron de QuickBooks los datos que hay en caché.
+
+    Devuelve un datetime en la zona del dashboard, o None si nunca se trajo
+    nada. Es lo que la pantalla debe estampar: la hora del render diría que
+    los números son de recién aunque tengan un día encima.
+    """
+    ts = _qb_sales_cache.get('fetched_at') or 0.0
+    if not ts:
+        return None
+    return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(DASHBOARD_TIMEZONE)
+
+
 def _lanzar_refresco_qb_en_segundo_plano(*args_fechas):
     """Refresca la caché de ventas de QuickBooks sin bloquear al usuario.
 
@@ -1862,6 +1875,10 @@ def _obtener_metricas_ventas_quickbooks(
             'stale_expires_at': cache_now + N8N_QB_STALE_CACHE_TTL if N8N_QB_STALE_CACHE_TTL > 0 else 0.0,
             'failure_expires_at': 0.0,
             'last_refresh_attempt': cache_now,
+            # Momento real de la consulta. Con la ventana stale en 24h, un
+            # valor servido puede tener horas encima: sin esto la pantalla
+            # estampaba la hora del render y decía que era de recién.
+            'fetched_at': cache_now,
         }
         qb_elapsed_ms = (perf_counter() - qb_fetch_start) * 1000
         if qb_elapsed_ms >= 1000:
@@ -1898,6 +1915,9 @@ def _obtener_metricas_ventas_quickbooks(
             'stale_expires_at': _qb_sales_cache.get('stale_expires_at', 0.0) if has_stale_value else 0.0,
             'failure_expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_FAILURE_CACHE_TTL,
             'last_refresh_attempt': now_ts,
+            # Si se sigue sirviendo el valor viejo, su marca de tiempo es la
+            # del momento en que se trajo, no la de este intento fallido.
+            'fetched_at': _qb_sales_cache.get('fetched_at', 0.0) if has_stale_value else 0.0,
         }
     return cached_value if has_stale_value else None
 
@@ -6142,7 +6162,13 @@ def dashboard():
             # que renderiza esta MISMA plantilla con ceros. Sin la bandera, las
             # dos se ven igual que un día sin movimiento.
             degradado=datos_incompletos,
-            datos_actualizados_en=None if datos_incompletos else datetime.now(DASHBOARD_TIMEZONE)
+            # Las cifras de venta salen de QuickBooks y pueden venir de la
+            # caché; el resto (pedidos, cola, rankings) se calcula recién. Por
+            # eso el sello acompaña a las ventas y no al encabezado entero.
+            ventas_actualizadas_en=(
+                None if datos_incompletos
+                else (_qb_datos_traidos_en() if metricas_ventas_qb else datetime.now(DASHBOARD_TIMEZONE))
+            )
         )
         mark_dashboard_perf('render_template')
         log_dashboard_perf('ok')
@@ -6202,7 +6228,7 @@ def dashboard():
             # La plantilla usa esto para avisar que los ceros de arriba son
             # producto del fallo, no del negocio.
             'degradado': True,
-            'datos_actualizados_en': None
+            'ventas_actualizadas_en': None
         }
         
         try:
