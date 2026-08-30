@@ -164,6 +164,34 @@ def test_clave_de_borrador_junta_cliente_y_grupo():
     assert re.search(r'if\s*\(\s*!grupoActual\s*\)\s*return\s+null', cuerpo)
 
 
+def test_sincronizar_candado_provisional_borra_el_borrador_antes_de_soltar_el_grupo():
+    """Ronda de corrección 1: cliente sin habitual → una línea del grupo A
+    fija `grupoActual = A` y guarda `borrador:<cliente>:A` → se quita esa
+    línea → `sincronizarCandadoProvisional` soltaba `grupoActual = null` SIN
+    borrar antes ese borrador — `claveBorrador()` ya no podía encontrarlo
+    (devuelve null sin grupo), así que quedaba huérfano en localStorage para
+    siempre y podía reaparecer en una sesión futura sin relación, ofreciendo
+    «¿seguir donde lo dejaste?» con un pedido abandonado hace semanas.
+
+    El orden importa: `borrarBorrador()` tiene que llamarse ANTES de
+    `grupoActual = null`, mientras la clave todavía apunta al grupo que se
+    suelta."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'sincronizarCandadoProvisional')
+
+    assert 'borrarBorrador();' in cuerpo, (
+        'sincronizarCandadoProvisional ya no limpia el borrador del grupo '
+        'que suelta — vuelve a quedar huérfano en localStorage'
+    )
+    idx_borrar = cuerpo.index('borrarBorrador();')
+    idx_suelta = cuerpo.index('grupoActual = null;')
+    assert idx_borrar < idx_suelta, (
+        'borrarBorrador() se llama DESPUÉS de grupoActual = null: para '
+        'entonces claveBorrador() ya devuelve null y no encuentra nada que '
+        'borrar — el borrador del grupo que se suelta queda huérfano igual'
+    )
+
+
 def test_guardar_borrador_incluye_lineas_fecha_y_notas():
     texto = _js()
     cuerpo = _cuerpo_funcion(texto, 'guardarBorrador')
@@ -192,14 +220,28 @@ def test_ofrecer_borrador_lee_con_try_catch_y_pregunta_antes_de_aplicar():
     m_parse = re.search(r'try\s*\{([^{}]*JSON\.parse[^{}]*)\}\s*catch', cuerpo, re.S)
     assert m_parse, 'JSON.parse no está envuelto en try/catch en ofrecerBorrador'
 
-    assert 'confirm(' in cuerpo, 'ofrecerBorrador no pregunta antes de aplicar el borrador'
-    # El confirm tiene que decidir si se aplica: sin esto, un borrador se
-    # metería solo, sin que el vendedor lo pidiera.
-    idx_confirm = cuerpo.index('confirm(')
-    idx_asigna = cuerpo.index('productosAgregados = datos.lineas')
-    assert idx_confirm < idx_asigna, (
-        'productosAgregados se reemplaza ANTES del confirm: el borrador se '
-        'aplicaría sin preguntar'
+    # No alcanza con que `confirm(` aparezca ANTES que la asignación en el
+    # texto: eso lo cumpliría igual `confirm('¿seguir?'); productosAgregados
+    # = datos.lineas;` — llamar a confirm() e IGNORAR el resultado, aplicando
+    # el borrador siempre. Hay que exigir la ESTRUCTURA: un guard
+    # `if (!confirm(...)) return;` cuyo `return` corte la función ANTES de
+    # que la asignación pueda correr — no solo que las dos líneas aparezcan
+    # en cierto orden.
+    m_guard = re.search(
+        r'if\s*\(\s*!\s*confirm\([^)]*\)\s*\)\s*\{?\s*return;\s*\}?',
+        cuerpo,
+    )
+    assert m_guard, (
+        'no se encontró el guard `if (!confirm(...)) return;` en '
+        'ofrecerBorrador — sin él, el resultado de confirm() se puede '
+        'ignorar y el borrador se aplicaría siempre, sin preguntar'
+    )
+
+    resto = cuerpo[m_guard.end():]
+    assert 'productosAgregados = datos.lineas' in resto, (
+        'la asignación de productosAgregados no está DESPUÉS del guard de '
+        'confirm(): puede estar corriendo sin depender de la respuesta del '
+        'vendedor'
     )
 
 

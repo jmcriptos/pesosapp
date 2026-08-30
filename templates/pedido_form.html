@@ -301,6 +301,14 @@ function sincronizarCandadoProvisional() {
     if (grupoDelServidor) return;
     const hayLineas = productosAgregados.some(p => p.activa);
     if (hayLineas || !grupoActual) return;
+    // Se suelta el candado provisional: el borrador de ESE grupo (sin
+    // líneas que lo sostengan) no puede quedar vivo en localStorage para
+    // siempre — reaparecería en una sesión futura sin relación, ofreciendo
+    // «¿seguir donde lo dejaste?» con datos de un pedido abandonado hace
+    // semanas. Tiene que borrarse ACÁ, antes de soltar `grupoActual`,
+    // mientras `claveBorrador()` todavía apunta al grupo que se suelta —
+    // después de la línea de abajo ya devuelve null y nadie lo encuentra.
+    borrarBorrador();
     grupoActual = null;
     cargarProductosEnSelect();
 }
