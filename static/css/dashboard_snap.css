@@ -245,4 +245,61 @@
   body[data-dashboard-screen] .kpi-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ESCRITORIO · la pantalla deja de ser un teléfono estirado
+
+     Hasta acá el escritorio era el mismo scroll único del teléfono con más
+     aire a los costados: a 1440×900 entraba la meta del mes y nada más,
+     así que las dos preguntas con las que se abre el tablero —«¿llegamos a
+     la meta?» y «¿qué está atrasado?»— quedaban a un scroll de distancia
+     una de la otra en una pantalla que podía mostrar las dos.
+
+     Una grilla de 12 columnas las pone lado a lado. El orden de lectura no
+     cambia: el DOM sigue siendo el mismo y en teléfono sigue siendo una
+     columna. Lo que cambia es que el monitor ahora se usa.
+     ═══════════════════════════════════════════════════════════════════ */
+  body[data-dashboard-screen] .screen-body {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: 26px 8px;
   }
+  /* En grilla el margen se suma al gap y descuadra el ritmo. */
+  body[data-dashboard-screen] .screen-body > .dash-section {
+    margin-bottom: 0;
+  }
+  /* El aviso y el hero cruzan la grilla entera: hablan de toda la pantalla. */
+  body[data-dashboard-screen] .dash-degradado,
+  body[data-dashboard-screen] .hero {
+    grid-column: 1 / -1;
+  }
+  /* La fila del pliegue: la meta del mes y la cola de trabajo, juntas.
+     7/5 y no 6/6 porque el gráfico necesita ancho para sus 26 semanas y la
+     cola es una lista angosta por naturaleza. */
+  body[data-dashboard-screen] [data-dash-section="ventas"]     { grid-column: span 7; }
+  body[data-dashboard-screen] [data-dash-section="pendientes"] { grid-column: span 5; }
+  /* La fila de "cómo venimos": tres lecturas del mismo tamaño. */
+  body[data-dashboard-screen] [data-dash-section="bascula"],
+  body[data-dashboard-screen] [data-dash-section="semana"],
+  body[data-dashboard-screen] [data-dash-section="servicio"]   { grid-column: span 4; }
+  /* Sin báscula esa fila son dos, no tres: se reparten a la mitad para no
+     dejar un hueco de cuatro columnas que empujaría al Top fuera de lugar. */
+  body[data-dashboard-screen] .screen-body.sin-bascula [data-dash-section="semana"],
+  body[data-dashboard-screen] .screen-body.sin-bascula [data-dash-section="servicio"] {
+    grid-column: span 6;
+  }
+  /* Los dos rankings, uno al lado del otro: se leen comparándolos. */
+  body[data-dashboard-screen] [data-dash-section="top"],
+  body[data-dashboard-screen] [data-dash-section="top-clientes"] { grid-column: span 6; }
+
+  /* Los 16px de canaleta de cada componente NO se tocan: son el inset de la
+     tarjeta contra su columna y los mismos en los dos anchos. Por eso el gap
+     horizontal de la grilla es de 8px — 16 + 8 + 16 dan la calle de 40px
+     entre columnas, sin una segunda escala de espaciado que mantener. */
+
+  /* Con la mitad del ancho, el gráfico gana altura para no quedar chato. */
+  body[data-dashboard-screen] .trend-chart-wrap {
+    height: 220px;
+  }
+}

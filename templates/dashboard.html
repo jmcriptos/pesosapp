@@ -58,6 +58,27 @@
   {% endif %}
 {% endmacro %}
 
+{# ══════════════════════════════════════════════════════════════
+   MACRO: fila del Top de Clientes
+
+   El interior es idéntico enlace o no, así que vive acá una sola vez: la fila
+   solo cambia de envoltorio —<a> cuando el nombre del ranking resolvió a un
+   cliente local, <div> cuando no— y de chevron.
+   ══════════════════════════════════════════════════════════════ #}
+{% macro fila_cliente(pos, nombre, datos, total, bar_pct, enlazada) %}
+  <span class="rank-pos">{{ pos }}</span>
+  <div class="rank-body">
+    <div class="rank-name">{{ nombre }}</div>
+    <div class="rank-bar"><div class="rank-bar-fill" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
+    <div class="rank-meta">
+      <span>{{ datos.pedidos or 0 }} pedido{{ 's' if (datos.pedidos or 0) != 1 }}</span>
+      {% if datos.ultimo_pedido %}<span>Último {{ datos.ultimo_pedido.strftime('%d/%m') }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="rank-amt">{{ '{:,.0f}'.format(total) }}<small>XCG</small></div>
+  {% if enlazada %}<i class="fas fa-chevron-right rank-chev" aria-hidden="true"></i>{% endif %}
+{% endmacro %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_inline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_light.css') }}">
@@ -93,7 +114,13 @@
    la ventana stale en 24h podía decir "datos al 13:52" sobre cifras de ayer. #}
 {% set ventas_al              = ventas_actualizadas_en %}
 {% set day_count              = (fecha_actual.day if fecha_actual else 30)|int %}
-{% set prom_dia               = (pedidos_mes_v / (day_count if day_count > 0 else 1)) %}
+{# Días transcurridos de ESTA semana (lunes = 1). El promedio diario vive bajo
+   el título "Esta semana", así que tiene que dividir los pedidos de la semana
+   por los días de la semana. Antes dividía los del MES por los días del mes:
+   un promedio mensual bajo un encabezado semanal, exactamente el defecto de
+   "la misma palabra con dos números" que ya se corrigió en Pendientes. #}
+{% set dias_semana_v          = (dias_semana or 7)|int %}
+{% set prom_dia               = (pedidos_semana_v / (dias_semana_v if dias_semana_v > 0 else 1)) %}
 
 {# Umbrales de estado. Ahora se muestran en la interfaz (`.kpi-ref`) para que el
    usuario aprenda qué es "bien" en vez de deducirlo del color. #}
@@ -110,8 +137,14 @@
   {% set delta_pct = 0 %}
 {% endif %}
 
+{# "Por la báscula" no siempre se renderiza (se oculta sin datos del mes), y en
+   escritorio esa sección ocupa un tercio de su fila. Sin una marca, la fila
+   quedaría con un hueco de 4 columnas y el Top se iría de sitio. La decisión
+   la toma la plantilla, no `:has()`: es la misma condición que ya gobierna el
+   `{% if %}` de más abajo, escrita una sola vez. #}
+{% set hay_bascula = ((kg_mes or 0)|float) or ((cajas_mes or 0)|float) %}
 <div class="app-shell dash-body">
-<div class="screen-body">
+<div class="screen-body{{ ' sin-bascula' if not hay_bascula }}">
 
   {# ══════ AVISO DE DATOS DEGRADADOS ══════ #}
   {% if degradado_v %}
@@ -133,7 +166,12 @@
   <div class="hero">
     {# Sin saludo cuando la pantalla está avisando de una falla: "Buenos días ☀"
        ocho píxeles debajo de "No pudimos cargar los datos" es un tono equivocado. #}
-    {% if not degradado_v %}<div class="hero-kicker">Buenos días{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %} ☀</div>{% endif %}
+    {# El saludo lo calcula la ruta con la hora de Curaçao. El dyno corre en UTC
+       (−4): tomado del servidor, un turno de las 8 de la noche leía "Buenos
+       días". Y sin el ☀ de antes: un emoji no es parte de ningún sistema de
+       iconos y, con el saludo ya condicionado, decía sol a las nueve de la
+       noche. #}
+    {% if not degradado_v %}<div class="hero-kicker">{{ saludo or 'Hola' }}{% if current_user.is_authenticated and current_user.username %}, {{ current_user.username.split(' ')[0] }}{% endif %}</div>{% endif %}
     <h1 class="hero-title">
       {# El titular se deriva de los datos. Antes era un texto fijo que decía
          "Tu semana va bien" incluso sin ventas y con pedidos vencidos.
@@ -367,7 +405,7 @@
      que hablan de los mismos despachos.
      ══════════════════════════════════════════════════════════ #}
   {% set kg_mes_v = (kg_mes or 0)|float %}
-  {% if kg_mes_v or (cajas_mes or 0)|float %}
+  {% if hay_bascula %}
   <section class="dash-section" data-dash-section="bascula" aria-labelledby="sec-bascula">
     <div class="sec-head">
       <div class="sec-head-main">
@@ -416,7 +454,7 @@
   </section>
 
   {# ══════════════════════════════════════════════════════════
-     4 · NIVEL DE SERVICIO
+     5 · NIVEL DE SERVICIO
 
      Quedan las dos métricas sobre las que se actúa. Se retiraron POR (es un
      compuesto de estas dos), CE (el radar de /clientes lo cuenta mejor: cliente
@@ -447,7 +485,13 @@
   </section>
 
   {# ══════════════════════════════════════════════════════════
-     5 · TOP DEL MES
+     6 · TOP DEL MES
+
+     Las filas de clientes llevan a sus pedidos; las de productos no llevan a
+     ningún lado, y es a propósito: la única pantalla por producto que existe
+     es `/productos/<id>/editar`, que es mantenimiento de catálogo y no
+     responde "¿dónde se vendió esto?". Un enlace que descarga al usuario en
+     un formulario de edición es peor que texto que no promete nada.
      ══════════════════════════════════════════════════════════ #}
   <section class="dash-section" data-dash-section="top" aria-labelledby="sec-top-prod">
     <div class="sec-head">
@@ -501,18 +545,20 @@
         {% for nombre, datos in top_clis %}
           {% set total = (datos.total or 0)|float %}
           {% set bar_pct = (total / max_cli * 100) if max_cli > 0 else 0 %}
+          {# `buscar` solo existe si la ruta resolvió el nombre contra un cliente
+             local. El ranking puede venir de QuickBooks con su propio
+             DisplayName, y enlazar a ciegas dejaría al usuario en una lista
+             vacía. Sin resolución, la fila queda como texto. #}
+          {% set destino = (url_for('lista_pedidos') ~ '?q=' ~ (datos.buscar|urlencode)) if datos.buscar else None %}
+          {% if destino %}
+          <a class="rank rank-link" href="{{ destino }}" aria-label="Ver los pedidos de {{ nombre }}">
+            {{ fila_cliente(loop.index, nombre, datos, total, bar_pct, true) }}
+          </a>
+          {% else %}
           <div class="rank">
-            <span class="rank-pos">{{ loop.index }}</span>
-            <div class="rank-body">
-              <div class="rank-name">{{ nombre }}</div>
-              <div class="rank-bar"><div class="rank-bar-fill" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
-              <div class="rank-meta">
-                <span>{{ datos.pedidos or 0 }} pedidos</span>
-                {% if datos.ultimo_pedido %}<span>Último {{ datos.ultimo_pedido.strftime('%d/%m') }}</span>{% endif %}
-              </div>
-            </div>
-            <div class="rank-amt">{{ '{:,.0f}'.format(total) }}<small>XCG</small></div>
+            {{ fila_cliente(loop.index, nombre, datos, total, bar_pct, false) }}
           </div>
+          {% endif %}
         {% endfor %}
       {% else %}
         <div class="empty-state">
@@ -548,8 +594,21 @@
   function token(nombre, alterna) {
     return (raiz.getPropertyValue(nombre) || '').trim() || alterna;
   }
-  var cVentas = token('--mark-good', '#0f9d6e');
-  var cTendencia = token('--indigo-600', '#4f46e5');
+  // Las barras estaban en verde de estado (--mark-good). Eso viola una regla
+  // escrita en el propio DESIGN.md —«un color de estado nunca es la serie de
+  // un gráfico»— y además mentía: pintaba de "conforme" una semana floja.
+  //
+  // Las dos series son la MISMA medida (ventas semanales; la línea es su media
+  // móvil de 3 semanas), así que van en la misma familia índigo separadas por
+  // claridad, y la forma —barra contra línea— es la que carga la identidad.
+  // Validado con el validador de la skill dataviz: ΔE 23.0 con visión normal y
+  // 20.3 bajo protanopía; el aviso de contraste del índigo claro lo cubre la
+  // tabla "Ver los datos" que acompaña al gráfico.
+  //
+  // --indigo-400/-700 y no -500: `data-hue="blue"` en el <body> reescribe
+  // --indigo-500 y --indigo-300, así que esos dos no valen lo que dicen.
+  var cVentas = token('--indigo-400', '#818cf8');
+  var cTendencia = token('--indigo-700', '#4338ca');
 
   // Ejes y grillas sobre tarjeta clara. Antes heredaban una configuración
   // pensada para fondo oscuro: #94a3b8 sobre blanco da 2.56:1 y la grilla iba
@@ -586,26 +645,30 @@
             label: 'Ventas (XCG)',
             data: salesValues,
             type: 'bar',
-            backgroundColor: 'rgba(16,185,129,0.45)',
-            borderColor: cVentas,
-            borderWidth: 1,
-            borderRadius: 3,
+            backgroundColor: cVentas,
+            borderWidth: 0,
+            // 4px de radio solo en el extremo del dato; la base queda a
+            // escuadra sobre el eje, como pide la spec de marcas.
+            borderRadius: 4,
+            borderSkipped: 'bottom',
             order: 2
           },
           {
-            label: 'Tendencia',
+            label: 'Media 3 semanas',
             data: trendValues,
             type: 'line',
             borderColor: cTendencia,
-            backgroundColor: 'rgba(79,70,229,0.1)',
-            borderWidth: 2.5,
+            borderWidth: 2,
             fill: false,
             tension: 0.35,
-            pointRadius: 3,
+            // Sin puntos: son 26 semanas y un marcador por semana convierte la
+            // línea en una hilera de bolitas. El tooltip por índice ya da el
+            // valor exacto de cada una.
+            pointRadius: 0,
+            pointHoverRadius: 5,
             pointBackgroundColor: cTendencia,
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            pointHoverRadius: 6,
             order: 1
           }
         ]
@@ -619,6 +682,11 @@
           legend: {
             display: true,
             position: 'top',
+            // `reverse` porque Chart.js ordena la leyenda por `order`, que acá
+            // está puesto para que la línea se dibuje ENCIMA de las barras. Sin
+            // esto la leyenda anunciaba la media móvil antes que el dato del
+            // que sale.
+            reverse: true,
             labels: { usePointStyle: true, padding: 12, font: { size: 11, weight: '500' } }
           },
           tooltip: {

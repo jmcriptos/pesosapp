@@ -286,6 +286,16 @@ a mano y conviene respetar esos tres.
 La tabbar es fija abajo, cinco columnas iguales, y **respeta `env(safe-area-inset-bottom)`**.
 Todo lo que se fije al pie tiene que ir por encima de ella o quedará intocable.
 
+**Escritorio: una grilla de 12 columnas.** A partir de 1024px el contenedor de una
+pantalla larga deja de ser una columna y pasa a `grid-template-columns: repeat(12,
+minmax(0, 1fr))` con `gap: 26px 8px`; cada sección declara su `grid-column: span N`.
+El gap horizontal es de 8px y no de 20 porque cada componente ya trae sus 16px de
+canaleta: 16 + 8 + 16 dan la calle de 40px, sin una segunda escala que mantener.
+El orden del DOM no cambia — en teléfono sigue siendo un solo scroll—, así que la
+composición de escritorio no puede contradecir el orden de lectura, solo aprovechar
+el ancho. Repartos en uso hoy (dashboard): 7/5 para la fila del pliegue, 4/4/4 para
+la fila de lecturas y 6/6 para los rankings.
+
 ### Named Rules
 
 **La Regla del Pie Alcanzable.** Un botón de guardar dentro de una hoja va en un pie
@@ -369,6 +379,17 @@ en la parte llena. Cuando existe un objetivo por debajo del 100% lleva una marca
 en esa posición: es lo que convierte el color en algo que se puede aprender. Reemplazó a
 los anillos de progreso, que competían por el ancho con la cifra.
 
+### Named Rules
+
+**La Regla del Enlace que Cumple.** Una fila se convierte en enlace solo cuando el
+servidor ya probó que su destino existe. En el Top de Clientes el nombre puede venir
+de QuickBooks y no tiene por qué coincidir con un `Cliente` local: la ruta resuelve el
+nombre primero y la plantilla envuelve la fila en `<a>` únicamente si resolvió; si no,
+queda como `<div>`. Y al revés: una fila que no lleva a ningún lado **no** se disfraza
+de enlace con `cursor: pointer` ni con chevron. El Top de Productos es texto a
+propósito, porque la única pantalla por producto que existe es el formulario de
+edición del catálogo y no responde la pregunta que la fila despierta.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -410,6 +431,14 @@ quien toque estas hojas.
   Quedan hex de neutros (`#475569`, `#0f172a`, `#eef1f6`) sin variable propia.
 - **Tres hojas se pisan en el dashboard** (`dashboard_inline` → `dashboard_light` →
   `dashboard_snap`) y el orden de carga es load-bearing.
+- **El bloque móvil de `dashboard_snap.css` nunca pasó por la escala.** Las pasadas de
+  tokens del 2026-08-30 cubrieron `dashboard.html` y `dashboard_inline.css`; el
+  `@media (max-width: 1023px)` de `dashboard_snap.css` quedó afuera y el detector le
+  cuenta **17 hallazgos advisory**: nueve `font-size` en rem fuera de la escala
+  (0.72/0.78/0.85/1.2/1.7/1.85rem y un `clamp(1.7rem, 7vw, 2.1rem)`), cinco colores sin
+  documentar (`#2563eb` ×2, `#d1fae5`, `#fee2e2`, `#b91c1c`) y dos radios de 22px.
+  Son las reglas con `!important` que blindan la pantalla en teléfono, o sea justo
+  donde más se usa: alinearlas es un pase aparte y no trivial.
 - **No hay tokens de breakpoint.** Los cortes 768/900/1024 se repiten a mano.
 - **Conviven dos familias de estado.** La nominal (`--color-success`/`-warning`/
   `-danger` con sus `-soft`) la usan diez hojas y sirve para pintar un estado solo; la

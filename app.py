@@ -1246,6 +1246,56 @@ def _inicio_semana_local(fecha):
     return fecha - timedelta(days=fecha.weekday())
 
 
+def _saludo_local(ahora=None):
+    """Saludo según la hora LOCAL de la planta, no la del servidor.
+
+    El dyno corre en UTC y Curaçao está a UTC−4: leer `datetime.now().hour`
+    saluda con "Buenos días" al turno de las 8 de la noche. Mismo error que
+    ya mordió en las lecturas de temperatura.
+    """
+    hora = (ahora or datetime.now(DASHBOARD_TIMEZONE)).hour
+    if hora < 12:
+        return 'Buenos días'
+    if hora < 19:
+        return 'Buenas tardes'
+    return 'Buenas noches'
+
+
+def _enlazar_top_clientes(top_clientes):
+    """Adjunta a cada fila del Top el nombre con el que buscarla en /pedidos.
+
+    El ranking puede venir de QuickBooks, donde el nombre es el DisplayName de
+    allá y no tiene por qué coincidir con el `Cliente.nombre` local. Se enlaza
+    SOLO cuando resuelve a un cliente local: un enlace que cae en una lista
+    vacía es peor que dejar la fila como texto.
+    """
+    filas = list(top_clientes or [])
+    if not filas:
+        return filas
+
+    try:
+        mapa = {
+            (nombre or '').strip().lower(): nombre
+            for (nombre,) in db.session.query(Cliente.nombre).all()
+            if (nombre or '').strip()
+        }
+    except Exception:
+        app.logger.exception('[/dashboard] no se pudo resolver el Top de clientes')
+        return filas
+
+    enlazadas = []
+    for item in filas:
+        if not (isinstance(item, (list, tuple)) and len(item) == 2):
+            enlazadas.append(item)
+            continue
+        nombre, datos = item
+        local = mapa.get(str(nombre or '').strip().lower())
+        if local and isinstance(datos, dict):
+            datos = dict(datos, buscar=local)
+        enlazadas.append((nombre, datos))
+    return enlazadas
+
+
 def _quickbooks_sales_enabled():
     if QB_SALES_SOURCE == 'local':
         return False
@@ -5963,7 +6013,7 @@ def dashboard():
 
         month_rankings = rankings_periodos.get('month', {})
         top_productos = month_rankings.get('top_productos', [])
-        top_clientes = month_rankings.get('top_clientes', [])
+        top_clientes = _enlazar_top_clientes(month_rankings.get('top_clientes', []))
         max_ventas = month_rankings.get('max_ventas', 1)
         rankings_periodos_json = _serialize_rankings_periodos(rankings_periodos)
         mark_dashboard_perf('rankings')
@@ -6224,6 +6274,13 @@ def dashboard():
             pedidos_preparados_activos=pedidos_preparados_activos,
             pedidos_facturados_hoy=pedidos_facturados_hoy,
             fecha_actual=hoy,
+            # La semana empieza el lunes (`inicio_semana`), así que los días
+            # transcurridos son weekday()+1. La plantilla lo necesita para que
+            # el "Prom/día" de la sección "Esta semana" divida por los días de
+            # ESTA semana: antes dividía los pedidos del MES por los días del
+            # mes y mostraba el promedio mensual bajo un título semanal.
+            dias_semana=hoy.weekday() + 1,
+            saludo=_saludo_local(),
             ventas_dias=ventas_dias,
             tiempo_respuesta_data=tiempo_respuesta_data,
 
@@ -6302,7 +6359,9 @@ def dashboard():
             'pedidos_urgentes_total': 0,
             'pedidos_preparados_activos': 0,
             'pedidos_facturados_hoy': 0,
-            'fecha_actual': datetime.now().date(),
+            'fecha_actual': datetime.now(DASHBOARD_TIMEZONE).date(),
+            'dias_semana': datetime.now(DASHBOARD_TIMEZONE).weekday() + 1,
+            'saludo': _saludo_local(),
             'ventas_dias': [],
             'tiempo_respuesta_data': [],
             'kpis_historicos': [],
