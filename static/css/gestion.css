@@ -262,10 +262,23 @@ body[data-gestion-screen] .chip-primary { background: var(--color-primary-soft);
   font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em;
   text-transform: uppercase; color: #475569;   /* 7,24:1 sobre #f8fafc (fondo real del área) */
   background: none; border: 0; width: 100%; text-align: left;
+  box-shadow: none;   /* `button` (styles.min.css) le mete sombra permanente
+    a TODO botón; el encabezado plegable es un <button> y sin este reset
+    queda flotando bajo un texto sin caja */
 }
 .radar-titulo-plegable { min-height: 44px; cursor: pointer; }
 .radar-titulo-plegable[aria-expanded="true"] .radar-chevron { transform: rotate(90deg); }
 .radar-chevron { transition: transform 0.15s ease; }
+
+/* `button:hover` (styles.min.css, especificidad 0,1,1) le gana a
+   `.radar-titulo` (0,1,0) sola: fondo azul sólido + texto #475569 quedaba en
+   1,08:1. En iPhone el :hover queda pegado tras el tap hasta el próximo
+   toque, así que no alcanza con no tocarlo — hay que neutralizarlo con un
+   selector de especificidad mayor, scopeado como el resto de este bloque. */
+body[data-gestion-screen] .radar-titulo-plegable:hover,
+body[data-gestion-screen] .radar-titulo-plegable:active {
+  background: none; color: #475569; transform: none; box-shadow: none;
+}
 .radar-cuenta {
   font-weight: 700; color: #475569;             /* 6,92:1 sobre #f1f5f9 (el fondo real
                                                      del badge, no blanco: #64748b daba
@@ -276,7 +289,12 @@ body[data-gestion-screen] .chip-primary { background: var(--color-primary-soft);
 [data-radar-grupo="atrasados"] .radar-titulo { color: #b45309; }     /* 4,80:1 sobre #f8fafc */
 [data-radar-grupo="atrasados"] .radar-cuenta { color: #92400e; background: #fef3c7; } /* 6,37:1 sobre #fef3c7 */
 
-.radar-grupo { list-style: none; padding: 0; margin: 0; }
+.radar-grupo {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 10px;   /* mismo aire que
+    .gestion-list — el radar mete las filas dentro de este <ul>, y
+    .gestion-list ya no es su padre directo, así que su gap no llega solo */
+}
 .radar-grupo[hidden] { display: none !important; }
 
 /* La FILA no se redefine: `.gestion-row`, `.gestion-row-main`,
@@ -300,7 +318,12 @@ body[data-gestion-screen] .gestion-row-sub.radar-meta { color: #475569; }
                                                del chip, no blanco) */
   font-size: 0.85rem; font-weight: 700; text-decoration: none;
 }
-.radar-action-main:hover { background: #c7d2fe; }
+/* `a:hover` (dark-theme.css, especificidad 0,1,1) sólo toca `color`, no
+   `background`: como `.radar-action-main:hover` de abajo no declaraba
+   `color`, para esa propiedad el único hover-rule que aplicaba era el
+   global (#93c5fd), que sobre #c7d2fe daba 1,21:1. Declarándolo acá con dos
+   clases (0,2,0) gana siempre, sin depender del orden en la hoja. */
+.radar-action-main:hover { background: #c7d2fe; color: #4338ca; }   /* 5,30:1 */
 .radar-vacio {
   margin: 0; padding: 14px 12px; border-radius: 12px;
   background: #f8fafc; color: #475569; font-size: 0.9rem;   /* 7,24:1 sobre #f8fafc */

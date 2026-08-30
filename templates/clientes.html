@@ -172,6 +172,22 @@
     });
   }
 
+  // La cuenta del encabezado («Atrasados 5») cuenta las filas VISIBLES, no
+  // el total de la sección: buscando «man» con 1 fila a la vista, un «5»
+  // fijo estaría afirmando lo mismo que este archivo dice prevenir arriba
+  // (seccionesVacias), un caso más adentro — con búsqueda parcial, no sólo
+  // sin resultados. Sin búsqueda ninguna fila queda oculta, así que cuenta
+  // el total solo, sin ninguna rama especial; y como cuenta el DOM en vivo,
+  // borrar un cliente (`row.remove()`) también la deja al día sin que haga
+  // falta otra función.
+  function actualizarContadores() {
+    document.querySelectorAll('.radar-seccion').forEach(function (sec) {
+      var cuenta = sec.querySelector('.radar-cuenta');
+      if (!cuenta) return;
+      cuenta.textContent = sec.querySelectorAll('.radar-row:not([hidden])').length;
+    });
+  }
+
   document.getElementById('buscar-cliente').addEventListener('input', function () {
     var q = this.value.trim().toLowerCase();
     document.querySelectorAll('#lista-clientes .radar-row').forEach(function (row) {
@@ -186,6 +202,7 @@
       if (q) b.setAttribute('aria-expanded', 'true');
     });
     seccionesVacias(q);
+    actualizarContadores();
   });
 
   // Plegado de «Dormidos» y «Nunca compraron». Mismo elemento que el
@@ -247,6 +264,7 @@
         if (res.message) {
           var row = document.getElementById('cliente-' + btn.dataset.id);
           if (row) row.remove();
+          actualizarContadores();   // la cuenta del encabezado no puede quedar vieja
           aviso(res.message, 'success');
         } else {
           aviso(res.error || 'Error al eliminar', 'error');

@@ -3428,7 +3428,6 @@ def _contexto_radar(clientes, hoy_local):
             'id': cliente_id,
             'nombre': cliente.nombre,
             'moneda': cliente.moneda,
-            'qbo_id': cliente.qbo_id,
             'ultimo': max(fechas) if fechas else None,
             'n_pedidos': len(fechas),
             'ritmo': ritmo,

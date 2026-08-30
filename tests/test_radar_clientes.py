@@ -428,10 +428,30 @@ def test_la_pantalla_dibuja_las_secciones_del_radar(logged_client):
         assert f'data-radar-grupo="{clave}"' in html
 
 
-def test_la_fila_dice_dias_ritmo_y_pedidos(logged_client):
+def test_la_fila_dice_dias_ritmo_y_pedidos(logged_client, app):
+    """Afirma los NÚMEROS de la fila, no sólo los rótulos alrededor.
+
+    Comprobado por mutación: borrar `{{ f.dias_sin_comprar }}` y
+    `{{ f.n_pedidos }}` de `clientes.html:91,93` deja la fila diciendo
+    « días sin comprar · su ritmo: 7 d · pedidos» —sin un solo número— y
+    los DOS rótulos literales ('días sin comprar', 'su ritmo') siguen
+    intactos en el HTML porque viven en el propio template, no en las
+    variables borradas. La versión anterior de este test sólo buscaba esos
+    rótulos sueltos en toda la página y seguía en verde con el dato
+    borrado. Se ancla a la fila de «Ritmo Propio» (fixture de este archivo:
+    4 pedidos en fechas 0/7/14/21 días atrás → dias_sin_comprar=0, ritmo
+    propio=7, n_pedidos=4) y exige los números, no los rótulos.
+    """
+    with app.app_context():
+        from app import Cliente
+        cliente_id = Cliente.query.filter_by(nombre='Ritmo Propio').first().id
     html = logged_client.get('/clientes').get_data(as_text=True)
-    assert 'días sin comprar' in html
-    assert 'su ritmo' in html
+    fila = re.search(rf'id="cliente-{cliente_id}".*?</li>', html, re.S)
+    assert fila, 'no se encontró la fila de Ritmo Propio'
+    texto = fila.group(0)
+    assert '0 días sin comprar' in texto
+    assert 'su ritmo: 7 d' in texto
+    assert '4 pedidos' in texto
 
 
 def test_el_ritmo_prestado_se_declara_estimado(logged_client, app):
@@ -604,6 +624,66 @@ def test_el_buscador_llama_seccionesVacias_con_el_termino_no_sin_argumentos(logg
     assert 'seccionesVacias(q);' in html, (
         'el buscador tiene que llamar a seccionesVacias pasándole el término '
         'de búsqueda, no seccionesVacias() a secas'
+    )
+
+
+# ── H5: la cuenta del encabezado no puede afirmar un número falso ─────────
+# El propio comentario del JS (arriba de `seccionesVacias`) dice que un
+# encabezado «Atrasados 5» encima de cero filas visibles «estaría afirmando
+# algo falso» — pero eso sólo lo resolvía el caso CERO. Buscando «man» con
+# 1 fila visible, la cuenta seguía fija en «5»: el mismo defecto, un caso
+# más adentro. `actualizarContadores` cuenta `.radar-row:not([hidden])`
+# dentro de cada `.radar-seccion` y reescribe el badge — así que sin
+# búsqueda (nada queda oculto) el número es el total sin ninguna rama
+# especial, y al borrar un cliente (`row.remove()`) también queda al día.
+
+def _cuerpo_actualizarContadores(html):
+    m = re.search(r'function actualizarContadores\(\) \{.*?\n  \}', html, re.S)
+    assert m, 'no se encontró la función actualizarContadores'
+    return m.group(0)
+
+
+def test_actualizarContadores_cuenta_filas_visibles_por_seccion(logged_client):
+    cuerpo = _cuerpo_actualizarContadores(logged_client.get('/clientes').get_data(as_text=True))
+    assert ".querySelector('.radar-cuenta')" in cuerpo, (
+        'tiene que ubicar el badge de la propia sección, no uno global'
+    )
+    assert (
+        "cuenta.textContent = sec.querySelectorAll('.radar-row:not([hidden])')"
+        ".length" in cuerpo
+    ), 'el badge tiene que reflejar las filas VISIBLES de esa sección, no el total fijo'
+
+
+def test_el_buscador_llama_actualizarContadores(logged_client):
+    """Sin esto, buscar «man» deja «Atrasados 5» sobre 1 fila visible: el
+    mismo defecto que `seccionesVacias` existe para prevenir, un caso más
+    adentro (con resultados parciales, no sólo con cero)."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    m = re.search(
+        r"buscar-cliente'\)\.addEventListener\('input', function \(\) \{.*?\n  \}\);",
+        html, re.S,
+    )
+    assert m, 'no se encontró el listener de búsqueda'
+    assert 'actualizarContadores();' in m.group(0), (
+        'el buscador tiene que recalcular las cuentas de sección en cada tecleo'
+    )
+
+
+def test_borrar_un_cliente_llama_actualizarContadores(logged_client):
+    """Hoy, borrar la última fila de «Al día» deja su encabezado con la
+    cuenta vieja: `row.remove()` saca la fila del DOM pero nada recalcula
+    el badge. Se ancla al manejador de `.eliminar-cliente`, después de que
+    la fila se remueve."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    m = re.search(
+        r"e\.target\.closest\('\.eliminar-cliente'\);.*?\n  \}\);",
+        html, re.S,
+    )
+    assert m, 'no se encontró el manejador de borrado'
+    cuerpo = m.group(0)
+    assert 'row.remove();' in cuerpo
+    assert cuerpo.index('row.remove();') < cuerpo.index('actualizarContadores();'), (
+        'actualizarContadores tiene que correr DESPUÉS de sacar la fila del DOM'
     )
 
 
