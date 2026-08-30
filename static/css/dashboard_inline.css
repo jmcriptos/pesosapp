@@ -294,18 +294,23 @@
   gap: 4px;
 }
 .rank-name {
+  /* app-mobile.css:448 define su propio .rank-name con nowrap + ellipsis, que
+     recortaba "Boneless Pork Shoulder Cushion" a mitad de palabra. No alcanza
+     con omitir esas propiedades acá: hay que anularlas con un valor. El nombre
+     del producto es el dato que se lee, así que se muestra entero. */
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text, #f1f5f9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: break-word;
 }
 .rank-bar {
   /* Pista un paso por encima del fondo; el relleno es la marca. */
-  height: 6px;
+  height: 12px;
   background: #eef1f6;
-  border-radius: 3px;
+  border-radius: 6px;
   overflow: hidden;
 }
 .rank-bar-fill {
@@ -319,7 +324,7 @@
   height: 100%;
   background: #4f46e5;
   /* Extremo redondeado del lado del dato, recto contra la línea base. */
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 6px 6px 0;
   /* Se escala por transform (el template pone scaleX) en vez de animar width:
      animar el ancho provoca relayout en cada cuadro. */
   transform-origin: left center;
