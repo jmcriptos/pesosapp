@@ -274,7 +274,11 @@ def test_grupo_sin_historial_abre_el_pedido_vacio(app, logged_client):
 
 def test_el_pedido_muestra_el_grupo_como_boton_que_vuelve_a_elegir(app, logged_client):
     """El vendedor tiene que ver en qué grupo está —el buscador solo ofrece
-    ese— y poder cambiarlo sin rehacer el pedido desde el cliente."""
+    ese— y poder cambiarlo sin rehacer el pedido desde el cliente.
+
+    Desde Task 1 (2026-08-30) el chip ya no muestra el código de QBO crudo
+    («Impuesto 10»): `_etiqueta_grupo` lo traduce a OB, que es lo que de
+    verdad le dice algo al vendedor (ver tests/test_pedido_impuesto.py)."""
     _sembrar_historial()
     cliente = _cliente('Un Solo Grupo')
 
@@ -283,7 +287,8 @@ def test_el_pedido_muestra_el_grupo_como_boton_que_vuelve_a_elegir(app, logged_c
 
     boton = re.search(r'<a[^>]*id="ph-grupo-actual"[^>]*>.*?</a>', html, re.S)
     assert boton, 'falta el botón de grupo en el paso del pedido'
-    assert 'Impuesto 10' in boton.group(0)
+    assert 'OB 6%' in boton.group(0)
+    assert 'Impuesto' not in boton.group(0)
     # Vuelve a la pantalla de grupos: `?cliente=` sin grupo.
     destino = re.search(r'href="([^"]*)"', boton.group(0)).group(1)
     assert destino.endswith(f'/pedidos/nuevo?cliente={cliente.id}')
@@ -343,3 +348,101 @@ def test_editar_no_pregunta_el_grupo(app, logged_client):
     assert 'id="ph-grupo-actual"' not in html
     volver = re.search(r'<a[^>]*id="ph-cambiar-cliente"[^>]*>', html).group(0)
     assert 'cambiar=1' in volver
+
+
+# ── Los ejemplos de cada tarjeta son de ESTE cliente (Task 5) ─────────────
+
+def test_los_ejemplos_salen_del_historial_de_este_cliente(app, logged_client):
+    """El catálogo alfabético es el mismo para los 62 clientes; lo que
+    compró ESTE cliente en el grupo sí lo distingue de otro. 'Salchicha
+    Frankfurter…' no es el primero alfabético del imp:10 (lo es 'Aceite
+    vegetal…'), así que si aparece es porque vino del historial, no del
+    catálogo."""
+    cliente = _cliente('Sin Historial')
+    _crear_pedido(cliente.id, 'Salchicha Frankfurter 2.5 kg', dias_atras=3)
+
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}').get_data(as_text=True)
+
+    ejemplos = re.findall(r'class="pn-grupo-ejemplos">([^<]*)<', html)
+    assert len(ejemplos) == 2  # imp:10, imp:14, en ese orden
+    assert 'Salchicha Frankfurter 2.5 kg' in ejemplos[0]
+    assert 'Aceite vegetal' not in ejemplos[0]
+    assert 'Atun en lata' not in ejemplos[0]
+
+
+def test_grupo_sin_historial_de_este_cliente_sigue_usando_el_catalogo(app, logged_client):
+    """Sin compras de ESTE cliente en el grupo, no hay nada propio que
+    mostrar: recién ahí cae al catálogo, como antes."""
+    cliente = _cliente('Sin Historial')
+    # Compra en imp:10, nunca en imp:14.
+    _crear_pedido(cliente.id, 'Salchicha Frankfurter 2.5 kg', dias_atras=3)
+
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}').get_data(as_text=True)
+
+    ejemplos = re.findall(r'class="pn-grupo-ejemplos">([^<]*)<', html)
+    assert 'Ham di Pasku 4 kg' in ejemplos[1]  # único producto del catálogo en imp:14
+
+
+# ── El remedio vive en la confirmación, no en el banner (Task 5) ──────────
+
+def test_el_banner_de_grupos_no_ofrece_el_remedio(app, logged_client):
+    """La pantalla de grupos explica la restricción; el remedio (ofrecer el
+    otro grupo) no vive ahí, sino en la confirmación al terminar."""
+    _sembrar_historial()
+    cliente = _cliente('Multigrupo')
+
+    html = logged_client.get(f'/pedidos/nuevo?cliente={cliente.id}').get_data(as_text=True)
+
+    assert 'Un pedido no puede mezclar grupos' in html
+    assert 'pn-conf-otro-grupo' not in html
+
+
+def test_confirmacion_ofrece_el_otro_grupo_si_el_cliente_compra_de_ambos(app, logged_client):
+    """El banner de la pantalla de grupos solo explica la restricción; el
+    remedio —ofrecer el otro grupo— aparece recién al terminar un pedido,
+    y solo si ESTE cliente de verdad compra de los dos."""
+    _sembrar_historial()
+    cliente = _cliente('Multigrupo')  # compró imp:10 e imp:14
+
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
+
+    oferta = re.search(r'<a[^>]*id="pn-conf-otro-grupo"[^>]*>.*?</a>', html, re.S)
+    assert oferta, 'falta el enlace al otro grupo en la confirmación'
+    assert 'OB 0%' in oferta.group(0)
+    href = re.search(r'href="([^"]*)"', oferta.group(0)).group(1).replace('&amp;', '&')
+    assert href.endswith(f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:14')
+
+
+def test_confirmacion_no_ofrece_otro_grupo_si_el_cliente_compra_de_uno_solo(app, logged_client):
+    _sembrar_historial()
+    cliente = _cliente('Un Solo Grupo')  # solo compró imp:10
+
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
+
+    assert 'id="pn-conf-otro-grupo"' not in html
+
+
+def test_confirmacion_no_ofrece_otro_grupo_sin_historial(app, logged_client):
+    """Grupo elegido por primera vez (caso Luna Park): nada que ofrecer."""
+    cliente = _cliente('Sin Historial')
+
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
+
+    assert 'id="pn-conf-otro-grupo"' not in html
+
+
+def test_editar_no_ofrece_otro_grupo(app, logged_client):
+    """Editando no hay grupo elegido (lo determinan las líneas): tampoco hay
+    'otro grupo' que ofrecer."""
+    _sembrar_historial()
+    from app import Pedido
+    pedido = Pedido.query.first()
+
+    html = logged_client.get(f'/pedidos/{pedido.id}/editar').get_data(as_text=True)
+
+    assert 'id="pn-conf-otro-grupo"' not in html

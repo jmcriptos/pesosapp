@@ -12,7 +12,7 @@ load_dotenv()
 from flask import Flask, render_template, request, redirect, send_file, jsonify, session, url_for, flash, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, and_, or_, cast, String
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy.orm import joinedload, selectinload, load_only
 import io
 from flask import make_response
@@ -62,6 +62,7 @@ from utils.label_utils import (
 # Flask-WTF es obligatorio: la protección CSRF debe fallar de forma cerrada.
 # Si la dependencia falta, la app no debe arrancar sin CSRF.
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 try:
     from flask_talisman import Talisman
 except ImportError:
@@ -336,6 +337,34 @@ def _audit(tipo, accion, detalle=None):
 
 # CSRF (Flask-WTF) - obligatorio
 csrf = CSRFProtect(app)
+
+
+@app.errorhandler(CSRFError)
+def _csrf_error_handler(e):
+    """Un CSRF inválido/ausente es, en la práctica, la MISMA sesión vencida
+    que `pedido_form.html` intenta detectar mirando un 302 a `/login`: pero
+    `CSRFProtect` corre en un `before_request`, ANTES que `login_required`,
+    así que la sesión vencida nunca llega a producir ESE 302 — Flask-WTF
+    guarda el token CSRF en la sesión, y sin sesión "falta" el token, así
+    que lo que responde es un 400 HTML directo ("The CSRF session token is
+    missing"). Sin este handler ese 400 caía en el genérico "el servidor
+    rechazó el pedido" de cualquier fetch de la app (no solo el form de
+    pedidos — cualquier POST con `X-Requested-With` detrás de una sesión de
+    8 h que vive todo el día en la PWA) y el vendedor reintentaba para
+    siempre sin saber que tenía que volver a entrar.
+    """
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'ok': False,
+            'error': 'Tu sesión expiró: volvé a iniciar sesión.',
+        }), 400
+    # Sin el header de fetch: el comportamiento ORIGINAL de Flask-WTF sin
+    # handler propio — 400 con su mensaje de siempre. `test_csrf.py` fija
+    # ESE 400 a propósito (dos tests de seguridad, uno de ellos sobre
+    # /login); cambiarlo por un redirect "amigable" a /login debilitaría la
+    # señal de un CSRF inválido de VERDAD (no solo una sesión vencida)
+    # frente a una auditoría — acá no se puede distinguir uno del otro.
+    return e.get_response()
 
 # Configuración de seguridad con Talisman (HSTS, CSP, etc.)
 # Solo activa Talisman en producción (cuando uses HTTPS real)
@@ -2301,6 +2330,19 @@ class Pedido(db.Model):
     invoice_id_qbo = db.Column(db.String(100), nullable=True)
     doc_number_qbo = db.Column(db.String(20), nullable=True)
     tipo_cambio = db.Column(db.Float, default=1.0, nullable=False)
+    # Idempotencia del envío desde `pedido_form.html`: un UUID generado en el
+    # navegador AL EMPEZAR el pedido (no en cada intento de envío), guardado
+    # junto al borrador para sobrevivir a una recarga a mitad de camino. Si
+    # el `fetch` se corta después de que el servidor ya comiteó (H12 de
+    # Heroku a los 30s, un 502/504 de Cloudflare sobre una request que el
+    # origen sí completó, o la señal que se corta literalmente entre el POST
+    # y la respuesta), "Reintentar" manda el MISMO intento_id: el índice
+    # único lo detecta y la ruta devuelve la confirmación del pedido que YA
+    # existe, en vez de crear un segundo pedido con sus líneas de
+    # preparación y una segunda factura en QuickBooks. `nullable=True`
+    # porque los pedidos históricos y los que entran por otro camino
+    # (n8n, imports) no lo tienen.
+    intento_id = db.Column(db.String(36), nullable=True, unique=True)
     cliente = db.relationship('Cliente', back_populates='pedidos')
     detalles = db.relationship('DetallePedido', back_populates='pedido', cascade="all, delete-orphan")
 
@@ -6375,7 +6417,11 @@ def lista_pedidos():
 
 
 
-def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None):
+_SIN_PRECIO_LISTA_PRECARGADO = object()
+
+
+def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None,
+                                     precio_lista=_SIN_PRECIO_LISTA_PRECARGADO):
     """Precio unitario de una línea del pedido, SIEMPRE resuelto por jerarquía.
 
     El formulario manda `productos[i][precio]`, sembrado con el precio de la
@@ -6393,8 +6439,19 @@ def _resolver_precio_unitario_pedido(cliente_id, producto_id, precio_form=None):
 
     Cuando el formulario manda algo distinto de lo resuelto se registra en el log:
     es la señal de que el JS de precios por cliente no llegó a correr.
+
+    `precio_lista`: cuando el caller YA resolvió el precio de este producto
+    en lote (`_precios_vigentes_para_cliente`, `nuevo_pedido`/`editar_pedido`
+    lo hacen antes de este loop para no pagar una consulta extra por línea),
+    se lo pasa acá y esta función no vuelve a preguntarle a `_precio_vigente`
+    — mismo resultado, sin la query repetida. Default = "no me pasaron
+    nada, resolvé vos" (comportamiento de siempre, y el que siguen usando
+    los tests que llaman a esta función directo).
     """
-    precio = _precio_vigente(cliente_id, producto_id, 'base')
+    if precio_lista is _SIN_PRECIO_LISTA_PRECARGADO:
+        precio = _precio_vigente(cliente_id, producto_id, 'base')
+    else:
+        precio = precio_lista
 
     if precio is None:
         # Sin precio configurado en ningún lado: mejor lo que trajo el formulario
@@ -6476,6 +6533,24 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
     Raises _PedidoFormError on bad input — callers should catch and
     flash + redirect rather than 500.
     """
+    # Primera pasada, solo para juntar los producto_id y resolver TODA la
+    # jerarquía de precios en un lote (`_precios_vigentes_para_cliente`, 4
+    # queries fijas) en vez de una consulta extra por línea — importa en la
+    # ruta de `nuevo_pedido`/`editar_pedido`, que además puede estar
+    # reintentando tras un H12 (más motivo para no sumarle queries). Un id
+    # ilegible acá no revienta nada: la segunda pasada, abajo, es la que
+    # valida de verdad y tira el `_PedidoFormError` con el mensaje puntual.
+    producto_ids_crudo = []
+    idx = 0
+    while f'productos[{idx}][id]' in form_data:
+        try:
+            producto_ids_crudo.append(int(form_data.get(f'productos[{idx}][id]')))
+        except (TypeError, ValueError):
+            pass
+        idx += 1
+    precios_lista = _precios_vigentes_para_cliente(
+        cliente_id, [pid for pid in producto_ids_crudo if pid > 0])
+
     lineas_por_producto = {}
     idx = 0
 
@@ -6493,11 +6568,24 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
         if prod_id <= 0:
             raise _PedidoFormError(f'Producto inválido en línea {idx + 1}')
 
+        # `.get(prod_id)` devuelve `None` tanto si la jerarquía de verdad no
+        # tiene precio como si `prod_id` no estaba en el lote de arriba (no
+        # debería pasar, todo `prod_id` válido se recolectó ahí) — en los dos
+        # casos el resolutor cae al mismo último recurso que sin el lote.
+        precio_lista = precios_lista.get(prod_id)
         precio_unitario = _resolver_precio_unitario_pedido(
             cliente_id,
             prod_id,
             form_data.get(f'productos[{idx}][precio]'),
+            precio_lista=precio_lista,
         )
+        # `precio_lista is None` es "no había precio en ninguna lista" — el
+        # resolutor de arriba SIEMPRE devuelve un Decimal (0 de último
+        # recurso), así que no hay forma de distinguir desde SU resultado un
+        # precio real de 0 de "sin precio" — y esa distinción es la que
+        # necesita el flash/la confirmación para no mentir sobre un pedido
+        # con líneas sin precio de lista.
+        sin_precio = precio_lista is None
 
         if prod_id in lineas_por_producto:
             lineas_por_producto[prod_id]['cajas'] += cajas
@@ -6517,6 +6605,7 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
                 'cajas': cajas,
                 'precio_unitario': precio_unitario,
                 'subtotal': precio_unitario * _cajas_a_decimal(cajas),
+                'sin_precio': sin_precio,
             }
         idx += 1
 
@@ -6542,6 +6631,33 @@ def _grupo_facturable(producto):
     return float(producto.tax_rate or 0)
 
 
+# Los tax_rate son CÓDIGOS de QuickBooks, no porcentajes. La traducción vivía
+# duplicada en tres plantillas (productos.html, editar_producto.html) y no
+# existía en el formulario de pedido, que mostraba el código crudo — el dato
+# que los comentarios de este archivo describen como «no le dice nada al
+# vendedor». Un solo dueño, y se usa en los tres lados.
+_OB_POR_CODIGO = {10: 6.0, 14: 0.0}
+
+
+def _ob_de_codigo(codigo):
+    """Porcentaje de OB y etiqueta legible de un código de impuesto de QBO."""
+    try:
+        cod = int(codigo)
+    except (TypeError, ValueError):
+        return {'pct': None, 'etiqueta': '—'}
+    pct = _OB_POR_CODIGO.get(cod)
+    if pct is None:
+        # Un código que no conocemos NO es 0%: decir «sin impuesto» de algo que
+        # sí lo paga le hace cantar al vendedor un precio que la factura
+        # desmiente.
+        return {'pct': None, 'etiqueta': f'Tax {cod}'}
+    return {'pct': pct, 'etiqueta': f'OB {pct:g}%'}
+
+
+app.jinja_env.globals['ob_de_codigo'] = _ob_de_codigo
+app.jinja_env.globals['ob_por_codigo'] = _OB_POR_CODIGO
+
+
 def _etiqueta_grupo(grupo):
     """Nombre legible del grupo para mostrarle al vendedor."""
     if grupo is None:
@@ -6549,7 +6665,7 @@ def _etiqueta_grupo(grupo):
     # El tax_rate es un código de QuickBooks, no un porcentaje, así que por sí
     # solo no le dice nada al vendedor: la tarjeta lo acompaña con dos
     # productos de ejemplo.
-    return f'Impuesto {grupo:g}'
+    return _ob_de_codigo(grupo)['etiqueta']
 
 
 def _validar_grupo_unico(lineas):
@@ -6621,7 +6737,8 @@ def _texto_hero_habitual(meta):
     """Línea de cadencia/historial que antes armaba el JS (actualizarHero)."""
     partes = []
     if meta.get('cadencia_dias'):
-        partes.append(f"Compra cada {meta['cadencia_dias']} días")
+        dias = meta['cadencia_dias']
+        partes.append(f"Compra cada {dias} {'día' if dias == 1 else 'días'}")
     if meta.get('ultima_fecha'):
         try:
             f = datetime.strptime(meta['ultima_fecha'], '%Y-%m-%d').date()
@@ -6637,7 +6754,10 @@ def _texto_hero_habitual(meta):
         total = sum(g.get('pedidos', 0) for g in meta.get('grupos', []))
         if total:
             n = len(meta.get('grupos', []))
-            partes.append(f"{total} {'pedido' if total == 1 else 'pedidos'} en {n} grupos")
+            partes.append(
+                f"{total} {'pedido' if total == 1 else 'pedidos'} "
+                f"en {n} {'grupo' if n == 1 else 'grupos'}"
+            )
         else:
             partes.append('Sin pedidos anteriores')
     return ' · '.join(partes)
@@ -6815,6 +6935,169 @@ def _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id):
         ))
 
 
+def _pedido_form_quiere_json():
+    """True si el POST vino del `fetch` de `pedido_form.html`, no de un
+    envío clásico del navegador.
+
+    La ruta la usan dos caminos (`nuevo_pedido` y `editar_pedido`, el mismo
+    template/JS) y hay tests que ejercen el POST normal con
+    `client.post(...)` sin este header — sin el gate, cualquiera de los dos
+    perdería su comportamiento. Mismo header y mismo valor que ya usa el
+    resto de la app (`clientes.html`, `productos.js`) para AJAX.
+    """
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _pedido_form_error_json_o_redirect(mensaje, status, endpoint, **redirect_kwargs):
+    """Un branch de error del form: JSON al fetch, flash+redirect al POST clásico.
+
+    Único punto de bifurcación para no repetir el `if` en cada validación de
+    `nuevo_pedido`/`editar_pedido` — con seis branches de error entre las dos
+    rutas, copiar el `if` a mano es donde se cuela el que se olvida.
+    """
+    if _pedido_form_quiere_json():
+        return jsonify({'ok': False, 'error': mensaje}), status
+    flash(mensaje, 'error')
+    return redirect(url_for(endpoint, **redirect_kwargs))
+
+
+def _pedido_confirmacion_json(pedido, cliente, lineas_form, productos_por_id, sin_precio_alguna):
+    """Lo que necesita la confirmación en el shell (`pedido_form.html`):
+    número de pedido, cliente, entrega, líneas y total — con el PRECIO que
+    resolvió el servidor (jerarquía), no el que traía el form. Mismo
+    argumento que `_resolver_precio_unitario_pedido`: lo que se le muestra al
+    vendedor tiene que ser lo que se le va a cobrar, no un eco de lo que él
+    mismo tecleó.
+
+    No arma el desglose Subtotal/OB/Total inclusivo — esa cuenta
+    (`_ob_de_codigo`, `es_exportacion`) ya vive una sola vez en el JS de la
+    revisión (paso 04) y la confirmación la reutiliza tal cual, no la
+    duplica acá.
+    """
+    lineas = []
+    for l in lineas_form:
+        producto = productos_por_id.get(l['producto_id'])
+        lineas.append({
+            'producto_id': l['producto_id'],
+            'nombre': producto.nombre if producto else f'Producto {l["producto_id"]}',
+            'cajas': float(l['cajas']),
+            'precio': float(l['precio_unitario']),
+            'subtotal': float(l['subtotal']),
+            'sin_precio': bool(l.get('sin_precio')),
+        })
+    return {
+        'ok': True,
+        'pedido_id': pedido.id,
+        'cliente_nombre': cliente.nombre,
+        'moneda': cliente.moneda or 'XCG',
+        'fecha_entrega': pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else None,
+        'notas': pedido.notas or '',
+        'lineas': lineas,
+        'subtotal': float(sum((l['subtotal'] for l in lineas_form), Decimal('0'))),
+        'sin_precio': sin_precio_alguna,
+    }
+
+
+def _pedido_confirmacion_json_desde_pedido(pedido):
+    """Misma confirmación que `_pedido_confirmacion_json`, pero leyendo la
+    DB en vez del form recién validado — es el camino de un REINTENTO
+    idempotente (mismo `intento_id`): el pedido en cuestión ya está
+    comiteado desde un intento anterior, así que la fuente de verdad es lo
+    que quedó guardado, no lo que el form manda en el segundo toque (que
+    puede venir con datos ligeramente distintos si el vendedor tocó algo
+    entre medio, aunque el intento_id sea el mismo — la respuesta tiene que
+    ser indistinguible de la que hubiera dado el primer intento si no se
+    hubiera perdido).
+    """
+    detalles = DetallePedido.query.filter_by(
+        pedido_id=pedido.id, es_linea_pedido=True).all()
+    lineas = []
+    subtotal = Decimal('0')
+    sin_precio_alguna = False
+    for d in detalles:
+        precio = d.precio_unitario if d.precio_unitario is not None else Decimal('0')
+        sub = d.subtotal if d.subtotal is not None else Decimal('0')
+        subtotal += sub
+        # Sin las líneas del form original no sabemos si ESTE precio salió
+        # de la jerarquía o de un respaldo: se aproxima con "el catálogo
+        # tiene precio HOY" (misma pregunta que resuelve `_precio_vigente`),
+        # que puede diferir del intento original solo si el catálogo cambió
+        # en la ventana de segundos entre los dos intentos.
+        falta = _precio_vigente(pedido.cliente_id, d.producto_id, 'base') is None
+        if falta:
+            sin_precio_alguna = True
+        lineas.append({
+            'producto_id': d.producto_id,
+            'nombre': d.producto.nombre if d.producto else f'Producto {d.producto_id}',
+            'cajas': float(d.cajas),
+            'precio': float(precio),
+            'subtotal': float(sub),
+            'sin_precio': falta,
+        })
+    return {
+        'ok': True,
+        'pedido_id': pedido.id,
+        'cliente_nombre': pedido.cliente.nombre,
+        'moneda': pedido.cliente.moneda or 'XCG',
+        'fecha_entrega': pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else None,
+        'notas': pedido.notas or '',
+        'lineas': lineas,
+        'subtotal': float(subtotal),
+        'sin_precio': sin_precio_alguna,
+    }
+
+
+def _intento_id_del_form():
+    """`intento_id` del hidden de `pedido_form.html`, saneado.
+
+    Un valor vacío (form sin JS, o un `<input>` que nunca se rellenó) se
+    trata como "no hay intento_id" — no como una cadena vacía que competiría
+    por el índice único. Se corta a 36 (el largo de un UUID con guiones,
+    la columna es VARCHAR(36)) para que un valor absurdo no reviente el
+    INSERT/UPDATE con un error de longitud — un intento_id truncado
+    simplemente no va a matchear nada, se comporta como uno nuevo.
+    """
+    valor = (request.form.get('intento_id') or '').strip()
+    if not valor:
+        return None
+    return valor[:36]
+
+
+def _ultimo_intento_id_edicion(pedido):
+    """El `intento_id` de la ÚLTIMA edición aceptada de este pedido, leído
+    de `PedidoEvento` (tipo='editado'), NUNCA de `Pedido.intento_id`.
+
+    Esa columna es del ALTA (`nuevo_pedido`), con su propio índice único y
+    su propia semántica: "qué intento CREÓ este pedido". Reutilizarla acá
+    para "qué intento EDITÓ este pedido" fue el bug real de la ronda
+    anterior — las dos semánticas conviven en la misma columna, y la clave
+    del borrador (`borrador:<cliente>:<grupo>`) es la MISMA para alta y
+    edición. Secuencia que perdía un pedido en silencio: se pierde la
+    respuesta de una edición → su intento_id queda en el borrador (mismo
+    cliente+grupo) → el vendedor toma un pedido NUEVO de ese cliente+grupo
+    → `ofrecerBorrador` restaura ese intento_id → `nuevo_pedido` encuentra
+    el pedido EDITADO con `Pedido.query.filter_by(intento_id=…)`, no crea
+    nada, y devuelve esa confirmación como si fuera el pedido nuevo. El
+    pedido nuevo nunca existió, y el vendedor ve un cartel de éxito.
+
+    Una sola columna, una sola semántica: la de edición vive en la
+    auditoría, un mundo aparte que ningún alta puede leer por accidente.
+    """
+    evento = (PedidoEvento.query
+             .filter_by(pedido_id=pedido.id, tipo='editado')
+             .order_by(PedidoEvento.created_at.desc())
+             .first())
+    if not evento or not evento.meta:
+        return None
+    try:
+        meta = json.loads(evento.meta)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(meta, dict):
+        return None
+    return meta.get('intento_id')
+
+
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'crear')
@@ -6837,15 +7120,34 @@ def nuevo_pedido():
         cliente_id = request.form.get('cliente_id', type=int)
         cliente_post = db.session.get(Cliente, cliente_id) if cliente_id else None
         if cliente_post is None:
-            flash('Cliente no válido', 'error')
-            return redirect(url_for('nuevo_pedido'))
+            return _pedido_form_error_json_o_redirect(
+                'Cliente no válido', 400, 'nuevo_pedido')
 
         # VERIFICAR QUE EL VENDEDOR PUEDE CREAR PEDIDOS PARA ESTE CLIENTE
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             clientes_permitidos_ids = [c.id for c in current_user.obtener_clientes_visibles()]
             if cliente_id not in clientes_permitidos_ids:
-                flash('No tienes permisos para crear pedidos para este cliente', 'error')
-                return redirect(url_for('nuevo_pedido'))
+                return _pedido_form_error_json_o_redirect(
+                    'No tienes permisos para crear pedidos para este cliente',
+                    403, 'nuevo_pedido')
+
+        # Idempotencia: si este intento_id ya creó un pedido (la respuesta
+        # se perdió pero el commit sí llegó — H12 de Heroku a los 30s, un
+        # 502/504 de Cloudflare sobre una request que el origen completó, o
+        # la señal cortándose literalmente entre el POST y la respuesta), NO
+        # se crea un segundo pedido: se devuelve la MISMA confirmación,
+        # indistinguible del éxito para el vendedor. Corre ANTES de validar
+        # líneas — un reintento no tiene por qué volver a pagar esa cuenta,
+        # y si el form llegó con algo raro en el segundo toque (poco
+        # probable, mismo intento_id) igual no importa: no se va a usar.
+        intento_id = _intento_id_del_form()
+        if intento_id:
+            existente = Pedido.query.filter_by(intento_id=intento_id).first()
+            if existente is not None:
+                if _pedido_form_quiere_json():
+                    return jsonify(_pedido_confirmacion_json_desde_pedido(existente))
+                flash('Pedido creado con precios registrados.', 'success')
+                return redirect(url_for('lista_pedidos'))
 
         notas = request.form.get('notas')
         # El rate sale de la moneda del cliente, no de un hidden del form (un
@@ -6863,23 +7165,33 @@ def nuevo_pedido():
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, cliente_id)
         except _PedidoFormError as e:
-            flash(str(e), 'error')
-            return redirect(url_for('nuevo_pedido', cliente=cliente_id,
-                                    grupo=grupo_form))
+            return _pedido_form_error_json_o_redirect(
+                str(e), 400, 'nuevo_pedido', cliente=cliente_id, grupo=grupo_form)
         if not lineas_form:
-            flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('nuevo_pedido', cliente=cliente_id,
-                                    grupo=grupo_form))
+            return _pedido_form_error_json_o_redirect(
+                'Agrega al menos un producto al pedido', 400,
+                'nuevo_pedido', cliente=cliente_id, grupo=grupo_form)
 
         pedido = Pedido(
             cliente_id=cliente_id,
             notas=notas,
             tipo_cambio=tipo_cambio,
             fecha_entrega=_parsear_fecha_entrega(request.form.get('fecha_entrega')),
+            intento_id=intento_id,
         )
         db.session.add(pedido)
-        db.session.commit()
-        _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
+        # `flush()`, no `commit()`: necesita el id de `pedido` para las FK de
+        # abajo (detalle, prep, evento) pero SIN cerrar la transacción — un
+        # commit acá solo, seguido de un segundo commit para las líneas,
+        # dejaba una ventana real donde un pedido con intento_id podía
+        # existir con CERO líneas si el proceso moría en el medio (restart
+        # de dyno). Y `_validar_preparacion_pedido` deja pasar un pedido sin
+        # línea original: ese pedido vacío era FACTURABLE. Un reintento
+        # después de esa ventana lo hubiera devuelto como "éxito" — el
+        # cartel de confirmación sobre un pedido que nunca tuvo qué cobrar.
+        db.session.flush()
+
+        _log_pedido_evento(pedido, 'creado', 'Pedido creado')
 
         # 2) Detalle + líneas de preparación de los importados, desde las
         # MISMAS líneas normalizadas (nada se re-consulta de la DB).
@@ -6894,16 +7206,51 @@ def nuevo_pedido():
             )
             db.session.add(detalle)
 
-        _sincronizar_lineas_prep(pedido, lineas_form, _productos_de_lineas(lineas_form))
-        db.session.commit()
+        productos_por_id = _productos_de_lineas(lineas_form)
+        _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id)
 
         # 3) Total del pedido (solo líneas originales): la suma de lo que se
         # acaba de escribir, sin ida extra a la DB.
         if hasattr(pedido, 'total'):
             pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
-            db.session.commit()
 
-        flash('Pedido creado con precios registrados.', 'success')
+        # UN solo commit para cabecera + evento + líneas + prep + total: o
+        # queda TODO, o no queda nada — nunca un pedido a medias.
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Carrera real (no el reintento secuencial de arriba, que ya lo
+            # hubiera atajado): dos requests con el MISMO intento_id
+            # llegaron casi juntas — el H12 relanzando la request mientras
+            # la original sigue viva, o un doble toque que le ganó al guard
+            # del JS — y la otra ganó la carrera del índice único. Mismo
+            # desenlace: se devuelve SU confirmación, no un segundo pedido.
+            db.session.rollback()
+            existente = (Pedido.query.filter_by(intento_id=intento_id).first()
+                        if intento_id else None)
+            if existente is None:
+                raise
+            if _pedido_form_quiere_json():
+                return jsonify(_pedido_confirmacion_json_desde_pedido(existente))
+            flash('Pedido creado con precios registrados.', 'success')
+            return redirect(url_for('lista_pedidos'))
+
+        # El flash ya no dice siempre "con precios registrados": un pedido
+        # con líneas SIN precio de lista (total en 0.00 en el peor caso) se
+        # guarda igual —el vendedor lo necesita en la calle— pero decirlo iba
+        # a mentir sobre lo que en realidad quedó guardado.
+        sin_precio_alguna = any(l.get('sin_precio') for l in lineas_form)
+
+        if _pedido_form_quiere_json():
+            return jsonify(_pedido_confirmacion_json(
+                pedido, cliente_post, lineas_form, productos_por_id, sin_precio_alguna))
+
+        if sin_precio_alguna:
+            flash(
+                'Pedido creado. Ojo: tiene líneas sin precio de lista — '
+                'se cargan después.', 'success')
+        else:
+            flash('Pedido creado con precios registrados.', 'success')
         return redirect(url_for('lista_pedidos'))
 
     # ── GET: dos pasos ────────────────────────────────────────────
@@ -6957,6 +7304,16 @@ def nuevo_pedido():
         'habitual': l['cajas_habitual'],
     } for l in lineas_hab]
 
+    # El otro grupo que este cliente YA compra, para ofrecerlo en la
+    # confirmación al terminar (no en el banner de arriba, que solo explica
+    # la restricción). `meta['grupos']` es el mismo barrido de
+    # `_grupos_del_cliente` que arma el habitual — sin reconsultar. Solo
+    # cuenta el historial REAL: un grupo del catálogo sin pedidos de este
+    # cliente no es "también compra de ahí".
+    grupo_alternativo = next(
+        (g for g in meta['grupos'] if g['clave'] != grupo_arg), None,
+    ) if len(meta['grupos']) > 1 else None
+
     return render_template(
         'pedido_form.html',
         cliente=cliente,
@@ -6967,7 +7324,9 @@ def nuevo_pedido():
         origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
         grupo_clave=grupo_arg,
         grupo_etiqueta=_etiqueta_de_clave_grupo(grupo_arg),
+        grupo_alternativo=grupo_alternativo,
         tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
+        es_exportacion=_es_exportacion(cliente),
     )
 
 @app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
@@ -6983,24 +7342,42 @@ def editar_pedido(pedido_id):
 
     if request.method == 'POST':
         if isinstance(current_user, Vendedor) and not current_user.puede_editar_pedido(pedido):
-            flash('No tienes permisos para editar este pedido', 'error')
-            return redirect(url_for('lista_pedidos'))
+            return _pedido_form_error_json_o_redirect(
+                'No tienes permisos para editar este pedido', 403, 'lista_pedidos')
 
         # Pedidos facturados son inmutables — un cambio aquí divergiría
         # la DB local del invoice ya enviado a QuickBooks.
         if pedido.estado == 'facturado':
-            flash('No se puede editar un pedido facturado', 'error')
-            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+            return _pedido_form_error_json_o_redirect(
+                'No se puede editar un pedido facturado', 409,
+                'detalles_pedido', pedido_id=pedido.id)
+
+        # Idempotencia — leyendo `PedidoEvento`, NUNCA `Pedido.intento_id`.
+        # Esa columna es del ALTA, con su propio índice único: escribirla
+        # también acá (ronda anterior) era el bug real — la clave del
+        # borrador (`borrador:<cliente>:<grupo>`) es la MISMA para alta y
+        # edición, así que el intento_id de una edición con la respuesta
+        # perdida podía sobrevivir en el borrador y, al tomar un pedido
+        # NUEVO del mismo cliente+grupo, `nuevo_pedido` lo reconocía como
+        # "ya existe" y no creaba nada — el pedido nuevo se perdía en
+        # silencio, con cartel de éxito. Ver `_ultimo_intento_id_edicion`.
+        intento_id = _intento_id_del_form()
+        if intento_id and _ultimo_intento_id_edicion(pedido) == intento_id:
+            if _pedido_form_quiere_json():
+                return jsonify(_pedido_confirmacion_json_desde_pedido(pedido))
+            flash('Pedido actualizado.', 'success')
+            return redirect(url_for('lista_pedidos'))
 
         nuevo_cliente_id = request.form.get('cliente_id', type=int)
         cliente_destino = db.session.get(Cliente, nuevo_cliente_id) if nuevo_cliente_id else None
         if cliente_destino is None:
-            flash('Cliente no válido', 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+            return _pedido_form_error_json_o_redirect(
+                'Cliente no válido', 400, 'editar_pedido', pedido_id=pedido.id)
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             if not current_user.puede_crear_pedido_para_cliente(nuevo_cliente_id):
-                flash('No tienes permisos para reasignar este pedido a ese cliente', 'error')
-                return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+                return _pedido_form_error_json_o_redirect(
+                    'No tienes permisos para reasignar este pedido a ese cliente',
+                    403, 'editar_pedido', pedido_id=pedido.id)
 
         # El error vuelve al form del MISMO cliente que se estaba guardando
         # (`?cliente=`): sin él, un cambio de cliente en curso se revertía en
@@ -7009,13 +7386,13 @@ def editar_pedido(pedido_id):
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, nuevo_cliente_id)
         except _PedidoFormError as e:
-            flash(str(e), 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id,
-                                    cliente=nuevo_cliente_id))
+            return _pedido_form_error_json_o_redirect(
+                str(e), 400, 'editar_pedido', pedido_id=pedido.id,
+                cliente=nuevo_cliente_id)
         if not lineas_form:
-            flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id,
-                                    cliente=nuevo_cliente_id))
+            return _pedido_form_error_json_o_redirect(
+                'Agrega al menos un producto al pedido', 400,
+                'editar_pedido', pedido_id=pedido.id, cliente=nuevo_cliente_id)
 
         lineas_por_producto = {
             linea['producto_id']: linea for linea in lineas_form
@@ -7072,23 +7449,44 @@ def editar_pedido(pedido_id):
         # Líneas de preparación: borrar/seguir/crear según lo pedido — la
         # misma pieza que usa el alta (una prep no capturada SIGUE a su línea;
         # una capturada por almacén conserva su cantidad).
-        _sincronizar_lineas_prep(pedido, lineas_form, _productos_de_lineas(lineas_form))
+        productos_por_id = _productos_de_lineas(lineas_form)
+        _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id)
 
         # Rastro en la auditoría, como el alta ('creado') y el borrado
         # ('eliminado'): sin esto una investigación de cobros no podía saber
-        # que el pedido fue editado ni por quién.
+        # que el pedido fue editado ni por quién. El intento_id de ESTA
+        # edición viaja en el meta — es la ÚNICA parte de la app que lo lee
+        # (`_ultimo_intento_id_edicion`, arriba), separado a propósito de
+        # `Pedido.intento_id` (que es del alta, con su propio índice único y
+        # su propia semántica — mezclar las dos fue el bug real que dejó la
+        # ronda anterior).
+        meta_evento = {}
+        if nuevo_cliente_id != cliente_anterior_id:
+            meta_evento['cliente_anterior'] = cliente_anterior_id
+            meta_evento['cliente_nuevo'] = nuevo_cliente_id
+        if intento_id:
+            meta_evento['intento_id'] = intento_id
         _log_pedido_evento(
             pedido, 'editado', 'Pedido editado',
-            meta=({'cliente_anterior': cliente_anterior_id,
-                   'cliente_nuevo': nuevo_cliente_id}
-                  if nuevo_cliente_id != cliente_anterior_id else None),
+            meta=meta_evento or None,
         )
-        db.session.commit()
 
         # Actualizar total del pedido (solo líneas originales)
         if hasattr(pedido, 'total'):
             pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
-            db.session.commit()
+
+        # UN solo commit — cabecera + líneas + prep + evento + total juntos.
+        # Ya no hay `Pedido.intento_id` en juego acá (ver arriba), así que
+        # no hay una carrera de índice único que atajar: un IntegrityError
+        # acá es un error de verdad, y se deja subir en vez de tragárselo y
+        # devolver "Pedido actualizado" sobre un cambio que en realidad se
+        # descartó con el rollback.
+        db.session.commit()
+
+        if _pedido_form_quiere_json():
+            sin_precio_alguna = any(l.get('sin_precio') for l in lineas_form)
+            return jsonify(_pedido_confirmacion_json(
+                pedido, cliente_destino, lineas_form, productos_por_id, sin_precio_alguna))
 
         flash('Pedido actualizado.', 'success')
         return redirect(url_for('lista_pedidos'))
@@ -7176,9 +7574,11 @@ def editar_pedido(pedido_id):
                             if cliente_efectivo.id != pedido.cliente_id else '',
         grupo_clave       = '',
         grupo_etiqueta    = '',
+        grupo_alternativo = None,
         tipo_cambio_valor = (_tipo_cambio_para_cliente(cliente_efectivo)
                              if cliente_efectivo.id != pedido.cliente_id
                              else float(pedido.tipo_cambio or 1.0)),
+        es_exportacion    = _es_exportacion(cliente_efectivo),
     )
 
 
@@ -9381,13 +9781,22 @@ def _grupos_para_elegir(cliente_id):
     """Las opciones del paso 2, con el historial de ESTE cliente encima.
 
     El historial decora (cuántos pedidos, cuándo fue el último); no decide
-    qué se ve ni en qué orden.
+    qué se ve ni en qué orden. Los ejemplos sí los pisa cuando hay: el
+    catálogo alfabético es el mismo para los 62 clientes y no dice nada de
+    ESTE — dos productos que compró de verdad sí. Sin historial en ese
+    grupo, recién ahí cae al catálogo (como antes).
     """
     historial = {g['clave']: g for g in _grupos_del_cliente(cliente_id)}
-    return [{**grupo, **{
-        'pedidos': historial.get(grupo['clave'], {}).get('pedidos', 0),
-        'ultima_fecha': historial.get(grupo['clave'], {}).get('ultima_fecha'),
-    }} for grupo in _grupos_del_catalogo()]
+    grupos = []
+    for grupo in _grupos_del_catalogo():
+        info = historial.get(grupo['clave'])
+        grupos.append({
+            **grupo,
+            'pedidos': info['pedidos'] if info else 0,
+            'ultima_fecha': info['ultima_fecha'] if info else None,
+            'ejemplos': info['ejemplos'] if info and info['ejemplos'] else grupo['ejemplos'],
+        })
+    return grupos
 
 
 def _etiqueta_de_clave_grupo(clave):

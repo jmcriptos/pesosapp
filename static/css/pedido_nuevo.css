@@ -41,7 +41,10 @@ body[data-pedido-nuevo-screen] .app-content {
        punto más oscuro conserva el mismo gris cálido y llega a 4.69:1. */
     --pn-gris: #727268;
     --pn-gris-fuerte: #5f5f57;
-    --pn-apagado: #a8a8a0;
+    /* #a8a8a0 daba 2.3:1 sobre el papel (#fbfbf9): reprobado, y es el único
+       texto que dice qué producto se acaba de quitar del pedido. #6b6b62
+       llega a 5.19:1 midiendo contra ese mismo fondo real. */
+    --pn-apagado: #6b6b62;
     --pn-alerta: #b1370f;
     --pn-alta: #1f5c37;
     --pn-realce: #f4f4ef;
@@ -70,6 +73,22 @@ body[data-pedido-nuevo-screen] .app-content {
 .pn-shell *,
 .pn-shell *::before,
 .pn-shell *::after { box-sizing: border-box; }
+
+/* Sin `max-width` el flujo se estiraba edge-to-edge en escritorio: a 1280px
+   quedaban ~1.100px vacíos entre el nombre del producto y su precio en
+   `.pn-linea`. Desde este ancho el shell pasa a ser una columna centrada del
+   ancho de un teléfono grande — el diseño ya está pensado para esa medida —
+   en vez de reflowear cada fila. */
+@media (min-width: 640px) {
+    .pn-shell {
+        right: auto;
+        left: 50%;
+        width: 100%;
+        max-width: 560px;
+        transform: translateX(-50%);
+        box-shadow: 0 0 0 1px var(--pn-regla);
+    }
+}
 
 /* `hidden` tiene que ganar SIEMPRE. El atributo solo aplica `display:none`
    desde la hoja del navegador, con especificidad cero: cualquier regla de
@@ -391,12 +410,28 @@ body[data-pedido-nuevo-screen] .app-content {
 .pn-step-mas:active { background: #333333; }
 
 .pn-step-valor {
-    min-width: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 46px;
     text-align: center;
     font-family: var(--pn-mono);
     font-weight: 600;
     font-size: 19px;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+}
+
+/* La unidad de la cantidad ("cj" = cajas) antes solo estaba en el
+   aria-label del stepper: nadie que mira la pantalla la veía. */
+.pn-step-unidad {
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
 }
 
 .pn-volver-linea {
@@ -489,9 +524,8 @@ body[data-pedido-nuevo-screen] .app-content {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    /* 40 px de alto: se toca a una mano sin competir con el nombre del
-       cliente, que es el título de la pantalla. */
-    min-height: 40px;
+    /* ≥44px de alto: es el mínimo táctil (antes 40px medía 131×40 real). */
+    min-height: 44px;
     margin-top: 10px;
     padding: 0 16px;
     border-radius: 999px;
@@ -596,6 +630,22 @@ body[data-pedido-nuevo-screen] .app-content {
     color: var(--pn-gris);
 }
 
+.pn-footer-total-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.pn-footer-total-label {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+}
+
 .pn-footer-total {
     font-family: var(--pn-mono);
     font-weight: 600;
@@ -680,6 +730,22 @@ body[data-pedido-nuevo-screen] .app-content {
     line-height: 1;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
+}
+
+/* Subtotal y OB acompañan al total inclusivo, que es la cifra grande: estas
+   dos filas quedan chicas para que el ojo vaya directo al número que hay
+   que cobrar. */
+.pn-revision-monto-sub { font-size: 16px; }
+
+#pn-revision-fila-subtotal,
+#pn-revision-fila-ob { padding: 14px 24px 0; border-bottom: 0; }
+
+.pn-revision-ob-nota {
+    padding: 0 24px 18px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--pn-gris);
+    border-bottom: 1px solid var(--pn-regla);
 }
 
 .pn-aviso {
@@ -819,12 +885,14 @@ html:has(body[data-pedido-nuevo-screen]) {
 .pn-shell .pn-seccion-titulo,
 .pn-shell .pn-campo-label,
 .pn-shell .pn-footer-meta,
+.pn-shell .pn-footer-total-label,
 .pn-shell .pn-paso,
 .pn-shell .pn-sobretitulo,
 .pn-shell .pn-linea-meta,
 .pn-shell .pn-cliente-meta,
 .pn-shell .pn-grupo-meta,
 .pn-shell .pn-revision-entrega,
+.pn-shell .pn-revision-ob-nota,
 .pn-shell .pn-revision-total-label { color: var(--pn-gris) !important; }
 
 .pn-shell .pn-head-nota,
@@ -854,10 +922,14 @@ html:has(body[data-pedido-nuevo-screen]) {
 .pn-shell .pn-linea.es-cambiada { background: var(--pn-realce) !important; }
 .pn-shell .pn-linea.es-quitada .pn-linea-nombre { color: var(--pn-apagado) !important; }
 
-/* Controles: cápsula clara con tinta negra; los de acción, al revés. */
+/* Controles: cápsula clara con tinta negra; los de acción, al revés.
+   `a.pn-btn-capsula`/`a.pn-enviar` son las dos salidas de la confirmación
+   (`pn-conf-lista`/`pn-conf-otro`): mismos estilos que sus `<button>`, así
+   que se protegen igual. */
 .pn-shell button.pn-step,
 .pn-shell button.pn-volver-linea,
 .pn-shell button.pn-btn-capsula,
+.pn-shell a.pn-btn-capsula,
 .pn-shell button.pn-chip,
 .pn-shell a.pn-volver,
 .pn-shell button.pn-volver {
@@ -870,7 +942,8 @@ html:has(body[data-pedido-nuevo-screen]) {
 .pn-shell button.pn-step-mas,
 .pn-shell button.pn-chip.is-active,
 .pn-shell button.pn-add-confirmar,
-.pn-shell button.pn-enviar {
+.pn-shell button.pn-enviar,
+.pn-shell a.pn-enviar {
     background: var(--pn-tinta) !important;
     border: 0 !important;
     color: var(--pn-papel) !important;
@@ -930,12 +1003,15 @@ html:has(body[data-pedido-nuevo-screen]) {
 #pn-shell input,
 #pn-shell textarea,
 #pn-shell .ts-control,
-#pn-shell a.pn-volver { border-radius: 999px !important; }
+#pn-shell a.pn-volver,
+#pn-shell a.pn-btn-capsula,
+#pn-shell a.pn-enviar { border-radius: 999px !important; }
 #pn-shell textarea.pn-notas { border-radius: 26px !important; }
 
 #pn-shell button.pn-step,
 #pn-shell button.pn-volver-linea,
 #pn-shell button.pn-btn-capsula,
+#pn-shell a.pn-btn-capsula,
 #pn-shell button.pn-chip,
 #pn-shell a.pn-volver,
 #pn-shell button.pn-volver {
@@ -946,7 +1022,8 @@ html:has(body[data-pedido-nuevo-screen]) {
 #pn-shell button.pn-step-mas,
 #pn-shell button.pn-chip.is-active,
 #pn-shell button.pn-add-confirmar,
-#pn-shell button.pn-enviar {
+#pn-shell button.pn-enviar,
+#pn-shell a.pn-enviar {
     background: var(--pn-tinta) !important;
     color: var(--pn-papel) !important;
 }
@@ -992,7 +1069,61 @@ body[data-pedido-nuevo-screen] select,
 body[data-pedido-nuevo-screen] button,
 .ts-dropdown.pn-dropdown { color-scheme: light !important; }
 
+/* ── Foco visible ───────────────────────────────────────────────────────── */
+
+/* `.pn-buscador input`, `.pn-add-cajas`, `.pn-fecha-otra` y `.pn-notas`
+   quitan el `outline` del navegador (arriba) sin poner nada en su lugar, y el
+   blindaje de campos (`#pn-shell input, ...`, más arriba) fuerza
+   `box-shadow: none !important` en todo momento — también anula el anillo
+   propio de Tom Select. Sin esto, navegar con teclado o VoiceOver no muestra
+   dónde está parado el foco. Va al final del archivo y repite los mismos
+   selectores para ganarles a esos `!important` por orden de aparición (la
+   variante de Tom Select, con igual especificidad, solo gana si viene
+   después). */
+#pn-shell input:focus-visible,
+#pn-shell textarea:focus-visible,
+#pn-shell select:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, .85) !important;
+}
+
+#pn-shell .ts-wrapper.focus .ts-control {
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, .85) !important;
+}
+
 /* Sin animaciones para quien las desactivó en el sistema. */
 @media (prefers-reduced-motion: reduce) {
     .pn-shell * { animation: none !important; transition: none !important; }
+}
+
+/* ── Confirmación (tras el fetch exitoso) y error de envío ───────────────── */
+
+/* `.pn-enviar`/`.pn-btn-capsula` dan por sentado un elemento no-inline (los
+   dos `<button>` que ya existían): `width`/`height`/centrado no hacen nada
+   sobre un `<a>`, que es `inline` por defecto. Las dos salidas de la
+   confirmación (`pn-conf-otro`, `pn-conf-lista`) son enlaces —hay que poder
+   llegar a "la lista" o "otro pedido" aunque el JS se haya roto— así que
+   necesitan su propio `display` y perder el subrayado azul de enlace. */
+a.pn-enviar,
+a.pn-btn-capsula {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-decoration: none;
+}
+
+/* El footer de la confirmación es el único con DOS acciones apiladas; el
+   resto del shell nunca necesitó separarlas. */
+#pn-footer-confirmacion .pn-conf-lista { margin-top: 10px; }
+
+/* El aviso de error de envío vive DENTRO del footer fijo (junto al botón que
+   se convierte en "Reintentar"), no en el cuerpo que scrollea — tiene que
+   verse sin que el vendedor tenga que desplazarse a buscarlo. `.pn-aviso`
+   trae un `border-bottom` pensado para ir seguido de más filas dentro del
+   cuerpo de la revisión; acá es la única fila, así que se cierra en cápsula. */
+#pn-envio-error {
+    margin-bottom: 14px;
+    border-bottom: 0;
+    border-radius: 14px;
 }

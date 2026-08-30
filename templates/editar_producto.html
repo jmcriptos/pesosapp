@@ -89,8 +89,9 @@
                 <div class="mobile-form-group">
                     <label class="mobile-form-label" for="tax_rate">TaxCode ID:</label>
                     <select id="tax_rate" name="tax_rate" class="mobile-form-control ts-select">
-                        <option value="10" {% if producto.tax_rate|int == 10 %}selected{% endif %}>OB 6%</option>
-                        <option value="14" {% if producto.tax_rate|int == 14 %}selected{% endif %}>OB Non Tax Local Prod (0%)</option>
+                        {% for codigo in ob_por_codigo %}
+                        <option value="{{ codigo }}" {% if producto.tax_rate|int == codigo %}selected{% endif %}>{{ ob_de_codigo(codigo).etiqueta }}</option>
+                        {% endfor %}
                     </select>
                 </div>
             </div>

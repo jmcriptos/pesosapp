@@ -29,6 +29,11 @@
     {# El grupo viaja de vuelta para que un error de validación devuelva al
        paso 2 de ESTE grupo y no a la re-pregunta del paso 1. #}
     <input type="hidden" name="grupo" value="{{ grupo_clave }}">
+    {# Idempotencia del envío: un UUID estable por pedido-en-curso (generado
+       en JS al cargar la página, restaurado del borrador si hay uno) —
+       ver `intentoId` en el script. Sin valor server-side; el hidden solo
+       existe para que `FormData(formPedido)` lo levante en el fetch. #}
+    <input type="hidden" name="intento_id" id="intento_id" value="">
 
     <!-- ══ Paso 02: armar el pedido ══════════════════════════════════════ -->
     <div class="pn-head" id="pn-head-pedido">
@@ -73,7 +78,7 @@
 
         <div class="pn-add-campos" id="ph-add-panel" {% if productos_pedido %}hidden{% endif %}>
           <select id="producto-select" aria-label="Producto"><option value=""></option></select>
-          <div class="pn-add-fila">
+          <div class="pn-add-fila" id="ph-add-fila">
             {# type=text + inputmode=decimal: acepta fracciones (media caja =
                0.5) y la coma decimal del teclado iOS en locale holandés. #}
             <input type="text" id="input-cajas" class="pn-add-cajas" placeholder="Cajas"
@@ -103,7 +108,14 @@
     <div class="pn-footer" id="pn-footer-pedido">
       <div class="pn-footer-row">
         <span class="pn-footer-meta" id="ph-footer-meta">Sin líneas</span>
-        <span class="pn-footer-total" id="total-pedido">0.00</span>
+        {# `total-pedido` es un SUBTOTAL (precio_base, tax-exclusive): QuickBooks
+           suma el OB encima. Sin la etiqueta se leía como el total a cobrar,
+           que no es. El total inclusivo se calcula recién en la revisión,
+           donde ya se conoce el grupo (y su OB) de todo el pedido. #}
+        <div class="pn-footer-total-col">
+          <span class="pn-footer-total-label">Subtotal</span>
+          <span class="pn-footer-total" id="total-pedido">0.00</span>
+        </div>
       </div>
       <button type="button" class="pn-enviar" id="pn-continuar">Continuar</button>
     </div>
@@ -119,16 +131,48 @@
       <h1 class="pn-titulo">Revisa y envía</h1>
     </div>
 
+    {# Cabecera de la confirmación: reemplaza a la de arriba una vez que el
+       SERVIDOR aceptó el pedido (fetch exitoso), pero el CUERPO
+       (`pn-cuerpo-revision`, con sus líneas y totales) sigue siendo el mismo
+       — no hay una pantalla nueva a la que "cambiar de mundo visual", solo
+       se apaga la edición y se prende el recibo. Ver `confirmarEnvio` más
+       abajo. #}
+    <div class="pn-head" id="pn-head-confirmacion" hidden>
+      <div class="pn-head-row">
+        <span class="pn-paso">Listo</span>
+      </div>
+      <h1 class="pn-titulo">Pedido <span id="pn-conf-numero"></span> enviado</h1>
+    </div>
+
     <div class="pn-cuerpo" id="pn-cuerpo-revision" hidden>
       <div class="pn-revision-cliente">
         <div class="pn-revision-nombre">{{ cliente.nombre }}</div>
         <div class="pn-revision-entrega" id="pn-revision-entrega"></div>
       </div>
       <div id="pn-revision-lineas"></div>
-      <div class="pn-revision-total">
+      {# `precio_base` se guarda tax-exclusive: QuickBooks suma el OB encima al
+         facturar. Antes esta caja sumaba las líneas y le decía "Total": era un
+         SUBTOTAL disfrazado. Ahora son tres filas — Subtotal, OB (si el grupo
+         paga uno) y el Total inclusivo, que es la cifra grande — resueltas en
+         JS porque el vendedor sigue editando cajas hasta último momento. #}
+      <div class="pn-revision-total" id="pn-revision-fila-subtotal">
+        <span class="pn-revision-total-label">Subtotal</span>
+        <span class="pn-revision-total-monto pn-revision-monto-sub" id="pn-revision-subtotal">0.00</span>
+      </div>
+      <div class="pn-revision-total" id="pn-revision-fila-ob" hidden>
+        <span class="pn-revision-total-label" id="pn-revision-ob-label">OB</span>
+        <span class="pn-revision-total-monto pn-revision-monto-sub" id="pn-revision-ob-monto">0.00</span>
+      </div>
+      <div class="pn-revision-total" id="pn-revision-fila-total">
         <span class="pn-revision-total-label">Total {{ cliente.moneda or 'XCG' }}</span>
         <span class="pn-revision-total-monto" id="pn-revision-total">0.00</span>
       </div>
+      {# Dos motivos por los que el Total puede no llevar OB, y no son lo
+         mismo: un grupo que la app no traduce (`_ob_de_codigo` da pct=None,
+         no se inventa un total) o una exportación (`_es_exportacion`, cliente
+         en USD, exenta sea cual sea el grupo). El texto lo pone el JS según
+         cuál de los dos aplica. #}
+      <p class="pn-revision-ob-nota" id="pn-revision-ob-nota" hidden></p>
       <div class="pn-aviso" id="pn-revision-aviso" hidden>
         <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
         <div class="pn-aviso-texto" id="pn-revision-aviso-texto"></div>
@@ -137,15 +181,42 @@
     </div>
 
     <div class="pn-footer" id="pn-footer-revision" hidden>
+      {# El envío es `fetch`, no un POST clásico: un corte de señal (la
+         pantalla vive en la calle, ver `pedido_cliente.html`) ya no muestra
+         la página de error del navegador — se queda ACÁ, dentro del shell,
+         con el botón convertido en reintento. #}
+      <div class="pn-aviso" id="pn-envio-error" role="alert" hidden>
+        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+        <div class="pn-aviso-texto" id="pn-envio-error-texto"></div>
+      </div>
       <button type="submit" class="pn-enviar" id="pn-enviar">
         {% if pedido %}Actualizar pedido{% else %}Enviar pedido{% endif %}
       </button>
+    </div>
+
+    {# Confirmación: el servidor ya guardó el pedido. El remedio del grupo
+       (nunca en el banner de arriba, que solo explica la restricción) vive
+       acá: si ESTE cliente ya compra de los dos grupos, se le ofrece el otro
+       directo, sin volver a pasar por la pantalla de elegir. #}
+    <div class="pn-footer" id="pn-footer-confirmacion" hidden>
+      {% if grupo_alternativo %}
+      <p class="pn-head-nota" id="pn-conf-otro-grupo-nota">
+        {{ cliente.nombre }} también compra {{ grupo_alternativo.etiqueta }}.
+      </p>
+      <a class="pn-btn-capsula pn-conf-otro-grupo" id="pn-conf-otro-grupo"
+         href="{{ url_for('nuevo_pedido', cliente=cliente.id, grupo=grupo_alternativo.clave) }}">Tomar pedido de {{ grupo_alternativo.etiqueta }}</a>
+      {% endif %}
+      <a class="pn-enviar pn-conf-otro" id="pn-conf-otro"
+         href="{{ url_for('nuevo_pedido', cliente=cliente.id) }}">Tomar otro pedido de {{ cliente.nombre }}</a>
+      <a class="pn-btn-capsula pn-conf-lista" id="pn-conf-lista"
+         href="{{ url_for('lista_pedidos') }}">Volver a la lista</a>
     </div>
   </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/pedido_totales.js') }}"></script>
 <script nonce="{{ csp_nonce() }}">
 /* Catálogo y líneas llegan resueltos del servidor (precios por jerarquía de
    ESTE cliente): la pantalla no pide nada por AJAX. */
@@ -154,6 +225,7 @@ const productos_pedido = {{ productos_pedido|tojson }};
 let productosAgregados = productos_pedido.map(p => ({ ...p, activa: true }));
 const esEdicion = {{ 'true' if pedido else 'false' }};
 const monedaActual = {{ (cliente.moneda or 'XCG')|tojson }};
+const clienteId = {{ cliente.id }};
 
 /* Grupo de facturación del pedido en curso ('pesable:14', 'importado:10'…).
    Un pedido NO puede mezclar grupos: QuickBooks no factura en un mismo
@@ -173,6 +245,58 @@ const monedaActual = {{ (cliente.moneda or 'XCG')|tojson }};
 const grupoDelServidor = {{ grupo_clave|tojson }} || null;
 let grupoActual = grupoDelServidor;
 
+/* Idempotencia del envío: un UUID por pedido-en-curso — NO se genera
+   dentro de `enviarPedido()`, tiene que quedar ESTABLE entre reintentos del
+   MISMO pedido (regenerarlo en cada intento no serviría de nada: el
+   servidor nunca vería el mismo id dos veces). El servidor lo usa para
+   detectar un reintento exacto (columna `intento_id` con índice único en
+   `Pedido`, solo para el ALTA — ver `app.py`) y devolver la MISMA
+   confirmación en vez de crear un segundo pedido.
+
+   `crypto.randomUUID()` exige contexto seguro (HTTPS o localhost): en
+   producción hay HTTPS y anda bien, pero probar la PWA por
+   `http://192.168.x.x` (habitual en LAN, celular real contra el server de
+   desarrollo) lo deja `undefined`, y llamarlo revienta con un TypeError.
+   Como esta línea corría SUELTA al tope del script —antes de cualquier
+   función—, ese error mataba TODO el bloque: sin buscador, sin steppers,
+   sin poder tomar ni un pedido. El respaldo no necesita ser criptográfico,
+   es un id de correlación para el reintento, no un secreto. */
+function generarIntentoId() {
+    try {
+        return crypto.randomUUID();
+    } catch (_) {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+}
+
+/* Un pedido NUEVO de verdad es siempre una carga de página nueva (cambiar
+   cliente/grupo navega afuera), así que "nuevo para un pedido nuevo" sale
+   gratis de este `let` de módulo. La única forma de que una recarga a
+   mitad de camino no invente un id distinto es guardarlo junto al
+   borrador y restaurarlo con él — ver `guardarBorrador`/`ofrecerBorrador`.
+   Y tras un envío EXITOSO (`confirmarEnvio`) se regenera: sin eso, volver
+   con el gesto de atrás (bfcache) dejaba el form listo para reenviar con
+   un id que el servidor YA había consumido — un pedido nuevo de verdad,
+   armado sobre ese estado, se hubiera confundido con un reintento del que
+   ya se mandó. */
+let intentoId = generarIntentoId();
+
+/* Porcentaje de OB por código de QuickBooks (10 → 6%, 14 → 0%). Es el mismo
+   diccionario de `_OB_POR_CODIGO` en app.py — un código nuevo entra ahí, no
+   acá, o el total de esta pantalla y el de la factura se van a desalinear. */
+const OB_POR_CODIGO = {{ ob_por_codigo|tojson }};
+
+/* La exportación manda sobre el grupo del producto: a un cliente en USD se
+   le factura exento sea cual sea la mercadería (mismo `_es_exportacion` que
+   decide el TaxCode del payload en `_tax_code_de_linea`, app.py). Sin esto,
+   un cliente USD con productos del grupo 10 veía «OB 6%» sumado al total —
+   un impuesto que su factura no cobra. */
+const esExportacion = {{ es_exportacion|tojson }};
+
 /* Tope duro de cajas por línea, el mismo que aplica `_parse_cajas` en el
    servidor. Vive acá arriba porque lo consultan el alta, la fusión y el
    stepper: las tres puertas por las que una línea puede pasarse. */
@@ -188,9 +312,31 @@ const chipsEntrega = $('ph-entrega-chips');
 const inputOtraFecha = $('ph-entrega-otra');
 const addPanel = $('ph-add-panel');
 const addToggle = $('ph-add-toggle');
+const addFila = $('ph-add-fila');
+
+/* Entrega y Notas: los dos `.pn-campo` que siguen al panel de añadir. Se
+   ocultan mientras el desplegable de productos está abierto (ver TomSelect
+   más abajo) para que nunca quede debajo, tapado. */
+function camposDebajoDelBuscador() {
+    return Array.from(document.querySelectorAll('#pn-cuerpo-pedido .pn-campo'));
+}
 const motivo = $('agregar-motivo');
 const formPedido = $('form-nuevo-pedido');
 let tomProducto = null;
+
+/* Foco programático (no un toque real): dispara el mismo onFocus() de Tom
+   Select, y con openOnFocus en su default (true — hojear el catálogo sin
+   escribir es una función real, no un bug) eso abría el desplegable entero
+   sin que el vendedor lo pidiera. La bandera se levanta justo antes de cada
+   foco programático; onDropdownOpen la consulta y, si está prendida, cierra
+   en la misma pasada síncrona (antes de que el navegador pinte nada) y la
+   apaga. Un toque real nunca pasa por acá, así que sigue abriendo normal. */
+let focoProgramatico = false;
+function enfocarProductoSinAbrir() {
+    if (!tomProducto) return;
+    focoProgramatico = true;
+    tomProducto.focus();
+}
 
 /* === Utilidades === */
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -240,6 +386,14 @@ function sincronizarCandadoProvisional() {
     if (grupoDelServidor) return;
     const hayLineas = productosAgregados.some(p => p.activa);
     if (hayLineas || !grupoActual) return;
+    // Se suelta el candado provisional: el borrador de ESE grupo (sin
+    // líneas que lo sostengan) no puede quedar vivo en localStorage para
+    // siempre — reaparecería en una sesión futura sin relación, ofreciendo
+    // «¿seguir donde lo dejaste?» con datos de un pedido abandonado hace
+    // semanas. Tiene que borrarse ACÁ, antes de soltar `grupoActual`,
+    // mientras `claveBorrador()` todavía apunta al grupo que se suelta —
+    // después de la línea de abajo ya devuelve null y nadie lo encuentra.
+    borrarBorrador();
     grupoActual = null;
     cargarProductosEnSelect();
 }
@@ -257,21 +411,194 @@ function decirMotivo(texto) {
     motivo.textContent = texto || '';
 }
 
+/* === Borrador (localStorage) ===
+   El vendedor puede perder un pedido entero sin aviso — cerrar la PWA,
+   quedarse sin batería, o el swipe que sale sin querer (ver `entrarARevision`
+   más abajo). La clave junta cliente Y grupo porque un pedido no puede
+   mezclarlos: dos borradores del mismo cliente en grupos distintos son dos
+   pedidos distintos, no se pisan.
+
+   Sin `grupoActual` conocido (cliente sin habitual recién entrando al paso
+   03, antes de la primera línea) no hay clave posible: se sigue sin
+   borrador para ESE momento, y en cuanto se agrega la primera línea
+   `grupoActual` queda fijo y el borrador empieza a guardarse normal.
+
+   El borrador se diseñó para el ALTA: un pedido que todavía no existe en
+   NINGÚN lado y se puede perder entero. La EDICIÓN abre un pedido que YA
+   está en la base — cerrar a mitad de camino y reabrir /pedidos/<id>/editar
+   vuelve a mostrar el pedido tal cual estaba, sin perder nada que no se
+   haya guardado. Compartir esta misma clave entre las dos pantallas
+   rompía esa garantía en los dos sentidos: la edición la ESCRIBÍA (por una
+   asimetría en el arranque, nunca llegaba a leerla), así que abrir una
+   edición podía pisar en silencio un alta a medio escribir de ESE mismo
+   cliente+grupo, y abrir una edición y salir sin más sembraba un "pedido
+   sin enviar" fantasma que el alta ofrecía como propio — aceptarlo cargaba
+   las líneas del pedido viejo como si el vendedor las hubiera tecleado, un
+   duplicado real listo para facturarse. Namespacear la clave de edición
+   (`borrador:pedido:<id>`) le daría a la edición su propio borrador, pero
+   eso es funcionalidad NUEVA que nunca se ejercitó (la edición nunca leyó
+   nada) y que la edición no necesita — la recuperación correcta para un
+   pedido que ya existe es releer la base, no un borrador de navegador. Acá
+   alcanza con que la edición no pueda tocar esta llave en ningún sentido.
+
+   `localStorage` puede fallar (modo privado de Safari, cuota llena): cada
+   lectura y escritura va en su propio try/catch, y el peor caso es
+   quedarse sin borrador — nunca romper la pantalla. */
+function claveBorrador() {
+    if (esEdicion) return null;
+    if (!grupoActual) return null;
+    return `borrador:${clienteId}:${grupoActual}`;
+}
+
+function guardarBorrador() {
+    const clave = claveBorrador();
+    if (!clave) return;
+
+    const activas = productosAgregados.filter(p => p.activa);
+    if (!activas.length) {
+        // Sin líneas no hay nada que proteger; y si quedaba un borrador de
+        // antes (se quitaron todas a mano) mejor limpiarlo, o la próxima
+        // vez se ofrecería «seguir» un pedido vacío.
+        borrarBorrador();
+        return;
+    }
+
+    const datos = {
+        lineas: productosAgregados,
+        fecha_entrega: inputFechaEntrega.value,
+        notas: $('notas') ? $('notas').value : '',
+        // Va junto con lo demás: una recarga a mitad de camino tiene que
+        // reencontrar el MISMO intento_id, o el servidor vería un intento
+        // "nuevo" y el reintento post-recarga podría crear un segundo
+        // pedido en vez de ser reconocido como el mismo.
+        intento_id: intentoId,
+        // Marca de tiempo para la caducidad de `ofrecerBorrador` — sin
+        // esto un borrador de hace semanas se ofrece igual que uno de hace
+        // un minuto, como si "seguir donde lo dejaste" siguiera teniendo
+        // sentido.
+        ts: Date.now(),
+    };
+    try {
+        localStorage.setItem(clave, JSON.stringify(datos));
+    } catch (_) { /* modo privado, cuota llena: se sigue sin borrador */ }
+}
+
+function borrarBorrador() {
+    const clave = claveBorrador();
+    if (!clave) return;
+    try { localStorage.removeItem(clave); } catch (_) { /* nada que limpiar */ }
+}
+
+/* Nada de lo que el borrador cachea se ofrece más allá de esta ventana —
+   pasado este tiempo se descarta sin preguntar. Un borrador de hace
+   semanas no es "seguir donde lo dejaste": es un pedido fósil, con precios
+   de otra jerarquía y hasta una fecha de entrega que ya pasó. */
+const BORRADOR_VENTANA_MS = 36 * 60 * 60 * 1000; // 36 h
+
+/* Se llama una sola vez, al entrar al paso 03 (arranque de la pantalla,
+   antes de pintar nada), y ofrece retomar el borrador con un confirm — el
+   mismo patrón que ya usa `avisarAntesDeSalir` más abajo. Si se acepta, deja
+   `productosAgregados`/la fecha/las notas listas ANTES de que el resto del
+   arranque las pinte, para no tener que repintar dos veces. */
+function ofrecerBorrador() {
+    const clave = claveBorrador();
+    if (!clave) return;
+
+    let crudo;
+    try { crudo = localStorage.getItem(clave); } catch (_) { return; }
+    if (!crudo) return;
+
+    let datos;
+    try { datos = JSON.parse(crudo); } catch (_) { borrarBorrador(); return; }
+    if (!datos || !Array.isArray(datos.lineas) || !datos.lineas.length) {
+        borrarBorrador();
+        return;
+    }
+
+    // Sin `ts` (borrador de una versión anterior de esta pantalla, o
+    // corrupto) o más viejo que la ventana: se descarta directo, nunca se
+    // ofrece un pedido fósil.
+    if (typeof datos.ts !== 'number' || (Date.now() - datos.ts) > BORRADOR_VENTANA_MS) {
+        borrarBorrador();
+        return;
+    }
+
+    if (!confirm('Hay un pedido sin enviar para este cliente y grupo. ¿Quieres continuar donde lo dejaste?')) {
+        return;
+    }
+
+    // Del borrador se restauran las CANTIDADES, no el precio: `productos`
+    // (el catálogo que el servidor acaba de resolver, en ESTA carga, contra
+    // la jerarquía de este cliente) es la única fuente de verdad del
+    // precio — mismo argumento que en `confirmarEnvio` más abajo. Restaurar
+    // el precio cacheado del borrador dejaba cotizar un número que la
+    // factura después desmentía (medido: 314.82 contra un total real de
+    // 416.83, 30% abajo). Un producto que salió del catálogo de esta carga
+    // (dado de baja, cambió de lista) se restaura sin precio, nunca con el
+    // cacheado — igual que cualquier otra línea sin precio de lista.
+    productosAgregados = datos.lineas.map(function (linea) {
+        const p = productos.find(x => x.id === linea.id);
+        return {
+            id: linea.id,
+            nombre: p ? p.nombre : linea.nombre,
+            cajas: linea.cajas,
+            precio: p ? p.precio : null,
+            habitual: (linea.habitual === null || linea.habitual === undefined) ? null : linea.habitual,
+            activa: !!linea.activa,
+        };
+    });
+
+    if (typeof datos.fecha_entrega === 'string' && datos.fecha_entrega) {
+        // Una fecha restaurada que ya quedó en el pasado no se impone en
+        // silencio: se deja que el arranque de abajo (`construirChipsEntrega`)
+        // ponga su default de "próximo día hábil", en vez de un pedido con
+        // entrega de ayer sin que nada lo marque.
+        const restaurada = fechaDesdeIso(datos.fecha_entrega);
+        const hoy = new Date();
+        const hoyMedianoche = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+        if (restaurada && restaurada.getTime() >= hoyMedianoche.getTime()) {
+            inputFechaEntrega.value = datos.fecha_entrega;
+        }
+    }
+    if (typeof datos.notas === 'string' && $('notas')) $('notas').value = datos.notas;
+    // Restaura el MISMO intento_id del borrador — si no, esta recarga
+    // generaría uno nuevo (el `let intentoId = crypto.randomUUID()` de
+    // arriba) y un reintento después de esto ya no sería reconocible como
+    // el mismo intento para el servidor.
+    if (typeof datos.intento_id === 'string' && datos.intento_id) {
+        intentoId = datos.intento_id;
+    }
+}
+
 /* === Fecha de entrega === */
 function construirChipsEntrega() {
     const hoy = new Date();
     const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1);
 
-    // Tercera opción: el siguiente día hábil después de mañana. Saltea sábado y
-    // domingo porque no hay reparto el fin de semana.
-    const siguiente = new Date(manana);
+    // No hay reparto sábado ni domingo: si "mañana" cae en fin de semana, el
+    // default corre al próximo día hábil (mismo filtro que la tercera
+    // opción, más abajo). Sin esto el chip preseleccionado —el default del
+    // pedido— podía caer en un día sin reparto.
+    const entregaDefault = new Date(manana);
+    while (entregaDefault.getDay() === 0 || entregaDefault.getDay() === 6) {
+        entregaDefault.setDate(entregaDefault.getDate() + 1);
+    }
+    const esManana = entregaDefault.getTime() === manana.getTime();
+
+    // Tercera opción: el siguiente día hábil después del default. Saltea
+    // sábado y domingo porque no hay reparto el fin de semana.
+    const siguiente = new Date(entregaDefault);
     do { siguiente.setDate(siguiente.getDate() + 1); }
     while (siguiente.getDay() === 0 || siguiente.getDay() === 6);
 
     const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const opciones = [
         { iso: isoDe(hoy), texto: 'Hoy' },
-        { iso: isoDe(manana), texto: 'Mañana' },
+        // Rotula con el día cuando el default no es literalmente mañana
+        // (mañana cayó en fin de semana): "Mañana" sería mentira.
+        { iso: isoDe(entregaDefault), texto: esManana
+            ? 'Mañana'
+            : `${DIAS[entregaDefault.getDay()]} ${entregaDefault.getDate()}` },
         { iso: isoDe(siguiente), texto: `${DIAS[siguiente.getDay()]} ${siguiente.getDate()}` },
     ];
 
@@ -292,11 +619,12 @@ function construirChipsEntrega() {
     otra.textContent = 'Otra';
     chipsEntrega.appendChild(otra);
 
-    // En un pedido NUEVO el default es mañana: es lo que el vendedor elige casi
-    // siempre en ruta. Editando NO se inventa fecha: un pedido guardado sin
-    // fecha de entrega debe seguir sin fecha, o corregir una cantidad le
-    // asignaría una entrega que nadie pidió.
-    const inicial = inputFechaEntrega.value || (esEdicion ? '' : isoDe(manana));
+    // En un pedido NUEVO el default es mañana (o el próximo día hábil si
+    // mañana no reparte): es lo que el vendedor elige casi siempre en ruta.
+    // Editando NO se inventa fecha: un pedido guardado sin fecha de entrega
+    // debe seguir sin fecha, o corregir una cantidad le asignaría una
+    // entrega que nadie pidió.
+    const inicial = inputFechaEntrega.value || (esEdicion ? '' : isoDe(entregaDefault));
     seleccionarEntrega(inicial);
 }
 
@@ -320,6 +648,7 @@ function seleccionarEntrega(iso) {
         chipOtra.textContent = usaOtra ? etiquetaFecha(iso) : 'Otra';
     }
     actualizarResumen();
+    guardarBorrador();
 }
 
 /* === Catálogo === */
@@ -353,6 +682,7 @@ function actualizarTablaProductos() {
     if (productosAgregados.length === 0) {
         tbody.innerHTML = '<p class="pn-vacio">Todavía no hay líneas en este pedido</p>';
         actualizarResumen();
+        guardarBorrador();
         return;
     }
 
@@ -410,7 +740,7 @@ function actualizarTablaProductos() {
             <div class="pn-stepper">
                 <button type="button" class="pn-step" data-action="menos" data-idx="${idx}"
                         aria-label="Quitar una caja de ${escapeHtml(p.nombre)}">−</button>
-                <span class="pn-step-valor" aria-live="polite">${fmtCajas(p.cajas)}</span>
+                <span class="pn-step-valor" aria-live="polite">${fmtCajas(p.cajas)}<small class="pn-step-unidad">cj</small></span>
                 <button type="button" class="pn-step pn-step-mas" data-action="mas" data-idx="${idx}"
                         aria-label="Sumar una caja de ${escapeHtml(p.nombre)}">+</button>
             </div>
@@ -420,6 +750,7 @@ function actualizarTablaProductos() {
     });
 
     actualizarResumen();
+    guardarBorrador();
 }
 
 function actualizarResumen() {
@@ -473,18 +804,146 @@ function obtenerProductoSeleccionado() {
 }
 
 /* === Paso 03 === */
+/* `paso`: 'pedido' | 'revision' | 'confirmado'. Antes solo conocía los
+   primeros dos (un booleano `enRevision`), así que un `popstate` que caía
+   en 'revision' reactivaba `pn-head-revision`/`pn-footer-revision` SIN
+   tocar `pn-head-confirmacion`/`pn-footer-confirmacion` — nada los volvía a
+   ocultar, y un swipe de atrás justo después de enviar apilaba la
+   cabecera/pie de "revisar y enviar" sobre los de la confirmación, con el
+   cuerpo mostrando el pedido YA enviado como si se pudiera seguir editando.
+   Ahora cada llamada fija TODOS los grupos de una, así que no hay estado
+   intermedio en el que dos puedan quedar visibles a la vez.
+   `pn-cuerpo-revision` es el único cuerpo que se REUTILIZA entre 'revision'
+   y 'confirmado' (ver `confirmarEnvio`): visible en los dos. */
 function mostrarPaso(paso) {
-    const enRevision = paso === 'revision';
-    ['pn-head-pedido', 'pn-cuerpo-pedido', 'pn-footer-pedido'].forEach(
-        id => { $(id).hidden = enRevision; });
-    ['pn-head-revision', 'pn-cuerpo-revision', 'pn-footer-revision'].forEach(
-        id => { $(id).hidden = !enRevision; });
-    // Scroll arriba: la revisión entra por donde el vendedor dejó la lista.
-    const cuerpo = $(enRevision ? 'pn-cuerpo-revision' : 'pn-cuerpo-pedido');
-    cuerpo.scrollTop = 0;
+    const esPedido = paso === 'pedido';
+    const esRevision = paso === 'revision';
+    const esConfirmado = paso === 'confirmado';
+
+    $('pn-head-pedido').hidden = !esPedido;
+    $('pn-cuerpo-pedido').hidden = !esPedido;
+    $('pn-footer-pedido').hidden = !esPedido;
+
+    $('pn-head-revision').hidden = !esRevision;
+    $('pn-cuerpo-revision').hidden = !(esRevision || esConfirmado);
+    $('pn-footer-revision').hidden = !esRevision;
+
+    $('pn-head-confirmacion').hidden = !esConfirmado;
+    $('pn-footer-confirmacion').hidden = !esConfirmado;
+
+    // Scroll arriba: cada paso entra por donde el vendedor dejó el anterior.
+    const idCuerpo = esPedido ? 'pn-cuerpo-pedido' : 'pn-cuerpo-revision';
+    $(idCuerpo).scrollTop = 0;
 }
 
-function construirRevision() {
+/* `mostrarPaso` por sí sola solo togglea `hidden`: no es una entrada de
+   historial. En la PWA instalada en iPhone, el swipe desde el borde
+   izquierdo —el gesto de «atrás» que todo el mundo hace— no volvía al paso
+   03, salía del formulario entero y destruía el pedido. Pasa justo donde
+   más duele: en la revisión, cuando el cliente pide un cambio de último
+   momento.
+
+   `entrarARevision` empuja una entrada al entrar; el swipe (o el botón
+   «atrás» del navegador) dispara `popstate` en esta misma página en vez de
+   navegar afuera, y el handler de abajo es quien de verdad muestra el paso
+   03. El botón «volver» (`salirDeRevision`) pasa por el MISMO camino
+   (`history.back()`), así que un vendedor que va y viene varias veces entre
+   los pasos 03 y 04 nunca deja una entrada de más: cada empuje se consume
+   con su propio retroceso. */
+function entrarARevision() {
+    mostrarPaso('revision');
+    try {
+        history.pushState({ pnPaso: 'revision' }, '', location.href);
+    } catch (_) {
+        // Sin historial disponible (Safari en modo privado, o algún bloqueo
+        // raro): el botón «volver» sigue funcionando porque cae al camino
+        // directo en `salirDeRevision` — solo el swipe físico deja de poder
+        // interceptarse, y no hay nada más que hacer acá.
+    }
+}
+
+function salirDeRevision() {
+    // `history.state` es el de la entrada donde estamos parados AHORA. Si es
+    // la que empujó `entrarARevision`, `history.back()` la consume y
+    // dispara `popstate` (que muestra el paso 03) — mismo camino que el
+    // swipe. Si no se pudo empujar nada, se cae al camino directo.
+    if (history.state && history.state.pnPaso === 'revision') {
+        history.back();
+    } else {
+        mostrarPaso('pedido');
+    }
+}
+
+window.addEventListener('popstate', function (event) {
+    const paso = event.state && event.state.pnPaso;
+    if (paso === 'confirmado') {
+        // El pedido ya está en el servidor: no hay nada que reabrir. Sin
+        // esta rama, caer acá (bfcache, un estado viejo) mostraría el paso
+        // 03 de edición sobre un pedido que ya se mandó — la misma
+        // confusión que este arreglo previene en `entrarARevision`.
+        mostrarPaso('confirmado');
+        return;
+    }
+    if (paso === 'revision') {
+        mostrarPaso('revision');
+    } else {
+        mostrarPaso('pedido');
+    }
+});
+
+/* Código de impuesto (10, 14…) del grupo fijado del pedido en curso. Un
+   pedido nunca mezcla grupos, así que el código de la primera línea vale
+   para todas: no hace falta mirar cada línea. */
+function codigoDelGrupoActual() {
+    if (!grupoActual) return null;
+    const cod = parseFloat(grupoActual.split(':')[1]);
+    return Number.isNaN(cod) ? null : cod;
+}
+
+/* Subtotal, OB y total inclusivo de la revisión — nunca el payload que se le
+   manda a QuickBooks, que sigue viajando tal cual en los hidden de cada
+   línea. `precio_base` se guarda tax-exclusive: el OB se lo suma QuickBooks
+   al facturar, así que "Total" acá tiene que sumarlo también o miente.
+
+   La aritmética en sí vive en `static/js/pedido_totales.js`
+   (`calcularTotalesPedido`), cargado antes que este bloque — de ahí sale
+   testeable con Node (`tests/test_pedido_totales_js.py`), algo que
+   no existía mientras vivió acá adentro mezclada con el DOM. Esta función
+   queda de "controlador": arma los tres insumos, llama a la aritmética
+   pura, y escribe el resultado en el DOM. */
+function pintarTotales(subtotal) {
+    $('pn-revision-subtotal').textContent = formatearMonto(subtotal);
+
+    const r = calcularTotalesPedido(subtotal, {
+        esExportacion: esExportacion,
+        codigo: codigoDelGrupoActual(),
+        obPorCodigo: OB_POR_CODIGO,
+    });
+
+    const filaOb = $('pn-revision-fila-ob');
+    const filaTotal = $('pn-revision-fila-total');
+    const nota = $('pn-revision-ob-nota');
+
+    filaOb.hidden = r.filaObHidden;
+    filaTotal.hidden = r.filaTotalHidden;
+    nota.hidden = r.notaHidden;
+    if (!r.notaHidden) nota.textContent = r.nota;
+
+    if (!r.filaObHidden) {
+        $('pn-revision-ob-label').textContent = r.obLabel;
+        $('pn-revision-ob-monto').textContent = formatearMonto(r.obMonto);
+    }
+    if (!r.filaTotalHidden) {
+        $('pn-revision-total').textContent = formatearMonto(r.total);
+    }
+}
+
+/* `enviado`: false al construir la revisión (paso 04, todavía se puede
+   corregir) y true al repintar la confirmación (`confirmarEnvio`, el pedido
+   ya está en el servidor) — cambia solo el tiempo verbal del aviso de
+   sin-precio, que en la revisión invita a enviar igual y en la confirmación
+   ya no tiene sentido invitar a nada. */
+function construirRevision(enviado) {
     const activas = productosAgregados.filter(p => p.activa);
     const cont = $('pn-revision-lineas');
     cont.innerHTML = '';
@@ -496,28 +955,44 @@ function construirRevision() {
             ? '<span class="pn-revision-monto es-sin-precio">SIN PRECIO</span>'
             : `<span class="pn-revision-monto">${formatearMonto(p.precio * p.cajas)}</span>`;
         fila.innerHTML = `
-            <span class="pn-revision-producto">${escapeHtml(p.nombre)} · ${fmtCajas(p.cajas)}</span>
+            <span class="pn-revision-producto">${escapeHtml(p.nombre)} · ${fmtCajas(p.cajas)} ${p.cajas === 1 ? 'caja' : 'cajas'}</span>
             ${importe}
         `;
         cont.appendChild(fila);
     });
 
-    const total = activas.reduce((acc, p) => acc + (sinPrecio(p) ? 0 : p.precio) * p.cajas, 0);
-    $('pn-revision-total').textContent = formatearMonto(total);
+    const subtotal = activas.reduce((acc, p) => acc + (sinPrecio(p) ? 0 : p.precio) * p.cajas, 0);
+    pintarTotales(subtotal);
     $('pn-revision-entrega').textContent = inputFechaEntrega.value
         ? `Entrega ${etiquetaFecha(inputFechaEntrega.value)}`
         : 'Sin fecha de entrega';
 
     // Una línea sin precio se factura mal o traba la facturación: mejor que el
     // vendedor lo sepa acá, con el cliente delante, que después en la oficina.
-    const faltantes = activas.filter(sinPrecio);
+    //
+    // Pre-envío (`enviado` falso) el criterio sigue siendo `sinPrecio` (no
+    // hay número que mostrar). Post-envío es OTRA pregunta: `sinPrecioLista`
+    // (puesta por `confirmarEnvio`) dice "no está en la lista de precios
+    // ACTUAL", no "no se cobró nada" — `editar_pedido` siembra el precio
+    // HISTÓRICO como último recurso (`_resolver_precio_unitario_pedido`), así
+    // que puede haber una línea sin_precio=true con un precio real que SÍ se
+    // cobró. Mezclar los dos criterios acá pintaría el mismo aviso de
+    // "puedes enviar igual" sobre una línea que YA se envió, o peor, dejaría
+    // sin avisar de una línea que de verdad no tiene precio en ningún lado.
+    const criterioAviso = (enviado && productosAgregados.some(p => 'sinPrecioLista' in p))
+        ? (p => p.sinPrecioLista === true)
+        : sinPrecio;
+    const faltantes = activas.filter(criterioAviso);
     const aviso = $('pn-revision-aviso');
     aviso.hidden = faltantes.length === 0;
     if (faltantes.length) {
         const nombres = faltantes.map(p => p.nombre).join(', ');
+        const cola = enviado
+            ? 'El precio se carga después; revísalo antes de facturar.'
+            : 'Puedes enviar el pedido igual; el precio se carga después.';
         $('pn-revision-aviso-texto').textContent =
             `${faltantes.length === 1 ? 'Este producto no tiene' : 'Estos productos no tienen'} ` +
-            `precio de lista: ${nombres}. Puedes enviar el pedido igual; el precio se carga después.`;
+            `precio de lista: ${nombres}. ${cola}`;
     }
 
     const notas = $('notas').value.trim();
@@ -528,6 +1003,12 @@ function construirRevision() {
 
 /* === Arranque === */
 document.addEventListener('DOMContentLoaded', () => {
+    // Antes de pintar nada: si hay un borrador de este cliente y grupo, se
+    // ofrece (con un confirm, igual que `avisarAntesDeSalir`) y deja
+    // `productosAgregados`/la fecha lista para que el arranque de abajo la
+    // pinte de una — repintar dos veces sería doble trabajo sin ganar nada.
+    ofrecerBorrador();
+
     construirChipsEntrega();
     // Editando un pedido que ya existe, su grupo sale de las líneas que trae:
     // así el buscador queda acotado también acá y no se puede mezclar.
@@ -572,6 +1053,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this.value) seleccionarEntrega(this.value);
     });
 
+    // Notas: las líneas y la entrega ya guardan por su cuenta (dentro de
+    // `actualizarTablaProductos`/`seleccionarEntrega`); las notas no pasan
+    // por ninguna de las dos, así que necesitan su propio disparador.
+    $('notas').addEventListener('input', guardarBorrador);
+
     addToggle.addEventListener('click', function () {
         const abierto = addPanel.hidden;
         addPanel.hidden = !abierto;
@@ -583,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // vista y recién después se enfoca, porque enfocar también hace
         // scroll y pelearía con este.
         addPanel.scrollIntoView({ block: 'end', behavior: 'smooth' });
-        if (tomProducto) tomProducto.focus();
+        enfocarProductoSinAbrir();
     });
 
     // Los dos caminos que salen de esta pantalla dejan atrás lo que hay en
@@ -618,8 +1104,56 @@ document.addEventListener('DOMContentLoaded', () => {
         placeholder: 'Buscar producto…',
         dropdownParent: 'body',
         dropdownClass: 'ts-dropdown pn-dropdown',
+        // openOnFocus queda en su default (true): un toque real en el campo
+        // tiene que poder hojear el catálogo sin escribir — con 57 productos
+        // filtrados por grupo, el vendedor que no recuerda el nombre exacto
+        // necesita esa lista. Lo que había que cortar no era "abrir al
+        // enfocar" sino el foco PROGRAMÁTICO (`enfocarProductoSinAbrir`,
+        // arriba) que dispara el mismo evento sin que nadie lo haya pedido:
+        // eso se corta en onDropdownOpen, más abajo.
         onType: function () { this.clear(); },
         sortField: { field: 'text', direction: 'asc' },
+        // El desplegable cuelga de <body> (dropdownParent), fuera del flujo, y
+        // se abre justo debajo del buscador: sin margen para acotarlo (el
+        // botón «Añadir» está a 10px), tapaba ese botón y, si la lista era
+        // larga, también la etiqueta «Entrega» más abajo. Mientras se busca
+        // ninguno de los dos se puede usar igual (no hay producto elegido
+        // todavía), así que se ocultan en vez de dejarlos tapados — no se
+        // pierde nada: sus valores siguen en el estado de JS y reaparecen
+        // igual al cerrar. Esto vale para CUALQUIER apertura (toque real o
+        // búsqueda), a diferencia del corte de abajo que es solo para la
+        // apertura fantasma del foco programático.
+        onDropdownOpen: function (dropdown) {
+            // El foco programático (scroll a "Añadir producto", o volver a
+            // enfocar tras "Elige un producto") dispara este mismo evento.
+            // `open()` (fuente de Tom Select 2.2.2) reenfoca el control al
+            // final de sí mismo, y ESE reenfoque programa su propio refresh
+            // diferido (setTimeout 0) que reabriría solo si para entonces
+            // `isOpen` ya está en false. Cerrar acá mismo, síncrono, deja
+            // `isOpen` en false ANTES de que corra ese refresh diferido —y lo
+            // hace reabrir de verdad, sin bandera que lo frene (se comprobó
+            // con `tomProducto.on('dropdown_open', …)`: un cierre síncrono
+            // deja un segundo `dropdown_open` sin interceptar). Por eso acá
+            // solo se esconde (sin parpadeo) y el cierre real se difiere un
+            // tick, después de que ese refresh fantasma ya corrió, vio
+            // `isOpen` todavía en true y no hizo nada.
+            if (focoProgramatico) {
+                dropdown.style.visibility = 'hidden';
+                setTimeout(() => {
+                    focoProgramatico = false;
+                    this.close();
+                }, 0);
+                return;
+            }
+            addFila.hidden = true;
+            camposDebajoDelBuscador().forEach(campo => { campo.hidden = true; });
+            const disponible = window.innerHeight - 16 - dropdown.getBoundingClientRect().top;
+            dropdown.style.maxHeight = Math.max(120, disponible) + 'px';
+        },
+        onDropdownClose: function () {
+            addFila.hidden = false;
+            camposDebajoDelBuscador().forEach(campo => { campo.hidden = false; });
+        },
         render: {
             option: (data, escape) => {
                 const p = productos.find(x => x.id === parseInt(data.value, 10));
@@ -642,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!producto) {
             decirMotivo('Elige un producto');
-            if (tomProducto) tomProducto.focus();
+            enfocarProductoSinAbrir();
             return;
         }
         if (!isFinite(cajas) || cajas <= 0 || cajas > MAX_CAJAS) {
@@ -704,28 +1238,200 @@ document.addEventListener('DOMContentLoaded', () => {
             decirMotivo('Agrega al menos un producto al pedido');
             return;
         }
+        // Un rechazo o un corte de red deja el banner de error visible en
+        // el footer de la revisión; si el vendedor vuelve al paso 02 a
+        // corregir algo y entra de nuevo, ese banner viejo seguía ahí
+        // aunque el intento nuevo todavía no falló.
+        ocultarErrorEnvio();
         construirRevision();
-        mostrarPaso('revision');
+        entrarARevision();
     });
 
-    $('pn-volver-pedido').addEventListener('click', () => mostrarPaso('pedido'));
+    $('pn-volver-pedido').addEventListener('click', salirDeRevision);
 
     // Envío. El botón se bloquea al primer toque: en la PWA, con red lenta, el
     // vendedor no ve respuesta, vuelve a tocar y se creaban DOS pedidos
     // completos (con sus líneas de preparación) que además llegaban a QBO.
     let enviando = false;
+
+    // Swipe, cerrar la pestaña/PWA, o cualquier salida que no pase por
+    // `entrarARevision`/`salirDeRevision` (por ejemplo, salir directo desde
+    // el paso 03): si hay líneas activas, el navegador pregunta antes de
+    // tirarlas. No aplica mientras se está enviando — avisar justo cuando
+    // el propio envío es la causa de la navegación sería absurdo. Tras un
+    // envío EXITOSO, `confirmarEnvio` vacía `productosAgregados`: ya no hay
+    // nada que proteger y este listener deja de disparar solo, sin tocarlo.
+    window.addEventListener('beforeunload', function (e) {
+        if (enviando) return;
+        if (!productosAgregados.some(p => p.activa)) return;
+        e.preventDefault();
+        e.returnValue = '';
+    });
+
+    function ocultarErrorEnvio() {
+        const banner = $('pn-envio-error');
+        if (banner) banner.hidden = true;
+    }
+
+    // Fallo de red o rechazo del servidor: los dos se muestran igual, DENTRO
+    // del shell — nunca la página de error del navegador (POST clásico viejo)
+    // — y con el mismo botón convertido en reintento. `enviando` vuelve a
+    // `false` acá: es el cabo suelto de la Task 3 (bandera trabada en `true`
+    // si el envío falla sin navegar, que dejaba `beforeunload` mudo y el
+    // botón en «Enviando…» hasta recargar) — con `fetch` se sabe cuándo
+    // falló, así que se puede bajar de una.
+    function mostrarErrorEnvio(mensaje) {
+        enviando = false;
+        const btn = $('pn-enviar');
+        btn.disabled = false;
+        btn.textContent = 'Reintentar';
+        const banner = $('pn-envio-error');
+        if (banner) banner.hidden = false;
+        const texto = $('pn-envio-error-texto');
+        if (texto) texto.textContent = mensaje;
+    }
+
+    // El servidor confirmó: recién ACÁ se borra el borrador (antes se hacía
+    // al dejar pasar el POST clásico, "a ciegas" — ver Task 3). Si el fetch
+    // falla o el servidor rechaza, `mostrarErrorEnvio` no lo toca: el
+    // borrador tiene que sobrevivir a un reintento.
+    function confirmarEnvio(datos) {
+        borrarBorrador();
+
+        // Se repinta con el precio que RESOLVIÓ el servidor (jerarquía), no
+        // con lo que traía `productosAgregados` — mismo argumento que
+        // `_resolver_precio_unitario_pedido` en el servidor: lo que se le
+        // muestra al vendedor es lo que se le va a cobrar.
+        //
+        // `sin_precio` NO significa "se guardó sin precio": es "no está en
+        // la lista de precios ACTUAL". `editar_pedido` siembra el precio
+        // HISTÓRICO como último recurso, así que puede haber
+        // `sin_precio: true` con un `precio` real que SÍ se cobró (ej.
+        // 25.50, subtotal 102.00) — nulearlo ahí pintaría "SIN PRECIO" y un
+        // total que EXCLUYE una línea que la base sí cobró: la misma mentira
+        // que este arreglo vino a cerrar en el flash, pero al revés. Solo se
+        // pinta `null` (y por lo tanto "SIN PRECIO"/excluida del subtotal)
+        // cuando el servidor de verdad no encontró NADA que cobrar (precio
+        // en 0 sin ningún respaldo) — mismo caso que el pre-envío ya trataba
+        // como sin precio. `sinPrecioLista` queda aparte, para el AVISO
+        // (ver `criterioAviso` en `construirRevision`), que sigue siendo
+        // relevante aunque se haya cobrado un respaldo: la lista de precios
+        // igual necesita que alguien la revise.
+        (datos.lineas || []).forEach(function (l) {
+            const linea = productosAgregados.find(
+                p => p.activa && p.id === l.producto_id);
+            if (!linea) return;
+            linea.precio = (l.sin_precio && l.precio === 0) ? null : l.precio;
+            linea.sinPrecioLista = l.sin_precio;
+        });
+        // Reutiliza el cuerpo de la revisión (líneas, Subtotal/OB/Total,
+        // aviso de sin-precio) tal cual: la confirmación no es una pantalla
+        // nueva, solo apaga la cabecera/pie de "revisar y enviar" y prende
+        // los de "pedido enviado" — mismo `#pn-cuerpo-revision`, ver el HTML.
+        construirRevision(true);
+        $('pn-conf-numero').textContent = 'PED-' + datos.pedido_id;
+        mostrarPaso('confirmado');
+        // Reemplaza la entrada de `entrarARevision` (pnPaso:'revision') en
+        // vez de empujar una nueva: así un swipe de atrás no vuelve a esa
+        // entrada intermedia (que ya no representa nada, el pedido está
+        // enviado) — pasa directo a lo que había ANTES de entrar a revisar.
+        try {
+            history.replaceState({ pnPaso: 'confirmado' }, '', location.href);
+        } catch (_) {
+            // Sin historial disponible: `mostrarPaso('confirmado')` de
+            // arriba ya dejó la pantalla correcta, esto es solo para que el
+            // botón atrás no reabra el paso 03/04 — sin esto, el swipe deja
+            // de poder interceptarse, no hay nada más que hacer acá.
+        }
+
+        // El pedido ya quedó en el servidor: no hay nada más que proteger.
+        // Sin esto `beforeunload` seguiría preguntando "¿seguro que quieres
+        // salir?" sobre un pedido que ya se mandó. Se VACÍA el arreglo, no
+        // se desactiva línea por línea: desactivarlas las dejaba pintadas
+        // en el paso 02 como "Fuera del pedido" con un botón "Volver" — un
+        // popstate/bfcache que cayera ahí invitaba a restaurar el pedido
+        // recién enviado y reenviarlo como uno segundo (el `intentoId` ya
+        // se regenera abajo, así que la idempotencia no lo iba a frenar).
+        // Vaciar cumple el mismo propósito (`beforeunload` mudo) y además
+        // deja el formulario realmente limpio.
+        productosAgregados = [];
+        // Repinta el paso 02 (vacío) por si un `popstate`/bfcache posterior
+        // cae en `mostrarPaso('pedido')`: sin esto el tbody se queda con las
+        // líneas de ANTES del envío, aunque `productosAgregados` ya diga que
+        // no hay ninguna activa.
+        actualizarTablaProductos();
+
+        // El intento_id que se acaba de mandar ya está CONSUMIDO en el
+        // servidor (identifica a ESTE pedido para siempre). Volver con el
+        // gesto de atrás (bfcache) deja el botón "Enviar pedido" reactivado
+        // — sin regenerar acá, un pedido armado desde ese estado mandaría
+        // el mismo intento_id de vuelta y el servidor lo reconocería como
+        // un reintento del que YA se mandó, no como el pedido nuevo que en
+        // realidad es.
+        intentoId = generarIntentoId();
+    }
+
+    async function enviarPedido() {
+        let resp;
+        try {
+            resp = await fetch(location.href, {
+                method: 'POST',
+                body: new FormData(formPedido),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+        } catch (_) {
+            // La pantalla vive en la calle, donde la señal falla (ver
+            // `pedido_cliente.html`): esto es justo ESE corte. El borrador ya
+            // tiene todo lo tecleado — no se pierde nada, solo hay que
+            // reintentar cuando vuelva la cobertura.
+            mostrarErrorEnvio('Sin señal. El pedido quedó guardado en este teléfono; vuelve a intentar cuando tengas cobertura.');
+            return;
+        }
+
+        // La sesión dura 8 h y esta pantalla vive abierta todo el día (PWA):
+        // una sesión vencida no devuelve un 401/403 acá, devuelve un 302 a
+        // /login que `fetch` sigue solo — `resp.ok` da `true` con el HTML
+        // del login adentro, `resp.json()` revienta, y sin este chequeo el
+        // vendedor caía en el genérico "el servidor rechazó el pedido" y
+        // reintentaba para siempre sin saber que tenía que volver a entrar.
+        if (resp.redirected && /\/login(?:[/?]|$)/.test(resp.url)) {
+            mostrarErrorEnvio('Tu sesión expiró: volvé a iniciar sesión.');
+            return;
+        }
+
+        let datos = null;
+        try { datos = await resp.json(); } catch (_) { /* respuesta no-JSON: se trata como fallo abajo */ }
+
+        if (!resp.ok || !datos || datos.ok !== true) {
+            mostrarErrorEnvio((datos && datos.error) || 'El servidor rechazó el pedido. Vuelve a intentar.');
+            return;
+        }
+
+        confirmarEnvio(datos);
+    }
+
     formPedido.addEventListener('submit', function (e) {
-        if (enviando) { e.preventDefault(); return; }
+        // Siempre `fetch`, nunca la navegación por defecto: un corte de red a
+        // mitad de un POST clásico deja la página de error del navegador y
+        // se pierde el pedido entero.
+        e.preventDefault();
+        if (enviando) return;
         if (!productosAgregados.some(p => p.activa)) {
-            e.preventDefault();
             mostrarPaso('pedido');
             decirMotivo('Agrega al menos un producto al pedido');
             return;
         }
         enviando = true;
+        ocultarErrorEnvio();
+        // Refleja el intentoId de módulo (fijo desde la carga, o el
+        // restaurado del borrador) en el hidden — nunca se genera acá, un
+        // reintento tiene que mandar EXACTAMENTE el mismo valor o el
+        // servidor no puede reconocerlo.
+        $('intento_id').value = intentoId;
         const btn = $('pn-enviar');
         btn.disabled = true;
         btn.textContent = 'Enviando…';
+        enviarPedido();
     });
 
     // Volver con el botón atrás puede restaurar la página desde el bfcache sin
@@ -733,6 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('pageshow', function (event) {
         if (!event.persisted) return;
         enviando = false;
+        ocultarErrorEnvio();
         const btn = $('pn-enviar');
         btn.disabled = false;
         btn.textContent = esEdicion ? 'Actualizar pedido' : 'Enviar pedido';

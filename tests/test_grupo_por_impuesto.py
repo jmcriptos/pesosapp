@@ -148,12 +148,16 @@ def test_los_ejemplos_del_grupo_mezclan_pesables_e_importados(app):
 
 
 def test_la_etiqueta_nombra_el_impuesto(app):
+    """Desde Task 1 (2026-08-30) esto es el OB traducido, no el código crudo:
+    `_etiqueta_grupo` delega en `_ob_de_codigo` (ver test_pedido_impuesto.py
+    para la traducción en sí). Lo que este test protege es que no vuelva a
+    salir «Pesable»/«Importado», que es lo que originó el bug de fondo."""
     with app.app_context():
         from app import _grupo_facturable, _etiqueta_grupo
 
         etiqueta = _etiqueta_grupo(_grupo_facturable(_producto('Ham', True, 14.0)))
 
-        assert '14' in etiqueta
+        assert etiqueta == 'OB 0%'
         assert 'Pesable' not in etiqueta and 'Importado' not in etiqueta
 
 
@@ -161,11 +165,18 @@ def test_la_etiqueta_nombra_el_impuesto(app):
 
 @pytest.mark.parametrize('clave_vieja', ['pesable:14', 'importado:14'])
 def test_una_clave_vieja_sigue_resolviendo_al_grupo_de_su_impuesto(app, clave_vieja):
-    """Un enlace guardado o una sesión a medio camino no debe romperse."""
+    """Un enlace guardado o una sesión a medio camino no debe romperse.
+
+    Antes se verificaba con '14' en la etiqueta; desde que `_etiqueta_grupo`
+    traduce a OB (Task 1, 2026-08-30) ese dígito ya no aparece ahí, así que
+    se compara contra la etiqueta de la clave actual del mismo impuesto —
+    prueba lo mismo (misma resolución) sin depender del código crudo.
+    """
     with app.app_context():
         from app import _etiqueta_de_clave_grupo
 
-        assert '14' in _etiqueta_de_clave_grupo(clave_vieja)
+        assert _etiqueta_de_clave_grupo(clave_vieja) == _etiqueta_de_clave_grupo('imp:14')
+        assert _etiqueta_de_clave_grupo(clave_vieja) == 'OB 0%'
 
 
 def test_una_clave_basura_no_resuelve(app):
