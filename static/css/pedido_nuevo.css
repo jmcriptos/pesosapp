@@ -41,7 +41,10 @@ body[data-pedido-nuevo-screen] .app-content {
        punto más oscuro conserva el mismo gris cálido y llega a 4.69:1. */
     --pn-gris: #727268;
     --pn-gris-fuerte: #5f5f57;
-    --pn-apagado: #a8a8a0;
+    /* #a8a8a0 daba 2.3:1 sobre el papel (#fbfbf9): reprobado, y es el único
+       texto que dice qué producto se acaba de quitar del pedido. #6b6b62
+       llega a 5.19:1 midiendo contra ese mismo fondo real. */
+    --pn-apagado: #6b6b62;
     --pn-alerta: #b1370f;
     --pn-alta: #1f5c37;
     --pn-realce: #f4f4ef;
@@ -70,6 +73,22 @@ body[data-pedido-nuevo-screen] .app-content {
 .pn-shell *,
 .pn-shell *::before,
 .pn-shell *::after { box-sizing: border-box; }
+
+/* Sin `max-width` el flujo se estiraba edge-to-edge en escritorio: a 1280px
+   quedaban ~1.100px vacíos entre el nombre del producto y su precio en
+   `.pn-linea`. Desde este ancho el shell pasa a ser una columna centrada del
+   ancho de un teléfono grande — el diseño ya está pensado para esa medida —
+   en vez de reflowear cada fila. */
+@media (min-width: 640px) {
+    .pn-shell {
+        right: auto;
+        left: 50%;
+        width: 100%;
+        max-width: 560px;
+        transform: translateX(-50%);
+        box-shadow: 0 0 0 1px var(--pn-regla);
+    }
+}
 
 /* `hidden` tiene que ganar SIEMPRE. El atributo solo aplica `display:none`
    desde la hoja del navegador, con especificidad cero: cualquier regla de
@@ -391,12 +410,28 @@ body[data-pedido-nuevo-screen] .app-content {
 .pn-step-mas:active { background: #333333; }
 
 .pn-step-valor {
-    min-width: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 46px;
     text-align: center;
     font-family: var(--pn-mono);
     font-weight: 600;
     font-size: 19px;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+}
+
+/* La unidad de la cantidad ("cj" = cajas) antes solo estaba en el
+   aria-label del stepper: nadie que mira la pantalla la veía. */
+.pn-step-unidad {
+    font-family: var(--pn-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
 }
 
 .pn-volver-linea {
@@ -489,9 +524,8 @@ body[data-pedido-nuevo-screen] .app-content {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    /* 40 px de alto: se toca a una mano sin competir con el nombre del
-       cliente, que es el título de la pantalla. */
-    min-height: 40px;
+    /* ≥44px de alto: es el mínimo táctil (antes 40px medía 131×40 real). */
+    min-height: 44px;
     margin-top: 10px;
     padding: 0 16px;
     border-radius: 999px;
@@ -1025,6 +1059,28 @@ body[data-pedido-nuevo-screen] textarea,
 body[data-pedido-nuevo-screen] select,
 body[data-pedido-nuevo-screen] button,
 .ts-dropdown.pn-dropdown { color-scheme: light !important; }
+
+/* ── Foco visible ───────────────────────────────────────────────────────── */
+
+/* `.pn-buscador input`, `.pn-add-cajas`, `.pn-fecha-otra` y `.pn-notas`
+   quitan el `outline` del navegador (arriba) sin poner nada en su lugar, y el
+   blindaje de campos (`#pn-shell input, ...`, más arriba) fuerza
+   `box-shadow: none !important` en todo momento — también anula el anillo
+   propio de Tom Select. Sin esto, navegar con teclado o VoiceOver no muestra
+   dónde está parado el foco. Va al final del archivo y repite los mismos
+   selectores para ganarles a esos `!important` por orden de aparición (la
+   variante de Tom Select, con igual especificidad, solo gana si viene
+   después). */
+#pn-shell input:focus-visible,
+#pn-shell textarea:focus-visible,
+#pn-shell select:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, .85) !important;
+}
+
+#pn-shell .ts-wrapper.focus .ts-control {
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, .85) !important;
+}
 
 /* Sin animaciones para quien las desactivó en el sistema. */
 @media (prefers-reduced-motion: reduce) {

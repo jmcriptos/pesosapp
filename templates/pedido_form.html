@@ -73,7 +73,7 @@
 
         <div class="pn-add-campos" id="ph-add-panel" {% if productos_pedido %}hidden{% endif %}>
           <select id="producto-select" aria-label="Producto"><option value=""></option></select>
-          <div class="pn-add-fila">
+          <div class="pn-add-fila" id="ph-add-fila">
             {# type=text + inputmode=decimal: acepta fracciones (media caja =
                0.5) y la coma decimal del teclado iOS en locale holandés. #}
             <input type="text" id="input-cajas" class="pn-add-cajas" placeholder="Cajas"
@@ -226,6 +226,14 @@ const chipsEntrega = $('ph-entrega-chips');
 const inputOtraFecha = $('ph-entrega-otra');
 const addPanel = $('ph-add-panel');
 const addToggle = $('ph-add-toggle');
+const addFila = $('ph-add-fila');
+
+/* Entrega y Notas: los dos `.pn-campo` que siguen al panel de añadir. Se
+   ocultan mientras el desplegable de productos está abierto (ver TomSelect
+   más abajo) para que nunca quede debajo, tapado. */
+function camposDebajoDelBuscador() {
+    return Array.from(document.querySelectorAll('#pn-cuerpo-pedido .pn-campo'));
+}
 const motivo = $('agregar-motivo');
 const formPedido = $('form-nuevo-pedido');
 let tomProducto = null;
@@ -300,16 +308,30 @@ function construirChipsEntrega() {
     const hoy = new Date();
     const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1);
 
-    // Tercera opción: el siguiente día hábil después de mañana. Saltea sábado y
-    // domingo porque no hay reparto el fin de semana.
-    const siguiente = new Date(manana);
+    // No hay reparto sábado ni domingo: si "mañana" cae en fin de semana, el
+    // default corre al próximo día hábil (mismo filtro que la tercera
+    // opción, más abajo). Sin esto el chip preseleccionado —el default del
+    // pedido— podía caer en un día sin reparto.
+    const entregaDefault = new Date(manana);
+    while (entregaDefault.getDay() === 0 || entregaDefault.getDay() === 6) {
+        entregaDefault.setDate(entregaDefault.getDate() + 1);
+    }
+    const esManana = entregaDefault.getTime() === manana.getTime();
+
+    // Tercera opción: el siguiente día hábil después del default. Saltea
+    // sábado y domingo porque no hay reparto el fin de semana.
+    const siguiente = new Date(entregaDefault);
     do { siguiente.setDate(siguiente.getDate() + 1); }
     while (siguiente.getDay() === 0 || siguiente.getDay() === 6);
 
     const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const opciones = [
         { iso: isoDe(hoy), texto: 'Hoy' },
-        { iso: isoDe(manana), texto: 'Mañana' },
+        // Rotula con el día cuando el default no es literalmente mañana
+        // (mañana cayó en fin de semana): "Mañana" sería mentira.
+        { iso: isoDe(entregaDefault), texto: esManana
+            ? 'Mañana'
+            : `${DIAS[entregaDefault.getDay()]} ${entregaDefault.getDate()}` },
         { iso: isoDe(siguiente), texto: `${DIAS[siguiente.getDay()]} ${siguiente.getDate()}` },
     ];
 
@@ -330,11 +352,12 @@ function construirChipsEntrega() {
     otra.textContent = 'Otra';
     chipsEntrega.appendChild(otra);
 
-    // En un pedido NUEVO el default es mañana: es lo que el vendedor elige casi
-    // siempre en ruta. Editando NO se inventa fecha: un pedido guardado sin
-    // fecha de entrega debe seguir sin fecha, o corregir una cantidad le
-    // asignaría una entrega que nadie pidió.
-    const inicial = inputFechaEntrega.value || (esEdicion ? '' : isoDe(manana));
+    // En un pedido NUEVO el default es mañana (o el próximo día hábil si
+    // mañana no reparte): es lo que el vendedor elige casi siempre en ruta.
+    // Editando NO se inventa fecha: un pedido guardado sin fecha de entrega
+    // debe seguir sin fecha, o corregir una cantidad le asignaría una
+    // entrega que nadie pidió.
+    const inicial = inputFechaEntrega.value || (esEdicion ? '' : isoDe(entregaDefault));
     seleccionarEntrega(inicial);
 }
 
@@ -448,7 +471,7 @@ function actualizarTablaProductos() {
             <div class="pn-stepper">
                 <button type="button" class="pn-step" data-action="menos" data-idx="${idx}"
                         aria-label="Quitar una caja de ${escapeHtml(p.nombre)}">−</button>
-                <span class="pn-step-valor" aria-live="polite">${fmtCajas(p.cajas)}</span>
+                <span class="pn-step-valor" aria-live="polite">${fmtCajas(p.cajas)}<small class="pn-step-unidad">cj</small></span>
                 <button type="button" class="pn-step pn-step-mas" data-action="mas" data-idx="${idx}"
                         aria-label="Sumar una caja de ${escapeHtml(p.nombre)}">+</button>
             </div>
@@ -600,7 +623,7 @@ function construirRevision() {
             ? '<span class="pn-revision-monto es-sin-precio">SIN PRECIO</span>'
             : `<span class="pn-revision-monto">${formatearMonto(p.precio * p.cajas)}</span>`;
         fila.innerHTML = `
-            <span class="pn-revision-producto">${escapeHtml(p.nombre)} · ${fmtCajas(p.cajas)}</span>
+            <span class="pn-revision-producto">${escapeHtml(p.nombre)} · ${fmtCajas(p.cajas)} ${p.cajas === 1 ? 'caja' : 'cajas'}</span>
             ${importe}
         `;
         cont.appendChild(fila);
@@ -722,8 +745,34 @@ document.addEventListener('DOMContentLoaded', () => {
         placeholder: 'Buscar producto…',
         dropdownParent: 'body',
         dropdownClass: 'ts-dropdown pn-dropdown',
+        // `false`: al abrir "Añadir producto" se hace scroll y se enfoca el
+        // campo (más abajo) para que el teclado quede listo. Con el default
+        // (true) eso abría el desplegable en el mismo instante, con el panel
+        // recién posicionado al fondo de la pantalla — tapaba el botón
+        // «Añadir» (justo debajo) y la etiqueta «Entrega» (más abajo
+        // todavía), sin que el vendedor hubiera tocado nada. Al escribir (o
+        // tocar el campo) el desplegable se sigue abriendo normalmente.
+        openOnFocus: false,
         onType: function () { this.clear(); },
         sortField: { field: 'text', direction: 'asc' },
+        // El desplegable cuelga de <body> (dropdownParent), fuera del flujo, y
+        // se abre justo debajo del buscador: sin margen para acotarlo (el
+        // botón «Añadir» está a 10px), tapaba ese botón y, si la lista era
+        // larga, también la etiqueta «Entrega» más abajo. Mientras se busca
+        // ninguno de los dos se puede usar igual (no hay producto elegido
+        // todavía), así que se ocultan en vez de dejarlos tapados — no se
+        // pierde nada: sus valores siguen en el estado de JS y reaparecen
+        // igual al cerrar.
+        onDropdownOpen: function (dropdown) {
+            addFila.hidden = true;
+            camposDebajoDelBuscador().forEach(campo => { campo.hidden = true; });
+            const disponible = window.innerHeight - 16 - dropdown.getBoundingClientRect().top;
+            dropdown.style.maxHeight = Math.max(120, disponible) + 'px';
+        },
+        onDropdownClose: function () {
+            addFila.hidden = false;
+            camposDebajoDelBuscador().forEach(campo => { campo.hidden = false; });
+        },
         render: {
             option: (data, escape) => {
                 const p = productos.find(x => x.id === parseInt(data.value, 10));

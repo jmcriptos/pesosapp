@@ -6648,7 +6648,8 @@ def _texto_hero_habitual(meta):
     """Línea de cadencia/historial que antes armaba el JS (actualizarHero)."""
     partes = []
     if meta.get('cadencia_dias'):
-        partes.append(f"Compra cada {meta['cadencia_dias']} días")
+        dias = meta['cadencia_dias']
+        partes.append(f"Compra cada {dias} {'día' if dias == 1 else 'días'}")
     if meta.get('ultima_fecha'):
         try:
             f = datetime.strptime(meta['ultima_fecha'], '%Y-%m-%d').date()
@@ -6664,7 +6665,10 @@ def _texto_hero_habitual(meta):
         total = sum(g.get('pedidos', 0) for g in meta.get('grupos', []))
         if total:
             n = len(meta.get('grupos', []))
-            partes.append(f"{total} {'pedido' if total == 1 else 'pedidos'} en {n} grupos")
+            partes.append(
+                f"{total} {'pedido' if total == 1 else 'pedidos'} "
+                f"en {n} {'grupo' if n == 1 else 'grupos'}"
+            )
         else:
             partes.append('Sin pedidos anteriores')
     return ' · '.join(partes)
