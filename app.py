@@ -1924,7 +1924,14 @@ def _precalentar_cache_qb():
 
     def _correr():
         try:
-            _obtener_metricas_ventas_quickbooks(**_fechas_ventas_quickbooks())
+            # `_refrescando=True` para usar el timeout completo
+            # (N8N_QB_SALES_TIMEOUT, 20s) y no el presupuesto de espera del
+            # usuario (8s): acá no espera nadie. Con 8s, una llamada de las que
+            # tardan 8114ms —vistas en producción— dejaba el worker sin caché y
+            # el arranque en frío se lo comía igual el primero que entrara.
+            _obtener_metricas_ventas_quickbooks(
+                **_fechas_ventas_quickbooks(), _refrescando=True
+            )
             app.logger.info(f'[qb-cache] pid={os.getpid()} precalentamiento de arranque listo')
         except Exception as e:
             app.logger.warning(

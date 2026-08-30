@@ -207,8 +207,9 @@ def test_precalentamiento_llena_la_cache_en_segundo_plano(monkeypatch):
     monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/warmup')
     llamado = {'n': 0}
 
-    def falso(**_kw):
+    def falso(**kw):
         llamado['n'] += 1
+        llamado['kw'] = kw
 
     monkeypatch.setattr(app_module, '_obtener_metricas_ventas_quickbooks', falso)
 
@@ -219,6 +220,9 @@ def test_precalentamiento_llena_la_cache_en_segundo_plano(monkeypatch):
     assert transcurrido < 0.2, 'el precalentamiento no debe bloquear el import'
     assert _esperar_hilo_nombre('qb-sales-warmup'), 'el hilo no terminó'
     assert llamado['n'] == 1
+    # Nadie espera en ese hilo: tiene que usar el timeout completo, no el
+    # presupuesto de 8s pensado para una petición de usuario.
+    assert llamado['kw'].get('_refrescando') is True
 
 
 def test_las_fechas_del_helper_son_las_que_usa_la_clave_de_cache():
