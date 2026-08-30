@@ -1089,6 +1089,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // por ninguna de las dos, así que necesitan su propio disparador.
     $('notas').addEventListener('input', guardarBorrador);
 
+    /* La cabecera se encoge al scrollear las líneas y vuelve al subir.
+       Con 293px de cabecera y 166 de pie entraban CUATRO líneas de pedido en
+       un iPhone; el cliente y el grupo importan al llegar, no mientras se
+       carga. El umbral no es 0 para que un rebote de scroll no la haga
+       parpadear. */
+    const cuerpoPedido = $('pn-cuerpo-pedido');
+    if (cuerpoPedido) {
+        let compacta = false;
+        cuerpoPedido.addEventListener('scroll', function () {
+            const debe = cuerpoPedido.scrollTop > 24;
+            if (debe === compacta) return;
+            compacta = debe;
+            const shell = document.getElementById('pn-shell');
+            if (shell) shell.classList.toggle('pn-head-compacta', compacta);
+        }, { passive: true });
+    }
+
     addToggle.addEventListener('click', function () {
         const abierto = addPanel.hidden;
         addPanel.hidden = !abierto;

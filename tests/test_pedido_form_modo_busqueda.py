@@ -158,3 +158,46 @@ def test_el_resumen_llega_a_44px_de_area_tactil():
     bloque = css[css.index('.pn-head-detalle > summary {'):]
     bloque = bloque[:bloque.index('}')]
     assert 'min-height: 44px' in bloque, 'el resumen no llega al mínimo táctil'
+
+
+# ── La cabecera compacta al scrollear ────────────────────────────────────────
+
+def test_la_cabecera_se_encoge_al_scrollear_y_vuelve_al_subir():
+    """Con 293px de cabecera y 166 de pie entraban CUATRO líneas en el iPhone.
+
+    Medido: cabecera 293 → 70 al scrollear, y el espacio para las líneas pasa
+    de 385 a 632px. El umbral no es 0 para que un rebote de scroll no la haga
+    parpadear.
+    """
+    fuente = _texto(PLANTILLA)
+    cuerpo = _cuerpo_de(fuente, "cuerpoPedido.addEventListener('scroll'")
+    assert 'pn-head-compacta' in cuerpo, 'el scroll no encoge la cabecera'
+    assert 'scrollTop >' in cuerpo, 'no hay umbral: la cabecera va a parpadear'
+    assert 'toggle(' in cuerpo, (
+        'la clase se agrega sin quitarse: la cabecera no volvería al subir'
+    )
+
+
+def test_en_compacto_el_cliente_y_el_grupo_SIGUEN_a_la_vista():
+    """Lo que no se puede perder al encoger.
+
+    El vendedor tiene que saber siempre de quién es el pedido y de qué grupo:
+    el grupo restringe qué productos puede cargar, y equivocarse de cliente es
+    un pedido entero mal. Se esconde el contexto que ya cumplió (el
+    sobretítulo, la cadencia, el origen de las líneas), nunca la identidad.
+    """
+    css = _texto(CSS)
+    bloque = css[css.index('#pn-shell.pn-head-compacta .pn-sobretitulo'):]
+    bloque = bloque[:bloque.index('}')]
+    for prohibido in ('.pn-titulo-cliente', '.pn-grupo-chip'):
+        assert prohibido not in bloque, (
+            f'{prohibido} se esconde al encoger la cabecera: el vendedor '
+            'pierde de vista de quién es el pedido o de qué grupo'
+        )
+    # Y el chip conserva su área táctil, que sigue siendo la salida de grupo.
+    compacto_chip = css[css.index('#pn-shell.pn-head-compacta .pn-grupo-chip'):]
+    compacto_chip = compacto_chip[:compacto_chip.index('}')]
+    assert 'height' not in compacto_chip, (
+        'se le tocó el alto al chip en compacto: es el objetivo táctil de la '
+        'única salida para cambiar de grupo'
+    )
