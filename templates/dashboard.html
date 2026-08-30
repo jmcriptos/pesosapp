@@ -20,32 +20,42 @@
 {% block body_attrs %}data-theme="dark" data-hue="blue" data-glass="heavy" data-kpi-style="minimal" data-dashboard-screen="1"{% endblock %}
 
 {# ══════════════════════════════════════════════════════════════
-   MACRO: Progress Ring (44px SVG)
+   MACRO: Medidor
 
-   El anillo ya no lleva el valor dentro: el número está impreso en grande en
-   la tarjeta y repetirlo dentro de 44px hacía que "100.0%" midiera 51.9px y
-   cruzara el trazo de color. El track toma el color del estado en alpha baja,
-   así un anillo en `danger` al 0% —que no dibuja arco— sigue leyéndose como
-   alarma y no como elemento inerte.
+   Reemplaza al anillo de 44px. Un anillo es un indicador radial: ocupa un
+   cuadrado, compite por el ancho con el número —a 390px se le montaba encima
+   del "100.0%"— y no tiene dónde marcar el umbral. El medidor lineal ocupa una
+   franja de 6px, muestra la proporción contra su límite y admite la marca del
+   objetivo, que es lo que convierte el color en algo que se puede aprender.
+
+   La pista es un paso claro del MISMO tono del relleno, así el estado se lee a
+   lo largo de toda la barra y no solo en la parte llena.
    ══════════════════════════════════════════════════════════════ #}
-{% macro progress_ring(pct, state='neutral', size=44) %}
-  {% set r = (size - 4) / 2 %}
-  {% set c = 2 * 3.14159265 * r %}
+{% macro medidor(pct, state, objetivo=None, etiqueta='') %}
   {% set clamped = pct if pct <= 100 else 100 %}
   {% set clamped = clamped if clamped >= 0 else 0 %}
-  {% set offset = c - (clamped / 100) * c %}
-  {% set color_map = {'success': '#0f9d6e', 'warning': '#b45309', 'danger': '#be123c', 'neutral': '#4f46e5'} %}
-  {% set track_map = {'success': 'rgba(15,157,110,0.22)', 'warning': 'rgba(180,83,9,0.22)', 'danger': 'rgba(190,18,60,0.28)', 'neutral': 'rgba(79,70,229,0.18)'} %}
-  {% set color_var = color_map.get(state, '#4f46e5') %}
-  {% set track_var = track_map.get(state, 'rgba(79,70,229,0.18)') %}
-  <div class="ring-wrap ring-{{ state }}" style="width:{{ size }}px;height:{{ size }}px;" aria-hidden="true">
-    <svg width="{{ size }}" height="{{ size }}" viewBox="0 0 {{ size }} {{ size }}">
-      <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ r }}" fill="none" stroke="{{ track_var }}" stroke-width="4"/>
-      <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ r }}" fill="none" stroke="{{ color_var }}" stroke-width="4" stroke-linecap="round"
-        stroke-dasharray="{{ '%.2f'|format(c) }}" stroke-dashoffset="{{ '%.2f'|format(offset) }}"
-        transform="rotate(-90 {{ size/2 }} {{ size/2 }})"/>
-    </svg>
+  <div class="kpi-meter med-{{ state }}" role="img"
+       aria-label="{{ etiqueta }}{{ '%.0f'|format(clamped) }}%{% if objetivo %}, objetivo {{ objetivo }}%{% endif %}">
+    <div class="kpi-meter-fill" style="transform:scaleX({{ '%.4f'|format(clamped / 100) }})"></div>
+    {% if objetivo %}<span class="kpi-meter-tick" style="left:{{ objetivo }}%"></span>{% endif %}
   </div>
+{% endmacro %}
+
+{# ══════════════════════════════════════════════════════════════
+   MACRO: chip de estado
+
+   El anillo es un medidor y su color indica severidad. Un color de estado
+   nunca puede ser el único portador del mensaje, así que la misma severidad
+   va acá en texto con icono.
+   ══════════════════════════════════════════════════════════════ #}
+{% macro chip_estado(state) %}
+  {% set texto = {'success': 'En objetivo', 'warning': 'Atención', 'danger': 'Fuera de objetivo'} %}
+  {% set icono = {'success': 'fa-circle-check', 'warning': 'fa-triangle-exclamation', 'danger': 'fa-circle-exclamation'} %}
+  {% if state in texto %}
+  <span class="kpi-estado est-{{ state }}">
+    <i class="fas {{ icono[state] }}" aria-hidden="true"></i>{{ texto[state] }}
+  </span>
+  {% endif %}
 {% endmacro %}
 
 {% block extra_css %}
@@ -156,31 +166,27 @@
       {# Ventas del Mes #}
       <div class="kpi" data-kpi-state="{{ meta_state }}">
         <div class="kpi-label">Ventas del Mes</div>
-        <div class="kpi-valrow">
-          <div class="kpi-value">{{ '{:,.0f}'.format(ventas_mes_v) }}<small>XCG</small></div>
-          {{ progress_ring(porcentaje_meta_v, meta_state) }}
-        </div>
+        <div class="kpi-value">{{ '{:,.0f}'.format(ventas_mes_v) }}<small>XCG</small></div>
+        {{ medidor(porcentaje_meta_v, meta_state, etiqueta='Ventas del mes: ') }}
         <div class="kpi-sub">{{ '%.0f'|format(porcentaje_meta_v) }}% de la meta · {{ pedidos_mes_v }} pedido{{ 's' if pedidos_mes_v != 1 }}</div>
-        <div class="kpi-ref">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} XCG</div>
+        <div class="kpi-pie">{{ chip_estado(meta_state) }}<span class="kpi-ref">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} XCG</span></div>
       </div>
 
       {# Proyección #}
       <div class="kpi" data-kpi-state="{{ proy_state }}">
         <div class="kpi-label">Proyección</div>
-        <div class="kpi-valrow">
-          {% if proyeccion_ventas_v > 0 %}
-          <div class="kpi-value">{{ '{:,.0f}'.format(proyeccion_ventas_v) }}<small>XCG</small></div>
-          {% else %}
-          <div class="kpi-value kpi-value-vacio">Sin datos</div>
-          {% endif %}
-          {{ progress_ring(porcentaje_proyeccion_v, proy_state) }}
-        </div>
+        {% if proyeccion_ventas_v > 0 %}
+        <div class="kpi-value">{{ '{:,.0f}'.format(proyeccion_ventas_v) }}<small>XCG</small></div>
+        {% else %}
+        <div class="kpi-value kpi-value-vacio">Sin datos</div>
+        {% endif %}
+        {{ medidor(porcentaje_proyeccion_v, proy_state, etiqueta='Proyección: ') }}
         {% if proyeccion_ventas_v > 0 %}
         <div class="kpi-sub">{{ '%.0f'|format(porcentaje_proyeccion_v) }}% de la meta al cierre</div>
         {% else %}
         <div class="kpi-sub">Hacen falta ventas del mes para proyectar</div>
         {% endif %}
-        <div class="kpi-ref">Al ritmo de los primeros {{ day_count }} día{{ 's' if day_count != 1 }}</div>
+        <div class="kpi-pie">{{ chip_estado(proy_state) }}<span class="kpi-ref">Al ritmo de {{ day_count }} día{{ 's' if day_count != 1 }}</span></div>
       </div>
     </div>
 
@@ -206,6 +212,28 @@
       <div class="trend-chart-wrap">
         <canvas id="salesTrendChart" role="img" aria-label="Ventas semanales de los últimos 6 meses"></canvas>
       </div>
+      {# Gemela accesible del gráfico: sin esto los valores exactos solo existen
+         dentro del tooltip, que no se alcanza con teclado ni con lector. #}
+      <details class="chart-tabla">
+        <summary>Ver los datos</summary>
+        <div class="chart-tabla-scroll">
+          <table>
+            <caption class="visually-hidden">Ventas y pedidos por semana, últimos 6 meses</caption>
+            <thead>
+              <tr><th scope="col">Semana</th><th scope="col">Ventas (XCG)</th><th scope="col">Pedidos</th></tr>
+            </thead>
+            <tbody>
+              {% for fila in tendencia_semanal %}
+              <tr>
+                <td>{{ fila.semana }}</td>
+                <td class="num">{{ '{:,.0f}'.format((fila.ventas or 0)|float) }}</td>
+                <td class="num">{{ fila.pedidos or 0 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
       {% else %}
       <div class="empty-state">
         {% if degradado_v %}
@@ -317,22 +345,18 @@
     <div class="kpi-grid kpi-grid-2">
       <div class="kpi" data-kpi-state="{{ otd_state }}">
         <div class="kpi-label">Entregas a tiempo <span class="kpi-sigla">OTD</span></div>
-        <div class="kpi-valrow">
-          <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>
-          {{ progress_ring(otd_rate_v, otd_state) }}
-        </div>
+        <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>
+        {{ medidor(otd_rate_v, otd_state, objetivo=95, etiqueta='Entregas a tiempo: ') }}
         <div class="kpi-sub">Facturadas en 2 días o menos</div>
-        <div class="kpi-ref">Objetivo 95%</div>
+        <div class="kpi-pie">{{ chip_estado(otd_state) }}<span class="kpi-ref">Objetivo 95%</span></div>
       </div>
 
       <div class="kpi" data-kpi-state="{{ ofr_state }}">
         <div class="kpi-label">Cajas entregadas <span class="kpi-sigla">OFR</span></div>
-        <div class="kpi-valrow">
-          <div class="kpi-value">{{ '%.1f'|format(order_completion_rate_v) }}%</div>
-          {{ progress_ring(order_completion_rate_v, ofr_state) }}
-        </div>
+        <div class="kpi-value">{{ '%.1f'|format(order_completion_rate_v) }}%</div>
+        {{ medidor(order_completion_rate_v, ofr_state, objetivo=95, etiqueta='Cajas entregadas: ') }}
         <div class="kpi-sub">De cada 100 cajas pedidas</div>
-        <div class="kpi-ref">Objetivo 95%</div>
+        <div class="kpi-pie">{{ chip_estado(ofr_state) }}<span class="kpi-ref">Objetivo 95%</span></div>
       </div>
     </div>
   </section>
@@ -353,10 +377,10 @@
           {% set ingresos = (producto.ingresos or 0)|float %}
           {% set bar_pct = (ingresos / max_ing * 100) if max_ing > 0 else 0 %}
           <div class="rank">
-            <span class="rank-pos rc-{{ loop.index }}">{{ loop.index }}</span>
+            <span class="rank-pos">{{ loop.index }}</span>
             <div class="rank-body">
               <div class="rank-name">{{ producto.nombre }}</div>
-              <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
+              <div class="rank-bar"><div class="rank-bar-fill" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
               <div class="rank-meta">
                 {% if (producto.cajas or 0) > 0 %}<span>{{ producto.cajas|fmt_cajas }} cajas</span>{% endif %}
                 {% if (producto.peso or 0) > 0 %}<span>{{ '{:,.1f}'.format(producto.peso|float) }} kg</span>{% endif %}
@@ -393,10 +417,10 @@
           {% set total = (datos.total or 0)|float %}
           {% set bar_pct = (total / max_cli * 100) if max_cli > 0 else 0 %}
           <div class="rank">
-            <span class="rank-pos rc-{{ loop.index }}">{{ loop.index }}</span>
+            <span class="rank-pos">{{ loop.index }}</span>
             <div class="rank-body">
               <div class="rank-name">{{ nombre }}</div>
-              <div class="rank-bar"><div class="rank-bar-fill rc-bar-{{ loop.index }}" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
+              <div class="rank-bar"><div class="rank-bar-fill" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
               <div class="rank-meta">
                 <span>{{ datos.pedidos or 0 }} pedidos</span>
                 {% if datos.ultimo_pedido %}<span>Último {{ datos.ultimo_pedido.strftime('%d/%m') }}</span>{% endif %}

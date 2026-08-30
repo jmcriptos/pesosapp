@@ -88,28 +88,12 @@
     min-width: 0;
   }
 
-  /* El anillo se queda en sus 44px nativos. Ya no lleva etiqueta adentro:
-     el valor va en grande en la tarjeta. */
-  body[data-dashboard-screen] .kpi .ring-wrap {
-    width: 44px !important;
-    height: 44px !important;
-    flex-shrink: 0;
-    transform: none !important;
-    margin: 0 !important;
-    position: relative;
-  }
-  body[data-dashboard-screen] .kpi .ring-wrap svg {
-    width: 44px !important;
-    height: 44px !important;
-    display: block;
-  }
   body[data-dashboard-screen] .kpi-value {
     color: #0f172a !important;
     font-size: clamp(1.7rem, 7vw, 2.1rem) !important;
     font-weight: 800 !important;
     letter-spacing: -0.025em !important;
     line-height: 1.05;
-    font-variant-numeric: tabular-nums;
     display: inline-flex;
     align-items: baseline;
     gap: 4px;
@@ -176,7 +160,6 @@
     font-weight: 800 !important;
     letter-spacing: -0.025em;
     line-height: 1.05;
-    font-variant-numeric: tabular-nums;
     display: inline-flex;
     align-items: baseline;
     gap: 6px;
@@ -249,7 +232,6 @@
     font-size: 1.2rem !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
   }
 
   }
@@ -263,10 +245,4 @@
   body[data-dashboard-screen] .kpi-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  /* En tarjetas de 513px el space-between dejaba el anillo a 300px del número
-     que representa. Pegado al valor, la relación se lee sola. */
-  body[data-dashboard-screen] .kpi-valrow {
-    justify-content: flex-start;
-    gap: 20px;
   }
-}

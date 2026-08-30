@@ -125,7 +125,6 @@ body[data-dashboard-screen] .kpi-value {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.025em;
-  font-variant-numeric: tabular-nums;
   line-height: 1.1;
   display: inline-flex;
   align-items: baseline;
@@ -225,7 +224,6 @@ body[data-dashboard-screen] .chart-big {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.025em;
-  font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
@@ -299,7 +297,6 @@ body[data-dashboard-screen] .week-mini-val {
   font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: baseline;
   gap: 3px;

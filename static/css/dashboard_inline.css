@@ -8,10 +8,6 @@
    so the override chain is greppable from the static dir.
    ============================================================================= */
 
-/* ── Override minimal-style hide for rings inside this dashboard ── */.dash-body .ring-wrap {
-  display: flex !important;
-}
-
 /* ── Screen body: flow container, app-shell handles bottom padding ── */
 .screen-body {
   padding: 0;
@@ -132,7 +128,6 @@
   font-weight: 800;
   color: var(--color-text, #f1f5f9);
   line-height: 1.2;
-  font-variant-numeric: tabular-nums;
 }
 .kpi-value small {
   font-size: 11px;
@@ -192,7 +187,6 @@
   font-size: 24px;
   font-weight: 800;
   color: var(--color-text, #f1f5f9);
-  font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 .chart-big small {
@@ -257,7 +251,6 @@
 .week-mini-val {
   font-size: 15px;
   font-weight: 800;
-  font-variant-numeric: tabular-nums;
   color: var(--color-text, #f1f5f9);
 }
 .week-mini-val small {
@@ -279,9 +272,12 @@
 }
 .rank:last-child { border-bottom: none; }
 .rank-pos {
+  /* La posición la dice el dígito, no el color. */
   width: 28px;
   height: 28px;
   border-radius: 8px;
+  background: #eef1f6;
+  color: #475569 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -306,15 +302,24 @@
   text-overflow: ellipsis;
 }
 .rank-bar {
+  /* Pista un paso por encima del fondo; el relleno es la marca. */
   height: 6px;
-  background: rgba(15,23,42,0.5);
-  border-radius: 99px;
+  background: #eef1f6;
+  border-radius: 3px;
   overflow: hidden;
 }
 .rank-bar-fill {
+  /* Un solo color para todas las barras. Antes cada posición tenía el suyo
+     (rc-bar-1..5): eso hace que el color siga a la fila y no al producto —si
+     algo baja del #1 al #2 cambia de tono— y además re-codifica en el color el
+     largo que la barra ya muestra. Productos y clientes son categorías
+     nominales: no tienen orden propio que el color deba contar.
+     Plano, sin degradado: el degradado es decoración sobre un valor. */
   width: 100%;
   height: 100%;
-  border-radius: 99px;
+  background: #4f46e5;
+  /* Extremo redondeado del lado del dato, recto contra la línea base. */
+  border-radius: 0 3px 3px 0;
   /* Se escala por transform (el template pone scaleX) en vez de animar width:
      animar el ancho provoca relayout en cada cuadro. */
   transform-origin: left center;
@@ -343,16 +348,6 @@
 }
 
 /* ── Rank colors ── */
-.rc-1 { background: #f59e0b; }
-.rc-2 { background: #6366f1; }
-.rc-3 { background: #10b981; }
-.rc-4 { background: #8b5cf6; }
-.rc-5 { background: #f43f5e; }
-.rc-bar-1 { background: linear-gradient(90deg, #f59e0baa, #f59e0b); }
-.rc-bar-2 { background: linear-gradient(90deg, #6366f1aa, #6366f1); }
-.rc-bar-3 { background: linear-gradient(90deg, #10b981aa, #10b981); }
-.rc-bar-4 { background: linear-gradient(90deg, #8b5cf6aa, #8b5cf6); }
-.rc-bar-5 { background: linear-gradient(90deg, #f43f5eaa, #f43f5e); }
 
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -396,7 +391,9 @@
   color: #0f172a;
   text-decoration: none;
 }
-.queue-stat-val { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+/* Sin tabular-nums: a 22px las cifras de ancho fijo dejan huecos.
+   Se reserva para columnas que se alinean (.rank-amt, .queue-amt). */
+.queue-stat-val { font-size: 22px; font-weight: 800; line-height: 1; }
 .queue-stat-lbl { font-size: 11px; color: #475569; }
 .queue-stat.is-alarm { border-color: #fecdd3; background: #fff1f2; }
 .queue-stat.is-alarm .queue-stat-val { color: #9f1239; }
@@ -452,16 +449,110 @@
 /* Los enlaces de sección eran de 17px de alto; ahora llegan al mínimo táctil. */
 .sec-action { display: inline-flex; align-items: center; min-height: 44px; }
 
-/* Fila valor + anillo. El anillo estaba junto a la etiqueta y le robaba el
-   ancho: "Cajas entregadas" necesitaba 98px y tenía 76, así que el texto se
-   metía debajo del trazo. Al lado del número, además, el anillo queda junto al
-   dato que representa. */
-.kpi-valrow {
+.kpi-sigla { margin-left: 4px; }
+
+/* ── Chip de estado del KPI ─────────────────────────────────────────────
+   Un color de estado nunca es el único portador del mensaje: el anillo pinta
+   la severidad y este chip la dice con icono y palabra. Mismos tintes que los
+   chips de SLA, para que el mismo estado se vea igual en toda la pantalla. */
+.kpi-pie {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
 }
-.kpi-valrow .kpi-value { min-width: 0; }
-.kpi-valrow .ring-wrap { flex: 0 0 auto; }
-.kpi-sigla { margin-left: 4px; }
+.kpi-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.kpi-estado i { font-size: 10px; }
+.kpi-estado.est-success { background: #ecfdf5; color: #065f46; }
+.kpi-estado.est-warning { background: #fffbeb; color: #92400e; }
+.kpi-estado.est-danger  { background: #fff1f2; color: #9f1239; }
+
+/* ── Vista de tabla del gráfico ────────────────────────────────────────
+   Todo gráfico lleva su gemela en tabla: el tooltip mejora la lectura pero
+   nunca puede ser la única forma de llegar a un valor. */
+.chart-tabla { margin-top: 10px; }
+.chart-tabla > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4338ca;
+  cursor: pointer;
+}
+.chart-tabla > summary:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+.chart-tabla-scroll { max-height: 260px; overflow: auto; }
+.chart-tabla table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.chart-tabla th,
+.chart-tabla td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+.chart-tabla thead th {
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  color: #475569;
+  font-weight: 700;
+}
+.chart-tabla td.num,
+.chart-tabla th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.chart-tabla td { color: #0f172a; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%);
+  overflow: hidden; white-space: nowrap;
+}
+
+/* ── Medidor ────────────────────────────────────────────────────────────
+   Pista = paso claro del mismo tono del relleno, para que el estado se lea a
+   lo largo de toda la barra. Extremo redondeado del lado del dato, recto
+   contra la línea base. */
+.kpi-meter {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  /* Sin overflow:hidden: recortaba la marca del objetivo dentro de los 6px de
+     la barra, donde quedaba oscura sobre el relleno y no se leía. El relleno
+     ya redondea su propio extremo, así que el recorte no hacía falta. */
+  margin: 4px 0 2px;
+}
+.kpi-meter-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  transform-origin: left center;
+  transition: transform 480ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+/* La marca del objetivo: sin ella el color dice "mal" pero nunca enseña
+   dónde está el listón. */
+.kpi-meter-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 1px;
+  background: #0f172a;
+  opacity: 0.55;
+}
+.med-success { background: rgba(15, 157, 110, 0.22); }
+.med-success .kpi-meter-fill { background: #0f9d6e; }
+.med-warning { background: rgba(217, 119, 6, 0.22); }
+.med-warning .kpi-meter-fill { background: #d97706; }
+.med-danger  { background: rgba(190, 18, 60, 0.28); }
+.med-danger  .kpi-meter-fill { background: #be123c; }
+.med-neutral { background: rgba(79, 70, 229, 0.18); }
+.med-neutral .kpi-meter-fill { background: #4f46e5; }
