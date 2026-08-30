@@ -1748,12 +1748,21 @@ def _obtener_metricas_ventas_quickbooks(
         and _qb_sales_cache.get('stale_expires_at', 0.0) > now_ts
     )
 
+    def _traza(decision):
+        if DASHBOARD_PERF_LOG:
+            app.logger.info(
+                f'[qb-cache] pid={os.getpid()} decision={decision} '
+                f'clave_coincide={cache_hit_for_key} hay_stale={has_stale_value} '
+                f'refrescando={_refrescando}'
+            )
+
     if (
         not _refrescando
         and N8N_QB_CACHE_TTL > 0
         and cache_hit_for_key
         and _qb_sales_cache.get('expires_at', 0.0) > now_ts
     ):
+        _traza('fresco')
         return _qb_sales_cache.get('value')
     if (
         not _refrescando
@@ -1761,6 +1770,7 @@ def _obtener_metricas_ventas_quickbooks(
         and cache_hit_for_key
         and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
     ):
+        _traza('fallo-cacheado')
         return cached_value if has_stale_value else None
 
     # Con un valor servible en mano nadie espera la red: se devuelve lo
@@ -1770,6 +1780,7 @@ def _obtener_metricas_ventas_quickbooks(
             N8N_QB_REFRESH_THROTTLE_SEC > 0
             and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
         )
+        _traza('stale-throttle' if dentro_del_throttle else 'stale-refresco')
         if not dentro_del_throttle:
             _lanzar_refresco_qb_en_segundo_plano(
                 hoy,
@@ -1795,6 +1806,7 @@ def _obtener_metricas_ventas_quickbooks(
     if blocking_timeout <= 0:
         blocking_timeout = float(N8N_QB_SALES_TIMEOUT)
 
+    _traza('refresco-en-hilo' if _refrescando else 'BLOQUEANTE')
     _qb_sales_cache['last_refresh_attempt'] = now_ts
 
     try:
@@ -5322,9 +5334,14 @@ def dashboard():
         total_ms = (perf_counter() - dashboard_perf_start) * 1000
         breakdown = " | ".join(f"{k}={v:.2f}ms" for k, v in dashboard_perf_marks.items())
         if breakdown:
-            app.logger.info(f"[/dashboard] perf stage={stage} total={total_ms:.2f}ms :: {breakdown}")
+            app.logger.info(
+                f"[/dashboard] pid={os.getpid()} perf stage={stage} "
+                f"total={total_ms:.2f}ms :: {breakdown}"
+            )
         else:
-            app.logger.info(f"[/dashboard] perf stage={stage} total={total_ms:.2f}ms")
+            app.logger.info(
+                f"[/dashboard] pid={os.getpid()} perf stage={stage} total={total_ms:.2f}ms"
+            )
 
     try:
         # Verificación de dependencias críticas
