@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-30T19:02:54.242208+00:00",
+  "title": "Design System: PesosApp",
+  "extensions": {
+    "colorMeta": {
+      "indigo-lectura": {
+        "role": "primary",
+        "displayName": "Índigo de Lectura",
+        "canonical": "#6366f1",
+        "tonalRamp": [
+          "#312e81",
+          "#3730a3",
+          "#4338ca",
+          "#4f46e5",
+          "#6366f1",
+          "#818cf8",
+          "#a5b4fc",
+          "#e0e7ff"
+        ]
+      },
+      "negro-de-bisel": {
+        "role": "neutral",
+        "displayName": "Negro de Bisel",
+        "canonical": "#0b0e14",
+        "tonalRamp": [
+          "#05070a",
+          "#0b0e14",
+          "#141820",
+          "#1e2430",
+          "#2b3342",
+          "#3b4a5c",
+          "#64748b",
+          "#94a3b8"
+        ]
+      },
+      "blanco-de-esfera": {
+        "role": "neutral",
+        "displayName": "Blanco de Esfera",
+        "canonical": "#f8fafc",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#334155",
+          "#64748b",
+          "#cbd5e1",
+          "#e2e8f0",
+          "#f1f5f9",
+          "#f8fafc"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#475569",
+          "#64748b",
+          "#94a3b8",
+          "#cbd5e1"
+        ]
+      },
+      "verde-de-conforme": {
+        "role": "status-good",
+        "displayName": "Verde de Conforme",
+        "canonical": "#10b981",
+        "tonalRamp": [
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#10b981",
+          "#34d399",
+          "#6ee7b7",
+          "#a7f3d0"
+        ]
+      },
+      "ambar-de-aviso": {
+        "role": "status-warning",
+        "displayName": "Ámbar de Aviso",
+        "canonical": "#f59e0b",
+        "tonalRamp": [
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fcd34d",
+          "#fde68a"
+        ]
+      },
+      "rojo-de-falla": {
+        "role": "status-critical",
+        "displayName": "Rojo de Falla",
+        "canonical": "#f43f5e",
+        "tonalRamp": [
+          "#881337",
+          "#9f1239",
+          "#be123c",
+          "#e11d48",
+          "#f43f5e",
+          "#fb7185",
+          "#fda4af",
+          "#fecdd3"
+        ]
+      },
+      "azul-de-dato": {
+        "role": "secondary",
+        "displayName": "Azul de Dato",
+        "canonical": "#0ea5e9",
+        "tonalRamp": [
+          "#0c4a6e",
+          "#075985",
+          "#0369a1",
+          "#0284c7",
+          "#0ea5e9",
+          "#38bdf8",
+          "#7dd3fc",
+          "#bae6fd"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Cifras. El número que la pantalla existe para mostrar."
+      },
+      "screen": {
+        "displayName": "Screen",
+        "purpose": "Título de pantalla o de sección."
+      },
+      "client": {
+        "displayName": "Client",
+        "purpose": "Nombre de cliente o producto: el dato que se lee en voz alta."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto de interfaz."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Dato secundario, fechas, unidades."
+      },
+      "input": {
+        "displayName": "Input",
+        "purpose": "Campos de formulario. 16px obligatorio: por debajo, iOS Safari hace zoom al enfocar."
+      }
+    },
+    "shadows": [
+      {
+        "name": "xs",
+        "value": "0 1px 2px rgba(15,23,42,0.05)",
+        "purpose": "Botones en reposo."
+      },
+      {
+        "name": "sm",
+        "value": "0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04)",
+        "purpose": "Tarjetas en reposo."
+      },
+      {
+        "name": "md",
+        "value": "0 4px 12px -2px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.04)",
+        "purpose": "Tarjeta interactiva al hover."
+      },
+      {
+        "name": "lg",
+        "value": "0 10px 20px -5px rgba(15,23,42,0.10), 0 4px 8px rgba(15,23,42,0.04)",
+        "purpose": "Hojas y menús."
+      },
+      {
+        "name": "xl",
+        "value": "0 20px 40px -12px rgba(15,23,42,0.14), 0 8px 16px rgba(15,23,42,0.04)",
+        "purpose": "Modales."
+      },
+      {
+        "name": "glass-sm",
+        "value": "0 4px 14px -4px rgba(99,102,241,0.18)",
+        "purpose": "Halo índigo de la acción principal. Material, no jerarquía."
+      },
+      {
+        "name": "glass-md",
+        "value": "0 20px 40px -12px rgba(99,102,241,0.22), 0 2px 6px rgba(15,23,42,0.04)",
+        "purpose": "Tarjeta de cristal en reposo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "Respuesta al toque: hover y active de un control."
+      },
+      {
+        "name": "duration-base",
+        "value": "200ms",
+        "purpose": "Cambio de estado: sombra, color, borde."
+      },
+      {
+        "name": "duration-slow",
+        "value": "320ms",
+        "purpose": "Aparición de hojas y paneles."
+      },
+      {
+        "name": "ease-out-quart",
+        "value": "cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Easing por defecto de color y sombra."
+      },
+      {
+        "name": "ease-spring",
+        "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "purpose": "Rebote corto del control al presionar. Es la firma táctil del sistema."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "todas las duraciones a 0ms",
+        "purpose": "prefers-reduced-motion anula la escala completa en tokens.css."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-to-tablet",
+        "value": "768px"
+      },
+      {
+        "name": "grids",
+        "value": "900px"
+      },
+      {
+        "name": "desktop",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Acción principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Botón primario. Sube 1px al hover y se hunde al presionar: la respuesta física es parte del diseño.",
+      "html": "<button class=\"ds-btn-primary\">Guardar pedido</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:8px 16px;font:600 13px/1 var(--font-sans,-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif);color:#fff;background:var(--color-primary,#6366f1);border:1px solid transparent;border-radius:12px;box-shadow:0 4px 14px -4px rgba(99,102,241,.18);cursor:pointer;transition:background 120ms cubic-bezier(.25,1,.5,1),transform 120ms cubic-bezier(.34,1.56,.64,1),box-shadow 200ms cubic-bezier(.25,1,.5,1)}.ds-btn-primary:hover{background:var(--color-primary-hover,#4f46e5);transform:translateY(-1px)}.ds-btn-primary:active{transform:translateY(0) scale(.98)}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.35)}"
+    },
+    {
+      "name": "Acción con guante",
+      "kind": "button",
+      "refersTo": "button-glove",
+      "description": "Acción principal a ancho completo en móvil: 56px, la altura para operar con el guante puesto.",
+      "html": "<button class=\"ds-btn-glove\">Confirmar pesada</button>",
+      "css": ".ds-btn-glove{display:flex;align-items:center;justify-content:center;width:100%;min-height:56px;padding:0 20px;font:600 15px/1 var(--font-sans,system-ui,sans-serif);color:#fff;background:var(--color-primary,#6366f1);border:none;border-radius:14px;box-shadow:0 4px 14px -4px rgba(99,102,241,.18);cursor:pointer;transition:background 120ms cubic-bezier(.25,1,.5,1),transform 120ms cubic-bezier(.34,1.56,.64,1)}.ds-btn-glove:hover{background:var(--color-primary-hover,#4f46e5)}.ds-btn-glove:active{transform:scale(.98)}.ds-btn-glove:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.35)}"
+    },
+    {
+      "name": "Campo",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto. 16px obligatorio: por debajo, iOS Safari hace zoom al enfocar y rompe el layout.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Buscar cliente\">",
+      "css": ".ds-input{display:block;width:100%;min-height:52px;padding:12px 16px;font:400 16px/1.4 var(--font-sans,system-ui,sans-serif);color:var(--color-text,#0f172a);background:#fff;border:1px solid var(--color-border,#e2e8f0);border-radius:8px;transition:border-color 120ms cubic-bezier(.25,1,.5,1),box-shadow 200ms cubic-bezier(.25,1,.5,1)}.ds-input::placeholder{color:#64748b}.ds-input:hover{border-color:#cbd5e1}.ds-input:focus{outline:none;border-color:var(--color-primary,#6366f1);box-shadow:0 0 0 3px rgba(99,102,241,.35)}"
+    },
+    {
+      "name": "Tarjeta",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Superficie de contenido. Radio de control (14px), sombra sutil en reposo.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-label\">Ventas del mes</div><div class=\"ds-card-figure\">128,400<small>XCG</small></div><div class=\"ds-card-meta\">72% de la meta · 41 pedidos</div></div>",
+      "css": ".ds-card{background:#fff;border:1px solid var(--color-border,#e2e8f0);border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);transition:box-shadow 200ms cubic-bezier(.25,1,.5,1),transform 200ms cubic-bezier(.34,1.56,.64,1)}.ds-card:hover{box-shadow:0 4px 12px -2px rgba(15,23,42,.10),0 2px 4px rgba(15,23,42,.04);transform:translateY(-2px)}.ds-card-label{font:700 11px/1.2 var(--font-sans,system-ui,sans-serif);letter-spacing:.08em;text-transform:uppercase;color:#475569}.ds-card-figure{margin-top:8px;font:700 32px/1.1 var(--font-sans,system-ui,sans-serif);letter-spacing:-.02em;color:#0f172a}.ds-card-figure small{margin-left:4px;font-size:11px;font-weight:600;color:#64748b}.ds-card-meta{margin-top:6px;font:400 13px/1.4 var(--font-sans,system-ui,sans-serif);color:#64748b}"
+    },
+    {
+      "name": "Chip de estado",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Estado con icono y palabra. El color acompaña; nunca informa solo.",
+      "html": "<span class=\"ds-chip ds-chip-danger\"><svg width=\"10\" height=\"10\" viewBox=\"0 0 16 16\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M8 1a7 7 0 100 14A7 7 0 008 1zm0 3.2a.9.9 0 01.9.9v3.6a.9.9 0 11-1.8 0V5.1a.9.9 0 01.9-.9zm0 6.4a1 1 0 110 2 1 1 0 010-2z\"/></svg>Fuera de objetivo</span> <span class=\"ds-chip ds-chip-good\"><svg width=\"10\" height=\"10\" viewBox=\"0 0 16 16\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M8 1a7 7 0 100 14A7 7 0 008 1zm3.5 5.2l-4 4.2a.9.9 0 01-1.3 0L4.5 8.6a.9.9 0 111.3-1.2l1.1 1.1 3.3-3.5a.9.9 0 111.3 1.2z\"/></svg>En objetivo</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font:700 11px/1.3 var(--font-sans,system-ui,sans-serif);white-space:nowrap}.ds-chip-good{background:#ecfdf5;color:#065f46}.ds-chip-warn{background:#fffbeb;color:#92400e}.ds-chip-danger{background:#fff1f2;color:#9f1239}"
+    },
+    {
+      "name": "Medidor",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Componente propio: una razón contra su límite. Pista en un paso claro del mismo tono del relleno; marca vertical en el objetivo. Reemplazó a los anillos de progreso.",
+      "html": "<div class=\"ds-meter ds-meter-good\" role=\"img\" aria-label=\"Entregas a tiempo: 97%, objetivo 95%\"><div class=\"ds-meter-fill\" style=\"transform:scaleX(.97)\"></div><span class=\"ds-meter-tick\" style=\"left:95%\"></span></div>",
+      "css": ".ds-meter{position:relative;height:6px;border-radius:3px;margin:4px 0 2px}.ds-meter-fill{width:100%;height:100%;border-radius:0 3px 3px 0;transform-origin:left center;transition:transform 480ms cubic-bezier(.25,1,.5,1)}.ds-meter-tick{position:absolute;top:-2px;bottom:-2px;width:2px;border-radius:1px;background:#0f172a;opacity:.55}.ds-meter-good{background:rgba(15,157,110,.22)}.ds-meter-good .ds-meter-fill{background:#0f9d6e}.ds-meter-warn{background:rgba(217,119,6,.22)}.ds-meter-warn .ds-meter-fill{background:#d97706}.ds-meter-danger{background:rgba(190,18,60,.28)}.ds-meter-danger .ds-meter-fill{background:#be123c}"
+    },
+    {
+      "name": "Tabbar",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Navegación fija al pie, cinco destinos, cristal fuerte. Respeta el área segura de iOS.",
+      "html": "<nav class=\"ds-tabbar\"><a class=\"ds-tab is-active\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z\"/></svg>Inicio</a><a class=\"ds-tab\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M6 2h9l4 4v16H6z\" opacity=\".9\"/></svg>Pedidos</a><a class=\"ds-tab\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z\"/></svg>Nuevo</a></nav>",
+      "css": ".ds-tabbar{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px 10px;max-width:480px;margin:0 auto;background:rgba(10,10,15,.8);backdrop-filter:blur(30px) saturate(1.8);-webkit-backdrop-filter:blur(30px) saturate(1.8);border-top:1px solid rgba(255,255,255,.05)}.ds-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border-radius:12px;font:600 10px/1 var(--font-sans,system-ui,sans-serif);color:#94a3b8;text-decoration:none;transition:color 120ms cubic-bezier(.25,1,.5,1),background 120ms cubic-bezier(.25,1,.5,1)}.ds-tab:hover{color:#e2e8f0}.ds-tab.is-active{color:#fff;background:rgba(99,102,241,.18)}.ds-tab:focus-visible{outline:2px solid #818cf8;outline-offset:-2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "El Panel de Instrumentos",
+    "overview": "PesosApp se lee como el tablero de una máquina: un bisel oscuro que enmarca lecturas claras. El <body> es Negro de Bisel y la topbar y la tabbar viven ahí; el contenido es Blanco de Esfera. Eso no es un modo oscuro: el modo oscuro se descartó como producto el 2026-08-28. El marco es oscuro a propósito, para que las cifras del centro sean lo único que brilla.\n\nEl sistema es preciso y sobrio. La densidad de información es alta porque la pantalla se consulta muchas veces por día para tareas repetidas, y cada elemento tiene que ganarse el lugar contra el dato que tapa.\n\nLa escala de los controles no sale de una guía genérica sino del lugar donde se usa la app: en ruta y en planta, a veces con guante. De ahí que ningún destino de toque baje de 48px y que lo que se opera con el guante puesto mida 56px. El cristal es el material del instrumento, presente en reposo.",
+    "keyCharacteristics": [
+      "Bisel oscuro (#0b0e14), esfera clara (#f8fafc); el marco nunca compite con el dato.",
+      "Destinos de toque de 48px mínimo y 56px para uso con guante.",
+      "Cinco roles tipográficos nombrados por significado, no por tamaño.",
+      "Cristal como material (blur 18px, sombra índigo en reposo), no como decoración.",
+      "Índigo para identidad; verde, ámbar y rojo exclusivamente para estado.",
+      "Movimiento corto y elástico como respuesta al toque, nunca como entrada."
+    ],
+    "rules": [
+      {
+        "name": "La Regla del Bisel",
+        "body": "El oscuro es el marco y solo el marco. Ningún panel de contenido, tarjeta, tabla ni hoja usa fondo oscuro. Si una pantalla se ve oscura en el centro, es un bug, no una variante.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Estado Reservado",
+        "body": "Verde, ámbar y rojo significan estado y nada más. Nunca son «el cuarto color de la serie». Y al revés: un estado nunca viaja solo en el color — siempre lleva icono o palabra.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla de los Dos Grises",
+        "body": "Sobre tarjeta blanca, el texto secundario es #64748b (4.76:1). Sobre el fondo de la pantalla ese gris cae a 4.4:1 y hay que usar #475569. El fondo decide el gris.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla de los Cinco Roles",
+        "body": "Hay cinco roles y se piden por significado (--text-role-figure, -screen, -client, -body, -meta), no por tamaño. Una pantalla nueva no elige un font-size: elige qué es ese texto.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla de los 16px",
+        "body": "Todo campo de formulario va a 16px. Por debajo, iOS Safari hace zoom al enfocar y rompe el layout. No es estética, es una restricción de la plataforma.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Piso de 11px",
+        "body": "Ningún texto baja de 11px. Se lee en un teléfono, en planta, con luz de galpón.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla de las Cifras",
+        "body": "tabular-nums solo donde los números se alinean verticalmente. En una cifra grande y suelta van proporcionales.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Pie Alcanzable",
+        "body": "Un botón de guardar dentro de una hoja va en un pie sticky dentro de la hoja. Si se fija a la ventana, la tabbar lo tapa y no se puede pulsar.",
+        "section": "layout"
+      },
+      {
+        "name": "La Regla del Halo con Desplazamiento",
+        "body": "Toda sombra tiene desplazamiento y desenfoque. Un halo de color centrado en cero no es profundidad, es decoración.",
+        "section": "elevation"
+      },
+      {
+        "name": "La Regla de la Franja Prohibida",
+        "body": "Ninguna tarjeta, ítem de lista ni aviso lleva un borde de color de más de 1px en un solo lado. El estado se dice con un chip, no con una barra.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do pedir el tipo por rol (--text-role-client) y el color por token semántico (--color-primary), no por valor.",
+      "Do dar 48px de alto mínimo a todo lo tocable, y 56px a lo que se opera con guante.",
+      "Do poner los campos de formulario en 16px, sin excepción.",
+      "Do acompañar todo color de estado con icono o palabra.",
+      "Do separar marcas de dato con un hueco del color de la superficie (2px) en vez de un borde.",
+      "Do elegir el gris del texto secundario según el fondo: #64748b sobre tarjeta, #475569 sobre la pantalla."
+    ],
+    "donts": [
+      "Don't usar fondo oscuro en el área de contenido. El oscuro es el marco.",
+      "Don't declarar variables en :root fuera de static/css/tokens.css.",
+      "Don't agregar !important a static/css/dark-theme.css; ya tiene 504.",
+      "Don't hardcodear hex en una hoja de pantalla cuando existe el token.",
+      "Don't poner una franja de color de más de 1px en un lado de una tarjeta o un aviso.",
+      "Don't usar un color de estado como serie de un gráfico, ni un color de serie para un estado.",
+      "Don't animar width, height, padding ni margin; escalar con transform.",
+      "Don't leer tokens de tema desde document.body en pantallas .ops-*: devuelve el token oscuro."
+    ]
+  }
+}
