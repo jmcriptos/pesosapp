@@ -7304,6 +7304,16 @@ def nuevo_pedido():
         'habitual': l['cajas_habitual'],
     } for l in lineas_hab]
 
+    # El otro grupo que este cliente YA compra, para ofrecerlo en la
+    # confirmación al terminar (no en el banner de arriba, que solo explica
+    # la restricción). `meta['grupos']` es el mismo barrido de
+    # `_grupos_del_cliente` que arma el habitual — sin reconsultar. Solo
+    # cuenta el historial REAL: un grupo del catálogo sin pedidos de este
+    # cliente no es "también compra de ahí".
+    grupo_alternativo = next(
+        (g for g in meta['grupos'] if g['clave'] != grupo_arg), None,
+    ) if len(meta['grupos']) > 1 else None
+
     return render_template(
         'pedido_form.html',
         cliente=cliente,
@@ -7314,6 +7324,7 @@ def nuevo_pedido():
         origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
         grupo_clave=grupo_arg,
         grupo_etiqueta=_etiqueta_de_clave_grupo(grupo_arg),
+        grupo_alternativo=grupo_alternativo,
         tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
         es_exportacion=_es_exportacion(cliente),
     )
@@ -7563,6 +7574,7 @@ def editar_pedido(pedido_id):
                             if cliente_efectivo.id != pedido.cliente_id else '',
         grupo_clave       = '',
         grupo_etiqueta    = '',
+        grupo_alternativo = None,
         tipo_cambio_valor = (_tipo_cambio_para_cliente(cliente_efectivo)
                              if cliente_efectivo.id != pedido.cliente_id
                              else float(pedido.tipo_cambio or 1.0)),
@@ -9769,13 +9781,22 @@ def _grupos_para_elegir(cliente_id):
     """Las opciones del paso 2, con el historial de ESTE cliente encima.
 
     El historial decora (cuántos pedidos, cuándo fue el último); no decide
-    qué se ve ni en qué orden.
+    qué se ve ni en qué orden. Los ejemplos sí los pisa cuando hay: el
+    catálogo alfabético es el mismo para los 62 clientes y no dice nada de
+    ESTE — dos productos que compró de verdad sí. Sin historial en ese
+    grupo, recién ahí cae al catálogo (como antes).
     """
     historial = {g['clave']: g for g in _grupos_del_cliente(cliente_id)}
-    return [{**grupo, **{
-        'pedidos': historial.get(grupo['clave'], {}).get('pedidos', 0),
-        'ultima_fecha': historial.get(grupo['clave'], {}).get('ultima_fecha'),
-    }} for grupo in _grupos_del_catalogo()]
+    grupos = []
+    for grupo in _grupos_del_catalogo():
+        info = historial.get(grupo['clave'])
+        grupos.append({
+            **grupo,
+            'pedidos': info['pedidos'] if info else 0,
+            'ultima_fecha': info['ultima_fecha'] if info else None,
+            'ejemplos': info['ejemplos'] if info and info['ejemplos'] else grupo['ejemplos'],
+        })
+    return grupos
 
 
 def _etiqueta_de_clave_grupo(clave):

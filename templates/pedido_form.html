@@ -194,9 +194,18 @@
       </button>
     </div>
 
-    {# Confirmación: el servidor ya guardó el pedido. Dos salidas, ninguna
-       vuelve al paso 03/04 — el pedido enviado no se edita desde acá. #}
+    {# Confirmación: el servidor ya guardó el pedido. El remedio del grupo
+       (nunca en el banner de arriba, que solo explica la restricción) vive
+       acá: si ESTE cliente ya compra de los dos grupos, se le ofrece el otro
+       directo, sin volver a pasar por la pantalla de elegir. #}
     <div class="pn-footer" id="pn-footer-confirmacion" hidden>
+      {% if grupo_alternativo %}
+      <p class="pn-head-nota" id="pn-conf-otro-grupo-nota">
+        {{ cliente.nombre }} también compra {{ grupo_alternativo.etiqueta }}.
+      </p>
+      <a class="pn-btn-capsula pn-conf-otro-grupo" id="pn-conf-otro-grupo"
+         href="{{ url_for('nuevo_pedido', cliente=cliente.id, grupo=grupo_alternativo.clave) }}">Tomar pedido de {{ grupo_alternativo.etiqueta }}</a>
+      {% endif %}
       <a class="pn-enviar pn-conf-otro" id="pn-conf-otro"
          href="{{ url_for('nuevo_pedido', cliente=cliente.id) }}">Tomar otro pedido de {{ cliente.nombre }}</a>
       <a class="pn-btn-capsula pn-conf-lista" id="pn-conf-lista"
