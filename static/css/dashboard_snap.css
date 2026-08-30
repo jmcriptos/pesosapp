@@ -211,6 +211,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 10px !important;
     margin: 0 16px 24px !important;
+    /* La canaleta la da el margen de acá; sin anular el padding de 16px que la
+       regla base ya traía, las tarjetas quedaban a 32px del borde y el título
+       de la sección a 16. */
+    padding-inline: 0 !important;
   }
   body[data-dashboard-screen] .week-mini-card {
     background: #ffffff !important;

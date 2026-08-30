@@ -173,7 +173,13 @@ body[data-dashboard-screen] .sec-head {
   justify-content: space-between;
   gap: 10px;
   margin: 16px 0 8px;
-  padding: 0 4px;
+  /* 16px y no 4: es la canaleta que usan .gcard, .kpi-grid, .riel,
+     .week-mini-grid y .periodo-tabs, así que con 4 el título de sección
+     quedaba 12px a la izquierda del borde de su propia tarjeta. En teléfono no
+     se notaba porque `dashboard_snap.css` pisa esta regla dentro de su
+     `@media (max-width: 1023px)`; en escritorio no la pisa nadie y el
+     desalineado salía en las siete secciones. */
+  padding: 0 16px;
 }
 
 body[data-dashboard-screen] .sec-title {
