@@ -523,3 +523,209 @@ def test_sin_atrasados_la_pantalla_lo_dice_con_calma(logged_client, app):
     html = logged_client.get('/clientes').get_data(as_text=True)
     assert 'Todos al día' in html
     assert 'data-radar-grupo="atrasados"' in html
+
+
+# ── Task 5: plegado, búsqueda y estilos ─────────────────────────────────────
+# Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md (Task 5)
+#
+# Sin navegador (eso es la Task 6): estas pruebas leen el HTML/JS que sirve
+# `/clientes` y afirman patrones exactos de código, no comportamiento
+# ejecutado. Cada assert está anclado a una substring que sólo puede venir
+# de la pieza que se quiere proteger, no de otra parte de la página.
+
+
+def test_la_busqueda_esconde_las_secciones_que_quedan_vacias(logged_client):
+    """Si «Mangusa» sólo está en «Al día», no puede quedar un encabezado
+    «Atrasados 5» encima de cero filas: la pantalla estaría mintiendo."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert 'radar-seccion' in html
+    assert 'seccionesVacias' in html, (
+        'el JS de búsqueda tiene que replegar las secciones sin coincidencias'
+    )
+
+
+def _cuerpo_seccionesVacias(html):
+    m = re.search(r'function seccionesVacias\(q\) \{.*?\n  \}', html, re.S)
+    assert m, (
+        'seccionesVacias tiene que declarar `q` como parámetro: sin el '
+        'término de búsqueda no puede distinguir "no hay búsqueda" de '
+        '"buscando y sin resultados"'
+    )
+    return m.group(0)
+
+
+def test_seccionesVacias_no_esconde_secciones_cuando_no_hay_busqueda(logged_client):
+    """La enmienda del controlador (posterior al brief original): la versión
+    que esconde TODA sección con cero `.radar-row` visibles rompe el ciclo
+    buscar → borrar la búsqueda. `.radar-seccion[data-radar-grupo="atrasados"]`
+    vacía no dibuja NINGUNA `.radar-row` (dibuja «Todos al día» en su lugar
+    — ver `test_sin_atrasados_la_pantalla_lo_dice_con_calma`), así que con la
+    versión ingenua esa sección desaparecería al escribir cualquier término y
+    JAMÁS volvería al borrarlo, porque nunca tuvo filas que "reaparecer".
+
+    Este test no ejecuta el JS (no hay navegador en esta tarea): afirma que
+    el código trae la guarda `if (!q)` que hace que, sin término de
+    búsqueda, TODAS las secciones vuelvan incondicionalmente — la única
+    forma de que el ciclo completo (buscar → borrar) sea correcto.
+    """
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    cuerpo = _cuerpo_seccionesVacias(html)
+    assert 'if (!q)' in cuerpo, (
+        'falta la guarda que hace volver todas las secciones cuando el '
+        'buscador está vacío'
+    )
+    assert 'sec.hidden = false' in cuerpo, (
+        'la guarda de "sin búsqueda" tiene que reabrir la sección '
+        '(sec.hidden = false), no dejarla como estaba'
+    )
+
+
+def test_seccionesVacias_solo_esconde_cuando_hay_termino_y_sin_coincidencias(logged_client):
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    cuerpo = _cuerpo_seccionesVacias(html)
+    assert (
+        "sec.hidden = sec.querySelectorAll('.radar-row:not([hidden])')"
+        ".length === 0" in cuerpo
+    ), 'con término de búsqueda, la sección se esconde solo si no le quedan filas visibles'
+
+
+def test_el_buscador_llama_seccionesVacias_con_el_termino_no_sin_argumentos(logged_client):
+    """`seccionesVacias()` sin argumento no puede distinguir el caso "recién
+    borré la búsqueda" del caso "busco algo y no hay resultados": ambos
+    llegarían con la sección igual de vacía de filas. Ancla el LLAMADO
+    (con `;` de cierre de sentencia), no la línea de la declaración de la
+    función (que también contiene el substring `seccionesVacias(q)` pero
+    seguido de `{`, nunca de `;`)."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert html.count('seccionesVacias(q)') >= 2, (
+        'seccionesVacias(q) tiene que aparecer tanto en la declaración como '
+        'en el llamado'
+    )
+    assert 'seccionesVacias(q);' in html, (
+        'el buscador tiene que llamar a seccionesVacias pasándole el término '
+        'de búsqueda, no seccionesVacias() a secas'
+    )
+
+
+def test_borrar_la_busqueda_reabre_los_grupos_que_la_busqueda_dejo_visibles(logged_client):
+    """Cuando `q` está vacío, el listener de búsqueda no toca `.radar-grupo`
+    ni `aria-expanded` (sólo lo hace `if (q)`): el estado de plegado que deja
+    el usuario (o que la búsqueda abrió) es responsabilidad del click en el
+    encabezado, no del buscador — así que borrar la búsqueda no puede volver
+    a plegar «Dormidos» si el usuario lo abrió a mano antes de buscar."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    m = re.search(
+        r"buscar-cliente'\)\.addEventListener\('input', function \(\) \{.*?\n  \}\);",
+        html, re.S,
+    )
+    assert m, 'no se encontró el listener de búsqueda'
+    cuerpo = m.group(0)
+    assert "if (q) g.hidden = false;" in cuerpo, (
+        'abrir grupos plegados es condicional a que haya término de '
+        'búsqueda, no incondicional'
+    )
+    assert "if (q) b.setAttribute('aria-expanded', 'true');" in cuerpo
+
+
+def test_el_plegado_convive_con_el_borrado_sin_reemplazarlo(logged_client):
+    """El listener de borrado (`.eliminar-cliente`) y el de plegado
+    (`.radar-titulo-plegable`) van los DOS sobre `#lista-clientes`. Si
+    alguien "simplifica" reemplazando uno por otro, el borrado de clientes
+    —una función viva— deja de andar sin que ningún test de plegado lo note
+    si no se cuentan ambos listeners explícitamente."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    listeners = re.findall(
+        r"getElementById\('lista-clientes'\)\s*\.addEventListener\('click',",
+        html,
+    )
+    assert len(listeners) == 2, (
+        f"se esperaban 2 listeners de click en #lista-clientes (borrado y "
+        f"plegado), se encontraron {len(listeners)}"
+    )
+    assert "e.target.closest('.eliminar-cliente')" in html
+    assert "e.target.closest('.radar-titulo-plegable')" in html
+
+
+def test_el_plegado_actualiza_aria_expanded_y_el_hidden_del_grupo(logged_client):
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    m = re.search(
+        r"e\.target\.closest\('\.radar-titulo-plegable'\);.*?\n  \}\);",
+        html, re.S,
+    )
+    assert m, 'no se encontró el manejador de click del plegado'
+    cuerpo = m.group(0)
+    assert 'grupo.hidden = !abrir' in cuerpo
+    assert "btn.setAttribute('aria-expanded', abrir ? 'true' : 'false')" in cuerpo
+
+
+def test_dormidos_y_sin_pedidos_arrancan_plegados_pero_los_otros_dos_no(logged_client):
+    """Los encabezados de «Dormidos»/«Nunca compraron» son botones plegables
+    con `aria-expanded="false"`; «Atrasados»/«Al día» son `<h2>`, no botones,
+    y no llevan `aria-expanded` en absoluto."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    for clave in ('dormidos', 'sin_pedidos'):
+        seccion = re.search(
+            rf'data-radar-grupo="{clave}".*?(?=data-radar-grupo="|\Z)',
+            html, re.S,
+        )
+        assert seccion, f'no se encontró la sección {clave}'
+        assert 'aria-expanded="false"' in seccion.group(0)
+        assert 'class="radar-titulo radar-titulo-plegable"' in seccion.group(0)
+
+
+def test_las_filas_usan_radar_row_para_que_la_busqueda_las_encuentre(logged_client):
+    """La búsqueda (Task 5) consulta `#lista-clientes .radar-row`, no
+    `.gestion-row` a secas: si la Task 4 alguna vez pierde la clase
+    `radar-row` de la fila, `seccionesVacias` no puede contarlas y el
+    ciclo buscar → borrar queda roto silenciosamente."""
+    html = logged_client.get('/clientes').get_data(as_text=True)
+    assert re.search(r'class="gestion-row radar-row"', html)
+    assert "querySelectorAll('#lista-clientes .radar-row')" in html
+
+
+# ── Estilos: colores explícitos, no heredados ───────────────────────────────
+# Esta pantalla ya sufrió el bleed de una regla global de color sobre
+# elementos que no se esperaba que alcanzara (ver operaciones-css-bleed en la
+# memoria del proyecto). Se lee el CSS del disco, no vía Flask: es un asset
+# estático servido directo, sin plantilla de por medio.
+
+import pathlib
+
+_GESTION_CSS = pathlib.Path(__file__).resolve().parent.parent / 'static' / 'css' / 'gestion.css'
+
+
+def _css_radar():
+    texto = _GESTION_CSS.read_text(encoding='utf-8')
+    inicio = texto.index('El radar de clientes')
+    return texto[inicio:]
+
+
+def test_el_css_del_radar_no_usa_el_gris_de_bajo_contraste():
+    """#94a3b8 sobre blanco da 2,56:1 (memoria del proyecto,
+    operaciones-css-bleed); esta pantalla se usa a plena luz, en la calle.
+
+    Ancla a un valor de propiedad (`: #94a3b8`), no a la substring suelta:
+    el propio CSS lo NOMBRA en un comentario para explicar por qué no se
+    usa, así que un `assert '#94a3b8' not in css` a secas se dispara con su
+    propia documentación."""
+    css = _css_radar()
+    assert not re.search(r':\s*#94a3b8\b', css)
+
+
+def test_radar_meta_gana_la_guerra_de_especificidad_contra_gestion_row_sub():
+    """`body[data-gestion-screen] .gestion-row-sub` (arriba en este mismo
+    archivo) ya trae un color propio con especificidad (0,2,1) — un
+    `.radar-meta { color: ... }` suelto, con (0,1,0), perdería contra ella
+    sin importar el orden en el archivo. El selector tiene que igualar (o
+    superar) esa especificidad para que el color del radar gane siempre."""
+    css = _css_radar()
+    assert 'body[data-gestion-screen] .gestion-row-sub.radar-meta' in css, (
+        'el color de .radar-meta necesita la misma especificidad que '
+        '.gestion-row-sub para no depender del orden de las reglas'
+    )
+
+
+def test_las_areas_tactiles_del_radar_son_de_44px():
+    css = _css_radar()
+    assert re.search(r'\.radar-titulo-plegable\s*\{[^}]*min-height:\s*44px', css)
+    assert re.search(r'\.radar-action-main\s*\{[^}]*min-height:\s*44px', css)

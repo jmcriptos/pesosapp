@@ -154,12 +154,51 @@
     createCard.hidden = true;
   });
 
-  // Búsqueda client-side
+  // Búsqueda client-side. Ahora hay secciones, así que esconder filas no
+  // alcanza: una sección cuyo encabezado dice «Atrasados 5» encima de cero
+  // filas visibles estaría afirmando algo falso.
+  //
+  // OJO con el ciclo buscar → borrar la búsqueda: la plantilla dibuja SIEMPRE
+  // las cuatro secciones, también «Atrasados» vacío por diseño (muestra
+  // «Todos al día» y no tiene ninguna .radar-row). Si escondiéramos toda
+  // sección con cero filas visibles, ese mensaje —y cualquier sección vacía
+  // legítima— desaparecería al buscar y NO volvería al borrar la búsqueda,
+  // porque nunca tuvo filas que "reaparecer". Por eso sin término de
+  // búsqueda todas las secciones vuelven incondicionalmente.
+  function seccionesVacias(q) {
+    document.querySelectorAll('.radar-seccion').forEach(function (sec) {
+      if (!q) { sec.hidden = false; return; }   // sin búsqueda, vuelven todas
+      sec.hidden = sec.querySelectorAll('.radar-row:not([hidden])').length === 0;
+    });
+  }
+
   document.getElementById('buscar-cliente').addEventListener('input', function () {
     var q = this.value.trim().toLowerCase();
-    document.querySelectorAll('#lista-clientes .gestion-row').forEach(function (row) {
+    document.querySelectorAll('#lista-clientes .radar-row').forEach(function (row) {
       row.hidden = !!q && row.dataset.buscar.indexOf(q) === -1;
     });
+    // Buscando se abren los grupos plegados: si el cliente que buscás está en
+    // «Dormidos», encontrarlo y no verlo es peor que no encontrarlo.
+    document.querySelectorAll('.radar-grupo').forEach(function (g) {
+      if (q) g.hidden = false;
+    });
+    document.querySelectorAll('.radar-titulo-plegable').forEach(function (b) {
+      if (q) b.setAttribute('aria-expanded', 'true');
+    });
+    seccionesVacias(q);
+  });
+
+  // Plegado de «Dormidos» y «Nunca compraron». Mismo elemento que el
+  // borrado de abajo: los dos listeners conviven, cada uno con su propio
+  // `closest` sobre una clase distinta. No reemplazar uno por el otro.
+  document.getElementById('lista-clientes').addEventListener('click', function (e) {
+    var btn = e.target.closest('.radar-titulo-plegable');
+    if (!btn) return;
+    var grupo = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!grupo) return;
+    var abrir = grupo.hidden;
+    grupo.hidden = !abrir;
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
   });
 
   // Crear cliente — el endpoint SIEMPRE responde JSON (app.py nuevo_cliente),

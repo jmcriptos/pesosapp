@@ -248,3 +248,57 @@ body[data-gestion-screen] .chip-primary { background: var(--color-primary-soft);
    NO viene de aca: vive en dark-theme.css y en las reglas [data-theme]
    de app-mobile.css, que se conservan a proposito. */
 
+/* ── El radar de clientes ────────────────────────────────────────────────
+   Spec: docs/superpowers/specs/2026-08-29-radar-clientes-design.md
+   Colores explícitos y no heredados: esta pantalla ya sufrió el bleed de
+   `label { color:#f1f5f9 !important }` (ver operaciones-css-bleed). */
+.radar-list { list-style: none; padding: 0; margin: 0; }
+.radar-seccion { margin-bottom: 20px; }
+.radar-seccion[hidden] { display: none !important; }
+
+.radar-titulo {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 8px; padding: 0;
+  font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #475569;   /* 7,58:1 sobre blanco */
+  background: none; border: 0; width: 100%; text-align: left;
+}
+.radar-titulo-plegable { min-height: 44px; cursor: pointer; }
+.radar-titulo-plegable[aria-expanded="true"] .radar-chevron { transform: rotate(90deg); }
+.radar-chevron { transition: transform 0.15s ease; }
+.radar-cuenta {
+  font-weight: 700; color: #64748b;             /* 4,76:1 */
+  background: #f1f5f9; border-radius: 99px; padding: 1px 8px; font-size: 0.75rem;
+}
+[data-radar-grupo="atrasados"] .radar-titulo { color: #b45309; }     /* 5,02:1 */
+[data-radar-grupo="atrasados"] .radar-cuenta { color: #92400e; background: #fef3c7; } /* 7,09:1 */
+
+.radar-grupo { list-style: none; padding: 0; margin: 0; }
+.radar-grupo[hidden] { display: none !important; }
+
+/* La FILA no se redefine: `.gestion-row`, `.gestion-row-main`,
+   `.gestion-row-sub` y `.gestion-row-actions` ya traen la forma exacta
+   (arriba en este archivo), incluida la guarda `[hidden]`. Acá va sólo lo
+   que el radar agrega encima.
+   #475569 sobre #ffffff = 7,58:1. El #94a3b8 que suele aparecer en estas
+   metas da 2,56:1, y esta pantalla se usa a plena luz, en la calle.
+   Especificidad a propósito: `body[data-gestion-screen] .gestion-row-sub`
+   ya trae color propio (0,2,1); `.radar-meta` sola (0,1,0) perdería contra
+   ella según el orden de las reglas. Igualada con .gestion-row-sub en el
+   selector para que el color del radar gane siempre, no por casualidad de
+   orden en el archivo. */
+body[data-gestion-screen] .gestion-row-sub.radar-meta { color: #475569; }
+.radar-meta em { font-style: normal; color: #64748b; }   /* 4,76:1 */
+
+.radar-action-main {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 14px; border-radius: 10px;
+  background: #e0e7ff; color: #4338ca;        /* 7,9:1 */
+  font-size: 0.85rem; font-weight: 700; text-decoration: none;
+}
+.radar-action-main:hover { background: #c7d2fe; }
+.radar-vacio {
+  margin: 0; padding: 14px 12px; border-radius: 12px;
+  background: #f8fafc; color: #475569; font-size: 0.9rem;   /* 7,58:1 */
+}
+
