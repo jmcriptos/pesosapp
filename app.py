@@ -6763,20 +6763,6 @@ def _texto_hero_habitual(meta):
     return ' · '.join(partes)
 
 
-def _resumen_origen_lineas(n_lineas):
-    """La versión de una línea, para el encabezado plegado.
-
-    El párrafo completo es cierto la primera vez y ruido las otras
-    cuatrocientas —se lo comía media pantalla del iPhone—, así que va plegado.
-    Lo que queda a la vista es lo único accionable: que las líneas ya están
-    cargadas. El porqué se abre si alguien quiere leerlo.
-    """
-    if not n_lineas:
-        return ''
-    return (f"{n_lineas} {'línea cargada' if n_lineas == 1 else 'líneas cargadas'} "
-            'de su pedido habitual')
-
-
 def _texto_origen_lineas(n_lineas, visitas):
     """Aviso de dónde salen las líneas precargadas (antes lo armaba el JS)."""
     if not n_lineas:
@@ -7306,6 +7292,13 @@ def nuevo_pedido():
             destino=url_for('nuevo_pedido'),
             cliente_pendiente=cliente,
             grupos_cliente=grupos_elegibles,
+            # El historial de compra del cliente vive ACÁ, un paso antes de
+            # tomar el pedido. En la pantalla de líneas se comía 66px de una
+            # cabecera que ya dejaba solo cuatro líneas a la vista, y es
+            # contexto para decidir, no para cargar: cuando el vendedor está
+            # tecleando cantidades ya lo leyó.
+            hero_meta_texto=_texto_hero_habitual(
+                _calcular_pedido_habitual(cliente.id)[1]),
         )
 
     lineas_hab, meta = _calcular_pedido_habitual(cliente.id, grupo_clave=grupo_arg)
@@ -7334,9 +7327,11 @@ def nuevo_pedido():
         productos=_productos_dicts_para_cliente(cliente.id),
         productos_pedido=productos_pedido,
         pedido=None,
-        hero_meta_texto=_texto_hero_habitual(meta),
-        origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
-        origen_resumen=_resumen_origen_lineas(len(productos_pedido)),
+        # El historial y el origen de las líneas se mudaron al paso 02: acá
+        # arriba va SOLO el nombre del cliente. Ver el comentario del render de
+        # `pedido_cliente.html`.
+        hero_meta_texto='',
+        origen_texto='',
         grupo_clave=grupo_arg,
         grupo_etiqueta=_etiqueta_de_clave_grupo(grupo_arg),
         grupo_alternativo=grupo_alternativo,
@@ -7587,9 +7582,6 @@ def editar_pedido(pedido_id):
         origen_texto      = ('Precios re-cotizados para este cliente; nada se guarda '
                              'hasta «Actualizar pedido».')
                             if cliente_efectivo.id != pedido.cliente_id else '',
-        # En la edición el aviso es corto y solo aparece al cambiar de cliente:
-        # no se pliega, porque plegar dos renglones cuesta más que mostrarlos.
-        origen_resumen    = '',
         grupo_clave       = '',
         grupo_etiqueta    = '',
         grupo_alternativo = None,

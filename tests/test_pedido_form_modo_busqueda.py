@@ -115,49 +115,64 @@ def test_el_css_repliega_la_cabecera_y_esconde_el_pie():
     )
 
 
-# ── El origen de las líneas, plegado ─────────────────────────────────────────
+# ── Arriba va solo el nombre del cliente ─────────────────────────────────────
 
-def test_el_parrafo_del_habitual_va_plegado_con_un_resumen_a_la_vista():
-    """Presente pero plegado: el hecho a la vista, la explicación a un toque.
+def test_la_cabecera_del_paso_03_no_lleva_historial_de_compras():
+    """El historial se mudó al paso 02, que es donde se decide qué pedido tomar.
 
-    `<details>`/`<summary>` y no un toggle a mano: trae el plegado, el teclado
-    y el anuncio a lectores de pantalla sin una línea de JS.
+    Con la cadencia y el origen de las líneas, la cabecera medía 293px en un
+    iPhone donde las líneas del pedido tenían 385. Ahora mide 191 arriba del
+    todo y 70 al scrollear. Acá se afirma que el servidor NO manda esos textos
+    a esta pantalla: si alguien los vuelve a pasar, el markup los dibuja y la
+    cabecera crece de nuevo sin que nada avise.
     """
-    fuente = _texto(PLANTILLA)
-    assert '<details class="pn-head-detalle">' in fuente
-    assert 'pn-head-resumen' in fuente, 'falta el resumen visible del plegado'
-    assert 'origen_resumen' in fuente, 'el resumen no viene del servidor'
-
-
-def test_el_parrafo_plegado_NO_deja_caja_en_pantalla():
-    """El bug que este test existe para impedir, cometido al escribir esto.
-
-    Con el `<details>` cerrado, el párrafo conservaba su caja —65px de alto—
-    y se derramaba fuera de la cabecera; lo único que lo tapaba era el fondo
-    pintándose encima (`elementFromPoint` devolvía `.pn-head` en ese punto).
-    O sea: plegado a medias, ocupando el espacio que el plegado venía a
-    liberar.
-
-    Es el mismo modo de fallo que ya llegó a producción con `[hidden]`
-    perdiendo contra un `display` de autor. Por eso el plegado se escribe
-    explícito en vez de confiar en el navegador.
-    """
-    css = _texto(CSS)
-    assert re.search(
-        r'\.pn-head-detalle:not\(\[open\]\)\s+\.pn-head-detalle-cuerpo\s*\{[^}]*display:\s*none',
-        css,
-    ), (
-        'falta el `display: none` explícito del cuerpo plegado: sin él el '
-        'párrafo sigue ocupando su caja aunque el <details> esté cerrado'
+    fuente = _texto(os.path.join(RAIZ, 'app.py'))
+    i = fuente.index("'pedido_form.html'")
+    bloque = fuente[i:i + 1800]
+    assert re.search(r"hero_meta_texto\s*=\s*''", bloque), (
+        'el paso 03 volvió a recibir la línea de cadencia del cliente'
     )
 
 
-def test_el_resumen_llega_a_44px_de_area_tactil():
-    """El objetivo es el renglón entero, no la flechita."""
+def test_el_paso_02_SI_recibe_el_historial():
+    """La contracara: mudarlo no puede significar perderlo.
+
+    Si se cae de la pantalla previa, el vendedor se queda sin el dato para
+    decidir qué pedido tomar y el cambio habría sido solo una poda.
+    """
+    fuente = _texto(os.path.join(RAIZ, 'app.py'))
+    # `pedido_cliente.html` se renderiza en TRES lugares: el selector de
+    # clientes (paso 01, sin cliente), el selector de grupos (paso 02) y el
+    # cambio de cliente de la edición. El historial va en el del paso 02, que
+    # es el único que trae los grupos elegibles.
+    i = fuente.index('grupos_cliente=grupos_elegibles')
+    bloque = fuente[i:i + 700]
+    assert 'hero_meta_texto=' in bloque and "hero_meta_texto=''" not in bloque, (
+        'el paso 02 no recibe el historial: se perdió en la mudanza'
+    )
+    plantilla = _texto(os.path.join(RAIZ, 'templates', 'pedido_cliente.html'))
+    assert 'hero_meta_texto' in plantilla, 'el paso 02 lo recibe pero no lo dibuja'
+
+
+def test_el_pie_es_una_sola_fila_y_el_boton_conserva_su_area_tactil():
+    """El pie pasó de 142 a 84px: el botón adentro de la fila del subtotal.
+
+    Lo que NO se toca es el alto del botón. Es la acción principal de la
+    pantalla y achicarlo para ganar píxeles sería cambiar espacio por errores
+    de toque.
+    """
+    plantilla = _texto(PLANTILLA)
+    fila = plantilla[plantilla.index('<div class="pn-footer-row">'):]
+    fila = fila[:fila.index('</div>\n    </div>')]
+    assert 'id="pn-continuar"' in fila, (
+        'el botón salió de la fila del pie: el pie vuelve a dos renglones'
+    )
     css = _texto(CSS)
-    bloque = css[css.index('.pn-head-detalle > summary {'):]
+    bloque = css[css.index('#pn-shell .pn-footer-row .pn-enviar'):]
     bloque = bloque[:bloque.index('}')]
-    assert 'min-height: 44px' in bloque, 'el resumen no llega al mínimo táctil'
+    assert 'height' not in bloque, (
+        'se le tocó el alto al botón principal para ganar espacio'
+    )
 
 
 # ── La cabecera compacta al scrollear ────────────────────────────────────────

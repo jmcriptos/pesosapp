@@ -45,7 +45,10 @@
         </a>
         <span class="pn-paso">03 / 04</span>
       </div>
-      <div class="pn-sobretitulo">{% if pedido %}Editar PED-{{ pedido.id }}{% else %}Cliente{% endif %}</div>
+      {# Arriba va SOLO el nombre del cliente. El rótulo «Cliente» decía lo que
+         el nombre ya dice; en la edición el número de pedido sí aporta, porque
+         distingue editar de crear. #}
+      {% if pedido %}<div class="pn-sobretitulo">Editar PED-{{ pedido.id }}</div>{% endif %}
       {# `cliente` siempre viene del servidor y en la edición es el efectivo:
          leerlo de `pedido.cliente` mostraría el cliente viejo junto a los
          precios del nuevo. #}
@@ -59,20 +62,11 @@
         </a>
       {% endif %}
       {% if hero_meta_texto %}<p class="pn-head-nota">{{ hero_meta_texto }}</p>{% endif %}
-      {# El párrafo del pedido habitual va PLEGADO: es cierto la primera vez y
-         ruido las otras cuatrocientas, y se comía media pantalla del iPhone.
-         A la vista queda lo accionable —que las líneas ya están cargadas— y el
-         porqué se abre si alguien quiere leerlo. `<details>` y no un toggle a
-         mano: trae el plegado, el teclado y el anuncio a lectores de pantalla
-         sin una línea de JS. #}
-      {% if origen_texto and origen_resumen %}
-        <details class="pn-head-detalle">
-          <summary class="pn-head-nota pn-head-resumen">{{ origen_resumen }}</summary>
-          <p class="pn-head-nota pn-head-detalle-cuerpo">{{ origen_texto }}</p>
-        </details>
-      {% elif origen_texto %}
-        <p class="pn-head-nota">{{ origen_texto }}</p>
-      {% endif %}
+      {# El historial de compra del cliente se mudó al paso 02: acá arriba va
+         SOLO el nombre. Lo único que sobrevive es el aviso de la EDICIÓN
+         cuando se cambia de cliente («precios re-cotizados»), que no es
+         historial sino una advertencia sobre lo que está por pasar. #}
+      {% if origen_texto %}<p class="pn-head-nota">{{ origen_texto }}</p>{% endif %}
     </div>
 
     <div class="pn-cuerpo" id="pn-cuerpo-pedido">
@@ -126,11 +120,13 @@
            que no es. El total inclusivo se calcula recién en la revisión,
            donde ya se conoce el grupo (y su OB) de todo el pedido. #}
         <div class="pn-footer-total-col">
-          <span class="pn-footer-total-label">Subtotal</span>
+          <span class="pn-footer-total-label">Subtotal {{ (cliente.moneda or 'XCG') }}</span>
           <span class="pn-footer-total" id="total-pedido">0.00</span>
         </div>
+        {# El botón vive DENTRO de la fila: el pie pasa de dos renglones a uno
+           y se achica a la mitad. Conserva sus 58px de alto. #}
+        <button type="button" class="pn-enviar" id="pn-continuar">Continuar</button>
       </div>
-      <button type="button" class="pn-enviar" id="pn-continuar">Continuar</button>
     </div>
 
     <!-- ══ Paso 03: revisar y enviar ═════════════════════════════════════ -->
@@ -793,10 +789,11 @@ function actualizarResumen() {
 
     const n = activas.length;
     const lineasTxt = n === 0 ? 'Sin líneas' : `${n} ${n === 1 ? 'línea' : 'líneas'}`;
-    const entregaTxt = inputFechaEntrega.value
-        ? ` · ${etiquetaFecha(inputFechaEntrega.value)}`
-        : '';
-    $('ph-footer-meta').textContent = `${lineasTxt}${entregaTxt} · ${monedaActual}`;
+    // El pie es UNA fila angosta: «3 líneas · mañana · XCG» se partía en tres
+    // renglones y lo desbalanceaba. La entrega ya está en los chips de ENTREGA
+    // y la moneda pasó al rótulo del subtotal; acá queda lo único que puede
+    // quedar fuera de vista al scrollear: cuántas líneas lleva el pedido.
+    $('ph-footer-meta').textContent = lineasTxt;
     $('pn-continuar').disabled = n === 0;
 }
 

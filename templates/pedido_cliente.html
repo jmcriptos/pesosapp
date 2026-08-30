@@ -26,6 +26,10 @@
     {% if grupos_cliente %}
       <div class="pn-sobretitulo">Cliente</div>
       <h1 class="pn-titulo-cliente">{{ cliente_pendiente.nombre }}</h1>
+      {# El historial vive acá y no en la pantalla de líneas: es contexto para
+         DECIDIR qué pedido tomar, no para cargarlo. Allá se comía 66px de una
+         cabecera que ya dejaba solo cuatro líneas a la vista. #}
+      {% if hero_meta_texto %}<p class="pn-head-nota">{{ hero_meta_texto }}</p>{% endif %}
       <p class="pn-head-nota">¿Qué pedido vas a tomar?</p>
     {% else %}
       <h1 class="pn-titulo">{{ meta_topnav|default('¿Para quién es el pedido?') }}</h1>
