@@ -79,6 +79,26 @@
   {% if enlazada %}<i class="fas fa-chevron-right rank-chev" aria-hidden="true"></i>{% endif %}
 {% endmacro %}
 
+{# ══════════════════════════════════════════════════════════════
+   MACRO: selector de periodo del Top
+
+   La ruta ya calculaba los rankings a mes / 4 semanas / 3 meses / 6 meses y
+   tiraba tres de los cuatro. El control los pone a la vista sin una consulta
+   más: los cuatro periodos viajan en el mismo request.
+
+   Botones con `aria-pressed` y no un tablist: no hay cuatro paneles, hay una
+   lista que cambia de contenido. Anunciar pestañas que no existen le miente al
+   lector de pantalla.
+   ══════════════════════════════════════════════════════════════ #}
+{% macro selector_periodo(destino, etiqueta) %}
+  <div class="periodo-tabs" role="group" aria-label="{{ etiqueta }}" data-periodo-para="{{ destino }}">
+    {% for clave, texto in [('month', 'Mes'), ('4w', '4 sem'), ('3m', '3 meses'), ('6m', '6 meses')] %}
+    <button type="button" class="periodo-chip{{ ' is-on' if clave == 'month' }}"
+            data-periodo="{{ clave }}" aria-pressed="{{ 'true' if clave == 'month' else 'false' }}">{{ texto }}</button>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_inline.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_light.css') }}">
@@ -493,12 +513,18 @@
      responde "¿dónde se vendió esto?". Un enlace que descarga al usuario en
      un formulario de edición es peor que texto que no promete nada.
      ══════════════════════════════════════════════════════════ #}
+  {# El selector de periodo solo aparece si hay datos de más de un periodo. Con
+     la pantalla degradada no se ofrece: un control que promete otras vistas de
+     una cifra que no se pudo cargar es una invitación a perder el tiempo. #}
+  {% set periodos_top = rankings_periodos_json or {} %}
+  {% set hay_selector = (not degradado_v) and (periodos_top|length > 1) %}
   <section class="dash-section" data-dash-section="top" aria-labelledby="sec-top-prod">
     <div class="sec-head">
       <h2 class="sec-title" id="sec-top-prod">Top Productos</h2>
-      <span class="sec-note">Este mes</span>
+      {% if not hay_selector %}<span class="sec-note">Este mes</span>{% endif %}
     </div>
-    <div class="gcard">
+    {% if hay_selector %}{{ selector_periodo('productos', 'Periodo del Top de Productos') }}{% endif %}
+    <div class="gcard" data-rank-lista="productos">
       {% set top_prods = top_productos or [] %}
       {% set max_ing = ((top_prods[0].ingresos or 1)|float) if top_prods else 1 %}
       {% if top_prods %}
@@ -510,9 +536,13 @@
             <div class="rank-body">
               <div class="rank-name">{{ producto.nombre }}</div>
               <div class="rank-bar"><div class="rank-bar-fill" style="transform:scaleX({{ '%.4f'|format(bar_pct / 100) }})"></div></div>
+              {# Se redondea a 2 decimales ANTES de formatear, igual que
+                 `_serialize_rankings_periodos`: si el servidor formatea el
+                 valor crudo y el JSON uno redondeado, la misma fila puede
+                 mostrar 223,4 kg al cargar y 223,5 al volver del selector. #}
               <div class="rank-meta">
-                {% if (producto.cajas or 0) > 0 %}<span>{{ producto.cajas|fmt_cajas }} cajas</span>{% endif %}
-                {% if (producto.peso or 0) > 0 %}<span>{{ '{:,.1f}'.format(producto.peso|float) }} kg</span>{% endif %}
+                {% if (producto.cajas or 0) > 0 %}<span>{{ (producto.cajas|float)|round(2)|fmt_cajas }} cajas</span>{% endif %}
+                {% if (producto.peso or 0) > 0 %}<span>{{ '{:,.1f}'.format((producto.peso|float)|round(2)) }} kg</span>{% endif %}
                 <span>{{ producto.pedidos or 0 }} ped</span>
               </div>
             </div>
@@ -538,7 +568,8 @@
       <h2 class="sec-title" id="sec-top-cli">Top Clientes</h2>
       <a class="sec-action" href="/clientes">Ver radar ›</a>
     </div>
-    <div class="gcard">
+    {% if hay_selector %}{{ selector_periodo('clientes', 'Periodo del Top de Clientes') }}{% endif %}
+    <div class="gcard" data-rank-lista="clientes">
       {% set top_clis = top_clientes or [] %}
       {% set max_cli = ((top_clis[0][1].total or 1)|float) if top_clis else 1 %}
       {% if top_clis %}
@@ -580,6 +611,133 @@
 
 
 {% block scripts %}
+{# ══════════════════════════════════════════════════════════════
+   SELECTOR DE PERIODO DEL TOP
+
+   El mes lo renderiza el servidor —la pantalla funciona sin JavaScript— y este
+   script solo redibuja al cambiar de periodo. El marcado que arma tiene que ser
+   el MISMO que produce Jinja arriba: si divergen, volver a "Mes" mostraría una
+   fila distinta de la que se cargó.
+   ══════════════════════════════════════════════════════════════ #}
+{# La condición se recalcula acá y no se hereda: un `{% set %}` hecho dentro de
+   `{% block content %}` NO es visible en `{% block scripts %}` —los bloques de
+   Jinja tienen su propio ámbito—. Heredarla dejaba el control dibujado y sin
+   JavaScript detrás: cuatro botones que no hacían nada. #}
+{% if (not degradado|default(false)) and ((rankings_periodos_json or {})|length > 1) %}
+<script nonce="{{ csp_nonce() }}">
+(function() {
+  var PERIODOS = {{ rankings_periodos_json|tojson|safe }};
+  var PEDIDOS_URL = {{ url_for('lista_pedidos')|tojson }};
+
+  // Los nombres de cliente y producto vienen de QuickBooks: son datos, no
+  // marcado. Sin escapar, un producto llamado `<img onerror=...>` se ejecuta.
+  var esc = window.escapeHtml || function(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  function num(v, dec) {
+    return (Number(v) || 0).toLocaleString('en-US', {
+      minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0
+    });
+  }
+
+  function barra(pct) {
+    return '<div class="rank-bar"><div class="rank-bar-fill" style="transform:scaleX(' +
+      (Math.max(0, Math.min(100, pct)) / 100).toFixed(4) + ')"></div></div>';
+  }
+
+  function filaProducto(p, pos, max) {
+    var ingresos = Number(p.ingresos) || 0;
+    // `cajas_txt` y `peso_txt` los formatea el servidor: ver el comentario en
+    // `_serialize_rankings_periodos`. Acá solo se escapan y se imprimen.
+    var meta = '';
+    if ((Number(p.cajas) || 0) > 0) meta += '<span>' + esc(p.cajas_txt) + ' cajas</span>';
+    if ((Number(p.peso) || 0) > 0) meta += '<span>' + esc(p.peso_txt) + ' kg</span>';
+    meta += '<span>' + (Number(p.pedidos) || 0) + ' ped</span>';
+    return '<div class="rank">' +
+      '<span class="rank-pos">' + pos + '</span>' +
+      '<div class="rank-body">' +
+        '<div class="rank-name">' + esc(p.nombre) + '</div>' +
+        barra(max > 0 ? ingresos / max * 100 : 0) +
+        '<div class="rank-meta">' + meta + '</div>' +
+      '</div>' +
+      '<div class="rank-amt">' + num(ingresos) + '<small>XCG</small></div>' +
+    '</div>';
+  }
+
+  function filaCliente(c, pos, max) {
+    var total = Number(c.total) || 0;
+    var pedidos = Number(c.pedidos) || 0;
+    var meta = '<span>' + pedidos + ' pedido' + (pedidos !== 1 ? 's' : '') + '</span>';
+    if (c.ultimo_pedido && c.ultimo_pedido !== 'N/A') {
+      meta += '<span>Último ' + esc(c.ultimo_pedido) + '</span>';
+    }
+    var cuerpo =
+      '<span class="rank-pos">' + pos + '</span>' +
+      '<div class="rank-body">' +
+        '<div class="rank-name">' + esc(c.nombre) + '</div>' +
+        barra(max > 0 ? total / max * 100 : 0) +
+        '<div class="rank-meta">' + meta + '</div>' +
+      '</div>' +
+      '<div class="rank-amt">' + num(total) + '<small>XCG</small></div>';
+
+    // Misma regla que el servidor: solo enlaza si el nombre resolvió a un
+    // cliente local. `buscar` viene resuelto en el JSON justamente para que
+    // esta decisión no dependa de adivinar del lado del navegador.
+    if (!c.buscar) return '<div class="rank">' + cuerpo + '</div>';
+    return '<a class="rank rank-link" href="' + esc(PEDIDOS_URL) + '?q=' +
+      encodeURIComponent(c.buscar) + '" aria-label="Ver los pedidos de ' + esc(c.nombre) + '">' +
+      cuerpo + '<i class="fas fa-chevron-right rank-chev" aria-hidden="true"></i></a>';
+  }
+
+  var VACIOS = {
+    productos: ['Sin ventas en este periodo.', 'Los más vendidos aparecen acá cuando se factura un pedido.'],
+    clientes: ['Sin compras en este periodo.', 'El radar de clientes muestra quién dejó de comprar.']
+  };
+
+  function pintar(destino, periodo) {
+    var card = document.querySelector('[data-rank-lista="' + destino + '"]');
+    if (!card) return;
+    var payload = PERIODOS[periodo] || {};
+    var filas = (destino === 'productos' ? payload.top_productos : payload.top_clientes) || [];
+
+    if (!filas.length) {
+      card.innerHTML = '<div class="empty-state">' +
+        '<p class="empty-state-title">' + VACIOS[destino][0] + '</p>' +
+        '<p class="empty-state-sub">' + VACIOS[destino][1] + '</p></div>';
+      return;
+    }
+
+    var max = destino === 'productos'
+      ? (Number(filas[0].ingresos) || 1)
+      : (Number(filas[0].total) || 1);
+    var html = '';
+    for (var i = 0; i < filas.length; i++) {
+      html += destino === 'productos'
+        ? filaProducto(filas[i], i + 1, max)
+        : filaCliente(filas[i], i + 1, max);
+    }
+    card.innerHTML = html;
+  }
+
+  document.querySelectorAll('[data-periodo-para]').forEach(function(grupo) {
+    var destino = grupo.getAttribute('data-periodo-para');
+    grupo.addEventListener('click', function(e) {
+      var chip = e.target.closest('[data-periodo]');
+      if (!chip || !grupo.contains(chip)) return;
+      grupo.querySelectorAll('[data-periodo]').forEach(function(otro) {
+        var activo = otro === chip;
+        otro.classList.toggle('is-on', activo);
+        otro.setAttribute('aria-pressed', activo ? 'true' : 'false');
+      });
+      pintar(destino, chip.getAttribute('data-periodo'));
+    });
+  });
+})();
+</script>
+{% endif %}
 <script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script nonce="{{ csp_nonce() }}">
 (function() {

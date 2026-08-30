@@ -224,3 +224,93 @@ def test_el_grafico_no_pinta_las_barras_con_verde_de_estado(app):
                       '16,185,129', '#10b981'):
         assert prohibido not in script, f'color de estado {prohibido} en el gráfico'
     assert '--indigo-400' in html and '--indigo-700' in html
+
+
+# === El selector de periodo del Top ===
+
+def test_selector_de_periodo_lleva_su_javascript(app):
+    """El control dibujado sin su script son cuatro botones que no hacen nada.
+
+    Pasó de verdad: `hay_selector` se calculaba con un `{% set %}` dentro de
+    `{% block content %}` y se leía en `{% block scripts %}`, donde NO existe —
+    los bloques de Jinja tienen ámbito propio—. El HTML salía con los chips y
+    sin el manejador. Este test mira las dos mitades en la misma respuesta.
+    """
+    periodos = {
+        clave: {
+            'top_productos': [{'nombre': 'Ham di Pasku', 'ingresos': 4333.0,
+                               'cajas': 15, 'peso': 223.45, 'pedidos': 3,
+                               'cajas_txt': '15', 'peso_txt': '223.4'}],
+            'top_clientes': [{'nombre': 'Mangusa Hypermarket', 'total': 4333.0,
+                              'pedidos': 3, 'ultimo_pedido': '26/08',
+                              'buscar': 'Mangusa Hypermarket'}],
+            'max_ventas': 4333.0,
+            'max_total_clientes': 4333.0,
+        }
+        for clave in ('month', '4w', '3m', '6m')
+    }
+
+    with app.test_request_context():
+        html = flask_app.jinja_env.get_template('dashboard.html').render(
+            rankings_periodos_json=periodos,
+            fecha_actual=datetime(2026, 8, 30).date(),
+            current_user=type('U', (), {'is_authenticated': False, 'username': None})(),
+        )
+
+    # La mitad visible: dos grupos de chips, uno por ranking.
+    assert html.count('data-periodo-para=') == 2
+    assert 'data-periodo="4w"' in html and 'data-periodo="6m"' in html
+    # La mitad que lo hace funcionar.
+    assert 'function pintar' in html
+    assert 'data-rank-lista="productos"' in html
+    assert 'data-rank-lista="clientes"' in html
+
+
+def test_sin_datos_de_mas_de_un_periodo_no_hay_selector(app):
+    """Un control que ofrece vistas que no existen es ruido."""
+    with app.test_request_context():
+        html = flask_app.jinja_env.get_template('dashboard.html').render(
+            rankings_periodos_json={'month': {'top_productos': [], 'top_clientes': []}},
+            fecha_actual=datetime(2026, 8, 30).date(),
+            current_user=type('U', (), {'is_authenticated': False, 'username': None})(),
+        )
+    assert 'data-periodo-para=' not in html
+    assert 'function pintar' not in html
+
+
+def test_la_pantalla_degradada_no_ofrece_otros_periodos(app):
+    """Con los datos caídos, cambiar de periodo no puede traer nada mejor."""
+    periodos = {c: {'top_productos': [], 'top_clientes': []}
+                for c in ('month', '4w', '3m', '6m')}
+    with app.test_request_context():
+        html = flask_app.jinja_env.get_template('dashboard.html').render(
+            rankings_periodos_json=periodos,
+            degradado=True,
+            fecha_actual=datetime(2026, 8, 30).date(),
+            current_user=type('U', (), {'is_authenticated': False, 'username': None})(),
+        )
+    assert 'data-periodo-para=' not in html
+    assert 'function pintar' not in html
+
+
+def test_el_json_del_top_trae_los_textos_ya_formateados(app):
+    """Cajas y kilos viajan formateados para que el redibujado no cambie dígitos.
+
+    Python formatea 223,45 como "223.4" y JavaScript como "223.5": la misma
+    fila mostraba un valor al cargar y otro al volver del selector. El servidor
+    formatea una vez y el navegador solo imprime.
+    """
+    from app import _serialize_rankings_periodos
+
+    with app.app_context():
+        salida = _serialize_rankings_periodos({
+            'month': {
+                'top_productos': [{'nombre': 'Ham di Pasku', 'ingresos': 4333.0,
+                                   'cajas': 15.0, 'peso': 223.45, 'pedidos': 3}],
+                'top_clientes': [],
+            }
+        })
+
+    producto = salida['month']['top_productos'][0]
+    assert producto['peso_txt'] == '223.4'
+    assert producto['cajas_txt'] == '15'

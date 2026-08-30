@@ -379,6 +379,18 @@ en la parte llena. Cuando existe un objetivo por debajo del 100% lleva una marca
 en esa posición: es lo que convierte el color en algo que se puede aprender. Reemplazó a
 los anillos de progreso, que competían por el ancho con la cifra.
 
+### Selector de periodo (componente propio)
+Una fila de chips en píldora —Mes · 4 sem · 3 meses · 6 meses— que cambia el alcance
+de una lista sin recargar la página. Son `<button>` con `aria-pressed`, **no** un
+`role="tablist"`: no hay cuatro paneles, hay una lista que cambia de contenido, y
+anunciar pestañas que no existen le miente al lector de pantalla. El chip activo
+lleva fondo índigo **y** peso 700, porque el estado no viaja solo en el color. Cada
+chip mide 44px de alto y la fila envuelve antes que recortar.
+
+Solo aparece cuando hay datos de más de un periodo, y **nunca** con la pantalla
+degradada: ofrecer otras vistas de una cifra que no se pudo cargar es una invitación
+a perder el tiempo.
+
 ### Named Rules
 
 **La Regla del Enlace que Cumple.** Una fila se convierte en enlace solo cuando el
@@ -389,6 +401,13 @@ queda como `<div>`. Y al revés: una fila que no lleva a ningún lado **no** se 
 de enlace con `cursor: pointer` ni con chevron. El Top de Productos es texto a
 propósito, porque la única pantalla por producto que existe es el formulario de
 edición del catálogo y no responde la pregunta que la fila despierta.
+
+**La Regla del Formato de un Solo Dueño.** Cuando el mismo dato lo puede dibujar el
+servidor y el navegador, lo **formatea el servidor** y el navegador solo imprime. No
+es una preferencia: Python redondea 223,45 a «223.4» y JavaScript a «223.5», así que
+una lista redibujada del lado del cliente cambiaba de dígito al volver al periodo con
+el que había cargado. Por eso el JSON del Top viaja con `cajas_txt` y `peso_txt`
+además del número — el número crudo queda para escalar la barra, no para mostrarse.
 
 ## Do's and Don'ts
 
@@ -431,14 +450,23 @@ quien toque estas hojas.
   Quedan hex de neutros (`#475569`, `#0f172a`, `#eef1f6`) sin variable propia.
 - **Tres hojas se pisan en el dashboard** (`dashboard_inline` → `dashboard_light` →
   `dashboard_snap`) y el orden de carga es load-bearing.
-- **El bloque móvil de `dashboard_snap.css` nunca pasó por la escala.** Las pasadas de
-  tokens del 2026-08-30 cubrieron `dashboard.html` y `dashboard_inline.css`; el
-  `@media (max-width: 1023px)` de `dashboard_snap.css` quedó afuera y el detector le
-  cuenta **17 hallazgos advisory**: nueve `font-size` en rem fuera de la escala
-  (0.72/0.78/0.85/1.2/1.7/1.85rem y un `clamp(1.7rem, 7vw, 2.1rem)`), cinco colores sin
-  documentar (`#2563eb` ×2, `#d1fae5`, `#fee2e2`, `#b91c1c`) y dos radios de 22px.
-  Son las reglas con `!important` que blindan la pantalla en teléfono, o sea justo
-  donde más se usa: alinearlas es un pase aparte y no trivial.
+- **El bloque móvil de `dashboard_snap.css`: cerrado el 2026-08-30.** Sus 17 hallazgos
+  advisory se alinearon: los nueve `font-size` en rem a la escala (0.72→`--text-xs`,
+  0.78 y 0.85→`--text-sm`, 1.2→`--text-lg`, 1.7 y 1.85→`--text-xl`, y el
+  `clamp(1.7rem, 7vw, 2.1rem)` a `clamp(var(--text-xl), 7vw, 32px)`, que a 390px vale
+  lo mismo que antes), los dos radios de 22px a `--radius-xl`, y los colores de estado
+  del chip de tendencia a la familia `--mark-*`. **`.chart-big` bajó de 29,6px a 24px
+  a propósito**: es la «cifra de segundo orden» que este documento define como
+  headline, y con 27–33 contra 29,6 no se distinguía de la cifra del KPI.
+- **El acento del dashboard NO es el Índigo de Lectura.** El `<body>` lleva
+  `data-hue="blue"`, y ese selector de `tokens.css` reescribe `--indigo-500` a
+  **`#2563eb`** y `--indigo-300` a `#93c5fd`. O sea que el kicker del hero y los
+  enlaces de sección se pintan de un azul que este documento no declara, mientras el
+  resto de la app usa `#6366f1`. Salió a la luz al quitar los literales
+  `var(--indigo-500, #2563eb)` de `dashboard_snap.css`: el valor de respaldo se fue,
+  pero el color en pantalla sigue siendo el mismo. Hay que decidir cuál de los dos es
+  el correcto; mientras tanto, `--indigo-400` y `--indigo-700` **sí** valen lo que
+  dicen (ningún `data-hue` los toca) y son los que usa el gráfico.
 - **No hay tokens de breakpoint.** Los cortes 768/900/1024 se repiten a mano.
 - **Conviven dos familias de estado.** La nominal (`--color-success`/`-warning`/
   `-danger` con sus `-soft`) la usan diez hojas y sirve para pintar un estado solo; la

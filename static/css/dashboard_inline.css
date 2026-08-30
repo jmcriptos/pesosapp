@@ -355,6 +355,44 @@
   color: var(--color-text-subtle, #64748b);
 }
 
+/* ── Selector de periodo del Top ──────────────────────────────────────────
+   Cuatro destinos táctiles de 44px en una fila que puede envolver: a 390px
+   "Mes · 4 sem · 3 meses · 6 meses" entra justo, y si una traducción o un
+   cuerpo de texto más grande lo desborda, baja en vez de recortarse.
+
+   El estado activo no viaja solo en el color: el chip encendido lleva fondo
+   índigo Y peso 700, y `aria-pressed` lo dice en voz alta. */
+.periodo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 16px 10px;
+}
+.periodo-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-full, 9999px);
+  background: #ffffff;
+  color: #475569;
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-spring, ease), color 120ms var(--ease-spring, ease);
+}
+.periodo-chip:hover { border-color: #94a3b8; color: #0f172a; }
+.periodo-chip:focus-visible {
+  outline: 2px solid #4338ca;
+  outline-offset: 2px;
+}
+.periodo-chip.is-on {
+  background: var(--indigo-700, #4338ca);
+  border-color: var(--indigo-700, #4338ca);
+  color: #ffffff;
+  font-weight: 700;
+}
+
 /* ── Fila del Top que lleva a algún lado ──────────────────────────────────
    Solo las de clientes, y solo cuando el nombre del ranking resolvió a un
    cliente local. Las de productos siguen siendo <div>: no existe una pantalla

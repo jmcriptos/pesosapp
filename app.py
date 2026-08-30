@@ -1261,7 +1261,41 @@ def _saludo_local(ahora=None):
     return 'Buenas noches'
 
 
-def _enlazar_top_clientes(top_clientes):
+def _total_de_fila_cliente(fila):
+    """El total de una fila del Top, venga como tupla o como dict.
+
+    Los rankings viajan en dos formas según su origen —`(nombre, datos)` desde
+    el cálculo local y dict plano desde algunos payloads de QuickBooks— y esta
+    diferencia ya obligó a un `isinstance` en `_serialize_rankings_periodos`.
+    """
+    if isinstance(fila, (list, tuple)) and len(fila) == 2:
+        datos = fila[1] or {}
+    elif isinstance(fila, dict):
+        datos = fila
+    else:
+        return 0.0
+    return _coerce_float(datos.get('total'), 0.0)
+
+
+def _mapa_clientes_locales():
+    """Nombre normalizado → nombre local, para resolver nombres de ranking.
+
+    Se pide UNA vez por request: el selector de periodo del Top necesita
+    resolver los cuatro periodos, y una consulta por periodo sería pagar cuatro
+    veces por la misma tabla de 49 filas.
+    """
+    try:
+        return {
+            (nombre or '').strip().lower(): nombre
+            for (nombre,) in db.session.query(Cliente.nombre).all()
+            if (nombre or '').strip()
+        }
+    except Exception:
+        app.logger.exception('[/dashboard] no se pudo leer el catálogo de clientes')
+        return None
+
+
+def _enlazar_top_clientes(top_clientes, mapa=None):
     """Adjunta a cada fila del Top el nombre con el que buscarla en /pedidos.
 
     El ranking puede venir de QuickBooks, donde el nombre es el DisplayName de
@@ -1273,14 +1307,9 @@ def _enlazar_top_clientes(top_clientes):
     if not filas:
         return filas
 
-    try:
-        mapa = {
-            (nombre or '').strip().lower(): nombre
-            for (nombre,) in db.session.query(Cliente.nombre).all()
-            if (nombre or '').strip()
-        }
-    except Exception:
-        app.logger.exception('[/dashboard] no se pudo resolver el Top de clientes')
+    if mapa is None:
+        mapa = _mapa_clientes_locales()
+    if mapa is None:
         return filas
 
     enlazadas = []
@@ -1413,8 +1442,14 @@ def _build_rankings_periodos_from_rows(client_rows, product_rows, hoy, period_st
     return rankings
 
 
-def _serialize_rankings_periodos(rankings_periodos):
-    """Convierte rankings por periodo a un formato JSON-safe para el template."""
+def _serialize_rankings_periodos(rankings_periodos, mapa_clientes=None):
+    """Convierte rankings por periodo a un formato JSON-safe para el template.
+
+    `buscar` viaja con cada cliente porque el selector de periodo redibuja las
+    filas en el navegador y ahí no hay forma de consultar la base: sin este
+    campo, cambiar de periodo convertiría en texto plano filas que en el mes sí
+    eran enlaces. La regla del enlace que cumple vale igual del lado del cliente.
+    """
     serializado = {}
     for period_key, payload in (rankings_periodos or {}).items():
         if not isinstance(payload, dict):
@@ -1424,11 +1459,21 @@ def _serialize_rankings_periodos(rankings_periodos):
         for p in payload.get('top_productos', []) or []:
             if not isinstance(p, dict):
                 continue
+            cajas = round(_coerce_float(p.get('cajas'), 0.0), 2)
+            peso = round(_coerce_float(p.get('peso'), 0.0), 2)
             productos.append({
                 'nombre': str(p.get('nombre') or ''),
                 'ingresos': round(_coerce_float(p.get('ingresos'), 0.0), 2),
-                'cajas': round(_coerce_float(p.get('cajas'), 0.0), 2),
-                'peso': round(_coerce_float(p.get('peso'), 0.0), 2),
+                'cajas': cajas,
+                'peso': peso,
+                # Cajas y kilos viajan YA formateados además del número. El
+                # navegador redondea 223,45 a "223,5" y Python a "223,4": no es
+                # un error de ninguno de los dos, son dos reglas de medio-punto
+                # distintas. Formatear una sola vez, del lado que manda, evita
+                # que la misma fila cambie de dígito al cambiar de periodo y
+                # volver. El número crudo se queda para escalar la barra.
+                'cajas_txt': _fmt_cajas(cajas),
+                'peso_txt': '{:,.1f}'.format(peso),
                 'pedidos': _coerce_int(p.get('pedidos'), 0),
             })
 
@@ -1444,12 +1489,18 @@ def _serialize_rankings_periodos(rankings_periodos):
 
             datos = datos or {}
             ultimo = _parse_dashboard_date_value(datos.get('ultimo_pedido'))
-            clientes.append({
+            fila = {
                 'nombre': str(nombre or 'Sin cliente'),
                 'total': round(_coerce_float(datos.get('total'), 0.0), 2),
                 'pedidos': _coerce_int(datos.get('pedidos'), 0),
                 'ultimo_pedido': ultimo.strftime('%d/%m') if ultimo else 'N/A',
-            })
+            }
+            buscar = datos.get('buscar')
+            if not buscar and mapa_clientes:
+                buscar = mapa_clientes.get(str(nombre or '').strip().lower())
+            if buscar:
+                fila['buscar'] = buscar
+            clientes.append(fila)
 
         serializado[period_key] = {
             'top_productos': productos,
@@ -5732,84 +5783,82 @@ def dashboard():
             pedido_metricas_cache[cache_key] = metricas
             return metricas
 
-        try:
-            # Ventas reconocidas por fecha de facturación local
-            ventas_mes = 0
-            ventas_semana = 0
-            ventas_mes_anterior = 0
-            ventas_semanales_idx = {}
-            ventas_diarias_idx = {}
-
-            for p in pedidos_facturados_list:
-                try:
-                    pedido_metricas = obtener_metricas_pedido(p)
-                    fecha_fact_local = pedido_metricas['fecha_fact_local']
-                    if not fecha_fact_local:
-                        continue
-                    venta = pedido_metricas['venta']
-                except (AttributeError, ValueError, TypeError) as e:
-                    app.logger.warning(f"Error en cálculo ventas pedido {p.id}: {e}")
-                    continue
-
-                if fecha_fact_local >= inicio_mes:
-                    ventas_mes += venta
-
-                if fecha_fact_local >= inicio_semana:
-                    ventas_semana += venta
-
-                if inicio_mes_anterior <= fecha_fact_local <= fin_mes_anterior:
-                    ventas_mes_anterior += venta
-
-                if fecha_fact_local >= inicio_ultimos_7_dias:
-                    bucket = ventas_diarias_idx.setdefault(
-                        fecha_fact_local,
-                        {'ventas': 0.0, 'pedidos': 0}
-                    )
-                    bucket['ventas'] += venta
-                    bucket['pedidos'] += 1
-
-                semana_inicio = fecha_fact_local - timedelta(days=fecha_fact_local.weekday())
-                if inicio_tendencia <= semana_inicio <= inicio_semana:
-                    bucket = ventas_semanales_idx.setdefault(
-                        semana_inicio,
-                        {'ventas': 0.0, 'pedidos': 0}
-                    )
-                    bucket['ventas'] += venta
-                    bucket['pedidos'] += 1
-
-            pedidos_mes_anterior = len(pedidos_mes_anterior_list)
-
-            # Derivar pendientes de pedidos ya cargados (evita query adicional)
-            pedidos_pendientes = sum(
-                1 for p in pedidos_base_list
-                if (p.estado or '').strip().lower() == 'pendiente'
-            )
-            
-        except Exception as e:
-            app.logger.error(f"Error en cálculos de ventas: {e}")
-            datos_incompletos = True
-            ventas_mes = 0
-            ventas_semana = 0
-            ventas_mes_anterior = 0
-            pedidos_mes_anterior = 0
-            pedidos_pendientes = 0
-            ventas_semanales_idx = {}
-            ventas_diarias_idx = {}
-        mark_dashboard_perf('ventas_locales')
-
-        # === OVERRIDE OPCIONAL: ventas desde QuickBooks (fuente de verdad) ===
+        # === FUENTE DE VENTAS: QuickBooks primero ===
+        # Se pregunta ANTES de calcular nada localmente, y esa es la diferencia.
+        # Hasta el 2026-08-30 el orden era al revés: la ruta recorría los ~900
+        # pedidos facturados de seis meses llamando a `_calcular_venta_pedido`
+        # —386 de los 570ms del request, medido en producción— y recién después
+        # QuickBooks pisaba TODOS esos valores, porque es la fuente de verdad.
+        # El trabajo no estaba mal hecho: estaba hecho para nada.
+        #
         # Las fechas salen del helper para compartir clave de caché con el
         # precalentamiento de arranque.
         metricas_ventas_qb = _obtener_metricas_ventas_quickbooks(
             **_fechas_ventas_quickbooks()
         )
+        mark_dashboard_perf('fuente_ventas')
+
+        ventas_mes = 0.0
+        ventas_semana = 0.0
+        ventas_mes_anterior = 0.0
+        ventas_semanales_idx = {}
+
         if metricas_ventas_qb:
             ventas_mes = metricas_ventas_qb['ventas_mes']
             ventas_semana = metricas_ventas_qb['ventas_semana']
             ventas_mes_anterior = metricas_ventas_qb['ventas_mes_anterior']
-            ventas_diarias_idx = metricas_ventas_qb['ventas_diarias_idx']
             ventas_semanales_idx = metricas_ventas_qb['ventas_semanales_idx']
-        mark_dashboard_perf('fuente_ventas')
+        else:
+            # Sin QuickBooks, las ventas se reconocen localmente por fecha de
+            # facturación. Es el camino de respaldo y por eso puede costar: vale
+            # más una cifra local que un cero.
+            try:
+                for p in pedidos_facturados_list:
+                    try:
+                        pedido_metricas = obtener_metricas_pedido(p)
+                        fecha_fact_local = pedido_metricas['fecha_fact_local']
+                        if not fecha_fact_local:
+                            continue
+                        venta = pedido_metricas['venta']
+                    except (AttributeError, ValueError, TypeError) as e:
+                        app.logger.warning(f"Error en cálculo ventas pedido {p.id}: {e}")
+                        continue
+
+                    if fecha_fact_local >= inicio_mes:
+                        ventas_mes += venta
+
+                    if fecha_fact_local >= inicio_semana:
+                        ventas_semana += venta
+
+                    if inicio_mes_anterior <= fecha_fact_local <= fin_mes_anterior:
+                        ventas_mes_anterior += venta
+
+                    semana_inicio = fecha_fact_local - timedelta(days=fecha_fact_local.weekday())
+                    if inicio_tendencia <= semana_inicio <= inicio_semana:
+                        bucket = ventas_semanales_idx.setdefault(
+                            semana_inicio,
+                            {'ventas': 0.0, 'pedidos': 0}
+                        )
+                        bucket['ventas'] += venta
+                        bucket['pedidos'] += 1
+
+            except Exception as e:
+                app.logger.error(f"Error en cálculos de ventas: {e}")
+                datos_incompletos = True
+                ventas_mes = 0.0
+                ventas_semana = 0.0
+                ventas_mes_anterior = 0.0
+                ventas_semanales_idx = {}
+        mark_dashboard_perf('ventas_locales')
+
+        # Los pendientes se derivan de los pedidos ya cargados —sin consulta
+        # extra— y no dependen de la fuente de ventas, así que se cuentan
+        # siempre. Vivían dentro del bloque de arriba y se habrían perdido al
+        # volverlo condicional.
+        pedidos_pendientes = sum(
+            1 for p in pedidos_base_list
+            if (p.estado or '').strip().lower() == 'pendiente'
+        )
 
         # === KPIs OPTIMIZADOS DE NIVEL DE SERVICIO (MES EN CURSO) ===
         # NOTA: Todos los KPIs ahora se calculan sobre el mes en curso
@@ -5865,64 +5914,15 @@ def dashboard():
         # Calcular KPIs del mes en curso
         kpis_mes_actual = calcular_kpis_periodo(pedidos_mes_list)
 
-        # Extraer valores para compatibilidad con template existente
-        pedidos_facturados = []
-        lead_times = []
-        for p in pedidos_mes_list:
-            pedido_metricas = obtener_metricas_pedido(p)
-            if not pedido_metricas['es_facturado']:
-                continue
-            pedidos_facturados.append(p)
-            if pedido_metricas['lead_time_days'] is not None:
-                lead_times.append(pedido_metricas['lead_time_days'])
-        lead_time_promedio = kpis_mes_actual['lead_time']
+        # Las dos únicas métricas de servicio que la pantalla muestra. Se
+        # retiraron POR (Perfect Order Rate), CE (Customer Engagement) y LT
+        # (Lead Time) cuando el rediseño se quedó con OTD y OFR, pero seguían
+        # calculándose: POR recorría el mes dos veces más, CE pagaba un
+        # `Cliente.query.count()` y el histórico de 6 meses llamaba a
+        # `calcular_kpis_periodo` seis veces sobre toda la base cargada. Nada
+        # de eso llegaba nunca a la plantilla.
         order_completion_rate = kpis_mes_actual['order_completion_rate']
         otd_rate = kpis_mes_actual['otd_rate']
-
-        # === HISTÓRICO DE KPIs (ÚLTIMOS 6 MESES) ===
-        kpis_historicos = []
-        for months_back in range(5, -1, -1):
-            mes_inicio = (inicio_mes - relativedelta(months=months_back)).replace(day=1)
-            if months_back == 0:
-                mes_fin = hoy
-            else:
-                mes_fin = (mes_inicio + relativedelta(months=1)) - timedelta(days=1)
-
-            pedidos_mes_hist = [
-                p for p, fecha_local in pedidos_base_with_dates
-                if mes_inicio <= fecha_local <= mes_fin
-            ]
-
-            kpis = calcular_kpis_periodo(pedidos_mes_hist)
-            kpis['mes'] = mes_inicio.strftime('%b %Y')
-            kpis['mes_num'] = mes_inicio.month
-            kpis['año'] = mes_inicio.year
-            kpis_historicos.append(kpis)
-
-        # Perfect order rate del mes actual (simplificado: solo OTD)
-        perfect_orders = sum(1 for lt in lead_times if lt <= 2)
-        pendientes_vencidos_mes = sum(
-            1 for p in pedidos_mes_list if obtener_metricas_pedido(p)['is_pending_overdue']
-        )
-        total_evaluado_por = len(pedidos_facturados) + pendientes_vencidos_mes
-        perfect_order_rate = (
-            (perfect_orders / total_evaluado_por * 100)
-            if total_evaluado_por > 0 else 0
-        )
-
-        # 6. Customer engagement optimizado
-        clientes_activos_ids = {p.cliente_id for p in pedidos_mes_list if p.cliente_id}
-        clientes_activos_mes = len(clientes_activos_ids)
-        
-        # Cache de total de clientes para evitar query innecesaria (excluyendo AL01)
-        clientes_query = Cliente.query
-        if cliente_almacen_id:
-            clientes_query = clientes_query.filter(Cliente.id != cliente_almacen_id)
-        total_clientes = clientes_query.count()
-        customer_engagement = (
-            (clientes_activos_mes / total_clientes * 100) 
-            if total_clientes > 0 else 0
-        )
         mark_dashboard_perf('kpis_servicio')
 
         # === RANKINGS DE PRODUCTOS/CLIENTES (MES + 6M/3M/4S) ===
@@ -5933,36 +5933,62 @@ def dashboard():
             '4w': inicio_semana - timedelta(weeks=3),
         }
 
-        ranking_client_rows_local = []
-        ranking_product_rows_local = []
+        # El ranking local es el SEGUNDO recorrido completo de los facturados,
+        # con el mismo costo que el de ventas. Cuando QuickBooks trae rankings
+        # —el caso normal— no se usa para nada, así que se construye a pedido y
+        # una sola vez. `_cache` guarda el resultado en vez de un booleano
+        # porque un ranking legítimamente vacío no debe recalcularse en cada
+        # consulta.
+        _rankings_locales_cache = []
 
-        for p in pedidos_facturados_list:
-            pedido_metricas = obtener_metricas_pedido(p)
-            fecha_fact_local = pedido_metricas['fecha_fact_local']
-            if not fecha_fact_local or fecha_fact_local < inicio_tendencia or fecha_fact_local > hoy:
-                continue
+        def rankings_periodos_locales():
+            if _rankings_locales_cache:
+                return _rankings_locales_cache[0]
 
-            invoice_key = str(p.id)
-            if p.cliente and p.cliente.nombre:
-                cliente_nombre = p.cliente.nombre
-            else:
-                app.logger.warning(f'Pedido sin cliente: {p.id}')
-                cliente_nombre = 'Sin cliente'
+            ranking_client_rows_local = []
+            ranking_product_rows_local = []
 
-            ranking_client_rows_local.append({
-                'date': fecha_fact_local,
-                'invoice_key': invoice_key,
-                'customer': cliente_nombre,
-                'amount': pedido_metricas['venta'],
-            })
-
-            productos_con_prep = set()
-            lineas_pedido_ranking = []
-            for d in p.detalles:
-                if not d.producto or not d.producto.nombre:
+            for p in pedidos_facturados_list:
+                pedido_metricas = obtener_metricas_pedido(p)
+                fecha_fact_local = pedido_metricas['fecha_fact_local']
+                if not fecha_fact_local or fecha_fact_local < inicio_tendencia or fecha_fact_local > hoy:
                     continue
-                if not d.es_linea_pedido:
-                    productos_con_prep.add(d.producto_id)
+
+                invoice_key = str(p.id)
+                if p.cliente and p.cliente.nombre:
+                    cliente_nombre = p.cliente.nombre
+                else:
+                    app.logger.warning(f'Pedido sin cliente: {p.id}')
+                    cliente_nombre = 'Sin cliente'
+
+                ranking_client_rows_local.append({
+                    'date': fecha_fact_local,
+                    'invoice_key': invoice_key,
+                    'customer': cliente_nombre,
+                    'amount': pedido_metricas['venta'],
+                })
+
+                productos_con_prep = set()
+                lineas_pedido_ranking = []
+                for d in p.detalles:
+                    if not d.producto or not d.producto.nombre:
+                        continue
+                    if not d.es_linea_pedido:
+                        productos_con_prep.add(d.producto_id)
+                        ranking_product_rows_local.append({
+                            'date': fecha_fact_local,
+                            'invoice_key': invoice_key,
+                            'product': d.producto.nombre,
+                            'amount': float(d.subtotal or 0),
+                            'quantity': d.cajas or 0,
+                            'weight': d.peso or 0,
+                        })
+                    else:
+                        lineas_pedido_ranking.append(d)
+
+                for d in lineas_pedido_ranking:
+                    if d.producto_id in productos_con_prep:
+                        continue
                     ranking_product_rows_local.append({
                         'date': fecha_fact_local,
                         'invoice_key': invoice_key,
@@ -5971,51 +5997,62 @@ def dashboard():
                         'quantity': d.cajas or 0,
                         'weight': d.peso or 0,
                     })
-                else:
-                    lineas_pedido_ranking.append(d)
 
-            for d in lineas_pedido_ranking:
-                if d.producto_id in productos_con_prep:
-                    continue
-                ranking_product_rows_local.append({
-                    'date': fecha_fact_local,
-                    'invoice_key': invoice_key,
-                    'product': d.producto.nombre,
-                    'amount': float(d.subtotal or 0),
-                    'quantity': d.cajas or 0,
-                    'weight': d.peso or 0,
-                })
+            _rankings_locales_cache.append(_build_rankings_periodos_from_rows(
+                ranking_client_rows_local,
+                ranking_product_rows_local,
+                hoy=hoy,
+                period_starts=period_starts_rankings,
+            ))
+            return _rankings_locales_cache[0]
 
-        rankings_periodos_local = _build_rankings_periodos_from_rows(
-            ranking_client_rows_local,
-            ranking_product_rows_local,
-            hoy=hoy,
-            period_starts=period_starts_rankings,
-        )
-        rankings_periodos = rankings_periodos_local
+        rankings_periodos_qb = (metricas_ventas_qb or {}).get('rankings_periodos') or {}
 
-        # Si QuickBooks está disponible, priorizar su ranking por periodos
-        if metricas_ventas_qb and metricas_ventas_qb.get('rankings_periodos'):
-            rankings_periodos_qb = metricas_ventas_qb['rankings_periodos']
+        if not rankings_periodos_qb:
+            rankings_periodos = rankings_periodos_locales()
+        else:
+            # QuickBooks manda, pero periodo por periodo: si trae un periodo
+            # vacío se cae al local para ESE periodo. Por eso el ranking local
+            # se pide adentro del `or` y no antes — así solo se construye si
+            # algún periodo lo necesita de verdad.
             rankings_periodos = {}
             for period_key in period_starts_rankings.keys():
-                local_payload = rankings_periodos_local.get(period_key, {})
                 qb_payload = rankings_periodos_qb.get(period_key, {})
-                top_productos_qb = qb_payload.get('top_productos') or []
-                top_clientes_qb = qb_payload.get('top_clientes') or []
+                top_productos = qb_payload.get('top_productos') or []
+                top_clientes_periodo = qb_payload.get('top_clientes') or []
 
+                if not (top_productos and top_clientes_periodo):
+                    local_payload = rankings_periodos_locales().get(period_key, {})
+                    top_productos = top_productos or local_payload.get('top_productos', [])
+                    top_clientes_periodo = top_clientes_periodo or local_payload.get('top_clientes', [])
+
+                # Los dos máximos se DERIVAN de la lista que quedó, en vez de
+                # pedírselos al ranking local: hacerlo al revés obligaría a
+                # construir los cuatro periodos enteros por un número que sale
+                # del primer elemento de una lista que ya está en la mano.
                 rankings_periodos[period_key] = {
-                    'top_productos': top_productos_qb or local_payload.get('top_productos', []),
-                    'top_clientes': top_clientes_qb or local_payload.get('top_clientes', []),
-                    'max_ventas': qb_payload.get('max_ventas') or local_payload.get('max_ventas', 1),
-                    'max_total_clientes': qb_payload.get('max_total_clientes') or local_payload.get('max_total_clientes', 1),
+                    'top_productos': top_productos,
+                    'top_clientes': top_clientes_periodo,
+                    'max_ventas': (
+                        qb_payload.get('max_ventas')
+                        or max((_coerce_float(p.get('ingresos'), 0.0) for p in top_productos), default=0)
+                        or 1
+                    ),
+                    'max_total_clientes': (
+                        qb_payload.get('max_total_clientes')
+                        or max((_total_de_fila_cliente(c) for c in top_clientes_periodo), default=0)
+                        or 1
+                    ),
                 }
 
+        # Una sola lectura del catálogo para los cinco usos: el mes que se
+        # renderiza en el servidor y los cuatro periodos que viajan al navegador
+        # para el selector.
+        mapa_clientes = _mapa_clientes_locales()
         month_rankings = rankings_periodos.get('month', {})
         top_productos = month_rankings.get('top_productos', [])
-        top_clientes = _enlazar_top_clientes(month_rankings.get('top_clientes', []))
-        max_ventas = month_rankings.get('max_ventas', 1)
-        rankings_periodos_json = _serialize_rankings_periodos(rankings_periodos)
+        top_clientes = _enlazar_top_clientes(month_rankings.get('top_clientes', []), mapa_clientes)
+        rankings_periodos_json = _serialize_rankings_periodos(rankings_periodos, mapa_clientes)
         mark_dashboard_perf('rankings')
 
         # === TENDENCIA SEMANAL (excluyendo AL01) — 26 semanas (6 meses) ===
@@ -6031,75 +6068,12 @@ def dashboard():
                 }
             )
 
-        # === ESTADOS DE PEDIDOS ===
-        estados_count = {}
-        for p in pedidos_30_dias:
-            estado = p.estado or 'sin_estado'  # Manejar estados nulos
-            estados_count[estado] = estados_count.get(estado, 0) + 1
-
-        # Asegurar que siempre tengamos datos básicos
-        estados_pedidos = {
-            'pendiente': estados_count.get('pendiente', 0),
-            'preparado': estados_count.get('preparado', 0),
-            'facturado': estados_count.get('facturado', 0),
-            **{k: v for k, v in estados_count.items() if k not in ['pendiente', 'preparado', 'facturado']}
-        }
-
-        # === PEDIDOS VISUAL (DIARIO + ESTADOS 6M / 3M / 4S) ===
-        pedidos_diarios_periodos = {k: [] for k in pedidos_period_starts.keys()}
-        pedidos_resumen_periodos = {
-            k: {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0}
-            for k in pedidos_period_starts.keys()
-        }
-
-        try:
-            pedidos_diarios_idx = {}
-            for p in pedidos_6m_list:
-                pedido_metricas = obtener_metricas_pedido(p)
-                fecha_pedido_local = pedido_metricas['fecha_pedido_local']
-                if (
-                    not fecha_pedido_local
-                    or fecha_pedido_local < pedidos_period_starts['6m']
-                    or fecha_pedido_local > hoy
-                ):
-                    continue
-
-                pedidos_diarios_idx[fecha_pedido_local] = pedidos_diarios_idx.get(fecha_pedido_local, 0) + 1
-                estado = (p.estado or '').strip().lower()
-
-                for period_key, start_date in pedidos_period_starts.items():
-                    if fecha_pedido_local < start_date:
-                        continue
-                    resumen = pedidos_resumen_periodos[period_key]
-                    resumen['total'] += 1
-                    if estado == 'facturado':
-                        resumen['facturados'] += 1
-                    elif estado in ('pendiente', 'preparado'):
-                        resumen['pendientes'] += 1
-                    else:
-                        resumen['otros'] += 1
-
-            for period_key, start_date in pedidos_period_starts.items():
-                cursor = start_date
-                serie = []
-                while cursor <= hoy:
-                    serie.append({
-                        'fecha': cursor.strftime('%d/%m'),
-                        'pedidos': pedidos_diarios_idx.get(cursor, 0),
-                    })
-                    cursor += timedelta(days=1)
-                pedidos_diarios_periodos[period_key] = serie
-
-        except Exception as e:
-            app.logger.error(f'Error calculando visual de pedidos: {e}')
-
-        # === PEDIDOS RECIENTES (excluyendo AL01) ===
-        recientes_query = Pedido.query.options(joinedload(Pedido.cliente))
-        if cliente_almacen_id:
-            recientes_query = recientes_query.filter(Pedido.cliente_id != cliente_almacen_id)
-        pedidos_recientes_data = recientes_query.order_by(
-            Pedido.fecha_pedido.desc()
-        ).limit(10).all()
+        # Acá vivían tres bloques que la plantilla no consultaba desde el
+        # rediseño a scroll único: el conteo de estados a 30 días (era la dona
+        # que se retiró), las series diarias de 6m/3m/4s —que recorrían la base
+        # entera y después construían día por día tres listas de 181, 90 y 27
+        # entradas— y una query extra de los 10 pedidos más recientes. Ninguno
+        # tenía consumidor.
 
         # === LO QUE PASÓ POR LA BÁSCULA ESTE MES ===
         # Deliberadamente NO se muestra junto a ventas_mes: ese número viene de
@@ -6120,9 +6094,14 @@ def dashboard():
         mark_dashboard_perf('bascula')
 
         # === OPERACIÓN DE PEDIDOS (TAB PEDIDOS) ===
+        # La fecha se lee directo y no vía `obtener_metricas_pedido`: esa
+        # función además calcula la venta y las cajas de cada pedido, o sea todo
+        # el trabajo caro, y acá solo hace falta comparar un día. Con el caché
+        # tibio daba igual; ahora que el recorrido de ventas puede no haber
+        # corrido, pedirlas acá sería reintroducir el costo por la ventana.
         pedidos_facturados_hoy = sum(
             1 for p in pedidos_facturados_list
-            if obtener_metricas_pedido(p)['fecha_fact_local'] == hoy
+            if _to_dashboard_date(p.fecha_facturacion) == hoy
         )
 
         # Vencidos y preparados se cuentan sobre la MISMA población que
@@ -6181,16 +6160,6 @@ def dashboard():
         pedidos_urgentes_total = len(pedidos_urgentes)
         pedidos_urgentes = pedidos_urgentes[:6]
 
-        # === VENTAS DIARIAS (excluyendo AL01) ===
-        ventas_dias = []
-        for i in range(6, -1, -1):
-            dia = hoy - timedelta(days=i)
-            bucket = ventas_diarias_idx.get(dia, {'ventas': 0.0, 'pedidos': 0})
-            ventas_dias.append({
-                'fecha': dia.strftime('%d/%m'),
-                'ventas': bucket['ventas'],
-                'pedidos': bucket['pedidos']
-            })
         mark_dashboard_perf('operacion_pedidos')
 
         # === CALCULAR PORCENTAJE DE META ===
@@ -6209,25 +6178,6 @@ def dashboard():
             proyeccion_ventas = 0
         porcentaje_proyeccion = (proyeccion_ventas / meta_mensual * 100) if meta_mensual > 0 else 0
 
-        # === TIEMPO DE RESPUESTA POR CLIENTE ===
-        tiempos_respuesta_cliente = {}
-        for p in pedidos_30_dias:
-            if p.cliente and p.fecha_facturacion:
-                nombre_cliente = p.cliente.nombre
-                tiempo = (p.fecha_facturacion.date() - p.fecha_pedido.date()).days
-                if nombre_cliente not in tiempos_respuesta_cliente:
-                    tiempos_respuesta_cliente[nombre_cliente] = []
-                tiempos_respuesta_cliente[nombre_cliente].append(tiempo)
-        
-        # Calcular promedios
-        tiempo_respuesta_data = []
-        for cliente, tiempos in tiempos_respuesta_cliente.items():
-            tiempo_respuesta_data.append({
-                'cliente': cliente,
-                'promedio': round(sum(tiempos) / len(tiempos), 1),
-                'pedidos': len(tiempos)
-            })
-        tiempo_respuesta_data = sorted(tiempo_respuesta_data, key=lambda x: x['promedio'])[:10]
         mark_dashboard_perf('metas_y_respuesta')
 
         # === RENDER ===
@@ -6239,31 +6189,22 @@ def dashboard():
             ventas_semana=ventas_semana,
             pedidos_semana=len(pedidos_semana_list),
             ventas_mes_anterior=ventas_mes_anterior,
-            pedidos_mes_anterior=pedidos_mes_anterior,
             pedidos_pendientes=pedidos_pendientes,
             meta_mensual=meta_mensual,
             porcentaje_meta=porcentaje_meta,
             proyeccion_ventas=round(proyeccion_ventas, 2),
             porcentaje_proyeccion=round(porcentaje_proyeccion, 1),
-            dias_total_mes=dias_total_mes,
-            
-            # KPIs de servicio (actualizados)
-            lead_time_promedio=round(lead_time_promedio, 1),
+
+            # KPIs de servicio. Son dos, no siete: LT, POR y CE se retiraron de
+            # la pantalla y ya no se calculan.
             order_completion_rate=round(order_completion_rate, 1),
             otd_rate=round(otd_rate, 1),
-            perfect_order_rate=round(perfect_order_rate, 1),
-            customer_engagement=round(customer_engagement, 1),
-            
+
             # Datos para gráficos
             top_clientes=top_clientes,
             top_productos=top_productos,
-            max_ventas=max_ventas,
             rankings_periodos_json=rankings_periodos_json,
-            estados_pedidos=estados_pedidos,
-            pedidos_diarios_periodos=pedidos_diarios_periodos,
-            pedidos_resumen_periodos=pedidos_resumen_periodos,
             tendencia_semanal=tendencia_semanal,
-            pedidos_recientes=pedidos_recientes_data,
             pedidos_vencidos=pedidos_vencidos,
             pedidos_urgentes=pedidos_urgentes,
             bandas_planta=bandas_planta,
@@ -6281,14 +6222,6 @@ def dashboard():
             # mes y mostraba el promedio mensual bajo un título semanal.
             dias_semana=hoy.weekday() + 1,
             saludo=_saludo_local(),
-            ventas_dias=ventas_dias,
-            tiempo_respuesta_data=tiempo_respuesta_data,
-
-            # Histórico de KPIs (últimos 6 meses)
-            kpis_historicos=kpis_historicos,
-
-            # Configuración
-            moneda='XCG',
 
             # Estado de la propia pantalla. Se degrada por dos vías: un fallo
             # parcial de consulta (datos_incompletos) o el except de más abajo,
@@ -6327,26 +6260,12 @@ def dashboard():
             'proyeccion_ventas': 0,
             'porcentaje_proyeccion': 0,
             'ventas_mes_anterior': 0,
-            'pedidos_mes_anterior': 0,
-            'dias_total_mes': calendar.monthrange(datetime.now().year, datetime.now().month)[1],
-            'lead_time_promedio': 0,
             'order_completion_rate': 0,
             'otd_rate': 0,
-            'perfect_order_rate': 0,
-            'customer_engagement': 0,
             'top_clientes': [],
             'top_productos': [],
-            'max_ventas': 1,
             'rankings_periodos_json': {},
-            'estados_pedidos': {'pendiente': 0, 'preparado': 0, 'facturado': 0},
-            'pedidos_diarios_periodos': {'6m': [], '3m': [], '4w': []},
-            'pedidos_resumen_periodos': {
-                '6m': {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0},
-                '3m': {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0},
-                '4w': {'total': 0, 'facturados': 0, 'pendientes': 0, 'otros': 0},
-            },
             'tendencia_semanal': [],
-            'pedidos_recientes': [],
             'pedidos_vencidos': 0,
             'pedidos_urgentes': [],
             'kg_mes': 0,
@@ -6362,10 +6281,6 @@ def dashboard():
             'fecha_actual': datetime.now(DASHBOARD_TIMEZONE).date(),
             'dias_semana': datetime.now(DASHBOARD_TIMEZONE).weekday() + 1,
             'saludo': _saludo_local(),
-            'ventas_dias': [],
-            'tiempo_respuesta_data': [],
-            'kpis_historicos': [],
-            'moneda': 'XCG',
 
             # La plantilla usa esto para avisar que los ceros de arriba son
             # producto del fallo, no del negocio.

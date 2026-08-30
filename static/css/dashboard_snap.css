@@ -25,15 +25,15 @@
     padding: 14px 18px 18px !important;
   }
   body[data-dashboard-screen] .hero-kicker {
-    color: var(--indigo-500, #2563eb) !important;
-    font-size: 0.78rem !important;
+    color: var(--indigo-500) !important;
+    font-size: var(--text-sm) !important;
     font-weight: 800 !important;
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   body[data-dashboard-screen] .hero-title {
     color: #0f172a !important;
-    font-size: 1.7rem !important;
+    font-size: var(--text-xl) !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em;
     margin: 4px 0 4px !important;
@@ -65,7 +65,7 @@
     background: #ffffff !important;
     background-image: none !important;
     border: 1px solid rgba(15, 23, 42, 0.06) !important;
-    border-radius: 22px !important;
+    border-radius: var(--radius-xl) !important;
     padding: 18px 16px !important;
     color: #0f172a !important;
     box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
@@ -79,7 +79,7 @@
 
   body[data-dashboard-screen] .kpi-label {
     color: #64748b !important;
-    font-size: 0.78rem !important;
+    font-size: var(--text-sm) !important;
     font-weight: 800 !important;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -90,7 +90,7 @@
 
   body[data-dashboard-screen] .kpi-value {
     color: #0f172a !important;
-    font-size: clamp(1.7rem, 7vw, 2.1rem) !important;
+    font-size: clamp(var(--text-xl), 7vw, 32px) !important;
     font-weight: 800 !important;
     letter-spacing: -0.025em !important;
     line-height: 1.05;
@@ -101,7 +101,7 @@
   }
   body[data-dashboard-screen] .kpi-value small {
     color: #64748b !important;
-    font-size: 0.72rem !important;
+    font-size: var(--text-xs) !important;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -133,8 +133,8 @@
     text-transform: none !important;
   }
   body[data-dashboard-screen] .sec-action {
-    color: var(--indigo-500, #2563eb) !important;
-    font-size: 0.92rem !important;
+    color: var(--indigo-500) !important;
+    font-size: var(--text-base) !important;
     font-weight: 700 !important;
     text-decoration: none;
     white-space: nowrap;
@@ -144,7 +144,7 @@
   body[data-dashboard-screen] .chart-card {
     background: #ffffff !important;
     border: 1px solid rgba(15, 23, 42, 0.06) !important;
-    border-radius: 22px !important;
+    border-radius: var(--radius-xl) !important;
     box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.10) !important;
     margin: 0 16px 18px !important;
     padding: 18px 18px 12px !important;
@@ -156,7 +156,7 @@
   }
   body[data-dashboard-screen] .chart-big {
     color: #0f172a !important;
-    font-size: 1.85rem !important;
+    font-size: var(--text-xl) !important;
     font-weight: 800 !important;
     letter-spacing: -0.025em;
     line-height: 1.05;
@@ -166,7 +166,7 @@
   }
   body[data-dashboard-screen] .chart-big small {
     color: #64748b !important;
-    font-size: 0.85rem !important;
+    font-size: var(--text-sm) !important;
     font-weight: 500;
     letter-spacing: 0;
     text-transform: none;
@@ -176,23 +176,23 @@
     align-items: center;
     gap: 8px;
     margin-top: 8px;
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     color: #64748b !important;
   }
   body[data-dashboard-screen] .kpi-trend {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: #d1fae5;
-    color: #047857;
+    background: var(--mark-good-soft);
+    color: var(--mark-good-ink);
     padding: 3px 10px;
     border-radius: 999px;
     font-size: 0.82rem;
     font-weight: 700;
   }
   body[data-dashboard-screen] .kpi-trend.down {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--mark-critical-soft);
+    color: var(--mark-critical-ink);
   }
 
   body[data-dashboard-screen] .trend-chart-wrap {
@@ -229,7 +229,7 @@
   }
   body[data-dashboard-screen] .week-mini-val {
     color: #0f172a !important;
-    font-size: 1.2rem !important;
+    font-size: var(--text-lg) !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em;
   }

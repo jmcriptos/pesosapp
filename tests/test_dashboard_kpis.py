@@ -139,16 +139,34 @@ def test_dashboard_no_palabras_error(app):
     assert "palabras_error = {" not in content
 
 
-def test_fallback_data_has_correct_keys(app):
-    """AC #7: El fallback_data tiene las claves correctas."""
+def test_fallback_data_espeja_el_render(app):
+    """AC #7, reescrito: el fallback tiene EXACTAMENTE las claves del render.
+
+    Antes este test nombraba `customer_engagement` y `perfect_order_rate`, dos
+    KPIs que la pantalla dejó de mostrar en el rediseño y que se borraron el
+    2026-08-30 junto con el resto del contexto muerto. Nombrar variables
+    concretas hacía que el test envejeciera con cada cambio de pantalla.
+
+    Lo que sí importa y no cambia es la invariante: el fallback renderiza la
+    MISMA plantilla, así que toda variable que el render pasa tiene que existir
+    también en el fallback. Si no, una caída de la base se convierte en un 500
+    en vez del aviso de datos degradados.
+    """
     with open(os.path.join(os.path.dirname(__file__), '..', 'app.py'), 'r') as f:
         content = f.read()
-    # Verificar que fallback_data tiene las nuevas claves
-    assert "'order_completion_rate'" in content
-    assert "'customer_engagement'" in content
-    assert "'perfect_order_rate'" in content
-    # Y no tiene las viejas
-    assert "'order_accuracy'" not in content.split('fallback_data')[1].split('}')[0]
+
+    inicio = content.index("dashboard_html = render_template(\n            'dashboard.html',")
+    fin = content.index("mark_dashboard_perf('render_template')", inicio)
+    del_render = set(re.findall(r'^\s{12}(\w+)=', content[inicio:fin], re.M))
+
+    inicio_fb = content.index('fallback_data = {')
+    fin_fb = content.index('render_template(\'dashboard.html\', **fallback_data)', inicio_fb)
+    del_fallback = set(re.findall(r"^\s{12}'(\w+)':", content[inicio_fb:fin_fb], re.M))
+
+    faltantes = del_render - del_fallback
+    assert not faltantes, f'el fallback no define: {sorted(faltantes)}'
+    sobrantes = del_fallback - del_render
+    assert not sobrantes, f'el fallback define de más: {sorted(sobrantes)}'
 
 
 # === Tests de Story 1.2: Reorganización dashboard y proyección ===
@@ -193,7 +211,10 @@ def test_fallback_data_has_proyeccion_keys(app):
     fallback_section = content.split('fallback_data')[1].split('}')[0]
     assert "'proyeccion_ventas'" in fallback_section
     assert "'porcentaje_proyeccion'" in fallback_section
-    assert "'dias_total_mes'" in fallback_section
+    # `dias_total_mes` ya no viaja al contexto: la plantilla nunca lo leyó, se
+    # usa solo para calcular la proyección dentro de la ruta. Se quitó el
+    # 2026-08-30 con el resto del contexto muerto.
+    assert "'dias_total_mes'" not in fallback_section
 
 
 def _ventas_mes_en_html(html):
