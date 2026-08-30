@@ -6763,6 +6763,20 @@ def _texto_hero_habitual(meta):
     return ' · '.join(partes)
 
 
+def _resumen_origen_lineas(n_lineas):
+    """La versión de una línea, para el encabezado plegado.
+
+    El párrafo completo es cierto la primera vez y ruido las otras
+    cuatrocientas —se lo comía media pantalla del iPhone—, así que va plegado.
+    Lo que queda a la vista es lo único accionable: que las líneas ya están
+    cargadas. El porqué se abre si alguien quiere leerlo.
+    """
+    if not n_lineas:
+        return ''
+    return (f"{n_lineas} {'línea cargada' if n_lineas == 1 else 'líneas cargadas'} "
+            'de su pedido habitual')
+
+
 def _texto_origen_lineas(n_lineas, visitas):
     """Aviso de dónde salen las líneas precargadas (antes lo armaba el JS)."""
     if not n_lineas:
@@ -7322,6 +7336,7 @@ def nuevo_pedido():
         pedido=None,
         hero_meta_texto=_texto_hero_habitual(meta),
         origen_texto=_texto_origen_lineas(len(productos_pedido), meta['visitas']),
+        origen_resumen=_resumen_origen_lineas(len(productos_pedido)),
         grupo_clave=grupo_arg,
         grupo_etiqueta=_etiqueta_de_clave_grupo(grupo_arg),
         grupo_alternativo=grupo_alternativo,
@@ -7572,6 +7587,9 @@ def editar_pedido(pedido_id):
         origen_texto      = ('Precios re-cotizados para este cliente; nada se guarda '
                              'hasta «Actualizar pedido».')
                             if cliente_efectivo.id != pedido.cliente_id else '',
+        # En la edición el aviso es corto y solo aparece al cambiar de cliente:
+        # no se pliega, porque plegar dos renglones cuesta más que mostrarlos.
+        origen_resumen    = '',
         grupo_clave       = '',
         grupo_etiqueta    = '',
         grupo_alternativo = None,

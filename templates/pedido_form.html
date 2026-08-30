@@ -59,7 +59,20 @@
         </a>
       {% endif %}
       {% if hero_meta_texto %}<p class="pn-head-nota">{{ hero_meta_texto }}</p>{% endif %}
-      {% if origen_texto %}<p class="pn-head-nota">{{ origen_texto }}</p>{% endif %}
+      {# El párrafo del pedido habitual va PLEGADO: es cierto la primera vez y
+         ruido las otras cuatrocientas, y se comía media pantalla del iPhone.
+         A la vista queda lo accionable —que las líneas ya están cargadas— y el
+         porqué se abre si alguien quiere leerlo. `<details>` y no un toggle a
+         mano: trae el plegado, el teclado y el anuncio a lectores de pantalla
+         sin una línea de JS. #}
+      {% if origen_texto and origen_resumen %}
+        <details class="pn-head-detalle">
+          <summary class="pn-head-nota pn-head-resumen">{{ origen_resumen }}</summary>
+          <p class="pn-head-nota pn-head-detalle-cuerpo">{{ origen_texto }}</p>
+        </details>
+      {% elif origen_texto %}
+        <p class="pn-head-nota">{{ origen_texto }}</p>
+      {% endif %}
     </div>
 
     <div class="pn-cuerpo" id="pn-cuerpo-pedido">
