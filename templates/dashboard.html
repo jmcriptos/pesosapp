@@ -355,7 +355,45 @@
   </section>
 
   {# ══════════════════════════════════════════════════════════
-     3 · ESTA SEMANA
+     3 · POR LA BÁSCULA
+
+     La otra unidad del negocio. Un distribuidor de alimentos no mueve solo
+     dinero: mueve kilos y cajas, y hasta ahora esa cifra vivía enterrada en
+     la línea de metadatos de Top Productos.
+
+     Va aparte del dinero a propósito. `ventas_mes` viene de QuickBooks y cubre
+     un 10% más de facturación que la que pasa por la app; estos kilos son los
+     que efectivamente cruzaron la báscula. Ponerlos en la misma tarjeta diría
+     que hablan de los mismos despachos.
+     ══════════════════════════════════════════════════════════ #}
+  {% set kg_mes_v = (kg_mes or 0)|float %}
+  {% if kg_mes_v or (cajas_mes or 0)|float %}
+  <section class="dash-section" data-dash-section="bascula" aria-labelledby="sec-bascula">
+    <div class="sec-head">
+      <div class="sec-head-main">
+        <h2 class="sec-title" id="sec-bascula">Por la báscula</h2>
+        <span class="sec-note">Este mes · facturado por la app</span>
+      </div>
+    </div>
+    <div class="week-mini-grid">
+      <div class="week-mini-card">
+        <span class="week-mini-label">Kilos</span>
+        <span class="week-mini-val">{{ '{:,.0f}'.format(kg_mes_v) }}<small>kg</small></span>
+      </div>
+      <div class="week-mini-card">
+        <span class="week-mini-label">Cajas</span>
+        <span class="week-mini-val">{{ (cajas_mes or 0)|fmt_cajas }}</span>
+      </div>
+      <div class="week-mini-card">
+        <span class="week-mini-label">Pedidos</span>
+        <span class="week-mini-val">{{ pedidos_pesados_mes or 0 }}</span>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ══════════════════════════════════════════════════════════
+     4 · ESTA SEMANA
      ══════════════════════════════════════════════════════════ #}
   <section class="dash-section" data-dash-section="semana" aria-labelledby="sec-semana">
     <div class="sec-head">
@@ -503,6 +541,16 @@
 
   if (typeof Chart === 'undefined') return;
 
+  // Los colores del gráfico se leen de :root para quedar atados a los tokens.
+  // Se lee de documentElement y no de body: en las pantallas ops los tokens
+  // claros están scopeados y body devuelve el token oscuro.
+  var raiz = getComputedStyle(document.documentElement);
+  function token(nombre, alterna) {
+    return (raiz.getPropertyValue(nombre) || '').trim() || alterna;
+  }
+  var cVentas = token('--mark-good', '#0f9d6e');
+  var cTendencia = token('--indigo-600', '#4f46e5');
+
   // Ejes y grillas sobre tarjeta clara. Antes heredaban una configuración
   // pensada para fondo oscuro: #94a3b8 sobre blanco da 2.56:1 y la grilla iba
   // en rgba(31,41,55,0.6), casi negra.
@@ -539,7 +587,7 @@
             data: salesValues,
             type: 'bar',
             backgroundColor: 'rgba(16,185,129,0.45)',
-            borderColor: '#0f9d6e',
+            borderColor: cVentas,
             borderWidth: 1,
             borderRadius: 3,
             order: 2
@@ -548,13 +596,13 @@
             label: 'Tendencia',
             data: trendValues,
             type: 'line',
-            borderColor: '#4f46e5',
+            borderColor: cTendencia,
             backgroundColor: 'rgba(79,70,229,0.1)',
             borderWidth: 2.5,
             fill: false,
             tension: 0.35,
             pointRadius: 3,
-            pointBackgroundColor: '#4f46e5',
+            pointBackgroundColor: cTendencia,
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
             pointHoverRadius: 6,

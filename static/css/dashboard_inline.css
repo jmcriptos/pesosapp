@@ -48,15 +48,15 @@
   padding: 12px 14px;
   border: 1px solid #f59e0b;
   border-radius: 12px;
-  background: #fffbeb;
+  background: var(--mark-warning-soft);
   box-shadow: 0 1px 2px rgba(146, 64, 14, 0.08);
-  color: #92400e;
+  color: var(--mark-warning-ink);
 }
 .dash-degradado > .fa-triangle-exclamation {
   flex: 0 0 auto;
   margin-top: 1px;
   font-size: 15px;
-  color: #d97706;
+  color: var(--mark-warning);
 }
 .dash-degradado-texto {
   flex: 1 1 220px;
@@ -79,7 +79,7 @@
   border: 1px solid #f59e0b;
   border-radius: 12px;
   background: #fff;
-  color: #92400e;
+  color: var(--mark-warning-ink);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
@@ -88,11 +88,11 @@
 /* Al hover se afirman borde y tinta en vez de inventar un fondo propio. */
 .dash-degradado-accion:hover,
 .dash-degradado-accion:focus-visible {
-  border-color: #d97706;
-  color: #92400e;
+  border-color: var(--mark-warning);
+  color: var(--mark-warning-ink);
 }
 .dash-degradado-accion:focus-visible {
-  outline: 2px solid #d97706;
+  outline: 2px solid var(--mark-warning);
   outline-offset: 2px;
 }
 
@@ -416,9 +416,9 @@
   font-weight: 700;
   white-space: nowrap;
 }
-.queue-sla.sla-ok     { background: #ecfdf5; color: #065f46; }
-.queue-sla.sla-warn   { background: #fffbeb; color: #92400e; }
-.queue-sla.sla-danger { background: #fff1f2; color: #9f1239; }
+.queue-sla.sla-ok     { background: var(--mark-good-soft); color: var(--mark-good-ink); }
+.queue-sla.sla-warn   { background: var(--mark-warning-soft); color: var(--mark-warning-ink); }
+.queue-sla.sla-danger { background: var(--mark-critical-soft); color: var(--mark-critical-ink); }
 .queue-amt { font-size: 13px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
 .queue-amt small { margin-left: 3px; font-size: 11px; font-weight: 600; color: #475569; }
 .queue-chev { flex: 0 0 auto; font-size: 13px; color: #64748b; }
@@ -455,9 +455,9 @@
   white-space: nowrap;
 }
 .kpi-estado i { font-size: 10px; }
-.kpi-estado.est-success { background: #ecfdf5; color: #065f46; }
-.kpi-estado.est-warning { background: #fffbeb; color: #92400e; }
-.kpi-estado.est-danger  { background: #fff1f2; color: #9f1239; }
+.kpi-estado.est-success { background: var(--mark-good-soft); color: var(--mark-good-ink); }
+.kpi-estado.est-warning { background: var(--mark-warning-soft); color: var(--mark-warning-ink); }
+.kpi-estado.est-danger  { background: var(--mark-critical-soft); color: var(--mark-critical-ink); }
 
 /* ── Vista de tabla del gráfico ────────────────────────────────────────
    Todo gráfico lleva su gemela en tabla: el tooltip mejora la lectura pero
@@ -532,11 +532,11 @@
   opacity: 0.55;
 }
 .med-success { background: rgba(15, 157, 110, 0.22); }
-.med-success .kpi-meter-fill { background: #0f9d6e; }
+.med-success .kpi-meter-fill { background: var(--mark-good); }
 .med-warning { background: rgba(217, 119, 6, 0.22); }
-.med-warning .kpi-meter-fill { background: #d97706; }
+.med-warning .kpi-meter-fill { background: var(--mark-warning); }
 .med-danger  { background: rgba(190, 18, 60, 0.28); }
-.med-danger  .kpi-meter-fill { background: #be123c; }
+.med-danger  .kpi-meter-fill { background: var(--mark-critical); }
 .med-neutral { background: rgba(79, 70, 229, 0.18); }
 .med-neutral .kpi-meter-fill { background: #4f46e5; }
 
@@ -591,9 +591,9 @@
   overflow: hidden;
 }
 .riel-seg { display: block; min-width: 3px; }
-.seg-ok      { background: #0f9d6e; }
-.seg-limite  { background: #d97706; }
-.seg-vencido { background: #be123c; }
+.seg-ok      { background: var(--mark-good); }
+.seg-limite  { background: var(--mark-warning); }
+.seg-vencido { background: var(--mark-critical); }
 .riel-total {
   flex: 0 0 auto;
   min-width: 26px;

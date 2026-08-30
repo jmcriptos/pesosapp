@@ -403,18 +403,19 @@ quien toque estas hojas.
   blindar sus colores con paletas propias.
 - **`static/css/app-mobile.css:988`** afirma «Default theme in this app is dark; light is
   an opt-in toggle». Es falso desde el 2026-08-28: no hay toggle y no hay modo oscuro.
-- **El dashboard usa hex hardcodeados** (`#4f46e5`, `#d97706`, `#be123c`, `#475569`) en
-  vez de variables CSS. Los valores están todos documentados arriba y validados; lo que
-  falta es la variable, no el criterio.
+- **Hex de estado hardcodeados: cerrado el 2026-08-30.** Los nueve valores medidos
+  viven ahora en `tokens.css` como la familia `--mark-*` (`--mark-good`,
+  `--mark-warning`, `--mark-critical`, con sus `-soft` y `-ink`), y el dashboard los
+  consume por variable. El gráfico los lee de `:root` en JS con un literal de respaldo.
+  Quedan hex de neutros (`#475569`, `#0f172a`, `#eef1f6`) sin variable propia.
 - **Tres hojas se pisan en el dashboard** (`dashboard_inline` → `dashboard_light` →
   `dashboard_snap`) y el orden de carga es load-bearing.
 - **No hay tokens de breakpoint.** Los cortes 768/900/1024 se repiten a mano.
-- **El par de estado accesible no tiene variable CSS.** Está documentado arriba
-  (`conforme-marca`, `aviso-marca`, `falla-marca`) pero vive como hex en las hojas del
-  dashboard. `#d97706` contra `#be123c` es el único par ámbar/rojo medido que separa
-  bajo deuteranopía (ΔE 8.7) y con visión normal (ΔE 20.0); `--color-warning`
-  (`#f59e0b`) contra `--color-danger` (`#f43f5e`) no está verificado para ese uso, así
-  que no se puede tokenizar reusando los nombres existentes sin antes medirlos.
+- **Conviven dos familias de estado.** La nominal (`--color-success`/`-warning`/
+  `-danger` con sus `-soft`) la usan diez hojas y sirve para pintar un estado solo; la
+  medida (`--mark-*`) sirve cuando dos estados tienen que distinguirse entre sí. No se
+  fusionaron porque cambiar los `-soft` existentes tocaría pantallas que no se
+  auditaron. Al elegir: ¿este color convive con otro estado a la vista? `--mark-*`.
 - **Tamaños y radios del dashboard: cerrado el 2026-08-30.** Los 27 valores fuera de
   escala (12px ×12, 14px ×3, 22px, 18px, 9px, y radios de 1, 2, 3, 6 y 10px) se
   alinearon a `tokens.css`. Queda un único hallazgo del detector, y es un falso

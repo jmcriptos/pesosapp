@@ -115,6 +115,28 @@
   --color-info-soft: #e0f2fe;
   --color-info-soft-fg: var(--sky-600);
 
+  /* ── Estado sobre superficie clara: valores MEDIDOS ──────────────────
+     Los nominales de arriba sirven para pintar un estado solo. Cuando dos
+     estados tienen que distinguirse ENTRE SÍ sobre blanco no alcanzan:
+     --color-warning (#f59e0b) contra --color-danger (#f43f5e) separan ΔE 5.7
+     bajo deuteranopía y 11.5 con visión normal, por debajo del piso de 15.
+     O sea, indistinguibles incluso viendo todos los colores.
+
+     Estas marcas separan ΔE 8.7 y 20.0, y las tres superan 3:1 contra el
+     blanco. Se usan en gráficos, medidores, rieles y chips de estado.
+     Medidos con el validador de la skill dataviz, --pairs all. */
+  --mark-good: #0f9d6e;
+  --mark-good-soft: #ecfdf5;
+  --mark-good-ink: #065f46;
+
+  --mark-warning: #d97706;
+  --mark-warning-soft: #fffbeb;
+  --mark-warning-ink: #92400e;
+
+  --mark-critical: #be123c;
+  --mark-critical-soft: #fff1f2;
+  --mark-critical-ink: #9f1239;
+
   /* Focus ring */
   --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.35);
 }

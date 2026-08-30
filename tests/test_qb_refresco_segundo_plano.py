@@ -329,3 +329,71 @@ def test_un_fallo_no_borra_la_marca_del_valor_que_sigue_sirviendo(monkeypatch):
     assert sello is not None
     edad_horas = (time.time() - sello.timestamp()) / 3600
     assert 2.5 < edad_horas < 3.5, f'el sello dice {edad_horas:.1f}h, debía conservar ~3h'
+
+
+# ── Kilos y cajas ───────────────────────────────────────────────────────────
+
+def test_kilos_usa_la_bascula_cuando_hay_cajas_pesadas():
+    """La báscula manda sobre el peso declarado en la línea.
+
+    Verificado además contra los 185 pedidos con cajas pesadas de producción
+    el 2026-08-30, comparando cada uno contra un SUM directo sobre
+    caja_pesada: cero discrepancias.
+    """
+    class Producto:
+        def __init__(self, se_pesa): self.se_pesa = se_pesa
+
+    class Detalle:
+        def __init__(self, original, producto_id, producto, peso=0, cajas=0,
+                     peso_real=0, n_cajas=0):
+            self.es_linea_pedido = original
+            self.producto_id = producto_id
+            self.producto = producto
+            self.peso = peso
+            self.cajas = cajas
+            self.peso_real = peso_real
+            self.cajas_pesadas_count = n_cajas
+
+    class Pedido:
+        def __init__(self, detalles): self.detalles = detalles
+
+    pesable = Producto(True)
+    por_caja = Producto(False)
+
+    # La línea original declara 20 kg pero la báscula midió 18,4: manda la báscula.
+    ped = Pedido([
+        Detalle(True, 1, pesable, peso=20, cajas=2, peso_real=18.4, n_cajas=2),
+        Detalle(True, 2, por_caja, peso=0, cajas=3),
+    ])
+    kg, cajas = app_module._kilos_y_cajas_pedido(ped)
+    assert abs(kg - 18.4) < 0.001, f'debía tomar el peso de báscula, tomó {kg}'
+    assert abs(cajas - 5) < 0.001, f'2 pesadas + 3 por caja = 5, dio {cajas}'
+
+
+def test_kilos_no_cuenta_dos_veces_la_linea_de_preparacion():
+    class Producto:
+        def __init__(self, se_pesa): self.se_pesa = se_pesa
+
+    class Detalle:
+        def __init__(self, original, producto_id, producto, peso=0, cajas=0,
+                     peso_real=0, n_cajas=0):
+            self.es_linea_pedido = original
+            self.producto_id = producto_id
+            self.producto = producto
+            self.peso = peso
+            self.cajas = cajas
+            self.peso_real = peso_real
+            self.cajas_pesadas_count = n_cajas
+
+    class Pedido:
+        def __init__(self, detalles): self.detalles = detalles
+
+    pesable = Producto(True)
+    # Producto pesable con báscula Y con línea de preparación: la prep no suma.
+    ped = Pedido([
+        Detalle(True, 1, pesable, peso=20, peso_real=18.4, n_cajas=2),
+        Detalle(False, 1, pesable, peso=18.4, cajas=2),
+    ])
+    kg, cajas = app_module._kilos_y_cajas_pedido(ped)
+    assert abs(kg - 18.4) < 0.001, f'no debía sumar la prep encima, dio {kg}'
+    assert abs(cajas - 2) < 0.001, f'dio {cajas} cajas'

@@ -1005,6 +1005,50 @@ def _calcular_venta_pedido(pedido):
     return prep_total + orig_total
 
 
+def _kilos_y_cajas_pedido(pedido):
+    """Cantidad física del pedido: kilos de báscula y cajas.
+
+    Hermana de `_calcular_venta_pedido` y con su MISMA precedencia, para que el
+    peso y el dinero cuenten siempre las mismas líneas:
+      1. Producto pesable con cajas pesadas -> el peso real de la báscula.
+      2. Si no, la línea de preparación cuando existe.
+      3. Si no, la línea original.
+
+    Verificado el 2026-08-30 contra los 185 pedidos con cajas pesadas de
+    producción, comparando cada uno contra un SUM directo sobre `caja_pesada`:
+    cero discrepancias.
+    """
+    kg = 0.0
+    cajas = 0.0
+    prep_products = set()
+    productos_con_cajas = set()
+
+    for d in pedido.detalles:
+        if not d.es_linea_pedido or not getattr(d, 'producto', None) or not d.producto.se_pesa:
+            continue
+        if not d.cajas_pesadas_count:
+            continue
+        productos_con_cajas.add(d.producto_id)
+        prep_products.add(d.producto_id)
+        kg += _coerce_float(d.peso_real, 0.0)
+        cajas += d.cajas_pesadas_count
+
+    for d in pedido.detalles:
+        if not d.es_linea_pedido:
+            if d.producto and d.producto.se_pesa and d.producto_id in productos_con_cajas:
+                continue
+            prep_products.add(d.producto_id)
+            kg += _coerce_float(d.peso, 0.0)
+            cajas += _coerce_float(d.cajas, 0.0)
+
+    for d in pedido.detalles:
+        if d.es_linea_pedido and d.producto_id not in prep_products:
+            kg += _coerce_float(d.peso, 0.0)
+            cajas += _coerce_float(d.cajas, 0.0)
+
+    return kg, cajas
+
+
 def _pedido_facturado_en_periodo_local(pedido, fecha_inicio, fecha_fin=None):
     """True si el pedido está facturado y su fecha_facturacion local cae en el rango."""
     if pedido.estado != 'facturado' or not pedido.fecha_facturacion:
@@ -6007,6 +6051,24 @@ def dashboard():
             Pedido.fecha_pedido.desc()
         ).limit(10).all()
 
+        # === LO QUE PASÓ POR LA BÁSCULA ESTE MES ===
+        # Deliberadamente NO se muestra junto a ventas_mes: ese número viene de
+        # QuickBooks y cubre un 10% más de facturación que la que pasa por la
+        # app (medido el 2026-08-30: 122.014 XCG contra 110.564). Poner los kilos
+        # al lado del dinero diría que describen los mismos despachos, y no es
+        # cierto. Van con su propia etiqueta y su propio alcance.
+        kg_mes = 0.0
+        cajas_mes = 0.0
+        pedidos_pesados_mes = 0
+        for p in pedidos_facturados_list:
+            if not _pedido_facturado_en_periodo_local(p, inicio_mes):
+                continue
+            kg_p, cajas_p = _kilos_y_cajas_pedido(p)
+            kg_mes += kg_p
+            cajas_mes += cajas_p
+            pedidos_pesados_mes += 1
+        mark_dashboard_perf('bascula')
+
         # === OPERACIÓN DE PEDIDOS (TAB PEDIDOS) ===
         pedidos_facturados_hoy = sum(
             1 for p in pedidos_facturados_list
@@ -6155,6 +6217,9 @@ def dashboard():
             pedidos_vencidos=pedidos_vencidos,
             pedidos_urgentes=pedidos_urgentes,
             bandas_planta=bandas_planta,
+            kg_mes=round(kg_mes, 1),
+            cajas_mes=round(cajas_mes, 2),
+            pedidos_pesados_mes=pedidos_pesados_mes,
             pedidos_urgentes_total=pedidos_urgentes_total,
             pedidos_preparados_activos=pedidos_preparados_activos,
             pedidos_facturados_hoy=pedidos_facturados_hoy,
@@ -6227,6 +6292,9 @@ def dashboard():
             'pedidos_recientes': [],
             'pedidos_vencidos': 0,
             'pedidos_urgentes': [],
+            'kg_mes': 0,
+            'cajas_mes': 0,
+            'pedidos_pesados_mes': 0,
             'bandas_planta': {
                 'pendiente': {'en_tiempo': 0, 'limite': 0, 'vencido': 0, 'total': 0},
                 'preparado': {'en_tiempo': 0, 'limite': 0, 'vencido': 0, 'total': 0},
