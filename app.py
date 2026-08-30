@@ -6995,6 +6995,7 @@ def nuevo_pedido():
         grupo_clave=grupo_arg,
         grupo_etiqueta=_etiqueta_de_clave_grupo(grupo_arg),
         tipo_cambio_valor=_tipo_cambio_para_cliente(cliente),
+        es_exportacion=_es_exportacion(cliente),
     )
 
 @app.route('/pedidos/<int:pedido_id>/editar', methods=['GET', 'POST'])
@@ -7206,6 +7207,7 @@ def editar_pedido(pedido_id):
         tipo_cambio_valor = (_tipo_cambio_para_cliente(cliente_efectivo)
                              if cliente_efectivo.id != pedido.cliente_id
                              else float(pedido.tipo_cambio or 1.0)),
+        es_exportacion    = _es_exportacion(cliente_efectivo),
     )
 
 

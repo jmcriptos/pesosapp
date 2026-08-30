@@ -149,12 +149,12 @@
         <span class="pn-revision-total-label">Total {{ cliente.moneda or 'XCG' }}</span>
         <span class="pn-revision-total-monto" id="pn-revision-total">0.00</span>
       </div>
-      {# El grupo puede tener un código de impuesto que la app no traduce
-         (`_ob_de_codigo` devuelve pct=None): no se inventa un total que la
-         factura después va a desmentir. #}
-      <p class="pn-revision-ob-nota" id="pn-revision-ob-nota" hidden>
-        La factura suma el impuesto de este grupo; este subtotal no lo incluye.
-      </p>
+      {# Dos motivos por los que el Total puede no llevar OB, y no son lo
+         mismo: un grupo que la app no traduce (`_ob_de_codigo` da pct=None,
+         no se inventa un total) o una exportación (`_es_exportacion`, cliente
+         en USD, exenta sea cual sea el grupo). El texto lo pone el JS según
+         cuál de los dos aplica. #}
+      <p class="pn-revision-ob-nota" id="pn-revision-ob-nota" hidden></p>
       <div class="pn-aviso" id="pn-revision-aviso" hidden>
         <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
         <div class="pn-aviso-texto" id="pn-revision-aviso-texto"></div>
@@ -203,6 +203,13 @@ let grupoActual = grupoDelServidor;
    diccionario de `_OB_POR_CODIGO` en app.py — un código nuevo entra ahí, no
    acá, o el total de esta pantalla y el de la factura se van a desalinear. */
 const OB_POR_CODIGO = {{ ob_por_codigo|tojson }};
+
+/* La exportación manda sobre el grupo del producto: a un cliente en USD se
+   le factura exento sea cual sea la mercadería (mismo `_es_exportacion` que
+   decide el TaxCode del payload en `_tax_code_de_linea`, app.py). Sin esto,
+   un cliente USD con productos del grupo 10 veía «OB 6%» sumado al total —
+   un impuesto que su factura no cobra. */
+const esExportacion = {{ es_exportacion|tojson }};
 
 /* Tope duro de cajas por línea, el mismo que aplica `_parse_cajas` en el
    servidor. Vive acá arriba porque lo consultan el alta, la fusión y el
@@ -531,11 +538,26 @@ function codigoDelGrupoActual() {
 function pintarTotales(subtotal) {
     $('pn-revision-subtotal').textContent = formatearMonto(subtotal);
 
-    const codigo = codigoDelGrupoActual();
-    const pct = codigo === null ? undefined : OB_POR_CODIGO[codigo];
     const filaOb = $('pn-revision-fila-ob');
     const filaTotal = $('pn-revision-fila-total');
     const nota = $('pn-revision-ob-nota');
+
+    if (esExportacion) {
+        // La exportación manda sobre el grupo (mismo `_es_exportacion` que
+        // decide el payload): un cliente en USD se factura exento sea cual
+        // sea la mercadería. No es que el grupo no pague OB — es que la
+        // venta es exportación — así que se dice explícito y no se confunde
+        // con un grupo que de por sí es 0% (ver más abajo).
+        filaOb.hidden = true;
+        filaTotal.hidden = false;
+        nota.hidden = false;
+        nota.textContent = 'Exportación · exenta de OB. El total es el subtotal.';
+        $('pn-revision-total').textContent = formatearMonto(subtotal);
+        return;
+    }
+
+    const codigo = codigoDelGrupoActual();
+    const pct = codigo === null ? undefined : OB_POR_CODIGO[codigo];
 
     if (pct === undefined || pct === null) {
         // Código sin traducir: no se inventa un total que la factura después
@@ -543,6 +565,7 @@ function pintarTotales(subtotal) {
         filaOb.hidden = true;
         filaTotal.hidden = true;
         nota.hidden = false;
+        nota.textContent = 'La factura suma el impuesto de este grupo; este subtotal no lo incluye.';
         return;
     }
 

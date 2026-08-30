@@ -48,6 +48,12 @@ def app():
 
         _db.session.add(Cliente(nombre='Cliente OB6', territorio_id=territorio.id))
         _db.session.add(Cliente(nombre='Cliente OB0', territorio_id=territorio.id))
+        # La exportación manda sobre el grupo del producto (`_es_exportacion`,
+        # app.py): este cliente compra del grupo 10 (OB 6%) pero al ser USD
+        # su factura sale exenta — el desglose de la revisión tiene que
+        # reflejarlo, no solo el payload.
+        _db.session.add(Cliente(
+            nombre='Cliente Exportacion', territorio_id=territorio.id, moneda='USD'))
 
         for nombre, tax in [
             ('Chuleta de cerdo ahumada 5 kg', 10.0),   # imp:10 -> OB 6%
@@ -191,3 +197,61 @@ def test_la_revision_tiene_fila_de_subtotal_ob_y_total(app, logged_client):
     # pedido en curso, no el servidor al renderizar la página en blanco.
     fila_ob = re.search(r'<div[^>]*id="pn-revision-fila-ob"[^>]*>', html).group(0)
     assert 'hidden' in fila_ob
+
+
+# === Ronda de corrección 1: la exportación manda sobre el grupo ===
+#
+# `_tax_code_de_linea` (app.py) ya factura exento a todo cliente en USD sea
+# cual sea la mercadería: un atún del grupo 10 (OB 6%) NO le cobra OB a un
+# cliente de Bonaire, aunque el mismo atún sí se lo cobra a un cliente XCG.
+# El primer desglose de esta pantalla no miraba al cliente, solo al grupo —
+# así que un cliente USD del grupo 10 veía «OB 6%» sumado al total, un
+# impuesto que su factura no cobra. La aritmética vive en JS; lo que pytest
+# puede afirmar es que el flag de exportación llega correcto al navegador
+# desde `_es_exportacion` (una sola fuente) y que la plantilla lo consume.
+
+def _extraer_bool(html, marca):
+    inicio = html.index(marca) + len(marca)
+    fin = html.index('\n', inicio)
+    return json.loads(html[inicio:fin].rstrip().rstrip(';'))
+
+
+def test_el_flag_de_exportacion_llega_al_navegador_para_un_cliente_usd(app, logged_client):
+    from app import _es_exportacion
+    cliente = _cliente('Cliente Exportacion')
+    assert _es_exportacion(cliente) is True  # la fuente que la plantilla debe reusar
+
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
+
+    assert _extraer_bool(html, 'const esExportacion = ') is True
+
+
+def test_el_flag_de_exportacion_es_false_para_un_cliente_xcg(app, logged_client):
+    cliente = _cliente('Cliente OB6')
+    html = logged_client.get(
+        f'/pedidos/nuevo?cliente={cliente.id}&grupo=imp:10').get_data(as_text=True)
+
+    assert _extraer_bool(html, 'const esExportacion = ') is False
+
+
+def test_editar_pedido_tambien_manda_el_flag_de_exportacion(app, logged_client):
+    """El GET de edición arma el contexto por separado del de alta (otra
+    función, otro render_template): si solo se arregla uno de los dos, un
+    pedido de exportación que se EDITA vuelve a mostrar el total inflado."""
+    from app import Pedido, DetallePedido, Producto
+
+    cliente = _cliente('Cliente Exportacion')
+    producto = Producto.query.filter_by(nombre='Chuleta de cerdo ahumada 5 kg').first()
+    pedido = Pedido(cliente_id=cliente.id, tipo_cambio=1.78)
+    _db.session.add(pedido)
+    _db.session.flush()
+    _db.session.add(DetallePedido(
+        pedido_id=pedido.id, producto_id=producto.id,
+        cajas=2, cajas_pedidas=2, precio_unitario=10, subtotal=20,
+        es_linea_pedido=True,
+    ))
+    _db.session.commit()
+
+    html = logged_client.get(f'/pedidos/{pedido.id}/editar').get_data(as_text=True)
+    assert _extraer_bool(html, 'const esExportacion = ') is True
