@@ -1254,3 +1254,65 @@ a.pn-btn-capsula {
 .pn-head-detalle-cuerpo {
     margin: 2px 0 4px;
 }
+
+/* ── Cabecera compacta al scrollear ─────────────────────────────────────────
+   Medido en el iPhone (visor 844, sin teclado): cabecera 293px y pie 166 se
+   comían el 55% de la pantalla, y con filas de 93px entraban CUATRO líneas de
+   pedido. El cuerpo tenía 700px de contenido en 386 de ventana.
+
+   Quién es el cliente y de qué grupo es el pedido importan al LLEGAR. Mientras
+   se cargan líneas, lo que importa son las líneas. Así que al scrollear la
+   cabecera se encoge a un solo renglón —volver, cliente, grupo— y vuelve
+   entera al subir. Es el mismo criterio que el modo búsqueda, aplicado al
+   estado normal, que es donde el vendedor pasa la mayor parte del tiempo. */
+#pn-shell.pn-head-compacta .pn-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: 8px;
+}
+
+#pn-shell.pn-head-compacta .pn-sobretitulo,
+#pn-shell.pn-head-compacta .pn-head-nota,
+#pn-shell.pn-head-compacta .pn-head-detalle,
+#pn-shell.pn-head-compacta .pn-paso {
+    display: none;
+}
+
+#pn-shell.pn-head-compacta .pn-head-row {
+    flex: none;
+    margin: 0;
+}
+
+#pn-shell.pn-head-compacta .pn-titulo-cliente {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* El chip conserva su área táctil: sigue siendo la salida para cambiar de
+   grupo, y encogerlo por ahorrar 8px lo volvería difícil de tocar. */
+#pn-shell.pn-head-compacta .pn-grupo-chip {
+    flex: none;
+    margin: 0;
+}
+
+/* ── Pie más chato ──────────────────────────────────────────────────────────
+   20px de relleno arriba y abajo más 18 de separación entre la fila y el
+   botón sumaban 58px de aire en un pie de 166. El botón conserva sus 58px de
+   alto: es la acción principal y el objetivo táctil no se toca. */
+#pn-shell .pn-footer {
+    padding-top: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+#pn-shell .pn-footer-row {
+    margin-bottom: 10px;
+}
