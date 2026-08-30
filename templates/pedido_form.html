@@ -216,6 +216,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/pedido_totales.js') }}"></script>
 <script nonce="{{ csp_nonce() }}">
 /* Catálogo y líneas llegan resueltos del servidor (precios por jerarquía de
    ESTE cliente): la pantalla no pide nada por AJAX. */
@@ -422,10 +423,29 @@ function decirMotivo(texto) {
    borrador para ESE momento, y en cuanto se agrega la primera línea
    `grupoActual` queda fijo y el borrador empieza a guardarse normal.
 
+   El borrador se diseñó para el ALTA: un pedido que todavía no existe en
+   NINGÚN lado y se puede perder entero. La EDICIÓN abre un pedido que YA
+   está en la base — cerrar a mitad de camino y reabrir /pedidos/<id>/editar
+   vuelve a mostrar el pedido tal cual estaba, sin perder nada que no se
+   haya guardado. Compartir esta misma clave entre las dos pantallas
+   rompía esa garantía en los dos sentidos: la edición la ESCRIBÍA (por una
+   asimetría en el arranque, nunca llegaba a leerla), así que abrir una
+   edición podía pisar en silencio un alta a medio escribir de ESE mismo
+   cliente+grupo, y abrir una edición y salir sin más sembraba un "pedido
+   sin enviar" fantasma que el alta ofrecía como propio — aceptarlo cargaba
+   las líneas del pedido viejo como si el vendedor las hubiera tecleado, un
+   duplicado real listo para facturarse. Namespacear la clave de edición
+   (`borrador:pedido:<id>`) le daría a la edición su propio borrador, pero
+   eso es funcionalidad NUEVA que nunca se ejercitó (la edición nunca leyó
+   nada) y que la edición no necesita — la recuperación correcta para un
+   pedido que ya existe es releer la base, no un borrador de navegador. Acá
+   alcanza con que la edición no pueda tocar esta llave en ningún sentido.
+
    `localStorage` puede fallar (modo privado de Safari, cuota llena): cada
    lectura y escritura va en su propio try/catch, y el peor caso es
    quedarse sin borrador — nunca romper la pantalla. */
 function claveBorrador() {
+    if (esEdicion) return null;
     if (!grupoActual) return null;
     return `borrador:${clienteId}:${grupoActual}`;
 }
@@ -452,6 +472,11 @@ function guardarBorrador() {
         // "nuevo" y el reintento post-recarga podría crear un segundo
         // pedido en vez de ser reconocido como el mismo.
         intento_id: intentoId,
+        // Marca de tiempo para la caducidad de `ofrecerBorrador` — sin
+        // esto un borrador de hace semanas se ofrece igual que uno de hace
+        // un minuto, como si "seguir donde lo dejaste" siguiera teniendo
+        // sentido.
+        ts: Date.now(),
     };
     try {
         localStorage.setItem(clave, JSON.stringify(datos));
@@ -463,6 +488,12 @@ function borrarBorrador() {
     if (!clave) return;
     try { localStorage.removeItem(clave); } catch (_) { /* nada que limpiar */ }
 }
+
+/* Nada de lo que el borrador cachea se ofrece más allá de esta ventana —
+   pasado este tiempo se descarta sin preguntar. Un borrador de hace
+   semanas no es "seguir donde lo dejaste": es un pedido fósil, con precios
+   de otra jerarquía y hasta una fecha de entrega que ya pasó. */
+const BORRADOR_VENTANA_MS = 36 * 60 * 60 * 1000; // 36 h
 
 /* Se llama una sola vez, al entrar al paso 03 (arranque de la pantalla,
    antes de pintar nada), y ofrece retomar el borrador con un confirm — el
@@ -484,12 +515,51 @@ function ofrecerBorrador() {
         return;
     }
 
+    // Sin `ts` (borrador de una versión anterior de esta pantalla, o
+    // corrupto) o más viejo que la ventana: se descarta directo, nunca se
+    // ofrece un pedido fósil.
+    if (typeof datos.ts !== 'number' || (Date.now() - datos.ts) > BORRADOR_VENTANA_MS) {
+        borrarBorrador();
+        return;
+    }
+
     if (!confirm('Hay un pedido sin enviar para este cliente y grupo. ¿Quieres continuar donde lo dejaste?')) {
         return;
     }
 
-    productosAgregados = datos.lineas;
-    if (typeof datos.fecha_entrega === 'string') inputFechaEntrega.value = datos.fecha_entrega;
+    // Del borrador se restauran las CANTIDADES, no el precio: `productos`
+    // (el catálogo que el servidor acaba de resolver, en ESTA carga, contra
+    // la jerarquía de este cliente) es la única fuente de verdad del
+    // precio — mismo argumento que en `confirmarEnvio` más abajo. Restaurar
+    // el precio cacheado del borrador dejaba cotizar un número que la
+    // factura después desmentía (medido: 314.82 contra un total real de
+    // 416.83, 30% abajo). Un producto que salió del catálogo de esta carga
+    // (dado de baja, cambió de lista) se restaura sin precio, nunca con el
+    // cacheado — igual que cualquier otra línea sin precio de lista.
+    productosAgregados = datos.lineas.map(function (linea) {
+        const p = productos.find(x => x.id === linea.id);
+        return {
+            id: linea.id,
+            nombre: p ? p.nombre : linea.nombre,
+            cajas: linea.cajas,
+            precio: p ? p.precio : null,
+            habitual: (linea.habitual === null || linea.habitual === undefined) ? null : linea.habitual,
+            activa: !!linea.activa,
+        };
+    });
+
+    if (typeof datos.fecha_entrega === 'string' && datos.fecha_entrega) {
+        // Una fecha restaurada que ya quedó en el pasado no se impone en
+        // silencio: se deja que el arranque de abajo (`construirChipsEntrega`)
+        // ponga su default de "próximo día hábil", en vez de un pedido con
+        // entrega de ayer sin que nada lo marque.
+        const restaurada = fechaDesdeIso(datos.fecha_entrega);
+        const hoy = new Date();
+        const hoyMedianoche = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+        if (restaurada && restaurada.getTime() >= hoyMedianoche.getTime()) {
+            inputFechaEntrega.value = datos.fecha_entrega;
+        }
+    }
     if (typeof datos.notas === 'string' && $('notas')) $('notas').value = datos.notas;
     // Restaura el MISMO intento_id del borrador — si no, esta recarga
     // generaría uno nuevo (el `let intentoId = crypto.randomUUID()` de
@@ -833,58 +903,39 @@ function codigoDelGrupoActual() {
 /* Subtotal, OB y total inclusivo de la revisión — nunca el payload que se le
    manda a QuickBooks, que sigue viajando tal cual en los hidden de cada
    línea. `precio_base` se guarda tax-exclusive: el OB se lo suma QuickBooks
-   al facturar, así que "Total" acá tiene que sumarlo también o miente. */
+   al facturar, así que "Total" acá tiene que sumarlo también o miente.
+
+   La aritmética en sí vive en `static/js/pedido_totales.js`
+   (`calcularTotalesPedido`), cargado antes que este bloque — de ahí sale
+   testeable con Node (`tests/test_pedido_impuesto_desglose_js.py`), algo que
+   no existía mientras vivió acá adentro mezclada con el DOM. Esta función
+   queda de "controlador": arma los tres insumos, llama a la aritmética
+   pura, y escribe el resultado en el DOM. */
 function pintarTotales(subtotal) {
     $('pn-revision-subtotal').textContent = formatearMonto(subtotal);
+
+    const r = calcularTotalesPedido(subtotal, {
+        esExportacion: esExportacion,
+        codigo: codigoDelGrupoActual(),
+        obPorCodigo: OB_POR_CODIGO,
+    });
 
     const filaOb = $('pn-revision-fila-ob');
     const filaTotal = $('pn-revision-fila-total');
     const nota = $('pn-revision-ob-nota');
 
-    if (esExportacion) {
-        // La exportación manda sobre el grupo (mismo `_es_exportacion` que
-        // decide el payload): un cliente en USD se factura exento sea cual
-        // sea la mercadería. No es que el grupo no pague OB — es que la
-        // venta es exportación — así que se dice explícito y no se confunde
-        // con un grupo que de por sí es 0% (ver más abajo).
-        filaOb.hidden = true;
-        filaTotal.hidden = false;
-        nota.hidden = false;
-        nota.textContent = 'Exportación · exenta de OB. El total es el subtotal.';
-        $('pn-revision-total').textContent = formatearMonto(subtotal);
-        return;
+    filaOb.hidden = r.filaObHidden;
+    filaTotal.hidden = r.filaTotalHidden;
+    nota.hidden = r.notaHidden;
+    if (!r.notaHidden) nota.textContent = r.nota;
+
+    if (!r.filaObHidden) {
+        $('pn-revision-ob-label').textContent = r.obLabel;
+        $('pn-revision-ob-monto').textContent = formatearMonto(r.obMonto);
     }
-
-    const codigo = codigoDelGrupoActual();
-    const pct = codigo === null ? undefined : OB_POR_CODIGO[codigo];
-
-    if (pct === undefined || pct === null) {
-        // Código sin traducir: no se inventa un total que la factura después
-        // desmiente. Solo el subtotal, y un aviso de que falta el impuesto.
-        filaOb.hidden = true;
-        filaTotal.hidden = true;
-        nota.hidden = false;
-        nota.textContent = 'La factura suma el impuesto de este grupo; este subtotal no lo incluye.';
-        return;
+    if (!r.filaTotalHidden) {
+        $('pn-revision-total').textContent = formatearMonto(r.total);
     }
-
-    nota.hidden = true;
-
-    if (pct === 0) {
-        // «OB 0% — 0.00» es ruido: el grupo no paga impuesto, así que el
-        // total inclusivo es el subtotal y no hay nada que desglosar.
-        filaOb.hidden = true;
-        filaTotal.hidden = false;
-        $('pn-revision-total').textContent = formatearMonto(subtotal);
-        return;
-    }
-
-    const ob = subtotal * pct / 100;
-    filaOb.hidden = false;
-    filaTotal.hidden = false;
-    $('pn-revision-ob-label').textContent = `OB ${pct}%`;
-    $('pn-revision-ob-monto').textContent = formatearMonto(ob);
-    $('pn-revision-total').textContent = formatearMonto(subtotal + ob);
 }
 
 /* `enviado`: false al construir la revisión (paso 04, todavía se puede
@@ -1295,8 +1346,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // El pedido ya quedó en el servidor: no hay nada más que proteger.
         // Sin esto `beforeunload` seguiría preguntando "¿seguro que quieres
-        // salir?" sobre un pedido que ya se mandó.
-        productosAgregados.forEach(p => { p.activa = false; });
+        // salir?" sobre un pedido que ya se mandó. Se VACÍA el arreglo, no
+        // se desactiva línea por línea: desactivarlas las dejaba pintadas
+        // en el paso 02 como "Fuera del pedido" con un botón "Volver" — un
+        // popstate/bfcache que cayera ahí invitaba a restaurar el pedido
+        // recién enviado y reenviarlo como uno segundo (el `intentoId` ya
+        // se regenera abajo, así que la idempotencia no lo iba a frenar).
+        // Vaciar cumple el mismo propósito (`beforeunload` mudo) y además
+        // deja el formulario realmente limpio.
+        productosAgregados = [];
         // Repinta el paso 02 (vacío) por si un `popstate`/bfcache posterior
         // cae en `mostrarPaso('pedido')`: sin esto el tbody se queda con las
         // líneas de ANTES del envío, aunque `productosAgregados` ya diga que

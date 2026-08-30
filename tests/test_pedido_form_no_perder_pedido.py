@@ -185,6 +185,36 @@ def test_clave_de_borrador_junta_cliente_y_grupo():
     assert re.search(r'if\s*\(\s*!grupoActual\s*\)\s*return\s+null', cuerpo)
 
 
+def test_clave_de_borrador_es_null_en_edicion():
+    """REVISIÓN FINAL DE RAMA: la clave `borrador:<cliente>:<grupo>` era la
+    MISMA para el alta y la edición, y la edición la escribía sin leerla
+    nunca (asimetría en el arranque: `ofrecerBorrador()` corría con
+    `grupoActual` todavía null en edición, así que nunca encontraba nada
+    que ofrecer — pero la primera línea agregada por el servidor fijaba
+    `grupoActual` y de ahí en más cada `actualizarTablaProductos()`
+    guardaba). Dos daños: abrir una edición pisaba en silencio un alta a
+    medio escribir del mismo cliente+grupo, y abrir una edición y salir
+    sembraba un borrador fantasma que el alta ofrecía como propio — un "Sí"
+    distraído cargaba las líneas del pedido viejo rotuladas "Añadido" y
+    creaba un duplicado real. El guard tiene que cortar ANTES que el de
+    `!grupoActual`, para que ninguna función de acá abajo pueda tocar esa
+    llave desde una edición, sea cual sea el estado de `grupoActual`."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'claveBorrador')
+    m_edicion = re.search(r'if\s*\(\s*esEdicion\s*\)\s*return\s+null', cuerpo)
+    assert m_edicion, (
+        'claveBorrador() ya no corta con esEdicion — la edición puede '
+        'volver a escribir/leer el borrador del alta'
+    )
+    m_grupo = re.search(r'if\s*\(\s*!grupoActual\s*\)\s*return\s+null', cuerpo)
+    assert m_grupo, 'claveBorrador() ya no corta sin grupoActual'
+    assert m_edicion.start() < m_grupo.start(), (
+        'el guard de esEdicion corre DESPUÉS del de !grupoActual — no '
+        'cambia el resultado final (los dos devuelven null), pero invierte '
+        'la lectura de "el borrador es del alta" que documenta la función'
+    )
+
+
 def test_sincronizar_candado_provisional_borra_el_borrador_antes_de_soltar_el_grupo():
     """Ronda de corrección 1: cliente sin habitual → una línea del grupo A
     fija `grupoActual = A` y guarda `borrador:<cliente>:A` → se quita esa
@@ -392,16 +422,30 @@ def test_fallo_de_red_o_rechazo_del_servidor_muestran_error_en_el_shell():
     )
 
 
-def test_confirmacion_apaga_lineas_activas_para_no_avisar_de_mas():
+def test_confirmacion_vacia_productosagregados_para_no_avisar_de_mas():
     """Tras `confirmarEnvio` el pedido ya está en el servidor: si
     `productosAgregados` siguiera con líneas activas, `beforeunload`
     seguiría preguntando "¿seguro que quieres salir?" sobre un pedido que
-    ya se mandó."""
+    ya se mandó.
+
+    REVISIÓN FINAL DE RAMA: la versión original apagaba las líneas
+    (`p.activa = false` en cada una) en vez de vaciar el arreglo. Callaba a
+    `beforeunload`, pero dejaba el paso 02 pintando el pedido recién
+    enviado como líneas "Fuera del pedido", cada una con un botón "Volver"
+    — un popstate/bfcache que cayera ahí invitaba a restaurar esas líneas y
+    reenviarlas como un SEGUNDO pedido real (el `intentoId` ya se
+    regeneró, así que la idempotencia del servidor no lo frenaba). Vaciar
+    el arreglo cumple el mismo propósito sin dejar esa trampa."""
     texto = _js()
     cuerpo = _cuerpo_funcion(texto, 'confirmarEnvio')
-    assert re.search(r'p\.activa\s*=\s*false', cuerpo), (
-        'confirmarEnvio no desactiva las líneas — beforeunload seguiría '
-        'avisando sobre un pedido ya enviado'
+    assert re.search(r'productosAgregados\s*=\s*\[\s*\]\s*;', cuerpo), (
+        'confirmarEnvio no vacía productosAgregados — un popstate/bfcache '
+        'posterior puede pintar el pedido recién enviado como líneas '
+        '"Fuera del pedido" con un botón "Volver" que invita a duplicarlo'
+    )
+    assert not re.search(r'p\.activa\s*=\s*false', cuerpo), (
+        'confirmarEnvio vuelve a apagar las líneas en vez de vaciar el '
+        'arreglo — resucita el botón "Volver" sobre el pedido ya enviado'
     )
 
 
