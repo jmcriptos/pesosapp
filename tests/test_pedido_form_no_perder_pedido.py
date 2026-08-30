@@ -611,15 +611,52 @@ def test_intento_id_se_genera_una_sola_vez_no_en_cada_envio():
     nunca podría reconocer dos intentos como el mismo pedido — el índice
     único quedaría de adorno."""
     texto = _js()
-    assert re.search(r'let\s+intentoId\s*=\s*crypto\.randomUUID\(\)\s*;', texto), (
-        'intentoId no se genera con crypto.randomUUID() en el scope de '
+    assert re.search(r'let\s+intentoId\s*=\s*generarIntentoId\(\)\s*;', texto), (
+        'intentoId no se genera con generarIntentoId() en el scope de '
         'módulo, al cargar la pantalla'
     )
     cuerpo_enviar = _cuerpo_funcion(texto, 'enviarPedido')
-    assert 'randomUUID' not in cuerpo_enviar, (
-        'enviarPedido llama a crypto.randomUUID() — el intento_id se '
-        'regeneraría en cada envío/reintento y el servidor nunca vería el '
-        'mismo id dos veces'
+    assert 'randomUUID' not in cuerpo_enviar and 'generarIntentoId' not in cuerpo_enviar, (
+        'enviarPedido genera un intento_id nuevo — se regeneraría en cada '
+        'envío/reintento y el servidor nunca vería el mismo id dos veces'
+    )
+
+
+def test_generar_intento_id_no_mata_el_script_fuera_de_https():
+    """`crypto.randomUUID()` exige contexto seguro (HTTPS o localhost):
+    llamarlo sin guarda en `http://192.168.x.x` (probar la PWA por LAN,
+    un caso real de desarrollo) revienta con un TypeError — y como la
+    generación corre SUELTA al tope del script, antes de cualquier
+    función, ese error mataba TODO el bloque: sin buscador, sin steppers,
+    sin poder tomar un pedido. `generarIntentoId` tiene que envolver la
+    llamada real en un try/catch con un respaldo que no dependa de
+    `crypto`."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'generarIntentoId')
+    m = re.search(r'try\s*\{([^{}]*crypto\.randomUUID\(\)[^{}]*)\}\s*catch', cuerpo, re.S)
+    assert m, (
+        'generarIntentoId no envuelve crypto.randomUUID() en un try/catch '
+        '— un contexto inseguro (HTTP, no localhost) tira TypeError y para '
+        'entonces ya mató el resto del script'
+    )
+    resto = cuerpo[m.end():]
+    assert re.search(r'return\s+[\'"]', resto), (
+        'el catch de generarIntentoId no devuelve un respaldo — sin él, '
+        'intentoId queda undefined en un contexto inseguro'
+    )
+
+
+def test_confirmarenvio_regenera_intento_id():
+    """Sin esto, volver con el gesto de atrás (bfcache) — el `pageshow`
+    de más abajo reactiva el botón y baja `enviando` — dejaba el form
+    listo para reenviar con un intento_id que el servidor YA había
+    consumido: un pedido nuevo armado desde ese estado se hubiera
+    confundido con un reintento del que ya se mandó."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'confirmarEnvio')
+    assert re.search(r'intentoId\s*=\s*generarIntentoId\(\)\s*;', cuerpo), (
+        'confirmarEnvio no regenera intentoId al terminar — un intento_id '
+        'ya consumido queda listo para reusarse tras un envío exitoso'
     )
 
 

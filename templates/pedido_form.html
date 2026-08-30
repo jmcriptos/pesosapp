@@ -235,19 +235,45 @@ const clienteId = {{ cliente.id }};
 const grupoDelServidor = {{ grupo_clave|tojson }} || null;
 let grupoActual = grupoDelServidor;
 
-/* Idempotencia del envío (cabo suelto de la Task 4, ronda 1): un UUID
-   generado UNA vez, al cargar la pantalla — NO en `enviarPedido()`, porque
-   tiene que quedar ESTABLE entre reintentos del MISMO pedido (regenerarlo en
-   cada intento no serviría de nada: el servidor nunca vería el mismo id dos
-   veces). Un pedido NUEVO de verdad es siempre una carga de página nueva
-   (cambiar cliente/grupo navega afuera), así que "nuevo para un pedido
-   nuevo" sale gratis de este mismo `let` de módulo. La única forma de que
-   una recarga a mitad de camino no invente un id distinto es guardarlo
-   junto al borrador y restaurarlo con él — ver `guardarBorrador`/
-   `ofrecerBorrador`. El servidor lo usa para detectar un reintento exacto
-   (columna `intento_id` con índice único en `Pedido`) y devolver la MISMA
-   confirmación en vez de crear un segundo pedido. */
-let intentoId = crypto.randomUUID();
+/* Idempotencia del envío: un UUID por pedido-en-curso — NO se genera
+   dentro de `enviarPedido()`, tiene que quedar ESTABLE entre reintentos del
+   MISMO pedido (regenerarlo en cada intento no serviría de nada: el
+   servidor nunca vería el mismo id dos veces). El servidor lo usa para
+   detectar un reintento exacto (columna `intento_id` con índice único en
+   `Pedido`, solo para el ALTA — ver `app.py`) y devolver la MISMA
+   confirmación en vez de crear un segundo pedido.
+
+   `crypto.randomUUID()` exige contexto seguro (HTTPS o localhost): en
+   producción hay HTTPS y anda bien, pero probar la PWA por
+   `http://192.168.x.x` (habitual en LAN, celular real contra el server de
+   desarrollo) lo deja `undefined`, y llamarlo revienta con un TypeError.
+   Como esta línea corría SUELTA al tope del script —antes de cualquier
+   función—, ese error mataba TODO el bloque: sin buscador, sin steppers,
+   sin poder tomar ni un pedido. El respaldo no necesita ser criptográfico,
+   es un id de correlación para el reintento, no un secreto. */
+function generarIntentoId() {
+    try {
+        return crypto.randomUUID();
+    } catch (_) {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+}
+
+/* Un pedido NUEVO de verdad es siempre una carga de página nueva (cambiar
+   cliente/grupo navega afuera), así que "nuevo para un pedido nuevo" sale
+   gratis de este `let` de módulo. La única forma de que una recarga a
+   mitad de camino no invente un id distinto es guardarlo junto al
+   borrador y restaurarlo con él — ver `guardarBorrador`/`ofrecerBorrador`.
+   Y tras un envío EXITOSO (`confirmarEnvio`) se regenera: sin eso, volver
+   con el gesto de atrás (bfcache) dejaba el form listo para reenviar con
+   un id que el servidor YA había consumido — un pedido nuevo de verdad,
+   armado sobre ese estado, se hubiera confundido con un reintento del que
+   ya se mandó. */
+let intentoId = generarIntentoId();
 
 /* Porcentaje de OB por código de QuickBooks (10 → 6%, 14 → 0%). Es el mismo
    diccionario de `_OB_POR_CODIGO` en app.py — un código nuevo entra ahí, no
@@ -1267,6 +1293,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // líneas de ANTES del envío, aunque `productosAgregados` ya diga que
         // no hay ninguna activa.
         actualizarTablaProductos();
+
+        // El intento_id que se acaba de mandar ya está CONSUMIDO en el
+        // servidor (identifica a ESTE pedido para siempre). Volver con el
+        // gesto de atrás (bfcache) deja el botón "Enviar pedido" reactivado
+        // — sin regenerar acá, un pedido armado desde ese estado mandaría
+        // el mismo intento_id de vuelta y el servidor lo reconocería como
+        // un reintento del que YA se mandó, no como el pedido nuevo que en
+        // realidad es.
+        intentoId = generarIntentoId();
     }
 
     async function enviarPedido() {

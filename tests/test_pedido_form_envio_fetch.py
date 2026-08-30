@@ -481,10 +481,29 @@ def test_intento_id_distinto_si_permite_una_segunda_edicion_real(app, logged_cli
     )
 
 
+def test_intento_id_del_form_se_trunca_a_36(app):
+    """La columna es VARCHAR(36) — en Postgres un valor más largo revienta
+    el INSERT/UPDATE con un error de longitud. SQLite (lo que corre esta
+    suite) NO valida el largo de un VARCHAR, así que un test que solo mira
+    la respuesta HTTP pasaría igual CON o SIN el `[:36]` del helper —no
+    protegería nada—: se afirma el helper directo, con un request context
+    de Flask, no la ruta completa."""
+    from app import _intento_id_del_form
+    with app.test_request_context('/pedidos/nuevo', method='POST',
+                                  data={'intento_id': 'x' * 500}):
+        valor = _intento_id_del_form()
+    assert valor is not None
+    assert len(valor) <= 36, (
+        f'_intento_id_del_form() no trunca a 36 caracteres: devolvió '
+        f'{len(valor)}'
+    )
+
+
 def test_intento_id_largo_no_revienta_el_guardado(app, logged_client):
-    """Un intento_id absurdamente largo (la columna es VARCHAR(36)) se
-    trunca y sigue el flujo normal en vez de un 500 por overflow de
-    columna."""
+    """Complementa el test de arriba contra la ruta real: un intento_id
+    larguísimo no tira 500 por ningún otro camino (esto SÍ lo puede
+    afirmar la respuesta HTTP, aunque SQLite no valide el largo de
+    columna — es un humo distinto del que prueba el truncado en sí)."""
     cliente_id, con_precio_id, _ = _ids()
     resp = _post_fetch(logged_client, '/pedidos/nuevo', {
         'cliente_id': cliente_id, 'notas': '',
@@ -495,3 +514,213 @@ def test_intento_id_largo_no_revienta_el_guardado(app, logged_client):
     })
     assert resp.status_code == 200
     assert resp.get_json()['ok'] is True
+
+
+# ── Ronda de corrección 2: una columna, una semántica ───────────────────────
+#
+# La ronda anterior cerró el duplicado, pero abrió algo peor: `editar_pedido`
+# pisaba `Pedido.intento_id` (la columna del ALTA, con su propio índice
+# único) con el intento_id de la EDICIÓN. Como la clave del borrador
+# (`borrador:<cliente>:<grupo>`) es la MISMA para alta y edición, el
+# intento_id de una edición cuya respuesta se perdió podía sobrevivir en el
+# borrador y, al tomar un pedido NUEVO de ese mismo cliente+grupo,
+# `nuevo_pedido` lo reconocía como "ya existe" — no creaba nada, y devolvía
+# la confirmación del pedido EDITADO como si fuera el nuevo. El pedido nuevo
+# se perdía en silencio, con cartel de éxito. Peor que el duplicado que
+# arregló la ronda anterior: un duplicado se ve.
+
+def test_editar_no_escribe_en_pedido_intento_id(app, logged_client):
+    """`Pedido.intento_id` es del ALTA — editar no puede tocarla, sea cual
+    sea el resultado."""
+    cliente_id, con_precio_id, _ = _ids()
+    pedido_id = _crear_pedido(logged_client, cliente_id, con_precio_id)
+
+    from app import Pedido
+    with app.app_context():
+        intento_creacion = Pedido.query.get(pedido_id).intento_id
+
+    _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', {
+        'cliente_id': cliente_id, 'notas': 'editado',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '5',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-de-una-edicion',
+    })
+
+    with app.app_context():
+        pedido = Pedido.query.get(pedido_id)
+        assert pedido.intento_id == intento_creacion, (
+            'editar_pedido escribió en Pedido.intento_id — es la columna '
+            'del alta, con su propio índice único; escribirla desde la '
+            'edición es el bug que perdía pedidos nuevos en silencio'
+        )
+
+
+def test_intento_id_de_una_edicion_perdida_no_bloquea_un_pedido_nuevo(app, logged_client):
+    """La secuencia exacta del hallazgo: se pierde la respuesta de una
+    EDICIÓN (el intento_id queda "vivo" para el cliente); el vendedor toma
+    un pedido NUEVO del MISMO cliente y, por la razón que sea (un bug de
+    otro lado, o el borrador restaurando ese id), el form manda ESE MISMO
+    intento_id en el alta. El pedido nuevo tiene que crearse igual — el
+    intento_id de una edición no puede "gastarse" en el namespace del
+    alta, son dos mundos separados."""
+    cliente_id, con_precio_id, _ = _ids()
+    pedido_id = _crear_pedido(logged_client, cliente_id, con_precio_id)
+
+    intento_compartido = 'intento-que-se-cruza-entre-mundos'
+
+    # 1) Edición cuya respuesta "se pierde" (para el test, simplemente se
+    # aplica normal — lo que importa es que el intento_id de la EDICIÓN
+    # haya quedado registrado en alguna parte del pedido editado).
+    resp_edicion = _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', {
+        'cliente_id': cliente_id, 'notas': 'editado',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '5',
+        'productos[0][precio]': '25.50',
+        'intento_id': intento_compartido,
+    })
+    assert resp_edicion.get_json()['ok'] is True
+
+    from app import Pedido
+    with app.app_context():
+        total_antes = Pedido.query.filter_by(cliente_id=cliente_id).count()
+
+    # 2) El MISMO intento_id (el que "sobrevivió" de la edición) llega en
+    # un POST a nuevo_pedido — el escenario que gatilló el bug.
+    resp_nuevo = _post_fetch(logged_client, '/pedidos/nuevo', {
+        'cliente_id': cliente_id, 'notas': 'PEDIDO NUEVO Y DISTINTO',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '9',
+        'productos[0][precio]': '25.50',
+        'intento_id': intento_compartido,
+    })
+    datos_nuevo = resp_nuevo.get_json()
+    assert datos_nuevo['ok'] is True
+    assert datos_nuevo['pedido_id'] != pedido_id, (
+        'nuevo_pedido devolvió el pedido EDITADO en vez de crear uno '
+        'nuevo — el intento_id de una edición está bloqueando un alta'
+    )
+    assert datos_nuevo['notas'] == 'PEDIDO NUEVO Y DISTINTO'
+    assert datos_nuevo['lineas'][0]['cajas'] == pytest.approx(9)
+
+    with app.app_context():
+        total_despues = Pedido.query.filter_by(cliente_id=cliente_id).count()
+        assert total_despues == total_antes + 1, (
+            'el pedido nuevo no se creó en la base — se perdió en silencio'
+        )
+
+
+def test_edicion_idempotente_via_pedido_evento_no_columna(app, logged_client):
+    """El mecanismo de idempotencia de la edición vive en PedidoEvento
+    (meta.intento_id del evento 'editado'), no en una columna de Pedido —
+    confirmado leyendo el evento directo."""
+    cliente_id, con_precio_id, _ = _ids()
+    pedido_id = _crear_pedido(logged_client, cliente_id, con_precio_id)
+
+    _post_fetch(logged_client, f'/pedidos/{pedido_id}/editar', {
+        'cliente_id': cliente_id, 'notas': '',
+        'productos[0][id]': con_precio_id,
+        'productos[0][cajas]': '4',
+        'productos[0][precio]': '25.50',
+        'intento_id': 'intento-registrado-en-evento',
+    })
+
+    import json as _json
+    from app import PedidoEvento
+    with app.app_context():
+        evento = (PedidoEvento.query
+                 .filter_by(pedido_id=pedido_id, tipo='editado')
+                 .order_by(PedidoEvento.created_at.desc())
+                 .first())
+        assert evento is not None
+        meta = _json.loads(evento.meta)
+        assert meta.get('intento_id') == 'intento-registrado-en-evento'
+
+
+# ── El pedido a medias ya no puede quedar comiteado ─────────────────────────
+
+def test_si_falla_antes_del_commit_no_queda_ningun_pedido(app, logged_client, monkeypatch):
+    """`nuevo_pedido` comitea la cabecera SOLA y las líneas en un commit
+    aparte hasta esta ronda: si el proceso moría en esa ventana (restart de
+    dyno), quedaba un `Pedido` con `intento_id` y CERO líneas —
+    `_validar_preparacion_pedido` deja pasar un pedido sin línea original,
+    así que era FACTURABLE, y un reintento posterior lo devolvía como
+    "éxito" para siempre. Ahora es un solo commit: fuerzo una excepción
+    ENTRE el `flush()` (que ya le asignó un id a `pedido`) y el commit
+    final, y no puede quedar rastro en la base."""
+    import app as app_module
+    cliente_id, con_precio_id, _ = _ids()
+
+    def _explota(*a, **kw):
+        raise RuntimeError('simulación de crash a mitad de camino')
+
+    monkeypatch.setattr(app_module, '_sincronizar_lineas_prep', _explota)
+
+    with pytest.raises(RuntimeError):
+        logged_client.post('/pedidos/nuevo', data={
+            'cliente_id': cliente_id, 'notas': 'no debería quedar guardado',
+            'productos[0][id]': con_precio_id,
+            'productos[0][cajas]': '1',
+            'productos[0][precio]': '25.50',
+            'intento_id': 'intento-que-explota-a-mitad-de-camino',
+        })
+
+    # Esta suite comparte UN solo app_context entre la fixture y el test
+    # (mismo patrón en todo el archivo): Flask ve que ya hay uno activo y
+    # NO le abre/cierra uno propio a la request, así que el
+    # `teardown_appcontext` que en un dyno real dispara el rollback
+    # automático de SQLAlchemy no corre acá. Sin este `rollback()` manual
+    # el `flush()` (visible dentro de la MISMA sesión/transacción todavía
+    # abierta) se vería como si hubiera "sobrevivido", aunque nunca hubo un
+    # `commit()` real — un falso positivo del arnés de test, no del
+    # código. Esto es exactamente lo que SÍ pasa solo en producción.
+    from app import db as _db
+    _db.session.rollback()
+
+    from app import Pedido
+    with app.app_context():
+        assert Pedido.query.filter_by(
+            intento_id='intento-que-explota-a-mitad-de-camino').first() is None, (
+            'quedó un Pedido comiteado aunque el proceso "murió" antes del '
+            'commit final — el pedido a medias (facturable) sigue siendo '
+            'posible'
+        )
+        assert Pedido.query.filter_by(notas='no debería quedar guardado').first() is None
+
+
+# ── Sesión vencida: CSRFError, no solo el redirect a /login ────────────────
+
+def test_csrf_error_con_x_requested_with_devuelve_json_de_sesion_expirada():
+    """`CSRFProtect` corre en un `before_request`, ANTES que
+    `login_required`: una sesión vencida no llega a producir el 302 a
+    `/login` que `pedido_form.html` sabe detectar, responde un 400 HTML
+    directo del propio CSRFProtect. El error handler global tiene que
+    devolver JSON con el mensaje de sesión expirada cuando la petición lo
+    pide — para ESTE test, WTF_CSRF_ENABLED se deja en su default (True)."""
+    import os as _os
+    _os.environ.setdefault('SECRET_KEY', 'test-secret')
+    _os.environ.setdefault('FLASK_ENV', 'testing')
+    from app import app as flask_app, db as _db
+    flask_app.config.update(
+        TESTING=True, WTF_CSRF_ENABLED=True,
+        SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',
+    )
+    with flask_app.app_context():
+        _db.create_all()
+        try:
+            client = flask_app.test_client()
+            # Sin csrf_token en el body y sin sesión real: CSRFProtect lo
+            # rechaza en el before_request, antes de tocar login_required.
+            resp = client.post('/pedidos/nuevo', data={'cliente_id': '1'},
+                               headers={'X-Requested-With': 'XMLHttpRequest'})
+            assert resp.status_code == 400
+            datos = resp.get_json()
+            assert datos is not None, (
+                'el error de CSRF no devolvió JSON — el fetch de '
+                'pedido_form.html reventaría en resp.json() igual que con '
+                'el redirect a /login sin detectar'
+            )
+            assert datos['ok'] is False
+            assert 'sesión expiró' in datos['error'].lower()
+        finally:
+            _db.drop_all()

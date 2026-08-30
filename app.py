@@ -62,6 +62,7 @@ from utils.label_utils import (
 # Flask-WTF es obligatorio: la protección CSRF debe fallar de forma cerrada.
 # Si la dependencia falta, la app no debe arrancar sin CSRF.
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import CSRFError
 try:
     from flask_talisman import Talisman
 except ImportError:
@@ -336,6 +337,34 @@ def _audit(tipo, accion, detalle=None):
 
 # CSRF (Flask-WTF) - obligatorio
 csrf = CSRFProtect(app)
+
+
+@app.errorhandler(CSRFError)
+def _csrf_error_handler(e):
+    """Un CSRF inválido/ausente es, en la práctica, la MISMA sesión vencida
+    que `pedido_form.html` intenta detectar mirando un 302 a `/login`: pero
+    `CSRFProtect` corre en un `before_request`, ANTES que `login_required`,
+    así que la sesión vencida nunca llega a producir ESE 302 — Flask-WTF
+    guarda el token CSRF en la sesión, y sin sesión "falta" el token, así
+    que lo que responde es un 400 HTML directo ("The CSRF session token is
+    missing"). Sin este handler ese 400 caía en el genérico "el servidor
+    rechazó el pedido" de cualquier fetch de la app (no solo el form de
+    pedidos — cualquier POST con `X-Requested-With` detrás de una sesión de
+    8 h que vive todo el día en la PWA) y el vendedor reintentaba para
+    siempre sin saber que tenía que volver a entrar.
+    """
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'ok': False,
+            'error': 'Tu sesión expiró: volvé a iniciar sesión.',
+        }), 400
+    # Sin el header de fetch: el comportamiento ORIGINAL de Flask-WTF sin
+    # handler propio — 400 con su mensaje de siempre. `test_csrf.py` fija
+    # ESE 400 a propósito (dos tests de seguridad, uno de ellos sobre
+    # /login); cambiarlo por un redirect "amigable" a /login debilitaría la
+    # señal de un CSRF inválido de VERDAD (no solo una sesión vencida)
+    # frente a una auditoría — acá no se puede distinguir uno del otro.
+    return e.get_response()
 
 # Configuración de seguridad con Talisman (HSTS, CSP, etc.)
 # Solo activa Talisman en producción (cuando uses HTTPS real)
@@ -7034,6 +7063,41 @@ def _intento_id_del_form():
     return valor[:36]
 
 
+def _ultimo_intento_id_edicion(pedido):
+    """El `intento_id` de la ÚLTIMA edición aceptada de este pedido, leído
+    de `PedidoEvento` (tipo='editado'), NUNCA de `Pedido.intento_id`.
+
+    Esa columna es del ALTA (`nuevo_pedido`), con su propio índice único y
+    su propia semántica: "qué intento CREÓ este pedido". Reutilizarla acá
+    para "qué intento EDITÓ este pedido" fue el bug real de la ronda
+    anterior — las dos semánticas conviven en la misma columna, y la clave
+    del borrador (`borrador:<cliente>:<grupo>`) es la MISMA para alta y
+    edición. Secuencia que perdía un pedido en silencio: se pierde la
+    respuesta de una edición → su intento_id queda en el borrador (mismo
+    cliente+grupo) → el vendedor toma un pedido NUEVO de ese cliente+grupo
+    → `ofrecerBorrador` restaura ese intento_id → `nuevo_pedido` encuentra
+    el pedido EDITADO con `Pedido.query.filter_by(intento_id=…)`, no crea
+    nada, y devuelve esa confirmación como si fuera el pedido nuevo. El
+    pedido nuevo nunca existió, y el vendedor ve un cartel de éxito.
+
+    Una sola columna, una sola semántica: la de edición vive en la
+    auditoría, un mundo aparte que ningún alta puede leer por accidente.
+    """
+    evento = (PedidoEvento.query
+             .filter_by(pedido_id=pedido.id, tipo='editado')
+             .order_by(PedidoEvento.created_at.desc())
+             .first())
+    if not evento or not evento.meta:
+        return None
+    try:
+        meta = json.loads(evento.meta)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(meta, dict):
+        return None
+    return meta.get('intento_id')
+
+
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'crear')
@@ -7116,6 +7180,42 @@ def nuevo_pedido():
             intento_id=intento_id,
         )
         db.session.add(pedido)
+        # `flush()`, no `commit()`: necesita el id de `pedido` para las FK de
+        # abajo (detalle, prep, evento) pero SIN cerrar la transacción — un
+        # commit acá solo, seguido de un segundo commit para las líneas,
+        # dejaba una ventana real donde un pedido con intento_id podía
+        # existir con CERO líneas si el proceso moría en el medio (restart
+        # de dyno). Y `_validar_preparacion_pedido` deja pasar un pedido sin
+        # línea original: ese pedido vacío era FACTURABLE. Un reintento
+        # después de esa ventana lo hubiera devuelto como "éxito" — el
+        # cartel de confirmación sobre un pedido que nunca tuvo qué cobrar.
+        db.session.flush()
+
+        _log_pedido_evento(pedido, 'creado', 'Pedido creado')
+
+        # 2) Detalle + líneas de preparación de los importados, desde las
+        # MISMAS líneas normalizadas (nada se re-consulta de la DB).
+        for linea in lineas_form:
+            detalle = DetallePedido(
+                pedido_id=pedido.id,
+                producto_id=linea['producto_id'],
+                cajas=linea['cajas'],
+                cajas_pedidas=linea['cajas'],
+                precio_unitario=linea['precio_unitario'],
+                subtotal=linea['subtotal']
+            )
+            db.session.add(detalle)
+
+        productos_por_id = _productos_de_lineas(lineas_form)
+        _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id)
+
+        # 3) Total del pedido (solo líneas originales): la suma de lo que se
+        # acaba de escribir, sin ida extra a la DB.
+        if hasattr(pedido, 'total'):
+            pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
+
+        # UN solo commit para cabecera + evento + líneas + prep + total: o
+        # queda TODO, o no queda nada — nunca un pedido a medias.
         try:
             db.session.commit()
         except IntegrityError:
@@ -7134,30 +7234,6 @@ def nuevo_pedido():
                 return jsonify(_pedido_confirmacion_json_desde_pedido(existente))
             flash('Pedido creado con precios registrados.', 'success')
             return redirect(url_for('lista_pedidos'))
-        _log_pedido_evento(pedido, 'creado', 'Pedido creado', commit=True)
-
-        # 2) Detalle + líneas de preparación de los importados, desde las
-        # MISMAS líneas normalizadas (nada se re-consulta de la DB).
-        for linea in lineas_form:
-            detalle = DetallePedido(
-                pedido_id=pedido.id,
-                producto_id=linea['producto_id'],
-                cajas=linea['cajas'],
-                cajas_pedidas=linea['cajas'],
-                precio_unitario=linea['precio_unitario'],
-                subtotal=linea['subtotal']
-            )
-            db.session.add(detalle)
-
-        productos_por_id = _productos_de_lineas(lineas_form)
-        _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id)
-        db.session.commit()
-
-        # 3) Total del pedido (solo líneas originales): la suma de lo que se
-        # acaba de escribir, sin ida extra a la DB.
-        if hasattr(pedido, 'total'):
-            pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
-            db.session.commit()
 
         # El flash ya no dice siempre "con precios registrados": un pedido
         # con líneas SIN precio de lista (total en 0.00 en el peor caso) se
@@ -7265,14 +7341,17 @@ def editar_pedido(pedido_id):
                 'No se puede editar un pedido facturado', 409,
                 'detalles_pedido', pedido_id=pedido.id)
 
-        # Idempotencia (mismo mecanismo que `nuevo_pedido`): si ESTE
-        # intento_id ya quedó registrado en `pedido.intento_id` es que un
-        # intento anterior de esta MISMA edición ya se aplicó — la respuesta
-        # se perdió, pero el commit sí llegó. No se vuelve a aplicar (evita,
-        # como mínimo, una entrada de auditoría duplicada): se devuelve el
-        # estado actual, que es exactamente el que dejó ese intento.
+        # Idempotencia — leyendo `PedidoEvento`, NUNCA `Pedido.intento_id`.
+        # Esa columna es del ALTA, con su propio índice único: escribirla
+        # también acá (ronda anterior) era el bug real — la clave del
+        # borrador (`borrador:<cliente>:<grupo>`) es la MISMA para alta y
+        # edición, así que el intento_id de una edición con la respuesta
+        # perdida podía sobrevivir en el borrador y, al tomar un pedido
+        # NUEVO del mismo cliente+grupo, `nuevo_pedido` lo reconocía como
+        # "ya existe" y no creaba nada — el pedido nuevo se perdía en
+        # silencio, con cartel de éxito. Ver `_ultimo_intento_id_edicion`.
         intento_id = _intento_id_del_form()
-        if intento_id and pedido.intento_id == intento_id:
+        if intento_id and _ultimo_intento_id_edicion(pedido) == intento_id:
             if _pedido_form_quiere_json():
                 return jsonify(_pedido_confirmacion_json_desde_pedido(pedido))
             flash('Pedido actualizado.', 'success')
@@ -7364,41 +7443,34 @@ def editar_pedido(pedido_id):
 
         # Rastro en la auditoría, como el alta ('creado') y el borrado
         # ('eliminado'): sin esto una investigación de cobros no podía saber
-        # que el pedido fue editado ni por quién.
+        # que el pedido fue editado ni por quién. El intento_id de ESTA
+        # edición viaja en el meta — es la ÚNICA parte de la app que lo lee
+        # (`_ultimo_intento_id_edicion`, arriba), separado a propósito de
+        # `Pedido.intento_id` (que es del alta, con su propio índice único y
+        # su propia semántica — mezclar las dos fue el bug real que dejó la
+        # ronda anterior).
+        meta_evento = {}
+        if nuevo_cliente_id != cliente_anterior_id:
+            meta_evento['cliente_anterior'] = cliente_anterior_id
+            meta_evento['cliente_nuevo'] = nuevo_cliente_id
+        if intento_id:
+            meta_evento['intento_id'] = intento_id
         _log_pedido_evento(
             pedido, 'editado', 'Pedido editado',
-            meta=({'cliente_anterior': cliente_anterior_id,
-                   'cliente_nuevo': nuevo_cliente_id}
-                  if nuevo_cliente_id != cliente_anterior_id else None),
+            meta=meta_evento or None,
         )
-        # Marca ESTE intento como aplicado — si la respuesta se pierde y el
-        # mismo intento_id vuelve, el chequeo de arriba lo va a reconocer y
-        # no lo va a volver a aplicar. Pisa el intento_id anterior (el de la
-        # creación, o el de una edición previa) a propósito: solo el ÚLTIMO
-        # intento importa para detectar SU reintento.
-        if intento_id:
-            pedido.intento_id = intento_id
-        try:
-            db.session.commit()
-        except IntegrityError:
-            # Carrera real entre dos requests con el mismo intento_id (poco
-            # probable en una edición, pero el mismo argumento que
-            # `nuevo_pedido`): la otra ganó el índice único. El cambio de
-            # ESTA request en cajas/precios ya se perdió con el rollback —
-            # se devuelve el estado que sí quedó (el de la otra request, que
-            # llevaba los mismos datos si de verdad es un reintento) en vez
-            # de un 500.
-            db.session.rollback()
-            pedido_actual = db.session.get(Pedido, pedido.id)
-            if _pedido_form_quiere_json():
-                return jsonify(_pedido_confirmacion_json_desde_pedido(pedido_actual))
-            flash('Pedido actualizado.', 'success')
-            return redirect(url_for('lista_pedidos'))
 
         # Actualizar total del pedido (solo líneas originales)
         if hasattr(pedido, 'total'):
             pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
-            db.session.commit()
+
+        # UN solo commit — cabecera + líneas + prep + evento + total juntos.
+        # Ya no hay `Pedido.intento_id` en juego acá (ver arriba), así que
+        # no hay una carrera de índice único que atajar: un IntegrityError
+        # acá es un error de verdad, y se deja subir en vez de tragárselo y
+        # devolver "Pedido actualizado" sobre un cambio que en realidad se
+        # descartó con el rollback.
+        db.session.commit()
 
         if _pedido_form_quiere_json():
             sin_precio_alguna = any(l.get('sin_precio') for l in lineas_form)
