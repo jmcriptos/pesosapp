@@ -259,33 +259,126 @@ def test_ofrecer_borrador_se_llama_antes_de_pintar_el_arranque():
     assert idx_dom < idx_ofrecer < idx_chips < idx_tabla
 
 
-def test_borrar_borrador_al_enviar_con_exito():
-    """El envío real (el que pasa la validación de líneas y deja avanzar el
-    submit) tiene que limpiar el borrador — ANTES de deshabilitar el botón,
-    da igual el orden exacto, pero tiene que estar en la rama que de verdad
-    deja pasar el POST, no en la que lo corta."""
+def test_borrar_borrador_solo_cuando_el_servidor_confirma():
+    """Task 4 cambió el envío a `fetch`, así que ya no hay que borrar el
+    borrador "a ciegas" al dejar pasar la validación del cliente (que es lo
+    que exigía esta prueba hasta la Task 3, documentado como límite conocido
+    en el informe de esa tarea): ahora se puede saber si el servidor aceptó
+    el pedido de verdad, y borrar recién ahí. Si el fetch falla (sin señal)
+    o el servidor lo rechaza (precio inválido, etc.), el borrador tiene que
+    sobrevivir para que el reintento no parta de cero."""
     texto = _js()
-    m = re.search(
+
+    m_submit = re.search(
         r"formPedido\.addEventListener\('submit', function \(e\) \{(.*?)\n    \}\);",
         texto, re.S,
     )
-    assert m, 'no se encontró el listener de submit'
-    cuerpo = m.group(1)
-
-    idx_enviando = cuerpo.index('enviando = true;')
-    idx_borrar = cuerpo.index('borrarBorrador();')
-    assert idx_borrar > idx_enviando, (
-        'borrarBorrador() se llama antes de confirmar que el envío pasa '
-        'las validaciones (enviando = true)'
+    assert m_submit, 'no se encontró el listener de submit'
+    cuerpo_submit = m_submit.group(1)
+    assert 'borrarBorrador' not in cuerpo_submit, (
+        'el submit vuelve a borrar el borrador antes de saber si el '
+        'servidor aceptó el pedido — el mismo riesgo que la Task 4 tenía '
+        'que cerrar'
     )
 
-    # Las dos ramas que CORTAN el envío (doble toque, sin líneas) no pueden
-    # borrar el borrador: ahí el pedido no se mandó.
-    ramas_de_corte = re.findall(r'if \([^)]*\) \{\s*e\.preventDefault\(\);.*?\n        \}', cuerpo, re.S)
-    for rama in ramas_de_corte:
-        assert 'borrarBorrador' not in rama, (
-            f'una rama que corta el envío llama a borrarBorrador(): {rama!r}'
-        )
+    cuerpo_confirmar = _cuerpo_funcion(texto, 'confirmarEnvio')
+    assert 'borrarBorrador();' in cuerpo_confirmar, (
+        'confirmarEnvio (solo se llama tras un fetch exitoso, ok:true del '
+        'servidor) ya no borra el borrador'
+    )
+
+    # Fallo de red o rechazo del servidor: el borrador tiene que sobrevivir
+    # para el reintento.
+    cuerpo_error = _cuerpo_funcion(texto, 'mostrarErrorEnvio')
+    assert 'borrarBorrador' not in cuerpo_error, (
+        'mostrarErrorEnvio (fetch fallido o el servidor rechazó el pedido) '
+        'borra el borrador — un reintento partiría de cero'
+    )
+
+
+def test_submit_siempre_usa_fetch_nunca_el_post_clasico():
+    """Un corte de señal a mitad de un POST clásico deja la página de error
+    del navegador y el pedido se pierde — la pantalla vive en la calle,
+    donde la señal falla (comentario de `pedido_cliente.html`). El submit
+    tiene que prevenir SIEMPRE la navegación por defecto y pasar por
+    `fetch`, nunca dejar que el form navegue solo."""
+    texto = _js()
+    m_submit = re.search(
+        r"formPedido\.addEventListener\('submit', function \(e\) \{(.*?)\n    \}\);",
+        texto, re.S,
+    )
+    assert m_submit, 'no se encontró el listener de submit'
+    cuerpo_submit = m_submit.group(1)
+
+    # `e.preventDefault()` tiene que correr ANTES que cualquier `if`
+    # (incondicional): así no depende de ninguna validación, se corta la
+    # navegación del navegador pase lo que pase — a diferencia del código
+    # viejo, donde solo se prevenía dentro de las ramas que cortaban.
+    idx_prevent = cuerpo_submit.index('e.preventDefault();')
+    idx_if = cuerpo_submit.index('if (')
+    assert idx_prevent < idx_if, (
+        'e.preventDefault() no corre antes del primer if — la navegación '
+        'por defecto queda condicionada a alguna validación, no es '
+        'incondicional'
+    )
+    assert 'enviarPedido()' in cuerpo_submit, (
+        'el submit no llama a enviarPedido() — el fetch nunca se dispara'
+    )
+
+    cuerpo_enviar = _cuerpo_funcion(texto, 'enviarPedido')
+    assert re.search(r'await\s+fetch\(', cuerpo_enviar), (
+        'enviarPedido no usa fetch — sigue habiendo un camino sin AJAX'
+    )
+    assert "'X-Requested-With': 'XMLHttpRequest'" in cuerpo_enviar, (
+        'el fetch no manda X-Requested-With: el servidor no puede '
+        'distinguirlo de un POST clásico y seguiría redirigiendo en vez de '
+        'devolver JSON'
+    )
+
+
+def test_fallo_de_red_o_rechazo_del_servidor_muestran_error_en_el_shell():
+    """Ni la excepción del `fetch` (sin señal) ni un `resp.ok` falso o un
+    `ok:false` del servidor pueden dejar la pantalla en silencio o navegar
+    afuera: los dos tienen que caer en `mostrarErrorEnvio`, que reactiva el
+    botón (con la bandera `enviando` en `false` — el cabo suelto de la
+    Task 3, botón trabado en "Enviando…" si el envío fallaba sin navegar) y
+    muestra el aviso DENTRO del shell."""
+    texto = _js()
+    cuerpo_enviar = _cuerpo_funcion(texto, 'enviarPedido')
+
+    m_catch = re.search(r'catch\s*\([^)]*\)\s*\{([\s\S]*?)\n\s{8}\}', cuerpo_enviar)
+    assert m_catch, 'no se encontró el catch del fetch en enviarPedido'
+    assert 'mostrarErrorEnvio(' in m_catch.group(1), (
+        'el catch del fetch (fallo de red) no llama a mostrarErrorEnvio'
+    )
+
+    assert re.search(r'!resp\.ok\s*\|\|[^)]*datos\.ok\s*!==\s*true', cuerpo_enviar), (
+        'enviarPedido no distingue un rechazo del servidor (resp.ok falso u '
+        'ok:false en el JSON) — un pedido rechazado se trataría como éxito'
+    )
+
+    cuerpo_error = _cuerpo_funcion(texto, 'mostrarErrorEnvio')
+    assert re.search(r'enviando\s*=\s*false', cuerpo_error), (
+        'mostrarErrorEnvio no baja la bandera enviando — el botón queda '
+        'trabado en "Enviando…" (el cabo suelto que dejó la Task 3)'
+    )
+    assert 'btn.disabled = false' in cuerpo_error
+    assert "$('pn-envio-error')" in cuerpo_error or 'pn-envio-error' in cuerpo_error, (
+        'mostrarErrorEnvio no toca el banner de error dentro del shell'
+    )
+
+
+def test_confirmacion_apaga_lineas_activas_para_no_avisar_de_mas():
+    """Tras `confirmarEnvio` el pedido ya está en el servidor: si
+    `productosAgregados` siguiera con líneas activas, `beforeunload`
+    seguiría preguntando "¿seguro que quieres salir?" sobre un pedido que
+    ya se mandó."""
+    texto = _js()
+    cuerpo = _cuerpo_funcion(texto, 'confirmarEnvio')
+    assert re.search(r'p\.activa\s*=\s*false', cuerpo), (
+        'confirmarEnvio no desactiva las líneas — beforeunload seguiría '
+        'avisando sobre un pedido ya enviado'
+    )
 
 
 def test_notas_dispara_guardado_de_borrador():

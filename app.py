@@ -6498,6 +6498,14 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
             prod_id,
             form_data.get(f'productos[{idx}][precio]'),
         )
+        # Segunda consulta, misma jerarquía (`_precio_vigente`, único dueño): no
+        # es re-implementar la precedencia, es preguntarle si encontró algo.
+        # El resolutor de arriba SIEMPRE devuelve un Decimal (0 de último
+        # recurso), así que no hay forma de distinguir desde su resultado un
+        # precio real de 0 de "no había precio en ninguna lista" — y esa
+        # distinción es la que necesita el flash/la confirmación para no
+        # mentir sobre un pedido con líneas sin precio de lista.
+        sin_precio = _precio_vigente(cliente_id, prod_id, 'base') is None
 
         if prod_id in lineas_por_producto:
             lineas_por_producto[prod_id]['cajas'] += cajas
@@ -6517,6 +6525,7 @@ def _extraer_lineas_pedido_form(form_data, cliente_id):
                 'cajas': cajas,
                 'precio_unitario': precio_unitario,
                 'subtotal': precio_unitario * _cajas_a_decimal(cajas),
+                'sin_precio': sin_precio,
             }
         idx += 1
 
@@ -6846,6 +6855,69 @@ def _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id):
         ))
 
 
+def _pedido_form_quiere_json():
+    """True si el POST vino del `fetch` de `pedido_form.html`, no de un
+    envío clásico del navegador.
+
+    La ruta la usan dos caminos (`nuevo_pedido` y `editar_pedido`, el mismo
+    template/JS) y hay tests que ejercen el POST normal con
+    `client.post(...)` sin este header — sin el gate, cualquiera de los dos
+    perdería su comportamiento. Mismo header y mismo valor que ya usa el
+    resto de la app (`clientes.html`, `productos.js`) para AJAX.
+    """
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _pedido_form_error_json_o_redirect(mensaje, status, endpoint, **redirect_kwargs):
+    """Un branch de error del form: JSON al fetch, flash+redirect al POST clásico.
+
+    Único punto de bifurcación para no repetir el `if` en cada validación de
+    `nuevo_pedido`/`editar_pedido` — con seis branches de error entre las dos
+    rutas, copiar el `if` a mano es donde se cuela el que se olvida.
+    """
+    if _pedido_form_quiere_json():
+        return jsonify({'ok': False, 'error': mensaje}), status
+    flash(mensaje, 'error')
+    return redirect(url_for(endpoint, **redirect_kwargs))
+
+
+def _pedido_confirmacion_json(pedido, cliente, lineas_form, productos_por_id, sin_precio_alguna):
+    """Lo que necesita la confirmación en el shell (`pedido_form.html`):
+    número de pedido, cliente, entrega, líneas y total — con el PRECIO que
+    resolvió el servidor (jerarquía), no el que traía el form. Mismo
+    argumento que `_resolver_precio_unitario_pedido`: lo que se le muestra al
+    vendedor tiene que ser lo que se le va a cobrar, no un eco de lo que él
+    mismo tecleó.
+
+    No arma el desglose Subtotal/OB/Total inclusivo — esa cuenta
+    (`_ob_de_codigo`, `es_exportacion`) ya vive una sola vez en el JS de la
+    revisión (paso 04) y la confirmación la reutiliza tal cual, no la
+    duplica acá.
+    """
+    lineas = []
+    for l in lineas_form:
+        producto = productos_por_id.get(l['producto_id'])
+        lineas.append({
+            'producto_id': l['producto_id'],
+            'nombre': producto.nombre if producto else f'Producto {l["producto_id"]}',
+            'cajas': float(l['cajas']),
+            'precio': float(l['precio_unitario']),
+            'subtotal': float(l['subtotal']),
+            'sin_precio': bool(l.get('sin_precio')),
+        })
+    return {
+        'ok': True,
+        'pedido_id': pedido.id,
+        'cliente_nombre': cliente.nombre,
+        'moneda': cliente.moneda or 'XCG',
+        'fecha_entrega': pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else None,
+        'notas': pedido.notas or '',
+        'lineas': lineas,
+        'subtotal': float(sum((l['subtotal'] for l in lineas_form), Decimal('0'))),
+        'sin_precio': sin_precio_alguna,
+    }
+
+
 @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'crear')
@@ -6868,15 +6940,16 @@ def nuevo_pedido():
         cliente_id = request.form.get('cliente_id', type=int)
         cliente_post = db.session.get(Cliente, cliente_id) if cliente_id else None
         if cliente_post is None:
-            flash('Cliente no válido', 'error')
-            return redirect(url_for('nuevo_pedido'))
+            return _pedido_form_error_json_o_redirect(
+                'Cliente no válido', 400, 'nuevo_pedido')
 
         # VERIFICAR QUE EL VENDEDOR PUEDE CREAR PEDIDOS PARA ESTE CLIENTE
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             clientes_permitidos_ids = [c.id for c in current_user.obtener_clientes_visibles()]
             if cliente_id not in clientes_permitidos_ids:
-                flash('No tienes permisos para crear pedidos para este cliente', 'error')
-                return redirect(url_for('nuevo_pedido'))
+                return _pedido_form_error_json_o_redirect(
+                    'No tienes permisos para crear pedidos para este cliente',
+                    403, 'nuevo_pedido')
 
         notas = request.form.get('notas')
         # El rate sale de la moneda del cliente, no de un hidden del form (un
@@ -6894,13 +6967,12 @@ def nuevo_pedido():
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, cliente_id)
         except _PedidoFormError as e:
-            flash(str(e), 'error')
-            return redirect(url_for('nuevo_pedido', cliente=cliente_id,
-                                    grupo=grupo_form))
+            return _pedido_form_error_json_o_redirect(
+                str(e), 400, 'nuevo_pedido', cliente=cliente_id, grupo=grupo_form)
         if not lineas_form:
-            flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('nuevo_pedido', cliente=cliente_id,
-                                    grupo=grupo_form))
+            return _pedido_form_error_json_o_redirect(
+                'Agrega al menos un producto al pedido', 400,
+                'nuevo_pedido', cliente=cliente_id, grupo=grupo_form)
 
         pedido = Pedido(
             cliente_id=cliente_id,
@@ -6925,7 +6997,8 @@ def nuevo_pedido():
             )
             db.session.add(detalle)
 
-        _sincronizar_lineas_prep(pedido, lineas_form, _productos_de_lineas(lineas_form))
+        productos_por_id = _productos_de_lineas(lineas_form)
+        _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id)
         db.session.commit()
 
         # 3) Total del pedido (solo líneas originales): la suma de lo que se
@@ -6934,7 +7007,22 @@ def nuevo_pedido():
             pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
             db.session.commit()
 
-        flash('Pedido creado con precios registrados.', 'success')
+        # El flash ya no dice siempre "con precios registrados": un pedido
+        # con líneas SIN precio de lista (total en 0.00 en el peor caso) se
+        # guarda igual —el vendedor lo necesita en la calle— pero decirlo iba
+        # a mentir sobre lo que en realidad quedó guardado.
+        sin_precio_alguna = any(l.get('sin_precio') for l in lineas_form)
+
+        if _pedido_form_quiere_json():
+            return jsonify(_pedido_confirmacion_json(
+                pedido, cliente_post, lineas_form, productos_por_id, sin_precio_alguna))
+
+        if sin_precio_alguna:
+            flash(
+                'Pedido creado. Ojo: tiene líneas sin precio de lista — '
+                'se cargan después.', 'success')
+        else:
+            flash('Pedido creado con precios registrados.', 'success')
         return redirect(url_for('lista_pedidos'))
 
     # ── GET: dos pasos ────────────────────────────────────────────
@@ -7015,24 +7103,26 @@ def editar_pedido(pedido_id):
 
     if request.method == 'POST':
         if isinstance(current_user, Vendedor) and not current_user.puede_editar_pedido(pedido):
-            flash('No tienes permisos para editar este pedido', 'error')
-            return redirect(url_for('lista_pedidos'))
+            return _pedido_form_error_json_o_redirect(
+                'No tienes permisos para editar este pedido', 403, 'lista_pedidos')
 
         # Pedidos facturados son inmutables — un cambio aquí divergiría
         # la DB local del invoice ya enviado a QuickBooks.
         if pedido.estado == 'facturado':
-            flash('No se puede editar un pedido facturado', 'error')
-            return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
+            return _pedido_form_error_json_o_redirect(
+                'No se puede editar un pedido facturado', 409,
+                'detalles_pedido', pedido_id=pedido.id)
 
         nuevo_cliente_id = request.form.get('cliente_id', type=int)
         cliente_destino = db.session.get(Cliente, nuevo_cliente_id) if nuevo_cliente_id else None
         if cliente_destino is None:
-            flash('Cliente no válido', 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+            return _pedido_form_error_json_o_redirect(
+                'Cliente no válido', 400, 'editar_pedido', pedido_id=pedido.id)
         if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
             if not current_user.puede_crear_pedido_para_cliente(nuevo_cliente_id):
-                flash('No tienes permisos para reasignar este pedido a ese cliente', 'error')
-                return redirect(url_for('editar_pedido', pedido_id=pedido.id))
+                return _pedido_form_error_json_o_redirect(
+                    'No tienes permisos para reasignar este pedido a ese cliente',
+                    403, 'editar_pedido', pedido_id=pedido.id)
 
         # El error vuelve al form del MISMO cliente que se estaba guardando
         # (`?cliente=`): sin él, un cambio de cliente en curso se revertía en
@@ -7041,13 +7131,13 @@ def editar_pedido(pedido_id):
         try:
             lineas_form = _extraer_lineas_pedido_form(request.form, nuevo_cliente_id)
         except _PedidoFormError as e:
-            flash(str(e), 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id,
-                                    cliente=nuevo_cliente_id))
+            return _pedido_form_error_json_o_redirect(
+                str(e), 400, 'editar_pedido', pedido_id=pedido.id,
+                cliente=nuevo_cliente_id)
         if not lineas_form:
-            flash('Agrega al menos un producto al pedido', 'error')
-            return redirect(url_for('editar_pedido', pedido_id=pedido.id,
-                                    cliente=nuevo_cliente_id))
+            return _pedido_form_error_json_o_redirect(
+                'Agrega al menos un producto al pedido', 400,
+                'editar_pedido', pedido_id=pedido.id, cliente=nuevo_cliente_id)
 
         lineas_por_producto = {
             linea['producto_id']: linea for linea in lineas_form
@@ -7104,7 +7194,8 @@ def editar_pedido(pedido_id):
         # Líneas de preparación: borrar/seguir/crear según lo pedido — la
         # misma pieza que usa el alta (una prep no capturada SIGUE a su línea;
         # una capturada por almacén conserva su cantidad).
-        _sincronizar_lineas_prep(pedido, lineas_form, _productos_de_lineas(lineas_form))
+        productos_por_id = _productos_de_lineas(lineas_form)
+        _sincronizar_lineas_prep(pedido, lineas_form, productos_por_id)
 
         # Rastro en la auditoría, como el alta ('creado') y el borrado
         # ('eliminado'): sin esto una investigación de cobros no podía saber
@@ -7121,6 +7212,11 @@ def editar_pedido(pedido_id):
         if hasattr(pedido, 'total'):
             pedido.total = sum((l['subtotal'] for l in lineas_form), Decimal('0'))
             db.session.commit()
+
+        if _pedido_form_quiere_json():
+            sin_precio_alguna = any(l.get('sin_precio') for l in lineas_form)
+            return jsonify(_pedido_confirmacion_json(
+                pedido, cliente_destino, lineas_form, productos_por_id, sin_precio_alguna))
 
         flash('Pedido actualizado.', 'success')
         return redirect(url_for('lista_pedidos'))

@@ -126,6 +126,19 @@
       <h1 class="pn-titulo">Revisa y envía</h1>
     </div>
 
+    {# Cabecera de la confirmación: reemplaza a la de arriba una vez que el
+       SERVIDOR aceptó el pedido (fetch exitoso), pero el CUERPO
+       (`pn-cuerpo-revision`, con sus líneas y totales) sigue siendo el mismo
+       — no hay una pantalla nueva a la que "cambiar de mundo visual", solo
+       se apaga la edición y se prende el recibo. Ver `confirmarEnvio` más
+       abajo. #}
+    <div class="pn-head" id="pn-head-confirmacion" hidden>
+      <div class="pn-head-row">
+        <span class="pn-paso">Listo</span>
+      </div>
+      <h1 class="pn-titulo">Pedido <span id="pn-conf-numero"></span> enviado</h1>
+    </div>
+
     <div class="pn-cuerpo" id="pn-cuerpo-revision" hidden>
       <div class="pn-revision-cliente">
         <div class="pn-revision-nombre">{{ cliente.nombre }}</div>
@@ -163,9 +176,26 @@
     </div>
 
     <div class="pn-footer" id="pn-footer-revision" hidden>
+      {# El envío es `fetch`, no un POST clásico: un corte de señal (la
+         pantalla vive en la calle, ver `pedido_cliente.html`) ya no muestra
+         la página de error del navegador — se queda ACÁ, dentro del shell,
+         con el botón convertido en reintento. #}
+      <div class="pn-aviso" id="pn-envio-error" hidden>
+        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+        <div class="pn-aviso-texto" id="pn-envio-error-texto"></div>
+      </div>
       <button type="submit" class="pn-enviar" id="pn-enviar">
         {% if pedido %}Actualizar pedido{% else %}Enviar pedido{% endif %}
       </button>
+    </div>
+
+    {# Confirmación: el servidor ya guardó el pedido. Dos salidas, ninguna
+       vuelve al paso 03/04 — el pedido enviado no se edita desde acá. #}
+    <div class="pn-footer" id="pn-footer-confirmacion" hidden>
+      <a class="pn-enviar pn-conf-otro" id="pn-conf-otro"
+         href="{{ url_for('nuevo_pedido', cliente=cliente.id) }}">Tomar otro pedido de {{ cliente.nombre }}</a>
+      <a class="pn-btn-capsula pn-conf-lista" id="pn-conf-lista"
+         href="{{ url_for('lista_pedidos') }}">Volver a la lista</a>
     </div>
   </form>
 </div>
@@ -761,7 +791,12 @@ function pintarTotales(subtotal) {
     $('pn-revision-total').textContent = formatearMonto(subtotal + ob);
 }
 
-function construirRevision() {
+/* `enviado`: false al construir la revisión (paso 04, todavía se puede
+   corregir) y true al repintar la confirmación (`confirmarEnvio`, el pedido
+   ya está en el servidor) — cambia solo el tiempo verbal del aviso de
+   sin-precio, que en la revisión invita a enviar igual y en la confirmación
+   ya no tiene sentido invitar a nada. */
+function construirRevision(enviado) {
     const activas = productosAgregados.filter(p => p.activa);
     const cont = $('pn-revision-lineas');
     cont.innerHTML = '';
@@ -792,9 +827,12 @@ function construirRevision() {
     aviso.hidden = faltantes.length === 0;
     if (faltantes.length) {
         const nombres = faltantes.map(p => p.nombre).join(', ');
+        const cola = enviado
+            ? 'El precio se carga después; revísalo antes de facturar.'
+            : 'Puedes enviar el pedido igual; el precio se carga después.';
         $('pn-revision-aviso-texto').textContent =
             `${faltantes.length === 1 ? 'Este producto no tiene' : 'Estos productos no tienen'} ` +
-            `precio de lista: ${nombres}. Puedes enviar el pedido igual; el precio se carga después.`;
+            `precio de lista: ${nombres}. ${cola}`;
     }
 
     const notas = $('notas').value.trim();
@@ -1055,7 +1093,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // `entrarARevision`/`salirDeRevision` (por ejemplo, salir directo desde
     // el paso 03): si hay líneas activas, el navegador pregunta antes de
     // tirarlas. No aplica mientras se está enviando — avisar justo cuando
-    // el propio envío es la causa de la navegación sería absurdo.
+    // el propio envío es la causa de la navegación sería absurdo. Tras un
+    // envío EXITOSO, `confirmarEnvio` vacía `productosAgregados`: ya no hay
+    // nada que proteger y este listener deja de disparar solo, sin tocarlo.
     window.addEventListener('beforeunload', function (e) {
         if (enviando) return;
         if (!productosAgregados.some(p => p.activa)) return;
@@ -1063,28 +1103,110 @@ document.addEventListener('DOMContentLoaded', () => {
         e.returnValue = '';
     });
 
+    function ocultarErrorEnvio() {
+        const banner = $('pn-envio-error');
+        if (banner) banner.hidden = true;
+    }
+
+    // Fallo de red o rechazo del servidor: los dos se muestran igual, DENTRO
+    // del shell — nunca la página de error del navegador (POST clásico viejo)
+    // — y con el mismo botón convertido en reintento. `enviando` vuelve a
+    // `false` acá: es el cabo suelto de la Task 3 (bandera trabada en `true`
+    // si el envío falla sin navegar, que dejaba `beforeunload` mudo y el
+    // botón en «Enviando…» hasta recargar) — con `fetch` se sabe cuándo
+    // falló, así que se puede bajar de una.
+    function mostrarErrorEnvio(mensaje) {
+        enviando = false;
+        const btn = $('pn-enviar');
+        btn.disabled = false;
+        btn.textContent = 'Reintentar';
+        const banner = $('pn-envio-error');
+        if (banner) banner.hidden = false;
+        const texto = $('pn-envio-error-texto');
+        if (texto) texto.textContent = mensaje;
+    }
+
+    // El servidor confirmó: recién ACÁ se borra el borrador (antes se hacía
+    // al dejar pasar el POST clásico, "a ciegas" — ver Task 3). Si el fetch
+    // falla o el servidor rechaza, `mostrarErrorEnvio` no lo toca: el
+    // borrador tiene que sobrevivir a un reintento.
+    function confirmarEnvio(datos) {
+        borrarBorrador();
+
+        // Se repinta con el precio que RESOLVIÓ el servidor (jerarquía), no
+        // con lo que traía `productosAgregados` — mismo argumento que
+        // `_resolver_precio_unitario_pedido` en el servidor: lo que se le
+        // muestra al vendedor es lo que se le va a cobrar. `null` cuando el
+        // servidor dice `sin_precio`, para que `construirRevision` siga
+        // pintando "SIN PRECIO" y no un 0.00 que se lee como gratis.
+        (datos.lineas || []).forEach(function (l) {
+            const linea = productosAgregados.find(
+                p => p.activa && p.id === l.producto_id);
+            if (linea) linea.precio = l.sin_precio ? null : l.precio;
+        });
+        // Reutiliza el cuerpo de la revisión (líneas, Subtotal/OB/Total,
+        // aviso de sin-precio) tal cual: la confirmación no es una pantalla
+        // nueva, solo apaga la cabecera/pie de "revisar y enviar" y prende
+        // los de "pedido enviado" — mismo `#pn-cuerpo-revision`, ver el HTML.
+        construirRevision(true);
+
+        $('pn-conf-numero').textContent = 'PED-' + datos.pedido_id;
+        $('pn-head-revision').hidden = true;
+        $('pn-footer-revision').hidden = true;
+        $('pn-head-confirmacion').hidden = false;
+        $('pn-footer-confirmacion').hidden = false;
+
+        // El pedido ya quedó en el servidor: no hay nada más que proteger.
+        // Sin esto `beforeunload` seguiría preguntando "¿seguro que quieres
+        // salir?" sobre un pedido que ya se mandó.
+        productosAgregados.forEach(p => { p.activa = false; });
+    }
+
+    async function enviarPedido() {
+        let resp;
+        try {
+            resp = await fetch(location.href, {
+                method: 'POST',
+                body: new FormData(formPedido),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+        } catch (_) {
+            // La pantalla vive en la calle, donde la señal falla (ver
+            // `pedido_cliente.html`): esto es justo ESE corte. El borrador ya
+            // tiene todo lo tecleado — no se pierde nada, solo hay que
+            // reintentar cuando vuelva la cobertura.
+            mostrarErrorEnvio('Sin señal. El pedido quedó guardado en este teléfono; vuelve a intentar cuando tengas cobertura.');
+            return;
+        }
+
+        let datos = null;
+        try { datos = await resp.json(); } catch (_) { /* respuesta no-JSON: se trata como fallo abajo */ }
+
+        if (!resp.ok || !datos || datos.ok !== true) {
+            mostrarErrorEnvio((datos && datos.error) || 'El servidor rechazó el pedido. Vuelve a intentar.');
+            return;
+        }
+
+        confirmarEnvio(datos);
+    }
+
     formPedido.addEventListener('submit', function (e) {
-        if (enviando) { e.preventDefault(); return; }
+        // Siempre `fetch`, nunca la navegación por defecto: un corte de red a
+        // mitad de un POST clásico deja la página de error del navegador y
+        // se pierde el pedido entero.
+        e.preventDefault();
+        if (enviando) return;
         if (!productosAgregados.some(p => p.activa)) {
-            e.preventDefault();
             mostrarPaso('pedido');
             decirMotivo('Agrega al menos un producto al pedido');
             return;
         }
         enviando = true;
-        // Un borrador que sobrevive al envío hace que el vendedor reabra
-        // (con "¿seguir donde lo dejaste?") un pedido que ya mandó. Este es
-        // un POST clásico con redirect —no hay AJAX que confirme el éxito
-        // real del servidor— así que se limpia acá, al dejar pasar el
-        // envío: es el mismo momento en que la pantalla ya no vuelve atrás
-        // sola. Si el servidor lo rechaza (precio inválido, etc.) y
-        // redirige de vuelta a este mismo cliente+grupo, esa recarga arranca
-        // sin borrador que ofrecer — mismo comportamiento que ya tenía el
-        // form antes de este arreglo, no es una regresión nueva.
-        borrarBorrador();
+        ocultarErrorEnvio();
         const btn = $('pn-enviar');
         btn.disabled = true;
         btn.textContent = 'Enviando…';
+        enviarPedido();
     });
 
     // Volver con el botón atrás puede restaurar la página desde el bfcache sin
@@ -1092,6 +1214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('pageshow', function (event) {
         if (!event.persisted) return;
         enviando = false;
+        ocultarErrorEnvio();
         const btn = $('pn-enviar');
         btn.disabled = false;
         btn.textContent = esEdicion ? 'Actualizar pedido' : 'Enviar pedido';
