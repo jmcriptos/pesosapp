@@ -31,13 +31,39 @@
    La pista es un paso claro del MISMO tono del relleno, así el estado se lee a
    lo largo de toda la barra y no solo en la parte llena.
    ══════════════════════════════════════════════════════════════ #}
-{% macro medidor(pct, state, objetivo=None, etiqueta='') %}
+{% macro medidor(pct, state, objetivo=None, etiqueta='', maximo=None) %}
   {% set clamped = pct if pct <= 100 else 100 %}
   {% set clamped = clamped if clamped >= 0 else 0 %}
-  <div class="kpi-meter med-{{ state }}" role="img"
-       aria-label="{{ etiqueta }}{{ '%.0f'|format(clamped) }}%{% if objetivo %}, objetivo {{ objetivo }}%{% endif %}">
-    <div class="kpi-meter-fill" style="transform:scaleX({{ '%.4f'|format(clamped / 100) }})"></div>
-    {% if objetivo %}<span class="kpi-meter-tick" style="left:{{ objetivo }}%"></span>{% endif %}
+  <div class="kpi-medidor">
+    <div class="kpi-meter med-{{ state }}" role="img"
+         aria-label="{{ etiqueta }}{{ '%.0f'|format(clamped) }}%{% if objetivo %}, objetivo {{ objetivo }}%{% endif %}">
+      <div class="kpi-meter-fill" style="transform:scaleX({{ '%.4f'|format(clamped / 100) }})"></div>
+      {% if objetivo %}<span class="kpi-meter-tick" style="left:{{ objetivo }}%"></span>{% endif %}
+    </div>
+    {# La escala. Antes la franja tenía una marca vertical sin explicación y la
+       palabra "Objetivo 95%" vivía dos líneas más abajo, en el pie de la
+       tarjeta: el lector tenía que atar por su cuenta la marca con el número.
+       Ahora la etiqueta va DEBAJO de su propia marca.
+
+       Se rotula el objetivo o el máximo, nunca los dos: con el objetivo en 95
+       las dos etiquetas se pisarían dentro de los 130px de barra que quedan en
+       un teléfono. Y cuando no hay objetivo, el máximo ES la meta, así que
+       marcarlo aparte sería redundante. #}
+    <div class="kpi-escala">
+      <span class="kpi-escala-min">0</span>
+      {% if objetivo %}
+      {# Con el objetivo en la mitad derecha la etiqueta se ancla por su borde
+         derecho y termina en la marca; centrada, medio texto caería fuera de
+         la tarjeta. #}
+      {% if objetivo >= 60 %}
+      <span class="kpi-escala-obj al-final" style="right:{{ 100 - objetivo }}%">{{ objetivo }}% objetivo</span>
+      {% else %}
+      <span class="kpi-escala-obj" style="left:{{ objetivo }}%">{{ objetivo }}% objetivo</span>
+      {% endif %}
+      {% elif maximo %}
+      <span class="kpi-escala-max">{{ maximo }}</span>
+      {% endif %}
+    </div>
   </div>
 {% endmacro %}
 
@@ -239,7 +265,7 @@
       <div class="kpi" data-kpi-state="{{ meta_state }}">
         <div class="kpi-label">Ventas del Mes</div>
         <div class="kpi-value">{{ '{:,.0f}'.format(ventas_mes_v) }}<small>XCG</small></div>
-        {{ medidor(porcentaje_meta_v, meta_state, etiqueta='Ventas del mes: ') }}
+        {{ medidor(porcentaje_meta_v, meta_state, etiqueta='Ventas del mes: ', maximo='la meta') }}
         <div class="kpi-sub">{{ '%.0f'|format(porcentaje_meta_v) }}% de la meta · {{ pedidos_mes_v }} pedido{{ 's' if pedidos_mes_v != 1 }}</div>
         <div class="kpi-pie">{{ chip_estado(meta_state) }}<span class="kpi-ref">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} XCG</span></div>
       </div>
@@ -252,7 +278,7 @@
         {% else %}
         <div class="kpi-value kpi-value-vacio">Sin datos</div>
         {% endif %}
-        {{ medidor(porcentaje_proyeccion_v, proy_state, etiqueta='Proyección: ') }}
+        {{ medidor(porcentaje_proyeccion_v, proy_state, etiqueta='Proyección: ', maximo='la meta') }}
         {% if proyeccion_ventas_v > 0 %}
         <div class="kpi-sub">{{ '%.0f'|format(porcentaje_proyeccion_v) }}% de la meta al cierre</div>
         {% else %}
@@ -493,7 +519,7 @@
         <div class="kpi-value">{{ '%.1f'|format(otd_rate_v) }}%</div>
         {{ medidor(otd_rate_v, otd_state, objetivo=95, etiqueta='Entregas a tiempo: ') }}
         <div class="kpi-sub">Facturadas en 2 días o menos</div>
-        <div class="kpi-pie">{{ chip_estado(otd_state) }}<span class="kpi-ref">Objetivo 95%</span></div>
+        <div class="kpi-pie">{{ chip_estado(otd_state) }}</div>
       </div>
 
       <div class="kpi" data-kpi-state="{{ ofr_state }}">
@@ -501,7 +527,7 @@
         <div class="kpi-value">{{ '%.1f'|format(order_completion_rate_v) }}%</div>
         {{ medidor(order_completion_rate_v, ofr_state, objetivo=95, etiqueta='Cajas entregadas: ') }}
         <div class="kpi-sub">De cada 100 cajas pedidas</div>
-        <div class="kpi-pie">{{ chip_estado(ofr_state) }}<span class="kpi-ref">Objetivo 95%</span></div>
+        <div class="kpi-pie">{{ chip_estado(ofr_state) }}</div>
       </div>
     </div>
   </section>

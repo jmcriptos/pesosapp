@@ -383,11 +383,25 @@ parte del diseño y usa `--ease-spring`; no es un adorno que se pueda quitar.
 - **Topbar:** sobre Negro de Bisel, con la marca a la izquierda y las acciones a la derecha.
 
 ### Medidor (componente propio)
-Una franja de 6px que muestra una razón contra su límite. La pista es un paso claro del
-**mismo** tono que el relleno, así el estado se lee a lo largo de toda la barra y no solo
-en la parte llena. Cuando existe un objetivo por debajo del 100% lleva una marca vertical
-en esa posición: es lo que convierte el color en algo que se puede aprender. Reemplazó a
-los anillos de progreso, que competían por el ancho con la cifra.
+Una franja de **10px** que muestra una razón contra su límite. La pista es un paso claro
+del **mismo** tono que el relleno, así el estado se lee a lo largo de toda la barra y no
+solo en la parte llena. Cuando existe un objetivo por debajo del 100% lleva una marca
+vertical en esa posición: es lo que convierte el color en algo que se puede aprender.
+
+Debajo va **la escala**, en 11px: el `0` a la izquierda y —o bien la etiqueta del
+objetivo bajo su propia marca, o bien el máximo a la derecha— nunca las dos. Con el
+objetivo en 95 las dos etiquetas se pisarían dentro de los ~130px de barra que quedan en
+un teléfono, y cuando no hay objetivo el máximo *es* la meta, así que marcarlo aparte
+sería redundante. La etiqueta del objetivo se centra bajo su marca, salvo que el objetivo
+caiga en la mitad derecha: ahí se ancla por su borde derecho y termina **en** la marca.
+
+**Por qué no es un indicador radial.** El medidor reemplazó a los anillos de progreso,
+que competían por el ancho con la cifra —el «100.0%» medía 51,9px dentro de un anillo de
+44px y desbordaba 7,9px sobre el trazo de color— y no tenían dónde poner el umbral. La
+misma objeción vale para un velocímetro con aguja: una razón contra un límite se dibuja
+con un medidor lineal, la aguja repite el número que ya está impreso al lado, y el arco
+verde→ámbar→rojo convierte un umbral —que es un punto— en un gradiente. Si esto se
+reabre, que sea con esos tres costos sobre la mesa.
 
 ### Selector de periodo (componente propio)
 Una fila de chips en píldora —Mes · 3 meses · 6 meses— que cambia el alcance
