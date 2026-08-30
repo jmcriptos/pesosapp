@@ -3317,9 +3317,11 @@ _RADAR_RITMO_NEGOCIO = 13    # mediana global entre días distintos con pedido
 _RADAR_MIN_INTERVALOS = 2    # o sea, 3 fechas distintas
 _RADAR_UMBRAL = 1.5          # se pasó de su ritmo esta cantidad de veces
 _RADAR_DORMIDO_DIAS = 90
-# Fechas separadas por esto o menos son UNA visita, no varias. Ver
-# `_ritmo_cliente`. El valor no es delicado: contra producción, cualquier
-# número entre 2 y 10 devuelve exactamente la misma lista de atrasados.
+# Fechas separadas por esto o menos son la MISMA visita, encadenando mientras
+# las compras sigan seguidas. Ver `_ritmo_cliente`. Medido contra los 62
+# clientes de producción el 2026-08-29, cualquier valor entre 2 y 10 daba la
+# misma lista de atrasados; es una foto de esos datos, no una garantía del
+# algoritmo.
 _RADAR_RAFAGA_DIAS = 3
 
 
@@ -3365,10 +3367,21 @@ def _ritmo_cliente(fechas, ritmo_negocio=_RADAR_RITMO_NEGOCIO):
     """
     unicas = sorted({_dia_local(f) for f in fechas if _dia_local(f) is not None})
 
-    visitas = []
+    # Se compara contra la fecha ANTERIOR, no contra el inicio de la visita: la
+    # ráfaga se encadena mientras las compras sigan siendo seguidas, dure lo que
+    # dure. Anclando al inicio, la ventana es fija y una ráfaga más larga que
+    # ella se parte en visitas falsas: con 21 días seguidos de compras el ritmo
+    # volvía a salir 4 días, que es el mismo fallo que esto arregla.
+    #
+    # A cambio, un cliente que SIEMPRE compra dentro de la ventana —a diario,
+    # digamos— colapsa entero en una visita y queda con ritmo estimado. Es lo
+    # honesto: de una compra continua no se puede leer una cadencia. Anclando al
+    # inicio salía «ritmo propio: 4 días», un número inventado con cara de dato.
+    visitas, anterior = [], None
     for dia in unicas:
-        if not visitas or (dia - visitas[-1]).days > _RADAR_RAFAGA_DIAS:
+        if anterior is None or (dia - anterior).days > _RADAR_RAFAGA_DIAS:
             visitas.append(dia)
+        anterior = dia
 
     intervalos = sorted((b - a).days for a, b in zip(visitas, visitas[1:]))
     if len(intervalos) < _RADAR_MIN_INTERVALOS:

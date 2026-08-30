@@ -98,17 +98,17 @@ en un cajón, pero sin fingir una precisión que no existe.
 **Atraso** = días sin comprar ÷ ritmo. Un cliente entra en Atrasados cuando
 supera **1,5×** su ritmo.
 
-El umbral está elegido contra los datos, no a ojo: con 1,5× salen 5 clientes,
+El umbral está elegido contra los datos, no a ojo: con 1,5× salen 4 clientes,
 que es una semana de trabajo. Más bajo se llena de ruido; más alto llega tarde.
 
 ### Los grupos
 
 En este orden, y con estos nombres:
 
-1. **Atrasados** (5) — pasaron 1,5× su ritmo y compraron dentro de los últimos
+1. **Atrasados** (4) — pasaron 1,5× su ritmo y compraron dentro de los últimos
    90 días. Ordenados por veces-su-ritmo, de mayor a menor. Es el contenido
    principal de la pantalla.
-2. **Al día** (26) — el resto de los que compraron en 90 días. Mismo orden, así
+2. **Al día** (27) — el resto de los que compraron en 90 días. Mismo orden, así
    que arriba quedan los que se están por pasar.
 3. **Dormidos** (18) — más de 90 días. **Sección plegada**, con la cuenta en el
    encabezado. Ordenados por cantidad de pedidos históricos, de mayor a menor:
@@ -121,7 +121,7 @@ En este orden, y con estos nombres:
 
 ```
 ⚠  Arco Iris                                        [+ Pedido]
-   50 días sin comprar · su ritmo: 18 d · 27 pedidos
+   50 días sin comprar · su ritmo: 22 d · 27 pedidos
 ```
 
 Nombre primero y grande — es lo que se busca con el ojo. Debajo, en una línea:

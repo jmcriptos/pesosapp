@@ -972,3 +972,42 @@ def test_una_rafaga_sola_no_alcanza_para_tener_ritmo_propio():
     rafaga = [date(2026, 8, 1) + timedelta(days=d) for d in range(5)]
     ritmo, propio = _ritmo_cliente(rafaga)
     assert (ritmo, propio) == (_RADAR_RITMO_NEGOCIO, False)
+
+
+def test_una_rafaga_LARGA_tampoco_se_lee_como_cadencia():
+    """El contraejemplo que encontró la revisión del arreglo de ráfagas.
+
+    La primera versión comparaba cada fecha contra el INICIO de la visita, o
+    sea contra una ventana fija de 3 días. Una ráfaga más larga que la ventana
+    se partía en visitas falsas separadas por 4 días, y el ritmo volvía a salir
+    «4 días propio»: exactamente el fallo que colapsar ráfagas venía a cerrar,
+    con una ráfaga más larga que la que se había probado.
+
+    Encadenando contra la fecha anterior, tres semanas seguidas de compras son
+    una visita, dure lo que dure la racha.
+    """
+    rafaga = [date(2025, 1, 1) + timedelta(days=d) for d in range(21)]
+    fechas = rafaga + [date(2025, 7, 20), date(2026, 2, 5)]
+
+    ritmo, propio = _ritmo_cliente(fechas)
+
+    assert ritmo > 100, (
+        f'ritmo {ritmo}d: una ráfaga de 21 días se está partiendo en visitas '
+        'falsas. Comparar contra el inicio de la visita en vez de contra la '
+        'fecha anterior reintroduce este bug.'
+    )
+    assert propio is True
+
+
+def test_el_que_compra_siempre_seguido_queda_en_estimado_y_no_en_un_numero_falso():
+    """De una compra continua no se puede leer una cadencia, y hay que decirlo.
+
+    Un cliente que compra todos los días colapsa entero en una sola visita: no
+    hay intervalos entre visitas, así que corresponde el ritmo del negocio
+    marcado como estimado. La versión anclada al inicio le devolvía «4 días
+    propio» —un número inventado con cara de dato— porque partía la racha en
+    ventanas fijas.
+    """
+    diario = [date(2026, 1, 1) + timedelta(days=d) for d in range(30)]
+    ritmo, propio = _ritmo_cliente(diario)
+    assert (ritmo, propio) == (_RADAR_RITMO_NEGOCIO, False)
