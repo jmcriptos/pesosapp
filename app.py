@@ -1672,6 +1672,28 @@ def _normalizar_metricas_ventas_quickbooks(
     }
 
 
+def _fechas_ventas_quickbooks():
+    """Las fechas con las que se consulta QuickBooks, en un único lugar.
+
+    La clave de caché se deriva de estas fechas, así que el dashboard y el
+    precalentamiento de arranque TIENEN que calcularlas igual: si difieren,
+    cada uno escribe en una clave distinta y el precalentamiento no sirve.
+    """
+    hoy = datetime.now(DASHBOARD_TIMEZONE).date()
+    inicio_mes = hoy.replace(day=1)
+    inicio_semana = hoy - timedelta(days=hoy.weekday())
+    fin_mes_anterior = inicio_mes - timedelta(days=1)
+    return {
+        'hoy': hoy,
+        'inicio_mes': inicio_mes,
+        'inicio_semana': inicio_semana,
+        'inicio_mes_anterior': fin_mes_anterior.replace(day=1),
+        'fin_mes_anterior': fin_mes_anterior,
+        'inicio_tendencia': inicio_semana - timedelta(weeks=25),
+        'inicio_ultimos_7_dias': hoy - timedelta(days=6),
+    }
+
+
 _qb_refresh_lock = threading.Lock()
 _qb_refresh_en_curso = False
 
@@ -1878,6 +1900,41 @@ def _obtener_metricas_ventas_quickbooks(
             'last_refresh_attempt': now_ts,
         }
     return cached_value if has_stale_value else None
+
+
+def _precalentar_cache_qb():
+    """Llena la caché de ventas al arrancar el worker, en segundo plano.
+
+    Gunicorn corre varios workers y cada uno tiene su propia caché en memoria.
+    Los workers sync compiten por accept(), no se turnan: uno puede quedarse
+    sin servir nada durante minutos y, cuando por fin le toca una petición, esa
+    carga paga los ~7,6s de QuickBooks aunque el otro worker lleve rato
+    caliente. Precalentando, nadie paga el arranque en frío.
+
+    Va en un hilo daemon a propósito: si se hiciera durante el import, un n8n
+    lento retrasaría el boot y Heroku puede matar el dyno por timeout de
+    arranque.
+    """
+    if not _env_flag('QB_WARMUP_ON_BOOT', default=True):
+        return
+    if os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ:
+        return
+    if not _quickbooks_sales_enabled() or not N8N_QB_SALES_WEBHOOK_URL:
+        return
+
+    def _correr():
+        try:
+            _obtener_metricas_ventas_quickbooks(**_fechas_ventas_quickbooks())
+            app.logger.info(f'[qb-cache] pid={os.getpid()} precalentamiento de arranque listo')
+        except Exception as e:
+            app.logger.warning(
+                f'[qb-cache] pid={os.getpid()} precalentamiento de arranque falló: {e}'
+            )
+
+    threading.Thread(target=_correr, name='qb-sales-warmup', daemon=True).start()
+
+
+_precalentar_cache_qb()
 
 
 @app.route('/dashboard_vendedor')
@@ -5620,14 +5677,10 @@ def dashboard():
         mark_dashboard_perf('ventas_locales')
 
         # === OVERRIDE OPCIONAL: ventas desde QuickBooks (fuente de verdad) ===
+        # Las fechas salen del helper para compartir clave de caché con el
+        # precalentamiento de arranque.
         metricas_ventas_qb = _obtener_metricas_ventas_quickbooks(
-            hoy=hoy,
-            inicio_mes=inicio_mes,
-            inicio_semana=inicio_semana,
-            inicio_mes_anterior=inicio_mes_anterior,
-            fin_mes_anterior=fin_mes_anterior,
-            inicio_tendencia=inicio_tendencia,
-            inicio_ultimos_7_dias=inicio_ultimos_7_dias,
+            **_fechas_ventas_quickbooks()
         )
         if metricas_ventas_qb:
             ventas_mes = metricas_ventas_qb['ventas_mes']

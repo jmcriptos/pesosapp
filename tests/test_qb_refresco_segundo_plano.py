@@ -62,14 +62,18 @@ def _preparar(monkeypatch, url, demora, args, cache):
     return llamadas
 
 
-def _esperar_hilo(limite=5.0):
-    """Espera a que termine el hilo de refresco (o se rinde)."""
+def _esperar_hilo_nombre(nombre, limite=5.0):
+    """Espera a que no quede ningún hilo con ese nombre (o se rinde)."""
     fin = time.perf_counter() + limite
     while time.perf_counter() < fin:
-        if not any(t.name == 'qb-sales-refresh' for t in threading.enumerate()):
+        if not any(t.name == nombre for t in threading.enumerate()):
             return True
         time.sleep(0.02)
     return False
+
+
+def _esperar_hilo(limite=5.0):
+    return _esperar_hilo_nombre('qb-sales-refresh', limite)
 
 
 def test_con_cache_stale_devuelve_al_instante_y_refresca_por_detras(monkeypatch):
@@ -163,3 +167,69 @@ def test_un_solo_hilo_de_refresco_a_la_vez(monkeypatch):
 
     assert _esperar_hilo(), 'el hilo de refresco no terminó'
     assert llamadas['n'] == 1, f'se dispararon {llamadas["n"]} refrescos en paralelo'
+
+
+# ── Precalentamiento al arrancar el worker ──────────────────────────────────
+
+def test_precalentamiento_no_corre_en_tests(monkeypatch):
+    """El guard de testing evita que el import salga a la red en la suite."""
+    monkeypatch.setenv('FLASK_ENV', 'testing')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/no-tocar')
+    llamado = {'n': 0}
+    monkeypatch.setattr(app_module, '_obtener_metricas_ventas_quickbooks',
+                        lambda **_kw: llamado.__setitem__('n', llamado['n'] + 1))
+
+    app_module._precalentar_cache_qb()
+
+    _esperar_hilo_nombre('qb-sales-warmup', limite=0.5)
+    assert llamado['n'] == 0
+
+
+def test_precalentamiento_no_corre_sin_webhook(monkeypatch):
+    monkeypatch.delenv('FLASK_ENV', raising=False)
+    monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', '')
+    llamado = {'n': 0}
+    monkeypatch.setattr(app_module, '_obtener_metricas_ventas_quickbooks',
+                        lambda **_kw: llamado.__setitem__('n', llamado['n'] + 1))
+
+    app_module._precalentar_cache_qb()
+
+    _esperar_hilo_nombre('qb-sales-warmup', limite=0.5)
+    assert llamado['n'] == 0
+
+
+def test_precalentamiento_llena_la_cache_en_segundo_plano(monkeypatch):
+    """Con QuickBooks habilitado, el arranque calienta la caché sin bloquear."""
+    monkeypatch.delenv('FLASK_ENV', raising=False)
+    monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/warmup')
+    llamado = {'n': 0}
+
+    def falso(**_kw):
+        llamado['n'] += 1
+
+    monkeypatch.setattr(app_module, '_obtener_metricas_ventas_quickbooks', falso)
+
+    inicio = time.perf_counter()
+    app_module._precalentar_cache_qb()
+    transcurrido = time.perf_counter() - inicio
+
+    assert transcurrido < 0.2, 'el precalentamiento no debe bloquear el import'
+    assert _esperar_hilo_nombre('qb-sales-warmup'), 'el hilo no terminó'
+    assert llamado['n'] == 1
+
+
+def test_las_fechas_del_helper_son_las_que_usa_la_clave_de_cache():
+    """El dashboard y el precalentamiento tienen que compartir clave."""
+    f = app_module._fechas_ventas_quickbooks()
+    assert set(f) == {
+        'hoy', 'inicio_mes', 'inicio_semana', 'inicio_mes_anterior',
+        'fin_mes_anterior', 'inicio_tendencia', 'inicio_ultimos_7_dias',
+    }
+    assert f['inicio_semana'].weekday() == 0
+    assert f['inicio_mes'].day == 1
+    assert (f['inicio_semana'] - f['inicio_tendencia']).days == 25 * 7
+    assert f['fin_mes_anterior'] < f['inicio_mes']
+    assert f['inicio_mes_anterior'].day == 1
