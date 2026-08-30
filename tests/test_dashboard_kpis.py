@@ -79,11 +79,21 @@ def test_dashboard_has_order_fill_rate(logged_client):
     assert 'Cajas entregadas' in html
 
 
-def test_dashboard_has_customer_engagement(logged_client):
-    """AC #5: Customer Engagement (CE) se muestra en el dashboard."""
+def test_dashboard_nivel_servicio_reducido(logged_client):
+    """El panel de servicio quedó en las dos métricas sobre las que se actúa.
+
+    Reemplaza a los tests de POR (AC #2) y CE (AC #5). Se retiraron el
+    2026-08-30: POR es un compuesto de OTD y OFR, CE lo cuenta mejor el radar
+    de /clientes (cliente por cliente, contra su propio ritmo) y LT se solapa
+    con entregas a tiempo.
+    """
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'Clientes activos' in html
+    assert 'Entregas a tiempo' in html
+    assert 'Cajas entregadas' in html
+    assert 'Pedidos perfectos' not in html
+    assert 'Clientes activos' not in html
+    assert 'Tiempo de proceso' not in html
 
 
 # === Tests de cálculo de KPIs (via la función helper interna) ===
@@ -144,17 +154,20 @@ def test_fallback_data_has_correct_keys(app):
 # === Tests de Story 1.2: Reorganización dashboard y proyección ===
 
 def test_dashboard_has_objetivos_de_ventas_section(logged_client):
-    """AC #1: La sección de Ventas está visible en el dashboard."""
+    """AC #1: La sección de Ventas está visible en el dashboard.
+
+    El carrusel de paneles se reemplazó por un scroll único el 2026-08-30:
+    el marcador pasó de data-panel a data-dash-section."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'data-panel="ventas"' in html
+    assert 'data-dash-section="ventas"' in html
 
 
 def test_dashboard_has_nivel_de_servicio_section(logged_client):
     """AC #2: La sección de Servicio está visible en el dashboard."""
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
-    assert 'data-panel="servicio"' in html
+    assert 'data-dash-section="servicio"' in html
 
 
 def test_dashboard_has_proyeccion(logged_client):
@@ -162,14 +175,6 @@ def test_dashboard_has_proyeccion(logged_client):
     resp = logged_client.get('/dashboard')
     html = resp.data.decode('utf-8')
     assert 'Proyección' in html or 'proyeccion_ventas' in html
-
-
-def test_dashboard_has_perfect_order_rate(logged_client):
-    """AC #2: Perfect Order Rate (POR) visible en Nivel de Servicio."""
-    resp = logged_client.get('/dashboard')
-    html = resp.data.decode('utf-8')
-    assert 'POR' in html
-    assert 'Pedidos perfectos' in html
 
 
 def test_meta_configurable_env_var(app):

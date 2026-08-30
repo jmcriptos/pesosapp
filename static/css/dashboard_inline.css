@@ -8,39 +8,13 @@
    so the override chain is greppable from the static dir.
    ============================================================================= */
 
-/* ── Override minimal-style hide for rings inside this dashboard ── */
-.dash-body .ring-wrap,
-.dash-body .progress-ring {
+/* ── Override minimal-style hide for rings inside this dashboard ── */.dash-body .ring-wrap {
   display: flex !important;
 }
 
 /* ── Screen body: flow container, app-shell handles bottom padding ── */
 .screen-body {
   padding: 0;
-}
-
-/* ── Panels carousel (Twitter-style horizontal swipe) ── */
-.panels-viewport {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  transition: height 200ms cubic-bezier(0.2, 0.9, 0.3, 1);
-}
-.panels-track {
-  display: flex;
-  align-items: flex-start;
-  width: 100%;
-  will-change: transform;
-  transform: translate3d(0, 0, 0);
-  transition: transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1);
-  touch-action: pan-y;
-}
-.panels-track.is-dragging { transition: none; }
-.panels-track > .dash-panel {
-  flex: 0 0 100%;
-  min-width: 100%;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 /* ── Hero ── */
@@ -50,7 +24,7 @@
 .hero-kicker {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-subtle, #94a3b8);
+  color: var(--color-text-subtle, #64748b);
   margin-bottom: 4px;
 }
 .hero-title {
@@ -63,18 +37,6 @@
 .hero-sub {
   font-size: 12px;
   color: var(--color-text-subtle, #64748b);
-}
-
-/* ── Nombre completo de la sigla en las tarjetas de Servicio ────────────
-   Antes iba en un style= inline a 9px sobre var(--color-text-subtle):
-   2.56:1 sobre blanco, ilegible en un teléfono a plena luz. 11px y #64748b
-   dan 4.76:1 (AA). */
-.svc-kpi-full {
-  margin-top: 2px;
-  font-size: 11px;
-  line-height: 1.3;
-  color: #64748b;
-  overflow-wrap: break-word;
 }
 
 /* ── Aviso de datos degradados ──────────────────────────────────────────
@@ -137,35 +99,6 @@
   outline-offset: 2px;
 }
 
-/* ── Segmented pill tabs ── */
-.dash-seg {
-  display: flex;
-  gap: 4px;
-  padding: 0 16px 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.dash-seg::-webkit-scrollbar { display: none; }
-.dash-seg button {
-  flex-shrink: 0;
-  padding: 7px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 999px;
-  border: 1px solid var(--color-border, rgba(99,102,241,0.2));
-  background: transparent;
-  color: var(--color-text-subtle, #94a3b8);
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
-  -webkit-tap-highlight-color: transparent;
-}
-.dash-seg button.active {
-  background: var(--indigo-500, #6366f1);
-  color: #fff;
-  border-color: var(--indigo-500, #6366f1);
-}
-
 /* ── KPI grid 2×2 ── */
 .kpi-grid {
   display: grid;
@@ -187,17 +120,12 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-.kpi-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 .kpi-label {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-text-subtle, #94a3b8);
+  color: var(--color-text-subtle, #64748b);
 }
 .kpi-value {
   font-size: 22px;
@@ -209,7 +137,7 @@
 .kpi-value small {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-subtle, #94a3b8);
+  color: var(--color-text-subtle, #64748b);
   margin-left: 2px;
 }
 .kpi-sub {
@@ -270,7 +198,7 @@
 .chart-big small {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-subtle, #94a3b8);
+  color: var(--color-text-subtle, #64748b);
   margin-left: 4px;
 }
 .chart-legend {
@@ -301,42 +229,7 @@
   width: 100%;
   height: 160px;
   padding: 0 4px 4px;
-}
-.estados-donut-wrap {
-  position: relative;
-  width: 100%;
-  max-width: 220px;
-  height: 180px;
-  margin: 10px auto 6px;
-}
-.estados-legend {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 14px;
-  padding: 8px 20px 4px;
-  font-size: 12px;
-}
-.estados-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-muted, #94a3b8);
-  font-weight: 600;
-}
-.estados-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 99px;
-  flex-shrink: 0;
-}
-.estados-legend-val {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text, #f1f5f9);
-  font-weight: 700;
-}
-
-/* ── Esta semana mini-cards ── */
+}/* ── Esta semana mini-cards ── */
 .week-mini-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -354,7 +247,7 @@
 }
 .week-mini-label {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -368,25 +261,12 @@
   color: var(--color-text, #f1f5f9);
 }
 .week-mini-val small {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-subtle, #94a3b8);
+  color: var(--color-text-subtle, #64748b);
   margin-left: 2px;
 }
 
-/* ── Servicio 2-col grid ── */
-.svc-kpi-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 0 16px;
-}
-@media (min-width: 769px) {
-  .svc-kpi-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (min-width: 1024px) {
-  .svc-kpi-grid { grid-template-columns: repeat(6, 1fr); }
-}
 
 /* ── Rank rows ── */
 .rank {
@@ -432,9 +312,13 @@
   overflow: hidden;
 }
 .rank-bar-fill {
+  width: 100%;
   height: 100%;
   border-radius: 99px;
-  transition: width 600ms cubic-bezier(0.25,1,0.5,1);
+  /* Se escala por transform (el template pone scaleX) en vez de animar width:
+     animar el ancho provoca relayout en cada cuadro. */
+  transform-origin: left center;
+  transition: transform 600ms cubic-bezier(0.25,1,0.5,1);
 }
 .rank-meta {
   font-size: 10.5px;
@@ -455,93 +339,7 @@
   display: block;
   font-size: 9px;
   font-weight: 500;
-  color: var(--color-text-subtle, #94a3b8);
-}
-
-/* ── Actividad: pedido row ── */
-.act-row {
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--color-border-subtle, rgba(99,102,241,0.12));
-}
-.act-row:last-child { border-bottom: none; }
-.act-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-  flex-shrink: 0;
-}
-.act-icon.pendiente { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.act-icon.preparado  { background: rgba(16,185,129,0.15); color: #10b981; }
-.act-icon.facturado  { background: rgba(96,165,250,0.15); color: #60a5fa; }
-.act-icon.default    { background: rgba(100,116,139,0.15); color: #64748b; }
-.act-info { min-width: 0; }
-.act-client {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--color-text, #f1f5f9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.act-meta {
-  font-size: 11px;
   color: var(--color-text-subtle, #64748b);
-  font-variant-numeric: tabular-nums;
-  margin-top: 2px;
-}
-.act-amt {
-  text-align: right;
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text, #f1f5f9);
-  white-space: nowrap;
-}
-.act-amt small {
-  display: block;
-  font-size: 9px;
-  font-weight: 500;
-  color: var(--color-text-subtle, #94a3b8);
-}
-
-/* ── Estado bars ── */
-.estado-row {
-  padding: 0 0 12px;
-}
-.estado-row:first-child { padding-top: 4px; }
-.estado-head {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 5px;
-  color: var(--color-text, #f1f5f9);
-}
-.estado-head span:last-child {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-subtle, #94a3b8);
-  font-weight: 500;
-}
-.estado-bar-track {
-  height: 8px;
-  background: rgba(15,23,42,0.5);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.estado-bar-fill {
-  height: 100%;
-  border-radius: 99px;
-  transition: width 600ms cubic-bezier(0.25,1,0.5,1);
-}
-.estados-wrap {
-  padding: 14px 16px 4px;
 }
 
 /* ── Rank colors ── */
@@ -556,5 +354,114 @@
 .rc-bar-4 { background: linear-gradient(90deg, #8b5cf6aa, #8b5cf6); }
 .rc-bar-5 { background: linear-gradient(90deg, #f43f5eaa, #f43f5e); }
 
-/* ── Dash panel: each panel is a slide in the carousel ── */
-.dash-panel { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Scroll único — componentes nuevos
+   Reemplazan al carrusel de cuatro paneles. Todo el texto de acá cumple
+   AA sobre blanco y todo lo tocable llega a 44px.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.dash-section { margin: 0 0 26px; }
+.dash-section:last-child { margin-bottom: 0; }
+
+.kpi-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.sec-note { font-size: 11px; font-weight: 600; color: #475569; }
+
+/* El umbral, a la vista: antes vivía sólo en el Python y el usuario tenía
+   que deducir del color qué contaba como "bien". */
+.kpi-ref { margin-top: 2px; font-size: 11px; color: #64748b; }
+.kpi-sigla { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #64748b; }
+.kpi-value-vacio { font-size: 18px; color: #475569; }
+
+.chart-title-row { margin: 2px 0 8px; font-size: 12px; font-weight: 700; color: #475569; }
+
+/* ── Cola de trabajo ─────────────────────────────────────────────────── */
+.queue-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.queue-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  text-decoration: none;
+}
+.queue-stat-val { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.queue-stat-lbl { font-size: 11px; color: #475569; }
+.queue-stat.is-alarm { border-color: #fecdd3; background: #fff1f2; }
+.queue-stat.is-alarm .queue-stat-val { color: #9f1239; }
+.queue-stat:hover { border-color: #cbd5e1; }
+.queue-stat:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+
+.queue-card { padding-top: 4px; padding-bottom: 4px; }
+.queue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px 2px;
+  border-bottom: 1px solid #f1f5f9;
+  color: inherit;
+  text-decoration: none;
+}
+.queue-row:last-child { border-bottom: 0; }
+.queue-row:hover { background: #f8fafc; }
+.queue-row:focus-visible { outline: 2px solid #4338ca; outline-offset: -2px; border-radius: 10px; }
+.queue-row-main { flex: 1 1 auto; min-width: 0; }
+.queue-client {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* El número de pedido es lo que se lee en voz alta cruzando el almacén:
+   12px y #475569 (7.5:1), no 11px a 2.56:1 como antes. */
+.queue-meta { font-size: 12px; color: #475569; }
+.queue-row-side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.queue-sla {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.queue-sla.sla-ok     { background: #ecfdf5; color: #065f46; }
+.queue-sla.sla-warn   { background: #fffbeb; color: #92400e; }
+.queue-sla.sla-danger { background: #fff1f2; color: #9f1239; }
+.queue-amt { font-size: 13px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+.queue-amt small { margin-left: 3px; font-size: 11px; font-weight: 600; color: #475569; }
+.queue-chev { flex: 0 0 auto; font-size: 12px; color: #64748b; }
+
+/* ── Estados vacíos ──────────────────────────────────────────────────── */
+.empty-state { padding: 22px 16px; text-align: center; }
+.empty-state-title { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: #0f172a; }
+.empty-state-sub { margin: 0; font-size: 12px; color: #475569; }
+
+/* Los enlaces de sección eran de 17px de alto; ahora llegan al mínimo táctil. */
+.sec-action { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Fila valor + anillo. El anillo estaba junto a la etiqueta y le robaba el
+   ancho: "Cajas entregadas" necesitaba 98px y tenía 76, así que el texto se
+   metía debajo del trazo. Al lado del número, además, el anillo queda junto al
+   dato que representa. */
+.kpi-valrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.kpi-valrow .kpi-value { min-width: 0; }
+.kpi-valrow .ring-wrap { flex: 0 0 auto; }
+.kpi-sigla { margin-left: 4px; }

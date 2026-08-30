@@ -31,7 +31,7 @@ body[data-dashboard-screen] .screen-body {
   --color-surface-strong: rgba(255, 255, 255, 0.92);
   --color-text: #0f172a;
   --color-text-muted: #475569;
-  --color-text-subtle: #94a3b8;
+  --color-text-subtle: #64748b;
   --color-border: #e2e8f0;
   --color-border-subtle: #f1f5f9;
   --shadow-card: 0 10px 32px -12px rgba(15, 23, 42, 0.08);
@@ -81,70 +81,21 @@ body[data-dashboard-screen] .hero-title {
 }
 
 body[data-dashboard-screen] .hero-sub {
-  color: #64748b !important;
+  color: #475569 !important;
   font-size: 0.84rem;
   margin-top: 4px;
 }
 
 /* ────────────────────────────────────────────────────────────
-   Tab segmented control
-   ──────────────────────────────────────────────────────────── */
-body[data-dashboard-screen] .dash-seg {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  margin: 0 0 14px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 14px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-body[data-dashboard-screen] .dash-seg::-webkit-scrollbar {
-  display: none;
-}
-
-body[data-dashboard-screen] .dash-seg button {
-  background: transparent !important;
-  background-image: none !important;
-  color: #64748b !important;
-  border: 0 !important;
-  border-radius: 10px !important;
-  padding: 9px 16px !important;
-  font-size: 0.85rem !important;
-  font-weight: 700 !important;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 160ms ease;
-}
-
-body[data-dashboard-screen] .dash-seg button.active {
-  background: linear-gradient(135deg, var(--indigo-500, #6366f1), var(--violet-500, #8b5cf6)) !important;
-  background-image: linear-gradient(135deg, var(--indigo-500, #6366f1), var(--violet-500, #8b5cf6)) !important;
-  color: #ffffff !important;
-  box-shadow: 0 8px 20px -8px rgba(99, 102, 241, 0.55) !important;
-}
-
-body[data-dashboard-screen] .dash-seg button:not(.active):hover {
-  color: #0f172a !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-}
-
-/* ────────────────────────────────────────────────────────────
    KPI cards
-   ──────────────────────────────────────────────────────────── */
-body[data-dashboard-screen] .kpi-grid,
-body[data-dashboard-screen] .svc-kpi-grid {
+   ──────────────────────────────────────────────────────────── */body[data-dashboard-screen] .kpi-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
 
-@media (min-width: 900px) {
-  body[data-dashboard-screen] .kpi-grid,
-  body[data-dashboard-screen] .svc-kpi-grid {
+@media (min-width: 900px) {body[data-dashboard-screen] .kpi-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
@@ -161,17 +112,9 @@ body[data-dashboard-screen] .kpi {
   -webkit-backdrop-filter: none !important;
 }
 
-body[data-dashboard-screen] .kpi-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
 body[data-dashboard-screen] .kpi-label {
-  color: #64748b !important;
-  font-size: 0.68rem;
+  color: #475569 !important;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -190,8 +133,8 @@ body[data-dashboard-screen] .kpi-value {
 }
 
 body[data-dashboard-screen] .kpi-value small {
-  color: #94a3b8 !important;
-  font-size: 0.62rem;
+  color: #64748b !important;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -222,16 +165,6 @@ body[data-dashboard-screen] .kpi-trend.down {
 }
 
 /* Progress ring within KPI — keep color but adapt track */
-body[data-dashboard-screen] .kpi .ring-wrap circle:first-child {
-  stroke: rgba(15, 23, 42, 0.08) !important;
-}
-
-body[data-dashboard-screen] .ring-label {
-  color: #0f172a !important;
-  font-weight: 800;
-  font-size: 0.78rem;
-}
-
 /* ────────────────────────────────────────────────────────────
    Section headers
    ──────────────────────────────────────────────────────────── */
@@ -245,11 +178,11 @@ body[data-dashboard-screen] .sec-head {
 }
 
 body[data-dashboard-screen] .sec-title {
-  color: #94a3b8 !important;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: #0f172a !important;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: none;
   margin: 0;
 }
 
@@ -354,8 +287,8 @@ body[data-dashboard-screen] .week-mini-card {
 }
 
 body[data-dashboard-screen] .week-mini-label {
-  color: #94a3b8 !important;
-  font-size: 0.64rem;
+  color: #475569 !important;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -373,22 +306,11 @@ body[data-dashboard-screen] .week-mini-val {
 }
 
 body[data-dashboard-screen] .week-mini-val small {
-  color: #94a3b8 !important;
-  font-size: 0.6rem;
+  color: #475569 !important;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}
-
-/* ────────────────────────────────────────────────────────────
-   Other panels (servicio, top, actividad) — generic card support
-   ──────────────────────────────────────────────────────────── */
-body[data-dashboard-screen] .svc-kpi-grid .kpi,
-body[data-dashboard-screen] .dash-panel .gcard,
-body[data-dashboard-screen] .dash-panel .kpi {
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #f1f5f9 !important;
 }
 
 /* Top / ranking rows */
@@ -411,20 +333,6 @@ body[data-dashboard-screen] .feed-item {
   background: transparent !important;
   color: #0f172a !important;
   border-bottom: 1px solid #f1f5f9;
-}
-
-/* Responsive viewport for the swipe carousel */
-body[data-dashboard-screen] .panels-viewport {
-  background: transparent !important;
-  overflow: hidden;
-}
-
-body[data-dashboard-screen] .panels-track {
-  background: transparent !important;
-}
-
-body[data-dashboard-screen] .dash-panel {
-  background: transparent !important;
 }
 
 /* Links generic */
