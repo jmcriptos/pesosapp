@@ -287,3 +287,39 @@ def test_pn_shell_tiene_max_width_en_escritorio():
     # ajustar sin que cuente como regresión.
     assert 0 < max_width_px <= 900, f'max-width demasiado ancho: {max_width_px}px'
     assert 0 < breakpoint_px <= 900
+
+
+# ── 8. El chip de grupo (`#ph-grupo-actual` / `.pn-grupo-chip`) llega a 44px ─
+
+def test_pn_grupo_chip_tiene_min_height_44px():
+    """Quedó anotado como pendiente en la Task 2: el chip que muestra el
+    grupo fijado del pedido («OB 6% ✎», en la cabecera del paso 03) medía
+    131×40 real antes del arreglo — 4px corto del mínimo táctil de 44px.
+
+    Verificado con Playwright en la Task 6 (`getBoundingClientRect` real,
+    no la regla): 96×44 a 390px y a 1280px, sin overrides que lo achiquen
+    en ningún media query — ver el comentario junto a `min-height` en el
+    propio CSS. Este test ancla esa regla para que un refactor futuro no
+    la vuelva a bajar de 44px sin que la suite lo note."""
+    css = _css_pedido_nuevo()
+    cuerpo = _encontrar_regla(css, '.pn-grupo-chip')
+
+    min_height = _valor_de_propiedad(cuerpo, 'min-height')
+    assert min_height.rstrip('px') != '', 'min-height sin unidad reconocible'
+    px = int(re.match(r'(\d+)px', min_height).group(1))
+    assert px >= 44, f'.pn-grupo-chip mide {px}px de min-height, por debajo de 44px'
+
+    # Ningún otro bloque del archivo (blindaje de tema incluido) puede pisar
+    # min-height/height con un valor menor: si apareciera una segunda regla
+    # para el mismo selector, tendría que seguir cumpliendo el mínimo.
+    for selector, otro_cuerpo in _reglas_planas(css):
+        selectores = [s.strip() for s in selector.split(',')]
+        if '.pn-grupo-chip' not in selectores or otro_cuerpo is cuerpo:
+            continue
+        for prop in ('min-height', 'height'):
+            m = re.search(prop + r'\s*:\s*(\d+)px', otro_cuerpo)
+            if m:
+                assert int(m.group(1)) >= 44, (
+                    f'{selector!r} fija {prop} en {m.group(1)}px, por debajo '
+                    f'de 44px'
+                )
