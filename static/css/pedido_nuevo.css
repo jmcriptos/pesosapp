@@ -1316,3 +1316,35 @@ a.pn-btn-capsula {
 #pn-shell .pn-footer-row {
     margin-bottom: 10px;
 }
+
+/* ── El pie, a la mitad ─────────────────────────────────────────────────────
+   Medía 142px: una fila con el subtotal (48) + 10 de separación + el botón
+   (58) + 26 de relleno. En un iPhone donde las líneas del pedido tenían 385px,
+   eso era un quinto de la pantalla para dos cifras y un botón.
+
+   Ahora es UNA fila: el subtotal a la izquierda, «Continuar» a la derecha. El
+   botón conserva sus 58px de alto —es la acción principal y el objetivo
+   táctil no se negocia—; lo que se va es el aire. */
+#pn-shell .pn-footer-row {
+    align-items: center;
+    margin-bottom: 0;
+    gap: 14px;
+}
+
+#pn-shell .pn-footer .pn-enviar {
+    display: none;
+}
+
+#pn-shell .pn-footer-row .pn-enviar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 150px;
+    margin: 0;
+}
+
+/* El bloque del subtotal deja de estirarse: le cede el ancho al botón. */
+#pn-shell .pn-footer-total-col {
+    flex: none;
+}

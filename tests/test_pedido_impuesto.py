@@ -178,7 +178,12 @@ def test_el_footer_del_pedido_rotula_el_numero_como_subtotal(app, logged_client)
     # No es solo "el rótulo dice Subtotal en algún lado": tiene que estar
     # pegado al número (`total-pedido`), no suelto en otra parte del footer.
     etiqueta = re.search(r'pn-footer-total-label">([^<]*)<', fila.group(0))
-    assert etiqueta and etiqueta.group(1).strip().lower() == 'subtotal'
+    # `startswith` y no igualdad: desde 2026-08-30 el rótulo lleva la moneda
+    # («Subtotal XCG»), porque el pie pasó a una sola fila y la meta perdió el
+    # renglón donde la moneda vivía. Lo que este test cuida —que el número NO
+    # se lea como el total a cobrar— se cumple igual: sigue diciendo subtotal
+    # primero. Si alguien lo cambia por «Total», se pone rojo.
+    assert etiqueta and etiqueta.group(1).strip().lower().startswith('subtotal')
     assert 'id="total-pedido"' in fila.group(0)
 
 

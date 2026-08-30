@@ -189,7 +189,21 @@ def test_paso2_sin_historial_abre_panel(app, logged_client):
     nuevo = Cliente.query.filter_by(nombre='Cliente Nuevo').first()
     html = logged_client.get(
         f'/pedidos/nuevo?cliente={nuevo.id}&grupo=imp:10').get_data(as_text=True)
-    assert 'Sin pedidos anteriores' in html
+
+    # «Sin pedidos anteriores» ya NO se muestra acá: el historial del cliente se
+    # mudó al paso 02 el 2026-08-30, porque en esta pantalla ocupaba parte de
+    # una cabecera de 293px que dejaba solo cuatro líneas de pedido a la vista.
+    # Se afirma en la pantalla donde ahora vive, y acá queda lo que este test
+    # siempre quiso probar: que a un cliente sin historial el panel de alta le
+    # abre solo, porque no hay nada precargado que revisar.
+    previa = logged_client.get(
+        f'/pedidos/nuevo?cliente={nuevo.id}').get_data(as_text=True)
+    assert 'Sin pedidos anteriores' in previa, (
+        'el historial se perdió en la mudanza al paso 02'
+    )
+    assert 'Sin pedidos anteriores' not in html, (
+        'el historial volvió a la cabecera de las líneas'
+    )
     assert 'id="ph-add-panel"' in html
     # El panel arranca abierto: `hidden` no está en su tag de apertura. Se mira
     # el tag ENTERO (no solo lo que va antes del id) porque el atributo se

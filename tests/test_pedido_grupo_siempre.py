@@ -189,10 +189,23 @@ def test_cada_tarjeta_trae_el_historial_de_ese_cliente(app, logged_client):
 
 
 def test_cliente_sin_historial_no_muestra_conteos_inventados(app, logged_client):
+    """Contaba «Sin pedidos» en TODA la página y esperaba 2, uno por tarjeta.
+
+    Desde 2026-08-30 el historial del cliente se muestra también en la cabecera
+    de este paso —se mudó acá desde la pantalla de líneas, que necesitaba el
+    espacio—, y para un cliente sin historial dice «Sin pedidos anteriores».
+    Eso hacía tres coincidencias y ponía el test en rojo sin que nada estuviera
+    mal.
+
+    Se cuenta donde el test quería contar: en las tarjetas de grupo. Lo que
+    cuida —que no se inventen conteos ni fechas— queda igual de firme.
+    """
     html = logged_client.get(
         f"/pedidos/nuevo?cliente={_cliente('Sin Historial').id}").get_data(as_text=True)
 
-    assert html.count('Sin pedidos') == 2
+    metas = re.findall(r'<span class="pn-grupo-meta">(.*?)</span>', html, re.S)
+    assert len(metas) == 2, f'se esperaban 2 tarjetas de grupo, hay {len(metas)}'
+    assert all('Sin pedidos' in m for m in metas)
     assert 'última vez' not in html
 
 
