@@ -596,6 +596,22 @@ body[data-pedido-nuevo-screen] .app-content {
     color: var(--pn-gris);
 }
 
+.pn-footer-total-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.pn-footer-total-label {
+    font-family: var(--pn-mono);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--pn-gris);
+}
+
 .pn-footer-total {
     font-family: var(--pn-mono);
     font-weight: 600;
@@ -680,6 +696,22 @@ body[data-pedido-nuevo-screen] .app-content {
     line-height: 1;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
+}
+
+/* Subtotal y OB acompañan al total inclusivo, que es la cifra grande: estas
+   dos filas quedan chicas para que el ojo vaya directo al número que hay
+   que cobrar. */
+.pn-revision-monto-sub { font-size: 16px; }
+
+#pn-revision-fila-subtotal,
+#pn-revision-fila-ob { padding: 14px 24px 0; border-bottom: 0; }
+
+.pn-revision-ob-nota {
+    padding: 0 24px 18px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--pn-gris);
+    border-bottom: 1px solid var(--pn-regla);
 }
 
 .pn-aviso {
@@ -819,12 +851,14 @@ html:has(body[data-pedido-nuevo-screen]) {
 .pn-shell .pn-seccion-titulo,
 .pn-shell .pn-campo-label,
 .pn-shell .pn-footer-meta,
+.pn-shell .pn-footer-total-label,
 .pn-shell .pn-paso,
 .pn-shell .pn-sobretitulo,
 .pn-shell .pn-linea-meta,
 .pn-shell .pn-cliente-meta,
 .pn-shell .pn-grupo-meta,
 .pn-shell .pn-revision-entrega,
+.pn-shell .pn-revision-ob-nota,
 .pn-shell .pn-revision-total-label { color: var(--pn-gris) !important; }
 
 .pn-shell .pn-head-nota,

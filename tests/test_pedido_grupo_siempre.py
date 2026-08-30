@@ -274,7 +274,11 @@ def test_grupo_sin_historial_abre_el_pedido_vacio(app, logged_client):
 
 def test_el_pedido_muestra_el_grupo_como_boton_que_vuelve_a_elegir(app, logged_client):
     """El vendedor tiene que ver en qué grupo está —el buscador solo ofrece
-    ese— y poder cambiarlo sin rehacer el pedido desde el cliente."""
+    ese— y poder cambiarlo sin rehacer el pedido desde el cliente.
+
+    Desde Task 1 (2026-08-30) el chip ya no muestra el código de QBO crudo
+    («Impuesto 10»): `_etiqueta_grupo` lo traduce a OB, que es lo que de
+    verdad le dice algo al vendedor (ver tests/test_pedido_impuesto.py)."""
     _sembrar_historial()
     cliente = _cliente('Un Solo Grupo')
 
@@ -283,7 +287,8 @@ def test_el_pedido_muestra_el_grupo_como_boton_que_vuelve_a_elegir(app, logged_c
 
     boton = re.search(r'<a[^>]*id="ph-grupo-actual"[^>]*>.*?</a>', html, re.S)
     assert boton, 'falta el botón de grupo en el paso del pedido'
-    assert 'Impuesto 10' in boton.group(0)
+    assert 'OB 6%' in boton.group(0)
+    assert 'Impuesto' not in boton.group(0)
     # Vuelve a la pantalla de grupos: `?cliente=` sin grupo.
     destino = re.search(r'href="([^"]*)"', boton.group(0)).group(1)
     assert destino.endswith(f'/pedidos/nuevo?cliente={cliente.id}')

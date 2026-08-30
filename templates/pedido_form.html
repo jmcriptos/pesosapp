@@ -103,7 +103,14 @@
     <div class="pn-footer" id="pn-footer-pedido">
       <div class="pn-footer-row">
         <span class="pn-footer-meta" id="ph-footer-meta">Sin líneas</span>
-        <span class="pn-footer-total" id="total-pedido">0.00</span>
+        {# `total-pedido` es un SUBTOTAL (precio_base, tax-exclusive): QuickBooks
+           suma el OB encima. Sin la etiqueta se leía como el total a cobrar,
+           que no es. El total inclusivo se calcula recién en la revisión,
+           donde ya se conoce el grupo (y su OB) de todo el pedido. #}
+        <div class="pn-footer-total-col">
+          <span class="pn-footer-total-label">Subtotal</span>
+          <span class="pn-footer-total" id="total-pedido">0.00</span>
+        </div>
       </div>
       <button type="button" class="pn-enviar" id="pn-continuar">Continuar</button>
     </div>
@@ -125,10 +132,29 @@
         <div class="pn-revision-entrega" id="pn-revision-entrega"></div>
       </div>
       <div id="pn-revision-lineas"></div>
-      <div class="pn-revision-total">
+      {# `precio_base` se guarda tax-exclusive: QuickBooks suma el OB encima al
+         facturar. Antes esta caja sumaba las líneas y le decía "Total": era un
+         SUBTOTAL disfrazado. Ahora son tres filas — Subtotal, OB (si el grupo
+         paga uno) y el Total inclusivo, que es la cifra grande — resueltas en
+         JS porque el vendedor sigue editando cajas hasta último momento. #}
+      <div class="pn-revision-total" id="pn-revision-fila-subtotal">
+        <span class="pn-revision-total-label">Subtotal</span>
+        <span class="pn-revision-total-monto pn-revision-monto-sub" id="pn-revision-subtotal">0.00</span>
+      </div>
+      <div class="pn-revision-total" id="pn-revision-fila-ob" hidden>
+        <span class="pn-revision-total-label" id="pn-revision-ob-label">OB</span>
+        <span class="pn-revision-total-monto pn-revision-monto-sub" id="pn-revision-ob-monto">0.00</span>
+      </div>
+      <div class="pn-revision-total" id="pn-revision-fila-total">
         <span class="pn-revision-total-label">Total {{ cliente.moneda or 'XCG' }}</span>
         <span class="pn-revision-total-monto" id="pn-revision-total">0.00</span>
       </div>
+      {# El grupo puede tener un código de impuesto que la app no traduce
+         (`_ob_de_codigo` devuelve pct=None): no se inventa un total que la
+         factura después va a desmentir. #}
+      <p class="pn-revision-ob-nota" id="pn-revision-ob-nota" hidden>
+        La factura suma el impuesto de este grupo; este subtotal no lo incluye.
+      </p>
       <div class="pn-aviso" id="pn-revision-aviso" hidden>
         <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
         <div class="pn-aviso-texto" id="pn-revision-aviso-texto"></div>
@@ -172,6 +198,11 @@ const monedaActual = {{ (cliente.moneda or 'XCG')|tojson }};
    forma de salir que no fuera recargar la página. */
 const grupoDelServidor = {{ grupo_clave|tojson }} || null;
 let grupoActual = grupoDelServidor;
+
+/* Porcentaje de OB por código de QuickBooks (10 → 6%, 14 → 0%). Es el mismo
+   diccionario de `_OB_POR_CODIGO` en app.py — un código nuevo entra ahí, no
+   acá, o el total de esta pantalla y el de la factura se van a desalinear. */
+const OB_POR_CODIGO = {{ ob_por_codigo|tojson }};
 
 /* Tope duro de cajas por línea, el mismo que aplica `_parse_cajas` en el
    servidor. Vive acá arriba porque lo consultan el alta, la fusión y el
@@ -484,6 +515,56 @@ function mostrarPaso(paso) {
     cuerpo.scrollTop = 0;
 }
 
+/* Código de impuesto (10, 14…) del grupo fijado del pedido en curso. Un
+   pedido nunca mezcla grupos, así que el código de la primera línea vale
+   para todas: no hace falta mirar cada línea. */
+function codigoDelGrupoActual() {
+    if (!grupoActual) return null;
+    const cod = parseFloat(grupoActual.split(':')[1]);
+    return Number.isNaN(cod) ? null : cod;
+}
+
+/* Subtotal, OB y total inclusivo de la revisión — nunca el payload que se le
+   manda a QuickBooks, que sigue viajando tal cual en los hidden de cada
+   línea. `precio_base` se guarda tax-exclusive: el OB se lo suma QuickBooks
+   al facturar, así que "Total" acá tiene que sumarlo también o miente. */
+function pintarTotales(subtotal) {
+    $('pn-revision-subtotal').textContent = formatearMonto(subtotal);
+
+    const codigo = codigoDelGrupoActual();
+    const pct = codigo === null ? undefined : OB_POR_CODIGO[codigo];
+    const filaOb = $('pn-revision-fila-ob');
+    const filaTotal = $('pn-revision-fila-total');
+    const nota = $('pn-revision-ob-nota');
+
+    if (pct === undefined || pct === null) {
+        // Código sin traducir: no se inventa un total que la factura después
+        // desmiente. Solo el subtotal, y un aviso de que falta el impuesto.
+        filaOb.hidden = true;
+        filaTotal.hidden = true;
+        nota.hidden = false;
+        return;
+    }
+
+    nota.hidden = true;
+
+    if (pct === 0) {
+        // «OB 0% — 0.00» es ruido: el grupo no paga impuesto, así que el
+        // total inclusivo es el subtotal y no hay nada que desglosar.
+        filaOb.hidden = true;
+        filaTotal.hidden = false;
+        $('pn-revision-total').textContent = formatearMonto(subtotal);
+        return;
+    }
+
+    const ob = subtotal * pct / 100;
+    filaOb.hidden = false;
+    filaTotal.hidden = false;
+    $('pn-revision-ob-label').textContent = `OB ${pct}%`;
+    $('pn-revision-ob-monto').textContent = formatearMonto(ob);
+    $('pn-revision-total').textContent = formatearMonto(subtotal + ob);
+}
+
 function construirRevision() {
     const activas = productosAgregados.filter(p => p.activa);
     const cont = $('pn-revision-lineas');
@@ -502,8 +583,8 @@ function construirRevision() {
         cont.appendChild(fila);
     });
 
-    const total = activas.reduce((acc, p) => acc + (sinPrecio(p) ? 0 : p.precio) * p.cajas, 0);
-    $('pn-revision-total').textContent = formatearMonto(total);
+    const subtotal = activas.reduce((acc, p) => acc + (sinPrecio(p) ? 0 : p.precio) * p.cajas, 0);
+    pintarTotales(subtotal);
     $('pn-revision-entrega').textContent = inputFechaEntrega.value
         ? `Entrega ${etiquetaFecha(inputFechaEntrega.value)}`
         : 'Sin fecha de entrega';

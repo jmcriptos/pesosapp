@@ -68,8 +68,9 @@
         <div class="mobile-form-group">
           <label for="tax_rate" class="mobile-form-label">TaxCode ID:</label>
           <select id="tax_rate" name="tax_rate" class="mobile-form-control">
-            <option value="10">OB 6%</option>
-            <option value="14">OB Non Tax Local Prod (0%)</option>
+            {% for codigo in ob_por_codigo %}
+            <option value="{{ codigo }}">{{ ob_de_codigo(codigo).etiqueta }}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="mobile-form-group">
@@ -105,7 +106,7 @@
         </span>
         <span class="gestion-row-badges">
           {% if producto.se_pesa %}<span class="chip chip-info"><i class="fas fa-weight-hanging"></i> Se pesa</span>{% endif %}
-          <span class="chip">{{ 'OB 6%' if producto.tax_rate|int == 10 else ('OB 0%' if producto.tax_rate|int == 14 else 'Tax ' ~ producto.tax_rate|int) }}</span>
+          <span class="chip">{{ ob_de_codigo(producto.tax_rate).etiqueta }}</span>
           {% if producto.qbo_id %}
           {% set comparten = conteo_qbo.get(producto.qbo_id, 1) if conteo_qbo else 1 %}
           {% if comparten > 1 %}

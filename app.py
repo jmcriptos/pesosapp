@@ -6542,6 +6542,33 @@ def _grupo_facturable(producto):
     return float(producto.tax_rate or 0)
 
 
+# Los tax_rate son CÓDIGOS de QuickBooks, no porcentajes. La traducción vivía
+# duplicada en tres plantillas (productos.html, editar_producto.html) y no
+# existía en el formulario de pedido, que mostraba el código crudo — el dato
+# que los comentarios de este archivo describen como «no le dice nada al
+# vendedor». Un solo dueño, y se usa en los tres lados.
+_OB_POR_CODIGO = {10: 6.0, 14: 0.0}
+
+
+def _ob_de_codigo(codigo):
+    """Porcentaje de OB y etiqueta legible de un código de impuesto de QBO."""
+    try:
+        cod = int(codigo)
+    except (TypeError, ValueError):
+        return {'pct': None, 'etiqueta': '—'}
+    pct = _OB_POR_CODIGO.get(cod)
+    if pct is None:
+        # Un código que no conocemos NO es 0%: decir «sin impuesto» de algo que
+        # sí lo paga le hace cantar al vendedor un precio que la factura
+        # desmiente.
+        return {'pct': None, 'etiqueta': f'Tax {cod}'}
+    return {'pct': pct, 'etiqueta': f'OB {pct:g}%'}
+
+
+app.jinja_env.globals['ob_de_codigo'] = _ob_de_codigo
+app.jinja_env.globals['ob_por_codigo'] = _OB_POR_CODIGO
+
+
 def _etiqueta_grupo(grupo):
     """Nombre legible del grupo para mostrarle al vendedor."""
     if grupo is None:
@@ -6549,7 +6576,7 @@ def _etiqueta_grupo(grupo):
     # El tax_rate es un código de QuickBooks, no un porcentaje, así que por sí
     # solo no le dice nada al vendedor: la tarjeta lo acompaña con dos
     # productos de ejemplo.
-    return f'Impuesto {grupo:g}'
+    return _ob_de_codigo(grupo)['etiqueta']
 
 
 def _validar_grupo_unico(lineas):
