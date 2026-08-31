@@ -1331,10 +1331,11 @@ a.pn-btn-capsula {
     gap: 14px;
 }
 
-#pn-shell .pn-footer .pn-enviar {
-    display: none;
-}
-
+/* Solo el botón que vive DENTRO de la fila se recoloca. Apagar
+   `#pn-shell .pn-footer .pn-enviar` para «resetear» el layout viejo alcanzaba
+   a TODOS los pies: «Enviar pedido» (revisión) y «Tomar otro pedido»
+   (confirmación) son hijos directos de su pie, no de la fila, y quedaban con
+   `display:none`. El vendedor llegaba a la revisión y no tenía cómo enviar. */
 #pn-shell .pn-footer-row .pn-enviar {
     display: inline-flex;
     align-items: center;
