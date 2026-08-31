@@ -283,15 +283,57 @@
      cola es una lista angosta por naturaleza. */
   body[data-dashboard-screen] [data-dash-section="ventas"]     { grid-column: span 7; }
   body[data-dashboard-screen] [data-dash-section="pendientes"] { grid-column: span 5; }
-  /* La fila de "cómo venimos": tres lecturas del mismo tamaño. */
+  /* La banda de "cómo venimos". Antes eran tres columnas iguales de 4, y el
+     reparto igualitario le daba lo mismo a contenidos que piden distinto: las
+     dos tarjetas de Nivel de servicio —etiqueta, cifra, medidor, escala,
+     subtítulo y chip— quedaban en 158px y partían el título y el subtítulo en
+     dos líneas cada uno, mientras las de estadística, que solo llevan rótulo y
+     número, sobraban ancho. Y como una columna medía 370px de alto contra 110
+     de las otras dos, la fila cerraba con un hueco.
+
+     Ahora Nivel de servicio ocupa 5 columnas y DOS filas, y las dos secciones
+     de estadística se apilan a su derecha en 7. Los dos bloques miden
+     parecido, la fila cierra pareja y cada tarjeta recibe el ancho que su
+     contenido necesita: ~230px las de servicio, ~170px las de estadística. */
   body[data-dashboard-screen] [data-dash-section="bascula"],
-  body[data-dashboard-screen] [data-dash-section="semana"],
-  body[data-dashboard-screen] [data-dash-section="servicio"]   { grid-column: span 4; }
-  /* Sin báscula esa fila son dos, no tres: se reparten a la mitad para no
-     dejar un hueco de cuatro columnas que empujaría al Top fuera de lugar. */
-  body[data-dashboard-screen] .screen-body.sin-bascula [data-dash-section="semana"],
+  body[data-dashboard-screen] [data-dash-section="semana"] {
+    grid-column: 1 / span 7;
+  }
+  body[data-dashboard-screen] [data-dash-section="servicio"] {
+    grid-column: 8 / span 5;
+    grid-row: span 2;
+  }
+  /* La colocación automática de una grilla va en orden de documento y NUNCA
+     retrocede: con "servicio" declarado después de las dos secciones de
+     estadística, sus dos filas empezaban una fila más abajo y empujaban a Top
+     Clientes fuera de la fila de Top Productos.
+
+     `order` cambia el orden de COLOCACIÓN sin tocar el DOM, que es lo que hay
+     que preservar: abajo de 1024px `.screen-body` no es grilla, así que el
+     teléfono conserva su orden de lectura —báscula, semana, servicio— y solo
+     el escritorio intercala la colocación. Las secciones de esta banda no
+     tienen elementos enfocables, así que el orden de tabulación no cambia.
+
+     El orden de colocación es báscula → servicio → semana, y ese entrelazado
+     es exactamente el punto: báscula toma la fila N a la izquierda, servicio
+     entra a su derecha ocupando N y N+1, y semana cae en N+1 debajo de
+     báscula. Colocar servicio primero lo dejaba solo en la fila N y empujaba
+     báscula a N+1. */
+  body[data-dashboard-screen] [data-dash-section="bascula"]       { order: 1; }
+  body[data-dashboard-screen] [data-dash-section="servicio"]      { order: 2; }
+  body[data-dashboard-screen] [data-dash-section="semana"]        { order: 3; }
+  body[data-dashboard-screen] [data-dash-section="top"],
+  body[data-dashboard-screen] [data-dash-section="top-clientes"]  { order: 4; }
+  /* Sin báscula la pila de la izquierda es una sola sección, así que no hay dos
+     filas que acompañar y Nivel de servicio vuelve a ocupar una. Y "Esta
+     semana" pasa a colocarse primero: si se colocara después, servicio tomaría
+     la fila y semana caería a la siguiente dejando siete columnas vacías. */
   body[data-dashboard-screen] .screen-body.sin-bascula [data-dash-section="servicio"] {
-    grid-column: span 6;
+    grid-row: span 1;
+    order: 2;
+  }
+  body[data-dashboard-screen] .screen-body.sin-bascula [data-dash-section="semana"] {
+    order: 1;
   }
   /* Los dos rankings, uno al lado del otro: se leen comparándolos. */
   body[data-dashboard-screen] [data-dash-section="top"],

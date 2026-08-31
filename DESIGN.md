@@ -303,8 +303,30 @@ El gap horizontal es de 8px y no de 20 porque cada componente ya trae sus 16px d
 canaleta: 16 + 8 + 16 dan la calle de 40px, sin una segunda escala que mantener.
 El orden del DOM no cambia — en teléfono sigue siendo un solo scroll—, así que la
 composición de escritorio no puede contradecir el orden de lectura, solo aprovechar
-el ancho. Repartos en uso hoy (dashboard): 7/5 para la fila del pliegue, 4/4/4 para
-la fila de lecturas y 6/6 para los rankings.
+el ancho. Repartos en uso hoy (dashboard): 7/5 para la fila del pliegue, 6/6 para
+los rankings, y la banda de lecturas entrelazada — dos secciones de estadística
+apiladas en 7 columnas con una sección de KPI a su derecha ocupando 5 columnas y
+**dos filas**.
+
+**El reparto sale del contenido, no de la aritmética.** Esa banda eran tres columnas
+iguales de 4, y el reparto igualitario le daba lo mismo a contenidos que piden
+distinto: las tarjetas de KPI —etiqueta, cifra, medidor, escala, subtítulo y chip—
+partían título y subtítulo en dos líneas cada uno dentro de 158px, mientras las de
+estadística, que solo llevan rótulo y número, sobraban ancho; y una columna medía
+370px de alto contra 110 de las otras dos, así que la fila cerraba con un hueco.
+
+**`order` coloca, el DOM lee.** Cuando una sección ocupa dos filas hay que entrelazar
+la colocación, porque la colocación automática de una grilla va en orden de documento
+y nunca retrocede. Eso se hace con `order` dentro de la media query de escritorio, y
+**no** reordenando el HTML: abajo de 1024px el contenedor no es grilla, así que el
+teléfono conserva su orden de lectura. Vale solo mientras las secciones movidas no
+tengan elementos enfocables — el orden de tabulación sigue al DOM, no a `order`.
+
+**Cabeceras de la misma altura.** `.sec-head` lleva `min-height` igual al destino
+táctil de su acción (44px) y la acción va con `align-self: center`. Sin las dos cosas,
+una sección con enlace tiene la cabecera 24px más alta que una sin él y arranca su
+contenido más abajo que la sección vecina: es lo que desalineaba Top Clientes contra
+Top Productos.
 
 ### Named Rules
 
@@ -482,6 +504,16 @@ quien toque estas hojas.
   del chip de tendencia a la familia `--mark-*`. **`.chart-big` bajó de 29,6px a 24px
   a propósito**: es la «cifra de segundo orden» que este documento define como
   headline, y con 27–33 contra 29,6 no se distinguía de la cifra del KPI.
+- **`dashboard_light.css`: cerrado el 2026-08-31.** Era la última de las tres hojas
+  del dashboard sin pasar por la escala, con 9 hallazgos advisory. Cinco `font-size`
+  a la escala (0.72→`--text-xs`, 0.76 y 0.78→`--text-sm`, 1.1→`--text-md`) y los dos
+  rojos sin documentar del chip de tendencia (`#ef4444`, `#991b1b`) a la familia
+  `--mark-*`, que es la que ya usaba `dashboard_snap.css` — así el mismo chip no
+  cambia de tono al cruzar los 1024px. **`.hero-title` subió de 28px a 32px**: 28
+  estaba justo entre dos pasos y esta regla gobierna solo escritorio (snap la pisa
+  abajo de 1024), donde el titular es la frase más importante de la pantalla; en
+  teléfono sigue en 24. Con esto **el detector deja las tres hojas y la plantilla en
+  cero hallazgos reales**.
 - **El acento del dashboard NO es el Índigo de Lectura.** El `<body>` lleva
   `data-hue="blue"`, y ese selector de `tokens.css` reescribe `--indigo-500` a
   **`#2563eb`** y `--indigo-300` a `#93c5fd`. O sea que el kicker del hero y los
