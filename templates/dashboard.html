@@ -161,6 +161,12 @@
    request. Antes vivía en el hero y mostraba la hora del render, así que con
    la ventana stale en 24h podía decir "datos al 13:52" sobre cifras de ayer. #}
 {% set ventas_al              = ventas_actualizadas_en %}
+{# De dónde sale la cifra de ventas: 'quickbooks', 'local' (la app, solo si la
+   configuración lo pide) o none = QuickBooks habilitado pero sin dato
+   todavía. En ese último caso la pantalla lo dice; antes mostraba la suma de
+   los pedidos de la app como si fuera QuickBooks. #}
+{% set ventas_fuente_v        = ventas_fuente|default(none) %}
+{% set ventas_sin_datos       = (not degradado_v) and ventas_fuente_v is none %}
 {% set day_count              = (fecha_actual.day if fecha_actual else 30)|int %}
 {# Días transcurridos de ESTA semana (lunes = 1). El promedio diario vive bajo
    el título "Esta semana", así que tiene que dividir los pedidos de la semana
@@ -231,7 +237,7 @@
       {% if degradado_v %}Datos no disponibles.
       {% elif pedidos_vencidos_v %}Hay {{ pedidos_vencidos_v }} pedido{{ 's' if pedidos_vencidos_v != 1 }} vencido{{ 's' if pedidos_vencidos_v != 1 }}.
       {% elif pedidos_pendientes_v %}Tenés {{ pedidos_pendientes_v }} pedido{{ 's' if pedidos_pendientes_v != 1 }} por atender.
-      {% elif not ventas_mes_v %}Todavía no hay ventas este mes.
+      {% elif not ventas_mes_v and not ventas_sin_datos %}Todavía no hay ventas este mes.
       {% else %}Todo al día.{% endif %}
     </h1>
     <div class="hero-sub">
@@ -249,7 +255,15 @@
     <div class="sec-head">
       <div class="sec-head-main">
         <h2 class="sec-title" id="sec-meta">Meta del mes</h2>
-        {% if ventas_al %}
+        {% if ventas_sin_datos %}
+        <span class="sec-note sec-note-alerta" role="status">
+          Sin datos de QuickBooks todavía · <a href="{{ url_for('dashboard') }}">Reintentar</a>
+        </span>
+        {% elif ventas_al and ventas_fuente_v == 'local' %}
+        <span class="sec-note" title="Suma de los pedidos facturados desde la app; no es la cifra de QuickBooks">
+          Ventas registradas en la app
+        </span>
+        {% elif ventas_al %}
         {# Con fecha cuando el dato no es de hoy: "al 14:07" a secas se lee
            como de hace un rato aunque sea de ayer. #}
         <span class="sec-note" title="Momento en que se trajeron las ventas de QuickBooks">
@@ -264,10 +278,18 @@
       {# Ventas del Mes #}
       <div class="kpi" data-kpi-state="{{ meta_state }}">
         <div class="kpi-label">Ventas del Mes</div>
+        {% if ventas_sin_datos %}
+        <div class="kpi-value kpi-value-vacio">Sin datos</div>
+        {% else %}
         <div class="kpi-value">{{ '{:,.0f}'.format(ventas_mes_v) }}<small>XCG</small></div>
+        {% endif %}
         {{ medidor(porcentaje_meta_v, meta_state, etiqueta='Ventas del mes: ', maximo='la meta') }}
+        {% if ventas_sin_datos %}
+        <div class="kpi-sub">Esperando la respuesta de QuickBooks</div>
+        {% else %}
         <div class="kpi-sub">{{ '%.0f'|format(porcentaje_meta_v) }}% de la meta · {{ pedidos_mes_v }} pedido{{ 's' if pedidos_mes_v != 1 }}</div>
-        <div class="kpi-pie">{{ chip_estado(meta_state) }}<span class="kpi-ref">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} XCG</span></div>
+        {% endif %}
+        <div class="kpi-pie">{% if not ventas_sin_datos %}{{ chip_estado(meta_state) }}{% endif %}<span class="kpi-ref">Meta {{ '{:,.0f}'.format(meta_mensual_v) }} XCG</span></div>
       </div>
 
       {# Proyección #}
@@ -284,17 +306,21 @@
         {% else %}
         <div class="kpi-sub">Hacen falta ventas del mes para proyectar</div>
         {% endif %}
-        <div class="kpi-pie">{{ chip_estado(proy_state) }}<span class="kpi-ref">Al ritmo de {{ day_count }} día{{ 's' if day_count != 1 }}</span></div>
+        <div class="kpi-pie">{% if not ventas_sin_datos %}{{ chip_estado(proy_state) }}{% endif %}<span class="kpi-ref">Al ritmo de {{ day_count }} día{{ 's' if day_count != 1 }}</span></div>
       </div>
     </div>
 
     {# Gráfico de tendencia #}
     <div class="gcard chart-card">
       <div class="chart-head">
+        {% if ventas_sin_datos %}
+        <div class="chart-big kpi-value-vacio">Sin datos<small>esta semana</small></div>
+        {% else %}
         <div class="chart-big">{{ '{:,.0f}'.format(ventas_semana_v) }}<small>XCG · esta semana</small></div>
-        {# Con datos degradados delta_pct siempre da 0 y el chip salía verde
-           hacia arriba: falsa tranquilidad sobre cifras que no son reales. #}
-        {% if not degradado_v %}
+        {% endif %}
+        {# Con datos degradados o sin dato de QuickBooks delta_pct siempre da 0
+           y el chip salía verde hacia arriba: falsa tranquilidad. #}
+        {% if not degradado_v and not ventas_sin_datos %}
         <div class="chart-legend">
           <span class="kpi-trend{{ ' down' if delta_pct < 0 else '' }}">
             <i class="fas fa-arrow-{{ 'down' if delta_pct < 0 else 'up' }}" aria-hidden="true"></i>
@@ -337,6 +363,9 @@
         {% if degradado_v %}
         <p class="empty-state-title">Sin datos.</p>
         <p class="empty-state-sub">La tendencia no se pudo cargar.</p>
+        {% elif ventas_sin_datos %}
+        <p class="empty-state-title">Sin datos de QuickBooks todavía.</p>
+        <p class="empty-state-sub">La tendencia se dibuja con la respuesta de QuickBooks.</p>
         {% else %}
         <p class="empty-state-title">Todavía no hay tendencia.</p>
         <p class="empty-state-sub">Hace falta al menos una semana facturada.</p>

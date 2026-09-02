@@ -39,6 +39,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 import locale
 import traceback
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+import time
 from time import perf_counter
 # from models.extensions import db  # Comentado para evitar conflictos
 import requests
@@ -166,26 +167,26 @@ try:
     N8N_QB_SALES_TIMEOUT = int(os.environ.get('N8N_QB_SALES_TIMEOUT', 20))
 except (TypeError, ValueError):
     N8N_QB_SALES_TIMEOUT = 20
+# Ya no hay timeout «bloqueante»: la lectura del dashboard nunca espera a
+# n8n. La fila de `ventas_qb_cache` se sirve mientras tenga menos de
+# N8N_QB_STALE_CACHE_TTL segundos (24 h) y se refresca por detrás cada
+# N8N_QB_REFRESH_INTERVAL_SEC.
 try:
-    N8N_QB_BLOCKING_TIMEOUT_MS = int(os.environ.get('N8N_QB_BLOCKING_TIMEOUT_MS', 2000))
+    N8N_QB_STALE_CACHE_TTL = int(os.environ.get('N8N_QB_STALE_CACHE_TTL', 86400))
 except (TypeError, ValueError):
-    N8N_QB_BLOCKING_TIMEOUT_MS = 2000
+    N8N_QB_STALE_CACHE_TTL = 86400
 try:
-    N8N_QB_STALE_CACHE_TTL = int(os.environ.get('N8N_QB_STALE_CACHE_TTL', 900))
+    N8N_QB_REFRESH_INTERVAL_SEC = int(os.environ.get('N8N_QB_REFRESH_INTERVAL_SEC', 300))
 except (TypeError, ValueError):
-    N8N_QB_STALE_CACHE_TTL = 900
+    N8N_QB_REFRESH_INTERVAL_SEC = 300
 try:
     N8N_QB_REFRESH_THROTTLE_SEC = int(os.environ.get('N8N_QB_REFRESH_THROTTLE_SEC', 30))
 except (TypeError, ValueError):
     N8N_QB_REFRESH_THROTTLE_SEC = 30
 try:
-    N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 60))
+    N8N_QB_CACHE_TTL = int(os.environ.get('N8N_QB_CACHE_TTL', 300))
 except (TypeError, ValueError):
-    N8N_QB_CACHE_TTL = 60
-try:
-    N8N_QB_FAILURE_CACHE_TTL = int(os.environ.get('N8N_QB_FAILURE_CACHE_TTL', 30))
-except (TypeError, ValueError):
-    N8N_QB_FAILURE_CACHE_TTL = 30
+    N8N_QB_CACHE_TTL = 300
 try:
     DASHBOARD_USD_TO_XCG_FALLBACK_RATE = float(
         os.environ.get('DASHBOARD_USD_TO_XCG_FALLBACK_RATE', 1.78)
@@ -194,15 +195,6 @@ except (TypeError, ValueError):
     DASHBOARD_USD_TO_XCG_FALLBACK_RATE = 1.78
 if DASHBOARD_USD_TO_XCG_FALLBACK_RATE <= 0:
     DASHBOARD_USD_TO_XCG_FALLBACK_RATE = 1.78
-_qb_sales_cache = {
-    'key': None,
-    'value': None,
-    'expires_at': 0.0,
-    'stale_expires_at': 0.0,
-    'failure_expires_at': 0.0,
-    'last_refresh_attempt': 0.0,
-}
-
 # SQLAlchemy ya inicializado arriba
 
 migrate = Migrate(app, db)
@@ -1844,31 +1836,47 @@ def _fechas_ventas_quickbooks():
 
 _qb_refresh_lock = threading.Lock()
 _qb_refresh_en_curso = False
+_qb_periodico_iniciado = False
+
+
+def _utcnow_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _qb_cache_fila():
+    """La única fila de `ventas_qb_cache`, o None si nunca se guardó nada."""
+    return db.session.get(VentasQbCache, 1)
 
 
 def _qb_datos_traidos_en():
-    """Cuándo se trajeron de QuickBooks los datos que hay en caché.
+    """Cuándo se trajeron de QuickBooks los datos de la fila.
 
     Devuelve un datetime en la zona del dashboard, o None si nunca se trajo
     nada. Es lo que la pantalla debe estampar: la hora del render diría que
     los números son de recién aunque tengan un día encima.
     """
-    ts = _qb_sales_cache.get('fetched_at') or 0.0
-    if not ts:
+    fila = _qb_cache_fila()
+    if fila is None or fila.fetched_at is None:
         return None
-    return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(DASHBOARD_TIMEZONE)
+    return fila.fetched_at.replace(tzinfo=timezone.utc).astimezone(DASHBOARD_TIMEZONE)
+
+
+def _qb_refresco_reciente(fila, ahora):
+    """True si otro worker (o este) intentó refrescar hace menos del throttle."""
+    if fila is None or fila.last_refresh_attempt is None or N8N_QB_REFRESH_THROTTLE_SEC <= 0:
+        return False
+    return (ahora - fila.last_refresh_attempt).total_seconds() < N8N_QB_REFRESH_THROTTLE_SEC
 
 
 def _lanzar_refresco_qb_en_segundo_plano(*args_fechas):
-    """Refresca la caché de ventas de QuickBooks sin bloquear al usuario.
+    """Refresca la fila de ventas de QuickBooks sin bloquear al usuario.
 
-    La llamada a n8n/QuickBooks tarda ~7,6s y agota los 8s de timeout con
-    frecuencia. Antes, el primero que abría el dashboard después de vencer el
-    TTL se comía esa espera entera; y si el timeout ganaba, la pantalla caía a
-    los números locales —que son otra métrica— sin decir nada. Ahora ese
-    usuario recibe lo último bueno que haya en caché y el refresco corre acá.
+    La llamada a n8n/QuickBooks tarda ~7,6 s en producción. Nadie la espera
+    dentro de un request: el usuario recibe lo que haya en la fila (o «sin
+    datos») y el refresco corre acá, con el timeout completo.
 
-    Un solo hilo a la vez: si ya hay uno en curso, esta llamada no hace nada.
+    Un solo hilo por proceso a la vez; entre procesos coordina
+    `last_refresh_attempt` de la fila.
     """
     global _qb_refresh_en_curso
     with _qb_refresh_lock:
@@ -1879,7 +1887,11 @@ def _lanzar_refresco_qb_en_segundo_plano(*args_fechas):
     def _correr():
         global _qb_refresh_en_curso
         try:
-            _obtener_metricas_ventas_quickbooks(*args_fechas, _refrescando=True)
+            with app.app_context():
+                try:
+                    _obtener_metricas_ventas_quickbooks(*args_fechas, _refrescando=True)
+                finally:
+                    db.session.remove()
         except Exception as e:
             app.logger.warning(f'Refresco de ventas QuickBooks en segundo plano falló: {e}')
         finally:
@@ -1887,6 +1899,55 @@ def _lanzar_refresco_qb_en_segundo_plano(*args_fechas):
                 _qb_refresh_en_curso = False
 
     threading.Thread(target=_correr, name='qb-sales-refresh', daemon=True).start()
+
+
+def _qb_refrescar_desde_red(payload):
+    """Llama a n8n con el timeout completo y guarda la respuesta cruda en la fila.
+
+    Marca `last_refresh_attempt` ANTES de salir a la red para que el otro
+    worker no salga también. Devuelve el JSON crudo, o None si falló; un
+    fallo deja `last_error` y conserva el crudo anterior.
+    """
+    ahora = _utcnow_naive()
+    fila = _qb_cache_fila()
+    if fila is None:
+        fila = VentasQbCache(id=1)
+        db.session.add(fila)
+    fila.last_refresh_attempt = ahora
+    db.session.commit()
+
+    inicio = perf_counter()
+    try:
+        resp = requests.post(
+            N8N_QB_SALES_WEBHOOK_URL,
+            json=payload,
+            timeout=float(N8N_QB_SALES_TIMEOUT),
+            headers=_webhook_headers(),
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, dict):
+            raise ValueError('se esperaba un JSON objeto')
+    except Exception as e:
+        fila.last_error = str(e)[:255]
+        db.session.commit()
+        app.logger.warning(
+            f'[qb-cache] pid={os.getpid()} refresco falló tras '
+            f'{(perf_counter() - inicio) * 1000:.0f}ms: {e}'
+        )
+        return None
+
+    fila.raw_json = json.dumps(data)
+    fila.from_date = _date_like_to_date(payload.get('from_date'))
+    fila.to_date = _date_like_to_date(payload.get('to_date'))
+    fila.fetched_at = _utcnow_naive()
+    fila.last_error = None
+    db.session.commit()
+    app.logger.info(
+        f'[qb-cache] pid={os.getpid()} QuickBooks ventas respondió en '
+        f'{(perf_counter() - inicio) * 1000:.0f}ms'
+    )
+    return data
 
 
 def _obtener_metricas_ventas_quickbooks(
@@ -1899,8 +1960,17 @@ def _obtener_metricas_ventas_quickbooks(
     inicio_ultimos_7_dias,
     _refrescando=False,
 ):
-    global _qb_sales_cache
+    """Métricas de ventas de QuickBooks a partir de la fila compartida.
 
+    Nunca espera a la red en un request:
+      - fila con menos de N8N_QB_CACHE_TTL → se sirve;
+      - más vieja pero dentro de N8N_QB_STALE_CACHE_TTL → se sirve y se
+        refresca por detrás (si pasó el throttle);
+      - nada servible → None y refresco por detrás. La pantalla dice
+        «sin datos de QuickBooks», no una cifra local disfrazada.
+    Con `_refrescando=True` (hilo de refresco, arranque, bucle periódico) sí
+    sale a la red y guarda el crudo.
+    """
     if not _quickbooks_sales_enabled():
         return None
 
@@ -1916,168 +1986,98 @@ def _obtener_metricas_ventas_quickbooks(
         'group_by': ['day', 'week', 'customer', 'product'],
         'include_summary': True
     }
-    cache_key = (
-        N8N_QB_SALES_WEBHOOK_URL,
-        payload['from_date'],
-        payload['to_date'],
-        payload['timezone'],
-    )
-    now_ts = datetime.now(timezone.utc).timestamp()
-    cache_hit_for_key = _qb_sales_cache.get('key') == cache_key
-    cached_value = _qb_sales_cache.get('value')
-    has_stale_value = (
-        cache_hit_for_key
-        and cached_value is not None
-        and _qb_sales_cache.get('stale_expires_at', 0.0) > now_ts
+    ventanas = dict(
+        hoy=hoy,
+        inicio_mes=inicio_mes,
+        inicio_semana=inicio_semana,
+        inicio_mes_anterior=inicio_mes_anterior,
+        fin_mes_anterior=fin_mes_anterior,
+        inicio_tendencia=inicio_tendencia,
+        inicio_ultimos_7_dias=inicio_ultimos_7_dias,
     )
 
-    def _traza(decision):
-        if DASHBOARD_PERF_LOG:
-            app.logger.info(
-                f'[qb-cache] pid={os.getpid()} decision={decision} '
-                f'clave_coincide={cache_hit_for_key} hay_stale={has_stale_value} '
-                f'refrescando={_refrescando}'
+    if _refrescando:
+        data = _qb_refrescar_desde_red(payload)
+        if data is None:
+            return None
+        return _normalizar_metricas_ventas_quickbooks(data, **ventanas)
+
+    fila = _qb_cache_fila()
+    ahora = _utcnow_naive()
+    valor = None
+    fresca = False
+    edad = None
+    if fila is not None and fila.raw_json and fila.fetched_at is not None:
+        edad = (ahora - fila.fetched_at).total_seconds()
+        if N8N_QB_STALE_CACHE_TTL <= 0 or edad <= N8N_QB_STALE_CACHE_TTL:
+            try:
+                valor = _normalizar_metricas_ventas_quickbooks(json.loads(fila.raw_json), **ventanas)
+            except (TypeError, ValueError) as e:
+                app.logger.warning(f'[qb-cache] fila ilegible, se ignora: {e}')
+                valor = None
+            fresca = valor is not None and N8N_QB_CACHE_TTL > 0 and edad <= N8N_QB_CACHE_TTL
+
+    if fresca:
+        decision = 'fresca'
+    elif _qb_refresco_reciente(fila, ahora):
+        decision = 'stale-throttle' if valor is not None else 'sin-datos-throttle'
+    else:
+        decision = 'stale-refresco' if valor is not None else 'sin-datos-refresco'
+        _lanzar_refresco_qb_en_segundo_plano(
+            hoy,
+            inicio_mes,
+            inicio_semana,
+            inicio_mes_anterior,
+            fin_mes_anterior,
+            inicio_tendencia,
+            inicio_ultimos_7_dias,
+        )
+    if DASHBOARD_PERF_LOG:
+        app.logger.info(
+            f'[qb-cache] pid={os.getpid()} decision={decision} '
+            f'edad={edad if edad is None else int(edad)}s'
+        )
+    return valor
+
+
+def _refrescar_qb_con_contexto(*, respetar_throttle):
+    """Un refresco completo dentro de un app context propio (para hilos)."""
+    with app.app_context():
+        try:
+            if respetar_throttle and _qb_refresco_reciente(_qb_cache_fila(), _utcnow_naive()):
+                return
+            _obtener_metricas_ventas_quickbooks(
+                **_fechas_ventas_quickbooks(), _refrescando=True
             )
+        finally:
+            db.session.remove()
 
-    if (
-        not _refrescando
-        and N8N_QB_CACHE_TTL > 0
-        and cache_hit_for_key
-        and _qb_sales_cache.get('expires_at', 0.0) > now_ts
-    ):
-        _traza('fresco')
-        return _qb_sales_cache.get('value')
-    if (
-        not _refrescando
-        and N8N_QB_FAILURE_CACHE_TTL > 0
-        and cache_hit_for_key
-        and _qb_sales_cache.get('failure_expires_at', 0.0) > now_ts
-    ):
-        _traza('fallo-cacheado')
-        return cached_value if has_stale_value else None
 
-    # Con un valor servible en mano nadie espera la red: se devuelve lo
-    # cacheado al instante y, si pasó el throttle, el refresco va por detrás.
-    if has_stale_value and not _refrescando:
-        dentro_del_throttle = (
-            N8N_QB_REFRESH_THROTTLE_SEC > 0
-            and (_qb_sales_cache.get('last_refresh_attempt', 0.0) + N8N_QB_REFRESH_THROTTLE_SEC) > now_ts
-        )
-        _traza('stale-throttle' if dentro_del_throttle else 'stale-refresco')
-        if not dentro_del_throttle:
-            _lanzar_refresco_qb_en_segundo_plano(
-                hoy,
-                inicio_mes,
-                inicio_semana,
-                inicio_mes_anterior,
-                fin_mes_anterior,
-                inicio_tendencia,
-                inicio_ultimos_7_dias,
-            )
-        return cached_value
+def _iniciar_refresco_periodico_qb():
+    """Un hilo por worker que refresca la fila cada N8N_QB_REFRESH_INTERVAL_SEC.
 
-    # N8N_QB_BLOCKING_TIMEOUT_MS es el presupuesto de "cuánto puede esperar un
-    # usuario". En el refresco de segundo plano no espera nadie, así que ahí se
-    # usa el timeout completo: con 8s la llamada expiraba seguido y la pantalla
-    # caía a los números locales, que son otra métrica.
-    blocking_timeout = float(N8N_QB_SALES_TIMEOUT)
-    if not _refrescando and N8N_QB_BLOCKING_TIMEOUT_MS > 0:
-        blocking_timeout = min(
-            float(N8N_QB_SALES_TIMEOUT),
-            float(N8N_QB_BLOCKING_TIMEOUT_MS) / 1000.0
-        )
-    if blocking_timeout <= 0:
-        blocking_timeout = float(N8N_QB_SALES_TIMEOUT)
+    Así el dato se mantiene fresco aunque nadie abra el dashboard, y a nadie le
+    toca pagar el refresco. Los workers se coordinan por `last_refresh_attempt`:
+    el que llega segundo dentro del throttle no sale a la red.
+    """
+    global _qb_periodico_iniciado
+    if _qb_periodico_iniciado or N8N_QB_REFRESH_INTERVAL_SEC <= 0:
+        return
+    _qb_periodico_iniciado = True
 
-    _traza('refresco-en-hilo' if _refrescando else 'BLOQUEANTE')
-    _qb_sales_cache['last_refresh_attempt'] = now_ts
+    def _bucle():
+        while True:
+            time.sleep(N8N_QB_REFRESH_INTERVAL_SEC)
+            try:
+                _refrescar_qb_con_contexto(respetar_throttle=True)
+            except Exception as e:
+                app.logger.warning(f'[qb-cache] pid={os.getpid()} refresco periódico falló: {e}')
 
-    try:
-        qb_fetch_start = perf_counter()
-        resp = requests.post(
-            N8N_QB_SALES_WEBHOOK_URL,
-            json=payload,
-            timeout=blocking_timeout,
-            headers=_webhook_headers()
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if not isinstance(data, dict):
-            app.logger.warning('Respuesta QuickBooks inválida: se esperaba JSON objeto')
-            return cached_value if has_stale_value else None
-        normalized = _normalizar_metricas_ventas_quickbooks(
-            data,
-            hoy=hoy,
-            inicio_mes=inicio_mes,
-            inicio_semana=inicio_semana,
-            inicio_mes_anterior=inicio_mes_anterior,
-            fin_mes_anterior=fin_mes_anterior,
-            inicio_tendencia=inicio_tendencia,
-            inicio_ultimos_7_dias=inicio_ultimos_7_dias,
-        )
-        cache_now = datetime.now(timezone.utc).timestamp()
-        _qb_sales_cache = {
-            'key': cache_key,
-            'value': normalized,
-            'expires_at': cache_now + N8N_QB_CACHE_TTL if N8N_QB_CACHE_TTL > 0 else 0.0,
-            'stale_expires_at': cache_now + N8N_QB_STALE_CACHE_TTL if N8N_QB_STALE_CACHE_TTL > 0 else 0.0,
-            'failure_expires_at': 0.0,
-            'last_refresh_attempt': cache_now,
-            # Momento real de la consulta. Con la ventana stale en 24h, un
-            # valor servido puede tener horas encima: sin esto la pantalla
-            # estampaba la hora del render y decía que era de recién.
-            'fetched_at': cache_now,
-        }
-        qb_elapsed_ms = (perf_counter() - qb_fetch_start) * 1000
-        if qb_elapsed_ms >= 1000:
-            app.logger.info(
-                f'QuickBooks ventas respondió en {qb_elapsed_ms:.0f}ms '
-                f'(timeout efectivo {blocking_timeout:.2f}s)'
-            )
-        return normalized
-    except requests.Timeout:
-        app.logger.warning(
-            f'Timeout obteniendo ventas de QuickBooks ({blocking_timeout:.2f}s). '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    except requests.RequestException as e:
-        app.logger.warning(
-            f'Error consultando ventas QuickBooks: {e}. '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    except ValueError:
-        app.logger.warning(
-            f'Error parseando JSON de ventas QuickBooks. '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    except Exception as e:
-        app.logger.warning(
-            f'Error inesperado ventas QuickBooks: {e}. '
-            f'Fallback a {"cache stale" if has_stale_value else "datos locales"}.'
-        )
-    if N8N_QB_FAILURE_CACHE_TTL > 0:
-        _qb_sales_cache = {
-            'key': cache_key,
-            'value': cached_value if has_stale_value else None,
-            'expires_at': 0.0,
-            'stale_expires_at': _qb_sales_cache.get('stale_expires_at', 0.0) if has_stale_value else 0.0,
-            'failure_expires_at': datetime.now(timezone.utc).timestamp() + N8N_QB_FAILURE_CACHE_TTL,
-            'last_refresh_attempt': now_ts,
-            # Si se sigue sirviendo el valor viejo, su marca de tiempo es la
-            # del momento en que se trajo, no la de este intento fallido.
-            'fetched_at': _qb_sales_cache.get('fetched_at', 0.0) if has_stale_value else 0.0,
-        }
-    return cached_value if has_stale_value else None
+    threading.Thread(target=_bucle, name='qb-sales-periodico', daemon=True).start()
 
 
 def _precalentar_cache_qb():
-    """Llena la caché de ventas al arrancar el worker, en segundo plano.
-
-    Gunicorn corre varios workers y cada uno tiene su propia caché en memoria.
-    Los workers sync compiten por accept(), no se turnan: uno puede quedarse
-    sin servir nada durante minutos y, cuando por fin le toca una petición, esa
-    carga paga los ~7,6s de QuickBooks aunque el otro worker lleve rato
-    caliente. Precalentando, nadie paga el arranque en frío.
+    """Llena la fila de ventas al arrancar el worker y arranca el bucle periódico.
 
     Va en un hilo daemon a propósito: si se hiciera durante el import, un n8n
     lento retrasaría el boot y Heroku puede matar el dyno por timeout de
@@ -2092,14 +2092,13 @@ def _precalentar_cache_qb():
 
     def _correr():
         try:
-            # `_refrescando=True` para usar el timeout completo
-            # (N8N_QB_SALES_TIMEOUT, 20s) y no el presupuesto de espera del
-            # usuario (8s): acá no espera nadie. Con 8s, una llamada de las que
-            # tardan 8114ms —vistas en producción— dejaba el worker sin caché y
-            # el arranque en frío se lo comía igual el primero que entrara.
-            _obtener_metricas_ventas_quickbooks(
-                **_fechas_ventas_quickbooks(), _refrescando=True
-            )
+            with app.app_context():
+                try:
+                    _obtener_metricas_ventas_quickbooks(
+                        **_fechas_ventas_quickbooks(), _refrescando=True
+                    )
+                finally:
+                    db.session.remove()
             app.logger.info(f'[qb-cache] pid={os.getpid()} precalentamiento de arranque listo')
         except Exception as e:
             app.logger.warning(
@@ -2107,6 +2106,7 @@ def _precalentar_cache_qb():
             )
 
     threading.Thread(target=_correr, name='qb-sales-warmup', daemon=True).start()
+    _iniciar_refresco_periodico_qb()
 
 
 _precalentar_cache_qb()
@@ -3164,6 +3164,27 @@ class ListaPrecio(db.Model):
             'activa': self.activa,
             'fecha_creacion': self.fecha_creacion.strftime('%Y-%m-%d %H:%M:%S') if self.fecha_creacion else None
         }
+
+
+class VentasQbCache(db.Model):
+    """Una sola fila (id=1): la última respuesta CRUDA de n8n/QuickBooks.
+
+    Vive en Postgres y no en memoria porque gunicorn corre varios workers y
+    cada uno tenía su propio dict, con su propia hora: dos recargas seguidas
+    podían mostrar cifras distintas. Se guarda el crudo y no el normalizado
+    para que las ventanas de mes y semana se calculen al leer, con la fecha
+    de hoy: así la fila no caduca a medianoche. `last_refresh_attempt` es el
+    throttle entre workers.
+    """
+    __tablename__ = 'ventas_qb_cache'
+
+    id = db.Column(db.Integer, primary_key=True)
+    raw_json = db.Column(db.Text, nullable=True)
+    from_date = db.Column(db.Date, nullable=True)
+    to_date = db.Column(db.Date, nullable=True)
+    fetched_at = db.Column(db.DateTime, nullable=True)
+    last_refresh_attempt = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.String(255), nullable=True)
 
 
 class PrecioProducto(db.Model):
@@ -5840,6 +5861,17 @@ def dashboard():
             **_fechas_ventas_quickbooks()
         )
         mark_dashboard_perf('fuente_ventas')
+        # De dónde sale la cifra de ventas. 'local' SOLO cuando la
+        # configuración pide la app como fuente; None es «QuickBooks
+        # habilitado pero sin dato todavía». Hasta el 2026-09-02, sin dato de
+        # QuickBooks se mostraba la suma de los pedidos de la app —un tercio
+        # de las ventas reales— con sello «Ventas al» de la hora del render.
+        if metricas_ventas_qb:
+            ventas_fuente = 'quickbooks'
+        elif not _quickbooks_sales_enabled():
+            ventas_fuente = 'local'
+        else:
+            ventas_fuente = None
 
         ventas_mes = 0.0
         ventas_semana = 0.0
@@ -5851,10 +5883,9 @@ def dashboard():
             ventas_semana = metricas_ventas_qb['ventas_semana']
             ventas_mes_anterior = metricas_ventas_qb['ventas_mes_anterior']
             ventas_semanales_idx = metricas_ventas_qb['ventas_semanales_idx']
-        else:
-            # Sin QuickBooks, las ventas se reconocen localmente por fecha de
-            # facturación. Es el camino de respaldo y por eso puede costar: vale
-            # más una cifra local que un cero.
+        elif ventas_fuente == 'local':
+            # Con la app como fuente, las ventas se reconocen localmente por
+            # fecha de facturación. Es el camino caro y solo corre si se pidió.
             try:
                 for p in pedidos_facturados_list:
                     try:
@@ -6275,9 +6306,10 @@ def dashboard():
             # Las cifras de venta salen de QuickBooks y pueden venir de la
             # caché; el resto (pedidos, cola, rankings) se calcula recién. Por
             # eso el sello acompaña a las ventas y no al encabezado entero.
+            ventas_fuente=ventas_fuente,
             ventas_actualizadas_en=(
-                None if datos_incompletos
-                else (_qb_datos_traidos_en() if metricas_ventas_qb else datetime.now(DASHBOARD_TIMEZONE))
+                None if datos_incompletos or ventas_fuente is None
+                else (_qb_datos_traidos_en() if ventas_fuente == 'quickbooks' else datetime.now(DASHBOARD_TIMEZONE))
             )
         )
         mark_dashboard_perf('render_template')
@@ -6329,6 +6361,7 @@ def dashboard():
             # La plantilla usa esto para avisar que los ceros de arriba son
             # producto del fallo, no del negocio.
             'degradado': True,
+            'ventas_fuente': None,
             'ventas_actualizadas_en': None
         }
         
