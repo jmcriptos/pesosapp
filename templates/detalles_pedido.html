@@ -91,6 +91,20 @@
     <!-- Summary strip de productos -->
     {% include 'partials/_detail_productos_summary.html' %}
 
+    {# Líneas por caja sin lote/fechas: no tendrán etiqueta. No es obligatorio
+       llenarlos (JM prefirió un aviso a una guarda, 2026-09-02), pero hay que
+       decirlo ANTES de facturar, porque facturado ya no se edita. El pedido
+       1316 salió sin las etiquetas de sus dos productos de 500 gr y el único
+       aviso era un flash sobre la respuesta PDF, que nadie ve. #}
+    {% if lineas_sin_trazabilidad %}
+    <div class="app-flash app-flash-warning detail-aviso-trazabilidad" role="status">
+      <i class="fas fa-tag" aria-hidden="true"></i>
+      {{ aviso_sin_trazabilidad }}:
+      {% for nombre, motivo in lineas_sin_trazabilidad %}{{ nombre }} ({{ motivo }}){% if not loop.last %}; {% endif %}{% endfor %}.
+      {% if pedido.estado == 'facturado' %}El pedido ya está facturado y ya no se puede completar desde la app.{% else %}Se completa con «Editar» antes de facturar.{% endif %}
+    </div>
+    {% endif %}
+
     <!-- Productos agregados -->
     {% include 'partials/_detail_productos_card.html' %}
 

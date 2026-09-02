@@ -58,11 +58,11 @@ def logged_client(app):
     return c
 
 
-def _pedido_por_caja(cajas='0.25', con_trazabilidad=False):
+def _pedido_por_caja(cajas='0.25', con_trazabilidad=False, estado='preparado'):
     """Pedido con un producto por caja: línea original + línea de preparación."""
     from app import Pedido, DetallePedido
 
-    p = Pedido(cliente_id=1, estado='preparado', tipo_cambio=1.0,
+    p = Pedido(cliente_id=1, estado=estado, tipo_cambio=1.0,
                fecha_entrega=date(2026, 8, 29))
     _db.session.add(p)
     _db.session.flush()
@@ -202,3 +202,50 @@ def test_avisa_cuando_deja_lineas_sin_etiqueta(app, logged_client):
     assert 'sin fecha de fabricación' in cuerpo, (
         'Falta el aviso de las líneas que quedaron sin etiqueta'
     )
+
+
+# ------------------------------------------------ el aviso, no la guarda
+
+AVISO = 'Sin etiqueta hasta completar lote y fechas'
+
+
+def test_el_detalle_avisa_que_la_linea_por_caja_no_tendra_etiqueta(app, logged_client):
+    """El pedido 1316 (2026-09-01) llegó a facturado con sus dos líneas de
+    500 gr sin lote ni fechas y nadie lo vio: el único aviso era un flash
+    sobre la respuesta PDF. JM no quiere que sean obligatorios («prefiero un
+    aviso», 2026-09-02), así que la pantalla lo dice antes."""
+    pedido_id = _pedido_por_caja(estado='pendiente')
+
+    html = logged_client.get(f'/pedidos/{pedido_id}/detalles').data.decode()
+
+    assert AVISO in html
+    assert 'Cooked Shoulder 500 gr' in html.split(AVISO, 1)[1][:300]
+
+
+def test_el_detalle_no_avisa_cuando_la_linea_por_caja_tiene_trazabilidad(app, logged_client):
+    pedido_id = _pedido_por_caja(estado='pendiente', con_trazabilidad=True)
+
+    html = logged_client.get(f'/pedidos/{pedido_id}/detalles').data.decode()
+
+    assert AVISO not in html
+
+
+def test_el_detalle_facturado_dice_que_ya_no_se_puede_completar(app, logged_client):
+    pedido_id = _pedido_por_caja(estado='facturado')
+
+    html = logged_client.get(f'/pedidos/{pedido_id}/detalles').data.decode()
+
+    assert AVISO in html
+    assert 'ya no se puede completar' in html
+
+
+def test_marcar_preparado_avisa_pero_no_bloquea(app, logged_client):
+    from app import Pedido
+    pedido_id = _pedido_por_caja(estado='pendiente')
+
+    resp = logged_client.post(f'/pedidos/{pedido_id}/marcar_preparado',
+                              follow_redirects=True)
+
+    assert resp.status_code == 200
+    assert _db.session.get(Pedido, pedido_id).estado == 'preparado'
+    assert AVISO in resp.data.decode()

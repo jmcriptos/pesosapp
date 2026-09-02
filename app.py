@@ -4048,6 +4048,47 @@ def _avisar_lineas_sin_etiqueta(omitidas):
     flash(f'No se generaron etiquetas de: {detalle}.', 'warning')
 
 
+AVISO_SIN_TRAZABILIDAD = 'Sin etiqueta hasta completar lote y fechas'
+
+
+def _lineas_por_caja_sin_trazabilidad(pedido):
+    """[(nombre, 'falta lote, fecha fabricación')] de las líneas de preparación
+    de productos POR CAJA sin lote o fechas.
+
+    Para esos productos lote y fechas NO son obligatorios (JM, 2026-09-02:
+    «prefiero un aviso»), pero su etiqueta los imprime y el generador descarta
+    la línea sin fecha de fabricación. El pedido 1316 llegó a facturado con
+    sus dos líneas de 500 gr en blanco y nadie lo supo hasta pedir el PDF; y
+    facturado ya no se edita. Esto alimenta el aviso, no una guarda.
+    """
+    faltantes = []
+    for detalle in pedido.detalles:
+        if detalle.es_linea_pedido or not detalle.producto or detalle.producto.se_pesa:
+            continue
+        campos = []
+        if not detalle.lote:
+            campos.append('lote')
+        if not detalle.fecha_fabricacion:
+            campos.append('fecha fabricación')
+        if not detalle.fecha_expiracion:
+            campos.append('fecha expiración')
+        if campos:
+            faltantes.append((detalle.producto.nombre, 'falta ' + ', '.join(campos)))
+    return faltantes
+
+
+def _avisar_trazabilidad_por_caja(pedido):
+    faltantes = _lineas_por_caja_sin_trazabilidad(pedido)
+    if not faltantes:
+        return
+    detalle = '; '.join(f'{nombre} ({motivo})' for nombre, motivo in faltantes)
+    flash(
+        f'{AVISO_SIN_TRAZABILIDAD}: {detalle}. '
+        'Se completa con «Editar» antes de facturar.',
+        'warning',
+    )
+
+
 def _validar_preparacion_pedido(pedido):
     errores = []
     prep_lines_por_producto = {}
@@ -8014,6 +8055,8 @@ def detalles_pedido(pedido_id):
                            detalles_ordenados=detalles_ordenados,
                            lineas_originales=lineas_originales,
                            prep_by_producto=prep_by_producto,
+                           lineas_sin_trazabilidad=_lineas_por_caja_sin_trazabilidad(pedido),
+                           aviso_sin_trazabilidad=AVISO_SIN_TRAZABILIDAD,
                            eventos=eventos,
                            pedido_total_xcg=_calcular_venta_pedido(pedido),
                            tiene_productos_pesables=_pedido_tiene_productos_pesables(pedido))
@@ -8273,6 +8316,7 @@ def finalizar_pesaje_pedido(pedido_id):
     )
     db.session.commit()
     flash('Pesaje finalizado y pedido marcado como preparado', 'success')
+    _avisar_trazabilidad_por_caja(pedido)
     return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
 
@@ -8673,6 +8717,7 @@ def marcar_preparado(pedido_id):
     _log_pedido_evento(pedido, 'preparado', 'Pedido marcado como preparado')
     db.session.commit()
     flash('Pedido marcado como preparado', 'success')
+    _avisar_trazabilidad_por_caja(pedido)
     return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
 

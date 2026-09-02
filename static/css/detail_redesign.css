@@ -269,6 +269,15 @@ body[data-detalles-screen] .detail-summary-cell strong {
   font-weight: 800;
 }
 
+/* Aviso: líneas por caja sin lote/fechas (no tendrán etiqueta). */
+body[data-detalles-screen] .detail-aviso-trazabilidad {
+  margin: 0 16px 14px;
+  font-weight: 500;
+}
+body[data-detalles-screen] .detail-aviso-trazabilidad i {
+  margin-right: 6px;
+}
+
 /* ─── Product items list ────────────────────────────────────────────────── */
 body[data-detalles-screen] .detail-products-list {
   display: flex;
