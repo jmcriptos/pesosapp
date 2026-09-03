@@ -13845,6 +13845,12 @@ def registros_index():
                            haccp_global=haccp_global, es_admin=es_admin, hoy=hoy)
 
 
+# Módulo de maquila. Se importa AL FINAL a propósito: `maquila` importa `db`,
+# los modelos base y `requiere_rol` de este archivo, y a esta altura ya existen.
+from maquila import registrar_maquila  # noqa: E402
+registrar_maquila(app)
+
+
 if __name__ == '__main__':
     # Configuración para desarrollo local
     if os.environ.get('FLASK_ENV') == 'development':

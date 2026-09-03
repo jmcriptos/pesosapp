@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="ops-wrap maquila-wrap">
+  <header class="ops-head">
+    <h1 class="ops-title">{% block maquila_title %}Maquila{% endblock %}</h1>
+    <nav class="maquila-nav">
+      <a href="{{ url_for('maquila.index') }}">Resumen</a>
+    </nav>
+  </header>
+  {% block maquila_body %}{% endblock %}
+</div>
+{% endblock %}

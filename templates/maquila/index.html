@@ -1,0 +1,8 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Maquila{% endblock %}
+{% block maquila_title %}Maquila{% endblock %}
+{% block maquila_body %}
+  {% if not clientes %}
+    <p class="ops-empty">Todavía no hay recepciones de ingredientes registradas.</p>
+  {% endif %}
+{% endblock %}
