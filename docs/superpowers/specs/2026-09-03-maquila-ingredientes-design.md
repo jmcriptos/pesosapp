@@ -289,7 +289,7 @@ tablas, ~20 rutas y cuatro reportes. Va en un paquete propio:
 ```
 maquila/
   __init__.py      # create_blueprint()
-  models.py        # importa solo extensions.db → cero circularidad
+  models.py        # los doce modelos
   servicios.py     # ledger, FIFO, FEFO, saldos: funciones puras
   reportes.py      # las cuatro consultas
   routes.py        # el Blueprint
@@ -297,9 +297,26 @@ templates/maquila/
 static/css/maquila.css
 ```
 
-Único cambio a código existente: mover `requiere_rol` y `requiere_permiso_recurso`
-de `app.py` a `utils/auth.py`, re-exportándolos desde `app.py` para que nada de lo
-que hoy funciona se entere.
+**Corrección al diseño original.** Había asumido que `db` vivía en `extensions.py`.
+No es así: ese archivo es código muerto. `app.py:138` dice literalmente «Inicializar
+SQLAlchemy directamente (sin models.extensions)» y hace `db = SQLAlchemy(app)`; nadie
+importa `extensions`. `db` vive en `app.py` y no hay de dónde más sacarlo.
+
+La salida es la convencional en Flask, y resulta **menos** invasiva que lo que había
+propuesto: `maquila/` importa de `app` lo que necesita (`db`, `Cliente`, `Producto`,
+`DetallePedido`, `CajaPesada`, `Vendedor`, `requiere_rol`), y `app.py` importa
+`maquila` **al final del archivo**, cuando todo eso ya está definido. Python guarda el
+módulo a medio inicializar en `sys.modules`, así que el ciclo se resuelve solo.
+
+Consecuencias:
+
+- **`requiere_rol` no se mueve a ningún lado.** `maquila/routes.py` lo importa de `app`
+  como cualquier otra cosa. **Cero cambios a código existente.**
+- El único cambio en `app.py` son **tres líneas al final**, justo antes del bloque
+  `if __name__ == '__main__':`.
+- `maquila/models.py` tiene que quedar importado sí o sí, o el `db.create_all()` de
+  `tests/conftest.py` no ve las tablas nuevas y todos los tests del módulo fallan sin
+  una explicación visible.
 
 ## Trampas conocidas de esta app
 
