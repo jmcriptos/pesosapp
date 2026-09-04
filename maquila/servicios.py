@@ -1,8 +1,11 @@
 """Lógica de negocio del módulo de maquila.
 
 Funciones puras sobre la sesión de SQLAlchemy: reciben ids, devuelven objetos o
-Decimals. Ninguna hace commit — eso es responsabilidad de quien llama, para que
-una recepción o un cierre de corrida quepan en una sola transacción.
+Decimals. La mayoría NO hace commit — queda a cargo de quien llama, para que
+una operación compuesta quepa en una sola transacción. Las cuatro excepciones,
+que sí comitean (y hacen su propio rollback ante un error), porque cada una ES
+la transacción completa de su caso de uso: `crear_recepcion`, `abrir_corrida`,
+`cerrar_corrida` y `asignar_cajas`.
 """
 from datetime import date as _date, datetime
 from decimal import Decimal
@@ -15,10 +18,11 @@ from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
                      CorridaProduccion, CorridaCaja, CorridaConsumo,
                      CorridaConsumoOrigen)
 
-# NO reemplazar por `from app import db`: revienta `python app.py` (el
-# preview local) con un ImportError circular. Ver el comentario largo en
+# NO reemplazar por `from app import db, CajaPesada`: revienta `python app.py`
+# (el preview local) con un ImportError circular. Ver el comentario largo en
 # maquila/__init__.py para el porqué.
 db = app_module.db
+CajaPesada = app_module.CajaPesada
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}
@@ -77,6 +81,18 @@ def saldo_cliente_ingrediente(cliente_id, ingrediente_id):
                      MovimientoIngrediente.ingrediente_id == ingrediente_id)
              .scalar())
     return _dec(total)
+
+
+def ajustes_manuales_de_cliente(cliente_id):
+    """Los ajustes manuales (`origen_tipo='manual'`) ya registrados de ese
+    cliente, más reciente primero. Es lo que la pantalla de ajustes muestra
+    para que el operario vea lo que ya se hizo, no solo el formulario para
+    hacer uno nuevo."""
+    return (MovimientoIngrediente.query
+            .filter_by(cliente_id=cliente_id, tipo='ajuste', origen_tipo='manual')
+            .order_by(MovimientoIngrediente.registrado_en.desc(),
+                      MovimientoIngrediente.id.desc())
+            .all())
 
 
 def saldos_de_cliente(cliente_id):
@@ -420,21 +436,25 @@ def abrir_corrida(*, cliente_id, producto_id, lote, fecha_produccion, vendedor_i
         sugerida = receta_activa(producto_id, cliente_id)
         receta_id = sugerida.id if sugerida else None
 
-    corrida = CorridaProduccion(
-        codigo=siguiente_codigo('P', fecha_produccion.year),
-        cliente_id=cliente_id,
-        producto_id=producto_id,
-        receta_id=receta_id,
-        lote=lote,
-        fecha_produccion=fecha_produccion,
-        fecha_vencimiento=fecha_vencimiento,
-        estado='abierta',
-        notas=(notas or None),
-        registrado_por=vendedor_id,
-    )
-    db.session.add(corrida)
-    db.session.commit()
-    return corrida
+    try:
+        corrida = CorridaProduccion(
+            codigo=siguiente_codigo('P', fecha_produccion.year),
+            cliente_id=cliente_id,
+            producto_id=producto_id,
+            receta_id=receta_id,
+            lote=lote,
+            fecha_produccion=fecha_produccion,
+            fecha_vencimiento=fecha_vencimiento,
+            estado='abierta',
+            notas=(notas or None),
+            registrado_por=vendedor_id,
+        )
+        db.session.add(corrida)
+        db.session.commit()
+        return corrida
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def agregar_caja_producida(corrida, peso):
@@ -465,6 +485,12 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
     insuficiente, un reparto manual inválido), se hace rollback acá mismo y
     no queda ni un `CorridaConsumo` ni un movimiento colgando. Mismo contrato
     que `crear_recepcion`.
+
+    NOTA: `reparto_manual` todavía no lo usa ninguna ruta — `corrida_cerrar`
+    en routes.py siempre llama con el reparto en None, y el reparto FIFO
+    automático es el único camino real hoy. La UI para que un operario edite
+    el reparto a mano está pendiente de decisión; hasta que exista, esta
+    rama solo corre desde los tests.
     """
     if corrida.estado != 'abierta':
         raise CorridaInvalida(f'La corrida {corrida.codigo} no está abierta')
@@ -497,6 +523,13 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
             for ingrediente_id, tramos_manual in reparto_manual.items():
                 for linea_id, tramo in tramos_manual:
                     tramo = _dec(tramo)
+                    if tramo <= CERO:
+                        raise CorridaInvalida(
+                            f'El tramo del reparto manual contra la línea {linea_id} '
+                            f'del ingrediente {ingrediente_id} tiene que ser positivo '
+                            f'(llegó {tramo}): un tramo negativo o cero deja la suma '
+                            'del reparto cuadrando con el consumo pero anota salidas '
+                            'de más en el ledger')
                     linea = lineas_por_id.get(linea_id)
                     if linea is None:
                         linea = db.session.get(RecepcionLinea, linea_id)
@@ -673,8 +706,6 @@ def asignar_cajas(detalle, corrida_cajas, vendedor_id):
     mismo contrato que `crear_recepcion` y `cerrar_corrida`: si una caja del
     medio ya no está disponible, no quedan las anteriores a mitad de camino.
     """
-    from app import CajaPesada
-
     if not corrida_cajas:
         return []
 
@@ -710,6 +741,21 @@ def asignar_cajas(detalle, corrida_cajas, vendedor_id):
 
             caja.caja_pesada_id = pesada.id
             creadas.append(pesada)
+
+            # Mismo rastro que `registrar_caja_pesada` en app.py (~línea 8212):
+            # sin este evento, una caja que entra al pedido desde producción
+            # no deja ni una línea en el historial, a diferencia de las tres
+            # rutas equivalentes que sí lo hacen. Va en la misma transacción
+            # que la CajaPesada, no como paso aparte.
+            app_module._log_pedido_evento(
+                detalle.pedido,
+                'caja_asignada',
+                f'Caja #{siguiente:02d} de {detalle.producto.nombre}: {caja.peso} kg '
+                f'(lote {caja.corrida.lote}) asignada desde {caja.corrida.codigo}',
+                meta={'detalle_id': detalle.id, 'numero': siguiente,
+                      'peso': float(caja.peso), 'lote': caja.corrida.lote,
+                      'corrida_id': caja.corrida_id, 'corrida_caja_id': caja.id},
+            )
             siguiente += 1
 
         db.session.commit()

@@ -317,6 +317,45 @@ def test_reparto_manual_dos_tramos_a_la_misma_linea_que_se_pasan_del_saldo(app):
         assert _db.session.get(type(c), c.id).estado == 'abierta'
 
 
+def test_reparto_manual_rechaza_tramo_negativo(app):
+    """Con {ingrediente: [(A, 10), (B, -5)]} la suma da 5 y calzaría contra el
+    consumo declarado, pero `registrar_movimiento` hace -abs(cantidad) sobre
+    CADA tramo: quedarían -10 y -5 = -15 kg de salidas en el ledger para un
+    consumo real de 5 kg. Un tramo no positivo se rechaza ANTES de escribir
+    nada."""
+    from maquila import servicios
+    from maquila.models import CorridaConsumo, MovimientoIngrediente
+    with app.app_context():
+        r1 = _recibir('R1', 1, 100)
+        linea_id = r1.lineas[0].id
+        c = _corrida_con_cajas([40])
+        antes = MovimientoIngrediente.query.count()
+        with pytest.raises(servicios.CorridaInvalida):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('5')}, IDS['vendedor'],
+                reparto_manual={IDS['ingrediente']: [(linea_id, Decimal('10')),
+                                                      (linea_id, Decimal('-5'))]})
+        assert CorridaConsumo.query.count() == 0
+        assert MovimientoIngrediente.query.count() == antes
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+def test_reparto_manual_rechaza_tramo_en_cero(app):
+    from maquila import servicios
+    from maquila.models import CorridaConsumo
+    with app.app_context():
+        r1 = _recibir('R1', 1, 100)
+        linea_id = r1.lineas[0].id
+        c = _corrida_con_cajas([40])
+        with pytest.raises(servicios.CorridaInvalida):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('50')}, IDS['vendedor'],
+                reparto_manual={IDS['ingrediente']: [(linea_id, Decimal('50')),
+                                                      (linea_id, Decimal('0'))]})
+        assert CorridaConsumo.query.count() == 0
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
 def test_reparto_manual_dos_tramos_a_la_misma_linea_que_caben_en_el_saldo(app):
     from maquila import servicios
     from maquila.models import CorridaConsumoOrigen

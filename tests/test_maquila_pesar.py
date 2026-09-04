@@ -107,6 +107,26 @@ def test_asignar_crea_las_cajas_pesadas_con_su_lote(app):
         assert {p.numero for p in pesadas} == {1, 2}
 
 
+def test_asignar_deja_rastro_en_el_historial_del_pedido(app):
+    """Las tres operaciones equivalentes de app.py (caja_pesada, caja_editada,
+    caja_eliminada) registran un PedidoEvento; asignar_cajas era el único
+    camino por el que entraban cajas a un pedido sin dejar rastro."""
+    from app import PedidoEvento
+    with app.app_context():
+        corrida = _corrida_con_cajas(2)
+        ids = [c.id for c in corrida.cajas]
+    c = _login(app)
+    r = c.post(f"/maquila/asignar/{IDS['detalle_maquila']}",
+               data={'corrida_caja_id': [str(i) for i in ids]},
+               follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        eventos = PedidoEvento.query.filter_by(
+            pedido_id=IDS['pedido_maquila']).all()
+        assert len(eventos) == 2
+        assert {e.tipo for e in eventos} == {'caja_asignada'}
+
+
 def test_asignar_rechaza_caja_de_otro_cliente(app):
     """El servidor no puede confiar en los ids que llegan del form: un id
     cambiado a mano no puede pegar el lote de OTRO cliente a este pedido."""
