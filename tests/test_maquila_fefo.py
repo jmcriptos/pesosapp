@@ -132,3 +132,40 @@ def test_borrar_la_linea_del_pedido_devuelve_la_caja_al_stock(app):
         _db.session.commit()
         assert _db.session.get(CorridaCaja, caja_id).caja_pesada_id is None
         assert len(servicios.cajas_disponibles(IDS['cliente'], IDS['producto'])) == 1
+
+
+def test_asignar_es_todo_o_nada_si_una_caja_del_medio_ya_no_esta(app):
+    """Tres cajas, la del medio ya fue tomada por otro pedido: nada queda a medias."""
+    from maquila import servicios
+    from app import CajaPesada
+    with app.app_context():
+        c = _corrida('L-1', 5, [10, 10, 10])
+        _otro_pedido, otro_detalle = _pedido_con_linea(1)
+        servicios.asignar_cajas(otro_detalle, [c.cajas[1]], IDS['vendedor'])
+
+        _pedido, detalle = _pedido_con_linea(3)
+        with pytest.raises(servicios.CajaNoDisponible):
+            servicios.asignar_cajas(detalle, [c.cajas[0], c.cajas[1], c.cajas[2]],
+                                    IDS['vendedor'])
+
+        assert CajaPesada.query.filter_by(detalle_pedido_id=detalle.id).count() == 0
+
+        disponibles = servicios.cajas_disponibles(IDS['cliente'], IDS['producto'])
+        assert {caja.numero for caja in disponibles} == {1, 3}
+
+
+def test_llamar_asignar_cajas_dos_veces_no_repite_numero(app):
+    """La numeración no puede depender de una relación cacheada."""
+    from maquila import servicios
+    from app import CajaPesada
+    with app.app_context():
+        c = _corrida('L-1', 5, [10, 10, 10, 10])
+        _pedido, detalle = _pedido_con_linea(4)
+
+        servicios.asignar_cajas(detalle, [c.cajas[0], c.cajas[1]], IDS['vendedor'])
+        servicios.asignar_cajas(detalle, [c.cajas[2], c.cajas[3]], IDS['vendedor'])
+
+        numeros = sorted(
+            cp.numero for cp in
+            CajaPesada.query.filter_by(detalle_pedido_id=detalle.id).all())
+        assert numeros == [1, 2, 3, 4]

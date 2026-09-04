@@ -664,38 +664,51 @@ def asignar_cajas(detalle, corrida_cajas, vendedor_id):
     """Convierte cajas producidas en CajaPesada del pedido.
 
     Copia peso, lote y fechas desde la corrida: el pesador no re-teclea nada y
-    el lote deja de depender de que alguien lo escriba bien.
+    el lote deja de depender de que alguien lo escriba bien. Todo o nada,
+    mismo contrato que `crear_recepcion` y `cerrar_corrida`: si una caja del
+    medio ya no está disponible, no quedan las anteriores a mitad de camino.
     """
     from app import CajaPesada
 
     if not corrida_cajas:
         return []
 
-    numeros = [c.numero for c in (detalle.cajas_pesadas or [])]
-    siguiente = (max(numeros) + 1) if numeros else 1
+    try:
+        # Consulta directa (no `detalle.cajas_pesadas`): esa relación queda
+        # cacheada en memoria desde el primer acceso y las `CajaPesada` de
+        # esta función se crean seteando `detalle_pedido_id` a mano, no con
+        # `.append()`, así que no la invalida sola. Mismo patrón que
+        # `agregar_caja_producida`.
+        ultimo = (db.session.query(func.max(CajaPesada.numero))
+                  .filter(CajaPesada.detalle_pedido_id == detalle.id)
+                  .scalar())
+        siguiente = (ultimo + 1) if ultimo else 1
 
-    creadas = []
-    for caja in corrida_cajas:
-        if not caja.disponible:
-            raise CajaNoDisponible(
-                f'La caja {caja.numero} de {caja.corrida.codigo} ya no está disponible')
+        creadas = []
+        for caja in corrida_cajas:
+            if not caja.disponible:
+                raise CajaNoDisponible(
+                    f'La caja {caja.numero} de {caja.corrida.codigo} ya no está disponible')
 
-        pesada = CajaPesada(
-            detalle_pedido_id=detalle.id,
-            numero=siguiente,
-            peso=caja.peso,
-            lote=caja.corrida.lote,
-            fecha_elaboracion=caja.corrida.fecha_produccion,
-            fecha_vencimiento=(caja.corrida.fecha_vencimiento
-                               or caja.corrida.fecha_produccion),
-            pesado_por=vendedor_id,
-        )
-        db.session.add(pesada)
-        db.session.flush()
+            pesada = CajaPesada(
+                detalle_pedido_id=detalle.id,
+                numero=siguiente,
+                peso=caja.peso,
+                lote=caja.corrida.lote,
+                fecha_elaboracion=caja.corrida.fecha_produccion,
+                fecha_vencimiento=(caja.corrida.fecha_vencimiento
+                                   or caja.corrida.fecha_produccion),
+                pesado_por=vendedor_id,
+            )
+            db.session.add(pesada)
+            db.session.flush()
 
-        caja.caja_pesada_id = pesada.id
-        creadas.append(pesada)
-        siguiente += 1
+            caja.caja_pesada_id = pesada.id
+            creadas.append(pesada)
+            siguiente += 1
 
-    db.session.commit()
-    return creadas
+        db.session.commit()
+        return creadas
+    except Exception:
+        db.session.rollback()
+        raise
