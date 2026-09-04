@@ -6,7 +6,29 @@ cuando `db` y los modelos base ya existen.
 """
 from datetime import datetime
 
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
 from app import db
+
+
+@event.listens_for(Engine, 'checkout')
+def _activar_foreign_keys_sqlite(dbapi_connection, connection_record, connection_proxy):
+    """SQLite ignora las FK salvo que se le pida. En Postgres es un no-op.
+
+    Se engancha a `checkout` (no a `connect`): en SQLite `:memory:` el engine
+    usa `StaticPool`, una sola conexión física para toda la vida del proceso.
+    `_ensure_haccp_columns()` (app.py, antes de importar este paquete) ya la
+    abre al arrancar, así que un listener de `connect` llegaría tarde y jamás
+    dispararía. `checkout` sí se dispara en cada préstamo de conexión del
+    pool, incluida esa primera conexión ya viva — cuesta una pragma de más
+    por checkout en SQLite, y en Postgres es un chequeo de string sin tocar
+    la conexión.
+    """
+    if dbapi_connection.__class__.__module__.startswith('sqlite3'):
+        cursor = dbapi_connection.cursor()
+        cursor.execute('PRAGMA foreign_keys=ON')
+        cursor.close()
 
 
 class Ingrediente(db.Model):

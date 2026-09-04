@@ -615,3 +615,87 @@ def anular_corrida(corrida, vendedor_id, motivo):
     corrida.notas = ((corrida.notas or '') +
                      f'\nAnulada: {motivo.strip()}').strip()
     return corrida
+
+
+# Las corridas sin vencimiento van al final del orden FEFO. Se usa un coalesce en
+# vez de NULLS LAST porque ese modificador no es portable entre SQLite y Postgres
+# y cambió de nombre entre versiones de SQLAlchemy.
+_SIN_VENCIMIENTO = _date(9999, 12, 31)
+
+
+class CajaNoDisponible(Exception):
+    """La caja producida ya salió en otro pedido o está anulada."""
+
+
+def cajas_disponibles(cliente_id, producto_id):
+    """Cajas producidas del cliente para ese producto, en orden FEFO.
+
+    Vencimiento más próximo primero; a igualdad, la corrida más antigua. Las
+    corridas anuladas no cuentan.
+    """
+    return (CorridaCaja.query
+            .join(CorridaProduccion, CorridaProduccion.id == CorridaCaja.corrida_id)
+            .filter(CorridaProduccion.cliente_id == cliente_id,
+                    CorridaProduccion.producto_id == producto_id,
+                    CorridaProduccion.estado != 'anulada',
+                    CorridaCaja.caja_pesada_id.is_(None),
+                    CorridaCaja.anulada_en.is_(None))
+            .order_by(func.coalesce(CorridaProduccion.fecha_vencimiento,
+                                    _SIN_VENCIMIENTO).asc(),
+                      CorridaProduccion.fecha_produccion.asc(),
+                      CorridaCaja.numero.asc())
+            .all())
+
+
+def proponer_fefo(detalle):
+    """Las cajas que la app sugiere para esta línea de pedido.
+
+    Solo las que faltan: si ya se pesaron tres a mano y el objetivo son cinco,
+    propone dos.
+    """
+    faltan = detalle.cajas_objetivo - detalle.cajas_pesadas_count
+    if faltan <= 0:
+        return []
+    disponibles = cajas_disponibles(detalle.pedido.cliente_id, detalle.producto_id)
+    return disponibles[:faltan]
+
+
+def asignar_cajas(detalle, corrida_cajas, vendedor_id):
+    """Convierte cajas producidas en CajaPesada del pedido.
+
+    Copia peso, lote y fechas desde la corrida: el pesador no re-teclea nada y
+    el lote deja de depender de que alguien lo escriba bien.
+    """
+    from app import CajaPesada
+
+    if not corrida_cajas:
+        return []
+
+    numeros = [c.numero for c in (detalle.cajas_pesadas or [])]
+    siguiente = (max(numeros) + 1) if numeros else 1
+
+    creadas = []
+    for caja in corrida_cajas:
+        if not caja.disponible:
+            raise CajaNoDisponible(
+                f'La caja {caja.numero} de {caja.corrida.codigo} ya no está disponible')
+
+        pesada = CajaPesada(
+            detalle_pedido_id=detalle.id,
+            numero=siguiente,
+            peso=caja.peso,
+            lote=caja.corrida.lote,
+            fecha_elaboracion=caja.corrida.fecha_produccion,
+            fecha_vencimiento=(caja.corrida.fecha_vencimiento
+                               or caja.corrida.fecha_produccion),
+            pesado_por=vendedor_id,
+        )
+        db.session.add(pesada)
+        db.session.flush()
+
+        caja.caja_pesada_id = pesada.id
+        creadas.append(pesada)
+        siguiente += 1
+
+    db.session.commit()
+    return creadas
