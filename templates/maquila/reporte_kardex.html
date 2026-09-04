@@ -18,7 +18,7 @@
       <select id="ingrediente_id" name="ingrediente_id" data-autosubmit>
         <option value="">Todos</option>
         {% for i in ingredientes %}
-        <option value="{{ i.id }}" {{ 'selected' if args.get('ingrediente_id', type=int) == i.id else '' }}>{{ i.nombre }}</option>
+        <option value="{{ i.id }}" {{ 'selected' if ingrediente_id == i.id else '' }}>{{ i.nombre }}</option>
         {% endfor %}
       </select>
     </div>

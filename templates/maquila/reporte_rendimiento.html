@@ -9,7 +9,7 @@
       <select id="cliente_id" name="cliente_id" data-autosubmit>
         <option value="">Todos los clientes</option>
         {% for c in clientes %}
-        <option value="{{ c.id }}" {{ 'selected' if args.get('cliente_id', type=int) == c.id else '' }}>{{ c.nombre }}</option>
+        <option value="{{ c.id }}" {{ 'selected' if cliente_id == c.id else '' }}>{{ c.nombre }}</option>
         {% endfor %}
       </select>
     </div>

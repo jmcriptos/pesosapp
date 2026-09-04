@@ -737,13 +737,20 @@ def reporte_kardex():
     cliente_id = request.args.get('cliente_id', type=int)
     desde_utc, hasta_utc = _ventana_utc(_fecha(request.args.get('desde')),
                                         _fecha(request.args.get('hasta')))
+    ingrediente_id = request.args.get('ingrediente_id', type=int)
     filas = reportes.kardex(
         cliente_id,
-        ingrediente_id=request.args.get('ingrediente_id', type=int),
+        ingrediente_id=ingrediente_id,
         desde=desde_utc,
         hasta=hasta_utc) if cliente_id else []
+    # El id seleccionado va RESUELTO a la plantilla. Jinja no tiene los
+    # builtins de Python, así que un `args.get(..., type=int)` allá adentro
+    # pasa `Undefined` como conversor y werkzeug revienta al llamarlo — pero
+    # solo cuando el parámetro viene en la query, que es justo lo que ningún
+    # test cubría. El parseo se hace acá, donde `int` existe.
     return render_template(
         'maquila/reporte_kardex.html', filas=filas, cliente_id=cliente_id,
+        ingrediente_id=ingrediente_id,
         clientes=_clientes_con_maquila(),
         ingredientes=Ingrediente.query.order_by(Ingrediente.nombre).all(),
         args=request.args)
@@ -794,12 +801,15 @@ def reporte_kardex_export():
 @login_required
 @requiere_rol(['super_admin'])
 def reporte_rendimiento():
+    cliente_id = request.args.get('cliente_id', type=int)
     return render_template(
         'maquila/reporte_rendimiento.html',
         filas=reportes.rendimiento(
-            cliente_id=request.args.get('cliente_id', type=int),
+            cliente_id=cliente_id,
             desde=_fecha(request.args.get('desde')),
             hasta=_fecha(request.args.get('hasta'))),
+        # Resuelto acá, no en la plantilla: ver la nota en reporte_kardex.
+        cliente_id=cliente_id,
         clientes=_clientes_con_maquila(), args=request.args)
 
 

@@ -582,3 +582,31 @@ def test_el_link_a_maquila_no_se_ve_para_vendedor(app):
     r = c.get('/dashboard')
     assert r.status_code == 200
     assert '/maquila"'.encode() not in r.data
+
+
+def test_los_filtros_no_revientan_al_elegir_un_valor(app):
+    """Un `type=int` dentro de una plantilla Jinja revienta con UndefinedError.
+
+    Jinja no tiene los builtins de Python, así que `int` ahí es Undefined y
+    werkzeug lo llama como conversor. Solo se dispara cuando el parámetro
+    VIENE en la query: `MultiDict.get` devuelve el default antes de tocar
+    `type` si la clave falta, y por eso ningún test ni prueba de humo lo vio
+    hasta que un usuario eligió un cliente en el desplegable.
+    """
+    from maquila import servicios
+    from maquila.models import Ingrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('50')}])
+
+    c = _login(app, 'admin')
+    for url in (
+        f'/maquila/reportes/rendimiento?cliente_id={cli_id}&desde=&hasta=',
+        f'/maquila/reportes/kardex?cliente_id={cli_id}&ingrediente_id={ing_id}',
+        f'/maquila/reportes/saldos?cliente_id={cli_id}',
+    ):
+        r = c.get(url)
+        assert r.status_code == 200, f'{url} devolvió {r.status_code}'
