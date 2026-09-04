@@ -4195,6 +4195,25 @@ def _get_active_pesable_detail(pedido, active_detalle_id=None):
     return detalles[0]
 
 
+def _maquila_propuesta(detalles):
+    """Cajas producidas que la app sugiere para cada línea, en orden FEFO.
+
+    Devuelve {} cuando el cliente no tiene corridas: la pantalla de pesar se
+    comporta entonces exactamente como antes de que existiera este módulo.
+    """
+    try:
+        from maquila import servicios as maquila_servicios
+    except ImportError:
+        return {}
+
+    propuesta = {}
+    for detalle in detalles:
+        cajas = maquila_servicios.proponer_fefo(detalle)
+        if cajas:
+            propuesta[detalle.id] = cajas
+    return propuesta
+
+
 def _build_pesar_context(pedido, active_detalle_id=None):
     detalles = _pedido_detalles_pesables(pedido)
     active_detalle = _get_active_pesable_detail(pedido, active_detalle_id=active_detalle_id)
@@ -4207,6 +4226,7 @@ def _build_pesar_context(pedido, active_detalle_id=None):
         'cajas_pesadas_total': _pedido_cajas_pesadas_total(pedido),
         'cajas_objetivo_total': _pedido_cajas_objetivo_total(pedido),
         'puede_finalizar_pesar': _pedido_can_finalize_pesar(pedido),
+        'maquila_propuesta': _maquila_propuesta(detalles),
     }
 
 

@@ -1,0 +1,24 @@
+{% set propuesta = maquila_propuesta.get(active_detalle.id) %}
+{% if propuesta %}
+<section class="pesar-lote-card maquila-asignar">
+  <div class="pesar-lote-head"><span>Asignar de producción</span></div>
+  <form method="POST"
+        action="{{ url_for('maquila.asignar_detalle', detalle_id=active_detalle.id) }}"
+        data-confirm="¿Asignar estas cajas producidas a este pedido?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <ul class="maquila-cajas">
+      {% for caja in propuesta %}
+      <li>
+        <label>
+          <input type="checkbox" name="corrida_caja_id" value="{{ caja.id }}" checked>
+          Caja {{ caja.numero }} · {{ caja.peso }} kg ·
+          lote {{ caja.corrida.lote }} ·
+          vence {{ caja.corrida.fecha_vencimiento or '—' }}
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    <button type="submit" class="btn btn-primary">Asignar al pedido</button>
+  </form>
+</section>
+{% endif %}

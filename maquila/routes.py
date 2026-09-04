@@ -7,14 +7,16 @@ from flask import (Blueprint, Response, abort, flash, redirect,
 from flask_login import current_user, login_required
 
 from . import app_module, servicios
-from .models import (CorridaProduccion, Ingrediente, Receta, RecetaIngrediente,
-                     RecepcionIngrediente, RecepcionFoto, RecepcionLinea)
+from .models import (CorridaCaja, CorridaProduccion, Ingrediente, Receta,
+                     RecetaIngrediente, RecepcionIngrediente, RecepcionFoto,
+                     RecepcionLinea)
 
-# NO reemplazar por `from app import Cliente, Producto, db, requiere_rol`:
-# revienta `python app.py` (el preview local) con un ImportError circular.
-# Ver el comentario largo en maquila/__init__.py para el porqué.
+# NO reemplazar por `from app import Cliente, Producto, db, requiere_rol,
+# DetallePedido`: revienta `python app.py` (el preview local) con un
+# ImportError circular. Ver el comentario largo en maquila/__init__.py.
 Cliente = app_module.Cliente
 Producto = app_module.Producto
+DetallePedido = app_module.DetallePedido
 db = app_module.db
 requiere_rol = app_module.requiere_rol
 
@@ -526,3 +528,24 @@ def corrida_anular(corrida_id):
         db.session.rollback()
         flash(str(exc), 'error')
     return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+
+
+@bp.route('/asignar/<int:detalle_id>', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def asignar_detalle(detalle_id):
+    detalle = db.session.get(DetallePedido, detalle_id) or abort(404)
+    ids = request.form.getlist('corrida_caja_id', type=int)
+    cajas = [db.session.get(CorridaCaja, i) for i in ids]
+    cajas = [c for c in cajas if c is not None]
+
+    try:
+        creadas = servicios.asignar_cajas(detalle, cajas, current_user.id)
+    except servicios.CajaNoDisponible as exc:
+        db.session.rollback()
+        flash(str(exc), 'error')
+    else:
+        flash(f'{len(creadas)} caja(s) asignadas desde producción', 'success')
+
+    return redirect(url_for('pesar_pedido', pedido_id=detalle.pedido_id,
+                            detalle_id=detalle.id))

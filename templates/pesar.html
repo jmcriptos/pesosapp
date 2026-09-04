@@ -42,6 +42,10 @@
           {% endfor %}
         </div>
 
+        {% if maquila_propuesta and active_detalle %}
+          {% include 'maquila/_asignar_cajas.html' %}
+        {% endif %}
+
         <div class="pesar-lote-card">
           <div class="pesar-lote-head">
             <span>Lote activo</span>
