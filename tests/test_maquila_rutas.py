@@ -121,6 +121,67 @@ def test_alta_de_recepcion_por_la_ruta(app):
         assert len(rec.lineas[0].bultos) == 2
 
 
+def test_rechaza_foto_con_mimetype_no_permitido(app):
+    """Un SVG con <script> adentro no debe poder colarse como 'foto': si se
+    sirviera después con su Content-Type declarado, se ejecutaría como
+    documento desde el origen de la app."""
+    import io
+    from maquila.models import Ingrediente, RecepcionIngrediente
+    with app.app_context():
+        from app import Cliente
+        cli = Cliente(nombre='Maquila SVG SA')
+        ing = Ingrediente(nombre='Carne de res SVG')
+        _db.session.add_all([cli, ing])
+        _db.session.commit()
+        cli_id, ing_id = cli.id, ing.id
+
+    c = _login(app, 'admin')
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    r = c.post('/maquila/recepciones/nueva', data={
+        'cliente_id': str(cli_id),
+        'recibido_en': '2026-09-03',
+        'linea_ingrediente_id': [str(ing_id)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_peso_total': ['10'],
+        'linea_bultos': [''],
+        'fotos': (io.BytesIO(svg), 'evil.svg', 'image/svg+xml'),
+    }, content_type='multipart/form-data', follow_redirects=True)
+    assert r.status_code == 200
+    assert 'no permitido'.encode('utf-8') in r.data
+    with app.app_context():
+        assert RecepcionIngrediente.query.count() == 0
+
+
+def test_firma_base64_corrupta_no_revienta_la_recepcion(app):
+    """base64.b64decode sobre basura no debe tirar un 500: la recepción se
+    guarda igual, sin firma."""
+    from maquila.models import Ingrediente, RecepcionIngrediente
+    with app.app_context():
+        from app import Cliente
+        cli = Cliente(nombre='Maquila Firma Rota SA')
+        ing = Ingrediente(nombre='Carne de res firma')
+        _db.session.add_all([cli, ing])
+        _db.session.commit()
+        cli_id, ing_id = cli.id, ing.id
+
+    c = _login(app, 'admin')
+    r = c.post('/maquila/recepciones/nueva', data={
+        'cliente_id': str(cli_id),
+        'recibido_en': '2026-09-03',
+        'linea_ingrediente_id': [str(ing_id)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_peso_total': ['10'],
+        'linea_bultos': [''],
+        'firma_png': 'data:image/png;base64,***no-es-base64-valido***',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        rec = RecepcionIngrediente.query.one()
+        assert rec.firma is None
+
+
 def test_el_indice_lista_los_clientes_con_recepciones(app):
     from maquila.models import Ingrediente
     from maquila import servicios

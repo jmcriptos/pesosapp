@@ -1,9 +1,117 @@
 /* Módulo de maquila: resumen, ingredientes y recepciones. */
 
+/* Blindaje contra el tema oscuro global — verificado en el navegador con
+   getComputedStyle, no solo leído en el CSS (ver verificar-render-no-estado).
+   La causa real NO es dark-theme.css: es que `<body data-theme="dark">`
+   (siempre presente, es el marco de la app) hace que app-mobile.css
+   redefina TODA la paleta —`--color-bg`, `--color-text`, `--color-surface`,
+   etc.— a valores oscuros para cualquier descendiente, vía
+   `[data-theme="dark"] { --color-bg:#0a0a0f; --color-text:#f8fafc; ... }`.
+   Por eso un simple `var(--color-text, #0f172a)` NO alcanza: la variable
+   SÍ está definida (oscura), así que el fallback nunca se usa. Los módulos
+   que salen claros (Registros, Usuarios, Precios) lo consiguen porque
+   operaciones.css redefine esa misma paleta, en claro, para sus propias
+   root classes: `.ops-screen, .ops-admin, .ops-sheet { --color-bg:#f6f7fb;
+   --color-text:#0f172a; ... }`. `.maquila-wrap` no es ninguna de esas tres,
+   así que acá se repite el mismo truco (misma paleta, mismos valores) en
+   vez de tocar ese bloque compartido. */
 .maquila-wrap {
   max-width: 960px;
   margin: 0 auto;
   padding: 16px;
+  border-radius: 12px;
+  --color-bg: #f6f7fb;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e5e9f0;
+  --color-border-subtle: #eef1f6;
+  --color-border-strong: #cbd5e1;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.maquila-wrap h1,
+.maquila-wrap h2,
+.maquila-wrap h3 {
+  color: var(--color-text);
+}
+
+.maquila-wrap p {
+  color: var(--color-text-muted);
+}
+
+/* dark-theme.css además pisa `label`, `table`, `th` y `td` sin scope y con
+   `!important` (heredado de la reskin vieja, sigue cargado por si algún
+   componente legado todavía lo necesita). Los guards equivalentes de
+   operaciones.css también están atados a `.ops-screen/.ops-sheet/.ops-admin`,
+   así que hace falta el mismo contra-`!important` acá. */
+.maquila-wrap label {
+  color: var(--color-text-muted) !important;
+}
+
+.maquila-wrap .btn {
+  color: var(--btn-fg, var(--color-text));
+}
+
+.maquila-wrap table {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+.maquila-wrap th {
+  background-color: var(--color-surface-muted) !important;
+  color: var(--color-text-subtle) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+.maquila-wrap td {
+  color: var(--color-text) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+.maquila-wrap tr:nth-child(even) td {
+  background-color: var(--color-surface-muted) !important;
+}
+
+.maquila-wrap tr:hover td {
+  background-color: var(--color-surface-muted) !important;
+}
+
+/* Mismo motivo: dark-theme.css trae `form { background:#141820 !important;
+   color:#f1f5f9 !important }` y un bloque de `input[type=...], select,
+   textarea { background:#1a1f2b !important; ... }` sin scope, pensados para
+   la reskin oscura vieja. Sin este contra-blindaje, cualquier <form> y sus
+   campos salían oscuros encima de las tarjetas claras de este módulo. */
+.maquila-wrap form {
+  background: transparent !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+.maquila-wrap input,
+.maquila-wrap select,
+.maquila-wrap textarea {
+  background-color: var(--color-surface-muted) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.maquila-wrap input:focus,
+.maquila-wrap select:focus,
+.maquila-wrap textarea:focus {
+  background-color: var(--color-bg-elevated) !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .18) !important;
+}
+
+.maquila-wrap input::placeholder,
+.maquila-wrap textarea::placeholder {
+  color: var(--color-text-subtle) !important;
 }
 
 .maquila-nav {
@@ -122,32 +230,10 @@
   width: 100%;
 }
 
-.ops-firma-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-muted, #475569);
-  margin: 8px 0 4px;
-}
-
-.ops-firma-pad canvas {
-  width: 100%;
-  max-width: 600px;
-  height: 200px;
-  border: 1px solid var(--color-border-subtle, rgba(15, 23, 42, .12));
-  border-radius: 6px;
-  background: #ffffff;
-  touch-action: none;
-}
-
-.ops-firma-clear {
-  margin-top: 6px;
-  background: none;
-  border: none;
-  color: var(--color-text-subtle, #64748b);
-  font-size: 12px;
-  text-decoration: underline;
-  cursor: pointer;
-}
+/* .ops-firma-label, .ops-firma-pad y .ops-firma-clear NO se redefinen acá:
+   ya vienen completas de operaciones.css (tamaño del pad, botón de borrar
+   superpuesto, blindaje contra dark-theme.css), que base_maquila.html carga
+   antes que esta hoja. */
 
 /* El footer va sticky, o el botón de guardar queda debajo de la tabbar fija
    y no se puede pulsar. */
@@ -155,7 +241,7 @@
   position: sticky;
   bottom: 0;
   padding: 12px;
-  background: var(--maquila-surface, #ffffff);
+  background: var(--color-surface, #ffffff);
   border-top: 1px solid rgba(15, 23, 42, .12);
   z-index: 10;
 }

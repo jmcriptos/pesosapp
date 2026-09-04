@@ -6,14 +6,21 @@ from flask import (Blueprint, Response, abort, flash, redirect,
                    render_template, request, url_for)
 from flask_login import current_user, login_required
 
-from app import Cliente, Producto, db, requiere_rol
-from . import reportes, servicios
+from app import Cliente, db, requiere_rol
+from . import servicios
 from .models import (CorridaProduccion, Ingrediente, RecepcionIngrediente,
                      RecepcionFoto)
 
 bp = Blueprint('maquila', __name__, url_prefix='/maquila')
 
 MAX_FOTO_BYTES = 2 * 1024 * 1024
+
+# Lista blanca de mimetypes de foto: lo que declara el navegador al subir NO
+# es confiable (un SVG con <script> adentro se serviría después como
+# Content-Type de imagen y se ejecutaría desde el origen de la app). Se aplica
+# tanto al aceptar la subida como al servir la foto — la segunda comprobación
+# cubre datos que hayan quedado guardados de antes de este chequeo.
+MIMETYPES_FOTO_PERMITIDOS = {'image/jpeg', 'image/png', 'image/webp'}
 
 
 def _decimal(valor):
@@ -143,17 +150,27 @@ def recepcion_nueva():
         for archivo in request.files.getlist('fotos'):
             if not archivo or not archivo.filename:
                 continue
+            mimetype = archivo.mimetype or ''
+            if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
+                flash(f'Formato de foto no permitido ({mimetype or "desconocido"}): '
+                     'subí JPEG, PNG o WEBP', 'error')
+                return redirect(url_for('maquila.recepcion_nueva'))
             datos = archivo.read(MAX_FOTO_BYTES + 1)
             if len(datos) > MAX_FOTO_BYTES:
                 flash('Una foto supera los 2 MB: redúcela antes de subirla', 'error')
                 return redirect(url_for('maquila.recepcion_nueva'))
-            fotos.append((datos, archivo.mimetype or 'image/jpeg'))
+            fotos.append((datos, mimetype))
 
         firma_b64 = request.form.get('firma_png') or ''
         firma = None
         if firma_b64.startswith('data:image/png;base64,'):
             import base64
-            firma = base64.b64decode(firma_b64.split(',', 1)[1])
+            import binascii
+            try:
+                firma = base64.b64decode(firma_b64.split(',', 1)[1], validate=True)
+            except (binascii.Error, ValueError):
+                firma = None
+                flash('La firma no se pudo leer: la recepción se guardó sin firma', 'error')
 
         try:
             recepcion = servicios.crear_recepcion(
@@ -171,6 +188,10 @@ def recepcion_nueva():
         except servicios.RecepcionInvalida as exc:
             db.session.rollback()
             flash(str(exc), 'error')
+            return redirect(url_for('maquila.recepcion_nueva'))
+        except Exception:
+            db.session.rollback()
+            flash('No se pudo registrar la recepción: ocurrió un error inesperado', 'error')
             return redirect(url_for('maquila.recepcion_nueva'))
 
         flash(f'Recepción {recepcion.codigo} registrada', 'success')
@@ -208,6 +229,9 @@ def recepcion_anular(recepcion_id):
             servicios.RecepcionInvalida) as exc:
         db.session.rollback()
         flash(str(exc), 'error')
+    except Exception:
+        db.session.rollback()
+        flash('No se pudo anular la recepción: ocurrió un error inesperado', 'error')
     return redirect(url_for('maquila.recepcion_detalle', recepcion_id=recepcion_id))
 
 
@@ -216,4 +240,11 @@ def recepcion_anular(recepcion_id):
 @requiere_rol(['super_admin'])
 def recepcion_foto(foto_id):
     foto = db.session.get(RecepcionFoto, foto_id) or abort(404)
-    return Response(foto.imagen, mimetype=foto.mimetype)
+    # Defensa en profundidad: aunque la subida ya filtra por la lista blanca,
+    # una foto guardada antes de este chequeo podría tener otro mimetype.
+    mimetype = (foto.mimetype if foto.mimetype in MIMETYPES_FOTO_PERMITIDOS
+               else 'application/octet-stream')
+    resp = Response(foto.imagen, mimetype=mimetype)
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['Content-Disposition'] = 'inline'
+    return resp

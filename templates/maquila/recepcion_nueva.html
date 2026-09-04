@@ -51,7 +51,7 @@
   </section>
 
   <footer class="ops-sticky-footer">
-    <button type="submit" class="btn btn-primary">Guardar recepción</button>
+    <button type="submit" class="btn btn-primary" id="rec-submit-btn">Guardar recepción</button>
   </footer>
 </form>
 
@@ -103,20 +103,47 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height); hayFirma = false;
   });
 
-  document.getElementById('rec-form').addEventListener('submit', function () {
+  // Bandera compartida: mientras haya reducciones de foto en curso, el botón
+  // de guardar queda deshabilitado (abajo) Y el submit se corta acá también,
+  // por si un Enter en un campo de texto dispara el envío sin pasar por el
+  // click del botón.
+  var reduccionesPendientes = 0;
+
+  document.getElementById('rec-form').addEventListener('submit', function (e) {
+    if (reduccionesPendientes > 0) {
+      e.preventDefault();
+      return;
+    }
     if (hayFirma) document.getElementById('firma_png').value = canvas.toDataURL('image/png');
   });
 
   // Reducir las fotos antes de subir: cuatro imágenes de iPhone en crudo
   // hinchan la fila y la memoria del dyno.
   var input = document.getElementById('fotos');
+  var submitBtn = document.getElementById('rec-submit-btn');
   input.addEventListener('change', function () {
     var dt = new DataTransfer();
     var pendientes = input.files.length;
     if (!pendientes) return;
+
+    reduccionesPendientes += pendientes;
+    if (submitBtn) submitBtn.disabled = true;
+
+    function terminarUna() {
+      reduccionesPendientes--;
+      if (--pendientes === 0) {
+        input.files = dt.files;
+      }
+      if (reduccionesPendientes <= 0 && submitBtn) {
+        submitBtn.disabled = false;
+      }
+    }
+
     Array.prototype.forEach.call(input.files, function (file) {
       var img = new Image();
+      var url = URL.createObjectURL(file);
       img.onload = function () {
+        URL.revokeObjectURL(url);
         var max = 1280;
         var escala = Math.min(1, max / Math.max(img.width, img.height));
         var c = document.createElement('canvas');
@@ -124,12 +151,25 @@
         c.height = Math.round(img.height * escala);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         c.toBlob(function (blob) {
-          dt.items.add(new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg',
-                                { type: 'image/jpeg' }));
-          if (--pendientes === 0) { input.files = dt.files; }
+          // Si el navegador no pudo generar el blob reducido, se sube el
+          // archivo original antes que perder la foto.
+          dt.items.add(blob
+            ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+            : file);
+          terminarUna();
         }, 'image/jpeg', 0.8);
       };
-      img.src = URL.createObjectURL(file);
+      // Si UNA foto falla al cargar (archivo corrupto, formato raro), no se
+      // puede dejar que el contador nunca llegue a cero: eso bloquearía el
+      // swap de `input.files` para TODO el lote y las demás fotos, ya
+      // reducidas, se subirían igual en crudo. Se sube esta foto tal cual y
+      // se sigue con las demás.
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        dt.items.add(file);
+        terminarUna();
+      };
+      img.src = url;
     });
   });
 })();
