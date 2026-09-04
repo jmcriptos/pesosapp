@@ -1,8 +1,10 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip %}
 {% block title %}Recetas{% endblock %}
 {% block maquila_title %}Recetas{% endblock %}
 {% block maquila_body %}
-<section class="ops-card">
+<section class="ops-card maquila-barra">
+  <p class="maquila-nota">La receta de un producto fija el consumo teórico por cada {{ 100 }} kg producidos. La del cliente gana sobre la genérica.</p>
   <a class="btn btn-primary" href="{{ url_for('maquila.receta_form') }}">Nueva receta</a>
 </section>
 
@@ -13,8 +15,8 @@
   <table class="maquila-tabla">
     <thead>
       <tr>
-        <th>Nombre</th><th>Producto</th><th>Cliente</th><th>Base kg</th>
-        <th>Ingredientes</th><th>Activa</th>
+        <th>Nombre</th><th>Producto</th><th>Cliente</th><th class="maquila-num">Base</th>
+        <th class="maquila-num">Ingredientes</th><th>Estado</th>
       </tr>
     </thead>
     <tbody>
@@ -23,9 +25,9 @@
         <td data-label="Nombre"><a href="{{ url_for('maquila.receta_form', receta_id=r.id) }}">{{ r.nombre }}</a></td>
         <td data-label="Producto">{{ r.producto.nombre }}</td>
         <td data-label="Cliente">{{ r.cliente.nombre if r.cliente else 'Genérica' }}</td>
-        <td data-label="Base kg">{{ r.base_kg }}</td>
-        <td data-label="Ingredientes">{{ r.ingredientes|length }}</td>
-        <td data-label="Activa">{{ 'Sí' if r.activa else 'No' }}</td>
+        <td data-label="Base" class="maquila-num">{{ r.base_kg|fmt_cant }}</td>
+        <td data-label="Ingredientes" class="maquila-num">{{ r.ingredientes|length }}</td>
+        <td data-label="Estado">{{ chip('Activa', 'conforme') if r.activa else chip('Inactiva', 'neutro') }}</td>
       </tr>
       {% endfor %}
     </tbody>

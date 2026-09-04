@@ -7,27 +7,30 @@
 <div class="ops-wrap maquila-wrap">
   <header class="ops-head">
     <h1 class="ops-title">{% block maquila_title %}Maquila{% endblock %}</h1>
-    {#- El nav marca dónde estás. La regla `.is-active` existía en el CSS desde
-        el principio pero nadie le ponía la clase, así que las diez pestañas se
-        veían iguales en las diez pantallas. `Resumen` compara exacto porque
-        /maquila es prefijo de todo lo demás. -#}
+    {#- El nav marca dónde estás. `Resumen` compara exacto porque /maquila es
+        prefijo de todo lo demás. Los diez destinos van en tres grupos —operar,
+        configurar, consultar— separados por un trazo: diez enlaces planos del
+        mismo peso obligaban a leerlos todos en cada pantalla. -#}
     {%- set ruta = request.path -%}
-    {%- set destinos = [
-         ('maquila.index',                 'Resumen',      '/maquila'),
-         ('maquila.recepciones',           'Recepciones',  '/maquila/recepciones'),
-         ('maquila.ingredientes',          'Ingredientes', '/maquila/ingredientes'),
-         ('maquila.corridas',              'Producción',   '/maquila/corridas'),
-         ('maquila.recetas',               'Recetas',      '/maquila/recetas'),
-         ('maquila.ajustes',               'Ajustes',      '/maquila/ajustes'),
-         ('maquila.reporte_saldos',        'Saldos',       '/maquila/reportes/saldos'),
-         ('maquila.reporte_kardex',        'Kardex',       '/maquila/reportes/kardex'),
-         ('maquila.reporte_rendimiento',   'Rendimiento',  '/maquila/reportes/rendimiento'),
-         ('maquila.reporte_trazabilidad',  'Trazabilidad', '/maquila/reportes/trazabilidad'),
+    {%- set grupos = [
+         [('maquila.index',                 'Resumen',      '/maquila'),
+          ('maquila.recepciones',           'Recepciones',  '/maquila/recepciones'),
+          ('maquila.corridas',              'Producción',   '/maquila/corridas'),
+          ('maquila.ajustes',               'Ajustes',      '/maquila/ajustes')],
+         [('maquila.ingredientes',          'Ingredientes', '/maquila/ingredientes'),
+          ('maquila.recetas',               'Recetas',      '/maquila/recetas')],
+         [('maquila.reporte_saldos',        'Saldos',       '/maquila/reportes/saldos'),
+          ('maquila.reporte_kardex',        'Kardex',       '/maquila/reportes/kardex'),
+          ('maquila.reporte_rendimiento',   'Rendimiento',  '/maquila/reportes/rendimiento'),
+          ('maquila.reporte_trazabilidad',  'Trazabilidad', '/maquila/reportes/trazabilidad')],
        ] -%}
-    <nav class="maquila-nav">
-      {%- for endpoint, rotulo, base in destinos %}
+    <nav class="maquila-nav" aria-label="Secciones de maquila">
+      {%- for grupo in grupos %}
+      {%- if not loop.first %}<span class="maquila-nav-sep" aria-hidden="true"></span>{% endif %}
+      {%- for endpoint, rotulo, base in grupo %}
       {%- set activo = (ruta == base) if base == '/maquila' else ruta.startswith(base) %}
       <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
+      {%- endfor %}
       {%- endfor %}
     </nav>
   </header>

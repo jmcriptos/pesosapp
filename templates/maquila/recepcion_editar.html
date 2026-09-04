@@ -51,15 +51,10 @@
   <section class="ops-card">
     <h2>Ingredientes</h2>
     <div id="rec-lineas">
-      {#- Una línea existente. Los cinco campos llevan etiqueta asociada: la fila
-          repetible de recepcion_nueva.html NO las tiene y es un hallazgo abierto de
-          accesibilidad — no lo repitas al espejar.
-
-          Bultos vs. peso total: LOS DOS son editables. Editar bultos
-          recalcula el total; escribir el total a mano manda sobre ellos. Si
-          quedan en desacuerdo, la pantalla muestra la suma de los bultos al
-          lado para que la diferencia se vea ANTES de guardar — ni se corrige
-          ni se bloquea: se muestra y el usuario decide. -#}
+      {#- Una línea existente. Los cinco campos llevan etiqueta asociada
+          (recepcion_nueva.html hace lo mismo desde la revisión de UI del
+          2026-09-04). Bultos y peso total son dos números independientes:
+          ninguno calcula al otro. -#}
       {% for l in lineas %}
       <div class="rec-linea" data-linea-id="{{ l.id }}">
         <input type="hidden" name="linea_id" value="{{ l.id }}">
@@ -134,7 +129,9 @@
       </div>
       {% endfor %}
     </div>
-    <button type="button" class="btn" id="rec-add-linea">Agregar ingrediente</button>
+    <div class="maquila-acciones">
+      <button type="button" class="btn" id="rec-add-linea">Agregar otro ingrediente</button>
+    </div>
   </section>
 
   <section class="ops-card">
@@ -185,8 +182,8 @@
 
   <section class="ops-card">
     <div class="ops-field">
-      <label for="motivo">Motivo de la corrección <small>(solo hace falta si cambiás una cantidad)</small></label>
-      <input type="text" id="motivo" name="motivo">
+      <label for="motivo">Motivo de la corrección <small>(obligatorio si cambiás una cantidad, un ingrediente o quitás una línea)</small></label>
+      <input type="text" id="motivo" name="motivo" autocomplete="off" placeholder="Qué estaba mal y cómo se verificó">
     </div>
   </section>
 
@@ -204,7 +201,7 @@
             preservar: solo los activos tienen sentido acá (mismo criterio
             que el alta en recepcion_nueva.html). -#}
         <select name="linea_ingrediente_id" required>
-          {% for i in ingredientes_nuevos %}<option value="{{ i.id }}">{{ i.nombre }}</option>{% endfor %}
+          {% for i in ingredientes_nuevos %}<option value="{{ i.id }}">{{ i.nombre }} ({{ i.unidad }})</option>{% endfor %}
         </select>
       </label>
     </div>
@@ -220,15 +217,15 @@
     </div>
     <div class="rec-linea-campo">
       <label>Bultos
-        <input type="number" step="1" min="0" name="linea_cantidad_bultos" inputmode="numeric" placeholder="Bultos">
+        <input type="number" step="1" min="0" name="linea_cantidad_bultos" inputmode="numeric" placeholder="Cuántos">
       </label>
     </div>
     <div class="rec-linea-campo">
       <label>Peso total
-        <input type="number" step="0.001" name="linea_peso_total" placeholder="Peso total">
+        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required>
       </label>
-      <p class="maquila-nota-unidad">Si cargás bultos arriba, mandan ellos: este peso total se ignora.</p>
     </div>
+    <button type="button" class="btn rec-quitar-btn" data-rec-quitar aria-label="Quitar esta línea nueva">Quitar</button>
   </div>
 </template>
 
@@ -238,6 +235,14 @@
   var tpl = document.getElementById('rec-linea-tpl');
   function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
+
+  // Una línea NUEVA agregada de más se quita del DOM sin más: todavía no
+  // existe en la base. Las existentes se quitan con su checkbox, que deja
+  // rastro en el kardex.
+  cont.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-rec-quitar]');
+    if (btn) btn.closest('.rec-linea').remove();
+  });
 
   // Bultos y peso total son dos números independientes: la cantidad de
   // paquetes no calcula el peso ni al revés. No hay nada que sincronizar.

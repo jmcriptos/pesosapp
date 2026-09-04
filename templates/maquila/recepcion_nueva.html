@@ -7,41 +7,50 @@
 
   <section class="ops-card">
     <h2>Cabecera</h2>
+    <p class="maquila-nota">Lo que se registra acá entra al inventario del cliente y queda a su nombre. El cliente no tiene valor por defecto a propósito: una recepción cargada al cliente equivocado es carne ajena en la cuenta de otro.</p>
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
       <select id="cliente_id" name="cliente_id" required>
-        {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
+        <option value="" disabled {{ 'selected' if not cliente_sugerido else '' }}>Elegí un cliente</option>
+        {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if cliente_sugerido == c.id else '' }}>{{ c.nombre }}</option>{% endfor %}
       </select>
     </div>
     <div class="ops-field">
       <label for="recibido_en">Fecha</label>
-      <input type="date" id="recibido_en" name="recibido_en" required>
+      <input type="date" id="recibido_en" name="recibido_en" required value="{{ hoy.strftime('%Y-%m-%d') if hoy else '' }}">
     </div>
     <div class="ops-field">
       <label for="documento_cliente">Documento del cliente <small>(opcional)</small></label>
-      <input type="text" id="documento_cliente" name="documento_cliente"
+      <input type="text" id="documento_cliente" name="documento_cliente" autocomplete="off"
              placeholder="Guía o remisión, si la mandaron">
     </div>
     <div class="ops-field">
-      <label for="temperatura">Temperatura °C</label>
-      <input type="number" step="0.1" id="temperatura" name="temperatura">
+      <label for="temperatura">Temperatura °C <small>(opcional)</small></label>
+      <input type="number" step="0.1" inputmode="decimal" id="temperatura" name="temperatura" placeholder="Al recibir, por ejemplo -18.0">
     </div>
     <div class="ops-field">
-      <label for="transportista">Transportista</label>
-      <input type="text" id="transportista" name="transportista">
+      <label for="transportista">Transportista <small>(opcional)</small></label>
+      <input type="text" id="transportista" name="transportista" autocomplete="off">
+    </div>
+    <div class="ops-field">
+      <label for="notas">Notas <small>(opcional)</small></label>
+      <textarea id="notas" name="notas" rows="2"></textarea>
     </div>
   </section>
 
   <section class="ops-card">
     <h2>Ingredientes</h2>
+    <p class="maquila-nota">Una línea por ingrediente. «Bultos» es cuántos paquetes llegaron; «Peso total» es lo que marcó la balanza para toda la línea. Son dos números independientes.</p>
     <div id="rec-lineas"></div>
-    <button type="button" class="btn" id="rec-add-linea">Agregar ingrediente</button>
+    <div class="maquila-acciones">
+      <button type="button" class="btn" id="rec-add-linea">Agregar otro ingrediente</button>
+    </div>
   </section>
 
   <section class="ops-card">
     <h2>Evidencia</h2>
     <div class="ops-field">
-      <label for="fotos">Fotos</label>
+      <label for="fotos">Fotos <small>(opcional)</small></label>
       <input type="file" id="fotos" name="fotos" accept="image/*" capture="environment" multiple>
     </div>
     <div class="ops-firma-label" id="firmaLabel">Firma de quien entrega</div>
@@ -71,16 +80,34 @@
 
 <template id="rec-linea-tpl">
   <div class="rec-linea">
-    <select name="linea_ingrediente_id" required>
-      {% for i in ingredientes %}<option value="{{ i.id }}">{{ i.nombre }}</option>{% endfor %}
-    </select>
-    <input type="text" name="linea_lote_cliente" placeholder="Lote del cliente (opcional)">
-    <input type="date" name="linea_fecha_vencimiento">
-    <input type="number" step="1" min="0" name="linea_cantidad_bultos"
-           inputmode="numeric" placeholder="Bultos (cuántos)"
-           aria-label="Cantidad de bultos">
-    <input type="number" step="0.001" name="linea_peso_total"
-           placeholder="Peso total" aria-label="Peso total">
+    <div class="rec-linea-campo">
+      <label>Ingrediente
+        <select name="linea_ingrediente_id" required>
+          {% for i in ingredientes %}<option value="{{ i.id }}">{{ i.nombre }} ({{ i.unidad }})</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Lote del cliente
+        <input type="text" name="linea_lote_cliente" placeholder="Opcional" autocomplete="off" autocapitalize="characters">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Vencimiento
+        <input type="date" name="linea_fecha_vencimiento">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Bultos
+        <input type="number" step="1" min="0" name="linea_cantidad_bultos" inputmode="numeric" placeholder="Cuántos">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Peso total
+        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required>
+      </label>
+    </div>
+    <button type="button" class="btn rec-quitar-btn" data-rec-quitar aria-label="Quitar esta línea">Quitar</button>
   </div>
 </template>
 
@@ -91,6 +118,15 @@
   function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
   addLinea();
+
+  // Quitar una línea agregada de más. Siempre queda al menos una: una
+  // recepción sin líneas no existe, y el servidor lo rechaza igual.
+  cont.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-rec-quitar]');
+    if (!btn) return;
+    if (cont.querySelectorAll('.rec-linea').length <= 1) return;
+    btn.closest('.rec-linea').remove();
+  });
 
   // Color FIJO: los tokens claros están scopeados a .ops-*, así que leerlos de
   // document.body devuelve el token OSCURO y la firma sale blanca sobre blanco.
@@ -148,16 +184,18 @@
   });
 
   // Reducir las fotos antes de subir: cuatro imágenes de iPhone en crudo
-  // hinchan la fila y la memoria del dyno.
+  // hinchan la fila y la memoria del dyno. Mientras dura, el botón lo DICE:
+  // un botón deshabilitado sin texto se ve como una app colgada.
   var input = document.getElementById('fotos');
   var submitBtn = document.getElementById('rec-submit-btn');
+  var textoGuardar = submitBtn ? submitBtn.textContent : '';
   input.addEventListener('change', function () {
     var dt = new DataTransfer();
     var pendientes = input.files.length;
     if (!pendientes) return;
 
     reduccionesPendientes += pendientes;
-    if (submitBtn) submitBtn.disabled = true;
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Preparando fotos…'; }
 
     function terminarUna() {
       reduccionesPendientes--;
@@ -166,6 +204,7 @@
       }
       if (reduccionesPendientes <= 0 && submitBtn) {
         submitBtn.disabled = false;
+        submitBtn.textContent = textoGuardar;
       }
     }
 

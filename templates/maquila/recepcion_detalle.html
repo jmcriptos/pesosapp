@@ -1,22 +1,31 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip, dueno %}
 {% block title %}Recepción {{ recepcion.codigo }}{% endblock %}
 {% block maquila_title %}Recepción {{ recepcion.codigo }}{% endblock %}
 {% block maquila_body %}
+{{ dueno(recepcion.cliente.nombre, recepcion.cliente_id) }}
+
 <section class="ops-card">
-  <h2>{{ recepcion.codigo }}{% if recepcion.anulada %} <small>(Anulada)</small>{% endif %}</h2>
+  <div class="maquila-titulo-fila">
+    <h2>{{ recepcion.codigo }}</h2>
+    {{ chip('Anulada', 'falla') if recepcion.anulada else chip('Vigente', 'conforme') }}
+  </div>
   <dl class="maquila-cabecera">
-    <dt>Cliente</dt><dd>{{ recepcion.cliente.nombre }}</dd>
     <dt>Fecha</dt><dd>{{ recepcion.recibido_en.strftime('%d/%m/%Y') }}</dd>
     <dt>Documento del cliente</dt>
     <dd>{{ recepcion.documento_cliente if recepcion.documento_cliente else 'Sin documento del cliente' }}</dd>
     <dt>Temperatura</dt>
-    <dd>{{ (recepcion.temperatura ~ ' °C') if recepcion.temperatura is not none else '—' }}</dd>
+    <dd>{{ recepcion.temperatura|fmt_cant('°C') if recepcion.temperatura is not none else '—' }}</dd>
     <dt>Transportista</dt><dd>{{ recepcion.transportista or '—' }}</dd>
+    {% if recepcion.notas %}<dt>Notas</dt><dd>{{ recepcion.notas }}</dd>{% endif %}
   </dl>
   {% if recepcion.anulada %}
   <p class="maquila-anulada">Anulada: {{ recepcion.motivo_anulacion }}</p>
   {% else %}
-  <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_editar', recepcion_id=recepcion.id) }}">Editar</a>
+  <div class="maquila-acciones">
+    <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_editar', recepcion_id=recepcion.id) }}">Corregir recepción</a>
+    <a class="btn" href="{{ url_for('maquila.corrida_nueva', cliente_id=recepcion.cliente_id) }}">Abrir corrida</a>
+  </div>
   {% endif %}
 </section>
 
@@ -24,7 +33,7 @@
   <h2>Líneas</h2>
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Ingrediente</th><th>Lote cliente</th><th>Vencimiento</th><th>Peso</th><th>Saldo</th><th>Bultos</th></tr>
+      <tr><th>Ingrediente</th><th>Lote cliente</th><th>Vencimiento</th><th class="maquila-num">Peso</th><th class="maquila-num">Saldo</th><th class="maquila-num">Bultos</th></tr>
     </thead>
     <tbody>
       {% for l in recepcion.lineas if not l.anulada %}
@@ -32,42 +41,53 @@
         <td data-label="Ingrediente">{{ l.ingrediente.nombre }}</td>
         <td data-label="Lote cliente">{{ l.lote_cliente or '—' }}</td>
         <td data-label="Vencimiento">{{ l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else '—' }}</td>
-        <td data-label="Peso">{{ l.peso_total|fmt_cant(l.ingrediente.unidad) }}</td>
-        <td data-label="Saldo">{{ saldos_linea[l.id]|fmt_cant(l.ingrediente.unidad) }}</td>
-        <td data-label="Bultos">{{ l.cantidad_bultos }}</td>
+        <td data-label="Peso" class="maquila-num">{{ l.peso_total|fmt_cant(l.ingrediente.unidad) }}</td>
+        <td data-label="Saldo" class="maquila-num">
+          {{ saldos_linea[l.id]|fmt_cant(l.ingrediente.unidad) }}
+          {% if saldos_linea[l.id] <= 0 %}{{ chip('Agotada', 'neutro') }}{% endif %}
+        </td>
+        <td data-label="Bultos" class="maquila-num">{{ l.cantidad_bultos }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
 
+{% set sin_respaldo = not recepcion.documento_cliente and not recepcion.fotos and not recepcion.firma %}
 <section class="ops-card">
-  <h2>Evidencia</h2>
-  {% if recepcion.fotos %}
-  <div class="maquila-galeria">
-    {% for f in recepcion.fotos %}
-    <img src="{{ url_for('maquila.recepcion_foto', foto_id=f.id) }}" alt="Foto de la recepción {{ recepcion.codigo }}">
-    {% endfor %}
+  <div class="maquila-titulo-fila">
+    <h2>Evidencia</h2>
+    {% if sin_respaldo %}{{ chip('Sin respaldo documental', 'aviso') }}{% endif %}
   </div>
-  {% else %}
-  <p class="ops-empty">Sin fotos.</p>
+  {% if sin_respaldo %}
+  <p class="maquila-nota">Esta recepción no tiene documento del cliente, fotos ni firma: si hay una disputa por el peso, no hay con qué respaldarla. Se puede completar desde «Corregir recepción».</p>
   {% endif %}
-
-  {% if recepcion.firma %}
-  <p>Firmada por {{ recepcion.transportista or 'quien entregó' }}.</p>
-  {% else %}
-  <p class="ops-empty">Sin firma.</p>
-  {% endif %}
+  <dl class="maquila-cabecera">
+    <dt>Fotos</dt>
+    <dd>
+      {% if recepcion.fotos %}
+      <div class="maquila-galeria">
+        {% for f in recepcion.fotos %}
+        <img src="{{ url_for('maquila.recepcion_foto', foto_id=f.id) }}" alt="Foto de la recepción {{ recepcion.codigo }}" loading="lazy">
+        {% endfor %}
+      </div>
+      {% else %}Sin fotos{% endif %}
+    </dd>
+    <dt>Firma</dt>
+    <dd>{% if recepcion.firma %}Firmada por {{ recepcion.transportista or 'quien entregó' }}{% else %}Sin firma{% endif %}</dd>
+  </dl>
 </section>
 
 {% if not recepcion.anulada %}
 <section class="ops-card">
+  <h2>Anular recepción</h2>
+  <p class="maquila-nota">Solo se puede anular si ninguna línea alimentó una corrida. Los movimientos inversos quedan en el kardex; nada se borra.</p>
   <form method="POST" action="{{ url_for('maquila.recepcion_anular', recepcion_id=recepcion.id) }}"
-        class="ops-sheet-form" data-confirm="¿Anular esta recepción?">
+        class="ops-sheet-form" data-confirm="¿Anular esta recepción? Se escriben los movimientos inversos en el kardex.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="motivo">Motivo de la anulación</label>
-      <input type="text" id="motivo" name="motivo" required>
+      <input type="text" id="motivo" name="motivo" required autocomplete="off">
     </div>
     <button type="submit" class="btn btn-danger">Anular recepción</button>
   </form>

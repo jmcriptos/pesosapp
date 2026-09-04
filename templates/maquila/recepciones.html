@@ -1,8 +1,9 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip %}
 {% block title %}Recepciones{% endblock %}
 {% block maquila_title %}Recepciones{% endblock %}
 {% block maquila_body %}
-<section class="ops-card">
+<section class="ops-card maquila-barra">
   <form method="GET" class="ops-sheet-form maquila-filtro">
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
@@ -14,7 +15,7 @@
       </select>
     </div>
   </form>
-  <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_nueva') }}">Nueva recepción</a>
+  <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_nueva', cliente_id=cliente_id) if cliente_id else url_for('maquila.recepcion_nueva') }}">Nueva recepción</a>
 </section>
 
 <section class="ops-card">
@@ -23,7 +24,7 @@
   {% else %}
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Código</th><th>Fecha</th><th>Cliente</th><th>Líneas</th><th>Recibido</th><th>Estado</th></tr>
+      <tr><th>Código</th><th>Fecha</th><th>Cliente</th><th class="maquila-num">Líneas</th><th class="maquila-num">Recibido</th><th>Estado</th></tr>
     </thead>
     <tbody>
       {% for r in recepciones %}
@@ -31,9 +32,9 @@
         <td data-label="Código"><a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=r.id) }}">{{ r.codigo }}</a></td>
         <td data-label="Fecha">{{ r.recibido_en.strftime('%d/%m/%Y') }}</td>
         <td data-label="Cliente">{{ r.cliente.nombre }}</td>
-        <td data-label="Líneas">{{ r.lineas_vivas|length }}</td>
-        <td data-label="Recibido">{% for unidad, total in r.totales_por_unidad %}{{ total|fmt_cant(unidad) }}{{ ' · ' if not loop.last }}{% else %}—{% endfor %}</td>
-        <td data-label="Estado">{{ 'Anulada' if r.anulada else 'Vigente' }}</td>
+        <td data-label="Líneas" class="maquila-num">{{ r.lineas_vivas|length }}</td>
+        <td data-label="Recibido" class="maquila-num">{% for unidad, total in r.totales_por_unidad %}{{ total|fmt_cant(unidad) }}{{ ' · ' if not loop.last }}{% else %}—{% endfor %}</td>
+        <td data-label="Estado">{{ chip('Anulada', 'falla') if r.anulada else chip('Vigente', 'conforme') }}</td>
       </tr>
       {% endfor %}
     </tbody>

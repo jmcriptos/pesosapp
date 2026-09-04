@@ -16,7 +16,7 @@
    así que acá se repite el mismo truco (misma paleta, mismos valores) en
    vez de tocar ese bloque compartido. */
 .maquila-wrap {
-  max-width: 960px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 16px;
   border-radius: 12px;
@@ -548,13 +548,6 @@
   margin: 4px 0;
 }
 
-/* El peso total se ignora mientras la línea tenga bultos cargados: se ve
-   apagado además de quedar `readonly`, para que no parezca un campo roto. */
-.maquila-wrap .rec-total-input.rec-campo-ignorado {
-  opacity: .6;
-  background: var(--color-bg-elevated, #f1f5f9);
-}
-
 .maquila-wrap .rec-foto-item {
   display: inline-block;
   text-align: center;
@@ -656,3 +649,437 @@
   padding: 6px 8px;
   margin-top: 6px;
 }
+
+
+/* ============================================================
+   Revisión de UI · 2026-09-04
+   ============================================================
+   Lo que sigue corrige lo que se veía en el navegador, no lo que decía el
+   CSS: tarjetas sin relleno interno ni separación, formularios sangrados
+   94px por la regla global `form { padding; margin:auto; max-width:800px }`
+   de styles.css, y avisos importantes compuestos como estado vacío. */
+
+/* 1 · El sangrado de los formularios. maquila.css ya neutralizaba fondo y
+   sombra de `form`; faltaban padding, margin y max-width, que son los que
+   hacían zigzaguear el borde izquierdo de la página. */
+.maquila-wrap form {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  border-radius: 0 !important;
+}
+
+/* 2 · Tarjetas con relleno (token card: 20px) y ritmo entre secciones. */
+.maquila-wrap .ops-head { margin-bottom: 16px; }
+.maquila-wrap .ops-card {
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.maquila-wrap .ops-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.maquila-wrap .ops-card h2 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+}
+.maquila-wrap .ops-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+.maquila-titulo-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+}
+.maquila-wrap .maquila-titulo-fila h2 { margin: 0; }
+.maquila-meta {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+}
+
+/* 3 · Nota explicativa ≠ estado vacío. `.ops-empty` hacía tres trabajos:
+   el aviso más importante de la pantalla de cierre se leía como «no hay
+   datos». */
+.maquila-wrap .maquila-nota {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+.maquila-wrap .ops-empty {
+  padding: 20px 12px;
+  font-size: 15px;
+}
+
+/* 4 · Chips de estado: palabra + tono, nunca solo color. Tonos medidos de
+   DESIGN.md (chip conforme/aviso/falla) más neutro y marca. */
+.maquila-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.maquila-chip.is-conforme { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+.maquila-chip.is-aviso    { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.maquila-chip.is-falla    { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+.maquila-chip.is-neutro   { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+.maquila-chip.is-marca    { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+
+/* 5 · De quién es el inventario. La maquila custodia material ajeno y
+   ninguna pantalla lo decía: ahora es lo primero, antes de cualquier cifra. */
+.maquila-dueno {
+  display: flex;
+  align-items: baseline;
+  gap: 6px 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  margin: 0 0 16px;
+  border-radius: 12px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+.maquila-dueno-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #4338ca;
+}
+.maquila-dueno-nombre {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.maquila-dueno-links {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 6 · Ficha de cabecera: etiqueta en rol label, valor en body. */
+.maquila-cabecera {
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  font-size: 15px;
+}
+.maquila-cabecera dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding-top: 3px;
+}
+.maquila-cabecera dd { color: var(--color-text); }
+
+/* 7 · Tablas: cifras alineadas a la derecha y con dígitos tabulares. */
+.maquila-wrap .maquila-tabla,
+.maquila-wrap .maquila-tabla-mini { font-size: 14px; }
+.maquila-wrap .maquila-tabla th,
+.maquila-wrap .maquila-tabla td { padding: 10px 8px; }
+.maquila-wrap .maquila-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.maquila-wrap .maquila-num .maquila-chip { margin-left: 6px; }
+.maquila-cifra { font-weight: 600; }
+.maquila-pos { color: #065f46; }
+.maquila-neg { color: #9f1239; }
+.maquila-wrap .maquila-tabla tfoot td {
+  border-top: 2px solid var(--color-border-strong);
+  border-bottom: 0;
+  background: var(--color-surface) !important;
+}
+/* Sub-tabla dentro de una fila (recepciones con saldo, varianzas): se ve
+   subordinada —sangría, fondo tenue, título— en vez de pegada a la fila
+   madre con el mismo estilo. */
+.maquila-wrap tr.maquila-fila-sub td {
+  background: var(--color-surface) !important;
+  padding: 0 0 12px 24px;
+}
+.maquila-sub {
+  padding: 8px 12px;
+  background: var(--color-surface-muted);
+  border-radius: 10px;
+}
+.maquila-sub-titulo,
+.maquila-sub summary {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+.maquila-sub summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.maquila-wrap .maquila-sub .maquila-tabla-mini th,
+.maquila-wrap .maquila-sub .maquila-tabla-mini tr:nth-child(even) td { background: transparent !important; }
+
+/* 8 · Barra de filtro + acción, y grillas de filtros. */
+.maquila-barra {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.maquila-barra .maquila-filtro,
+.maquila-barra .maquila-nota { flex: 1 1 260px; margin: 0; }
+.maquila-barra .ops-field { margin: 0; }
+.maquila-filtro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.maquila-filtro-grid .ops-field { margin: 0; }
+.maquila-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.maquila-filtro-grid .maquila-acciones { margin-top: 0; }
+.maquila-fila-inline {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.maquila-fila-inline .ops-field { flex: 1 1 200px; margin: 0; }
+
+/* 9 · Nav en tres grupos: operar · configurar · consultar. */
+.maquila-nav-sep {
+  flex: 0 0 1px;
+  height: 20px;
+  margin: 0 6px;
+  align-self: center;
+  background: var(--color-border-strong);
+}
+
+/* 10 · Pie: la acción principal a lo ancho y con altura de guante (56px). */
+.maquila-wrap .ops-sticky-footer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  border-radius: 0 0 14px 14px;
+}
+.maquila-wrap .ops-sticky-footer .btn-primary {
+  flex: 1 1 auto;
+  min-height: 56px;
+  font-size: 15px;
+}
+
+/* 11 · Aviso (falta saldo, ambiguo): ámbar de aviso, borde de 1px. */
+.maquila-wrap .maquila-aviso,
+.maquila-wrap .maquila-ambiguo {
+  border: 1px solid #fde68a;
+  background-color: #fffbeb !important;
+}
+.maquila-wrap .maquila-aviso h2,
+.maquila-wrap .maquila-ambiguo h2 { color: #92400e !important; }
+.maquila-wrap .maquila-aviso p { color: #78350f; }
+
+/* 12 · Tarjetas del índice. */
+.maquila-tarjetas {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.maquila-wrap .maquila-tarjeta-cab h2 { margin: 2px 0 8px; }
+.maquila-tarjeta-meta { font-size: 13px; gap: 4px; }
+.maquila-tarjeta-meta a { font-weight: 500; }
+.maquila-tarjeta-meta a.maquila-meta-vivo { font-weight: 700; }
+
+/* 13 · Líneas de recepción: cinco campos con etiqueta y un «Quitar». */
+.rec-linea {
+  grid-template-columns: 1.6fr 1fr 1fr .7fr 1fr auto;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+}
+.rec-linea-campo label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+.rec-linea-campo select,
+.rec-linea-campo input { margin-top: 4px; min-height: 44px; }
+.rec-linea .rec-quitar-btn { min-height: 44px; }
+@media (max-width: 640px) {
+  .rec-linea { grid-template-columns: 1fr 1fr; }
+  .rec-linea .rec-linea-campo:first-child,
+  .rec-linea .rec-quitar-btn,
+  .rec-linea > .rec-quitar { grid-column: 1 / -1; }
+}
+
+/* 14 · Consumo: el campo «Real» vive en su celda, alineado con la cifra. */
+.maquila-tabla-consumo input[type="number"] {
+  width: 150px;
+  max-width: 100%;
+  margin-left: auto;
+  text-align: right;
+  min-height: 44px;
+}
+
+/* 15 · Imprimir la trazabilidad: solo el informe. */
+@media print {
+  .maquila-nav,
+  .maquila-no-imprimir,
+  .app-topbar,
+  .app-tabbar,
+  .tabbar { display: none !important; }
+  .maquila-wrap { max-width: none; padding: 0; background: #fff; }
+  .maquila-wrap .ops-card { break-inside: avoid; box-shadow: none; border: 1px solid #cbd5e1; }
+  .maquila-dueno { border-color: #cbd5e1; background: #fff; }
+}
+
+/* 16 · Botones sin el margen que styles.css le pone a todo `button`/`.btn`:
+   dentro de una tarjeta los desalineaba 10px del contenido. En la tarjeta
+   del índice, los tres botones llenan el ancho disponible por filas. */
+.maquila-wrap .btn { margin: 0; }
+.maquila-tarjeta .maquila-acciones .btn { flex: 1 1 140px; }
+.maquila-wrap .maquila-tarjeta-cab h2 a { text-decoration: none; }
+.maquila-wrap .maquila-tarjeta-cab h2 a:hover { text-decoration: underline; }
+
+/* 17 · El pie fijo tiene que quedar POR ENCIMA de la tabbar (fija, 69.5px +
+   safe-area, visible por debajo de 1024px): con bottom:0 los últimos 29px
+   del botón de cerrar quedaban tapados. Medido con getBoundingClientRect. */
+@media (max-width: 1023px) {
+  .maquila-wrap .ops-sticky-footer {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* 18 · En modo ficha (≤767px) el pie de tabla también es una ficha: sin
+   esto `tfoot` seguía siendo tabla y salía como una tarjeta estrecha con
+   tres bloques sin etiqueta. Cada celda del pie lleva su data-label. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-tabla tfoot,
+  .maquila-wrap .maquila-tabla tfoot tr,
+  .maquila-wrap .maquila-tabla tfoot td {
+    display: block;
+    width: auto;
+  }
+  .maquila-wrap .maquila-tabla tfoot td {
+    display: flex;
+    border-top: 0;
+  }
+  .maquila-wrap .maquila-tabla tfoot tr {
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface-muted);
+  }
+  .maquila-wrap .maquila-tabla tfoot td:first-child {
+    font-size: 15px;
+  }
+}
+
+/* 19 · Por qué el pie sticky NO se pegaba: `main.app-content` lleva
+   `overflow-x: auto` (heredado del shell), y eso lo convierte en contenedor
+   de scroll — pero el que se desplaza de verdad es `<body>`. Un `sticky`
+   se ancla al scrollport más cercano, así que se anclaba al `main` (4.400px
+   de alto) y nunca entraba en la ventana. Se veía como «el botón está al
+   final del formulario y nada más». Como `.maquila-wrap` ya recorta su
+   propio desborde (`overflow-x: clip`), el `main` puede quedar visible sin
+   que ninguna tabla arrastre el marco. */
+main.app-content:has(.maquila-wrap) {
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+/* 20 · Un código (R-2026-0001, P-2026-0003, #12) nunca se parte en dos
+   líneas: en modo ficha «R-2026-0001» salía como tres renglones. */
+.maquila-wrap .maquila-tabla td a,
+.maquila-wrap .maquila-tabla-mini td a { white-space: nowrap; }
+
+/* 21 · La sub-tabla (recepciones con saldo, varianzas) en modo ficha: la
+   celda que la contiene es flex, así que el bloque medía lo que su contenido
+   y la tabla de cuatro columnas se salía del borde derecho (medido: 409px
+   en un viewport de 375). Ahora ocupa el ancho y se desliza por dentro. */
+@media (max-width: 767px) {
+  .maquila-wrap tr.maquila-fila-sub td { padding-left: 0; }
+  .maquila-wrap .maquila-sub {
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .maquila-wrap .maquila-sub .maquila-tabla-mini { font-size: 13px; }
+}
+
+/* 22 · Sub-tabla en modo ficha, dos tratamientos:
+   - `.maquila-sub-lista` (recepciones con saldo): cada fila pasa a ser una
+     línea «código · fecha · lote → saldo»; cuatro columnas en 270px se
+     partían en tres renglones por celda.
+   - las demás (varianzas por ingrediente) siguen siendo tabla, con su
+     encabezado visible (la regla general de fichas lo escondía) y scroll
+     lateral dentro del bloque. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-sub .maquila-tabla-mini thead {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    overflow: visible;
+    display: table-header-group;
+  }
+  .maquila-wrap .maquila-sub .maquila-tabla-mini th { white-space: nowrap; }
+  .maquila-wrap .maquila-sub .maquila-sub-lista,
+  .maquila-wrap .maquila-sub .maquila-sub-lista tbody { display: block; }
+  .maquila-wrap .maquila-sub .maquila-sub-lista thead { display: none; }
+  .maquila-wrap .maquila-sub .maquila-sub-lista tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .maquila-wrap .maquila-sub .maquila-sub-lista tr:last-child { border-bottom: 0; }
+  .maquila-wrap .maquila-sub .maquila-sub-lista td {
+    display: inline;
+    padding: 0;
+    border: 0;
+    white-space: nowrap;
+    background: transparent !important;
+    font-size: 14px;
+  }
+  .maquila-wrap .maquila-sub .maquila-sub-lista td:first-child { font-weight: 600; }
+  .maquila-wrap .maquila-sub .maquila-sub-lista td.maquila-num {
+    margin-left: auto;
+    font-weight: 600;
+  }
+}
+
+/* 23 · En la grilla de filtros los botones van en su propia fila, no
+   apilados dentro de la última celda; y una fecha-hora no se parte en tres
+   renglones. */
+.maquila-filtro-grid .maquila-acciones { grid-column: 1 / -1; }
+.maquila-wrap .maquila-nowrap { white-space: nowrap; }

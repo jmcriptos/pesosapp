@@ -1,8 +1,9 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip, dueno %}
 {% block title %}Saldos{% endblock %}
 {% block maquila_title %}Saldos{% endblock %}
 {% block maquila_body %}
-<section class="ops-card">
+<section class="ops-card maquila-barra">
   <form method="GET" class="ops-sheet-form maquila-filtro">
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
@@ -14,7 +15,13 @@
       </select>
     </div>
   </form>
+  {% if cliente_id %}<a class="btn" href="{{ url_for('maquila.reporte_kardex', cliente_id=cliente_id) }}">Ver kardex</a>{% endif %}
 </section>
+
+{% if cliente_id %}
+{% set cliente = (clientes | selectattr('id', 'equalto', cliente_id) | first) %}
+{{ dueno(cliente.nombre if cliente else ('Cliente #' ~ cliente_id)) }}
+{% endif %}
 
 <section class="ops-card">
   {% if not cliente_id %}
@@ -22,35 +29,45 @@
   {% elif not filas %}
     <p class="ops-empty">Este cliente todavía no tiene movimientos de ingredientes.</p>
   {% else %}
+  <div class="maquila-titulo-fila">
+    <h2>Saldo por ingrediente</h2>
+    <span class="maquila-meta">al {{ hoy.strftime('%d/%m/%Y') if hoy else 'día de hoy' }}</span>
+  </div>
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Ingrediente</th><th>Recibido</th><th>Consumido</th><th>Ajustes</th><th>Saldo</th></tr>
+      <tr><th>Ingrediente</th><th class="maquila-num">Recibido</th><th class="maquila-num">Consumido</th><th class="maquila-num">Ajustes</th><th class="maquila-num">Saldo</th></tr>
     </thead>
     <tbody>
       {% for f in filas %}
       <tr>
         <td data-label="Ingrediente">{{ f.ingrediente }}</td>
-        <td data-label="Recibido">{{ f.recibido|fmt_cant(f.unidad) }}</td>
-        <td data-label="Consumido">{{ f.consumido|fmt_cant(f.unidad) }}</td>
-        <td data-label="Ajustes">{{ f.ajustes|fmt_cant(f.unidad) }}</td>
-        <td data-label="Saldo">{{ f.saldo|fmt_cant(f.unidad) }}</td>
+        <td data-label="Recibido" class="maquila-num">{{ f.recibido|fmt_cant(f.unidad) }}</td>
+        <td data-label="Consumido" class="maquila-num">{{ f.consumido|fmt_cant(f.unidad) }}</td>
+        <td data-label="Ajustes" class="maquila-num">{{ f.ajustes|fmt_cant(f.unidad) }}</td>
+        <td data-label="Saldo" class="maquila-num maquila-cifra">
+          {{ f.saldo|fmt_cant(f.unidad) }}
+          {% if f.saldo < 0 %}{{ chip('Negativo', 'falla') }}{% elif f.saldo == 0 %}{{ chip('Agotado', 'neutro') }}{% endif %}
+        </td>
       </tr>
       {% if f.lineas_abiertas %}
-      <tr>
+      <tr class="maquila-fila-sub">
         <td colspan="5">
-          <table class="maquila-tabla-mini">
-            <thead><tr><th>Código</th><th>Fecha</th><th>Lote cliente</th><th>Saldo</th></tr></thead>
-            <tbody>
-              {% for l in f.lineas_abiertas %}
-              <tr>
-                <td>{{ l.codigo }}</td>
-                <td>{{ l.recibido_en.strftime('%d/%m/%Y') if l.recibido_en else '—' }}</td>
-                <td>{{ l.lote_cliente or '—' }}</td>
-                <td>{{ l.saldo|fmt_cant(f.unidad) }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <div class="maquila-sub">
+            <div class="maquila-sub-titulo">Recepciones con saldo de {{ f.ingrediente|lower }} · más antigua primero (orden FIFO)</div>
+            <table class="maquila-tabla-mini maquila-sub-lista">
+              <thead><tr><th>Código</th><th>Fecha</th><th>Lote cliente</th><th class="maquila-num">Saldo</th></tr></thead>
+              <tbody>
+                {% for l in f.lineas_abiertas %}
+                <tr>
+                  <td>{{ l.codigo }}</td>
+                  <td>{{ l.recibido_en.strftime('%d/%m/%Y') if l.recibido_en else '—' }}</td>
+                  <td>{{ l.lote_cliente or '—' }}</td>
+                  <td class="maquila-num">{{ l.saldo|fmt_cant(f.unidad) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </td>
       </tr>
       {% endif %}

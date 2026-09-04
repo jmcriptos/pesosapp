@@ -1,8 +1,9 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip_estado %}
 {% block title %}Producción{% endblock %}
 {% block maquila_title %}Producción{% endblock %}
 {% block maquila_body %}
-<section class="ops-card">
+<section class="ops-card maquila-barra">
   <form method="GET" class="ops-sheet-form maquila-filtro">
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
@@ -14,7 +15,7 @@
       </select>
     </div>
   </form>
-  <a class="btn btn-primary" href="{{ url_for('maquila.corrida_nueva') }}">Nueva corrida</a>
+  <a class="btn btn-primary" href="{{ url_for('maquila.corrida_nueva', cliente_id=cliente_id) if cliente_id else url_for('maquila.corrida_nueva') }}">Nueva corrida</a>
 </section>
 
 <section class="ops-card">
@@ -25,7 +26,7 @@
     <thead>
       <tr>
         <th>Código</th><th>Lote</th><th>Cliente</th><th>Producto</th>
-        <th>Fecha</th><th>Cajas</th><th>Producido</th><th>Estado</th>
+        <th>Fecha</th><th class="maquila-num">Cajas</th><th class="maquila-num">Producido</th><th>Estado</th>
       </tr>
     </thead>
     <tbody>
@@ -36,9 +37,9 @@
         <td data-label="Cliente">{{ c.cliente.nombre }}</td>
         <td data-label="Producto">{{ c.producto.nombre }}</td>
         <td data-label="Fecha">{{ c.fecha_produccion.strftime('%d/%m/%Y') }}</td>
-        <td data-label="Cajas">{{ c.cajas|length }}</td>
-        <td data-label="Producido">{{ c.peso_producido|fmt_cant }}</td>
-        <td data-label="Estado">{{ c.estado }}</td>
+        <td data-label="Cajas" class="maquila-num">{{ c.cajas|length }}</td>
+        <td data-label="Producido" class="maquila-num">{{ c.peso_producido|fmt_cant }}</td>
+        <td data-label="Estado">{{ chip_estado(c.estado) }}</td>
       </tr>
       {% endfor %}
     </tbody>

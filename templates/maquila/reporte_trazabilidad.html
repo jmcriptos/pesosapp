@@ -1,19 +1,45 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip, chip_estado %}
 {% block title %}Trazabilidad{% endblock %}
 {% block maquila_title %}Trazabilidad{% endblock %}
 {% block maquila_body %}
-<form method="GET" class="ops-card">
-  <label for="q">Lote, código de recepción, código de corrida, pedido o factura</label>
-  <input type="search" id="q" name="q" value="{{ termino }}" required>
-  <button type="submit" class="btn btn-primary">Trazar</button>
-</form>
+<section class="ops-card maquila-no-imprimir">
+  <form method="GET" class="ops-sheet-form maquila-fila-inline">
+    <div class="ops-field">
+      <label for="q">Lote, código de recepción, código de corrida, pedido o factura</label>
+      <input type="search" id="q" name="q" value="{{ termino }}" required autocomplete="off" autocapitalize="characters" placeholder="CH-2609, R-2026-0001, P-2026-0002, 1234">
+    </div>
+    <button type="submit" class="btn btn-primary">Trazar</button>
+  </form>
+</section>
 
 {% if resultado and not resultado.encontrado %}
-  <p class="ops-empty">Sin resultados para «{{ termino }}».</p>
+  <section class="ops-card"><p class="ops-empty">Sin resultados para «{{ termino }}».</p></section>
 {% elif resultado %}
 
+  {#- Cabecera de informe: un auditor imprime esta pantalla y tiene que
+      saber de qué término, de qué día y de quién es la consulta. -#}
+  <section class="ops-card maquila-informe-cab">
+    <div class="maquila-titulo-fila">
+      <h2>Trazabilidad de «{{ termino }}»</h2>
+      {{ chip({'corrida': 'Lote de producción', 'recepcion': 'Recepción', 'pedido': 'Pedido'}.get(resultado.tipo, resultado.tipo), 'marca') }}
+      {% if resultado.ambiguo %}{{ chip('Ambiguo', 'aviso') }}{% endif %}
+    </div>
+    <p class="maquila-meta">Consultado el {{ ahora.strftime('%d/%m/%Y %H:%M') if ahora else '—' }} por {{ current_user.nombre_completo if current_user.is_authenticated else '—' }} · Jomar Foods</p>
+    {% if resultado.corridas and not resultado.ambiguo %}
+    <dl class="maquila-cabecera">
+      {% for c in resultado.corridas %}
+      <dt>Corrida</dt><dd><a href="{{ url_for('maquila.corrida_detalle', corrida_id=c.id) }}">{{ c.codigo }}</a> · lote {{ c.lote }} · {{ c.producto.nombre if c.producto else '—' }} · {{ c.cliente.nombre if c.cliente else '—' }}</dd>
+      {% endfor %}
+    </dl>
+    {% endif %}
+    <div class="maquila-acciones maquila-no-imprimir">
+      <button type="button" class="btn" id="traz-imprimir">Imprimir</button>
+    </div>
+  </section>
+
   {% if resultado.ambiguo %}
-  <section class="ops-card maquila-ambiguo">
+  <section class="ops-card maquila-aviso">
     <h2>«{{ termino }}» es ambiguo</h2>
     <p>Coincide con más de un resultado: no se eligió ninguno en silencio.
        Distinguí por cliente o código antes de leer las tablas de abajo.</p>
@@ -23,7 +49,7 @@
       <tbody>
         {% for c in resultado.corridas %}
         <tr>
-          <td data-label="Corrida">{{ c.codigo }}</td>
+          <td data-label="Corrida"><a href="{{ url_for('maquila.corrida_detalle', corrida_id=c.id) }}">{{ c.codigo }}</a></td>
           <td data-label="Lote">{{ c.lote }}</td>
           <td data-label="Cliente">{{ c.cliente.nombre if c.cliente else '—' }}</td>
           <td data-label="Producto">{{ c.producto.nombre if c.producto else '—' }}</td>
@@ -37,8 +63,8 @@
       <tbody>
         {% for f in resultado.hacia_adelante %}
         <tr>
-          <td data-label="Pedido">#{{ f.pedido_id }}</td>
-          <td data-label="Estado">{{ f.estado }}</td>
+          <td data-label="Pedido">Pedido #{{ f.pedido_id }}</td>
+          <td data-label="Estado">{{ chip_estado(f.estado) }}</td>
           <td data-label="Factura QBO">{{ f.doc_number_qbo or '—' }}</td>
         </tr>
         {% endfor %}
@@ -54,7 +80,7 @@
       <thead><tr>
         {% if resultado.ambiguo %}<th>Candidato</th>{% endif %}
         <th>Recepción</th><th>Fecha</th><th>Documento</th>
-        <th>Lote cliente</th><th>Ingrediente</th><th>Cantidad</th></tr></thead>
+        <th>Lote cliente</th><th>Ingrediente</th><th class="maquila-num">Cantidad</th></tr></thead>
       <tbody>
         {% if not resultado.hacia_atras %}
         <tr><td colspan="{{ 7 if resultado.ambiguo else 6 }}" class="ops-empty">Sin movimientos hacia atrás.</td></tr>
@@ -64,12 +90,12 @@
           {% if resultado.ambiguo %}
           <td data-label="Candidato">{{ f.get('cliente') or ('Pedido #' ~ f.get('pedido_id') if f.get('pedido_id') else '—') }}</td>
           {% endif %}
-          <td data-label="Recepción">{{ f.codigo }}{% if f.sin_origen %} <em>(pesada a mano, sin origen)</em>{% endif %}</td>
-          <td data-label="Fecha">{{ f.recibido_en or '—' }}</td>
+          <td data-label="Recepción">{{ f.codigo }}{% if f.sin_origen %} {{ chip('Pesada a mano, sin origen', 'aviso') }}{% endif %}</td>
+          <td data-label="Fecha">{{ f.recibido_en.strftime('%d/%m/%Y') if f.recibido_en else '—' }}</td>
           <td data-label="Documento">{{ f.documento_cliente or '—' }}</td>
           <td data-label="Lote cliente">{{ f.lote_cliente or '—' }}</td>
           <td data-label="Ingrediente">{{ f.ingrediente or f.get('producto') or '—' }}</td>
-          <td data-label="Cantidad">{{ f.cantidad|fmt_cant(f.unidad) }}</td>
+          <td data-label="Cantidad" class="maquila-num">{{ f.cantidad|fmt_cant(f.unidad) }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -81,8 +107,8 @@
     <table class="maquila-tabla">
       <thead><tr>
         {% if resultado.ambiguo %}<th>Candidato</th>{% endif %}
-        <th>Pedido</th><th>Estado</th><th>Cajas</th>
-        <th>Peso</th><th>Factura QBO</th></tr></thead>
+        <th>Pedido</th><th>Estado</th><th class="maquila-num">Cajas</th>
+        <th class="maquila-num">Peso</th><th>Factura QBO</th></tr></thead>
       <tbody>
         {% if not resultado.hacia_adelante %}
         <tr><td colspan="{{ 6 if resultado.ambiguo else 5 }}" class="ops-empty">Sin movimientos hacia adelante.</td></tr>
@@ -92,15 +118,22 @@
           {% if resultado.ambiguo %}
           <td data-label="Candidato">{{ f.get('cliente') or ('Pedido #' ~ f.pedido_id) }}</td>
           {% endif %}
-          <td data-label="Pedido"><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">#{{ f.pedido_id }}</a></td>
-          <td data-label="Estado">{{ f.estado }}</td>
-          <td data-label="Cajas">{{ f.cajas }}</td>
-          <td data-label="Peso">{{ f.peso|fmt_cant }}</td>
+          <td data-label="Pedido"><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">Pedido #{{ f.pedido_id }}</a>{% if f.fecha_pedido %} <span class="maquila-meta">{{ f.fecha_pedido.strftime('%d/%m/%Y') }}</span>{% endif %}</td>
+          <td data-label="Estado">{{ chip_estado(f.estado) }}</td>
+          <td data-label="Cajas" class="maquila-num">{{ f.cajas }}</td>
+          <td data-label="Peso" class="maquila-num">{{ f.peso|fmt_cant }}</td>
           <td data-label="Factura QBO">{{ f.doc_number_qbo or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </section>
+
+  <script nonce="{{ csp_nonce() }}">
+  (function () {
+    var b = document.getElementById('traz-imprimir');
+    if (b) b.addEventListener('click', function () { window.print(); });
+  })();
+  </script>
 {% endif %}
 {% endblock %}

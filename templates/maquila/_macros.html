@@ -1,0 +1,39 @@
+{#- Piezas compartidas del módulo de maquila.
+
+    `chip`: un estado nunca viaja solo en el color (regla del sistema): el
+    chip lleva la palabra y el tono la refuerza. Tonos: conforme (verde),
+    aviso (ámbar), falla (rojo), neutro (gris), marca (índigo).
+
+    `dueno`: la maquila custodia material ajeno. Toda pantalla que opera
+    sobre el inventario de un cliente lo dice arriba, antes de cualquier
+    número, para que «descontar» y «saldo» tengan dueño. -#}
+
+{% macro chip(texto, tono='neutro') -%}
+<span class="maquila-chip is-{{ tono }}">{{ texto }}</span>
+{%- endmacro %}
+
+{% macro chip_estado(estado) -%}
+{%- set tonos = {'abierta': 'aviso', 'cerrada': 'conforme', 'anulada': 'falla',
+                 'facturado': 'conforme', 'preparado': 'aviso', 'pendiente': 'neutro',
+                 'vigente': 'conforme'} -%}
+{{ chip(estado|capitalize, tonos.get(estado, 'neutro')) }}
+{%- endmacro %}
+
+{% macro chip_tipo_movimiento(tipo) -%}
+{%- set tonos = {'entrada': 'conforme', 'salida': 'neutro', 'ajuste': 'aviso',
+                 'devolucion': 'marca'} -%}
+{{ chip(tipo|capitalize, tonos.get(tipo, 'neutro')) }}
+{%- endmacro %}
+
+{% macro dueno(nombre, cliente_id=None) -%}
+<div class="maquila-dueno" role="note">
+  <span class="maquila-dueno-label">Inventario en custodia de</span>
+  <span class="maquila-dueno-nombre">{{ nombre }}</span>
+  {% if cliente_id %}
+  <span class="maquila-dueno-links">
+    <a href="{{ url_for('maquila.reporte_saldos', cliente_id=cliente_id) }}">Saldos</a>
+    <a href="{{ url_for('maquila.reporte_kardex', cliente_id=cliente_id) }}">Kardex</a>
+  </span>
+  {% endif %}
+</div>
+{%- endmacro %}

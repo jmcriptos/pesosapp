@@ -1,9 +1,10 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip_tipo_movimiento, dueno %}
 {% block title %}Kardex{% endblock %}
 {% block maquila_title %}Kardex{% endblock %}
 {% block maquila_body %}
 <section class="ops-card">
-  <form method="GET" class="ops-sheet-form maquila-filtro">
+  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid">
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
       <select id="cliente_id" name="cliente_id" data-autosubmit>
@@ -30,12 +31,19 @@
       <label for="hasta">Hasta</label>
       <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
     </div>
-    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+      {% if cliente_id %}
+      <a class="btn" href="{{ url_for('maquila.reporte_kardex_export') }}?{{ request.query_string.decode() }}">Exportar XLSX</a>
+      {% endif %}
+    </div>
   </form>
-  {% if cliente_id %}
-  <a class="btn" href="{{ url_for('maquila.reporte_kardex_export') }}?{{ request.query_string.decode() }}">Exportar XLSX</a>
-  {% endif %}
 </section>
+
+{% if cliente_id %}
+{% set cliente = (clientes | selectattr('id', 'equalto', cliente_id) | first) %}
+{{ dueno(cliente.nombre if cliente else ('Cliente #' ~ cliente_id)) }}
+{% endif %}
 
 <section class="ops-card">
   {% if not cliente_id %}
@@ -45,18 +53,22 @@
   {% else %}
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Fecha</th><th>Tipo</th><th>Ingrediente</th><th>Cantidad</th>
-        <th>Saldo acumulado</th><th>Origen</th><th>Responsable</th><th>Motivo</th></tr>
+      <tr><th>Fecha</th><th>Tipo</th><th>Ingrediente</th><th class="maquila-num">Cantidad</th>
+        <th class="maquila-num">Saldo acumulado</th><th>Origen</th><th>Responsable</th><th>Motivo</th></tr>
     </thead>
     <tbody>
       {% for f in filas %}
       <tr>
-        <td data-label="Fecha">{{ f.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td data-label="Tipo">{{ f.tipo }}</td>
+        <td data-label="Fecha" class="maquila-nowrap">{{ f.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="Tipo">{{ chip_tipo_movimiento(f.tipo) }}</td>
         <td data-label="Ingrediente">{{ f.ingrediente }}</td>
-        <td data-label="Cantidad">{{ f.cantidad|fmt_cant(f.unidad) }}</td>
-        <td data-label="Saldo acumulado">{{ f.saldo_acumulado|fmt_cant(f.unidad) }}</td>
-        <td data-label="Origen">{{ f.origen }}</td>
+        <td data-label="Cantidad" class="maquila-num {{ 'maquila-neg' if f.cantidad < 0 else 'maquila-pos' }}">{{ ('+' if f.cantidad > 0 else '') ~ (f.cantidad|fmt_cant(f.unidad)) }}</td>
+        <td data-label="Saldo acumulado" class="maquila-num">{{ f.saldo_acumulado|fmt_cant(f.unidad) }}</td>
+        <td data-label="Origen">
+          {% if f.origen_tipo == 'recepcion' and f.origen_id %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=f.origen_id) }}">recepción #{{ f.origen_id }}</a>
+          {% elif f.origen_tipo == 'corrida' and f.origen_id %}<a href="{{ url_for('maquila.corrida_detalle', corrida_id=f.origen_id) }}">corrida #{{ f.origen_id }}</a>
+          {% else %}{{ f.origen }}{% endif %}
+        </td>
         <td data-label="Responsable">{{ f.responsable }}</td>
         <td data-label="Motivo">{{ f.motivo or '—' }}</td>
       </tr>
