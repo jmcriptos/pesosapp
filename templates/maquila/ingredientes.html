@@ -1,27 +1,30 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip %}
 {% block title %}Ingredientes{% endblock %}
 {% block maquila_title %}Ingredientes{% endblock %}
 {% block maquila_body %}
 <section class="ops-card">
   <h2>Nuevo ingrediente</h2>
-  <form method="POST" class="ops-sheet-form">
+  <form method="POST" class="ops-sheet-form maquila-filtro-grid">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="nombre">Nombre</label>
-      <input type="text" id="nombre" name="nombre" required>
+      <input type="text" id="nombre" name="nombre" required autocomplete="off" placeholder="Carne de res magra">
     </div>
     <div class="ops-field">
       <label for="unidad">Unidad</label>
       <select id="unidad" name="unidad">
-        <option value="kg">kg</option>
-        <option value="ud">ud</option>
+        <option value="kg">kg — se pesa</option>
+        <option value="ud">ud — se cuenta</option>
       </select>
     </div>
     <div class="ops-field">
       <label for="notas">Notas <small>(opcional)</small></label>
       <input type="text" id="notas" name="notas">
     </div>
-    <button type="submit" class="btn btn-primary">Agregar ingrediente</button>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn btn-primary">Agregar ingrediente</button>
+    </div>
   </form>
 </section>
 
@@ -37,9 +40,9 @@
     <tbody>
       {% for ing in ingredientes %}
       <tr>
-        <td data-label="Nombre">{{ ing.nombre }}</td>
+        <td data-label="Nombre">{{ ing.nombre }}{% if ing.notas %} <span class="maquila-meta">{{ ing.notas }}</span>{% endif %}</td>
         <td data-label="Unidad">{{ ing.unidad }}</td>
-        <td data-label="Estado">{{ 'Activo' if ing.activo else 'Inactivo' }}</td>
+        <td data-label="Estado">{{ chip('Activo', 'conforme') if ing.activo else chip('Inactivo', 'neutro') }}</td>
         <td>
           <form method="POST" action="{{ url_for('maquila.toggle_ingrediente', ingrediente_id=ing.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

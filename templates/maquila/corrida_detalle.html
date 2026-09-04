@@ -1,4 +1,5 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip, chip_estado, dueno %}
 {% block title %}{{ 'Nueva corrida' if not corrida else 'Corrida ' ~ corrida.codigo }}{% endblock %}
 {% block maquila_title %}{{ 'Nueva corrida' if not corrida else 'Corrida ' ~ corrida.codigo }}{% endblock %}
 {% block maquila_body %}
@@ -8,10 +9,12 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <section class="ops-card">
     <h2>Abrir corrida</h2>
+    <p class="maquila-nota">Una corrida convierte ingredientes del cliente en cajas de producto terminado. Abrirla no descuenta nada: el descuento ocurre al cerrarla.</p>
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
       <select id="cliente_id" name="cliente_id" required>
-        {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
+        <option value="" disabled {{ 'selected' if not cliente_sugerido else '' }}>Elegí un cliente</option>
+        {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if cliente_sugerido == c.id else '' }}>{{ c.nombre }}</option>{% endfor %}
       </select>
     </div>
     <div class="ops-field">
@@ -22,11 +25,11 @@
     </div>
     <div class="ops-field">
       <label for="lote">Lote</label>
-      <input type="text" id="lote" name="lote" required>
+      <input type="text" id="lote" name="lote" required autocomplete="off" autocapitalize="characters" placeholder="Como va en la etiqueta">
     </div>
     <div class="ops-field">
       <label for="fecha_produccion">Fecha de producción</label>
-      <input type="date" id="fecha_produccion" name="fecha_produccion" required>
+      <input type="date" id="fecha_produccion" name="fecha_produccion" required value="{{ hoy.strftime('%Y-%m-%d') if hoy else '' }}">
     </div>
     <div class="ops-field">
       <label for="fecha_vencimiento">Fecha de vencimiento <small>(opcional)</small></label>
@@ -44,28 +47,33 @@
 
 {% else %}
 
+{{ dueno(corrida.cliente.nombre, corrida.cliente_id) }}
+
 {% if falta_ingrediente_id %}
-<section class="ops-card maquila-ambiguo">
-  <h2>Falta saldo para cerrar</h2>
-  <p>El mensaje de arriba explica cuánto falta. Registrá un ajuste de entrada
-    con su motivo y volvé a cerrar la corrida.</p>
+{% set falta = (ingredientes | selectattr('id', 'equalto', falta_ingrediente_id) | first) %}
+<section class="ops-card maquila-aviso">
+  <h2>Falta saldo{% if falta %} de {{ falta.nombre }}{% endif %} para cerrar</h2>
+  <p>El consumo declarado supera lo que {{ corrida.cliente.nombre }} tiene en cámara. Registrá un ajuste de entrada con su motivo y volvé a cerrar la corrida.</p>
   <a class="btn btn-primary"
      href="{{ url_for('maquila.ajustes', cliente_id=corrida.cliente_id, ingrediente_id=falta_ingrediente_id) }}">
-    Ir a ajustes manuales
+    Registrar el ajuste
   </a>
 </section>
 {% endif %}
 
 <section class="ops-card">
-  <h2>{{ corrida.codigo }} <small>({{ corrida.estado }})</small></h2>
+  <div class="maquila-titulo-fila">
+    <h2>{{ corrida.codigo }}</h2>
+    {{ chip_estado(corrida.estado) }}
+  </div>
   <dl class="maquila-cabecera">
-    <dt>Cliente</dt><dd>{{ corrida.cliente.nombre }}</dd>
     <dt>Producto</dt><dd>{{ corrida.producto.nombre }}</dd>
     <dt>Lote</dt><dd>{{ corrida.lote }}</dd>
     <dt>Fecha de producción</dt><dd>{{ corrida.fecha_produccion.strftime('%d/%m/%Y') }}</dd>
     <dt>Fecha de vencimiento</dt>
     <dd>{{ corrida.fecha_vencimiento.strftime('%d/%m/%Y') if corrida.fecha_vencimiento else '—' }}</dd>
     <dt>Receta</dt><dd>{{ corrida.receta.nombre if corrida.receta else 'Sin receta asignada' }}</dd>
+    {% if corrida.notas %}<dt>Notas</dt><dd>{{ corrida.notas }}</dd>{% endif %}
   </dl>
 </section>
 
@@ -73,11 +81,11 @@
   <h2>Cajas producidas</h2>
   {% if corrida.estado == 'abierta' %}
   <form method="POST" action="{{ url_for('maquila.corrida_caja', corrida_id=corrida.id) }}"
-        class="ops-sheet-form maquila-filtro">
+        class="ops-sheet-form maquila-fila-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="peso">Peso de la caja (kg)</label>
-      <input type="number" step="0.001" min="0.001" id="peso" name="peso" required>
+      <input type="number" step="0.001" min="0.001" inputmode="decimal" id="peso" name="peso" required autocomplete="off">
     </div>
     <button type="submit" class="btn">Agregar caja</button>
   </form>
@@ -86,29 +94,30 @@
     <p class="ops-empty">Todavía no hay cajas producidas.</p>
   {% else %}
   <table class="maquila-tabla-mini">
-    <thead><tr><th>#</th><th>Peso</th><th>Estado</th></tr></thead>
+    <thead><tr><th>#</th><th class="maquila-num">Peso</th><th>Estado</th></tr></thead>
     <tbody>
       {% for caja in corrida.cajas %}
+      {% set pedido = caja.caja_pesada.detalle_pedido.pedido
+             if (caja.caja_pesada and caja.caja_pesada.detalle_pedido
+                 and caja.caja_pesada.detalle_pedido.pedido) else none %}
       <tr>
         <td>{{ caja.numero }}</td>
-        <td>{{ caja.peso|fmt_cant }}</td>
+        <td class="maquila-num">{{ caja.peso|fmt_cant }}</td>
         <td>
           {% if caja.anulada_en %}
-            Anulada
+            {{ chip('Anulada', 'falla') }}
           {% elif caja.caja_pesada_id %}
-            asignada al pedido
-            {{ caja.caja_pesada.detalle_pedido.pedido.id
-               if (caja.caja_pesada and caja.caja_pesada.detalle_pedido
-                   and caja.caja_pesada.detalle_pedido.pedido) else '?' }}
+            {{ chip('En pedido', 'marca') }}
+            {% if pedido %}<a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">#{{ pedido.id }}</a>{% else %}?{% endif %}
           {% else %}
-            Disponible
+            {{ chip('Disponible', 'conforme') }}
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot>
-      <tr><td colspan="1"><strong>Total</strong></td><td><strong>{{ corrida.peso_producido|fmt_cant }}</strong></td><td></td></tr>
+      <tr><td><strong>Total</strong></td><td class="maquila-num"><strong>{{ corrida.peso_producido|fmt_cant }}</strong></td><td>{{ corrida.cajas|length }} caja{{ 's' if corrida.cajas|length != 1 else '' }}</td></tr>
     </tfoot>
   </table>
   {% endif %}
@@ -120,76 +129,101 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <section class="ops-card">
-    <h2>Consumo</h2>
+    <h2>Consumo real</h2>
     {% if not ingredientes %}
       <p class="ops-empty">No hay ingredientes activos para declarar consumo.</p>
     {% else %}
-    <table class="maquila-tabla">
-      <thead><tr><th>Ingrediente</th><th>{{ 'Teórico / real' if reparto_origen == 'teorico' else 'Real declarado' }}</th></tr></thead>
+    <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos; lo que se descuenta es lo que declarás en «Real». Dejá en blanco lo que no se usó.</p>
+    <table class="maquila-tabla maquila-tabla-consumo">
+      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th></tr></thead>
       <tbody>
         {% for i in ingredientes %}
         <tr>
           <td data-label="Ingrediente">{{ i.nombre }}</td>
-          <td data-label="{{ 'Teórico / real' if reparto_origen == 'teorico' else 'Real declarado' }}">
+          <td data-label="Teórico" class="maquila-num">{{ teoricos.get(i.id)|fmt_cant(i.unidad) if teoricos.get(i.id) is not none else '—' }}</td>
+          <td data-label="Real" class="maquila-num">
             <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
-            <input type="number" step="0.001" min="0" name="consumo_real"
+            <input type="number" step="0.001" min="0" inputmode="decimal" name="consumo_real"
+                   aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
                    value="{{ consumo_actual.get(i.id, '') }}">
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn"
+              formaction="{{ url_for('maquila.corrida_recalcular', corrida_id=corrida.id) }}">Recalcular reparto</button>
+    </div>
     {% endif %}
   </section>
 
   <section class="ops-card">
-    <h2>Reparto FIFO</h2>
+    <div class="maquila-titulo-fila">
+      <h2>Reparto FIFO</h2>
+      {{ chip('Estimado', 'aviso') if reparto_origen == 'teorico' else chip('Según lo declarado', 'conforme') }}
+    </div>
     {% if reparto_origen == 'teorico' %}
-    <p class="ops-empty" style="margin-top:0">Reparto <strong>estimado según la receta</strong>: todavía no corresponde a lo que declaraste arriba. Si editaste el consumo, tocá «Recalcular reparto» antes de cerrar — si no, se cierra con este mismo estimado.</p>
+    <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: todavía no corresponde a lo que declaraste arriba. Si editaste el consumo, tocá «Recalcular reparto» antes de cerrar — si no, se cierra con este mismo estimado.</p>
     {% else %}
-    <p class="ops-empty" style="margin-top:0">Reparto según el <strong>consumo declarado</strong>: esto es lo que se va a descontar si cerrás ahora. Si volvés a editar el consumo, recalculá de nuevo.</p>
+    <p class="maquila-nota">Reparto según el <strong>consumo declarado</strong>: esto es lo que se va a descontar si cerrás ahora. Si volvés a editar el consumo, recalculá de nuevo.</p>
     {% endif %}
     {% if not reparto %}
       <p class="ops-empty">Sin receta, sin cajas producidas o sin consumo declarado: no hay reparto que previsualizar.</p>
     {% else %}
+    {% set ns = namespace(total_kg=0, faltantes=0) %}
     <table class="maquila-tabla">
-      <thead><tr><th>Ingrediente</th><th>Recepción</th><th>Lote del cliente</th><th>Cantidad</th></tr></thead>
+      <thead><tr><th>Ingrediente</th><th>Recepción</th><th>Lote del cliente</th><th class="maquila-num">Se descuenta</th><th class="maquila-num">Queda en la línea</th></tr></thead>
       <tbody>
         {% for ingrediente_id, tramos in reparto.items() %}
           {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
           {% if tramos is none %}
+          {% set ns.faltantes = ns.faltantes + 1 %}
           <tr class="maquila-sin-saldo">
             <td data-label="Ingrediente">{{ ing.nombre if ing else ingrediente_id }}</td>
-            <td colspan="3">sin saldo suficiente</td>
+            <td colspan="4">{{ chip('Sin saldo suficiente', 'falla') }} No hay recepciones de este ingrediente que cubran lo declarado.</td>
           </tr>
           {% else %}
             {% for linea_id, cantidad in tramos %}
               {% set linea = lineas_reparto.get(linea_id) %}
+              {% set saldo = saldos_reparto.get(linea_id) %}
+              {% if ing and ing.unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + cantidad %}{% endif %}
               <tr>
                 <td data-label="Ingrediente">{{ ing.nombre if ing else ingrediente_id }}</td>
                 <td data-label="Recepción">
                   {% if linea %}
-                    {{ linea.recepcion.codigo }} ({{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }})
+                    <a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=linea.recepcion_id) }}">{{ linea.recepcion.codigo }}</a> ({{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }})
                   {% else %}
                     Línea #{{ linea_id }}
                   {% endif %}
                 </td>
                 <td data-label="Lote del cliente">{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
-                <td data-label="Cantidad">{{ cantidad|fmt_cant(ing.unidad if ing else 'kg') }}</td>
+                <td data-label="Se descuenta" class="maquila-num">{{ cantidad|fmt_cant(ing.unidad if ing else 'kg') }}</td>
+                <td data-label="Queda en la línea" class="maquila-num">
+                  {% if saldo is not none %}
+                    {% set queda = saldo - cantidad %}
+                    {{ queda|fmt_cant(ing.unidad if ing else 'kg') }}
+                    {% if queda <= 0 %}{{ chip('Se agota', 'aviso') }}{% endif %}
+                  {% else %}—{% endif %}
+                </td>
               </tr>
             {% endfor %}
           {% endif %}
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" data-label="Total en peso a descontar" class="maquila-num maquila-cifra">{{ ns.total_kg|fmt_cant }}</td>
+          <td colspan="2" data-label="Merma estimada" class="maquila-num">{% if corrida.peso_producido > 0 and ns.total_kg > 0 %}{{ (ns.total_kg - corrida.peso_producido)|fmt_cant }} sobre {{ corrida.peso_producido|fmt_cant }} producidos{% else %}—{% endif %}</td>
+        </tr>
+      </tfoot>
     </table>
     {% endif %}
   </section>
 
   <footer class="ops-sticky-footer">
-    <button type="submit" class="btn"
-            formaction="{{ url_for('maquila.corrida_recalcular', corrida_id=corrida.id) }}">Recalcular reparto</button>
-    <button type="submit" class="btn btn-primary"
-            data-confirm="Cerrar la corrida descuenta los ingredientes. ¿Continuar?">Cerrar corrida</button>
+    <button type="submit" class="btn btn-primary btn-guante"
+            data-confirm="Cerrar la corrida descuenta los ingredientes del inventario de {{ corrida.cliente.nombre }}. ¿Continuar?">Cerrar corrida y descontar</button>
   </footer>
 </form>
 
@@ -213,27 +247,67 @@
   });
 })();
 </script>
-{% else %}
-<section class="ops-card">
+
+{% elif corrida.estado == 'cerrada' %}
+<section class="ops-card maquila-recibo">
   <h2>Cierre</h2>
-  {% if corrida.estado == 'cerrada' %}
-    <p>Merma: {{ merma|fmt_cant }}</p>
-  {% elif corrida.estado == 'anulada' %}
-    <p class="maquila-anulada">Corrida anulada.</p>
+  <dl class="maquila-cabecera">
+    <dt>Cerrada</dt>
+    <dd>{{ cerrada_en_local.strftime('%d/%m/%Y %H:%M') if cerrada_en_local else '—' }}{% if cerrada_por_nombre %} · {{ cerrada_por_nombre }}{% endif %}</dd>
+    <dt>Producido</dt><dd>{{ corrida.peso_producido|fmt_cant }} en {{ corrida.cajas|length }} caja{{ 's' if corrida.cajas|length != 1 else '' }}</dd>
+    <dt>Consumido en peso</dt><dd>{{ consumido_kg|fmt_cant }}</dd>
+    <dt>Merma</dt>
+    <dd>
+      {{ merma|fmt_cant }}{% if merma_pct is not none %} ({{ merma_pct }} %){% endif %}
+      {% if merma_pct is not none and merma_pct|abs > 10 %}{{ chip('Merma alta', 'falla') }}{% endif %}
+    </dd>
+  </dl>
+  <h3>Qué se descontó del inventario de {{ corrida.cliente.nombre }}</h3>
+  {% if not corrida.consumos %}
+  <p class="ops-empty">La corrida se cerró sin consumo declarado.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th><th>De qué recepciones</th></tr></thead>
+    <tbody>
+      {% for consumo in corrida.consumos %}
+      {% set u = consumo.ingrediente.unidad if consumo.ingrediente else 'kg' %}
+      <tr>
+        <td data-label="Ingrediente">{{ consumo.ingrediente.nombre if consumo.ingrediente else '—' }}</td>
+        <td data-label="Teórico" class="maquila-num">{{ consumo.cantidad_teorica|fmt_cant(u) }}</td>
+        <td data-label="Real" class="maquila-num">{{ consumo.cantidad_real|fmt_cant(u) }}</td>
+        <td data-label="Diferencia" class="maquila-num">{{ (consumo.cantidad_real - consumo.cantidad_teorica)|fmt_cant(u) }}</td>
+        <td data-label="De qué recepciones">
+          {% for o in consumo.origenes %}
+            <a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=o.recepcion_linea.recepcion_id) }}">{{ o.recepcion_linea.recepcion.codigo }}</a> {{ o.cantidad|fmt_cant(u) }}{{ ' (manual)' if not o.automatico else '' }}{{ ' · ' if not loop.last }}
+          {% else %}—{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% endif %}
+</section>
+{% elif corrida.estado == 'anulada' %}
+<section class="ops-card">
+  <h2>Anulada</h2>
+  <p class="maquila-nota">Los consumos volvieron al saldo de {{ corrida.cliente.nombre }} y las cajas que no habían salido quedaron anuladas. El detalle está en el kardex.</p>
 </section>
 {% endif %}
 
 {% if corrida.estado != 'anulada' %}
 <section class="ops-card">
+  <h2>Anular corrida</h2>
+  <p class="maquila-nota">
+    {% if corrida.estado == 'cerrada' %}Anular devuelve cada consumo al saldo de {{ corrida.cliente.nombre }} y libera las cajas que no salieron en un pedido. No se puede si alguna caja ya salió en un pedido facturado.{% else %}Anular deja la corrida sin efecto. No descontó nada, así que no hay nada que devolver.{% endif %}
+  </p>
   <form method="POST" action="{{ url_for('maquila.corrida_anular', corrida_id=corrida.id) }}"
         class="ops-sheet-form" data-confirm="¿Anular esta corrida?">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="motivo">Motivo de la anulación</label>
-      <input type="text" id="motivo" name="motivo" required>
+      <input type="text" id="motivo" name="motivo" required autocomplete="off">
     </div>
-    <button type="submit" class="btn btn-danger">Anular corrida</button>
+    <button type="submit" class="btn btn-danger">{{ 'Anular y devolver los ingredientes al saldo' if corrida.estado == 'cerrada' else 'Anular corrida' }}</button>
   </form>
 </section>
 {% endif %}

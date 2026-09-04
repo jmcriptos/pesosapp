@@ -1,9 +1,10 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip %}
 {% block title %}Rendimiento{% endblock %}
 {% block maquila_title %}Rendimiento{% endblock %}
 {% block maquila_body %}
 <section class="ops-card">
-  <form method="GET" class="ops-sheet-form maquila-filtro">
+  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid">
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
       <select id="cliente_id" name="cliente_id" data-autosubmit>
@@ -21,7 +22,9 @@
       <label for="hasta">Hasta</label>
       <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
     </div>
-    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+    </div>
   </form>
 </section>
 
@@ -29,40 +32,43 @@
   {% if not filas %}
     <p class="ops-empty">No hay corridas cerradas para este filtro.</p>
   {% else %}
+  <p class="maquila-nota">Merma = consumido en peso − producido. Por encima del 10 % se marca; el consumo en unidades (tripa, por ejemplo) queda fuera del balance de peso.</p>
   <table class="maquila-tabla">
     <thead>
       <tr><th>Corrida</th><th>Lote</th><th>Producto</th><th>Fecha</th>
-        <th>Consumido</th><th>Producido</th><th>Merma</th><th>Merma %</th></tr>
+        <th class="maquila-num">Consumido</th><th class="maquila-num">Producido</th><th class="maquila-num">Merma</th><th class="maquila-num">Merma %</th></tr>
     </thead>
     <tbody>
       {% for f in filas %}
+      {% set alta = f.merma_pct is not none and f.merma_pct|abs > 10 %}
       <tr>
-        <td data-label="Corrida">{{ f.corrida }}</td>
+        <td data-label="Corrida"><a href="{{ url_for('maquila.corrida_detalle', corrida_id=f.corrida_id) }}">{{ f.corrida }}</a></td>
         <td data-label="Lote">{{ f.lote }}</td>
         <td data-label="Producto">{{ f.producto }}</td>
         <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
-        <td data-label="Consumido">{{ f.consumido|fmt_cant }}{% if f.otras_unidades %} <small class="maquila-nota-unidad">+ consumo en {{ f.otras_unidades|join(', ') }}, fuera del balance de peso</small>{% endif %}</td>
-        <td data-label="Producido">{{ f.producido|fmt_cant }}</td>
-        <td data-label="Merma">{{ f.merma|fmt_cant }}</td>
-        <td data-label="Merma %" class="{{ 'maquila-merma-alta' if f.merma_pct is not none and f.merma_pct|abs > 10 else '' }}">{{ f.merma_pct }}%</td>
+        <td data-label="Consumido" class="maquila-num">{{ f.consumido|fmt_cant }}{% if f.otras_unidades %} <small class="maquila-nota-unidad">+ consumo en {{ f.otras_unidades|join(', ') }}, fuera del balance de peso</small>{% endif %}</td>
+        <td data-label="Producido" class="maquila-num">{{ f.producido|fmt_cant }}</td>
+        <td data-label="Merma" class="maquila-num {{ 'maquila-merma-alta' if alta else '' }}">{{ f.merma|fmt_cant }}</td>
+        <td data-label="Merma %" class="maquila-num {{ 'maquila-merma-alta' if alta else '' }}">{{ f.merma_pct }} %{% if alta %} {{ chip('Alta', 'falla') }}{% endif %}</td>
       </tr>
-      <tr>
+      <tr class="maquila-fila-sub">
         <td colspan="8">
-          <details>
+          <details class="maquila-sub">
             <summary>Varianzas por ingrediente — {{ f.cliente }}</summary>
             {% if not f.varianzas %}
             <p class="ops-empty">Sin consumo registrado.</p>
             {% else %}
             <table class="maquila-tabla-mini">
-              <thead><tr><th>Ingrediente</th><th>Teórica</th><th>Real</th><th>Diferencia</th><th>%</th></tr></thead>
+              <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórica</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th><th class="maquila-num">%</th></tr></thead>
               <tbody>
                 {% for v in f.varianzas %}
-                <tr class="{{ 'maquila-merma-alta' if v.pct is not none and v.pct|abs > 10 else '' }}">
+                {% set v_alta = v.pct is not none and v.pct|abs > 10 %}
+                <tr class="{{ 'maquila-merma-alta' if v_alta else '' }}">
                   <td>{{ v.ingrediente }}</td>
-                  <td>{{ v.teorica|fmt_cant(v.unidad) }}</td>
-                  <td>{{ v.real|fmt_cant(v.unidad) }}</td>
-                  <td>{{ v.diferencia|fmt_cant(v.unidad) }}</td>
-                  <td>{{ v.pct if v.pct is not none else '—' }}{{ '%' if v.pct is not none else '' }}</td>
+                  <td class="maquila-num">{{ v.teorica|fmt_cant(v.unidad) }}</td>
+                  <td class="maquila-num">{{ v.real|fmt_cant(v.unidad) }}</td>
+                  <td class="maquila-num">{{ v.diferencia|fmt_cant(v.unidad) }}</td>
+                  <td class="maquila-num">{{ v.pct if v.pct is not none else '—' }}{{ ' %' if v.pct is not none else '' }}{% if v_alta %} {{ chip('Alta', 'falla') }}{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>

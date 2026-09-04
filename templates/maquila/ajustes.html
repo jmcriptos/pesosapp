@@ -1,8 +1,9 @@
 {% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import dueno %}
 {% block title %}Ajustes manuales{% endblock %}
 {% block maquila_title %}Ajustes manuales{% endblock %}
 {% block maquila_body %}
-<section class="ops-card">
+<section class="ops-card maquila-barra">
   <form method="GET" class="ops-sheet-form maquila-filtro">
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
@@ -21,13 +22,15 @@
   <p class="ops-empty">Elegí un cliente para registrar o ver sus ajustes manuales.</p>
 </section>
 {% else %}
+{% set cliente = (clientes | selectattr('id', 'equalto', cliente_id) | first) %}
+{{ dueno(cliente.nombre if cliente else ('Cliente #' ~ cliente_id), cliente_id) }}
 
 <section class="ops-card">
   <h2>Nuevo ajuste</h2>
-  <p class="ops-empty" style="margin-top:0">
+  <p class="maquila-nota">
     Usá esto cuando el consumo real de una corrida supere lo recibido y no
-    quede saldo para cerrarla: el motivo es obligatorio, y queda en el
-    kardex como cualquier otro movimiento.
+    quede saldo para cerrarla, o cuando la cámara no coincida con el kardex.
+    El motivo es obligatorio y queda registrado como cualquier otro movimiento.
   </p>
   <form method="POST" action="{{ url_for('maquila.ajustes') }}" class="ops-sheet-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -36,24 +39,24 @@
       <label for="ingrediente_id">Ingrediente</label>
       <select id="ingrediente_id" name="ingrediente_id" required>
         {% for i in ingredientes %}
-        <option value="{{ i.id }}" {{ 'selected' if ingrediente_id_sugerido == i.id else '' }}>{{ i.nombre }}</option>
+        <option value="{{ i.id }}" {{ 'selected' if ingrediente_id_sugerido == i.id else '' }}>{{ i.nombre }} ({{ i.unidad }})</option>
         {% endfor %}
       </select>
     </div>
     <div class="ops-field">
       <label for="sentido">Sentido</label>
       <select id="sentido" name="sentido" required>
-        <option value="entrada">Entrada (suma al saldo)</option>
-        <option value="salida">Salida (resta del saldo)</option>
+        <option value="entrada">Entrada — suma al saldo</option>
+        <option value="salida">Salida — resta del saldo</option>
       </select>
     </div>
     <div class="ops-field">
       <label for="cantidad">Cantidad</label>
-      <input type="number" step="0.001" min="0.001" id="cantidad" name="cantidad" required>
+      <input type="number" step="0.001" min="0.001" inputmode="decimal" id="cantidad" name="cantidad" required autocomplete="off">
     </div>
     <div class="ops-field">
       <label for="motivo">Motivo <small>(obligatorio)</small></label>
-      <textarea id="motivo" name="motivo" required></textarea>
+      <textarea id="motivo" name="motivo" required placeholder="Qué pasó y cómo se contó"></textarea>
     </div>
     <footer class="ops-sticky-footer">
       <button type="submit" class="btn btn-primary">Registrar ajuste</button>
@@ -68,14 +71,14 @@
   {% else %}
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Fecha</th><th>Ingrediente</th><th>Cantidad</th><th>Responsable</th><th>Motivo</th></tr>
+      <tr><th>Fecha</th><th>Ingrediente</th><th class="maquila-num">Cantidad</th><th>Responsable</th><th>Motivo</th></tr>
     </thead>
     <tbody>
       {% for a in ajustes %}
       <tr>
-        <td data-label="Fecha">{{ a.fecha.strftime('%Y-%m-%d %H:%M') if a.fecha else '—' }}</td>
+        <td data-label="Fecha" class="maquila-nowrap">{{ a.fecha.strftime('%d/%m/%Y %H:%M') if a.fecha else '—' }}</td>
         <td data-label="Ingrediente">{{ a.ingrediente }}</td>
-        <td data-label="Cantidad">{{ a.cantidad|fmt_cant(a.unidad) }}</td>
+        <td data-label="Cantidad" class="maquila-num {{ 'maquila-neg' if a.cantidad < 0 else 'maquila-pos' }}">{{ ('+' if a.cantidad > 0 else '') ~ (a.cantidad|fmt_cant(a.unidad)) }}</td>
         <td data-label="Responsable">{{ a.responsable }}</td>
         <td data-label="Motivo">{{ a.motivo or '—' }}</td>
       </tr>

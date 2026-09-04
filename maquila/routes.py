@@ -29,8 +29,20 @@ db = app_module.db
 requiere_rol = app_module.requiere_rol
 _excel_safe = app_module._excel_safe
 DASHBOARD_TIMEZONE = getattr(app_module, 'DASHBOARD_TIMEZONE', None)
+Vendedor = app_module.Vendedor
 
 bp = Blueprint('maquila', __name__, url_prefix='/maquila')
+
+
+def _ahora_local():
+    """La hora de Curazao, para precargar fechas y sellar informes."""
+    if DASHBOARD_TIMEZONE is None:
+        return datetime.now()
+    return datetime.now(DASHBOARD_TIMEZONE)
+
+
+def _hoy_local():
+    return _ahora_local().date()
 
 MAX_FOTO_BYTES = 2 * 1024 * 1024
 
@@ -120,7 +132,42 @@ def _reparto_con_lineas(corrida, consumos):
         for linea_id, _cantidad_tramo in tramos:
             if linea_id not in lineas_por_id:
                 lineas_por_id[linea_id] = db.session.get(RecepcionLinea, linea_id)
-    return reparto, lineas_por_id
+    # El saldo actual de cada línea tocada: la plantilla muestra «queda en
+    # la línea», que es lo que convierte el reparto en una decisión.
+    saldos = servicios.saldos_por_linea(lineas_por_id)
+    return reparto, lineas_por_id, saldos
+
+
+def _contexto_corrida(corrida, consumo_actual, reparto_origen, falta_ingrediente_id=None):
+    """Todo lo que corrida_detalle.html necesita, sea que llegue desde la
+    pantalla (teórico) o desde «recalcular» (declarado)."""
+    teoricos = {}
+    if corrida.receta and corrida.peso_producido > 0:
+        teoricos = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
+
+    reparto, lineas_reparto, saldos_reparto = _reparto_con_lineas(corrida, consumo_actual)
+
+    merma = merma_pct = consumido_kg = None
+    cerrada_por_nombre = cerrada_en_local = None
+    if corrida.estado == 'cerrada':
+        consumido_kg = servicios.consumo_en_peso(corrida)
+        merma = consumido_kg - corrida.peso_producido
+        if consumido_kg > 0:
+            merma_pct = ((merma / consumido_kg) * 100).quantize(Decimal('0.1'))
+        if corrida.cerrada_por:
+            vendedor = db.session.get(Vendedor, corrida.cerrada_por)
+            cerrada_por_nombre = vendedor.nombre_completo if vendedor else None
+        cerrada_en_local = reportes._local(corrida.cerrada_en)
+
+    return dict(
+        corrida=corrida, consumo_actual=consumo_actual, teoricos=teoricos,
+        reparto=reparto, reparto_origen=reparto_origen,
+        lineas_reparto=lineas_reparto, saldos_reparto=saldos_reparto,
+        merma=merma, merma_pct=merma_pct, consumido_kg=consumido_kg,
+        cerrada_por_nombre=cerrada_por_nombre, cerrada_en_local=cerrada_en_local,
+        falta_ingrediente_id=falta_ingrediente_id,
+        ingredientes=_ingredientes_activos(),
+        clientes=[], productos=[], hoy=None, cliente_sugerido=None)
 
 
 def _clientes_con_maquila():
@@ -369,7 +416,11 @@ def recepcion_nueva():
     return render_template(
         'maquila/recepcion_nueva.html',
         clientes=_clientes(),
-        ingredientes=_ingredientes_activos())
+        ingredientes=_ingredientes_activos(),
+        hoy=_hoy_local(),
+        # Desde la tarjeta del cliente en el índice: llega preseleccionado.
+        # Sin eso el <select> no tiene valor por defecto a propósito.
+        cliente_sugerido=request.args.get('cliente_id', type=int))
 
 
 @bp.route('/recepciones/<int:recepcion_id>')
@@ -638,8 +689,11 @@ def corrida_nueva():
     return render_template(
         'maquila/corrida_detalle.html', corrida=None,
         clientes=_clientes(), productos=_productos(),
+        hoy=_hoy_local(),
+        cliente_sugerido=request.args.get('cliente_id', type=int),
         consumo_actual={}, reparto_origen='teorico', ingredientes=[],
-        reparto={}, lineas_reparto={}, merma=None, falta_ingrediente_id=None)
+        reparto={}, lineas_reparto={}, saldos_reparto={}, teoricos={},
+        merma=None, falta_ingrediente_id=None)
 
 
 @bp.route('/corridas/<int:corrida_id>')
@@ -647,16 +701,14 @@ def corrida_nueva():
 @requiere_rol(['super_admin'])
 def corrida_detalle(corrida_id):
     corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
-    consumo_actual = {}
-    if corrida.receta and corrida.peso_producido > 0:
-        consumo_actual = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
 
     # El reparto FIFO se muestra ANTES de confirmar, para poder corregirlo.
     # Acá parte siempre del teórico de la receta: si el operario edita el
     # consumo real, `corrida_recalcular` vuelve a esta misma plantilla con el
     # reparto recalculado contra lo declarado (`reparto_origen='declarado'`).
-    reparto, lineas_reparto = _reparto_con_lineas(corrida, consumo_actual)
-    merma = servicios.merma_de_corrida(corrida) if corrida.estado != 'abierta' else None
+    consumo_actual = {}
+    if corrida.estado == 'abierta' and corrida.receta and corrida.peso_producido > 0:
+        consumo_actual = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
 
     # Si venimos de un cierre rechazado por falta de saldo (`corrida_cerrar`
     # abajo), el ingrediente que faltó viaja en la query string para poder
@@ -666,11 +718,9 @@ def corrida_detalle(corrida_id):
     falta_ingrediente_id = request.args.get('falta_ingrediente_id', type=int)
 
     return render_template(
-        'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumo_actual,
-        reparto=reparto, reparto_origen='teorico', lineas_reparto=lineas_reparto,
-        merma=merma, falta_ingrediente_id=falta_ingrediente_id,
-        ingredientes=_ingredientes_activos(),
-        clientes=[], productos=[])
+        'maquila/corrida_detalle.html',
+        **_contexto_corrida(corrida, consumo_actual, 'teorico',
+                            falta_ingrediente_id=falta_ingrediente_id))
 
 
 @bp.route('/corridas/<int:corrida_id>/recalcular', methods=['POST'])
@@ -687,14 +737,9 @@ def corrida_recalcular(corrida_id):
         return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
 
     consumos = _leer_consumos_form(request.form)
-    reparto, lineas_reparto = _reparto_con_lineas(corrida, consumos)
-
     return render_template(
-        'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumos,
-        reparto=reparto, reparto_origen='declarado', lineas_reparto=lineas_reparto,
-        merma=None, falta_ingrediente_id=None,
-        ingredientes=_ingredientes_activos(),
-        clientes=[], productos=[])
+        'maquila/corrida_detalle.html',
+        **_contexto_corrida(corrida, consumos, 'declarado'))
 
 
 @bp.route('/corridas/<int:corrida_id>/caja', methods=['POST'])
@@ -908,7 +953,7 @@ def reporte_saldos():
     cliente_id = request.args.get('cliente_id', type=int)
     filas = reportes.saldos(cliente_id) if cliente_id else []
     return render_template('maquila/reporte_saldos.html', filas=filas,
-                           cliente_id=cliente_id,
+                           cliente_id=cliente_id, hoy=_hoy_local(),
                            clientes=_clientes_con_maquila())
 
 
@@ -1002,4 +1047,6 @@ def reporte_trazabilidad():
     termino = request.args.get('q', '')
     resultado = reportes.trazar(termino) if termino else None
     return render_template('maquila/reporte_trazabilidad.html',
-                           resultado=resultado, termino=termino)
+                           resultado=resultado, termino=termino,
+                           # Sello de la consulta: un auditor imprime esto.
+                           ahora=_ahora_local())

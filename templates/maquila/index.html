@@ -3,31 +3,46 @@
 {% block maquila_title %}Maquila{% endblock %}
 {% block maquila_body %}
   {% if not tarjetas %}
+  <section class="ops-card">
     <p class="ops-empty">Todavía no hay recepciones de ingredientes registradas.</p>
+    <div class="maquila-acciones">
+      <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_nueva') }}">Registrar la primera recepción</a>
+    </div>
+  </section>
   {% else %}
     <div class="maquila-tarjetas">
       {% for t in tarjetas %}
       <section class="ops-card maquila-tarjeta">
-        <h2>{{ t.cliente.nombre }}</h2>
+        <div class="maquila-tarjeta-cab">
+          <span class="maquila-dueno-label">Inventario en custodia de</span>
+          <h2><a href="{{ url_for('maquila.reporte_saldos', cliente_id=t.cliente.id) }}">{{ t.cliente.nombre }}</a></h2>
+        </div>
         <div class="maquila-tarjeta-meta">
-          <span>{{ t.corridas_abiertas }} corrida{{ 's' if t.corridas_abiertas != 1 else '' }} abierta{{ 's' if t.corridas_abiertas != 1 else '' }}</span>
+          {#- «N corridas abiertas» es el único hecho accionable de la tarjeta:
+              va como enlace, y con peso cuando N > 0. -#}
+          <a href="{{ url_for('maquila.corridas', cliente_id=t.cliente.id) }}"
+             class="{{ 'maquila-meta-vivo' if t.corridas_abiertas else '' }}">{{ t.corridas_abiertas }} corrida{{ 's' if t.corridas_abiertas != 1 else '' }} abierta{{ 's' if t.corridas_abiertas != 1 else '' }}</a>
           {% if t.ultima %}
-            <span>Última recepción: {{ t.ultima.codigo }} ({{ t.ultima.recibido_en.strftime('%d/%m/%Y') }})</span>
+            <a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=t.ultima.id) }}">Última recepción: {{ t.ultima.codigo }} ({{ t.ultima.recibido_en.strftime('%d/%m/%Y') }})</a>
           {% endif %}
         </div>
         {% if t.saldos %}
         <table class="maquila-tabla-mini">
-          <thead><tr><th>Ingrediente</th><th>Saldo</th></tr></thead>
+          <thead><tr><th>Ingrediente</th><th class="maquila-num">Saldo</th></tr></thead>
           <tbody>
             {% for s in t.saldos %}
-            <tr><td>{{ s.ingrediente }}</td><td>{{ s.saldo|fmt_cant(s.unidad) }}</td></tr>
+            <tr><td>{{ s.ingrediente }}</td><td class="maquila-num">{{ s.saldo|fmt_cant(s.unidad) }}</td></tr>
             {% endfor %}
           </tbody>
         </table>
         {% else %}
         <p class="ops-empty">Sin movimientos de ingredientes.</p>
         {% endif %}
-        <a class="btn" href="{{ url_for('maquila.recepciones', cliente_id=t.cliente.id) }}">Ver recepciones</a>
+        <div class="maquila-acciones">
+          <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_nueva', cliente_id=t.cliente.id) }}">Nueva recepción</a>
+          <a class="btn" href="{{ url_for('maquila.corrida_nueva', cliente_id=t.cliente.id) }}">Abrir corrida</a>
+          <a class="btn" href="{{ url_for('maquila.recepciones', cliente_id=t.cliente.id) }}">Ver recepciones</a>
+        </div>
       </section>
       {% endfor %}
     </div>
