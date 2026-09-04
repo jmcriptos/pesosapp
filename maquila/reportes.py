@@ -3,14 +3,17 @@
 Todo se deriva del ledger y de las tablas de producción: no hay ningún total
 guardado que pueda mentir.
 """
+from datetime import timezone
 from decimal import Decimal
+
+from sqlalchemy.orm import joinedload, selectinload
 
 from . import app_module
 from .models import (CorridaCaja, CorridaConsumo, CorridaConsumoOrigen,
                      CorridaProduccion, Ingrediente, MovimientoIngrediente,
                      RecepcionIngrediente, RecepcionLinea)
 from . import servicios
-from .servicios import _dec, saldo_de_linea, saldos_de_cliente, CERO
+from .servicios import _dec, saldos_por_linea, saldos_de_cliente, CERO
 
 # NO reemplazar por `from app import db, Pedido, DetallePedido, CajaPesada,
 # Vendedor`: revienta `python app.py` (el preview local) con un ImportError
@@ -35,7 +38,6 @@ def _local(dt):
     """
     if dt is None or DASHBOARD_TIMEZONE is None:
         return dt
-    from datetime import timezone
     return dt.replace(tzinfo=timezone.utc).astimezone(DASHBOARD_TIMEZONE)
 
 
@@ -46,13 +48,16 @@ def saldos(cliente_id):
               .join(RecepcionIngrediente,
                     RecepcionIngrediente.id == RecepcionLinea.recepcion_id)
               .filter(RecepcionIngrediente.cliente_id == cliente_id,
-                      RecepcionIngrediente.anulada_en.is_(None))
-              .order_by(RecepcionIngrediente.recibido_en.asc())
+                      RecepcionIngrediente.anulada_en.is_(None),
+                      RecepcionLinea.anulada_en.is_(None))
+              .order_by(RecepcionIngrediente.recibido_en.asc(),
+                        RecepcionLinea.id.asc())
               .all())
 
+    saldos_linea = saldos_por_linea(linea.id for linea, _ in lineas)
     abiertas = {}
     for linea, recepcion in lineas:
-        saldo = saldo_de_linea(linea.id)
+        saldo = saldos_linea[linea.id]
         if saldo <= CERO:
             continue
         abiertas.setdefault(linea.ingrediente_id, []).append({
@@ -111,7 +116,16 @@ def kardex(cliente_id, ingrediente_id=None, desde=None, hasta=None):
 
 def rendimiento(cliente_id=None, desde=None, hasta=None):
     """Por corrida: cuánto entró, cuánto salió, cuánta merma y qué varianza."""
-    query = CorridaProduccion.query.filter(CorridaProduccion.estado == 'cerrada')
+    # Todo lo que el bucle de abajo toca por corrida viaja precargado: sin
+    # esto cada fila del reporte costaba cinco consultas (cliente, producto,
+    # cajas, consumos y el ingrediente de cada consumo).
+    query = (CorridaProduccion.query
+             .filter(CorridaProduccion.estado == 'cerrada')
+             .options(selectinload(CorridaProduccion.cliente),
+                      selectinload(CorridaProduccion.producto),
+                      selectinload(CorridaProduccion.cajas),
+                      selectinload(CorridaProduccion.consumos)
+                      .selectinload(CorridaConsumo.ingrediente)))
     if cliente_id:
         query = query.filter(CorridaProduccion.cliente_id == cliente_id)
     if desde:
@@ -238,25 +252,37 @@ def _agregar_adelante(listas_por_corrida):
 def _desde_pedido(pedido):
     """Hacia atrás (recepciones vía corrida) y hacia adelante (el pedido mismo)."""
     atras, corridas, vistas = [], [], set()
-    for detalle in pedido.detalles:
-        for pesada in (detalle.cajas_pesadas or []):
-            caja = CorridaCaja.query.filter_by(caja_pesada_id=pesada.id).first()
-            if caja is None:
-                atras.append({
-                    'codigo': '—', 'recibido_en': None, 'documento_cliente': None,
-                    'lote_cliente': pesada.lote,
-                    'ingrediente': None,
-                    'producto': detalle.producto.nombre if detalle.producto else '—',
-                    # Una caja pesada a mano es producto terminado: siempre kg.
-                    'unidad': 'kg',
-                    'cantidad': _dec(pesada.peso), 'automatico': None,
-                    'sin_origen': True,
-                })
-                continue
-            if caja.corrida_id not in vistas:
-                vistas.add(caja.corrida_id)
-                corridas.append(caja.corrida)
-                atras.extend(_atras_desde_corrida(caja.corrida))
+    pesadas = [(detalle, pesada) for detalle in pedido.detalles
+               for pesada in (detalle.cajas_pesadas or [])]
+    # Una consulta para todas las cajas del pedido, no una por caja pesada.
+    # `caja_pesada_id` es único, así que el dict no pisa nada.
+    cajas_por_pesada = {}
+    if pesadas:
+        cajas_por_pesada = {
+            caja.caja_pesada_id: caja
+            for caja in (CorridaCaja.query
+                         .filter(CorridaCaja.caja_pesada_id.in_(
+                             [pesada.id for _, pesada in pesadas]))
+                         .options(joinedload(CorridaCaja.corrida))
+                         .all())}
+    for detalle, pesada in pesadas:
+        caja = cajas_por_pesada.get(pesada.id)
+        if caja is None:
+            atras.append({
+                'codigo': '—', 'recibido_en': None, 'documento_cliente': None,
+                'lote_cliente': pesada.lote,
+                'ingrediente': None,
+                'producto': detalle.producto.nombre if detalle.producto else '—',
+                # Una caja pesada a mano es producto terminado: siempre kg.
+                'unidad': 'kg',
+                'cantidad': _dec(pesada.peso), 'automatico': None,
+                'sin_origen': True,
+            })
+            continue
+        if caja.corrida_id not in vistas:
+            vistas.add(caja.corrida_id)
+            corridas.append(caja.corrida)
+            atras.extend(_atras_desde_corrida(caja.corrida))
 
     adelante = {
         'pedido_id': pedido.id, 'estado': pedido.estado,
@@ -356,10 +382,14 @@ def trazar(termino):
     termino_es_id_valido = (termino.isdigit()
                             and len(termino) <= _MAX_DIGITOS_ID_TERMINO)
     pedido_por_id = db.session.get(Pedido, int(termino)) if termino_es_id_valido else None
-    pedido_por_docnum = Pedido.query.filter_by(doc_number_qbo=termino).first()
+    # `.all()`, no `.first()`: la numeración de QuickBooks es manual en n8n y
+    # admite la carrera (decisión de JM), así que dos pedidos pueden compartir
+    # DocNumber. Quedarse con el primero sería elegir en silencio.
+    pedidos_por_docnum = (Pedido.query.filter_by(doc_number_qbo=termino)
+                          .order_by(Pedido.id.asc()).all())
 
     candidatos, vistos = [], set()
-    for p in (pedido_por_id, pedido_por_docnum):
+    for p in (pedido_por_id, *pedidos_por_docnum):
         if p is not None and p.id not in vistos:
             vistos.add(p.id)
             candidatos.append(p)

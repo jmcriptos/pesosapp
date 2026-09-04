@@ -213,17 +213,24 @@ def test_una_linea_valida_seguida_de_invalida_no_deja_residuo(app):
 
 
 def test_excepcion_no_recepcion_invalida_tambien_rollback(app):
-    """Si una línea causa KeyError (no RecepcionInvalida), tampoco queda residuo."""
+    """Si una línea revienta con una excepción que NO es RecepcionInvalida
+    (acá `InvalidOperation`, por un peso ilegible), tampoco queda residuo.
+
+    Antes el disparador era una línea sin `ingrediente_id` (KeyError); desde
+    la revisión de 2026-09-04 eso es una `RecepcionInvalida` con mensaje, así
+    que el test necesita otro error fuera del dominio para seguir probando
+    el contrato de rollback."""
+    from decimal import InvalidOperation
     from maquila import servicios
     from maquila.models import RecepcionIngrediente, RecepcionLinea, MovimientoIngrediente
     with app.app_context():
-        with pytest.raises(KeyError):
+        with pytest.raises(InvalidOperation):
             servicios.crear_recepcion(
                 cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
                 vendedor_id=IDS['vendedor'],
                 lineas=[
                     {'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')},
-                    {'cantidad_bultos': 1, 'peso_total': Decimal('5')}  # Falta ingrediente_id
+                    {'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': 'diez'},
                 ])
         # Sin residuo: no quedó media recepción aunque la excepción no fuera RecepcionInvalida.
         assert RecepcionIngrediente.query.count() == 0
