@@ -1,0 +1,35 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Recetas{% endblock %}
+{% block maquila_title %}Recetas{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <a class="btn btn-primary" href="{{ url_for('maquila.receta_form') }}">Nueva receta</a>
+</section>
+
+<section class="ops-card">
+  {% if not recetas %}
+    <p class="ops-empty">Todavía no hay recetas dadas de alta.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr>
+        <th>Nombre</th><th>Producto</th><th>Cliente</th><th>Base kg</th>
+        <th>Ingredientes</th><th>Activa</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recetas %}
+      <tr>
+        <td><a href="{{ url_for('maquila.receta_form', receta_id=r.id) }}">{{ r.nombre }}</a></td>
+        <td>{{ r.producto.nombre }}</td>
+        <td>{{ r.cliente.nombre if r.cliente else 'Genérica' }}</td>
+        <td>{{ r.base_kg }}</td>
+        <td>{{ r.ingredientes|length }}</td>
+        <td>{{ 'Sí' if r.activa else 'No' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

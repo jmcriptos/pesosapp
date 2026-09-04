@@ -182,6 +182,57 @@ def test_firma_base64_corrupta_no_revienta_la_recepcion(app):
         assert rec.firma is None
 
 
+def _cliente_producto_ingrediente(app):
+    from app import Cliente, Producto
+    from maquila.models import Ingrediente
+    with app.app_context():
+        cli = Cliente(nombre='Maquila SA')
+        prod = Producto(nombre='Chorizo', se_pesa=True, tax_rate=10)
+        ing = Ingrediente(nombre='Carne de res')
+        _db.session.add_all([cli, prod, ing])
+        _db.session.commit()
+        return cli.id, prod.id, ing.id
+
+
+def test_abrir_una_corrida_por_la_ruta(app):
+    from maquila.models import CorridaProduccion
+    cli_id, prod_id, _ing = _cliente_producto_ingrediente(app)
+    c = _login(app, 'admin')
+    r = c.post('/maquila/corridas/nueva', data={
+        'cliente_id': str(cli_id), 'producto_id': str(prod_id),
+        'lote': 'L-0903', 'fecha_produccion': '2026-09-03',
+        'fecha_vencimiento': '2026-12-03'}, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        corrida = CorridaProduccion.query.one()
+        assert corrida.lote == 'L-0903'
+        assert corrida.codigo == 'P-2026-0001'
+
+
+def test_cerrar_una_corrida_sin_saldo_avisa_y_no_cierra(app):
+    """El bloqueo tiene que llegar como mensaje, no como un 500."""
+    from maquila import servicios
+    from maquila.models import CorridaProduccion
+    from decimal import Decimal as D
+    cli_id, prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        corrida = servicios.abrir_corrida(
+            cliente_id=cli_id, producto_id=prod_id, lote='L-1',
+            fecha_produccion=date(2026, 9, 3), vendedor_id=IDS['admin'])
+        servicios.agregar_caja_producida(corrida, D('40'))
+        _db.session.commit()
+        corrida_id = corrida.id
+
+    c = _login(app, 'admin')
+    r = c.post(f'/maquila/corridas/{corrida_id}/cerrar', data={
+        'consumo_ingrediente_id': [str(ing_id)],
+        'consumo_real': ['50']}, follow_redirects=True)
+    assert r.status_code == 200
+    assert b'Faltan' in r.data
+    with app.app_context():
+        assert _db.session.get(CorridaProduccion, corrida_id).estado == 'abierta'
+
+
 def test_el_indice_lista_los_clientes_con_recepciones(app):
     from maquila.models import Ingrediente
     from maquila import servicios

@@ -1,0 +1,48 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Producción{% endblock %}
+{% block maquila_title %}Producción{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro">
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" data-autosubmit>
+        <option value="">Todos los clientes</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  <a class="btn btn-primary" href="{{ url_for('maquila.corrida_nueva') }}">Nueva corrida</a>
+</section>
+
+<section class="ops-card">
+  {% if not corridas %}
+    <p class="ops-empty">No hay corridas para este filtro.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr>
+        <th>Código</th><th>Lote</th><th>Cliente</th><th>Producto</th>
+        <th>Fecha</th><th>Cajas</th><th>Producido</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in corridas %}
+      <tr>
+        <td><a href="{{ url_for('maquila.corrida_detalle', corrida_id=c.id) }}">{{ c.codigo }}</a></td>
+        <td>{{ c.lote }}</td>
+        <td>{{ c.cliente.nombre }}</td>
+        <td>{{ c.producto.nombre }}</td>
+        <td>{{ c.fecha_produccion.strftime('%d/%m/%Y') }}</td>
+        <td>{{ c.cajas|length }}</td>
+        <td>{{ c.peso_producido }}</td>
+        <td>{{ c.estado }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

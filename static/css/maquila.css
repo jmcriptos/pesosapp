@@ -251,3 +251,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Reparto FIFO: fila roja cuando un ingrediente no tiene saldo suficiente
+   (repartir_fifo devolvió None). Mismo patrón local que el resto de esta
+   hoja: !important porque .maquila-wrap tr/td ya vienen forzados arriba. */
+.maquila-wrap tr.maquila-sin-saldo td {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  font-weight: 600;
+}
