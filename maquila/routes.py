@@ -6,10 +6,16 @@ from flask import (Blueprint, Response, abort, flash, redirect,
                    render_template, request, url_for)
 from flask_login import current_user, login_required
 
-from app import Cliente, db, requiere_rol
-from . import servicios
+from . import app_module, servicios
 from .models import (CorridaProduccion, Ingrediente, RecepcionIngrediente,
                      RecepcionFoto)
+
+# NO reemplazar por `from app import Cliente, db, requiere_rol`: revienta
+# `python app.py` (el preview local) con un ImportError circular. Ver el
+# comentario largo en maquila/__init__.py para el porqué.
+Cliente = app_module.Cliente
+db = app_module.db
+requiere_rol = app_module.requiere_rol
 
 bp = Blueprint('maquila', __name__, url_prefix='/maquila')
 

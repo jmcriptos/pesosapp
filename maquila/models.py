@@ -1,7 +1,7 @@
 """Modelos del módulo de maquila.
 
-`db` se importa de `app` (no de `extensions`, que es código muerto). El ciclo
-de importación se resuelve porque `app.py` importa este paquete AL FINAL,
+`db` sale de `app` (no de `extensions`, que es código muerto). El ciclo de
+importación se resuelve porque `app.py` importa este paquete AL FINAL,
 cuando `db` y los modelos base ya existen.
 """
 from datetime import datetime
@@ -9,7 +9,12 @@ from datetime import datetime
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
-from app import db
+from . import app_module
+
+# NO reemplazar por `from app import db`: revienta `python app.py` (el
+# preview local) con un ImportError circular. Ver el comentario largo en
+# maquila/__init__.py para el porqué.
+db = app_module.db
 
 
 @event.listens_for(Engine, 'checkout')

@@ -9,11 +9,16 @@ from decimal import Decimal
 
 from sqlalchemy import func
 
-from app import db
+from . import app_module
 from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
                      RecepcionLinea, RecepcionBulto, RecepcionFoto, Receta,
                      CorridaProduccion, CorridaCaja, CorridaConsumo,
                      CorridaConsumoOrigen)
+
+# NO reemplazar por `from app import db`: revienta `python app.py` (el
+# preview local) con un ImportError circular. Ver el comentario largo en
+# maquila/__init__.py para el porqué.
+db = app_module.db
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}

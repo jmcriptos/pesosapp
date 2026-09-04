@@ -5,16 +5,24 @@ guardado que pueda mentir.
 """
 from decimal import Decimal
 
-from app import db, Pedido, DetallePedido, CajaPesada, Vendedor
+from . import app_module
 from .models import (CorridaCaja, CorridaConsumo, CorridaConsumoOrigen,
                      CorridaProduccion, Ingrediente, MovimientoIngrediente,
                      RecepcionIngrediente, RecepcionLinea)
 from .servicios import _dec, saldo_de_linea, saldos_de_cliente, CERO
 
-try:
-    from app import DASHBOARD_TIMEZONE
-except ImportError:  # pragma: no cover
-    DASHBOARD_TIMEZONE = None
+# NO reemplazar por `from app import db, Pedido, DetallePedido, CajaPesada,
+# Vendedor`: revienta `python app.py` (el preview local) con un ImportError
+# circular. Ver el comentario largo en maquila/__init__.py para el porqué.
+# Este archivo no está en el camino de arranque hoy (routes.py no lo
+# importa), pero lleva el mismo tratamiento para no dejar la misma trampa
+# latente en cuanto una tarea futura lo enganche.
+db = app_module.db
+Pedido = app_module.Pedido
+DetallePedido = app_module.DetallePedido
+CajaPesada = app_module.CajaPesada
+Vendedor = app_module.Vendedor
+DASHBOARD_TIMEZONE = getattr(app_module, 'DASHBOARD_TIMEZONE', None)
 
 
 def _local(dt):
