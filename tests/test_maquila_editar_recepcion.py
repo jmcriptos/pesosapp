@@ -450,30 +450,41 @@ def test_una_correccion_imposible_da_mensaje_no_500(app):
 
 
 def test_ingrediente_desactivado_no_cambia_solo_al_guardar(app):
-    """Ronda 1: si el ingrediente de una línea se desactiva, editar la
-    recepción SIN tocar esa línea no puede cambiarle el ingrediente. El
-    <select> tiene que seguir ofreciendo la opción desactivada, o ninguna
-    queda `selected` y el navegador cae en la primera de la lista."""
+    """Ronda 2: el test de Ronda 1 comparaba `value="{ing_id}"` como
+    substring, que matchea CUALQUIER value=N del formulario (el hidden
+    linea_id, el <option> de cliente, el checkbox de quitar...) y encima
+    reusaba el primer Ingrediente del fixture (id 1, un valor que aparece en
+    medio formulario). Acá se crea un ingrediente propio del test (para no
+    colisionar con ningún id 1) y se exige el <option> COMPLETO con el
+    atributo `selected` — que es justo lo que el bug rompía: sin `selected`
+    en ninguna opción, el navegador cae en la primera del <select> y manda
+    OTRO ingrediente al guardar."""
+    from maquila import servicios
     from maquila.models import Ingrediente, RecepcionLinea
     with app.app_context():
-        rec = _recepcion(100)
+        tripa = Ingrediente(nombre='Tripa natural', unidad='ud')
+        _db.session.add(tripa)
+        _db.session.commit()
+        tripa_id = tripa.id
+        rec = servicios.crear_recepcion(
+            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': tripa_id, 'peso_total': Decimal('100')}])
         rec_id, linea_id = rec.id, rec.lineas[0].id
-        ing_id = rec.lineas[0].ingrediente_id
-        ing = _db.session.get(Ingrediente, ing_id)
-        ing.activo = False
+        tripa.activo = False
         _db.session.commit()
 
     c = _login(app, 'admin')
     r = c.get(f'/maquila/recepciones/{rec_id}/editar')
     assert r.status_code == 200
-    assert f'value="{ing_id}"'.encode() in r.data
+    assert f'<option value="{tripa_id}" selected'.encode() in r.data
 
     r = c.post(f'/maquila/recepciones/{rec_id}/editar', data={
         'cliente_id': str(IDS['cliente']),
         'recibido_en': '2026-09-01',
         'temperatura': '2',
         'linea_id': [str(linea_id)],
-        'linea_ingrediente_id': [str(ing_id)],
+        'linea_ingrediente_id': [str(tripa_id)],
         'linea_lote_cliente': [''],
         'linea_fecha_vencimiento': [''],
         'linea_bultos': [''],
@@ -481,7 +492,7 @@ def test_ingrediente_desactivado_no_cambia_solo_al_guardar(app):
     }, follow_redirects=True)
     assert r.status_code == 200
     with app.app_context():
-        assert _db.session.get(RecepcionLinea, linea_id).ingrediente_id == ing_id
+        assert _db.session.get(RecepcionLinea, linea_id).ingrediente_id == tripa_id
 
 
 def test_quitar_una_linea_sin_js_por_nombre_propio(app):
