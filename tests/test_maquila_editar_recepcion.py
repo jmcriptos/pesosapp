@@ -521,3 +521,22 @@ def test_quitar_una_linea_sin_js_por_nombre_propio(app):
     assert r.status_code == 200
     with app.app_context():
         assert _db.session.get(RecepcionLinea, linea_id).anulada is True
+
+
+def test_la_correccion_se_lee_en_el_kardex(app):
+    from maquila import servicios, reportes
+    with app.app_context():
+        rec = _recepcion(100)
+        linea = rec.lineas[0]
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
+            lineas=[_linea_dict(linea, peso_total=Decimal('90'))],
+            motivo='Se tecleó mal en planta')
+
+        filas = reportes.kardex(IDS['cliente'])
+        ajustes = [f for f in filas if f['tipo'] == 'ajuste']
+        assert len(ajustes) == 1
+        assert ajustes[0]['cantidad'] == Decimal('-10.000')
+        assert 'Se tecleó mal en planta' in ajustes[0]['motivo']
+        assert ajustes[0]['responsable'] == 'Admin'
+        assert ajustes[0]['unidad'] == 'kg'
