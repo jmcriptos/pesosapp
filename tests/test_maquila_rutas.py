@@ -233,6 +233,70 @@ def test_cerrar_una_corrida_sin_saldo_avisa_y_no_cierra(app):
         assert _db.session.get(CorridaProduccion, corrida_id).estado == 'abierta'
 
 
+def test_recalcular_reparto_muestra_el_declarado_no_el_teorico(app):
+    """El reparto que se ve tiene que ser el que se va a ejecutar: si el
+    operario edita el consumo real, hay que recalcular contra eso, no seguir
+    mostrando el estimado de la receta (Ronda de arreglo 1, punto 1)."""
+    from maquila import servicios
+    from maquila.models import CorridaConsumo, CorridaProduccion, Receta, RecetaIngrediente
+    from decimal import Decimal as D
+    cli_id, prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        receta = Receta(producto_id=prod_id, cliente_id=None, nombre='Receta test',
+                        base_kg=D('100'), activa=True, creada_por=IDS['admin'])
+        _db.session.add(receta)
+        _db.session.flush()
+        _db.session.add(RecetaIngrediente(receta_id=receta.id, ingrediente_id=ing_id,
+                                          cantidad=D('50')))
+        _db.session.commit()
+
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1), vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': D('100')}])
+
+        corrida = servicios.abrir_corrida(
+            cliente_id=cli_id, producto_id=prod_id, lote='L-RECALC',
+            fecha_produccion=date(2026, 9, 3), vendedor_id=IDS['admin'])
+        servicios.agregar_caja_producida(corrida, D('20'))
+        _db.session.commit()
+        corrida_id = corrida.id
+
+    c = _login(app, 'admin')
+
+    # El teórico para 20kg producidos con esa receta es 10.000: se ve como
+    # estimado hasta que alguien lo recalcule contra lo declarado.
+    r = c.get(f'/maquila/corridas/{corrida_id}')
+    assert r.status_code == 200
+    assert b'10.000' in r.data
+    assert 'estimado según la receta'.encode('utf-8') in r.data
+
+    r = c.post(f'/maquila/corridas/{corrida_id}/recalcular', data={
+        'consumo_ingrediente_id': [str(ing_id)],
+        'consumo_real': ['37.5']}, follow_redirects=True)
+    assert r.status_code == 200
+    assert b'37.5' in r.data
+    assert b'consumo declarado' in r.data
+
+    with app.app_context():
+        assert _db.session.get(CorridaProduccion, corrida_id).estado == 'abierta'
+        assert CorridaConsumo.query.count() == 0
+
+
+def test_producto_id_no_numerico_no_revienta(app):
+    """Basura en `producto_id` tiene que dar un mensaje, no un 500
+    (Ronda de arreglo 1, punto 3)."""
+    from maquila.models import CorridaProduccion
+    cli_id, _prod_id, _ing_id = _cliente_producto_ingrediente(app)
+    c = _login(app, 'admin')
+    r = c.post('/maquila/corridas/nueva', data={
+        'cliente_id': str(cli_id), 'producto_id': 'no-es-un-numero',
+        'lote': 'L-BASURA', 'fecha_produccion': '2026-09-03'}, follow_redirects=True)
+    assert r.status_code == 200
+    assert b'cliente y un producto' in r.data
+    with app.app_context():
+        assert CorridaProduccion.query.count() == 0
+
+
 def test_el_indice_lista_los_clientes_con_recepciones(app):
     from maquila.models import Ingrediente
     from maquila import servicios

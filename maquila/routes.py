@@ -7,8 +7,8 @@ from flask import (Blueprint, Response, abort, flash, redirect,
 from flask_login import current_user, login_required
 
 from . import app_module, servicios
-from .models import (CorridaCaja, CorridaProduccion, Ingrediente, Receta,
-                     RecetaIngrediente, RecepcionIngrediente, RecepcionFoto)
+from .models import (CorridaProduccion, Ingrediente, Receta, RecetaIngrediente,
+                     RecepcionIngrediente, RecepcionFoto, RecepcionLinea)
 
 # NO reemplazar por `from app import Cliente, Producto, db, requiere_rol`:
 # revienta `python app.py` (el preview local) con un ImportError circular.
@@ -47,6 +47,41 @@ def _fecha(valor):
         return datetime.strptime(valor, '%Y-%m-%d').date()
     except ValueError:
         return None
+
+
+def _entero(valor):
+    """Convierte texto de formulario a int. Vacío o basura → None.
+
+    Mismo criterio que `_decimal`: un `producto_id`/`cliente_id`/
+    `ingrediente_id` con basura (o ausente) no puede tirar un 500 — tiene que
+    poder tratarse como "falta este dato" y avisar con un flash.
+    """
+    if valor in (None, ''):
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def _reparto_con_lineas(corrida, consumos):
+    """Arma el reparto FIFO de cada ingrediente y junta las líneas de
+    recepción que toca, para que la plantilla pueda mostrar el código de la
+    recepción, su fecha y el lote del cliente en vez de un id pelado que no
+    le dice nada a quien está parado frente al bulto físico."""
+    reparto = {}
+    lineas_por_id = {}
+    for ingrediente_id, cantidad in consumos.items():
+        try:
+            tramos = servicios.repartir_fifo(corrida.cliente_id, ingrediente_id, cantidad)
+        except (servicios.SaldoInsuficiente, ValueError):
+            reparto[ingrediente_id] = None
+            continue
+        reparto[ingrediente_id] = tramos
+        for linea_id, _cantidad_tramo in tramos:
+            if linea_id not in lineas_por_id:
+                lineas_por_id[linea_id] = db.session.get(RecepcionLinea, linea_id)
+    return reparto, lineas_por_id
 
 
 def _clientes_con_maquila():
@@ -275,8 +310,11 @@ def receta_form(receta_id=None):
         abort(404)
 
     if request.method == 'POST':
-        producto_id = int(request.form['producto_id'])
+        producto_id = _entero(request.form.get('producto_id'))
         cliente_id = request.form.get('cliente_id', type=int) or None
+        if producto_id is None:
+            flash('Elegí un producto para la receta', 'error')
+            return redirect(url_for('maquila.recetas'))
         try:
             servicios.validar_receta_unica(producto_id, cliente_id,
                                            receta_id=receta.id if receta else None)
@@ -295,13 +333,14 @@ def receta_form(receta_id=None):
         db.session.flush()
 
         RecetaIngrediente.query.filter_by(receta_id=receta.id).delete()
-        for ingrediente_id, cantidad in zip(
+        for ingrediente_id_raw, cantidad in zip(
                 request.form.getlist('item_ingrediente_id'),
                 request.form.getlist('item_cantidad')):
+            ingrediente_id = _entero(ingrediente_id_raw)
             valor = _decimal(cantidad)
             if ingrediente_id and valor and valor > 0:
                 db.session.add(RecetaIngrediente(
-                    receta_id=receta.id, ingrediente_id=int(ingrediente_id),
+                    receta_id=receta.id, ingrediente_id=ingrediente_id,
                     cantidad=valor))
         db.session.commit()
         flash('Receta guardada', 'success')
@@ -336,10 +375,15 @@ def corridas():
 @requiere_rol(['super_admin'])
 def corrida_nueva():
     if request.method == 'POST':
+        cliente_id = _entero(request.form.get('cliente_id'))
+        producto_id = _entero(request.form.get('producto_id'))
+        if cliente_id is None or producto_id is None:
+            flash('Elegí un cliente y un producto válidos', 'error')
+            return redirect(url_for('maquila.corridas'))
         try:
             corrida = servicios.abrir_corrida(
-                cliente_id=int(request.form['cliente_id']),
-                producto_id=int(request.form['producto_id']),
+                cliente_id=cliente_id,
+                producto_id=producto_id,
                 lote=request.form.get('lote', ''),
                 fecha_produccion=_fecha(request.form.get('fecha_produccion')),
                 fecha_vencimiento=_fecha(request.form.get('fecha_vencimiento')),
@@ -356,7 +400,8 @@ def corrida_nueva():
         'maquila/corrida_detalle.html', corrida=None,
         clientes=Cliente.query.order_by(Cliente.nombre).all(),
         productos=Producto.query.order_by(Producto.nombre).all(),
-        teoricos={}, ingredientes=[], reparto={})
+        consumo_actual={}, reparto_origen='teorico', ingredientes=[],
+        reparto={}, lineas_reparto={}, merma=None)
 
 
 @bp.route('/corridas/<int:corrida_id>')
@@ -364,22 +409,54 @@ def corrida_nueva():
 @requiere_rol(['super_admin'])
 def corrida_detalle(corrida_id):
     corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
-    teoricos = {}
+    consumo_actual = {}
     if corrida.receta and corrida.peso_producido > 0:
-        teoricos = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
+        consumo_actual = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
 
     # El reparto FIFO se muestra ANTES de confirmar, para poder corregirlo.
-    reparto = {}
-    for ingrediente_id, cantidad in teoricos.items():
-        try:
-            reparto[ingrediente_id] = servicios.repartir_fifo(
-                corrida.cliente_id, ingrediente_id, cantidad)
-        except (servicios.SaldoInsuficiente, ValueError):
-            reparto[ingrediente_id] = None
+    # Acá parte siempre del teórico de la receta: si el operario edita el
+    # consumo real, `corrida_recalcular` vuelve a esta misma plantilla con el
+    # reparto recalculado contra lo declarado (`reparto_origen='declarado'`).
+    reparto, lineas_reparto = _reparto_con_lineas(corrida, consumo_actual)
+    merma = servicios.merma_de_corrida(corrida) if corrida.estado != 'abierta' else None
 
     return render_template(
-        'maquila/corrida_detalle.html', corrida=corrida, teoricos=teoricos,
-        reparto=reparto,
+        'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumo_actual,
+        reparto=reparto, reparto_origen='teorico', lineas_reparto=lineas_reparto,
+        merma=merma,
+        ingredientes=Ingrediente.query.filter_by(activo=True)
+                                      .order_by(Ingrediente.nombre).all(),
+        clientes=[], productos=[])
+
+
+@bp.route('/corridas/<int:corrida_id>/recalcular', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def corrida_recalcular(corrida_id):
+    """Recalcula el reparto FIFO contra el consumo REAL que el operario acaba
+    de editar, sin cerrar nada. Sin este paso, el reparto que se ve en
+    pantalla queda desactualizado apenas se toca el consumo teórico: sería
+    mostrar una promesa que `cerrar_corrida` no cumple."""
+    corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
+    if corrida.estado != 'abierta':
+        flash(f'La corrida {corrida.codigo} no está abierta', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+
+    consumos = {}
+    for ingrediente_id_raw, cantidad in zip(
+            request.form.getlist('consumo_ingrediente_id'),
+            request.form.getlist('consumo_real')):
+        ingrediente_id = _entero(ingrediente_id_raw)
+        valor = _decimal(cantidad)
+        if ingrediente_id and valor and valor > 0:
+            consumos[ingrediente_id] = valor
+
+    reparto, lineas_reparto = _reparto_con_lineas(corrida, consumos)
+
+    return render_template(
+        'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumos,
+        reparto=reparto, reparto_origen='declarado', lineas_reparto=lineas_reparto,
+        merma=None,
         ingredientes=Ingrediente.query.filter_by(activo=True)
                                       .order_by(Ingrediente.nombre).all(),
         clientes=[], productos=[])
@@ -407,12 +484,13 @@ def corrida_cerrar(corrida_id):
     corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
 
     consumos = {}
-    for ingrediente_id, cantidad in zip(
+    for ingrediente_id_raw, cantidad in zip(
             request.form.getlist('consumo_ingrediente_id'),
             request.form.getlist('consumo_real')):
+        ingrediente_id = _entero(ingrediente_id_raw)
         valor = _decimal(cantidad)
         if ingrediente_id and valor and valor > 0:
-            consumos[int(ingrediente_id)] = valor
+            consumos[ingrediente_id] = valor
 
     try:
         servicios.cerrar_corrida(corrida, consumos, current_user.id)
