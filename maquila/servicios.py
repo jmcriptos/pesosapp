@@ -475,7 +475,41 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
             if peso <= CERO:
                 raise RecepcionInvalida(
                     f'Bulto {i} de la línea {linea.id} tiene peso no positivo: {peso}')
-        nuevo_peso = sum(bultos, CERO) if bultos else _dec(datos.get('peso_total'))
+        # AL EDITAR manda el peso total, no los bultos. En el alta cargás una
+        # cosa o la otra; acá los dos campos llegan llenos y el usuario tiene
+        # que poder tocar cualquiera de ellos. Si el total viene distinto del
+        # que la línea tenía, es porque lo escribió a mano: gana. Si viene
+        # igual, es el valor que la pantalla arrastró y mandan los bultos.
+        #
+        # Consecuencia asumida (pedida explícitamente): una línea puede quedar
+        # diciendo 65 kg con bultos que suman 67,3. El saldo y el FIFO cuelgan
+        # del total, así que no se rompe nada — pero el desglose deja de ser
+        # una explicación del total. La pantalla muestra la suma al lado para
+        # que la diferencia se vea antes de guardar.
+        total_pedido = _dec(datos.get('peso_total'))
+        suma_bultos = sum(bultos, CERO)
+        # Quién manda entre el peso total y los bultos NO se adivina: lo dice
+        # el formulario, con `peso_manual`.
+        #
+        # El primer intento comparaba lo enviado contra lo ya guardado para
+        # deducir si el usuario había tocado el total, y era imposible de
+        # cumplir: al reabrir la pantalla y guardar sin tocar nada, el
+        # formulario manda exactamente el valor guardado, así que el servidor
+        # concluía que no lo habían tocado y revertía a la suma de los bultos —
+        # la corrección se deshacía sola.
+        #
+        # El segundo intento fue «el total siempre manda», y dependía de que el
+        # JS mantuviera ese campo al día: sin JS, editar bultos no habría
+        # cambiado el peso, en silencio.
+        #
+        # Con la bandera explícita, la degradación es segura: si el JS no
+        # corre, la bandera no llega, mandan los bultos, y eso es exactamente
+        # el comportamiento que el módulo tenía antes.
+        peso_manual = bool(datos.get('peso_manual'))
+        if bultos and not peso_manual:
+            nuevo_peso = suma_bultos
+        else:
+            nuevo_peso = total_pedido if total_pedido > CERO else suma_bultos
         if nuevo_peso <= CERO:
             raise RecepcionInvalida(
                 f'La línea {linea.id} necesita una cantidad positiva; '

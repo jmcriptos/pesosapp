@@ -55,13 +55,11 @@
           repetible de recepcion_nueva.html NO las tiene y es un hallazgo abierto de
           accesibilidad — no lo repitas al espejar.
 
-          Bultos vs. peso total: si la línea ya trae bultos, ELLOS GANAN y el
-          servicio ignora `peso_total` por completo (así funciona
-          `editar_recepcion`). El campo de peso total queda `readonly` (no
-          `disabled`: un campo disabled no se envía y desalinearía las listas
-          paralelas) mientras haya bultos cargados, con una leyenda fija abajo,
-          y el JS de más abajo lo reactiva en cuanto el campo de bultos queda
-          vacío. -#}
+          Bultos vs. peso total: LOS DOS son editables. Editar bultos
+          recalcula el total; escribir el total a mano manda sobre ellos. Si
+          quedan en desacuerdo, la pantalla muestra la suma de los bultos al
+          lado para que la diferencia se vea ANTES de guardar — ni se corrige
+          ni se bloquea: se muestra y el usuario decide. -#}
       {% for l in lineas %}
       <div class="rec-linea" data-linea-id="{{ l.id }}">
         <input type="hidden" name="linea_id" value="{{ l.id }}">
@@ -103,12 +101,13 @@
           {#- El value va CRUDO: es un input numérico, no texto para leer. fmt_cant
               metería una coma de miles y rompería el parseo. -#}
           <input type="number" step="0.001" id="total-{{ l.id }}" name="linea_peso_total"
-                 class="rec-total-input {{ 'rec-campo-ignorado' if l.bultos else '' }}"
-                 {{ 'readonly' if l.bultos else '' }}
+                 class="rec-total-input"
                  value="{{ l.peso_total }}">
-          <p class="maquila-nota-unidad">
-            Si esta línea tiene bultos cargados, mandan ellos: este peso total se ignora mientras haya alguno.
-          </p>
+          {#- Dice quién manda entre el total y los bultos. Sin JS no viaja, y
+              entonces mandan los bultos: la degradación segura. -#}
+          <input type="hidden" name="linea_peso_manual_{{ l.id }}"
+                 class="rec-peso-manual" value="">
+          <p class="maquila-nota-unidad rec-desajuste" data-desajuste hidden></p>
         </div>
 
         {#- El checkbox lleva NOMBRE PROPIO por línea (`linea_quitar_<id>`),
@@ -242,23 +241,78 @@
   function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
 
-  // Bultos vs. peso total: mientras el campo de bultos tenga contenido, el
-  // peso total queda de solo lectura (no `disabled`, porque eso lo sacaría
-  // del POST y desalinearía las listas paralelas). Se aplica al cargar y en
-  // cada cambio, tanto en las líneas existentes como en las que se agreguen.
-  function actualizarModoTotal(bultosInput) {
-    var fila = bultosInput.closest('.rec-linea');
-    if (!fila) return;
-    var total = fila.querySelector('.rec-total-input');
-    if (!total) return;
-    var hayBultos = bultosInput.value.trim().length > 0;
-    total.readOnly = hayBultos;
-    total.classList.toggle('rec-campo-ignorado', hayBultos);
+  // Bultos y peso total: los dos se editan. Escribir bultos recalcula el
+  // total, salvo que el usuario ya lo haya tocado a mano — a partir de ese
+  // momento el total es suyo y no se lo volvemos a pisar. Si los dos quedan
+  // en desacuerdo, se avisa; no se corrige ni se bloquea.
+  function sumaDeBultos(texto) {
+    var total = 0, alguno = false;
+    texto.split(',').forEach(function (parte) {
+      var t = parte.trim();
+      if (!t) return;
+      var n = parseFloat(t.replace(',', '.'));
+      if (!isNaN(n)) { total += n; alguno = true; }
+    });
+    return alguno ? total : null;
   }
+
+  function redondear(n) { return Math.round(n * 1000) / 1000; }
+
+  // `inicial` distingue el pase de carga de los que dispara el usuario. En el
+  // de carga NO se escribe nada: el valor que mandó el servidor es el que se
+  // guardó, y pisarlo con la suma de los bultos revertía en silencio cualquier
+  // total escrito a mano en una sesión anterior — el usuario reabría la
+  // pantalla, no tocaba nada, guardaba, y su corrección se deshacía sola.
+  function sincronizarFila(fila, inicial) {
+    var bultos = fila.querySelector('.rec-bultos-input');
+    var total = fila.querySelector('.rec-total-input');
+    var aviso = fila.querySelector('[data-desajuste]');
+    if (!bultos || !total) return;
+
+    var suma = sumaDeBultos(bultos.value);
+
+    // Los bultos escriben el total solo si el usuario los está editando ahora
+    // y no tecleó el total a mano en esta misma sesión.
+    if (!inicial && suma !== null && total.dataset.tocado !== '1') {
+      total.value = redondear(suma);
+    }
+
+    // Un desajuste YA GUARDADO es la prueba de una corrección manual anterior:
+    // al reabrir la pantalla hay que volver a declararla, o el segundo
+    // guardado la desharía.
+    var escritoAhora = parseFloat(total.value);
+    if (inicial && suma !== null && !isNaN(escritoAhora)
+        && redondear(suma) !== redondear(escritoAhora)) {
+      total.dataset.tocado = '1';
+    }
+
+    var bandera = fila.querySelector('.rec-peso-manual');
+    if (bandera) bandera.value = (total.dataset.tocado === '1') ? '1' : '';
+
+    if (!aviso) return;
+    var escrito = parseFloat(total.value);
+    var hayDesajuste = (suma !== null && !isNaN(escrito)
+                        && redondear(suma) !== redondear(escrito));
+    if (hayDesajuste) {
+      aviso.textContent = 'Los bultos suman ' + redondear(suma)
+        + '. Se va a guardar ' + redondear(escrito) + ', que es lo que dice este campo.';
+      aviso.hidden = false;
+    } else {
+      aviso.hidden = true;
+    }
+  }
+
   cont.addEventListener('input', function (e) {
-    if (e.target.matches('.rec-bultos-input')) actualizarModoTotal(e.target);
+    if (e.target.matches('.rec-total-input')) {
+      e.target.dataset.tocado = '1';
+      sincronizarFila(e.target.closest('.rec-linea'));
+    } else if (e.target.matches('.rec-bultos-input')) {
+      sincronizarFila(e.target.closest('.rec-linea'));
+    }
   });
-  Array.prototype.forEach.call(cont.querySelectorAll('.rec-bultos-input'), actualizarModoTotal);
+  Array.prototype.forEach.call(cont.querySelectorAll('.rec-linea'), function (fila) {
+    sincronizarFila(fila, true);
+  });
 
   // «Quitar esta línea» ya NO depende de JS: el checkbox de cada línea
   // existente lleva su propio `name="linea_quitar_<id>"` (ver la plantilla)
