@@ -479,6 +479,43 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
 
         reparto_manual = reparto_manual or {}
 
+        # Validar el reparto_manual completo ANTES de tocar la sesión, y
+        # acumulando por línea a lo largo de TODOS los ingredientes del
+        # cierre: en este punto todavía no se escribió ningún movimiento, así
+        # que `saldo_de_linea` siempre devuelve el saldo inicial. Si se
+        # comparara tramo por tramo, dos tramos contra la misma línea (del
+        # mismo ingrediente o de dos distintos) podrían pasar cada uno por
+        # separado y entre los dos sobregirarla.
+        if reparto_manual:
+            lineas_por_id = {}
+            solicitado_por_linea = {}
+            for ingrediente_id, tramos_manual in reparto_manual.items():
+                for linea_id, tramo in tramos_manual:
+                    tramo = _dec(tramo)
+                    linea = lineas_por_id.get(linea_id)
+                    if linea is None:
+                        linea = db.session.get(RecepcionLinea, linea_id)
+                        if linea is None:
+                            raise CorridaInvalida(
+                                f'La línea {linea_id} del reparto manual no existe')
+                        lineas_por_id[linea_id] = linea
+                    if linea.recepcion.cliente_id != corrida.cliente_id:
+                        raise CorridaInvalida(
+                            f'La línea {linea_id} del reparto manual no es del cliente '
+                            f'de la corrida ({corrida.cliente_id})')
+                    if linea.ingrediente_id != ingrediente_id:
+                        raise CorridaInvalida(
+                            f'La línea {linea_id} del reparto manual es del ingrediente '
+                            f'{linea.ingrediente_id}, no del {ingrediente_id} declarado')
+                    solicitado_por_linea[linea_id] = (
+                        solicitado_por_linea.get(linea_id, CERO) + tramo)
+
+            for linea_id, total_pedido in solicitado_por_linea.items():
+                saldo = saldo_de_linea(linea_id)
+                if total_pedido > saldo:
+                    raise SaldoInsuficiente(
+                        lineas_por_id[linea_id].ingrediente_id, total_pedido, saldo)
+
         for ingrediente_id, cantidad in consumos_reales.items():
             cantidad = _dec(cantidad)
             if cantidad <= CERO:
@@ -491,22 +528,6 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
                     raise CorridaInvalida(
                         f'El reparto manual del ingrediente {ingrediente_id} suma {suma} '
                         f'y el consumo declarado es {cantidad}')
-                for linea_id, tramo in tramos:
-                    linea = db.session.get(RecepcionLinea, linea_id)
-                    if linea is None:
-                        raise CorridaInvalida(
-                            f'La línea {linea_id} del reparto manual no existe')
-                    if linea.recepcion.cliente_id != corrida.cliente_id:
-                        raise CorridaInvalida(
-                            f'La línea {linea_id} del reparto manual no es del cliente '
-                            f'de la corrida ({corrida.cliente_id})')
-                    if linea.ingrediente_id != ingrediente_id:
-                        raise CorridaInvalida(
-                            f'La línea {linea_id} del reparto manual es del ingrediente '
-                            f'{linea.ingrediente_id}, no del {ingrediente_id} declarado')
-                    saldo = saldo_de_linea(linea_id)
-                    if tramo > saldo:
-                        raise SaldoInsuficiente(ingrediente_id, tramo, saldo)
                 automatico = False
             else:
                 tramos = repartir_fifo(corrida.cliente_id, ingrediente_id, cantidad)

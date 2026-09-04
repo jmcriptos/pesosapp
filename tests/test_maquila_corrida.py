@@ -294,3 +294,44 @@ def test_cerrar_con_consumos_todos_en_cero_se_rechaza(app):
             servicios.cerrar_corrida(c, {IDS['ingrediente']: Decimal('0')},
                                      IDS['vendedor'])
         assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+# --- Arreglos ronda 2 -------------------------------------------------------
+
+def test_reparto_manual_dos_tramos_a_la_misma_linea_que_se_pasan_del_saldo(app):
+    from maquila import servicios
+    from maquila.models import CorridaConsumo, MovimientoIngrediente
+    with app.app_context():
+        r1 = _recibir('R1', 1, 100)
+        linea_id = r1.lineas[0].id
+        c = _corrida_con_cajas([40])
+        antes = MovimientoIngrediente.query.count()
+        with pytest.raises(servicios.SaldoInsuficiente):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('160')}, IDS['vendedor'],
+                reparto_manual={IDS['ingrediente']: [(linea_id, Decimal('80')),
+                                                      (linea_id, Decimal('80'))]})
+        assert servicios.saldo_de_linea(linea_id) == Decimal('100')
+        assert CorridaConsumo.query.count() == 0
+        assert MovimientoIngrediente.query.count() == antes
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+def test_reparto_manual_dos_tramos_a_la_misma_linea_que_caben_en_el_saldo(app):
+    from maquila import servicios
+    from maquila.models import CorridaConsumoOrigen
+    with app.app_context():
+        r1 = _recibir('R1', 1, 100)
+        linea_id = r1.lineas[0].id
+        c = _corrida_con_cajas([40])
+        servicios.cerrar_corrida(
+            c, {IDS['ingrediente']: Decimal('90')}, IDS['vendedor'],
+            reparto_manual={IDS['ingrediente']: [(linea_id, Decimal('60')),
+                                                  (linea_id, Decimal('30'))]})
+        assert c.estado == 'cerrada'
+        assert servicios.saldo_de_linea(linea_id) == Decimal('10')
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], IDS['ingrediente']) == Decimal('10')
+        origenes = CorridaConsumoOrigen.query.order_by(CorridaConsumoOrigen.id).all()
+        assert len(origenes) == 2
+        assert sum((o.cantidad for o in origenes), Decimal('0')) == Decimal('90.000')
