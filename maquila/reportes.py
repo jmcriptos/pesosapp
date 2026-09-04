@@ -251,6 +251,14 @@ def _desde_pedido(pedido):
     return atras, corridas, adelante
 
 
+# Tope de dígitos para tratar `termino` como un posible `Pedido.id`. Sin este
+# tope, un término como '999999999999999999999' revienta con `OverflowError`
+# (el int no entra en el C long que usa psycopg2 para bindear el parámetro) y
+# en Postgres además deja la transacción abortada. 15 dígitos es más que de
+# sobra para cualquier id real de esta app.
+_MAX_DIGITOS_ID_TERMINO = 15
+
+
 def trazar(termino):
     """Traza en ambos sentidos desde un lote, un código o un número de pedido.
 
@@ -326,7 +334,9 @@ def trazar(termino):
                 } for l in recepcion.lineas],
                 'hacia_adelante': adelante}
 
-    pedido_por_id = db.session.get(Pedido, int(termino)) if termino.isdigit() else None
+    termino_es_id_valido = (termino.isdigit()
+                            and len(termino) <= _MAX_DIGITOS_ID_TERMINO)
+    pedido_por_id = db.session.get(Pedido, int(termino)) if termino_es_id_valido else None
     pedido_por_docnum = Pedido.query.filter_by(doc_number_qbo=termino).first()
 
     candidatos, vistos = [], set()

@@ -140,6 +140,20 @@ def test_trazar_algo_que_no_existe_no_revienta(app):
         assert r['hacia_adelante'] == []
 
 
+def test_trazar_un_numero_absurdamente_largo_no_revienta(app):
+    """Un término numérico gigante no puede convertirse a `int` sin tope: el
+    C long que usa psycopg2 para bindear el parámetro no lo aguanta y tira
+    `OverflowError` (en Postgres, además, deja la transacción abortada).
+    `trazar` tiene que devolver "no encontrado", no un 500."""
+    from maquila import reportes
+    with app.app_context():
+        r = reportes.trazar('999999999999999999999')
+        assert r['encontrado'] is False
+        assert r['ambiguo'] is False
+        assert r['hacia_atras'] == []
+        assert r['hacia_adelante'] == []
+
+
 def test_una_caja_pesada_a_mano_se_marca_sin_origen(app):
     from maquila import reportes
     from app import Pedido, DetallePedido, CajaPesada
