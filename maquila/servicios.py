@@ -336,13 +336,23 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     if recepcion.anulada:
         raise RecepcionInvalida('La recepción ya estaba anulada')
 
-    for linea in recepcion.lineas:
+    # Filtrar las líneas anuladas (quitadas desde `editar_recepcion`) en LOS
+    # DOS bucles: quitar una línea ya escribió su inverso y la dejó en saldo
+    # 0 sin tocar `peso_total`, así que comparar contra `peso_total` para una
+    # línea anulada compara 0 contra su peso original y siempre da falso —
+    # `RecepcionConsumida` disparando por algo que nunca se consumió, y la
+    # recepción queda imposible de anular. Y si esta guarda se relajara, el
+    # segundo bucle escribiría un segundo inverso sobre la línea ya anulada,
+    # dejando el saldo en negativo.
+    vivas = [l for l in recepcion.lineas if not l.anulada]
+
+    for linea in vivas:
         if saldo_de_linea(linea.id) != _dec(linea.peso_total):
             raise RecepcionConsumida(
                 f'La línea {linea.id} de {recepcion.codigo} ya se consumió; '
                 f'la corrección a esta altura es un ajuste, no una anulación')
 
-    for linea in recepcion.lineas:
+    for linea in vivas:
         registrar_movimiento(
             cliente_id=recepcion.cliente_id,
             ingrediente_id=linea.ingrediente_id,
