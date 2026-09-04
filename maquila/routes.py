@@ -661,10 +661,10 @@ def reporte_kardex_export():
 
     for fila_num, fila in enumerate(filas, start=1):
         hoja.write(fila_num, 0, fila['fecha'].strftime('%Y-%m-%d %H:%M'))
-        hoja.write(fila_num, 1, fila['tipo'])
+        hoja.write(fila_num, 1, _excel_safe(fila['tipo']))
         hoja.write(fila_num, 2, _excel_safe(fila['ingrediente']))
-        hoja.write(fila_num, 3, float(fila['cantidad']))
-        hoja.write(fila_num, 4, float(fila['saldo_acumulado']))
+        hoja.write(fila_num, 3, fila['cantidad'])
+        hoja.write(fila_num, 4, fila['saldo_acumulado'])
         hoja.write(fila_num, 5, _excel_safe(fila['origen']))
         hoja.write(fila_num, 6, _excel_safe(fila['responsable']))
         hoja.write(fila_num, 7, _excel_safe(fila['motivo'] or ''))

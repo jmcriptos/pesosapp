@@ -425,6 +425,7 @@ def test_reporte_saldos_y_rendimiento_responden(app):
 def test_vendedor_no_entra_a_los_reportes(app):
     c = _login(app, 'vend')
     for ruta in ('/maquila/reportes/saldos', '/maquila/reportes/kardex',
+                 '/maquila/reportes/kardex/export',
                  '/maquila/reportes/rendimiento',
                  '/maquila/reportes/trazabilidad'):
         r = c.get(ruta, follow_redirects=False)
