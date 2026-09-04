@@ -215,7 +215,7 @@ def recepcion_nueva():
             bultos = [b for b in (_decimal(x) for x in crudos.split(',') if x.strip())
                       if b is not None]
             lineas.append({
-                'ingrediente_id': int(ingrediente_id),
+                'ingrediente_id': _entero(ingrediente_id),
                 'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
                 'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
                 'bultos': bultos,
@@ -226,7 +226,10 @@ def recepcion_nueva():
         for archivo in request.files.getlist('fotos'):
             if not archivo or not archivo.filename:
                 continue
-            mimetype = archivo.mimetype or ''
+            # Normalizado a minúsculas: un cliente que mande "Image/JPEG" no
+            # puede perder la recepción entera (cabecera, líneas, bultos y
+            # firma ya tecleadas) por una comparación sensible a mayúsculas.
+            mimetype = (archivo.mimetype or '').lower()
             if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
                 flash(f'Formato de foto no permitido ({mimetype or "desconocido"}): '
                      'subí JPEG, PNG o WEBP', 'error')
@@ -435,7 +438,7 @@ def corrida_nueva():
         clientes=Cliente.query.order_by(Cliente.nombre).all(),
         productos=Producto.query.order_by(Producto.nombre).all(),
         consumo_actual={}, reparto_origen='teorico', ingredientes=[],
-        reparto={}, lineas_reparto={}, merma=None)
+        reparto={}, lineas_reparto={}, merma=None, falta_ingrediente_id=None)
 
 
 @bp.route('/corridas/<int:corrida_id>')
@@ -454,10 +457,17 @@ def corrida_detalle(corrida_id):
     reparto, lineas_reparto = _reparto_con_lineas(corrida, consumo_actual)
     merma = servicios.merma_de_corrida(corrida) if corrida.estado != 'abierta' else None
 
+    # Si venimos de un cierre rechazado por falta de saldo (`corrida_cerrar`
+    # abajo), el ingrediente que faltó viaja en la query string para poder
+    # ofrecer un link directo a la pantalla de ajustes, precargado con el
+    # cliente y el ingrediente correctos: el operario llega en un clic en vez
+    # de tener que ir a `/maquila/ajustes` y volver a elegir todo a mano.
+    falta_ingrediente_id = request.args.get('falta_ingrediente_id', type=int)
+
     return render_template(
         'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumo_actual,
         reparto=reparto, reparto_origen='teorico', lineas_reparto=lineas_reparto,
-        merma=merma,
+        merma=merma, falta_ingrediente_id=falta_ingrediente_id,
         ingredientes=Ingrediente.query.filter_by(activo=True)
                                       .order_by(Ingrediente.nombre).all(),
         clientes=[], productos=[])
@@ -490,7 +500,7 @@ def corrida_recalcular(corrida_id):
     return render_template(
         'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumos,
         reparto=reparto, reparto_origen='declarado', lineas_reparto=lineas_reparto,
-        merma=None,
+        merma=None, falta_ingrediente_id=None,
         ingredientes=Ingrediente.query.filter_by(activo=True)
                                       .order_by(Ingrediente.nombre).all(),
         clientes=[], productos=[])
@@ -534,7 +544,11 @@ def corrida_cerrar(corrida_id):
         flash(f'Faltan {exc.faltante} de {ing.nombre if ing else exc.ingrediente_id}: '
               f'se piden {exc.pedido} y hay {exc.disponible}. '
               f'Registra un ajuste de entrada con su motivo antes de cerrar.', 'error')
-        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+        # El ingrediente que faltó viaja en la query string para que
+        # corrida_detalle pueda ofrecer un link directo a /maquila/ajustes,
+        # precargado con el cliente y el ingrediente correctos.
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                                falta_ingrediente_id=exc.ingrediente_id))
     except servicios.CorridaInvalida as exc:
         db.session.rollback()
         flash(str(exc), 'error')
@@ -560,6 +574,81 @@ def corrida_anular(corrida_id):
         db.session.rollback()
         flash(str(exc), 'error')
     return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+
+
+@bp.route('/ajustes', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def ajustes():
+    """Ajuste manual del saldo de un cliente/ingrediente, con motivo obligatorio.
+
+    Es la escotilla que le falta a `corrida_cerrar`: cuando el consumo real
+    supera lo recibido —que es lo normal, no un caso borde—, la corrida no
+    cierra hasta que alguien registre acá la diferencia. `registrar_movimiento`
+    ya exige motivo para `tipo='ajuste'` (MotivoRequerido); acá solo se
+    traduce esa excepción a un flash.
+    """
+    if request.method == 'POST':
+        cliente_id = _entero(request.form.get('cliente_id'))
+        ingrediente_id = _entero(request.form.get('ingrediente_id'))
+        cantidad = _decimal(request.form.get('cantidad'))
+        sentido = request.form.get('sentido')
+        motivo = request.form.get('motivo', '')
+
+        if cliente_id is None or ingrediente_id is None:
+            flash('Elegí un cliente y un ingrediente válidos', 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+        if cantidad is None or cantidad <= 0:
+            flash('La cantidad del ajuste tiene que ser un número positivo', 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+        if sentido not in ('entrada', 'salida'):
+            flash('Elegí si el ajuste es una entrada o una salida', 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+
+        # El signo lo pone esta pantalla, no `registrar_movimiento`: para
+        # `tipo='ajuste'` esa función guarda la cantidad tal cual llega (el
+        # signo automático solo existe para `tipo='salida'`).
+        cantidad_con_signo = cantidad if sentido == 'entrada' else -cantidad
+
+        try:
+            servicios.registrar_movimiento(
+                cliente_id=cliente_id,
+                ingrediente_id=ingrediente_id,
+                tipo='ajuste',
+                cantidad=cantidad_con_signo,
+                origen_tipo='manual',
+                vendedor_id=current_user.id,
+                motivo=motivo,
+            )
+            db.session.commit()
+        except servicios.MotivoRequerido as exc:
+            db.session.rollback()
+            flash(str(exc), 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+
+        flash('Ajuste registrado', 'success')
+        return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+
+    cliente_id = request.args.get('cliente_id', type=int)
+    ajustes_de_cliente = []
+    if cliente_id:
+        for mov in servicios.ajustes_manuales_de_cliente(cliente_id):
+            ajustes_de_cliente.append({
+                'fecha': reportes._local(mov.registrado_en),
+                'ingrediente': mov.ingrediente.nombre,
+                'cantidad': mov.cantidad,
+                'responsable': mov.vendedor.nombre_completo if mov.vendedor else '—',
+                'motivo': mov.motivo,
+            })
+
+    return render_template(
+        'maquila/ajustes.html',
+        clientes=_clientes_con_maquila(),
+        ingredientes=Ingrediente.query.filter_by(activo=True)
+                                      .order_by(Ingrediente.nombre).all(),
+        cliente_id=cliente_id,
+        ingrediente_id_sugerido=request.args.get('ingrediente_id', type=int),
+        ajustes=ajustes_de_cliente)
 
 
 @bp.route('/asignar/<int:detalle_id>', methods=['POST'])

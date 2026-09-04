@@ -153,6 +153,39 @@ def test_rechaza_foto_con_mimetype_no_permitido(app):
         assert RecepcionIngrediente.query.count() == 0
 
 
+def test_acepta_foto_con_mimetype_en_mayusculas(app):
+    """Un cliente que suba una foto con Content-Type "Image/JPEG" (mayúsculas)
+    no puede perder la recepción entera: el mimetype declarado por el
+    navegador se compara sin importar mayúsculas/minúsculas."""
+    import io
+    from maquila.models import Ingrediente, RecepcionIngrediente
+    with app.app_context():
+        from app import Cliente
+        cli = Cliente(nombre='Maquila Mimetype SA')
+        ing = Ingrediente(nombre='Carne de res mimetype')
+        _db.session.add_all([cli, ing])
+        _db.session.commit()
+        cli_id, ing_id = cli.id, ing.id
+
+    c = _login(app, 'admin')
+    r = c.post('/maquila/recepciones/nueva', data={
+        'cliente_id': str(cli_id),
+        'recibido_en': '2026-09-03',
+        'linea_ingrediente_id': [str(ing_id)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_peso_total': ['10'],
+        'linea_bultos': [''],
+        'fotos': (io.BytesIO(b'fake-jpeg-bytes'), 'foto.jpg', 'Image/JPEG'),
+    }, content_type='multipart/form-data', follow_redirects=True)
+    assert r.status_code == 200
+    assert 'no permitido'.encode('utf-8') not in r.data
+    with app.app_context():
+        rec = RecepcionIngrediente.query.one()
+        assert len(rec.fotos) == 1
+        assert rec.fotos[0].mimetype == 'image/jpeg'
+
+
 def test_firma_base64_corrupta_no_revienta_la_recepcion(app):
     """base64.b64decode sobre basura no debe tirar un 500: la recepción se
     guarda igual, sin firma."""
@@ -437,6 +470,81 @@ def test_el_link_a_maquila_se_ve_para_super_admin(app):
     r = c.get('/dashboard')
     assert r.status_code == 200
     assert '/maquila"'.encode() in r.data
+
+
+# ---------------------------------------------------------------------------
+# Ronda final: ajuste manual de saldo
+# ---------------------------------------------------------------------------
+
+
+def test_ajuste_con_motivo_sube_el_saldo_y_queda_en_el_kardex(app):
+    from maquila import servicios
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'entrada',
+        'cantidad': '25',
+        'motivo': 'Conteo físico: sobraban 25 kg',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'registrado'.encode() in r.data.lower() or b'Ajuste registrado' in r.data
+    with app.app_context():
+        assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('25')
+        ajustes = servicios.ajustes_manuales_de_cliente(cli_id)
+        assert len(ajustes) == 1
+        assert ajustes[0].origen_tipo == 'manual'
+        assert ajustes[0].tipo == 'ajuste'
+        assert ajustes[0].cantidad == Decimal('25.000')
+        assert ajustes[0].motivo == 'Conteo físico: sobraban 25 kg'
+
+
+def test_ajuste_de_salida_resta_del_saldo(app):
+    from maquila import servicios
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('100')}])
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'salida',
+        'cantidad': '15',
+        'motivo': 'Se dañó una caja en el conteo',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('85')
+
+
+def test_ajuste_sin_motivo_se_rechaza_y_no_escribe_nada(app):
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'entrada',
+        'cantidad': '25',
+        'motivo': '',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'motivo'.encode() in r.data.lower()
+    with app.app_context():
+        assert MovimientoIngrediente.query.count() == 0
+
+
+def test_vendedor_no_entra_a_ajustes(app):
+    c = _login(app, 'vend')
+    for metodo, kwargs in (('get', {}),
+                           ('post', {'data': {'cliente_id': '1'}})):
+        r = getattr(c, metodo)('/maquila/ajustes', follow_redirects=False, **kwargs)
+        assert r.status_code == 302
 
 
 def test_el_link_a_maquila_no_se_ve_para_vendedor(app):

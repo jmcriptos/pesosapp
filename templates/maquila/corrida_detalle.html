@@ -44,6 +44,18 @@
 
 {% else %}
 
+{% if falta_ingrediente_id %}
+<section class="ops-card maquila-ambiguo">
+  <h2>Falta saldo para cerrar</h2>
+  <p>El mensaje de arriba explica cuánto falta. Registrá un ajuste de entrada
+    con su motivo y volvé a cerrar la corrida.</p>
+  <a class="btn btn-primary"
+     href="{{ url_for('maquila.ajustes', cliente_id=corrida.cliente_id, ingrediente_id=falta_ingrediente_id) }}">
+    Ir a ajustes manuales
+  </a>
+</section>
+{% endif %}
+
 <section class="ops-card">
   <h2>{{ corrida.codigo }} <small>({{ corrida.estado }})</small></h2>
   <dl class="maquila-cabecera">
