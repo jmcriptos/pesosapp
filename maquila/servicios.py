@@ -10,7 +10,10 @@ from decimal import Decimal
 from sqlalchemy import func
 
 from app import db
-from .models import Ingrediente, MovimientoIngrediente, RecepcionIngrediente, RecepcionLinea, RecepcionBulto, RecepcionFoto, Receta
+from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
+                     RecepcionLinea, RecepcionBulto, RecepcionFoto, Receta,
+                     CorridaProduccion, CorridaCaja, CorridaConsumo,
+                     CorridaConsumoOrigen)
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}
@@ -210,7 +213,6 @@ def siguiente_codigo(prefijo, anio=None):
     secuencias: a la escala de esta app (decenas de recepciones al mes) es
     exacto y no añade una pieza más que mantener.
     """
-    from .models import CorridaProduccion
     modelos = {'R': RecepcionIngrediente, 'P': CorridaProduccion}
     modelo = modelos.get(prefijo)
     if modelo is None:
@@ -383,3 +385,187 @@ def consumo_teorico(receta, kg_producidos):
     factor = kg_producidos / base
     return {item.ingrediente_id: (_dec(item.cantidad) * factor).quantize(Decimal('0.001'))
             for item in receta.ingredientes}
+
+
+class CorridaInvalida(ValueError):
+    """La corrida no está en condiciones de hacer lo que se le pide."""
+
+
+class CorridaFacturada(Exception):
+    """Alguna caja de la corrida ya salió en un pedido facturado.
+
+    A esa altura la cifra ya está en QuickBooks: deshacerla en la app dejaría
+    los dos sistemas contando cosas distintas.
+    """
+
+
+def abrir_corrida(*, cliente_id, producto_id, lote, fecha_produccion, vendedor_id,
+                  fecha_vencimiento=None, receta_id=None, notas=None):
+    lote = (lote or '').strip()
+    if not lote:
+        raise CorridaInvalida('La corrida necesita un lote')
+
+    repetido = CorridaProduccion.query.filter_by(
+        cliente_id=cliente_id, lote=lote).first()
+    if repetido:
+        raise CorridaInvalida(
+            f'El cliente ya tiene la corrida {repetido.codigo} con el lote {lote}')
+
+    if receta_id is None:
+        sugerida = receta_activa(producto_id, cliente_id)
+        receta_id = sugerida.id if sugerida else None
+
+    corrida = CorridaProduccion(
+        codigo=siguiente_codigo('P', fecha_produccion.year),
+        cliente_id=cliente_id,
+        producto_id=producto_id,
+        receta_id=receta_id,
+        lote=lote,
+        fecha_produccion=fecha_produccion,
+        fecha_vencimiento=fecha_vencimiento,
+        estado='abierta',
+        notas=(notas or None),
+        registrado_por=vendedor_id,
+    )
+    db.session.add(corrida)
+    db.session.commit()
+    return corrida
+
+
+def agregar_caja_producida(corrida, peso):
+    """Añade una caja pesada a la corrida. No hace commit."""
+    if corrida.estado != 'abierta':
+        raise CorridaInvalida('Solo se pueden añadir cajas a una corrida abierta')
+    peso = _dec(peso)
+    if peso <= CERO:
+        raise CorridaInvalida('El peso de la caja debe ser positivo')
+
+    # Consulta directa (no `corrida.cajas`): esa relación queda cacheada en
+    # memoria desde el primer acceso y, sin un commit entre cada caja, no ve
+    # las que se acaban de añadir en esta misma transacción.
+    ultimo = (db.session.query(func.max(CorridaCaja.numero))
+              .filter(CorridaCaja.corrida_id == corrida.id)
+              .scalar())
+    caja = CorridaCaja(corrida_id=corrida.id,
+                       numero=(ultimo + 1 if ultimo else 1),
+                       peso=peso)
+    db.session.add(caja)
+    return caja
+
+
+def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
+    """Cierra la corrida: snapshot del teórico, reparto FIFO y salidas del ledger.
+
+    Todo en una transacción. Si un ingrediente no tiene saldo, no se escribe
+    nada: `SaldoInsuficiente` sube y quien llama hace rollback.
+    """
+    if corrida.estado != 'abierta':
+        raise CorridaInvalida(f'La corrida {corrida.codigo} no está abierta')
+    if not corrida.cajas:
+        raise CorridaInvalida('No se puede cerrar una corrida sin cajas producidas')
+    if not consumos_reales:
+        raise CorridaInvalida('Hay que declarar el consumo de al menos un ingrediente')
+
+    producido = corrida.peso_producido
+    teoricos = {}
+    if corrida.receta:
+        teoricos = consumo_teorico(corrida.receta, producido)
+
+    reparto_manual = reparto_manual or {}
+
+    for ingrediente_id, cantidad in consumos_reales.items():
+        cantidad = _dec(cantidad)
+        if cantidad <= CERO:
+            continue
+
+        if ingrediente_id in reparto_manual:
+            tramos = [(linea_id, _dec(c)) for linea_id, c in reparto_manual[ingrediente_id]]
+            suma = sum((c for _, c in tramos), CERO)
+            if suma != cantidad:
+                raise CorridaInvalida(
+                    f'El reparto manual del ingrediente {ingrediente_id} suma {suma} '
+                    f'y el consumo declarado es {cantidad}')
+            automatico = False
+        else:
+            tramos = repartir_fifo(corrida.cliente_id, ingrediente_id, cantidad)
+            automatico = True
+
+        consumo = CorridaConsumo(
+            corrida_id=corrida.id,
+            ingrediente_id=ingrediente_id,
+            cantidad_teorica=teoricos.get(ingrediente_id, CERO),
+            cantidad_real=cantidad,
+        )
+        db.session.add(consumo)
+        db.session.flush()
+
+        for linea_id, tramo in tramos:
+            db.session.add(CorridaConsumoOrigen(
+                corrida_consumo_id=consumo.id,
+                recepcion_linea_id=linea_id,
+                cantidad=tramo,
+                automatico=automatico,
+            ))
+            registrar_movimiento(
+                cliente_id=corrida.cliente_id,
+                ingrediente_id=ingrediente_id,
+                tipo='salida',
+                cantidad=tramo,
+                origen_tipo='corrida',
+                origen_id=corrida.id,
+                vendedor_id=vendedor_id,
+                recepcion_linea_id=linea_id,
+            )
+
+    corrida.estado = 'cerrada'
+    corrida.cerrada_por = vendedor_id
+    corrida.cerrada_en = datetime.utcnow()
+    db.session.commit()
+    return corrida
+
+
+def merma_de_corrida(corrida):
+    """Kilos consumidos menos kilos producidos. Se deriva, no se guarda."""
+    consumido = sum((_dec(c.cantidad_real) for c in corrida.consumos), CERO)
+    return consumido - corrida.peso_producido
+
+
+def anular_corrida(corrida, vendedor_id, motivo):
+    """Devuelve los ingredientes al saldo y libera las cajas no entregadas."""
+    if not (motivo or '').strip():
+        raise MotivoRequerido('Anular una corrida exige un motivo')
+    if corrida.estado == 'anulada':
+        raise CorridaInvalida('La corrida ya estaba anulada')
+
+    for caja in corrida.cajas:
+        if caja.caja_pesada_id is None:
+            continue
+        pedido = getattr(getattr(caja.caja_pesada, 'detalle_pedido', None), 'pedido', None)
+        if pedido is not None and pedido.estado == 'facturado':
+            raise CorridaFacturada(
+                f'La caja {caja.numero} de {corrida.codigo} salió en el pedido '
+                f'{pedido.id}, que ya está facturado')
+
+    for consumo in corrida.consumos:
+        for origen in consumo.origenes:
+            registrar_movimiento(
+                cliente_id=corrida.cliente_id,
+                ingrediente_id=consumo.ingrediente_id,
+                tipo='ajuste',
+                cantidad=_dec(origen.cantidad),
+                origen_tipo='corrida',
+                origen_id=corrida.id,
+                vendedor_id=vendedor_id,
+                recepcion_linea_id=origen.recepcion_linea_id,
+                motivo=f'Anulación de {corrida.codigo}: {motivo.strip()}',
+            )
+
+    for caja in corrida.cajas:
+        if caja.anulada_en is None:
+            caja.anulada_en = datetime.utcnow()
+            caja.motivo_anulacion = motivo.strip()
+
+    corrida.estado = 'anulada'
+    corrida.notas = ((corrida.notas or '') +
+                     f'\nAnulada: {motivo.strip()}').strip()
+    return corrida
