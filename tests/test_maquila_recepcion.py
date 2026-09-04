@@ -157,3 +157,36 @@ def test_anular_sin_motivo_se_rechaza(app):
             lineas=[{'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]}])
         with pytest.raises(servicios.MotivoRequerido):
             servicios.anular_recepcion(rec, IDS['vendedor'], '   ')
+
+
+def test_una_linea_valida_seguida_de_invalida_no_deja_residuo(app):
+    """Si la línea 2 es inválida, línea 1 y cabecera no quedan persistidas."""
+    from maquila import servicios
+    from maquila.models import RecepcionIngrediente, RecepcionLinea, MovimientoIngrediente
+    with app.app_context():
+        with pytest.raises(servicios.RecepcionInvalida):
+            servicios.crear_recepcion(
+                cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+                vendedor_id=IDS['vendedor'],
+                lineas=[
+                    {'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]},
+                    {'ingrediente_id': IDS['ingrediente2'], 'peso_total': Decimal('0')}
+                ])
+        # Sin residuo: no se cometió media recepción.
+        assert RecepcionIngrediente.query.count() == 0
+        assert RecepcionLinea.query.count() == 0
+        assert MovimientoIngrediente.query.count() == 0
+
+
+def test_un_bulto_negativo_se_rechaza(app):
+    """Un peso negativo en cualquier bulto cancela la recepción."""
+    from maquila import servicios
+    from maquila.models import RecepcionIngrediente
+    with app.app_context():
+        with pytest.raises(servicios.RecepcionInvalida, match='no positivo'):
+            servicios.crear_recepcion(
+                cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+                vendedor_id=IDS['vendedor'],
+                lineas=[{'ingrediente_id': IDS['ingrediente'],
+                         'bultos': [Decimal('10'), Decimal('-3')]}])
+        assert RecepcionIngrediente.query.count() == 0

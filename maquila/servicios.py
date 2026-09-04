@@ -203,9 +203,6 @@ class RecepcionConsumida(Exception):
     """
 
 
-_PREFIJOS = {'R': RecepcionIngrediente}
-
-
 def siguiente_codigo(prefijo, anio=None):
     """Siguiente correlativo del año, con el formato R-2026-0042.
 
@@ -239,62 +236,70 @@ def crear_recepcion(*, cliente_id, recibido_en, vendedor_id, lineas,
     if not lineas:
         raise RecepcionInvalida('Una recepción necesita al menos una línea')
 
-    recepcion = RecepcionIngrediente(
-        codigo=siguiente_codigo('R', recibido_en.year),
-        cliente_id=cliente_id,
-        recibido_en=recibido_en,
-        documento_cliente=(documento_cliente or None),
-        temperatura=(_dec(temperatura) if temperatura not in (None, '') else None),
-        transportista=(transportista or None),
-        notas=(notas or None),
-        firma=firma,
-        firma_mimetype=firma_mimetype,
-        registrado_por=vendedor_id,
-    )
-    db.session.add(recepcion)
-    db.session.flush()
-
-    for datos in lineas:
-        bultos = [_dec(p) for p in (datos.get('bultos') or [])]
-        if bultos:
-            peso_total = sum(bultos, CERO)
-        else:
-            peso_total = _dec(datos.get('peso_total'))
-        if peso_total <= CERO:
-            raise RecepcionInvalida(
-                'Cada línea necesita bultos pesados o un peso total positivo')
-
-        linea = RecepcionLinea(
-            recepcion_id=recepcion.id,
-            ingrediente_id=datos['ingrediente_id'],
-            lote_cliente=(datos.get('lote_cliente') or None),
-            fecha_vencimiento=datos.get('fecha_vencimiento'),
-            peso_total=peso_total,
+    try:
+        recepcion = RecepcionIngrediente(
+            codigo=siguiente_codigo('R', recibido_en.year),
+            cliente_id=cliente_id,
+            recibido_en=recibido_en,
+            documento_cliente=(documento_cliente or None),
+            temperatura=(_dec(temperatura) if temperatura not in (None, '') else None),
+            transportista=(transportista or None),
+            notas=(notas or None),
+            firma=firma,
+            firma_mimetype=firma_mimetype,
+            registrado_por=vendedor_id,
         )
-        db.session.add(linea)
+        db.session.add(recepcion)
         db.session.flush()
 
-        for numero, peso in enumerate(bultos, start=1):
-            db.session.add(RecepcionBulto(
-                recepcion_linea_id=linea.id, numero=numero, peso=peso))
+        for datos in lineas:
+            bultos = [_dec(p) for p in (datos.get('bultos') or [])]
+            for i, peso in enumerate(bultos, start=1):
+                if peso <= CERO:
+                    raise RecepcionInvalida(
+                        f'Bulto {i} de la línea tiene peso no positivo: {peso}')
+            if bultos:
+                peso_total = sum(bultos, CERO)
+            else:
+                peso_total = _dec(datos.get('peso_total'))
+            if peso_total <= CERO:
+                raise RecepcionInvalida(
+                    'Cada línea necesita bultos pesados o un peso total positivo')
 
-        registrar_movimiento(
-            cliente_id=cliente_id,
-            ingrediente_id=linea.ingrediente_id,
-            tipo='entrada',
-            cantidad=peso_total,
-            origen_tipo='recepcion',
-            origen_id=recepcion.id,
-            vendedor_id=vendedor_id,
-            recepcion_linea_id=linea.id,
-        )
+            linea = RecepcionLinea(
+                recepcion_id=recepcion.id,
+                ingrediente_id=datos['ingrediente_id'],
+                lote_cliente=(datos.get('lote_cliente') or None),
+                fecha_vencimiento=datos.get('fecha_vencimiento'),
+                peso_total=peso_total,
+            )
+            db.session.add(linea)
+            db.session.flush()
 
-    for imagen, mimetype in (fotos or []):
-        db.session.add(RecepcionFoto(
-            recepcion_id=recepcion.id, imagen=imagen, mimetype=mimetype))
+            for numero, peso in enumerate(bultos, start=1):
+                db.session.add(RecepcionBulto(
+                    recepcion_linea_id=linea.id, numero=numero, peso=peso))
 
-    db.session.commit()
-    return recepcion
+            registrar_movimiento(
+                cliente_id=cliente_id,
+                ingrediente_id=linea.ingrediente_id,
+                tipo='entrada',
+                cantidad=peso_total,
+                origen_tipo='recepcion',
+                origen_id=recepcion.id,
+                vendedor_id=vendedor_id,
+                recepcion_linea_id=linea.id,
+            )
+
+        for imagen, mimetype in (fotos or []):
+            db.session.add(RecepcionFoto(
+                recepcion_id=recepcion.id, imagen=imagen, mimetype=mimetype))
+
+        db.session.commit()
+        return recepcion
+    except RecepcionInvalida:
+        db.session.rollback()
+        raise
 
 
 def anular_recepcion(recepcion, vendedor_id, motivo):
