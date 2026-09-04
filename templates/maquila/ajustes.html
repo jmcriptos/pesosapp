@@ -73,11 +73,11 @@
     <tbody>
       {% for a in ajustes %}
       <tr>
-        <td>{{ a.fecha.strftime('%Y-%m-%d %H:%M') if a.fecha else '—' }}</td>
-        <td>{{ a.ingrediente }}</td>
-        <td>{{ a.cantidad }}</td>
-        <td>{{ a.responsable }}</td>
-        <td>{{ a.motivo or '—' }}</td>
+        <td data-label="Fecha">{{ a.fecha.strftime('%Y-%m-%d %H:%M') if a.fecha else '—' }}</td>
+        <td data-label="Ingrediente">{{ a.ingrediente }}</td>
+        <td data-label="Cantidad">{{ a.cantidad }}</td>
+        <td data-label="Responsable">{{ a.responsable }}</td>
+        <td data-label="Motivo">{{ a.motivo or '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>

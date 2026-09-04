@@ -44,9 +44,23 @@
       <label for="fotos">Fotos</label>
       <input type="file" id="fotos" name="fotos" accept="image/*" capture="environment" multiple>
     </div>
-    <div class="ops-firma-label">Firma de quien entrega</div>
-    <div class="ops-firma-pad"><canvas id="firmaPad" width="600" height="200"></canvas></div>
-    <button type="button" class="ops-firma-clear" id="firmaClear">Borrar firma</button>
+    <div class="ops-firma-label" id="firmaLabel">Firma de quien entrega</div>
+    <!-- El botón de borrar va DENTRO del pad: `.ops-firma-clear` es
+         `position:absolute` y `.ops-firma-pad` es su `position:relative`. Como
+         hermano posterior se resolvía contra un ancestro muy superior y
+         terminaba en top:8px/left:277px, debajo de la topbar de la app:
+         elementFromPoint devolvía la campana de notificaciones y era imposible
+         corregir una firma sin recargar y perder el formulario entero. -->
+    <div class="ops-firma-pad" id="firmaPad-wrap">
+      <canvas id="firmaPad" width="600" height="200"
+              role="img" aria-labelledby="firmaLabel"
+              aria-describedby="firmaAyuda"></canvas>
+      <div class="ops-firma-placeholder" id="firmaPlaceholder">Firmá acá con el dedo</div>
+      <button type="button" class="ops-firma-clear" id="firmaClear">Borrar firma</button>
+    </div>
+    <p class="maquila-firma-ayuda" id="firmaAyuda">
+      Si quien entrega no puede firmar en pantalla, dejalo escrito en las notas y guardá la recepción sin firma.
+    </p>
     <input type="hidden" name="firma_png" id="firma_png">
   </section>
 
@@ -89,7 +103,19 @@
     return { x: (p.clientX - r.left) * canvas.width / r.width,
              y: (p.clientY - r.top) * canvas.height / r.height };
   }
-  function start(e) { dibujando = true; hayFirma = true; var q = pos(e);
+  var padWrap = document.getElementById('firmaPad-wrap');
+  var placeholder = document.getElementById('firmaPlaceholder');
+
+  function marcarFirmada(si) {
+    // `.has-sign` pinta el borde del pad en verde sólido: es la ÚNICA
+    // confirmación de que el trazo se capturó. operaciones.css ya la traía y
+    // el módulo nunca la aplicaba.
+    hayFirma = si;
+    padWrap.classList.toggle('has-sign', si);
+    placeholder.hidden = si;
+  }
+
+  function start(e) { dibujando = true; marcarFirmada(true); var q = pos(e);
                       ctx.beginPath(); ctx.moveTo(q.x, q.y); e.preventDefault(); }
   function move(e) { if (!dibujando) return; var q = pos(e);
                      ctx.lineTo(q.x, q.y); ctx.stroke(); e.preventDefault(); }
@@ -100,7 +126,8 @@
   ['mouseup', 'mouseleave', 'touchend'].forEach(function (ev) { canvas.addEventListener(ev, end); });
 
   document.getElementById('firmaClear').addEventListener('click', function () {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); hayFirma = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    marcarFirmada(false);
   });
 
   // Bandera compartida: mientras haya reducciones de foto en curso, el botón

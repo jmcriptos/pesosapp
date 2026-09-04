@@ -37,9 +37,9 @@
     <tbody>
       {% for ing in ingredientes %}
       <tr>
-        <td>{{ ing.nombre }}</td>
-        <td>{{ ing.unidad }}</td>
-        <td>{{ 'Activo' if ing.activo else 'Inactivo' }}</td>
+        <td data-label="Nombre">{{ ing.nombre }}</td>
+        <td data-label="Unidad">{{ ing.unidad }}</td>
+        <td data-label="Estado">{{ 'Activo' if ing.activo else 'Inactivo' }}</td>
         <td>
           <form method="POST" action="{{ url_for('maquila.toggle_ingrediente', ingrediente_id=ing.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

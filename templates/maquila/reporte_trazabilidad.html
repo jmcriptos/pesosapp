@@ -23,10 +23,10 @@
       <tbody>
         {% for c in resultado.corridas %}
         <tr>
-          <td>{{ c.codigo }}</td>
-          <td>{{ c.lote }}</td>
-          <td>{{ c.cliente.nombre if c.cliente else '—' }}</td>
-          <td>{{ c.producto.nombre if c.producto else '—' }}</td>
+          <td data-label="Corrida">{{ c.codigo }}</td>
+          <td data-label="Lote">{{ c.lote }}</td>
+          <td data-label="Cliente">{{ c.cliente.nombre if c.cliente else '—' }}</td>
+          <td data-label="Producto">{{ c.producto.nombre if c.producto else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -37,9 +37,9 @@
       <tbody>
         {% for f in resultado.hacia_adelante %}
         <tr>
-          <td>#{{ f.pedido_id }}</td>
-          <td>{{ f.estado }}</td>
-          <td>{{ f.doc_number_qbo or '—' }}</td>
+          <td data-label="Pedido">#{{ f.pedido_id }}</td>
+          <td data-label="Estado">{{ f.estado }}</td>
+          <td data-label="Factura QBO">{{ f.doc_number_qbo or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -62,14 +62,14 @@
         {% for f in resultado.hacia_atras %}
         <tr {% if f.sin_origen %}class="maquila-sin-origen"{% endif %}>
           {% if resultado.ambiguo %}
-          <td>{{ f.get('cliente') or ('Pedido #' ~ f.get('pedido_id') if f.get('pedido_id') else '—') }}</td>
+          <td data-label="Candidato">{{ f.get('cliente') or ('Pedido #' ~ f.get('pedido_id') if f.get('pedido_id') else '—') }}</td>
           {% endif %}
-          <td>{{ f.codigo }}{% if f.sin_origen %} <em>(pesada a mano, sin origen)</em>{% endif %}</td>
-          <td>{{ f.recibido_en or '—' }}</td>
-          <td>{{ f.documento_cliente or '—' }}</td>
-          <td>{{ f.lote_cliente or '—' }}</td>
-          <td>{{ f.ingrediente or f.get('producto') or '—' }}</td>
-          <td>{{ f.cantidad }}</td>
+          <td data-label="Recepción">{{ f.codigo }}{% if f.sin_origen %} <em>(pesada a mano, sin origen)</em>{% endif %}</td>
+          <td data-label="Fecha">{{ f.recibido_en or '—' }}</td>
+          <td data-label="Documento">{{ f.documento_cliente or '—' }}</td>
+          <td data-label="Lote cliente">{{ f.lote_cliente or '—' }}</td>
+          <td data-label="Ingrediente">{{ f.ingrediente or f.get('producto') or '—' }}</td>
+          <td data-label="Cantidad">{{ f.cantidad }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -90,13 +90,13 @@
         {% for f in resultado.hacia_adelante %}
         <tr>
           {% if resultado.ambiguo %}
-          <td>{{ f.get('cliente') or ('Pedido #' ~ f.pedido_id) }}</td>
+          <td data-label="Candidato">{{ f.get('cliente') or ('Pedido #' ~ f.pedido_id) }}</td>
           {% endif %}
-          <td><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">#{{ f.pedido_id }}</a></td>
-          <td>{{ f.estado }}</td>
-          <td>{{ f.cajas }}</td>
-          <td>{{ f.peso }}</td>
-          <td>{{ f.doc_number_qbo or '—' }}</td>
+          <td data-label="Pedido"><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">#{{ f.pedido_id }}</a></td>
+          <td data-label="Estado">{{ f.estado }}</td>
+          <td data-label="Cajas">{{ f.cajas }}</td>
+          <td data-label="Peso">{{ f.peso }}</td>
+          <td data-label="Factura QBO">{{ f.doc_number_qbo or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>

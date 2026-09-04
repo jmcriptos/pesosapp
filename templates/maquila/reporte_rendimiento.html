@@ -37,14 +37,14 @@
     <tbody>
       {% for f in filas %}
       <tr>
-        <td>{{ f.corrida }}</td>
-        <td>{{ f.lote }}</td>
-        <td>{{ f.producto }}</td>
-        <td>{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
-        <td>{{ f.consumido }}</td>
-        <td>{{ f.producido }}</td>
-        <td>{{ f.merma }}</td>
-        <td class="{{ 'maquila-merma-alta' if f.merma_pct is not none and f.merma_pct|abs > 10 else '' }}">{{ f.merma_pct }}%</td>
+        <td data-label="Corrida">{{ f.corrida }}</td>
+        <td data-label="Lote">{{ f.lote }}</td>
+        <td data-label="Producto">{{ f.producto }}</td>
+        <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
+        <td data-label="Consumido">{{ f.consumido }}</td>
+        <td data-label="Producido">{{ f.producido }}</td>
+        <td data-label="Merma">{{ f.merma }}</td>
+        <td data-label="Merma %" class="{{ 'maquila-merma-alta' if f.merma_pct is not none and f.merma_pct|abs > 10 else '' }}">{{ f.merma_pct }}%</td>
       </tr>
       <tr>
         <td colspan="8">

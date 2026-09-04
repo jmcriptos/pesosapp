@@ -27,12 +27,12 @@
     <tbody>
       {% for l in recepcion.lineas %}
       <tr>
-        <td>{{ l.ingrediente.nombre }}</td>
-        <td>{{ l.lote_cliente or '—' }}</td>
-        <td>{{ l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else '—' }}</td>
-        <td>{{ l.peso_total }} {{ l.ingrediente.unidad }}</td>
-        <td>{{ saldos_linea[l.id] }}</td>
-        <td>{{ l.bultos|length }}</td>
+        <td data-label="Ingrediente">{{ l.ingrediente.nombre }}</td>
+        <td data-label="Lote cliente">{{ l.lote_cliente or '—' }}</td>
+        <td data-label="Vencimiento">{{ l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else '—' }}</td>
+        <td data-label="Peso">{{ l.peso_total }} {{ l.ingrediente.unidad }}</td>
+        <td data-label="Saldo">{{ saldos_linea[l.id] }}</td>
+        <td data-label="Bultos">{{ l.bultos|length }}</td>
       </tr>
       {% endfor %}
     </tbody>

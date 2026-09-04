@@ -31,14 +31,14 @@
     <tbody>
       {% for c in corridas %}
       <tr>
-        <td><a href="{{ url_for('maquila.corrida_detalle', corrida_id=c.id) }}">{{ c.codigo }}</a></td>
-        <td>{{ c.lote }}</td>
-        <td>{{ c.cliente.nombre }}</td>
-        <td>{{ c.producto.nombre }}</td>
-        <td>{{ c.fecha_produccion.strftime('%d/%m/%Y') }}</td>
-        <td>{{ c.cajas|length }}</td>
-        <td>{{ c.peso_producido }}</td>
-        <td>{{ c.estado }}</td>
+        <td data-label="Código"><a href="{{ url_for('maquila.corrida_detalle', corrida_id=c.id) }}">{{ c.codigo }}</a></td>
+        <td data-label="Lote">{{ c.lote }}</td>
+        <td data-label="Cliente">{{ c.cliente.nombre }}</td>
+        <td data-label="Producto">{{ c.producto.nombre }}</td>
+        <td data-label="Fecha">{{ c.fecha_produccion.strftime('%d/%m/%Y') }}</td>
+        <td data-label="Cajas">{{ c.cajas|length }}</td>
+        <td data-label="Producido">{{ c.peso_producido }}</td>
+        <td data-label="Estado">{{ c.estado }}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -29,11 +29,11 @@
     <tbody>
       {% for f in filas %}
       <tr>
-        <td>{{ f.ingrediente }}</td>
-        <td>{{ f.recibido }}</td>
-        <td>{{ f.consumido }}</td>
-        <td>{{ f.ajustes }}</td>
-        <td>{{ f.saldo }} {{ f.unidad }}</td>
+        <td data-label="Ingrediente">{{ f.ingrediente }}</td>
+        <td data-label="Recibido">{{ f.recibido }}</td>
+        <td data-label="Consumido">{{ f.consumido }}</td>
+        <td data-label="Ajustes">{{ f.ajustes }}</td>
+        <td data-label="Saldo">{{ f.saldo }} {{ f.unidad }}</td>
       </tr>
       {% if f.lineas_abiertas %}
       <tr>

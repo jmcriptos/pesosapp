@@ -51,14 +51,14 @@
     <tbody>
       {% for f in filas %}
       <tr>
-        <td>{{ f.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>{{ f.tipo }}</td>
-        <td>{{ f.ingrediente }}</td>
-        <td>{{ f.cantidad }}</td>
-        <td>{{ f.saldo_acumulado }}</td>
-        <td>{{ f.origen }}</td>
-        <td>{{ f.responsable }}</td>
-        <td>{{ f.motivo or '—' }}</td>
+        <td data-label="Fecha">{{ f.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="Tipo">{{ f.tipo }}</td>
+        <td data-label="Ingrediente">{{ f.ingrediente }}</td>
+        <td data-label="Cantidad">{{ f.cantidad }}</td>
+        <td data-label="Saldo acumulado">{{ f.saldo_acumulado }}</td>
+        <td data-label="Origen">{{ f.origen }}</td>
+        <td data-label="Responsable">{{ f.responsable }}</td>
+        <td data-label="Motivo">{{ f.motivo or '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>

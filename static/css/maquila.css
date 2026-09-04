@@ -114,24 +114,55 @@
   color: var(--color-text-subtle) !important;
 }
 
+/* El nav mide más que el teléfono (diez destinos, ~776px dentro de 335px).
+   Antes no tenía scroll propio y el desborde se propagaba a `main.app-content`,
+   que sí es deslizable: el gesto de buscar los destinos ocultos sacaba TODA la
+   pantalla de cuadro y dejaba el bisel negro. Ahora el propio nav es el
+   contenedor de scroll, con snap y una máscara de borde que anuncia que hay
+   más. Nada del módulo puede volver a arrastrar el marco. */
 .maquila-nav {
   display: flex;
-  gap: 16px;
+  gap: 4px;
   margin-top: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* La máscara se desvanece solo del lado donde queda contenido por ver. */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  padding-right: 24px;
 }
+
+.maquila-nav::-webkit-scrollbar { display: none; }
 
 .maquila-nav a {
   color: var(--color-text-muted, #475569);
   text-decoration: none;
   font-weight: 600;
   font-size: 13px;
-  padding: 6px 0;
+  /* 44px de alto: el mínimo táctil, y esto se opera con guantes. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  border-bottom: 2px solid transparent;
 }
 
-.maquila-nav a:hover,
+.maquila-nav a:hover {
+  color: var(--color-text, #0f172a);
+  background: var(--color-surface-muted);
+}
+
 .maquila-nav a.is-active {
   color: var(--color-text, #0f172a);
-  border-bottom: 2px solid var(--accent, #0f172a);
+  background: var(--color-surface);
+  border-bottom-color: var(--color-primary, #6366f1);
 }
 
 .maquila-tarjetas {
@@ -327,4 +358,153 @@
   height: 20px;
   flex: 0 0 auto;
   accent-color: #2563eb;
+}
+
+
+/* ============================================================
+   P0-1 · Ningún descendiente puede arrastrar el marco
+   ============================================================
+   `main.app-content` es deslizable horizontalmente; cualquier hijo más ancho
+   que el viewport saca la pantalla entera de cuadro. El nav ya se contiene
+   solo (arriba); esto cubre el resto y toda tabla ancha en escritorio. */
+.maquila-wrap {
+  overflow-x: clip;
+}
+
+.maquila-tabla-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+   P0-2 · Debajo de 768px la tabla deja de ser tabla
+   ============================================================
+   Medido a 375px antes de esto: la celda Saldo terminaba en x=392 y se leía
+   «66.50» donde decía «66.500 kg»; Merma y Merma % quedaban enteras fuera de
+   pantalla junto con su resalte rojo; y la columna Estado de Recepciones era
+   invisible. Un número recortado en silencio es peor que un número ausente,
+   porque nadie sabe que le falta.
+
+   Cada fila pasa a ser una ficha: el identificador manda, y cada dato va con
+   su etiqueta —tomada de `data-label`, que las plantillas ponen en cada `td`—
+   sobre su propia línea. Ninguna cifra se trunca nunca. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-tabla,
+  .maquila-wrap .maquila-tabla tbody,
+  .maquila-wrap .maquila-tabla tr,
+  .maquila-wrap .maquila-tabla td {
+    display: block;
+    width: auto;
+  }
+
+  .maquila-wrap .maquila-tabla thead {
+    /* Se oculta sin sacarla del árbol: cada td ya lleva su etiqueta visible. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .maquila-wrap .maquila-tabla tr {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .maquila-wrap .maquila-tabla td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+    text-align: right;
+    font-size: 15px;
+  }
+
+  .maquila-wrap .maquila-tabla td:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .maquila-wrap .maquila-tabla td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  /* Un td sin data-label (celda de acciones, «sin resultados») ocupa la fila
+     entera en vez de fingir que tiene etiqueta. */
+  .maquila-wrap .maquila-tabla td:not([data-label])::before {
+    content: none;
+  }
+
+  .maquila-wrap .maquila-tabla td:not([data-label]) {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  /* La primera celda es el identificador: manda sobre las demás. */
+  .maquila-wrap .maquila-tabla td:first-child {
+    padding-top: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .maquila-wrap .maquila-tabla td:first-child::before {
+    align-self: center;
+  }
+
+  /* Los resaltes de estado pintan la ficha entera, no una celda suelta. */
+  .maquila-wrap .maquila-tabla tr.maquila-sin-saldo,
+  .maquila-wrap .maquila-tabla tr.maquila-sin-origen {
+    border-width: 1.5px;
+  }
+
+  /* Una tabla anidada dentro de una ficha (las líneas abiertas de Saldos)
+     no vuelve a convertirse en fichas: quedaría una muñeca rusa. */
+  .maquila-wrap .maquila-tabla .maquila-tabla-mini,
+  .maquila-wrap .maquila-tabla .maquila-tabla-mini tbody,
+  .maquila-wrap .maquila-tabla .maquila-tabla-mini tr,
+  .maquila-wrap .maquila-tabla .maquila-tabla-mini td {
+    display: revert;
+  }
+
+  .maquila-wrap .maquila-tabla .maquila-tabla-mini td::before {
+    content: none;
+  }
+}
+
+/* ============================================================
+   P0-3 · La firma se puede corregir
+   ============================================================ */
+.maquila-wrap .ops-firma-clear {
+  /* 25px de alto era la mitad del mínimo táctil, y esto se firma con guante. */
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 12px;
+  background: var(--color-surface) !important;
+  color: var(--color-text-muted) !important;
+  border: 1px solid var(--color-border-strong);
+}
+
+.maquila-wrap .ops-firma-placeholder {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.maquila-firma-ayuda {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }

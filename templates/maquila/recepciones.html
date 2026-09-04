@@ -28,12 +28,12 @@
     <tbody>
       {% for r in recepciones %}
       <tr>
-        <td><a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=r.id) }}">{{ r.codigo }}</a></td>
-        <td>{{ r.recibido_en.strftime('%d/%m/%Y') }}</td>
-        <td>{{ r.cliente.nombre }}</td>
-        <td>{{ r.lineas|length }}</td>
-        <td>{{ r.lineas|sum(attribute='peso_total') }}</td>
-        <td>{{ 'Anulada' if r.anulada else 'Vigente' }}</td>
+        <td data-label="Código"><a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=r.id) }}">{{ r.codigo }}</a></td>
+        <td data-label="Fecha">{{ r.recibido_en.strftime('%d/%m/%Y') }}</td>
+        <td data-label="Cliente">{{ r.cliente.nombre }}</td>
+        <td data-label="Líneas">{{ r.lineas|length }}</td>
+        <td data-label="Peso total">{{ r.lineas|sum(attribute='peso_total') }}</td>
+        <td data-label="Estado">{{ 'Anulada' if r.anulada else 'Vigente' }}</td>
       </tr>
       {% endfor %}
     </tbody>
