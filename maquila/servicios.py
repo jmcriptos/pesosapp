@@ -9,7 +9,7 @@ from decimal import Decimal
 from sqlalchemy import func
 
 from app import db
-from .models import Ingrediente, MovimientoIngrediente
+from .models import Ingrediente, MovimientoIngrediente, RecepcionIngrediente, RecepcionLinea
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}
@@ -121,3 +121,70 @@ def saldos_de_cliente(cliente_id):
             'saldo': _dec(saldo),
         })
     return resultado
+
+
+class SaldoInsuficiente(Exception):
+    """No hay ingrediente suficiente del cliente para cubrir el consumo.
+
+    Se bloquea a propósito: un saldo negativo envenena todos los reportes hacia
+    abajo y deja al FIFO sin ninguna recepción honesta de dónde tirar. La salida
+    legítima es registrar un ajuste de entrada con su motivo.
+    """
+
+    def __init__(self, ingrediente_id, pedido, disponible):
+        self.ingrediente_id = ingrediente_id
+        self.pedido = pedido
+        self.disponible = disponible
+        self.faltante = pedido - disponible
+        super().__init__(
+            f'Faltan {self.faltante} del ingrediente {ingrediente_id}: '
+            f'se piden {pedido} y hay {disponible}')
+
+
+def lineas_con_saldo(cliente_id, ingrediente_id):
+    """Líneas de recepción del cliente con saldo > 0, más antigua primero.
+
+    Ordena por fecha de recepción y desempata por id, para que el reparto sea
+    determinista aunque dos recepciones lleguen el mismo día.
+    """
+    lineas = (RecepcionLinea.query
+              .join(RecepcionIngrediente,
+                    RecepcionIngrediente.id == RecepcionLinea.recepcion_id)
+              .filter(RecepcionIngrediente.cliente_id == cliente_id,
+                      RecepcionIngrediente.anulada_en.is_(None),
+                      RecepcionLinea.ingrediente_id == ingrediente_id)
+              .order_by(RecepcionIngrediente.recibido_en.asc(),
+                        RecepcionLinea.id.asc())
+              .all())
+    con_saldo = []
+    for linea in lineas:
+        saldo = saldo_de_linea(linea.id)
+        if saldo > CERO:
+            con_saldo.append((linea, saldo))
+    return con_saldo
+
+
+def repartir_fifo(cliente_id, ingrediente_id, cantidad):
+    """Reparte `cantidad` contra las recepciones más antiguas del cliente.
+
+    Devuelve pares (recepcion_linea_id, cantidad). No escribe nada: quien llama
+    decide si convierte el reparto en movimientos.
+    """
+    cantidad = _dec(cantidad)
+    if cantidad <= CERO:
+        raise ValueError('La cantidad a repartir debe ser positiva')
+
+    disponibles = lineas_con_saldo(cliente_id, ingrediente_id)
+    total_disponible = sum((saldo for _, saldo in disponibles), CERO)
+    if total_disponible < cantidad:
+        raise SaldoInsuficiente(ingrediente_id, cantidad, total_disponible)
+
+    reparto = []
+    restante = cantidad
+    for linea, saldo in disponibles:
+        if restante <= CERO:
+            break
+        toma = saldo if saldo < restante else restante
+        reparto.append((linea.id, toma))
+        restante -= toma
+    return reparto
