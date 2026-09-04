@@ -1,4 +1,6 @@
 """Vistas del módulo de maquila. Solo traducen request → servicio → template."""
+import base64
+import binascii
 import io
 from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -7,6 +9,9 @@ import xlsxwriter
 from flask import (Blueprint, Response, abort, flash, redirect,
                    render_template, request, url_for)
 from flask_login import current_user, login_required
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from . import app_module, reportes, servicios
 from .models import (CorridaCaja, CorridaProduccion, Ingrediente, Receta,
@@ -129,20 +134,138 @@ def _clientes_con_maquila():
             .all())
 
 
+def _clientes():
+    return Cliente.query.order_by(Cliente.nombre).all()
+
+
+def _productos():
+    return Producto.query.order_by(Producto.nombre).all()
+
+
+def _ingredientes_activos():
+    return (Ingrediente.query.filter_by(activo=True)
+            .order_by(Ingrediente.nombre).all())
+
+
+def _en(lista, i):
+    """El elemento i de una lista paralela del form, o '' si esa lista vino
+    más corta que la de ingredientes."""
+    return lista[i] if i < len(lista) else ''
+
+
+def _leer_lineas_form(form):
+    """Las líneas de una recepción tal como viajan en el POST (alta y
+    edición comparten el mismo formato de listas paralelas).
+
+    `linea_quitar_<id>` se resuelve por id, no por posición: un checkbox sin
+    `name` propio no viaja si está sin marcar, y depender de un índice
+    compartido con las demás listas es justo lo que se rompía si el JS de
+    sincronización no llegaba a correr (usuario marca «quitar», el JS no
+    corre, se guarda como si nada — falla en silencio, en la dirección
+    peligrosa). Con nombre propio por id, el checkbox viaja solo. En el alta
+    no hay `linea_id`, así que `id` queda en None y `quitar` en False.
+    """
+    ids = form.getlist('linea_id')
+    lotes = form.getlist('linea_lote_cliente')
+    vencimientos = form.getlist('linea_fecha_vencimiento')
+    cantidades = form.getlist('linea_cantidad_bultos')
+    totales = form.getlist('linea_peso_total')
+
+    lineas = []
+    for i, ingrediente_id in enumerate(form.getlist('linea_ingrediente_id')):
+        if not ingrediente_id:
+            continue
+        bruto_id = _en(ids, i) or ''
+        lineas.append({
+            'id': _entero(bruto_id) if bruto_id else None,
+            'ingrediente_id': _entero(ingrediente_id),
+            'lote_cliente': _en(lotes, i) or None,
+            'fecha_vencimiento': _fecha(_en(vencimientos, i)),
+            'cantidad_bultos': _entero(_en(cantidades, i)) or 0,
+            'peso_total': _decimal(_en(totales, i)),
+            'quitar': (bool(bruto_id) and
+                       bool((form.get(f'linea_quitar_{bruto_id}') or '').strip())),
+        })
+    return lineas
+
+
+def _leer_fotos_form(files):
+    """Devuelve `(fotos, error)`: la lista de `(bytes, mimetype)` aceptados,
+    o el mensaje del primer archivo rechazado (y entonces `fotos` es None)."""
+    fotos = []
+    for archivo in files.getlist('fotos'):
+        if not archivo or not archivo.filename:
+            continue
+        # Normalizado a minúsculas: un cliente que mande "Image/JPEG" no
+        # puede perder la recepción entera (cabecera, líneas y firma ya
+        # tecleadas) por una comparación sensible a mayúsculas.
+        mimetype = (archivo.mimetype or '').lower()
+        if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
+            return None, (f'Formato de foto no permitido ({mimetype or "desconocido"}): '
+                          'subí JPEG, PNG o WEBP')
+        datos = archivo.read(MAX_FOTO_BYTES + 1)
+        if len(datos) > MAX_FOTO_BYTES:
+            return None, 'Una foto supera los 2 MB: redúcela antes de subirla'
+        fotos.append((datos, mimetype))
+    return fotos, None
+
+
+def _leer_firma_form(form):
+    """Devuelve `(firma_png_bytes | None, ilegible)`. `ilegible` es True si
+    vino una firma que no se pudo decodificar: quien llama decide el aviso."""
+    firma_b64 = form.get('firma_png') or ''
+    if not firma_b64.startswith('data:image/png;base64,'):
+        return None, False
+    try:
+        return base64.b64decode(firma_b64.split(',', 1)[1], validate=True), False
+    except (binascii.Error, ValueError):
+        return None, True
+
+
+def _leer_consumos_form(form):
+    """{ingrediente_id: Decimal} con solo las cantidades positivas válidas."""
+    consumos = {}
+    for ingrediente_id_raw, cantidad in zip(form.getlist('consumo_ingrediente_id'),
+                                            form.getlist('consumo_real')):
+        ingrediente_id = _entero(ingrediente_id_raw)
+        valor = _decimal(cantidad)
+        if ingrediente_id and valor and valor > 0:
+            consumos[ingrediente_id] = valor
+    return consumos
+
+
 @bp.route('', strict_slashes=False)
 @login_required
 @requiere_rol(['super_admin'])
 def index():
-    tarjetas = []
-    for cliente in _clientes_con_maquila():
-        filas = servicios.saldos_de_cliente(cliente.id)
-        abiertas = (CorridaProduccion.query
-                    .filter_by(cliente_id=cliente.id, estado='abierta').count())
-        ultima = (RecepcionIngrediente.query
-                  .filter_by(cliente_id=cliente.id)
-                  .order_by(RecepcionIngrediente.recibido_en.desc()).first())
-        tarjetas.append({'cliente': cliente, 'saldos': filas,
-                         'corridas_abiertas': abiertas, 'ultima': ultima})
+    clientes = _clientes_con_maquila()
+    ids = [c.id for c in clientes]
+
+    # Dos consultas agrupadas para todas las tarjetas, no dos por cliente.
+    abiertas_por_cliente = dict(
+        db.session.query(CorridaProduccion.cliente_id,
+                         func.count(CorridaProduccion.id))
+        .filter(CorridaProduccion.cliente_id.in_(ids),
+                CorridaProduccion.estado == 'abierta')
+        .group_by(CorridaProduccion.cliente_id).all()) if ids else {}
+
+    ultima_por_cliente = {}
+    if ids:
+        recientes = (RecepcionIngrediente.query
+                     .filter(RecepcionIngrediente.cliente_id.in_(ids),
+                             RecepcionIngrediente.anulada_en.is_(None))
+                     .order_by(RecepcionIngrediente.recibido_en.desc(),
+                               RecepcionIngrediente.id.desc())
+                     .all())
+        for recepcion in recientes:
+            ultima_por_cliente.setdefault(recepcion.cliente_id, recepcion)
+
+    tarjetas = [{
+        'cliente': cliente,
+        'saldos': servicios.saldos_de_cliente(cliente.id),
+        'corridas_abiertas': abiertas_por_cliente.get(cliente.id, 0),
+        'ultima': ultima_por_cliente.get(cliente.id),
+    } for cliente in clientes]
     return render_template('maquila/index.html', tarjetas=tarjetas)
 
 
@@ -184,7 +307,12 @@ def toggle_ingrediente(ingrediente_id):
 @login_required
 @requiere_rol(['super_admin'])
 def recepciones():
-    query = RecepcionIngrediente.query
+    # La tabla muestra cliente, líneas vivas y totales por unidad de CADA
+    # recepción: precargado, o cada fila cuesta tres consultas.
+    query = RecepcionIngrediente.query.options(
+        selectinload(RecepcionIngrediente.cliente),
+        selectinload(RecepcionIngrediente.lineas)
+        .selectinload(RecepcionLinea.ingrediente))
     cliente_id = request.args.get('cliente_id', type=int)
     if cliente_id:
         query = query.filter_by(cliente_id=cliente_id)
@@ -192,7 +320,7 @@ def recepciones():
         'maquila/recepciones.html',
         recepciones=query.order_by(RecepcionIngrediente.recibido_en.desc(),
                                    RecepcionIngrediente.id.desc()).all(),
-        clientes=Cliente.query.order_by(Cliente.nombre).all(),
+        clientes=_clientes(),
         cliente_id=cliente_id)
 
 
@@ -201,57 +329,20 @@ def recepciones():
 @requiere_rol(['super_admin'])
 def recepcion_nueva():
     if request.method == 'POST':
-        lineas = []
-        ingredientes_ids = request.form.getlist('linea_ingrediente_id')
-        lotes = request.form.getlist('linea_lote_cliente')
-        vencimientos = request.form.getlist('linea_fecha_vencimiento')
-        totales = request.form.getlist('linea_peso_total')
-        cantidades = request.form.getlist('linea_cantidad_bultos')
+        lineas = _leer_lineas_form(request.form)
 
-        for i, ingrediente_id in enumerate(ingredientes_ids):
-            if not ingrediente_id:
-                continue
-            lineas.append({
-                'ingrediente_id': _entero(ingrediente_id),
-                'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
-                'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
-                'cantidad_bultos': _entero(
-                    cantidades[i] if i < len(cantidades) else '') or 0,
-                'peso_total': _decimal(totales[i] if i < len(totales) else ''),
-            })
+        fotos, error_foto = _leer_fotos_form(request.files)
+        if error_foto:
+            flash(error_foto, 'error')
+            return redirect(url_for('maquila.recepcion_nueva'))
 
-        fotos = []
-        for archivo in request.files.getlist('fotos'):
-            if not archivo or not archivo.filename:
-                continue
-            # Normalizado a minúsculas: un cliente que mande "Image/JPEG" no
-            # puede perder la recepción entera (cabecera, líneas, bultos y
-            # firma ya tecleadas) por una comparación sensible a mayúsculas.
-            mimetype = (archivo.mimetype or '').lower()
-            if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
-                flash(f'Formato de foto no permitido ({mimetype or "desconocido"}): '
-                     'subí JPEG, PNG o WEBP', 'error')
-                return redirect(url_for('maquila.recepcion_nueva'))
-            datos = archivo.read(MAX_FOTO_BYTES + 1)
-            if len(datos) > MAX_FOTO_BYTES:
-                flash('Una foto supera los 2 MB: redúcela antes de subirla', 'error')
-                return redirect(url_for('maquila.recepcion_nueva'))
-            fotos.append((datos, mimetype))
-
-        firma_b64 = request.form.get('firma_png') or ''
-        firma = None
-        if firma_b64.startswith('data:image/png;base64,'):
-            import base64
-            import binascii
-            try:
-                firma = base64.b64decode(firma_b64.split(',', 1)[1], validate=True)
-            except (binascii.Error, ValueError):
-                firma = None
-                flash('La firma no se pudo leer: la recepción se guardó sin firma', 'error')
+        firma, firma_ilegible = _leer_firma_form(request.form)
+        if firma_ilegible:
+            flash('La firma no se pudo leer: la recepción se guardó sin firma', 'error')
 
         try:
             recepcion = servicios.crear_recepcion(
-                cliente_id=int(request.form['cliente_id']),
+                cliente_id=_entero(request.form.get('cliente_id')),
                 recibido_en=_fecha(request.form.get('recibido_en')),
                 vendedor_id=current_user.id,
                 lineas=lineas,
@@ -277,9 +368,8 @@ def recepcion_nueva():
 
     return render_template(
         'maquila/recepcion_nueva.html',
-        clientes=Cliente.query.order_by(Cliente.nombre).all(),
-        ingredientes=Ingrediente.query.filter_by(activo=True)
-                                      .order_by(Ingrediente.nombre).all())
+        clientes=_clientes(),
+        ingredientes=_ingredientes_activos())
 
 
 @bp.route('/recepciones/<int:recepcion_id>')
@@ -287,7 +377,7 @@ def recepcion_nueva():
 @requiere_rol(['super_admin'])
 def recepcion_detalle(recepcion_id):
     recepcion = db.session.get(RecepcionIngrediente, recepcion_id) or abort(404)
-    saldos_linea = {l.id: servicios.saldo_de_linea(l.id) for l in recepcion.lineas}
+    saldos_linea = servicios.saldos_por_linea(l.id for l in recepcion.lineas)
     return render_template('maquila/recepcion_detalle.html',
                            recepcion=recepcion, saldos_linea=saldos_linea)
 
@@ -304,65 +394,17 @@ def recepcion_editar(recepcion_id):
                                 recepcion_id=recepcion_id))
 
     if request.method == 'POST':
-        lineas = []
-        ids = request.form.getlist('linea_id')
-        ingredientes = request.form.getlist('linea_ingrediente_id')
-        lotes = request.form.getlist('linea_lote_cliente')
-        vencimientos = request.form.getlist('linea_fecha_vencimiento')
-        cantidades = request.form.getlist('linea_cantidad_bultos')
-        totales = request.form.getlist('linea_peso_total')
+        lineas = _leer_lineas_form(request.form)
 
-        for i, ingrediente_id in enumerate(ingredientes):
-            if not ingrediente_id:
-                continue
-            bruto_id = (ids[i] if i < len(ids) else '') or ''
-            # `linea_quitar_<id>` se resuelve por id, no por posición en una
-            # lista paralela: un checkbox sin `name` propio no viaja si está
-            # sin marcar, y depender de un índice compartido con las demás
-            # listas es justo lo que se rompía si el JS de sincronización no
-            # llegaba a correr (usuario marca «quitar», el JS no corre, se
-            # guarda como si nada — falla en silencio, en la dirección
-            # peligrosa). Con nombre propio por id, el checkbox viaja solo:
-            # no hace falta JS ni hidden, y no hay índice que desalinear.
-            quitar_linea = (bool(bruto_id) and
-                            bool((request.form.get(f'linea_quitar_{bruto_id}') or '').strip()))
-            lineas.append({
-                'id': _entero(bruto_id) if bruto_id else None,
-                'ingrediente_id': _entero(ingrediente_id),
-                'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
-                'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
-                'cantidad_bultos': _entero(
-                    cantidades[i] if i < len(cantidades) else '') or 0,
-                'peso_total': _decimal(totales[i] if i < len(totales) else ''),
-                'quitar': quitar_linea,
-            })
+        fotos_nuevas, error_foto = _leer_fotos_form(request.files)
+        if error_foto:
+            flash(error_foto, 'error')
+            return redirect(url_for('maquila.recepcion_editar',
+                                    recepcion_id=recepcion_id))
 
-        fotos_nuevas = []
-        for archivo in request.files.getlist('fotos'):
-            if not archivo or not archivo.filename:
-                continue
-            mimetype = (archivo.mimetype or '').lower()
-            if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
-                flash('Formato de foto no permitido', 'error')
-                return redirect(url_for('maquila.recepcion_editar',
-                                        recepcion_id=recepcion_id))
-            datos = archivo.read(MAX_FOTO_BYTES + 1)
-            if len(datos) > MAX_FOTO_BYTES:
-                flash('Una foto supera los 2 MB: redúcela antes de subirla', 'error')
-                return redirect(url_for('maquila.recepcion_editar',
-                                        recepcion_id=recepcion_id))
-            fotos_nuevas.append((datos, mimetype))
-
-        firma = None
-        firma_b64 = request.form.get('firma_png') or ''
-        if firma_b64.startswith('data:image/png;base64,'):
-            import base64
-            import binascii
-            try:
-                firma = base64.b64decode(firma_b64.split(',', 1)[1], validate=True)
-            except (binascii.Error, ValueError):
-                firma = None
-                flash('La firma no se pudo leer: se guardó sin cambiarla', 'error')
+        firma, firma_ilegible = _leer_firma_form(request.form)
+        if firma_ilegible:
+            flash('La firma no se pudo leer: se guardó sin cambiarla', 'error')
 
         try:
             servicios.editar_recepcion(
@@ -399,8 +441,7 @@ def recepcion_editar(recepcion_id):
 
     vivas = [l for l in recepcion.lineas if not l.anulada]
 
-    ingredientes_activos = (Ingrediente.query.filter_by(activo=True)
-                            .order_by(Ingrediente.nombre).all())
+    ingredientes_activos = _ingredientes_activos()
     # Si una línea usa un ingrediente que después se desactivó, ESE
     # ingrediente tiene que seguir en el <select> (marcado como desactivado
     # en la plantilla): si no aparece, ninguna <option> recibe `selected`, el
@@ -420,8 +461,8 @@ def recepcion_editar(recepcion_id):
         'maquila/recepcion_editar.html',
         recepcion=recepcion,
         lineas=vivas,
-        consumido={l.id: servicios.consumido_de_linea(l) for l in vivas},
-        clientes=Cliente.query.order_by(Cliente.nombre).all(),
+        consumido=servicios.consumidos_por_linea(vivas),
+        clientes=_clientes(),
         ingredientes=ingredientes_editar,
         ingredientes_nuevos=ingredientes_activos)
 
@@ -465,8 +506,13 @@ def recepcion_foto(foto_id):
 @login_required
 @requiere_rol(['super_admin'])
 def recetas():
-    return render_template('maquila/recetas.html',
-                           recetas=Receta.query.order_by(Receta.id.desc()).all())
+    return render_template(
+        'maquila/recetas.html',
+        recetas=(Receta.query
+                 .options(selectinload(Receta.producto),
+                          selectinload(Receta.cliente),
+                          selectinload(Receta.ingredientes))
+                 .order_by(Receta.id.desc()).all()))
 
 
 @bp.route('/recetas/nueva', methods=['GET', 'POST'])
@@ -481,8 +527,8 @@ def receta_form(receta_id=None):
     if request.method == 'POST':
         producto_id = _entero(request.form.get('producto_id'))
         cliente_id = request.form.get('cliente_id', type=int) or None
-        if producto_id is None:
-            flash('Elegí un producto para la receta', 'error')
+        if producto_id is None or db.session.get(Producto, producto_id) is None:
+            flash('Elegí un producto válido para la receta', 'error')
             return redirect(url_for('maquila.recetas'))
         try:
             servicios.validar_receta_unica(producto_id, cliente_id,
@@ -491,43 +537,67 @@ def receta_form(receta_id=None):
             flash(str(exc), 'error')
             return redirect(url_for('maquila.recetas'))
 
-        if receta is None:
-            receta = Receta(creada_por=current_user.id)
-            db.session.add(receta)
-        receta.producto_id = producto_id
-        receta.cliente_id = cliente_id
-        receta.nombre = (request.form.get('nombre') or 'Receta').strip()
-        receta.base_kg = _decimal(request.form.get('base_kg')) or Decimal('100')
-        receta.activa = bool(request.form.get('activa'))
-        db.session.flush()
-
-        RecetaIngrediente.query.filter_by(receta_id=receta.id).delete()
+        # El mismo ingrediente dos veces chocaba contra `uq_receta_ingrediente`
+        # y daba 500. Se rechaza con aviso, no se suma ni se pisa en silencio:
+        # una receta con «carne 80» y «carne 20» es casi seguro un error de
+        # tecleo, y adivinar cuál de las dos filas vale es adivinar la receta.
+        items = {}
         for ingrediente_id_raw, cantidad in zip(
                 request.form.getlist('item_ingrediente_id'),
                 request.form.getlist('item_cantidad')):
             ingrediente_id = _entero(ingrediente_id_raw)
             valor = _decimal(cantidad)
-            if ingrediente_id and valor and valor > 0:
+            if not (ingrediente_id and valor and valor > 0):
+                continue
+            if ingrediente_id in items:
+                flash('Hay un ingrediente repetido en la receta: dejá una sola '
+                      'fila por ingrediente', 'error')
+                return redirect(url_for('maquila.recetas'))
+            items[ingrediente_id] = valor
+
+        try:
+            if receta is None:
+                receta = Receta(creada_por=current_user.id)
+                db.session.add(receta)
+            receta.producto_id = producto_id
+            receta.cliente_id = cliente_id
+            receta.nombre = (request.form.get('nombre') or 'Receta').strip()
+            receta.base_kg = _decimal(request.form.get('base_kg')) or Decimal('100')
+            receta.activa = bool(request.form.get('activa'))
+            db.session.flush()
+
+            RecetaIngrediente.query.filter_by(receta_id=receta.id).delete()
+            for ingrediente_id, valor in items.items():
                 db.session.add(RecetaIngrediente(
                     receta_id=receta.id, ingrediente_id=ingrediente_id,
                     cantidad=valor))
-        db.session.commit()
+            db.session.commit()
+        except IntegrityError:
+            # Un ingrediente o cliente borrado entre que se abrió el form y
+            # se guardó: mensaje, no 500.
+            db.session.rollback()
+            flash('No se pudo guardar la receta: algún ingrediente o cliente '
+                  'ya no existe', 'error')
+            return redirect(url_for('maquila.recetas'))
         flash('Receta guardada', 'success')
         return redirect(url_for('maquila.recetas'))
 
     return render_template(
         'maquila/receta_form.html', receta=receta,
-        clientes=Cliente.query.order_by(Cliente.nombre).all(),
-        productos=Producto.query.order_by(Producto.nombre).all(),
-        ingredientes=Ingrediente.query.filter_by(activo=True)
-                                      .order_by(Ingrediente.nombre).all())
+        clientes=_clientes(), productos=_productos(),
+        ingredientes=_ingredientes_activos())
 
 
 @bp.route('/corridas')
 @login_required
 @requiere_rol(['super_admin'])
 def corridas():
-    query = CorridaProduccion.query
+    # Cliente, producto y cajas (para el conteo y el peso producido) de
+    # cada corrida, precargados.
+    query = CorridaProduccion.query.options(
+        selectinload(CorridaProduccion.cliente),
+        selectinload(CorridaProduccion.producto),
+        selectinload(CorridaProduccion.cajas))
     cliente_id = request.args.get('cliente_id', type=int)
     if cliente_id:
         query = query.filter_by(cliente_id=cliente_id)
@@ -535,7 +605,7 @@ def corridas():
         'maquila/corridas.html',
         corridas=query.order_by(CorridaProduccion.fecha_produccion.desc(),
                                 CorridaProduccion.id.desc()).all(),
-        clientes=Cliente.query.order_by(Cliente.nombre).all(),
+        clientes=_clientes(),
         cliente_id=cliente_id)
 
 
@@ -567,8 +637,7 @@ def corrida_nueva():
 
     return render_template(
         'maquila/corrida_detalle.html', corrida=None,
-        clientes=Cliente.query.order_by(Cliente.nombre).all(),
-        productos=Producto.query.order_by(Producto.nombre).all(),
+        clientes=_clientes(), productos=_productos(),
         consumo_actual={}, reparto_origen='teorico', ingredientes=[],
         reparto={}, lineas_reparto={}, merma=None, falta_ingrediente_id=None)
 
@@ -600,8 +669,7 @@ def corrida_detalle(corrida_id):
         'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumo_actual,
         reparto=reparto, reparto_origen='teorico', lineas_reparto=lineas_reparto,
         merma=merma, falta_ingrediente_id=falta_ingrediente_id,
-        ingredientes=Ingrediente.query.filter_by(activo=True)
-                                      .order_by(Ingrediente.nombre).all(),
+        ingredientes=_ingredientes_activos(),
         clientes=[], productos=[])
 
 
@@ -618,23 +686,14 @@ def corrida_recalcular(corrida_id):
         flash(f'La corrida {corrida.codigo} no está abierta', 'error')
         return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
 
-    consumos = {}
-    for ingrediente_id_raw, cantidad in zip(
-            request.form.getlist('consumo_ingrediente_id'),
-            request.form.getlist('consumo_real')):
-        ingrediente_id = _entero(ingrediente_id_raw)
-        valor = _decimal(cantidad)
-        if ingrediente_id and valor and valor > 0:
-            consumos[ingrediente_id] = valor
-
+    consumos = _leer_consumos_form(request.form)
     reparto, lineas_reparto = _reparto_con_lineas(corrida, consumos)
 
     return render_template(
         'maquila/corrida_detalle.html', corrida=corrida, consumo_actual=consumos,
         reparto=reparto, reparto_origen='declarado', lineas_reparto=lineas_reparto,
         merma=None, falta_ingrediente_id=None,
-        ingredientes=Ingrediente.query.filter_by(activo=True)
-                                      .order_by(Ingrediente.nombre).all(),
+        ingredientes=_ingredientes_activos(),
         clientes=[], productos=[])
 
 
@@ -658,15 +717,7 @@ def corrida_caja(corrida_id):
 @requiere_rol(['super_admin'])
 def corrida_cerrar(corrida_id):
     corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
-
-    consumos = {}
-    for ingrediente_id_raw, cantidad in zip(
-            request.form.getlist('consumo_ingrediente_id'),
-            request.form.getlist('consumo_real')):
-        ingrediente_id = _entero(ingrediente_id_raw)
-        valor = _decimal(cantidad)
-        if ingrediente_id and valor and valor > 0:
-            consumos[ingrediente_id] = valor
+    consumos = _leer_consumos_form(request.form)
 
     try:
         servicios.cerrar_corrida(corrida, consumos, current_user.id)
@@ -799,8 +850,7 @@ def ajustes():
     return render_template(
         'maquila/ajustes.html',
         clientes=_clientes_con_maquila(),
-        ingredientes=Ingrediente.query.filter_by(activo=True)
-                                      .order_by(Ingrediente.nombre).all(),
+        ingredientes=_ingredientes_activos(),
         cliente_id=cliente_id,
         ingrediente_id_sugerido=request.args.get('ingrediente_id', type=int),
         ajustes=ajustes_de_cliente)

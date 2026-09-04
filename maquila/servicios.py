@@ -10,7 +10,7 @@ la transacción completa de su caso de uso: `crear_recepcion`, `abrir_corrida`,
 from datetime import date as _date, datetime
 from decimal import Decimal
 
-from sqlalchemy import func
+from sqlalchemy import and_, case, func
 
 from . import app_module
 from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
@@ -84,6 +84,27 @@ def saldo_de_linea(recepcion_linea_id):
     return _dec(total)
 
 
+def saldos_por_linea(linea_ids):
+    """Saldo de varias líneas en UNA consulta: {linea_id: Decimal}.
+
+    Una línea sin movimientos sale en 0, igual que en `saldo_de_linea`. Es
+    la versión en lote para las pantallas y guardas que antes preguntaban
+    línea por línea (FIFO, saldos, detalle y edición de recepción).
+    """
+    ids = {i for i in linea_ids if i is not None}
+    saldos = {i: CERO for i in ids}
+    if not ids:
+        return saldos
+    filas = (db.session.query(MovimientoIngrediente.recepcion_linea_id,
+                              func.sum(MovimientoIngrediente.cantidad))
+             .filter(MovimientoIngrediente.recepcion_linea_id.in_(ids))
+             .group_by(MovimientoIngrediente.recepcion_linea_id)
+             .all())
+    for linea_id, total in filas:
+        saldos[linea_id] = _dec(total)
+    return saldos
+
+
 def saldo_cliente_ingrediente(cliente_id, ingrediente_id):
     total = (db.session.query(func.sum(MovimientoIngrediente.cantidad))
              .filter(MovimientoIngrediente.cliente_id == cliente_id,
@@ -105,56 +126,40 @@ def ajustes_manuales_de_cliente(cliente_id):
 
 
 def saldos_de_cliente(cliente_id):
-    """Una fila por ingrediente con movimiento, desglosando entradas y salidas."""
+    """Una fila por ingrediente con movimiento, desglosando entradas y salidas.
+
+    Una sola consulta con sumas condicionales, no cuatro: el índice de
+    maquila la corre una vez por cliente y cada tarjeta pagaba cuatro viajes.
+    `recibido` cuenta solo las `entrada` positivas, `consumido` es el valor
+    absoluto de las `salida`, y `ajustes` suma ajustes y devoluciones.
+    """
+    mov = MovimientoIngrediente
     filas = (db.session.query(
-                MovimientoIngrediente.ingrediente_id,
+                mov.ingrediente_id,
                 Ingrediente.nombre,
                 Ingrediente.unidad,
-                func.sum(MovimientoIngrediente.cantidad).label('saldo'))
-             .join(Ingrediente, Ingrediente.id == MovimientoIngrediente.ingrediente_id)
-             .filter(MovimientoIngrediente.cliente_id == cliente_id)
-             .group_by(MovimientoIngrediente.ingrediente_id,
-                       Ingrediente.nombre, Ingrediente.unidad)
+                func.sum(case((and_(mov.tipo == 'entrada', mov.cantidad > 0),
+                               mov.cantidad), else_=0)).label('recibido'),
+                func.sum(case((mov.tipo == 'salida', mov.cantidad),
+                              else_=0)).label('salidas'),
+                func.sum(case((mov.tipo.in_(('ajuste', 'devolucion')),
+                               mov.cantidad), else_=0)).label('ajustes'),
+                func.sum(mov.cantidad).label('saldo'))
+             .join(Ingrediente, Ingrediente.id == mov.ingrediente_id)
+             .filter(mov.cliente_id == cliente_id)
+             .group_by(mov.ingrediente_id, Ingrediente.nombre, Ingrediente.unidad)
              .order_by(Ingrediente.nombre)
              .all())
 
-    desglose = dict(
-        db.session.query(
-            MovimientoIngrediente.ingrediente_id,
-            func.sum(MovimientoIngrediente.cantidad))
-        .filter(MovimientoIngrediente.cliente_id == cliente_id,
-                MovimientoIngrediente.cantidad > 0,
-                MovimientoIngrediente.tipo == 'entrada')
-        .group_by(MovimientoIngrediente.ingrediente_id).all())
-
-    salidas = dict(
-        db.session.query(
-            MovimientoIngrediente.ingrediente_id,
-            func.sum(MovimientoIngrediente.cantidad))
-        .filter(MovimientoIngrediente.cliente_id == cliente_id,
-                MovimientoIngrediente.tipo == 'salida')
-        .group_by(MovimientoIngrediente.ingrediente_id).all())
-
-    ajustes = dict(
-        db.session.query(
-            MovimientoIngrediente.ingrediente_id,
-            func.sum(MovimientoIngrediente.cantidad))
-        .filter(MovimientoIngrediente.cliente_id == cliente_id,
-                MovimientoIngrediente.tipo.in_(('ajuste', 'devolucion')))
-        .group_by(MovimientoIngrediente.ingrediente_id).all())
-
-    resultado = []
-    for ingrediente_id, nombre, unidad, saldo in filas:
-        resultado.append({
-            'ingrediente_id': ingrediente_id,
-            'ingrediente': nombre,
-            'unidad': unidad,
-            'recibido': _dec(desglose.get(ingrediente_id)),
-            'consumido': abs(_dec(salidas.get(ingrediente_id))),
-            'ajustes': _dec(ajustes.get(ingrediente_id)),
-            'saldo': _dec(saldo),
-        })
-    return resultado
+    return [{
+        'ingrediente_id': ingrediente_id,
+        'ingrediente': nombre,
+        'unidad': unidad,
+        'recibido': _dec(recibido),
+        'consumido': abs(_dec(salidas)),
+        'ajustes': _dec(ajustes),
+        'saldo': _dec(saldo),
+    } for ingrediente_id, nombre, unidad, recibido, salidas, ajustes, saldo in filas]
 
 
 class SaldoInsuficiente(Exception):
@@ -186,16 +191,14 @@ def lineas_con_saldo(cliente_id, ingrediente_id):
                     RecepcionIngrediente.id == RecepcionLinea.recepcion_id)
               .filter(RecepcionIngrediente.cliente_id == cliente_id,
                       RecepcionIngrediente.anulada_en.is_(None),
+                      RecepcionLinea.anulada_en.is_(None),
                       RecepcionLinea.ingrediente_id == ingrediente_id)
               .order_by(RecepcionIngrediente.recibido_en.asc(),
                         RecepcionLinea.id.asc())
               .all())
-    con_saldo = []
-    for linea in lineas:
-        saldo = saldo_de_linea(linea.id)
-        if saldo > CERO:
-            con_saldo.append((linea, saldo))
-    return con_saldo
+    saldos = saldos_por_linea(l.id for l in lineas)
+    return [(linea, saldos[linea.id]) for linea in lineas
+            if saldos[linea.id] > CERO]
 
 
 def repartir_fifo(cliente_id, ingrediente_id, cantidad):
@@ -265,6 +268,10 @@ def crear_recepcion(*, cliente_id, recibido_en, vendedor_id, lineas,
     Cabecera, líneas, bultos, fotos y un movimiento de entrada por línea. Si
     algo falla, no queda media recepción.
     """
+    if cliente_id is None:
+        raise RecepcionInvalida('La recepción necesita un cliente válido')
+    if recibido_en is None:
+        raise RecepcionInvalida('La recepción necesita una fecha de recepción válida')
     if not lineas:
         raise RecepcionInvalida('Una recepción necesita al menos una línea')
 
@@ -290,6 +297,8 @@ def crear_recepcion(*, cliente_id, recibido_en, vendedor_id, lineas,
             # otro. Antes el campo era la lista de pesos de cada bulto y en
             # planta escribían la cantidad, dejando un bulto de 9 kg en una
             # línea de 121,32.
+            if not datos.get('ingrediente_id'):
+                raise RecepcionInvalida('Cada línea necesita un ingrediente')
             cantidad_bultos = _entero_no_negativo(datos.get('cantidad_bultos'))
             peso_total = _dec(datos.get('peso_total'))
             if peso_total <= CERO:
@@ -349,9 +358,10 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     # segundo bucle escribiría un segundo inverso sobre la línea ya anulada,
     # dejando el saldo en negativo.
     vivas = [l for l in recepcion.lineas if not l.anulada]
+    saldos = saldos_por_linea(l.id for l in vivas)
 
     for linea in vivas:
-        if saldo_de_linea(linea.id) != _dec(linea.peso_total):
+        if saldos[linea.id] != _dec(linea.peso_total):
             raise RecepcionConsumida(
                 f'La línea {linea.id} de {recepcion.codigo} ya se consumió; '
                 f'la corrección a esta altura es un ajuste, no una anulación')
@@ -392,6 +402,13 @@ def consumido_de_linea(linea):
     return _dec(linea.peso_total) - saldo_de_linea(linea.id)
 
 
+def consumidos_por_linea(lineas):
+    """`consumido_de_linea` para varias líneas en una consulta: {id: Decimal}."""
+    lineas = list(lineas)
+    saldos = saldos_por_linea(l.id for l in lineas)
+    return {l.id: _dec(l.peso_total) - saldos[l.id] for l in lineas}
+
+
 def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
                      fotos_a_borrar=None, fotos_nuevas=None,
                      firma=None, firma_mimetype=None):
@@ -416,7 +433,7 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
     cliente_viejo = recepcion.cliente_id
 
     vivas = [l for l in recepcion.lineas if not l.anulada]
-    consumidas = {l.id: consumido_de_linea(l) for l in vivas}
+    consumidas = consumidos_por_linea(vivas)
     hay_consumo = any(c > CERO for c in consumidas.values())
 
     # --- Guardas: todas antes de escribir nada ---
@@ -708,6 +725,8 @@ def abrir_corrida(*, cliente_id, producto_id, lote, fecha_produccion, vendedor_i
     lote = (lote or '').strip()
     if not lote:
         raise CorridaInvalida('La corrida necesita un lote')
+    if fecha_produccion is None:
+        raise CorridaInvalida('La corrida necesita una fecha de producción válida')
 
     repetido = CorridaProduccion.query.filter_by(
         cliente_id=cliente_id, lote=lote).first()

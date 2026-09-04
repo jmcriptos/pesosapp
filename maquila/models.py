@@ -5,6 +5,7 @@ importación se resuelve porque `app.py` importa este paquete AL FINAL,
 cuando `db` y los modelos base ya existen.
 """
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -93,7 +94,6 @@ class RecepcionIngrediente(db.Model):
         Sumarlas daba un número que no es nada; esto devuelve
         [('kg', Decimal('115.000')), ('ud', Decimal('120.000'))].
         """
-        from decimal import Decimal
         acum = {}
         for linea in self.lineas_vivas:
             unidad = linea.ingrediente.unidad if linea.ingrediente else 'kg'
@@ -234,7 +234,6 @@ class CorridaProduccion(db.Model):
     @property
     def peso_producido(self):
         """Suma de las cajas vivas. NO se guarda: un número guardado puede mentir."""
-        from decimal import Decimal
         total = Decimal('0')
         for caja in self.cajas:
             if caja.anulada_en is None:
