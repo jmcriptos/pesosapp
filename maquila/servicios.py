@@ -4,12 +4,13 @@ Funciones puras sobre la sesión de SQLAlchemy: reciben ids, devuelven objetos o
 Decimals. Ninguna hace commit — eso es responsabilidad de quien llama, para que
 una recepción o un cierre de corrida quepan en una sola transacción.
 """
+from datetime import date as _date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func
 
 from app import db
-from .models import Ingrediente, MovimientoIngrediente, RecepcionIngrediente, RecepcionLinea
+from .models import Ingrediente, MovimientoIngrediente, RecepcionIngrediente, RecepcionLinea, RecepcionBulto, RecepcionFoto
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}
@@ -188,3 +189,145 @@ def repartir_fifo(cliente_id, ingrediente_id, cantidad):
         reparto.append((linea.id, toma))
         restante -= toma
     return reparto
+
+
+class RecepcionInvalida(ValueError):
+    """Faltan datos mínimos para dar de alta la recepción."""
+
+
+class RecepcionConsumida(Exception):
+    """La recepción ya alimentó una corrida: anularla rompería la cadena.
+
+    La corrección legítima a esta altura es un ajuste con motivo, no una
+    anulación.
+    """
+
+
+_PREFIJOS = {'R': RecepcionIngrediente}
+
+
+def siguiente_codigo(prefijo, anio=None):
+    """Siguiente correlativo del año, con el formato R-2026-0042.
+
+    Cuenta los códigos existentes del año en vez de llevar una tabla de
+    secuencias: a la escala de esta app (decenas de recepciones al mes) es
+    exacto y no añade una pieza más que mantener.
+    """
+    from .models import CorridaProduccion
+    modelos = {'R': RecepcionIngrediente, 'P': CorridaProduccion}
+    modelo = modelos.get(prefijo)
+    if modelo is None:
+        raise ValueError(f'Prefijo de código desconocido: {prefijo}')
+
+    anio = anio or _date.today().year
+    patron = f'{prefijo}-{anio}-%'
+    ultimo = (db.session.query(func.max(modelo.codigo))
+              .filter(modelo.codigo.like(patron))
+              .scalar())
+    siguiente = 1 if not ultimo else int(ultimo.rsplit('-', 1)[1]) + 1
+    return f'{prefijo}-{anio}-{siguiente:04d}'
+
+
+def crear_recepcion(*, cliente_id, recibido_en, vendedor_id, lineas,
+                    documento_cliente=None, temperatura=None, transportista=None,
+                    notas=None, firma=None, firma_mimetype=None, fotos=None):
+    """Da de alta una recepción completa en una sola transacción.
+
+    Cabecera, líneas, bultos, fotos y un movimiento de entrada por línea. Si
+    algo falla, no queda media recepción.
+    """
+    if not lineas:
+        raise RecepcionInvalida('Una recepción necesita al menos una línea')
+
+    recepcion = RecepcionIngrediente(
+        codigo=siguiente_codigo('R', recibido_en.year),
+        cliente_id=cliente_id,
+        recibido_en=recibido_en,
+        documento_cliente=(documento_cliente or None),
+        temperatura=(_dec(temperatura) if temperatura not in (None, '') else None),
+        transportista=(transportista or None),
+        notas=(notas or None),
+        firma=firma,
+        firma_mimetype=firma_mimetype,
+        registrado_por=vendedor_id,
+    )
+    db.session.add(recepcion)
+    db.session.flush()
+
+    for datos in lineas:
+        bultos = [_dec(p) for p in (datos.get('bultos') or [])]
+        if bultos:
+            peso_total = sum(bultos, CERO)
+        else:
+            peso_total = _dec(datos.get('peso_total'))
+        if peso_total <= CERO:
+            raise RecepcionInvalida(
+                'Cada línea necesita bultos pesados o un peso total positivo')
+
+        linea = RecepcionLinea(
+            recepcion_id=recepcion.id,
+            ingrediente_id=datos['ingrediente_id'],
+            lote_cliente=(datos.get('lote_cliente') or None),
+            fecha_vencimiento=datos.get('fecha_vencimiento'),
+            peso_total=peso_total,
+        )
+        db.session.add(linea)
+        db.session.flush()
+
+        for numero, peso in enumerate(bultos, start=1):
+            db.session.add(RecepcionBulto(
+                recepcion_linea_id=linea.id, numero=numero, peso=peso))
+
+        registrar_movimiento(
+            cliente_id=cliente_id,
+            ingrediente_id=linea.ingrediente_id,
+            tipo='entrada',
+            cantidad=peso_total,
+            origen_tipo='recepcion',
+            origen_id=recepcion.id,
+            vendedor_id=vendedor_id,
+            recepcion_linea_id=linea.id,
+        )
+
+    for imagen, mimetype in (fotos or []):
+        db.session.add(RecepcionFoto(
+            recepcion_id=recepcion.id, imagen=imagen, mimetype=mimetype))
+
+    db.session.commit()
+    return recepcion
+
+
+def anular_recepcion(recepcion, vendedor_id, motivo):
+    """Anula una recepción escribiendo los movimientos inversos.
+
+    Solo se permite si ninguna línea se consumió: el saldo de cada una tiene que
+    seguir igual a su peso. No borra ninguna fila — el ledger es append-only.
+    """
+    if not (motivo or '').strip():
+        raise MotivoRequerido('Anular una recepción exige un motivo')
+    if recepcion.anulada:
+        raise RecepcionInvalida('La recepción ya estaba anulada')
+
+    for linea in recepcion.lineas:
+        if saldo_de_linea(linea.id) != _dec(linea.peso_total):
+            raise RecepcionConsumida(
+                f'La línea {linea.id} de {recepcion.codigo} ya se consumió; '
+                f'la corrección a esta altura es un ajuste, no una anulación')
+
+    for linea in recepcion.lineas:
+        registrar_movimiento(
+            cliente_id=recepcion.cliente_id,
+            ingrediente_id=linea.ingrediente_id,
+            tipo='ajuste',
+            cantidad=-_dec(linea.peso_total),
+            origen_tipo='recepcion',
+            origen_id=recepcion.id,
+            vendedor_id=vendedor_id,
+            recepcion_linea_id=linea.id,
+            motivo=f'Anulación de {recepcion.codigo}: {motivo.strip()}',
+        )
+
+    recepcion.anulada_en = datetime.utcnow()
+    recepcion.anulada_por = vendedor_id
+    recepcion.motivo_anulacion = motivo.strip()
+    return recepcion
