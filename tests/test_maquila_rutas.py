@@ -314,3 +314,135 @@ def test_el_indice_lista_los_clientes_con_recepciones(app):
     r = c.get('/maquila')
     assert r.status_code == 200
     assert b'Maquila SA' in r.data
+
+
+# ---------------------------------------------------------------------------
+# Task 12: reportes de auditoría, export y navegación
+# ---------------------------------------------------------------------------
+
+
+def test_el_kardex_responde_y_exporta(app):
+    from maquila import servicios
+    from maquila.models import Ingrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('50')}])
+    c = _login(app, 'admin')
+    r = c.get(f'/maquila/reportes/kardex?cliente_id={cli_id}')
+    assert r.status_code == 200
+    assert b'Carne de res' in r.data
+
+    x = c.get(f'/maquila/reportes/kardex/export?cliente_id={cli_id}')
+    assert x.status_code == 200
+    assert x.headers['Content-Type'].startswith(
+        'application/vnd.openxmlformats')
+
+
+def test_trazabilidad_sin_resultado_no_revienta(app):
+    c = _login(app, 'admin')
+    r = c.get('/maquila/reportes/trazabilidad?q=NO-EXISTE')
+    assert r.status_code == 200
+    assert 'Sin resultados'.encode() in r.data
+
+
+def test_kardex_incluye_movimientos_de_la_ultima_hora_local_del_dia_hasta(app):
+    """`registrado_en` se guarda en UTC naive y DASHBOARD_TIMEZONE es
+    America/Curacao (UTC-4): un movimiento de las 22:00 hora local del 3 de
+    septiembre queda en la base como 2026-09-04 02:00 UTC. Filtrar
+    `hasta=2026-09-03` comparando esa fecha cruda contra el UTC guardado lo
+    dejaría afuera aunque la columna lo muestre como del día 3 — la ventana
+    tiene que convertirse a UTC antes de filtrar."""
+    from datetime import datetime as dt
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 3),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('50')}])
+        mov = MovimientoIngrediente.query.filter_by(cliente_id=cli_id).one()
+        mov.registrado_en = dt(2026, 9, 4, 2, 0)  # = 2026-09-03 22:00 local
+        _db.session.commit()
+
+    c = _login(app, 'admin')
+    r = c.get(f'/maquila/reportes/kardex?cliente_id={cli_id}'
+              '&desde=2026-09-03&hasta=2026-09-03')
+    assert r.status_code == 200
+    assert b'Carne de res' in r.data
+    assert b'2026-09-03 22:00' in r.data
+
+
+def test_trazabilidad_ambigua_muestra_los_candidatos_por_cliente(app):
+    """Dos clientes distintos pueden compartir el mismo lote (es único por
+    `(cliente_id, lote)`, no globalmente): `trazar` ya no elige uno en
+    silencio, así que la plantilla tiene que mostrar ambos, distinguibles
+    por cliente."""
+    from maquila import servicios
+    from app import Cliente, Producto
+    with app.app_context():
+        cli1 = Cliente(nombre='Cliente Ambar')
+        cli2 = Cliente(nombre='Cliente Bravo')
+        prod = Producto(nombre='Chorizo', se_pesa=True, tax_rate=10)
+        _db.session.add_all([cli1, cli2, prod])
+        _db.session.commit()
+        servicios.abrir_corrida(
+            cliente_id=cli1.id, producto_id=prod.id, lote='L-AMBIGUO',
+            fecha_produccion=date(2026, 9, 1), vendedor_id=IDS['admin'])
+        servicios.abrir_corrida(
+            cliente_id=cli2.id, producto_id=prod.id, lote='L-AMBIGUO',
+            fecha_produccion=date(2026, 9, 1), vendedor_id=IDS['admin'])
+        _db.session.commit()
+
+    c = _login(app, 'admin')
+    r = c.get('/maquila/reportes/trazabilidad?q=L-AMBIGUO')
+    assert r.status_code == 200
+    assert b'ambigu' in r.data.lower()
+    assert b'Cliente Ambar' in r.data
+    assert b'Cliente Bravo' in r.data
+
+
+def test_reporte_saldos_y_rendimiento_responden(app):
+    from maquila import servicios
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('50')}])
+    c = _login(app, 'admin')
+    r = c.get(f'/maquila/reportes/saldos?cliente_id={cli_id}')
+    assert r.status_code == 200
+    assert b'Carne de res' in r.data
+
+    r = c.get('/maquila/reportes/rendimiento')
+    assert r.status_code == 200
+
+
+def test_vendedor_no_entra_a_los_reportes(app):
+    c = _login(app, 'vend')
+    for ruta in ('/maquila/reportes/saldos', '/maquila/reportes/kardex',
+                 '/maquila/reportes/rendimiento',
+                 '/maquila/reportes/trazabilidad'):
+        r = c.get(ruta, follow_redirects=False)
+        assert r.status_code == 302, ruta
+
+
+def test_el_link_a_maquila_se_ve_para_super_admin(app):
+    c = _login(app, 'admin')
+    r = c.get('/dashboard')
+    assert r.status_code == 200
+    assert '/maquila"'.encode() in r.data
+
+
+def test_el_link_a_maquila_no_se_ve_para_vendedor(app):
+    """base.html se renderiza para toda la app: el enlace nuevo no puede
+    reventar el render para un vendedor sin rol super_admin, y no debe
+    verlo."""
+    c = _login(app, 'vend')
+    r = c.get('/dashboard')
+    assert r.status_code == 200
+    assert '/maquila"'.encode() not in r.data

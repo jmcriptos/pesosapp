@@ -1,0 +1,79 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Rendimiento{% endblock %}
+{% block maquila_title %}Rendimiento{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro">
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" data-autosubmit>
+        <option value="">Todos los clientes</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if args.get('cliente_id', type=int) == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="desde">Desde</label>
+      <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
+    </div>
+    <div class="ops-field">
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </form>
+</section>
+
+<section class="ops-card">
+  {% if not filas %}
+    <p class="ops-empty">No hay corridas cerradas para este filtro.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Corrida</th><th>Lote</th><th>Producto</th><th>Fecha</th>
+        <th>Consumido</th><th>Producido</th><th>Merma</th><th>Merma %</th></tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td>{{ f.corrida }}</td>
+        <td>{{ f.lote }}</td>
+        <td>{{ f.producto }}</td>
+        <td>{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
+        <td>{{ f.consumido }}</td>
+        <td>{{ f.producido }}</td>
+        <td>{{ f.merma }}</td>
+        <td class="{{ 'maquila-merma-alta' if f.merma_pct is not none and f.merma_pct|abs > 10 else '' }}">{{ f.merma_pct }}%</td>
+      </tr>
+      <tr>
+        <td colspan="8">
+          <details>
+            <summary>Varianzas por ingrediente — {{ f.cliente }}</summary>
+            {% if not f.varianzas %}
+            <p class="ops-empty">Sin consumo registrado.</p>
+            {% else %}
+            <table class="maquila-tabla-mini">
+              <thead><tr><th>Ingrediente</th><th>Teórica</th><th>Real</th><th>Diferencia</th><th>%</th></tr></thead>
+              <tbody>
+                {% for v in f.varianzas %}
+                <tr class="{{ 'maquila-merma-alta' if v.pct is not none and v.pct|abs > 10 else '' }}">
+                  <td>{{ v.ingrediente }}</td>
+                  <td>{{ v.teorica }}</td>
+                  <td>{{ v.real }}</td>
+                  <td>{{ v.diferencia }}</td>
+                  <td>{{ v.pct if v.pct is not none else '—' }}{{ '%' if v.pct is not none else '' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% endif %}
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

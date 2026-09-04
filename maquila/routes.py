@@ -1,24 +1,29 @@
 """Vistas del módulo de maquila. Solo traducen request → servicio → template."""
-from datetime import datetime
+import io
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
+import xlsxwriter
 from flask import (Blueprint, Response, abort, flash, redirect,
                    render_template, request, url_for)
 from flask_login import current_user, login_required
 
-from . import app_module, servicios
+from . import app_module, reportes, servicios
 from .models import (CorridaCaja, CorridaProduccion, Ingrediente, Receta,
                      RecetaIngrediente, RecepcionIngrediente, RecepcionFoto,
                      RecepcionLinea)
 
 # NO reemplazar por `from app import Cliente, Producto, db, requiere_rol,
-# DetallePedido`: revienta `python app.py` (el preview local) con un
-# ImportError circular. Ver el comentario largo en maquila/__init__.py.
+# DetallePedido, _excel_safe, DASHBOARD_TIMEZONE`: revienta `python app.py`
+# (el preview local) con un ImportError circular. Ver el comentario largo en
+# maquila/__init__.py.
 Cliente = app_module.Cliente
 Producto = app_module.Producto
 DetallePedido = app_module.DetallePedido
 db = app_module.db
 requiere_rol = app_module.requiere_rol
+_excel_safe = app_module._excel_safe
+DASHBOARD_TIMEZONE = getattr(app_module, 'DASHBOARD_TIMEZONE', None)
 
 bp = Blueprint('maquila', __name__, url_prefix='/maquila')
 
@@ -64,6 +69,33 @@ def _entero(valor):
         return int(valor)
     except (TypeError, ValueError):
         return None
+
+
+def _ventana_utc(desde, hasta):
+    """Convierte un rango de fechas LOCALES (America/Curacao) a la ventana UTC
+    equivalente, para filtrar `MovimientoIngrediente.registrado_en` (que se
+    guarda en UTC naive).
+
+    El kardex MUESTRA cada fecha convertida a hora local, pero si el filtro
+    compara la fecha local pedida directo contra ese UTC crudo, los
+    movimientos de las últimas horas del día local (que en UTC ya caen al día
+    siguiente) quedan afuera aunque la columna los muestre como del día
+    pedido — el mismo error de fondo que ya mordió en temperaturas. El día
+    `hasta` es inclusivo: cubre el día local entero, no solo su medianoche.
+    """
+    if DASHBOARD_TIMEZONE is None:
+        return desde, hasta
+    desde_utc = None
+    if desde:
+        desde_utc = (datetime.combine(desde, time.min, tzinfo=DASHBOARD_TIMEZONE)
+                     .astimezone(timezone.utc).replace(tzinfo=None))
+    hasta_utc = None
+    if hasta:
+        siguiente_medianoche = (datetime.combine(hasta, time.min, tzinfo=DASHBOARD_TIMEZONE)
+                                + timedelta(days=1))
+        hasta_utc = (siguiente_medianoche.astimezone(timezone.utc).replace(tzinfo=None)
+                    - timedelta(microseconds=1))
+    return desde_utc, hasta_utc
 
 
 def _reparto_con_lineas(corrida, consumos):
@@ -573,3 +605,97 @@ def asignar_detalle(detalle_id):
 
     return redirect(url_for('pesar_pedido', pedido_id=detalle.pedido_id,
                             detalle_id=detalle.id))
+
+
+@bp.route('/reportes/saldos')
+@login_required
+@requiere_rol(['super_admin'])
+def reporte_saldos():
+    cliente_id = request.args.get('cliente_id', type=int)
+    filas = reportes.saldos(cliente_id) if cliente_id else []
+    return render_template('maquila/reporte_saldos.html', filas=filas,
+                           cliente_id=cliente_id,
+                           clientes=_clientes_con_maquila())
+
+
+@bp.route('/reportes/kardex')
+@login_required
+@requiere_rol(['super_admin'])
+def reporte_kardex():
+    cliente_id = request.args.get('cliente_id', type=int)
+    desde_utc, hasta_utc = _ventana_utc(_fecha(request.args.get('desde')),
+                                        _fecha(request.args.get('hasta')))
+    filas = reportes.kardex(
+        cliente_id,
+        ingrediente_id=request.args.get('ingrediente_id', type=int),
+        desde=desde_utc,
+        hasta=hasta_utc) if cliente_id else []
+    return render_template(
+        'maquila/reporte_kardex.html', filas=filas, cliente_id=cliente_id,
+        clientes=_clientes_con_maquila(),
+        ingredientes=Ingrediente.query.order_by(Ingrediente.nombre).all(),
+        args=request.args)
+
+
+@bp.route('/reportes/kardex/export')
+@login_required
+@requiere_rol(['super_admin'])
+def reporte_kardex_export():
+    cliente_id = request.args.get('cliente_id', type=int) or abort(400)
+    desde_utc, hasta_utc = _ventana_utc(_fecha(request.args.get('desde')),
+                                        _fecha(request.args.get('hasta')))
+    filas = reportes.kardex(
+        cliente_id,
+        ingrediente_id=request.args.get('ingrediente_id', type=int),
+        desde=desde_utc,
+        hasta=hasta_utc)
+
+    buffer = io.BytesIO()
+    libro = xlsxwriter.Workbook(buffer, {'in_memory': True})
+    hoja = libro.add_worksheet('Kardex')
+    negrita = libro.add_format({'bold': True})
+    encabezados = ['Fecha', 'Tipo', 'Ingrediente', 'Cantidad',
+                   'Saldo', 'Origen', 'Responsable', 'Motivo']
+    for col, titulo in enumerate(encabezados):
+        hoja.write(0, col, titulo, negrita)
+
+    for fila_num, fila in enumerate(filas, start=1):
+        hoja.write(fila_num, 0, fila['fecha'].strftime('%Y-%m-%d %H:%M'))
+        hoja.write(fila_num, 1, fila['tipo'])
+        hoja.write(fila_num, 2, _excel_safe(fila['ingrediente']))
+        hoja.write(fila_num, 3, float(fila['cantidad']))
+        hoja.write(fila_num, 4, float(fila['saldo_acumulado']))
+        hoja.write(fila_num, 5, _excel_safe(fila['origen']))
+        hoja.write(fila_num, 6, _excel_safe(fila['responsable']))
+        hoja.write(fila_num, 7, _excel_safe(fila['motivo'] or ''))
+
+    libro.close()
+    buffer.seek(0)
+    return Response(
+        buffer.read(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition':
+                 f'attachment; filename=kardex_{cliente_id}.xlsx'})
+
+
+@bp.route('/reportes/rendimiento')
+@login_required
+@requiere_rol(['super_admin'])
+def reporte_rendimiento():
+    return render_template(
+        'maquila/reporte_rendimiento.html',
+        filas=reportes.rendimiento(
+            cliente_id=request.args.get('cliente_id', type=int),
+            desde=_fecha(request.args.get('desde')),
+            hasta=_fecha(request.args.get('hasta'))),
+        clientes=_clientes_con_maquila(), args=request.args)
+
+
+@bp.route('/reportes/trazabilidad')
+@login_required
+@requiere_rol(['super_admin'])
+def reporte_trazabilidad():
+    termino = request.args.get('q', '')
+    resultado = reportes.trazar(termino) if termino else None
+    return render_template('maquila/reporte_trazabilidad.html',
+                           resultado=resultado, termino=termino)

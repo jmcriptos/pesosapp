@@ -1,0 +1,68 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Kardex{% endblock %}
+{% block maquila_title %}Kardex{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro">
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" data-autosubmit>
+        <option value="">Elegí un cliente</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="ingrediente_id">Ingrediente</label>
+      <select id="ingrediente_id" name="ingrediente_id" data-autosubmit>
+        <option value="">Todos</option>
+        {% for i in ingredientes %}
+        <option value="{{ i.id }}" {{ 'selected' if args.get('ingrediente_id', type=int) == i.id else '' }}>{{ i.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="desde">Desde</label>
+      <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
+    </div>
+    <div class="ops-field">
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </form>
+  {% if cliente_id %}
+  <a class="btn" href="{{ url_for('maquila.reporte_kardex_export') }}?{{ request.query_string.decode() }}">Exportar XLSX</a>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  {% if not cliente_id %}
+    <p class="ops-empty">Elegí un cliente para ver su kardex.</p>
+  {% elif not filas %}
+    <p class="ops-empty">Sin movimientos para este filtro.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Fecha</th><th>Tipo</th><th>Ingrediente</th><th>Cantidad</th>
+        <th>Saldo acumulado</th><th>Origen</th><th>Responsable</th><th>Motivo</th></tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td>{{ f.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ f.tipo }}</td>
+        <td>{{ f.ingrediente }}</td>
+        <td>{{ f.cantidad }}</td>
+        <td>{{ f.saldo_acumulado }}</td>
+        <td>{{ f.origen }}</td>
+        <td>{{ f.responsable }}</td>
+        <td>{{ f.motivo or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

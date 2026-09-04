@@ -1,0 +1,106 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Trazabilidad{% endblock %}
+{% block maquila_title %}Trazabilidad{% endblock %}
+{% block maquila_body %}
+<form method="GET" class="ops-card">
+  <label for="q">Lote, código de recepción, código de corrida, pedido o factura</label>
+  <input type="search" id="q" name="q" value="{{ termino }}" required>
+  <button type="submit" class="btn btn-primary">Trazar</button>
+</form>
+
+{% if resultado and not resultado.encontrado %}
+  <p class="ops-empty">Sin resultados para «{{ termino }}».</p>
+{% elif resultado %}
+
+  {% if resultado.ambiguo %}
+  <section class="ops-card maquila-ambiguo">
+    <h2>«{{ termino }}» es ambiguo</h2>
+    <p>Coincide con más de un resultado: no se eligió ninguno en silencio.
+       Distinguí por cliente o código antes de leer las tablas de abajo.</p>
+    {% if resultado.tipo == 'corrida' %}
+    <table class="maquila-tabla">
+      <thead><tr><th>Corrida</th><th>Lote</th><th>Cliente</th><th>Producto</th></tr></thead>
+      <tbody>
+        {% for c in resultado.corridas %}
+        <tr>
+          <td>{{ c.codigo }}</td>
+          <td>{{ c.lote }}</td>
+          <td>{{ c.cliente.nombre if c.cliente else '—' }}</td>
+          <td>{{ c.producto.nombre if c.producto else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% elif resultado.tipo == 'pedido' %}
+    <table class="maquila-tabla">
+      <thead><tr><th>Pedido</th><th>Estado</th><th>Factura QBO</th></tr></thead>
+      <tbody>
+        {% for f in resultado.hacia_adelante %}
+        <tr>
+          <td>#{{ f.pedido_id }}</td>
+          <td>{{ f.estado }}</td>
+          <td>{{ f.doc_number_qbo or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="ops-card">
+    <h2>Hacia atrás — de dónde salió</h2>
+    <table class="maquila-tabla">
+      <thead><tr>
+        {% if resultado.ambiguo %}<th>Candidato</th>{% endif %}
+        <th>Recepción</th><th>Fecha</th><th>Documento</th>
+        <th>Lote cliente</th><th>Ingrediente</th><th>Cantidad</th></tr></thead>
+      <tbody>
+        {% if not resultado.hacia_atras %}
+        <tr><td colspan="{{ 7 if resultado.ambiguo else 6 }}" class="ops-empty">Sin movimientos hacia atrás.</td></tr>
+        {% endif %}
+        {% for f in resultado.hacia_atras %}
+        <tr {% if f.sin_origen %}class="maquila-sin-origen"{% endif %}>
+          {% if resultado.ambiguo %}
+          <td>{{ f.get('cliente') or ('Pedido #' ~ f.get('pedido_id') if f.get('pedido_id') else '—') }}</td>
+          {% endif %}
+          <td>{{ f.codigo }}{% if f.sin_origen %} <em>(pesada a mano, sin origen)</em>{% endif %}</td>
+          <td>{{ f.recibido_en or '—' }}</td>
+          <td>{{ f.documento_cliente or '—' }}</td>
+          <td>{{ f.lote_cliente or '—' }}</td>
+          <td>{{ f.ingrediente or f.get('producto') or '—' }}</td>
+          <td>{{ f.cantidad }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="ops-card">
+    <h2>Hacia adelante — dónde terminó</h2>
+    <table class="maquila-tabla">
+      <thead><tr>
+        {% if resultado.ambiguo %}<th>Candidato</th>{% endif %}
+        <th>Pedido</th><th>Estado</th><th>Cajas</th>
+        <th>Peso</th><th>Factura QBO</th></tr></thead>
+      <tbody>
+        {% if not resultado.hacia_adelante %}
+        <tr><td colspan="{{ 6 if resultado.ambiguo else 5 }}" class="ops-empty">Sin movimientos hacia adelante.</td></tr>
+        {% endif %}
+        {% for f in resultado.hacia_adelante %}
+        <tr>
+          {% if resultado.ambiguo %}
+          <td>{{ f.get('cliente') or ('Pedido #' ~ f.pedido_id) }}</td>
+          {% endif %}
+          <td><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">#{{ f.pedido_id }}</a></td>
+          <td>{{ f.estado }}</td>
+          <td>{{ f.cajas }}</td>
+          <td>{{ f.peso }}</td>
+          <td>{{ f.doc_number_qbo or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+{% endblock %}

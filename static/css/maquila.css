@@ -261,6 +261,32 @@
   font-weight: 600;
 }
 
+/* Trazabilidad: caja pesada a mano sin corrida asociada. Una caja sin
+   origen tiene que verse, no disimularse — mismo motivo y mismo
+   !important que .maquila-sin-saldo arriba. */
+.maquila-wrap tr.maquila-sin-origen td {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+/* Trazabilidad: resultado ambiguo (trazar() ya no elige un candidato en
+   silencio). El aviso tiene que notarse tanto como la fila sin origen. */
+.maquila-wrap .maquila-ambiguo {
+  border: 2px solid #d97706;
+  background-color: #fffbeb !important;
+}
+
+.maquila-wrap .maquila-ambiguo h2 {
+  color: #92400e !important;
+}
+
+/* Rendimiento: varianza (corrida o ingrediente) por encima del 10% contra
+   el teórico. */
+.maquila-wrap .maquila-merma-alta {
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
 /* ─────────────────────────────────────────────────────────────────────
    Checklist "Asignar de producción" (templates/maquila/_asignar_cajas.html),
    incrustado en pesar.html vía include. Ese parcial vive FUERA de
