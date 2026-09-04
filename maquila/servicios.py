@@ -456,8 +456,10 @@ def agregar_caja_producida(corrida, peso):
 def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
     """Cierra la corrida: snapshot del teórico, reparto FIFO y salidas del ledger.
 
-    Todo en una transacción. Si un ingrediente no tiene saldo, no se escribe
-    nada: `SaldoInsuficiente` sube y quien llama hace rollback.
+    Todo en una transacción: si algo falla a mitad de camino (saldo
+    insuficiente, un reparto manual inválido), se hace rollback acá mismo y
+    no queda ni un `CorridaConsumo` ni un movimiento colgando. Mismo contrato
+    que `crear_recepcion`.
     """
     if corrida.estado != 'abierta':
         raise CorridaInvalida(f'La corrida {corrida.codigo} no está abierta')
@@ -465,63 +467,86 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
         raise CorridaInvalida('No se puede cerrar una corrida sin cajas producidas')
     if not consumos_reales:
         raise CorridaInvalida('Hay que declarar el consumo de al menos un ingrediente')
+    if all(_dec(c) <= CERO for c in consumos_reales.values()):
+        raise CorridaInvalida(
+            'El consumo declarado tiene que tener al menos una cantidad positiva')
 
-    producido = corrida.peso_producido
-    teoricos = {}
-    if corrida.receta:
-        teoricos = consumo_teorico(corrida.receta, producido)
+    try:
+        producido = corrida.peso_producido
+        teoricos = {}
+        if corrida.receta:
+            teoricos = consumo_teorico(corrida.receta, producido)
 
-    reparto_manual = reparto_manual or {}
+        reparto_manual = reparto_manual or {}
 
-    for ingrediente_id, cantidad in consumos_reales.items():
-        cantidad = _dec(cantidad)
-        if cantidad <= CERO:
-            continue
+        for ingrediente_id, cantidad in consumos_reales.items():
+            cantidad = _dec(cantidad)
+            if cantidad <= CERO:
+                continue
 
-        if ingrediente_id in reparto_manual:
-            tramos = [(linea_id, _dec(c)) for linea_id, c in reparto_manual[ingrediente_id]]
-            suma = sum((c for _, c in tramos), CERO)
-            if suma != cantidad:
-                raise CorridaInvalida(
-                    f'El reparto manual del ingrediente {ingrediente_id} suma {suma} '
-                    f'y el consumo declarado es {cantidad}')
-            automatico = False
-        else:
-            tramos = repartir_fifo(corrida.cliente_id, ingrediente_id, cantidad)
-            automatico = True
+            if ingrediente_id in reparto_manual:
+                tramos = [(linea_id, _dec(c)) for linea_id, c in reparto_manual[ingrediente_id]]
+                suma = sum((c for _, c in tramos), CERO)
+                if suma != cantidad:
+                    raise CorridaInvalida(
+                        f'El reparto manual del ingrediente {ingrediente_id} suma {suma} '
+                        f'y el consumo declarado es {cantidad}')
+                for linea_id, tramo in tramos:
+                    linea = db.session.get(RecepcionLinea, linea_id)
+                    if linea is None:
+                        raise CorridaInvalida(
+                            f'La línea {linea_id} del reparto manual no existe')
+                    if linea.recepcion.cliente_id != corrida.cliente_id:
+                        raise CorridaInvalida(
+                            f'La línea {linea_id} del reparto manual no es del cliente '
+                            f'de la corrida ({corrida.cliente_id})')
+                    if linea.ingrediente_id != ingrediente_id:
+                        raise CorridaInvalida(
+                            f'La línea {linea_id} del reparto manual es del ingrediente '
+                            f'{linea.ingrediente_id}, no del {ingrediente_id} declarado')
+                    saldo = saldo_de_linea(linea_id)
+                    if tramo > saldo:
+                        raise SaldoInsuficiente(ingrediente_id, tramo, saldo)
+                automatico = False
+            else:
+                tramos = repartir_fifo(corrida.cliente_id, ingrediente_id, cantidad)
+                automatico = True
 
-        consumo = CorridaConsumo(
-            corrida_id=corrida.id,
-            ingrediente_id=ingrediente_id,
-            cantidad_teorica=teoricos.get(ingrediente_id, CERO),
-            cantidad_real=cantidad,
-        )
-        db.session.add(consumo)
-        db.session.flush()
-
-        for linea_id, tramo in tramos:
-            db.session.add(CorridaConsumoOrigen(
-                corrida_consumo_id=consumo.id,
-                recepcion_linea_id=linea_id,
-                cantidad=tramo,
-                automatico=automatico,
-            ))
-            registrar_movimiento(
-                cliente_id=corrida.cliente_id,
+            consumo = CorridaConsumo(
+                corrida_id=corrida.id,
                 ingrediente_id=ingrediente_id,
-                tipo='salida',
-                cantidad=tramo,
-                origen_tipo='corrida',
-                origen_id=corrida.id,
-                vendedor_id=vendedor_id,
-                recepcion_linea_id=linea_id,
+                cantidad_teorica=teoricos.get(ingrediente_id, CERO),
+                cantidad_real=cantidad,
             )
+            db.session.add(consumo)
+            db.session.flush()
 
-    corrida.estado = 'cerrada'
-    corrida.cerrada_por = vendedor_id
-    corrida.cerrada_en = datetime.utcnow()
-    db.session.commit()
-    return corrida
+            for linea_id, tramo in tramos:
+                db.session.add(CorridaConsumoOrigen(
+                    corrida_consumo_id=consumo.id,
+                    recepcion_linea_id=linea_id,
+                    cantidad=tramo,
+                    automatico=automatico,
+                ))
+                registrar_movimiento(
+                    cliente_id=corrida.cliente_id,
+                    ingrediente_id=ingrediente_id,
+                    tipo='salida',
+                    cantidad=tramo,
+                    origen_tipo='corrida',
+                    origen_id=corrida.id,
+                    vendedor_id=vendedor_id,
+                    recepcion_linea_id=linea_id,
+                )
+
+        corrida.estado = 'cerrada'
+        corrida.cerrada_por = vendedor_id
+        corrida.cerrada_en = datetime.utcnow()
+        db.session.commit()
+        return corrida
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def merma_de_corrida(corrida):

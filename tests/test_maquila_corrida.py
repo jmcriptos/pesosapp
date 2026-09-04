@@ -186,3 +186,111 @@ def test_anular_una_corrida_devuelve_el_ingrediente_al_saldo(app):
         assert c.estado == 'anulada'
         assert servicios.saldo_cliente_ingrediente(
             IDS['cliente'], IDS['ingrediente']) == Decimal('200')
+
+
+# --- Arreglos ronda 1 -------------------------------------------------------
+
+def test_reparto_manual_rechaza_linea_de_otro_cliente(app):
+    from maquila import servicios
+    from app import Cliente
+    from maquila.models import CorridaConsumo
+    with app.app_context():
+        otro = Cliente(nombre='Otro cliente')
+        _db.session.add(otro)
+        _db.session.commit()
+        linea_ajena = servicios.crear_recepcion(
+            cliente_id=otro.id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': IDS['ingrediente'],
+                     'peso_total': Decimal('100')}]).lineas[0]
+        c = _corrida_con_cajas([40])
+        with pytest.raises(servicios.CorridaInvalida):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('50')}, IDS['vendedor'],
+                reparto_manual={IDS['ingrediente']: [(linea_ajena.id, Decimal('50'))]})
+        assert CorridaConsumo.query.count() == 0
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+def test_reparto_manual_rechaza_linea_de_otro_ingrediente(app):
+    from maquila import servicios
+    from maquila.models import Ingrediente, CorridaConsumo
+    with app.app_context():
+        otro_ing = Ingrediente(nombre='Grasa')
+        _db.session.add(otro_ing)
+        _db.session.commit()
+        linea_otro_ing = _recibir('R1', 1, 100, ingrediente_id=otro_ing.id).lineas[0]
+        c = _corrida_con_cajas([40])
+        with pytest.raises(servicios.CorridaInvalida):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('50')}, IDS['vendedor'],
+                reparto_manual={IDS['ingrediente']: [(linea_otro_ing.id, Decimal('50'))]})
+        assert CorridaConsumo.query.count() == 0
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+def test_reparto_manual_rechaza_sin_saldo_suficiente(app):
+    from maquila import servicios
+    from maquila.models import CorridaConsumo, MovimientoIngrediente
+    with app.app_context():
+        r1 = _recibir('R1', 1, 20)
+        c = _corrida_con_cajas([40])
+        antes = MovimientoIngrediente.query.count()
+        with pytest.raises(servicios.SaldoInsuficiente):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('50')}, IDS['vendedor'],
+                reparto_manual={IDS['ingrediente']: [(r1.lineas[0].id, Decimal('50'))]})
+        assert CorridaConsumo.query.count() == 0
+        assert MovimientoIngrediente.query.count() == antes
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+def test_reparto_manual_valido_descuenta_y_marca_automatico_false(app):
+    from maquila import servicios
+    from maquila.models import CorridaConsumoOrigen
+    with app.app_context():
+        r1 = _recibir('R1', 1, 100)
+        c = _corrida_con_cajas([40])
+        servicios.cerrar_corrida(
+            c, {IDS['ingrediente']: Decimal('50')}, IDS['vendedor'],
+            reparto_manual={IDS['ingrediente']: [(r1.lineas[0].id, Decimal('50'))]})
+        assert c.estado == 'cerrada'
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], IDS['ingrediente']) == Decimal('50')
+        origen = CorridaConsumoOrigen.query.one()
+        assert origen.recepcion_linea_id == r1.lineas[0].id
+        assert origen.cantidad == Decimal('50.000')
+        assert origen.automatico is False
+
+
+def test_cerrar_con_segundo_ingrediente_sin_saldo_no_deja_rastro(app):
+    from maquila import servicios
+    from maquila.models import Ingrediente, CorridaConsumo, CorridaConsumoOrigen, \
+        MovimientoIngrediente
+    with app.app_context():
+        ing2 = Ingrediente(nombre='Grasa')
+        _db.session.add(ing2)
+        _db.session.commit()
+        _recibir('R1', 1, 200)  # saldo del primer ingrediente: de sobra
+        # nada recibido del segundo ingrediente: sin saldo
+        c = _corrida_con_cajas([40])
+        antes = MovimientoIngrediente.query.count()
+        with pytest.raises(servicios.SaldoInsuficiente):
+            servicios.cerrar_corrida(
+                c, {IDS['ingrediente']: Decimal('50'), ing2.id: Decimal('10')},
+                IDS['vendedor'])
+        assert CorridaConsumo.query.count() == 0
+        assert CorridaConsumoOrigen.query.count() == 0
+        assert MovimientoIngrediente.query.count() == antes
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
+
+
+def test_cerrar_con_consumos_todos_en_cero_se_rechaza(app):
+    from maquila import servicios
+    with app.app_context():
+        _recibir('R1', 1, 200)
+        c = _corrida_con_cajas([40])
+        with pytest.raises(servicios.CorridaInvalida):
+            servicios.cerrar_corrida(c, {IDS['ingrediente']: Decimal('0')},
+                                     IDS['vendedor'])
+        assert _db.session.get(type(c), c.id).estado == 'abierta'
