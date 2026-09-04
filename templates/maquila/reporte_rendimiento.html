@@ -41,9 +41,9 @@
         <td data-label="Lote">{{ f.lote }}</td>
         <td data-label="Producto">{{ f.producto }}</td>
         <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
-        <td data-label="Consumido">{{ f.consumido }}</td>
-        <td data-label="Producido">{{ f.producido }}</td>
-        <td data-label="Merma">{{ f.merma }}</td>
+        <td data-label="Consumido">{{ f.consumido|fmt_cant }}{% if f.otras_unidades %} <small class="maquila-nota-unidad">+ consumo en {{ f.otras_unidades|join(', ') }}, fuera del balance de peso</small>{% endif %}</td>
+        <td data-label="Producido">{{ f.producido|fmt_cant }}</td>
+        <td data-label="Merma">{{ f.merma|fmt_cant }}</td>
         <td data-label="Merma %" class="{{ 'maquila-merma-alta' if f.merma_pct is not none and f.merma_pct|abs > 10 else '' }}">{{ f.merma_pct }}%</td>
       </tr>
       <tr>
@@ -59,9 +59,9 @@
                 {% for v in f.varianzas %}
                 <tr class="{{ 'maquila-merma-alta' if v.pct is not none and v.pct|abs > 10 else '' }}">
                   <td>{{ v.ingrediente }}</td>
-                  <td>{{ v.teorica }}</td>
-                  <td>{{ v.real }}</td>
-                  <td>{{ v.diferencia }}</td>
+                  <td>{{ v.teorica|fmt_cant(v.unidad) }}</td>
+                  <td>{{ v.real|fmt_cant(v.unidad) }}</td>
+                  <td>{{ v.diferencia|fmt_cant(v.unidad) }}</td>
                   <td>{{ v.pct if v.pct is not none else '—' }}{{ '%' if v.pct is not none else '' }}</td>
                 </tr>
                 {% endfor %}

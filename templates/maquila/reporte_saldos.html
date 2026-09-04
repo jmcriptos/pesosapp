@@ -30,10 +30,10 @@
       {% for f in filas %}
       <tr>
         <td data-label="Ingrediente">{{ f.ingrediente }}</td>
-        <td data-label="Recibido">{{ f.recibido }}</td>
-        <td data-label="Consumido">{{ f.consumido }}</td>
-        <td data-label="Ajustes">{{ f.ajustes }}</td>
-        <td data-label="Saldo">{{ f.saldo }} {{ f.unidad }}</td>
+        <td data-label="Recibido">{{ f.recibido|fmt_cant(f.unidad) }}</td>
+        <td data-label="Consumido">{{ f.consumido|fmt_cant(f.unidad) }}</td>
+        <td data-label="Ajustes">{{ f.ajustes|fmt_cant(f.unidad) }}</td>
+        <td data-label="Saldo">{{ f.saldo|fmt_cant(f.unidad) }}</td>
       </tr>
       {% if f.lineas_abiertas %}
       <tr>
@@ -46,7 +46,7 @@
                 <td>{{ l.codigo }}</td>
                 <td>{{ l.recibido_en.strftime('%d/%m/%Y') if l.recibido_en else '—' }}</td>
                 <td>{{ l.lote_cliente or '—' }}</td>
-                <td>{{ l.saldo }}</td>
+                <td>{{ l.saldo|fmt_cant(f.unidad) }}</td>
               </tr>
               {% endfor %}
             </tbody>

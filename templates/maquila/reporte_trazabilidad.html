@@ -69,7 +69,7 @@
           <td data-label="Documento">{{ f.documento_cliente or '—' }}</td>
           <td data-label="Lote cliente">{{ f.lote_cliente or '—' }}</td>
           <td data-label="Ingrediente">{{ f.ingrediente or f.get('producto') or '—' }}</td>
-          <td data-label="Cantidad">{{ f.cantidad }}</td>
+          <td data-label="Cantidad">{{ f.cantidad|fmt_cant(f.unidad) }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -95,7 +95,7 @@
           <td data-label="Pedido"><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">#{{ f.pedido_id }}</a></td>
           <td data-label="Estado">{{ f.estado }}</td>
           <td data-label="Cajas">{{ f.cajas }}</td>
-          <td data-label="Peso">{{ f.peso }}</td>
+          <td data-label="Peso">{{ f.peso|fmt_cant }}</td>
           <td data-label="Factura QBO">{{ f.doc_number_qbo or '—' }}</td>
         </tr>
         {% endfor %}

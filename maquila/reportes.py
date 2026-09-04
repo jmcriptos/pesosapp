@@ -9,6 +9,7 @@ from . import app_module
 from .models import (CorridaCaja, CorridaConsumo, CorridaConsumoOrigen,
                      CorridaProduccion, Ingrediente, MovimientoIngrediente,
                      RecepcionIngrediente, RecepcionLinea)
+from . import servicios
 from .servicios import _dec, saldo_de_linea, saldos_de_cliente, CERO
 
 # NO reemplazar por `from app import db, Pedido, DetallePedido, CajaPesada,
@@ -93,6 +94,10 @@ def kardex(cliente_id, ingrediente_id=None, desde=None, hasta=None):
             'tipo': mov.tipo,
             'ingrediente_id': mov.ingrediente_id,
             'ingrediente': ingrediente.nombre,
+            # La unidad viaja con el dato: «Tripa natural» se cuenta en
+            # unidades, y mostrarla en kg cambiaría un error de lectura por
+            # uno de dato.
+            'unidad': ingrediente.unidad,
             'cantidad': _dec(mov.cantidad),
             'saldo_acumulado': acumulado[clave],
             'origen': f'{mov.origen_tipo}:{mov.origen_id}' if mov.origen_id else mov.origen_tipo,
@@ -116,7 +121,13 @@ def rendimiento(cliente_id=None, desde=None, hasta=None):
 
     filas = []
     for corrida in query.order_by(CorridaProduccion.fecha_produccion.desc()).all():
-        consumido = sum((_dec(c.cantidad_real) for c in corrida.consumos), CERO)
+        # Solo lo denominado en peso: mezclar kg con unidades da un total que
+        # no es nada. Ver servicios.consumo_en_peso.
+        consumido = servicios.consumo_en_peso(corrida)
+        otras_unidades = sorted({
+            c.ingrediente.unidad for c in corrida.consumos
+            if c.ingrediente and c.ingrediente.unidad != servicios.UNIDAD_PESO
+        })
         producido = corrida.peso_producido
         merma = consumido - producido
         merma_pct = ((merma / consumido) * 100).quantize(Decimal('0.1')) \
@@ -128,6 +139,7 @@ def rendimiento(cliente_id=None, desde=None, hasta=None):
             real = _dec(consumo.cantidad_real)
             varianzas.append({
                 'ingrediente': consumo.ingrediente.nombre,
+                'unidad': consumo.ingrediente.unidad,
                 'teorica': teorica,
                 'real': real,
                 'diferencia': real - teorica,
@@ -146,6 +158,9 @@ def rendimiento(cliente_id=None, desde=None, hasta=None):
             'producido': producido,
             'merma': merma,
             'merma_pct': merma_pct,
+            # Si la corrida consumió algo que no se pesa, la pantalla lo dice
+            # en vez de esconderlo dentro de un total de kilos.
+            'otras_unidades': otras_unidades,
             'varianzas': varianzas,
         })
     return filas
@@ -170,6 +185,7 @@ def _atras_desde_corrida(corrida):
         'documento_cliente': recepcion.documento_cliente,
         'lote_cliente': linea.lote_cliente,
         'ingrediente': ingrediente.nombre,
+        'unidad': ingrediente.unidad,
         'cantidad': _dec(origen.cantidad),
         'automatico': origen.automatico,
         'sin_origen': False,
@@ -231,6 +247,8 @@ def _desde_pedido(pedido):
                     'lote_cliente': pesada.lote,
                     'ingrediente': None,
                     'producto': detalle.producto.nombre if detalle.producto else '—',
+                    # Una caja pesada a mano es producto terminado: siempre kg.
+                    'unidad': 'kg',
                     'cantidad': _dec(pesada.peso), 'automatico': None,
                     'sin_origen': True,
                 })
@@ -328,6 +346,7 @@ def trazar(termino):
                     'documento_cliente': recepcion.documento_cliente,
                     'lote_cliente': l.lote_cliente,
                     'ingrediente': l.ingrediente.nombre,
+                    'unidad': l.ingrediente.unidad,
                     'cantidad': _dec(l.peso_total),
                     'automatico': None,
                     'sin_origen': False,

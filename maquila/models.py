@@ -76,6 +76,21 @@ class RecepcionIngrediente(db.Model):
     def anulada(self):
         return self.anulada_en is not None
 
+    @property
+    def totales_por_unidad(self):
+        """Totales agrupados por unidad, no una suma única.
+
+        Una recepción puede traer carne (kg) y tripa (ud) en la misma entrega.
+        Sumarlas daba un número que no es nada; esto devuelve
+        [('kg', Decimal('115.000')), ('ud', Decimal('120.000'))].
+        """
+        from decimal import Decimal
+        acum = {}
+        for linea in self.lineas:
+            unidad = linea.ingrediente.unidad if linea.ingrediente else 'kg'
+            acum[unidad] = acum.get(unidad, Decimal('0')) + Decimal(str(linea.peso_total or 0))
+        return sorted(acum.items())
+
 
 class RecepcionLinea(db.Model):
     __tablename__ = 'recepcion_linea'

@@ -608,10 +608,25 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
         raise
 
 
+UNIDAD_PESO = 'kg'
+
+
+def consumo_en_peso(corrida):
+    """Suma SOLO los consumos denominados en peso.
+
+    Una receta de chorizo lleva tripa, que se cuenta en unidades. Sumar 78 kg
+    de carne con 120 tripas da un número que no es nada, y ese número
+    alimentaba la merma y el reporte de rendimiento. Los ingredientes que no
+    se miden en peso se siguen descontando del saldo (el ledger es correcto);
+    lo que no hacen es participar de un balance de kilos.
+    """
+    return sum((_dec(c.cantidad_real) for c in corrida.consumos
+                if c.ingrediente and c.ingrediente.unidad == UNIDAD_PESO), CERO)
+
+
 def merma_de_corrida(corrida):
     """Kilos consumidos menos kilos producidos. Se deriva, no se guarda."""
-    consumido = sum((_dec(c.cantidad_real) for c in corrida.consumos), CERO)
-    return consumido - corrida.peso_producido
+    return consumo_en_peso(corrida) - corrida.peso_producido
 
 
 def anular_corrida(corrida, vendedor_id, motivo):

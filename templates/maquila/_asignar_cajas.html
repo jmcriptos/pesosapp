@@ -11,7 +11,7 @@
       <li>
         <label>
           <input type="checkbox" name="corrida_caja_id" value="{{ caja.id }}" checked>
-          Caja {{ caja.numero }} · {{ caja.peso }} kg ·
+          Caja {{ caja.numero }} · {{ caja.peso|fmt_cant }} ·
           lote {{ caja.corrida.lote }} ·
           vence {{ caja.corrida.fecha_vencimiento or '—' }}
         </label>

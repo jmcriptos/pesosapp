@@ -658,6 +658,7 @@ def ajustes():
             ajustes_de_cliente.append({
                 'fecha': reportes._local(mov.registrado_en),
                 'ingrediente': mov.ingrediente.nombre,
+                'unidad': mov.ingrediente.unidad,
                 'cantidad': mov.cantidad,
                 'responsable': mov.vendedor.nombre_completo if mov.vendedor else '—',
                 'motivo': mov.motivo,

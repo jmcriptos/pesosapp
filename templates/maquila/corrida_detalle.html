@@ -91,7 +91,7 @@
       {% for caja in corrida.cajas %}
       <tr>
         <td>{{ caja.numero }}</td>
-        <td>{{ caja.peso }}</td>
+        <td>{{ caja.peso|fmt_cant }}</td>
         <td>
           {% if caja.anulada_en %}
             Anulada
@@ -108,7 +108,7 @@
       {% endfor %}
     </tbody>
     <tfoot>
-      <tr><td colspan="1"><strong>Total</strong></td><td><strong>{{ corrida.peso_producido }}</strong></td><td></td></tr>
+      <tr><td colspan="1"><strong>Total</strong></td><td><strong>{{ corrida.peso_producido|fmt_cant }}</strong></td><td></td></tr>
     </tfoot>
   </table>
   {% endif %}
@@ -175,7 +175,7 @@
                   {% endif %}
                 </td>
                 <td data-label="Lote del cliente">{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
-                <td data-label="Cantidad">{{ cantidad }}</td>
+                <td data-label="Cantidad">{{ cantidad|fmt_cant(ing.unidad if ing else 'kg') }}</td>
               </tr>
             {% endfor %}
           {% endif %}
@@ -217,7 +217,7 @@
 <section class="ops-card">
   <h2>Cierre</h2>
   {% if corrida.estado == 'cerrada' %}
-    <p>Merma: {{ merma }} kg</p>
+    <p>Merma: {{ merma|fmt_cant }}</p>
   {% elif corrida.estado == 'anulada' %}
     <p class="maquila-anulada">Corrida anulada.</p>
   {% endif %}

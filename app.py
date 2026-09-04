@@ -508,6 +508,46 @@ def _fmt_cajas(valor):
 
 app.jinja_env.filters['fmt_cajas'] = _fmt_cajas
 
+
+def _fmt_cant(valor, unidad='kg'):
+    """Cantidad para mostrar, con su unidad y sin ambigüedad de separador.
+
+    Un `Decimal(10,3)` se renderiza crudo como «174.400», que en Curazao se lee
+    174 mil 400 y no 174,4 kg. Es la peor lectura posible en una planta que pesa
+    carne: la cifra parece mil veces más grande y nada avisa. El culpable son
+    los ceros de relleno, que hacen que el punto decimal se lea como separador
+    de miles.
+
+    Se sigue la convención que la app ya usa en el dashboard (`{:,.0f}` para
+    XCG): coma para miles, punto para decimales. Y se recortan los ceros
+    sobrantes, que es lo que quita la ambigüedad: nadie escribe un millar con
+    un solo dígito detrás del separador.
+
+    La unidad NO se asume: «Tripa natural» se cuenta en unidades, y mostrarla
+    en kg sería cambiar un error de lectura por uno de dato.
+    """
+    if valor is None or valor == '':
+        return '—'
+    try:
+        d = Decimal(str(valor))
+    except (InvalidOperation, ValueError, TypeError):
+        return str(valor)
+
+    negativo = d < 0
+    d = abs(d)
+    entero = int(d)
+    decimales = (d - entero).quantize(Decimal('0.001')).normalize()
+
+    txt = f'{entero:,}'
+    if decimales:
+        txt += str(decimales)[1:]  # «0.55» -> «.55»
+    if negativo:
+        txt = '-' + txt
+    return f'{txt} {unidad}' if unidad else txt
+
+
+app.jinja_env.filters['fmt_cant'] = _fmt_cant
+
 _PERMISOS_DEFAULT = {
     'super_admin': {
         'productos': ['leer', 'crear', 'editar', 'eliminar'],

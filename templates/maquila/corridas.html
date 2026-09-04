@@ -37,7 +37,7 @@
         <td data-label="Producto">{{ c.producto.nombre }}</td>
         <td data-label="Fecha">{{ c.fecha_produccion.strftime('%d/%m/%Y') }}</td>
         <td data-label="Cajas">{{ c.cajas|length }}</td>
-        <td data-label="Producido">{{ c.peso_producido }}</td>
+        <td data-label="Producido">{{ c.peso_producido|fmt_cant }}</td>
         <td data-label="Estado">{{ c.estado }}</td>
       </tr>
       {% endfor %}

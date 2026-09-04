@@ -23,7 +23,7 @@
   {% else %}
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Código</th><th>Fecha</th><th>Cliente</th><th>Líneas</th><th>Peso total</th><th>Estado</th></tr>
+      <tr><th>Código</th><th>Fecha</th><th>Cliente</th><th>Líneas</th><th>Recibido</th><th>Estado</th></tr>
     </thead>
     <tbody>
       {% for r in recepciones %}
@@ -32,7 +32,7 @@
         <td data-label="Fecha">{{ r.recibido_en.strftime('%d/%m/%Y') }}</td>
         <td data-label="Cliente">{{ r.cliente.nombre }}</td>
         <td data-label="Líneas">{{ r.lineas|length }}</td>
-        <td data-label="Peso total">{{ r.lineas|sum(attribute='peso_total') }}</td>
+        <td data-label="Recibido">{% for unidad, total in r.totales_por_unidad %}{{ total|fmt_cant(unidad) }}{{ ' · ' if not loop.last }}{% else %}—{% endfor %}</td>
         <td data-label="Estado">{{ 'Anulada' if r.anulada else 'Vigente' }}</td>
       </tr>
       {% endfor %}

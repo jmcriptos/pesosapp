@@ -374,3 +374,33 @@ def test_reparto_manual_dos_tramos_a_la_misma_linea_que_caben_en_el_saldo(app):
         origenes = CorridaConsumoOrigen.query.order_by(CorridaConsumoOrigen.id).all()
         assert len(origenes) == 2
         assert sum((o.cantidad for o in origenes), Decimal('0')) == Decimal('90.000')
+
+
+def test_la_merma_no_suma_ingredientes_que_no_se_pesan(app):
+    """Una receta de chorizo lleva tripa, que se cuenta en unidades.
+
+    Sumarla a los kilos daba «78 kg + 120 tripas − 60,7 kg»: un número que no
+    es nada y que alimentaba la merma y el reporte de rendimiento.
+    """
+    from maquila import servicios
+    from maquila.models import Ingrediente
+    with app.app_context():
+        tripa = Ingrediente(nombre='Tripa natural', unidad='ud')
+        _db.session.add(tripa)
+        _db.session.commit()
+
+        _recibir('R1', 1, 200)                       # carne, en kg
+        _recibir('R2', 1, 500, ingrediente_id=tripa.id)   # tripa, en unidades
+
+        c = _corrida_con_cajas([40])
+        servicios.cerrar_corrida(
+            c, {IDS['ingrediente']: Decimal('50'), tripa.id: Decimal('120')},
+            IDS['vendedor'])
+
+        # 50 kg consumidos - 40 kg producidos = 10 kg. Las 120 tripas no entran.
+        assert servicios.consumo_en_peso(c) == Decimal('50.000')
+        assert servicios.merma_de_corrida(c) == Decimal('10.000')
+
+        # Pero sí se descontaron del saldo: el ledger no pierde nada.
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], tripa.id) == Decimal('380')

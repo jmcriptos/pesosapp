@@ -20,7 +20,7 @@
           <thead><tr><th>Ingrediente</th><th>Saldo</th></tr></thead>
           <tbody>
             {% for s in t.saldos %}
-            <tr><td>{{ s.ingrediente }}</td><td>{{ s.saldo }} {{ s.unidad }}</td></tr>
+            <tr><td>{{ s.ingrediente }}</td><td>{{ s.saldo|fmt_cant(s.unidad) }}</td></tr>
             {% endfor %}
           </tbody>
         </table>

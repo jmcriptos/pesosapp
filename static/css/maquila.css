@@ -508,3 +508,12 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
+
+/* Un consumo que incluye algo que no se pesa (tripa, por ejemplo) no entra en
+   el balance de kilos; la pantalla lo dice en vez de esconderlo en un total. */
+.maquila-nota-unidad {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
