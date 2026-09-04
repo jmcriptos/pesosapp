@@ -77,6 +77,15 @@ class RecepcionIngrediente(db.Model):
         return self.anulada_en is not None
 
     @property
+    def lineas_vivas(self):
+        """Las líneas que no se quitaron. Una línea quitada sigue en la fila
+        (el módulo no borra nada) pero sale de cualquier total visible: el
+        ledger ya la dejó en saldo 0 vía su inverso, y contarla en un total
+        que se muestra en pantalla es el número dejando de coincidir con lo
+        que dice el rastro."""
+        return [l for l in self.lineas if not l.anulada]
+
+    @property
     def totales_por_unidad(self):
         """Totales agrupados por unidad, no una suma única.
 
@@ -86,7 +95,7 @@ class RecepcionIngrediente(db.Model):
         """
         from decimal import Decimal
         acum = {}
-        for linea in self.lineas:
+        for linea in self.lineas_vivas:
             unidad = linea.ingrediente.unidad if linea.ingrediente else 'kg'
             acum[unidad] = acum.get(unidad, Decimal('0')) + Decimal(str(linea.peso_total or 0))
         return sorted(acum.items())

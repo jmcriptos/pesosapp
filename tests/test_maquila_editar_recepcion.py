@@ -285,6 +285,140 @@ def test_cambiar_el_cliente_con_todo_intacto_se_acepta(app):
         assert rec.cliente_id == IDS['otro_cliente']
 
 
+def test_cambiar_el_cliente_compensa_el_ledger(app):
+    """Hoy `recepcion.cliente_id` pasa a B pero los `entrada` que escribió
+    `crear_recepcion` siguen con `cliente_id`=A: A queda con stock fantasma
+    para siempre y B llega a saldo negativo en cuanto produce. El arreglo
+    compensa en el ledger: -peso contra el cliente viejo, +peso contra el
+    nuevo, ambos sobre la misma `recepcion_linea_id`."""
+    from maquila import servicios
+    with app.app_context():
+        rec = _recepcion(100)
+        linea = rec.lineas[0]
+
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'],
+            cabecera=_cabecera(rec, cliente_id=IDS['otro_cliente']),
+            lineas=[_linea_dict(linea)])
+
+        saldos_viejo = {f['ingrediente_id']: f['saldo']
+                        for f in servicios.saldos_de_cliente(IDS['cliente'])}
+        saldos_nuevo = {f['ingrediente_id']: f['saldo']
+                        for f in servicios.saldos_de_cliente(IDS['otro_cliente'])}
+        assert saldos_viejo.get(IDS['carne'], Decimal('0')) == Decimal('0')
+        assert saldos_nuevo[IDS['carne']] == Decimal('100.000')
+        # El saldo de LÍNEA no se mueve: sigue siendo el mismo peso de antes.
+        assert servicios.saldo_de_linea(linea.id) == Decimal('100.000')
+
+        # El cliente nuevo puede consumir sin quedar en negativo.
+        reparto = servicios.repartir_fifo(IDS['otro_cliente'], IDS['carne'],
+                                          Decimal('100'))
+        assert reparto == [(linea.id, Decimal('100'))]
+
+
+def test_linea_duplicada_en_el_post_se_rechaza(app):
+    """Reproducido con un POST real: el mismo id dos veces con
+    `linea_quitar_<id>` marcado escribía DOS movimientos inversos y dejaba
+    `saldo_de_linea` en -100. `routes.py` no deduplica; el rechazo vive en
+    `editar_recepcion`."""
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    with app.app_context():
+        rec = _recepcion(100)
+        linea = rec.lineas[0]
+        antes = MovimientoIngrediente.query.count()
+
+        with pytest.raises(servicios.CorreccionImposible):
+            servicios.editar_recepcion(
+                rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
+                lineas=[_linea_dict(linea, quitar=True),
+                        _linea_dict(linea, quitar=True)],
+                motivo='Duplicado')
+
+        _db.session.rollback()
+        assert MovimientoIngrediente.query.count() == antes
+        assert servicios.saldo_de_linea(linea.id) == Decimal('100.000')
+
+
+def test_cambiar_el_ingrediente_de_una_linea_intacta_mueve_el_saldo(app):
+    from maquila import servicios
+    with app.app_context():
+        rec = _recepcion(100, ingrediente=IDS['carne'])
+        linea = rec.lineas[0]
+
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
+            lineas=[_linea_dict(linea, ingrediente_id=IDS['grasa'])],
+            motivo='Era grasa, no carne')
+
+        assert linea.ingrediente_id == IDS['grasa']
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], IDS['carne']) == Decimal('0')
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], IDS['grasa']) == Decimal('100.000')
+        assert servicios.saldo_de_linea(linea.id) == Decimal('100.000')
+
+
+def test_cambiar_el_ingrediente_de_una_linea_consumida_se_rechaza(app):
+    from maquila import servicios
+    with app.app_context():
+        rec = _recepcion(100, ingrediente=IDS['carne'])
+        linea = rec.lineas[0]
+        _consumir(linea.id, IDS['carne'], 40)
+
+        with pytest.raises(servicios.CorreccionImposible):
+            servicios.editar_recepcion(
+                rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
+                lineas=[_linea_dict(linea, ingrediente_id=IDS['grasa'])],
+                motivo='x')
+
+        _db.session.rollback()
+        assert rec.lineas[0].ingrediente_id == IDS['carne']
+
+
+def test_totales_por_unidad_no_cuenta_linea_quitada(app):
+    from maquila import servicios
+    with app.app_context():
+        rec = servicios.crear_recepcion(
+            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': IDS['carne'], 'peso_total': Decimal('15')},
+                    {'ingrediente_id': IDS['grasa'], 'peso_total': Decimal('20')}])
+        linea_quitar = rec.lineas[0]
+        otra = rec.lineas[1]
+
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
+            lineas=[_linea_dict(linea_quitar, quitar=True), _linea_dict(otra)],
+            motivo='No vino')
+
+        totales = dict(rec.totales_por_unidad)
+        assert totales == {'kg': Decimal('20')}
+
+
+def test_cabecera_con_cliente_id_o_fecha_none_no_los_borra(app):
+    """La ruta siempre manda las seis claves de cabecera; un `None` en
+    `cliente_id`/`recibido_en` (columnas NOT NULL) tiene que leerse como "no
+    tocar", igual que ya lo trata la guarda de arriba — si no, el `setattr`
+    deja un NULL que revienta en el commit con un IntegrityError genérico."""
+    from maquila import servicios
+    with app.app_context():
+        rec = _recepcion(100)
+        linea = rec.lineas[0]
+        cliente_original = rec.cliente_id
+        recibido_original = rec.recibido_en
+
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'],
+            cabecera=_cabecera(rec, cliente_id=None, recibido_en=None,
+                               transportista='Nuevo transportista'),
+            lineas=[_linea_dict(linea)])
+
+        assert rec.cliente_id == cliente_original
+        assert rec.recibido_en == recibido_original
+        assert rec.transportista == 'Nuevo transportista'
+
+
 def test_editar_una_recepcion_anulada_se_rechaza(app):
     from maquila import servicios
     with app.app_context():
