@@ -101,11 +101,20 @@ class RecepcionLinea(db.Model):
     lote_cliente = db.Column(db.String(50), nullable=True)
     fecha_vencimiento = db.Column(db.Date, nullable=True)
     peso_total = db.Column(db.Numeric(10, 3), nullable=False, default=0)
+    # Quitar una línea no la borra: el módulo no borra nada, nunca, y además
+    # borrar la fila dejaría huérfanos los movimiento_ingrediente que la
+    # referencian. Mismo patrón que recepcion_ingrediente.anulada_en y
+    # corrida_caja.anulada_en.
+    anulada_en = db.Column(db.DateTime, nullable=True)
 
     recepcion = db.relationship('RecepcionIngrediente', back_populates='lineas')
     ingrediente = db.relationship('Ingrediente')
     bultos = db.relationship('RecepcionBulto', back_populates='linea',
                              cascade='all, delete-orphan', order_by='RecepcionBulto.numero')
+
+    @property
+    def anulada(self):
+        return self.anulada_en is not None
 
 
 class RecepcionBulto(db.Model):
