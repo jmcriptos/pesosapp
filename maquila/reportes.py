@@ -181,7 +181,7 @@ def _adelante_desde_corrida(corrida):
         entrada = por_pedido.setdefault(pedido.id, {
             'pedido_id': pedido.id,
             'estado': pedido.estado,
-            'fecha_pedido': pedido.fecha_pedido,
+            'fecha_pedido': _local(pedido.fecha_pedido),
             'doc_number_qbo': pedido.doc_number_qbo,
             'invoice_id_qbo': pedido.invoice_id_qbo,
             'cajas': 0,
@@ -192,27 +192,105 @@ def _adelante_desde_corrida(corrida):
     return list(por_pedido.values())
 
 
+def _agregar_adelante(listas_por_corrida):
+    """Combina el 'hacia_adelante' de varias corridas, sumando por pedido.
+
+    Si dos corridas de la misma recepción pusieron cajas en el mismo pedido,
+    sin esto el pedido saldría dos veces con `cajas`/`peso` parciales —
+    ninguna fila con el total real.
+    """
+    por_pedido = {}
+    for entradas in listas_por_corrida:
+        for entrada in entradas:
+            pid = entrada['pedido_id']
+            if pid not in por_pedido:
+                por_pedido[pid] = dict(entrada)
+            else:
+                por_pedido[pid]['cajas'] += entrada['cajas']
+                por_pedido[pid]['peso'] += entrada['peso']
+    return list(por_pedido.values())
+
+
+def _desde_pedido(pedido):
+    """Hacia atrás (recepciones vía corrida) y hacia adelante (el pedido mismo)."""
+    atras, corridas, vistas = [], [], set()
+    for detalle in pedido.detalles:
+        for pesada in (detalle.cajas_pesadas or []):
+            caja = CorridaCaja.query.filter_by(caja_pesada_id=pesada.id).first()
+            if caja is None:
+                atras.append({
+                    'codigo': '—', 'recibido_en': None, 'documento_cliente': None,
+                    'lote_cliente': pesada.lote,
+                    'ingrediente': None,
+                    'producto': detalle.producto.nombre if detalle.producto else '—',
+                    'cantidad': _dec(pesada.peso), 'automatico': None,
+                    'sin_origen': True,
+                })
+                continue
+            if caja.corrida_id not in vistas:
+                vistas.add(caja.corrida_id)
+                corridas.append(caja.corrida)
+                atras.extend(_atras_desde_corrida(caja.corrida))
+
+    adelante = {
+        'pedido_id': pedido.id, 'estado': pedido.estado,
+        'fecha_pedido': _local(pedido.fecha_pedido),
+        'doc_number_qbo': pedido.doc_number_qbo,
+        'invoice_id_qbo': pedido.invoice_id_qbo,
+        'cajas': sum(d.cajas_pesadas_count for d in pedido.detalles),
+        'peso': sum((_dec(d.peso_real) for d in pedido.detalles), CERO),
+    }
+    return atras, corridas, adelante
+
+
 def trazar(termino):
     """Traza en ambos sentidos desde un lote, un código o un número de pedido.
 
     Acepta: lote de corrida, código de corrida (P-…), código de recepción (R-…),
     id de pedido o DocNumber de QuickBooks.
+
+    `trazar` nunca elige en silencio: un lote solo es único por
+    `(cliente_id, lote)`, no globalmente, y un término numérico puede calzar
+    a la vez con un `Pedido.id` y con el `doc_number_qbo` de OTRO pedido. Si
+    el término calza con más de una cosa, el resultado vuelve con
+    `ambiguo: True` y TODOS los candidatos, en vez de adivinar cuál.
     """
     vacio = {'encontrado': False, 'tipo': None, 'termino': termino,
-             'hacia_atras': [], 'hacia_adelante': [], 'corridas': []}
+             'ambiguo': False, 'hacia_atras': [], 'hacia_adelante': [],
+             'corridas': []}
     termino = (termino or '').strip()
     if not termino:
         return vacio
 
-    corrida = (CorridaProduccion.query
-               .filter((CorridaProduccion.lote == termino) |
-                       (CorridaProduccion.codigo == termino))
-               .first())
-    if corrida:
+    corridas_candidatas = (CorridaProduccion.query
+                            .filter((CorridaProduccion.lote == termino) |
+                                    (CorridaProduccion.codigo == termino))
+                            .order_by(CorridaProduccion.id.asc())
+                            .all())
+    if len(corridas_candidatas) == 1:
+        corrida = corridas_candidatas[0]
         return {'encontrado': True, 'tipo': 'corrida', 'termino': termino,
+                'ambiguo': False,
                 'corridas': [corrida],
                 'hacia_atras': _atras_desde_corrida(corrida),
                 'hacia_adelante': _adelante_desde_corrida(corrida)}
+    if len(corridas_candidatas) > 1:
+        hacia_atras, hacia_adelante = [], []
+        for c in corridas_candidatas:
+            cliente_nombre = c.cliente.nombre if c.cliente else '—'
+            for fila in _atras_desde_corrida(c):
+                fila['corrida_id'] = c.id
+                fila['cliente'] = cliente_nombre
+                hacia_atras.append(fila)
+            for fila in _adelante_desde_corrida(c):
+                fila['corrida_id'] = c.id
+                fila['cliente'] = cliente_nombre
+                hacia_adelante.append(fila)
+        return {'encontrado': True, 'tipo': 'corrida', 'termino': termino,
+                'ambiguo': True,
+                'corridas': corridas_candidatas,
+                'hacia_atras': hacia_atras,
+                'hacia_adelante': hacia_adelante}
 
     recepcion = RecepcionIngrediente.query.filter_by(codigo=termino).first()
     if recepcion:
@@ -224,10 +302,9 @@ def trazar(termino):
                           CorridaConsumoOrigen.corrida_consumo_id == CorridaConsumo.id)
                     .filter(CorridaConsumoOrigen.recepcion_linea_id.in_(ids))
                     .distinct().all()) if ids else []
-        adelante = []
-        for c in corridas:
-            adelante.extend(_adelante_desde_corrida(c))
+        adelante = _agregar_adelante(_adelante_desde_corrida(c) for c in corridas)
         return {'encontrado': True, 'tipo': 'recepcion', 'termino': termino,
+                'ambiguo': False,
                 'corridas': corridas,
                 'hacia_atras': [{
                     'codigo': recepcion.codigo,
@@ -241,39 +318,34 @@ def trazar(termino):
                 } for l in recepcion.lineas],
                 'hacia_adelante': adelante}
 
-    pedido = None
-    if termino.isdigit():
-        pedido = db.session.get(Pedido, int(termino))
-    if pedido is None:
-        pedido = Pedido.query.filter_by(doc_number_qbo=termino).first()
-    if pedido is None:
+    pedido_por_id = db.session.get(Pedido, int(termino)) if termino.isdigit() else None
+    pedido_por_docnum = Pedido.query.filter_by(doc_number_qbo=termino).first()
+
+    candidatos, vistos = [], set()
+    for p in (pedido_por_id, pedido_por_docnum):
+        if p is not None and p.id not in vistos:
+            vistos.add(p.id)
+            candidatos.append(p)
+
+    if not candidatos:
         return vacio
 
-    atras, corridas, vistas = [], [], set()
-    for detalle in pedido.detalles:
-        for pesada in (detalle.cajas_pesadas or []):
-            caja = CorridaCaja.query.filter_by(caja_pesada_id=pesada.id).first()
-            if caja is None:
-                atras.append({
-                    'codigo': '—', 'recibido_en': None, 'documento_cliente': None,
-                    'lote_cliente': pesada.lote,
-                    'ingrediente': detalle.producto.nombre if detalle.producto else '—',
-                    'cantidad': _dec(pesada.peso), 'automatico': None,
-                    'sin_origen': True,
-                })
-                continue
-            if caja.corrida_id not in vistas:
-                vistas.add(caja.corrida_id)
-                corridas.append(caja.corrida)
-                atras.extend(_atras_desde_corrida(caja.corrida))
+    if len(candidatos) == 1:
+        atras, corridas, adelante = _desde_pedido(candidatos[0])
+        return {'encontrado': True, 'tipo': 'pedido', 'termino': termino,
+                'ambiguo': False,
+                'corridas': corridas, 'hacia_atras': atras,
+                'hacia_adelante': [adelante]}
 
+    hacia_atras, hacia_adelante, corridas = [], [], []
+    for p in candidatos:
+        atras, c, adelante = _desde_pedido(p)
+        for fila in atras:
+            fila['pedido_id'] = p.id
+        hacia_atras.extend(atras)
+        corridas.extend(c)
+        hacia_adelante.append(adelante)
     return {'encontrado': True, 'tipo': 'pedido', 'termino': termino,
-            'corridas': corridas, 'hacia_atras': atras,
-            'hacia_adelante': [{
-                'pedido_id': pedido.id, 'estado': pedido.estado,
-                'fecha_pedido': pedido.fecha_pedido,
-                'doc_number_qbo': pedido.doc_number_qbo,
-                'invoice_id_qbo': pedido.invoice_id_qbo,
-                'cajas': sum(d.cajas_pesadas_count for d in pedido.detalles),
-                'peso': sum((_dec(d.peso_real) for d in pedido.detalles), CERO),
-            }]}
+            'ambiguo': True,
+            'corridas': corridas, 'hacia_atras': hacia_atras,
+            'hacia_adelante': hacia_adelante}
