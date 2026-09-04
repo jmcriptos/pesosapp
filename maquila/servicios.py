@@ -10,7 +10,7 @@ from decimal import Decimal
 from sqlalchemy import func
 
 from app import db
-from .models import Ingrediente, MovimientoIngrediente, RecepcionIngrediente, RecepcionLinea, RecepcionBulto, RecepcionFoto
+from .models import Ingrediente, MovimientoIngrediente, RecepcionIngrediente, RecepcionLinea, RecepcionBulto, RecepcionFoto, Receta
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}
@@ -336,3 +336,50 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     recepcion.anulada_por = vendedor_id
     recepcion.motivo_anulacion = motivo.strip()
     return recepcion
+
+
+class RecetaDuplicada(ValueError):
+    """Ya existe otra receta activa para ese producto y ese cliente.
+
+    Se rechaza al guardar la receta, no al usarla: descubrir el empate cuando ya
+    estás cerrando una corrida es descubrirlo tarde.
+    """
+
+
+def receta_activa(producto_id, cliente_id):
+    """La receta que aplica: la del cliente gana; si no hay, la genérica."""
+    propia = (Receta.query
+              .filter_by(producto_id=producto_id, cliente_id=cliente_id, activa=True)
+              .first())
+    if propia:
+        return propia
+    return (Receta.query
+            .filter(Receta.producto_id == producto_id,
+                    Receta.cliente_id.is_(None),
+                    Receta.activa.is_(True))
+            .first())
+
+
+def validar_receta_unica(producto_id, cliente_id, receta_id=None):
+    query = Receta.query.filter(Receta.producto_id == producto_id,
+                                Receta.activa.is_(True))
+    if cliente_id is None:
+        query = query.filter(Receta.cliente_id.is_(None))
+    else:
+        query = query.filter(Receta.cliente_id == cliente_id)
+    if receta_id is not None:
+        query = query.filter(Receta.id != receta_id)
+    if query.first():
+        raise RecetaDuplicada(
+            'Ya hay una receta activa para ese producto y ese cliente')
+
+
+def consumo_teorico(receta, kg_producidos):
+    """Cuánto debería consumirse de cada ingrediente para producir esos kilos."""
+    kg_producidos = _dec(kg_producidos)
+    base = _dec(receta.base_kg)
+    if base <= CERO:
+        raise ValueError('La base de la receta debe ser positiva')
+    factor = kg_producidos / base
+    return {item.ingrediente_id: (_dec(item.cantidad) * factor).quantize(Decimal('0.001'))
+            for item in receta.ingredientes}
