@@ -297,7 +297,7 @@ def crear_recepcion(*, cliente_id, recibido_en, vendedor_id, lineas,
 
         db.session.commit()
         return recepcion
-    except RecepcionInvalida:
+    except Exception:
         db.session.rollback()
         raise
 

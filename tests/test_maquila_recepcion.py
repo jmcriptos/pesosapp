@@ -190,3 +190,22 @@ def test_un_bulto_negativo_se_rechaza(app):
                 lineas=[{'ingrediente_id': IDS['ingrediente'],
                          'bultos': [Decimal('10'), Decimal('-3')]}])
         assert RecepcionIngrediente.query.count() == 0
+
+
+def test_excepcion_no_recepcion_invalida_tambien_rollback(app):
+    """Si una línea causa KeyError (no RecepcionInvalida), tampoco queda residuo."""
+    from maquila import servicios
+    from maquila.models import RecepcionIngrediente, RecepcionLinea, MovimientoIngrediente
+    with app.app_context():
+        with pytest.raises(KeyError):
+            servicios.crear_recepcion(
+                cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+                vendedor_id=IDS['vendedor'],
+                lineas=[
+                    {'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]},
+                    {'bultos': [Decimal('5')]}  # Falta ingrediente_id
+                ])
+        # Sin residuo: no quedó media recepción aunque la excepción no fuera RecepcionInvalida.
+        assert RecepcionIngrediente.query.count() == 0
+        assert RecepcionLinea.query.count() == 0
+        assert MovimientoIngrediente.query.count() == 0
