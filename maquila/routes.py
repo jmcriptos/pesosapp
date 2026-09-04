@@ -206,19 +206,17 @@ def recepcion_nueva():
         lotes = request.form.getlist('linea_lote_cliente')
         vencimientos = request.form.getlist('linea_fecha_vencimiento')
         totales = request.form.getlist('linea_peso_total')
-        bultos_crudos = request.form.getlist('linea_bultos')
+        cantidades = request.form.getlist('linea_cantidad_bultos')
 
         for i, ingrediente_id in enumerate(ingredientes_ids):
             if not ingrediente_id:
                 continue
-            crudos = (bultos_crudos[i] if i < len(bultos_crudos) else '') or ''
-            bultos = [b for b in (_decimal(x) for x in crudos.split(',') if x.strip())
-                      if b is not None]
             lineas.append({
                 'ingrediente_id': _entero(ingrediente_id),
                 'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
                 'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
-                'bultos': bultos,
+                'cantidad_bultos': _entero(
+                    cantidades[i] if i < len(cantidades) else '') or 0,
                 'peso_total': _decimal(totales[i] if i < len(totales) else ''),
             })
 
@@ -311,15 +309,12 @@ def recepcion_editar(recepcion_id):
         ingredientes = request.form.getlist('linea_ingrediente_id')
         lotes = request.form.getlist('linea_lote_cliente')
         vencimientos = request.form.getlist('linea_fecha_vencimiento')
-        bultos_crudos = request.form.getlist('linea_bultos')
+        cantidades = request.form.getlist('linea_cantidad_bultos')
         totales = request.form.getlist('linea_peso_total')
 
         for i, ingrediente_id in enumerate(ingredientes):
             if not ingrediente_id:
                 continue
-            crudos = (bultos_crudos[i] if i < len(bultos_crudos) else '') or ''
-            bultos = [b for b in (_decimal(x) for x in crudos.split(',') if x.strip())
-                      if b is not None]
             bruto_id = (ids[i] if i < len(ids) else '') or ''
             # `linea_quitar_<id>` se resuelve por id, no por posición en una
             # lista paralela: un checkbox sin `name` propio no viaja si está
@@ -336,14 +331,10 @@ def recepcion_editar(recepcion_id):
                 'ingrediente_id': _entero(ingrediente_id),
                 'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
                 'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
-                'bultos': bultos,
+                'cantidad_bultos': _entero(
+                    cantidades[i] if i < len(cantidades) else '') or 0,
                 'peso_total': _decimal(totales[i] if i < len(totales) else ''),
                 'quitar': quitar_linea,
-                # Nombre propio por línea, como `linea_quitar_<id>`: viaja solo
-                # y no depende del orden de las listas paralelas.
-                'peso_manual': bool(
-                    request.form.get(f'linea_peso_manual_{bruto_id}')
-                ) if bruto_id else bool(request.form.get('linea_peso_manual_nueva')),
             })
 
         fotos_nuevas = []

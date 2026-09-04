@@ -91,9 +91,13 @@
 
         <div class="rec-linea-campo">
           <label for="bultos-{{ l.id }}">Bultos</label>
-          <input type="text" id="bultos-{{ l.id }}" name="linea_bultos" inputmode="decimal"
-                 class="rec-bultos-input"
-                 value="{{ l.bultos|map(attribute='peso')|join(', ') }}">
+          {#- Cuántos paquetes llegaron. Es una CANTIDAD: no calcula el peso ni
+              se calcula desde él. Antes era una lista de pesos separada por
+              comas y en planta escribían la cantidad, dejando un bulto de 9 kg
+              en una línea de 121,32. -#}
+          <input type="number" step="1" min="0" id="bultos-{{ l.id }}"
+                 name="linea_cantidad_bultos" inputmode="numeric"
+                 value="{{ l.cantidad_bultos }}">
         </div>
 
         <div class="rec-linea-campo">
@@ -101,13 +105,7 @@
           {#- El value va CRUDO: es un input numérico, no texto para leer. fmt_cant
               metería una coma de miles y rompería el parseo. -#}
           <input type="number" step="0.001" id="total-{{ l.id }}" name="linea_peso_total"
-                 class="rec-total-input"
                  value="{{ l.peso_total }}">
-          {#- Dice quién manda entre el total y los bultos. Sin JS no viaja, y
-              entonces mandan los bultos: la degradación segura. -#}
-          <input type="hidden" name="linea_peso_manual_{{ l.id }}"
-                 class="rec-peso-manual" value="">
-          <p class="maquila-nota-unidad rec-desajuste" data-desajuste hidden></p>
         </div>
 
         {#- El checkbox lleva NOMBRE PROPIO por línea (`linea_quitar_<id>`),
@@ -222,12 +220,12 @@
     </div>
     <div class="rec-linea-campo">
       <label>Bultos
-        <input type="text" name="linea_bultos" class="rec-bultos-input" inputmode="decimal" placeholder="12.5, 11.5">
+        <input type="number" step="1" min="0" name="linea_cantidad_bultos" inputmode="numeric" placeholder="Bultos">
       </label>
     </div>
     <div class="rec-linea-campo">
       <label>Peso total
-        <input type="number" step="0.001" name="linea_peso_total" class="rec-total-input" placeholder="o peso total">
+        <input type="number" step="0.001" name="linea_peso_total" placeholder="Peso total">
       </label>
       <p class="maquila-nota-unidad">Si cargás bultos arriba, mandan ellos: este peso total se ignora.</p>
     </div>
@@ -241,78 +239,8 @@
   function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
 
-  // Bultos y peso total: los dos se editan. Escribir bultos recalcula el
-  // total, salvo que el usuario ya lo haya tocado a mano — a partir de ese
-  // momento el total es suyo y no se lo volvemos a pisar. Si los dos quedan
-  // en desacuerdo, se avisa; no se corrige ni se bloquea.
-  function sumaDeBultos(texto) {
-    var total = 0, alguno = false;
-    texto.split(',').forEach(function (parte) {
-      var t = parte.trim();
-      if (!t) return;
-      var n = parseFloat(t.replace(',', '.'));
-      if (!isNaN(n)) { total += n; alguno = true; }
-    });
-    return alguno ? total : null;
-  }
-
-  function redondear(n) { return Math.round(n * 1000) / 1000; }
-
-  // `inicial` distingue el pase de carga de los que dispara el usuario. En el
-  // de carga NO se escribe nada: el valor que mandó el servidor es el que se
-  // guardó, y pisarlo con la suma de los bultos revertía en silencio cualquier
-  // total escrito a mano en una sesión anterior — el usuario reabría la
-  // pantalla, no tocaba nada, guardaba, y su corrección se deshacía sola.
-  function sincronizarFila(fila, inicial) {
-    var bultos = fila.querySelector('.rec-bultos-input');
-    var total = fila.querySelector('.rec-total-input');
-    var aviso = fila.querySelector('[data-desajuste]');
-    if (!bultos || !total) return;
-
-    var suma = sumaDeBultos(bultos.value);
-
-    // Los bultos escriben el total solo si el usuario los está editando ahora
-    // y no tecleó el total a mano en esta misma sesión.
-    if (!inicial && suma !== null && total.dataset.tocado !== '1') {
-      total.value = redondear(suma);
-    }
-
-    // Un desajuste YA GUARDADO es la prueba de una corrección manual anterior:
-    // al reabrir la pantalla hay que volver a declararla, o el segundo
-    // guardado la desharía.
-    var escritoAhora = parseFloat(total.value);
-    if (inicial && suma !== null && !isNaN(escritoAhora)
-        && redondear(suma) !== redondear(escritoAhora)) {
-      total.dataset.tocado = '1';
-    }
-
-    var bandera = fila.querySelector('.rec-peso-manual');
-    if (bandera) bandera.value = (total.dataset.tocado === '1') ? '1' : '';
-
-    if (!aviso) return;
-    var escrito = parseFloat(total.value);
-    var hayDesajuste = (suma !== null && !isNaN(escrito)
-                        && redondear(suma) !== redondear(escrito));
-    if (hayDesajuste) {
-      aviso.textContent = 'Los bultos suman ' + redondear(suma)
-        + '. Se va a guardar ' + redondear(escrito) + ', que es lo que dice este campo.';
-      aviso.hidden = false;
-    } else {
-      aviso.hidden = true;
-    }
-  }
-
-  cont.addEventListener('input', function (e) {
-    if (e.target.matches('.rec-total-input')) {
-      e.target.dataset.tocado = '1';
-      sincronizarFila(e.target.closest('.rec-linea'));
-    } else if (e.target.matches('.rec-bultos-input')) {
-      sincronizarFila(e.target.closest('.rec-linea'));
-    }
-  });
-  Array.prototype.forEach.call(cont.querySelectorAll('.rec-linea'), function (fila) {
-    sincronizarFila(fila, true);
-  });
+  // Bultos y peso total son dos números independientes: la cantidad de
+  // paquetes no calcula el peso ni al revés. No hay nada que sincronizar.
 
   // «Quitar esta línea» ya NO depende de JS: el checkbox de cada línea
   // existente lleva su propio `name="linea_quitar_<id>"` (ver la plantilla)

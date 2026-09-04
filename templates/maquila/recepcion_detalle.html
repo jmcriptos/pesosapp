@@ -34,7 +34,7 @@
         <td data-label="Vencimiento">{{ l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else '—' }}</td>
         <td data-label="Peso">{{ l.peso_total|fmt_cant(l.ingrediente.unidad) }}</td>
         <td data-label="Saldo">{{ saldos_linea[l.id]|fmt_cant(l.ingrediente.unidad) }}</td>
-        <td data-label="Bultos">{{ l.bultos|length }}</td>
+        <td data-label="Bultos">{{ l.cantidad_bultos }}</td>
       </tr>
       {% endfor %}
     </tbody>

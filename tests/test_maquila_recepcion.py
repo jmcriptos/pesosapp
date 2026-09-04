@@ -48,21 +48,8 @@ def test_el_codigo_es_correlativo_por_anio(app):
             cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
             vendedor_id=IDS['vendedor'],
             lineas=[{'ingrediente_id': IDS['ingrediente'],
-                     'bultos': [Decimal('10')]}])
+                     'cantidad_bultos': 1, 'peso_total': Decimal('10')}])
         assert servicios.siguiente_codigo('R', 2026) == 'R-2026-0002'
-
-
-def test_el_peso_total_es_la_suma_de_los_bultos(app):
-    from maquila import servicios
-    with app.app_context():
-        rec = servicios.crear_recepcion(
-            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
-            vendedor_id=IDS['vendedor'],
-            lineas=[{'ingrediente_id': IDS['ingrediente'],
-                     'bultos': [Decimal('10.5'), Decimal('9.5'), Decimal('20')]}])
-        assert rec.lineas[0].peso_total == Decimal('40.000')
-        assert len(rec.lineas[0].bultos) == 3
-        assert [b.numero for b in rec.lineas[0].bultos] == [1, 2, 3]
 
 
 def test_a_granel_se_acepta_el_peso_total_sin_bultos(app):
@@ -85,7 +72,7 @@ def test_sin_documento_del_cliente_es_valido(app):
             cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
             vendedor_id=IDS['vendedor'], documento_cliente=None,
             lineas=[{'ingrediente_id': IDS['ingrediente'],
-                     'bultos': [Decimal('10')]}])
+                     'cantidad_bultos': 1, 'peso_total': Decimal('10')}])
         assert rec.documento_cliente is None
         assert rec.codigo.startswith('R-')
 
@@ -97,8 +84,8 @@ def test_el_alta_escribe_un_movimiento_de_entrada_por_linea(app):
         servicios.crear_recepcion(
             cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
             vendedor_id=IDS['vendedor'],
-            lineas=[{'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]},
-                    {'ingrediente_id': IDS['ingrediente2'], 'bultos': [Decimal('4')]}])
+            lineas=[{'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')},
+                    {'ingrediente_id': IDS['ingrediente2'], 'cantidad_bultos': 1, 'peso_total': Decimal('4')}])
         movs = MovimientoIngrediente.query.all()
         assert len(movs) == 2
         assert all(m.tipo == 'entrada' and m.origen_tipo == 'recepcion' for m in movs)
@@ -121,7 +108,7 @@ def test_anular_una_recepcion_intacta_escribe_los_inversos(app):
         rec = servicios.crear_recepcion(
             cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
             vendedor_id=IDS['vendedor'],
-            lineas=[{'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]}])
+            lineas=[{'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')}])
         servicios.anular_recepcion(rec, IDS['vendedor'], 'Llegó en mal estado')
         _db.session.commit()
         assert rec.anulada is True
@@ -137,7 +124,7 @@ def test_anular_una_recepcion_ya_consumida_se_rechaza(app):
         rec = servicios.crear_recepcion(
             cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
             vendedor_id=IDS['vendedor'],
-            lineas=[{'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]}])
+            lineas=[{'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')}])
         servicios.registrar_movimiento(
             cliente_id=IDS['cliente'], ingrediente_id=IDS['ingrediente'],
             tipo='salida', cantidad=Decimal('4'), origen_tipo='corrida',
@@ -154,7 +141,7 @@ def test_anular_sin_motivo_se_rechaza(app):
         rec = servicios.crear_recepcion(
             cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
             vendedor_id=IDS['vendedor'],
-            lineas=[{'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]}])
+            lineas=[{'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')}])
         with pytest.raises(servicios.MotivoRequerido):
             servicios.anular_recepcion(rec, IDS['vendedor'], '   ')
 
@@ -182,10 +169,10 @@ def test_anular_tras_quitar_una_linea(app):
                      'documento_cliente': None, 'temperatura': None,
                      'transportista': None, 'notas': None},
             lineas=[{'id': linea_quitada.id, 'ingrediente_id': linea_quitada.ingrediente_id,
-                    'lote_cliente': None, 'fecha_vencimiento': None, 'bultos': [],
+                    'lote_cliente': None, 'fecha_vencimiento': None, 'cantidad_bultos': 0,
                     'peso_total': Decimal('15'), 'quitar': True},
                    {'id': linea_intacta.id, 'ingrediente_id': linea_intacta.ingrediente_id,
-                    'lote_cliente': None, 'fecha_vencimiento': None, 'bultos': [],
+                    'lote_cliente': None, 'fecha_vencimiento': None, 'cantidad_bultos': 0,
                     'peso_total': Decimal('20'), 'quitar': False}],
             motivo='No vino')
         _db.session.commit()
@@ -216,27 +203,13 @@ def test_una_linea_valida_seguida_de_invalida_no_deja_residuo(app):
                 cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
                 vendedor_id=IDS['vendedor'],
                 lineas=[
-                    {'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]},
+                    {'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')},
                     {'ingrediente_id': IDS['ingrediente2'], 'peso_total': Decimal('0')}
                 ])
         # Sin residuo: no se cometió media recepción.
         assert RecepcionIngrediente.query.count() == 0
         assert RecepcionLinea.query.count() == 0
         assert MovimientoIngrediente.query.count() == 0
-
-
-def test_un_bulto_negativo_se_rechaza(app):
-    """Un peso negativo en cualquier bulto cancela la recepción."""
-    from maquila import servicios
-    from maquila.models import RecepcionIngrediente
-    with app.app_context():
-        with pytest.raises(servicios.RecepcionInvalida, match='no positivo'):
-            servicios.crear_recepcion(
-                cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
-                vendedor_id=IDS['vendedor'],
-                lineas=[{'ingrediente_id': IDS['ingrediente'],
-                         'bultos': [Decimal('10'), Decimal('-3')]}])
-        assert RecepcionIngrediente.query.count() == 0
 
 
 def test_excepcion_no_recepcion_invalida_tambien_rollback(app):
@@ -249,8 +222,8 @@ def test_excepcion_no_recepcion_invalida_tambien_rollback(app):
                 cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
                 vendedor_id=IDS['vendedor'],
                 lineas=[
-                    {'ingrediente_id': IDS['ingrediente'], 'bultos': [Decimal('10')]},
-                    {'bultos': [Decimal('5')]}  # Falta ingrediente_id
+                    {'ingrediente_id': IDS['ingrediente'], 'cantidad_bultos': 1, 'peso_total': Decimal('10')},
+                    {'cantidad_bultos': 1, 'peso_total': Decimal('5')}  # Falta ingrediente_id
                 ])
         # Sin residuo: no quedó media recepción aunque la excepción no fuera RecepcionInvalida.
         assert RecepcionIngrediente.query.count() == 0

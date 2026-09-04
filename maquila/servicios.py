@@ -14,7 +14,7 @@ from sqlalchemy import func
 
 from . import app_module
 from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
-                     RecepcionLinea, RecepcionBulto, RecepcionFoto, Receta,
+                     RecepcionLinea, RecepcionFoto, Receta,
                      CorridaProduccion, CorridaCaja, CorridaConsumo,
                      CorridaConsumoOrigen)
 
@@ -35,6 +35,15 @@ class MotivoRequerido(ValueError):
 
 def _dec(valor):
     return valor if isinstance(valor, Decimal) else Decimal(str(valor or 0))
+
+
+def _entero_no_negativo(valor):
+    """Cantidad de bultos: entero, nunca negativo. Vacío o basura → 0."""
+    try:
+        n = int(valor)
+    except (TypeError, ValueError):
+        return 0
+    return n if n >= 0 else 0
 
 
 def registrar_movimiento(*, cliente_id, ingrediente_id, tipo, cantidad,
@@ -276,32 +285,27 @@ def crear_recepcion(*, cliente_id, recibido_en, vendedor_id, lineas,
         db.session.flush()
 
         for datos in lineas:
-            bultos = [_dec(p) for p in (datos.get('bultos') or [])]
-            for i, peso in enumerate(bultos, start=1):
-                if peso <= CERO:
-                    raise RecepcionInvalida(
-                        f'Bulto {i} de la línea tiene peso no positivo: {peso}')
-            if bultos:
-                peso_total = sum(bultos, CERO)
-            else:
-                peso_total = _dec(datos.get('peso_total'))
+            # `cantidad_bultos` es cuántos paquetes llegaron; el peso total se
+            # escribe aparte. Dos números independientes: uno no calcula al
+            # otro. Antes el campo era la lista de pesos de cada bulto y en
+            # planta escribían la cantidad, dejando un bulto de 9 kg en una
+            # línea de 121,32.
+            cantidad_bultos = _entero_no_negativo(datos.get('cantidad_bultos'))
+            peso_total = _dec(datos.get('peso_total'))
             if peso_total <= CERO:
                 raise RecepcionInvalida(
-                    'Cada línea necesita bultos pesados o un peso total positivo')
+                    'Cada línea necesita un peso total positivo')
 
             linea = RecepcionLinea(
                 recepcion_id=recepcion.id,
                 ingrediente_id=datos['ingrediente_id'],
                 lote_cliente=(datos.get('lote_cliente') or None),
                 fecha_vencimiento=datos.get('fecha_vencimiento'),
+                cantidad_bultos=cantidad_bultos,
                 peso_total=peso_total,
             )
             db.session.add(linea)
             db.session.flush()
-
-            for numero, peso in enumerate(bultos, start=1):
-                db.session.add(RecepcionBulto(
-                    recepcion_linea_id=linea.id, numero=numero, peso=peso))
 
             registrar_movimiento(
                 cliente_id=cliente_id,
@@ -470,46 +474,12 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
                 f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
                 f'corrida: no se puede cambiar de ingrediente')
 
-        bultos = [_dec(b) for b in (datos.get('bultos') or [])]
-        for i, peso in enumerate(bultos, start=1):
-            if peso <= CERO:
-                raise RecepcionInvalida(
-                    f'Bulto {i} de la línea {linea.id} tiene peso no positivo: {peso}')
-        # AL EDITAR manda el peso total, no los bultos. En el alta cargás una
-        # cosa o la otra; acá los dos campos llegan llenos y el usuario tiene
-        # que poder tocar cualquiera de ellos. Si el total viene distinto del
-        # que la línea tenía, es porque lo escribió a mano: gana. Si viene
-        # igual, es el valor que la pantalla arrastró y mandan los bultos.
-        #
-        # Consecuencia asumida (pedida explícitamente): una línea puede quedar
-        # diciendo 65 kg con bultos que suman 67,3. El saldo y el FIFO cuelgan
-        # del total, así que no se rompe nada — pero el desglose deja de ser
-        # una explicación del total. La pantalla muestra la suma al lado para
-        # que la diferencia se vea antes de guardar.
-        total_pedido = _dec(datos.get('peso_total'))
-        suma_bultos = sum(bultos, CERO)
-        # Quién manda entre el peso total y los bultos NO se adivina: lo dice
-        # el formulario, con `peso_manual`.
-        #
-        # El primer intento comparaba lo enviado contra lo ya guardado para
-        # deducir si el usuario había tocado el total, y era imposible de
-        # cumplir: al reabrir la pantalla y guardar sin tocar nada, el
-        # formulario manda exactamente el valor guardado, así que el servidor
-        # concluía que no lo habían tocado y revertía a la suma de los bultos —
-        # la corrección se deshacía sola.
-        #
-        # El segundo intento fue «el total siempre manda», y dependía de que el
-        # JS mantuviera ese campo al día: sin JS, editar bultos no habría
-        # cambiado el peso, en silencio.
-        #
-        # Con la bandera explícita, la degradación es segura: si el JS no
-        # corre, la bandera no llega, mandan los bultos, y eso es exactamente
-        # el comportamiento que el módulo tenía antes.
-        peso_manual = bool(datos.get('peso_manual'))
-        if bultos and not peso_manual:
-            nuevo_peso = suma_bultos
-        else:
-            nuevo_peso = total_pedido if total_pedido > CERO else suma_bultos
+        # `cantidad_bultos` y `peso_total` son independientes: la cantidad no
+        # calcula el peso ni al revés. Toda la maquinaria que decidía «quién
+        # manda» entre los dos —tres intentos, uno imposible de cumplir y otro
+        # que dependía del JS— desapareció con el cambio de significado.
+        cantidad_bultos = _entero_no_negativo(datos.get('cantidad_bultos'))
+        nuevo_peso = _dec(datos.get('peso_total'))
         if nuevo_peso <= CERO:
             raise RecepcionInvalida(
                 f'La línea {linea.id} necesita una cantidad positiva; '
@@ -519,7 +489,7 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
                 f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
                 f'corrida: no se puede corregir a {nuevo_peso}')
         planes.append(('editar', linea, {**datos, '_peso': nuevo_peso,
-                                         '_bultos': bultos,
+                                         '_bultos_cant': cantidad_bultos,
                                          '_cambia_ingrediente': cambia_ingrediente}))
 
     cambia_cantidad = any(
@@ -621,16 +591,7 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
                         vendedor_id=vendedor_id, recepcion_linea_id=linea.id)
                     linea.ingrediente_id = ingrediente_nuevo
 
-                # Se borran los bultos viejos siempre, no solo cuando llegan
-                # bultos nuevos: un `peso_total` directo es el usuario diciendo
-                # que la línea pasó a ser a granel. Dejar los bultos viejos
-                # colgando (100 kg en bultos bajo una línea que ahora dice 90)
-                # es la mentira que se ve en planta, aunque no rompa el saldo.
-                RecepcionBulto.query.filter_by(
-                    recepcion_linea_id=linea.id).delete()
-                for numero, peso in enumerate(datos['_bultos'], start=1):
-                    db.session.add(RecepcionBulto(
-                        recepcion_linea_id=linea.id, numero=numero, peso=peso))
+                linea.cantidad_bultos = datos['_bultos_cant']
                 if nuevo != anterior:
                     linea.peso_total = nuevo
                     registrar_movimiento(
@@ -643,26 +604,19 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
                                 f'{anterior} → {nuevo}. {motivo.strip()}'))
 
             else:  # nueva
-                bultos = [_dec(b) for b in (datos.get('bultos') or [])]
-                for i, peso in enumerate(bultos, start=1):
-                    if peso <= CERO:
-                        raise RecepcionInvalida(
-                            f'Bulto {i} de la línea nueva tiene peso no positivo: {peso}')
-                peso_total = sum(bultos, CERO) if bultos else _dec(datos.get('peso_total'))
+                peso_total = _dec(datos.get('peso_total'))
                 if peso_total <= CERO:
                     raise RecepcionInvalida(
-                        'Una línea nueva necesita bultos pesados o un peso total positivo')
+                        'Una línea nueva necesita un peso total positivo')
                 nueva = RecepcionLinea(
                     recepcion_id=recepcion.id,
                     ingrediente_id=datos['ingrediente_id'],
                     lote_cliente=datos.get('lote_cliente') or None,
                     fecha_vencimiento=datos.get('fecha_vencimiento'),
+                    cantidad_bultos=_entero_no_negativo(datos.get('cantidad_bultos')),
                     peso_total=peso_total)
                 db.session.add(nueva)
                 db.session.flush()
-                for numero, peso in enumerate(bultos, start=1):
-                    db.session.add(RecepcionBulto(
-                        recepcion_linea_id=nueva.id, numero=numero, peso=peso))
                 registrar_movimiento(
                     cliente_id=recepcion.cliente_id,
                     ingrediente_id=nueva.ingrediente_id,

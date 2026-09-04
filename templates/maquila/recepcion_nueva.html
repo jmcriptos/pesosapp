@@ -76,8 +76,11 @@
     </select>
     <input type="text" name="linea_lote_cliente" placeholder="Lote del cliente (opcional)">
     <input type="date" name="linea_fecha_vencimiento">
-    <input type="text" name="linea_bultos" placeholder="Bultos: 12.5, 11.5">
-    <input type="number" step="0.001" name="linea_peso_total" placeholder="o peso total">
+    <input type="number" step="1" min="0" name="linea_cantidad_bultos"
+           inputmode="numeric" placeholder="Bultos (cuántos)"
+           aria-label="Cantidad de bultos">
+    <input type="number" step="0.001" name="linea_peso_total"
+           placeholder="Peso total" aria-label="Peso total">
   </div>
 </template>
 

@@ -87,7 +87,7 @@ def _linea_dict(linea, **cambios):
     base = {'id': linea.id, 'ingrediente_id': linea.ingrediente_id,
             'lote_cliente': linea.lote_cliente,
             'fecha_vencimiento': linea.fecha_vencimiento,
-            'bultos': [], 'peso_total': Decimal(str(linea.peso_total)),
+            'cantidad_bultos': 0, 'peso_total': Decimal(str(linea.peso_total)),
             'quitar': False}
     base.update(cambios)
     return base
@@ -251,8 +251,7 @@ def test_agregar_una_linea_escribe_su_entrada(app):
             lineas=[_linea_dict(linea),
                     {'id': None, 'ingrediente_id': IDS['grasa'],
                      'lote_cliente': None, 'fecha_vencimiento': None,
-                     'bultos': [Decimal('12'), Decimal('8')],
-                     'peso_total': None, 'quitar': False}])
+                     'cantidad_bultos': 2, 'peso_total': Decimal('20'), 'quitar': False}])
         entradas = MovimientoIngrediente.query.filter_by(
             ingrediente_id=IDS['grasa'], tipo='entrada').all()
         assert len(entradas) == 1
@@ -478,38 +477,6 @@ def test_el_fifo_reparte_bien_contra_una_linea_corregida(app):
                                     Decimal('91'))
 
 
-def test_corregir_bultos_a_peso_directo_borra_los_bultos_viejos(app):
-    """Un `peso_total` directo dice que la línea pasó a ser a granel: los
-    bultos viejos no pueden quedar colgando (100 kg en bultos bajo una línea
-    que ahora dice 90), aunque el saldo no se rompa."""
-    from maquila import servicios
-    from maquila.models import MovimientoIngrediente, RecepcionBulto
-    with app.app_context():
-        rec = servicios.crear_recepcion(
-            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
-            vendedor_id=IDS['vendedor'],
-            lineas=[{'ingrediente_id': IDS['carne'],
-                     'bultos': [Decimal('60'), Decimal('40')]}])
-        linea = rec.lineas[0]
-        assert RecepcionBulto.query.filter_by(
-            recepcion_linea_id=linea.id).count() == 2
-        antes = MovimientoIngrediente.query.count()
-
-        servicios.editar_recepcion(
-            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
-            lineas=[_linea_dict(linea, peso_total=Decimal('90'))],
-            motivo='Vino a granel')
-
-        assert Decimal(str(linea.peso_total)) == Decimal('90.000')
-        assert RecepcionBulto.query.filter_by(
-            recepcion_linea_id=linea.id).count() == 0
-        movs = MovimientoIngrediente.query.order_by(
-            MovimientoIngrediente.id).all()
-        assert len(movs) == antes + 1
-        assert movs[-1].tipo == 'ajuste'
-        assert movs[-1].cantidad == Decimal('-10.000')
-
-
 def _login(app, username):
     c = app.test_client()
     c.post('/login', data={'username': username, 'password': 'pw'},
@@ -676,98 +643,48 @@ def test_la_correccion_se_lee_en_el_kardex(app):
         assert ajustes[0]['unidad'] == 'kg'
 
 
-def _recepcion_con_bultos(pesos, ingrediente=None, dia=1):
-    """Una recepción de una línea pesada bulto por bulto."""
-    from maquila import servicios
-    return servicios.crear_recepcion(
-        cliente_id=IDS['cliente'], recibido_en=date(2026, 9, dia),
-        vendedor_id=IDS['vendedor'],
-        lineas=[{'ingrediente_id': ingrediente or IDS['carne'],
-                 'bultos': [Decimal(str(p)) for p in pesos]}])
+def test_los_bultos_son_una_cantidad_no_una_lista_de_pesos(app):
+    """«Bultos» es cuántos vinieron. El peso total se escribe aparte.
 
-
-def test_el_peso_total_escrito_a_mano_manda_sobre_los_bultos(app):
-    """JM pidió poder editar los dos campos. El total es el que se guarda.
-
-    Antes los bultos ganaban y el total tecleado se descartaba en silencio,
-    por eso la pantalla lo tenía bloqueado.
+    Antes era la lista de lo que pesaba cada bulto, separada por comas: JM
+    escribió «2» queriendo decir dos bultos y el sistema guardó un bulto de
+    2 kg en una línea de 16. La columna del resumen contaba filas y decía 1.
     """
     from maquila import servicios
-    from maquila.models import RecepcionBulto, MovimientoIngrediente
     with app.app_context():
-        rec = _recepcion_con_bultos([22.4, 23.1, 21.8])   # suman 67.3
+        rec = servicios.crear_recepcion(
+            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': IDS['carne'],
+                     'cantidad_bultos': 9,
+                     'peso_total': Decimal('121.32')}])
         linea = rec.lineas[0]
-        assert Decimal(str(linea.peso_total)) == Decimal('67.300')
-
-        servicios.editar_recepcion(
-            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
-            lineas=[_linea_dict(linea,
-                                bultos=[Decimal('22.4'), Decimal('23.1'), Decimal('21.8')],
-                                peso_total=Decimal('65'),
-                                peso_manual=True)],
-            motivo='La balanza estaba descalibrada')
-
-        # El total tecleado es el que vale.
-        assert Decimal(str(linea.peso_total)) == Decimal('65.000')
-        # Los bultos se guardan tal como se mandaron: el usuario decide si cuadran.
-        assert RecepcionBulto.query.filter_by(
-            recepcion_linea_id=linea.id).count() == 3
-        # Y el ajuste sale por la diferencia contra el total anterior.
-        ajuste = MovimientoIngrediente.query.filter_by(tipo='ajuste').one()
-        assert ajuste.cantidad == Decimal('-2.300')
-        # La identidad de la que cuelga el FIFO sigue en pie.
-        assert (Decimal(str(linea.peso_total)) - servicios.consumido_de_linea(linea)
-                == servicios.saldo_de_linea(linea.id))
+        assert linea.cantidad_bultos == 9
+        assert Decimal(str(linea.peso_total)) == Decimal('121.320')
 
 
-def test_editar_los_bultos_sin_tocar_el_total_sigue_recalculando(app):
-    """El camino normal no cambia: si mandás bultos y el total viejo, mandan ellos."""
-    from maquila import servicios
-    with app.app_context():
-        rec = _recepcion_con_bultos([10, 10])   # 20
-        linea = rec.lineas[0]
-        servicios.editar_recepcion(
-            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
-            lineas=[_linea_dict(linea,
-                                bultos=[Decimal('12'), Decimal('11')],
-                                peso_total=Decimal('20'))],   # el total viejo
-            motivo='Se repesaron los bultos')
-        assert Decimal(str(linea.peso_total)) == Decimal('23.000')
-
-
-def test_el_total_a_mano_sobrevive_a_un_segundo_guardado(app):
-    """Reabrir la pantalla y guardar sin tocar nada NO debe revertir el peso.
-
-    La versión anterior adivinaba «¿lo tocó?» comparando lo enviado contra lo
-    guardado. Al reabrir, el formulario manda el valor guardado, así que el
-    servidor concluía que no lo habían tocado y volvía a la suma de los bultos:
-    la corrección se deshacía sola y dejaba un ajuste inverso en el kardex.
-    """
+def test_corregir_la_cantidad_de_bultos_no_toca_el_peso(app):
+    """Los dos números son independientes: uno no calcula al otro."""
     from maquila import servicios
     from maquila.models import MovimientoIngrediente
     with app.app_context():
-        rec = _recepcion_con_bultos([22.4, 23.1, 21.8])   # 67.3
+        rec = servicios.crear_recepcion(
+            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': IDS['carne'], 'cantidad_bultos': 1,
+                     'peso_total': Decimal('16')}])
         linea = rec.lineas[0]
-        bultos = [Decimal('22.4'), Decimal('23.1'), Decimal('21.8')]
+        antes = MovimientoIngrediente.query.count()
 
         servicios.editar_recepcion(
             rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
-            lineas=[_linea_dict(linea, bultos=bultos, peso_total=Decimal('70'),
-                                peso_manual=True)],
-            motivo='La balanza estaba descalibrada')
-        assert Decimal(str(linea.peso_total)) == Decimal('70.000')
-        ajustes_tras_la_correccion = MovimientoIngrediente.query.filter_by(
-            tipo='ajuste').count()
+            lineas=[{'id': linea.id, 'ingrediente_id': IDS['carne'],
+                     'lote_cliente': None, 'fecha_vencimiento': None,
+                     'cantidad_bultos': 2, 'peso_total': Decimal('16'),
+                     'quitar': False}])
 
-        # Segundo guardado: exactamente lo que manda el formulario al reabrir.
-        # La pantalla detecta el desajuste guardado y vuelve a mandar la
-        # bandera, que es lo que hace que la corrección sobreviva.
-        servicios.editar_recepcion(
-            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
-            lineas=[_linea_dict(linea, bultos=bultos, peso_total=Decimal('70'),
-                                peso_manual=True)])
-
-        assert Decimal(str(linea.peso_total)) == Decimal('70.000')
-        # Y no se escribió ningún ajuste nuevo: nada cambió.
-        assert MovimientoIngrediente.query.filter_by(
-            tipo='ajuste').count() == ajustes_tras_la_correccion
+        assert linea.cantidad_bultos == 2
+        assert Decimal(str(linea.peso_total)) == Decimal('16.000')
+        # Cambiar la cantidad de bultos no mueve el saldo: no es una cantidad
+        # de ingrediente, es cuántos paquetes vinieron.
+        assert MovimientoIngrediente.query.count() == antes
