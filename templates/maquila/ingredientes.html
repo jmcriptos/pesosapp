@@ -1,0 +1,55 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Ingredientes{% endblock %}
+{% block maquila_title %}Ingredientes{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <h2>Nuevo ingrediente</h2>
+  <form method="POST" class="ops-sheet-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ops-field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" required>
+    </div>
+    <div class="ops-field">
+      <label for="unidad">Unidad</label>
+      <select id="unidad" name="unidad">
+        <option value="kg">kg</option>
+        <option value="ud">ud</option>
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="notas">Notas <small>(opcional)</small></label>
+      <input type="text" id="notas" name="notas">
+    </div>
+    <button type="submit" class="btn btn-primary">Agregar ingrediente</button>
+  </form>
+</section>
+
+<section class="ops-card">
+  <h2>Ingredientes</h2>
+  {% if not ingredientes %}
+    <p class="ops-empty">Todavía no hay ingredientes dados de alta.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Nombre</th><th>Unidad</th><th>Estado</th><th>Acción</th></tr>
+    </thead>
+    <tbody>
+      {% for ing in ingredientes %}
+      <tr>
+        <td>{{ ing.nombre }}</td>
+        <td>{{ ing.unidad }}</td>
+        <td>{{ 'Activo' if ing.activo else 'Inactivo' }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('maquila.toggle_ingrediente', ingrediente_id=ing.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn">{{ 'Desactivar' if ing.activo else 'Activar' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

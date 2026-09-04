@@ -236,7 +236,8 @@
     {% set is_facturacion = current_path.startswith('/facturacion') %}
     {% set is_recepciones = current_path.startswith('/recepciones') %}
     {% set is_importacion = current_path.startswith('/formulario_importacion') or current_path.startswith('/registrar_importacion') %}
-    {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion %}
+    {% set is_maquila = current_path.startswith('/maquila') %}
+    {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion or is_maquila %}
     {% set user_name = current_user.username if current_user and current_user.is_authenticated and current_user.username else 'Usuario' %}
     {% set user_initials = user_name[:2].upper() %}
     {% set is_super_admin = current_user and current_user.is_authenticated and current_user.__class__.__name__ == 'Vendedor' and current_user.rol and current_user.rol.nombre == 'super_admin' %}
@@ -284,6 +285,11 @@
                 <a href="/recepciones" class="drawer-item {{ 'active' if is_recepciones }}">
                     <i class="fas fa-truck"></i><span>Recepciones</span>
                 </a>
+                {% if is_super_admin %}
+                <a href="{{ url_for('maquila.index') }}" class="drawer-item {{ 'active' if is_maquila }}">
+                    <i class="fas fa-industry"></i><span>Maquila</span>
+                </a>
+                {% endif %}
                 <a href="/formulario_importacion" class="drawer-item {{ 'active' if is_importacion }}">
                     <i class="fas fa-file-alt"></i><span>Importación</span>
                 </a>
@@ -410,6 +416,15 @@
                                     <span class="desktop-ops-item-meta">Entradas y control</span>
                                 </span>
                             </a>
+                            {% if is_super_admin %}
+                            <a href="{{ url_for('maquila.index') }}" class="desktop-ops-item {{ 'active' if is_maquila }}">
+                                <i class="fas fa-industry"></i>
+                                <span class="desktop-ops-item-copy">
+                                    <span class="desktop-ops-item-title">Maquila</span>
+                                    <span class="desktop-ops-item-meta">Ingredientes y producción</span>
+                                </span>
+                            </a>
+                            {% endif %}
                             <a href="/formulario_importacion" class="desktop-ops-item {{ 'active' if is_importacion }}">
                                 <i class="fas fa-file-alt"></i>
                                 <span class="desktop-ops-item-copy">

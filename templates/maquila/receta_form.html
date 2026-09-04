@@ -1,0 +1,86 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}{{ 'Editar receta' if receta else 'Nueva receta' }}{% endblock %}
+{% block maquila_title %}{{ 'Editar receta' if receta else 'Nueva receta' }}{% endblock %}
+{% block maquila_body %}
+<form method="POST" class="ops-sheet-form" id="receta-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card">
+    <h2>Cabecera</h2>
+    <div class="ops-field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" required
+             value="{{ receta.nombre if receta else '' }}">
+    </div>
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" required>
+        {% for p in productos %}
+        <option value="{{ p.id }}" {{ 'selected' if receta and receta.producto_id == p.id else '' }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="cliente_id">Cliente <small>(vacío = genérica)</small></label>
+      <select id="cliente_id" name="cliente_id">
+        <option value="">Genérica</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if receta and receta.cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="base_kg">Base kg</label>
+      <input type="number" step="0.001" id="base_kg" name="base_kg"
+             value="{{ receta.base_kg if receta else 100 }}">
+    </div>
+    <div class="ops-field">
+      <label for="activa">
+        <input type="checkbox" id="activa" name="activa" value="1"
+               {{ 'checked' if (not receta) or receta.activa else '' }}>
+        Activa
+      </label>
+    </div>
+  </section>
+
+  <section class="ops-card">
+    <h2>Ingredientes</h2>
+    <div id="receta-items">
+      {% for item in (receta.ingredientes if receta else []) %}
+      <div class="rec-linea">
+        <select name="item_ingrediente_id" required>
+          {% for i in ingredientes %}
+          <option value="{{ i.id }}" {{ 'selected' if item.ingrediente_id == i.id else '' }}>{{ i.nombre }}</option>
+          {% endfor %}
+        </select>
+        <input type="number" step="0.001" name="item_cantidad" value="{{ item.cantidad }}">
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn" id="receta-add-item">Agregar ingrediente</button>
+  </section>
+
+  <footer class="ops-sticky-footer">
+    <button type="submit" class="btn btn-primary">Guardar receta</button>
+  </footer>
+</form>
+
+<template id="receta-item-tpl">
+  <div class="rec-linea">
+    <select name="item_ingrediente_id" required>
+      {% for i in ingredientes %}<option value="{{ i.id }}">{{ i.nombre }}</option>{% endfor %}
+    </select>
+    <input type="number" step="0.001" name="item_cantidad">
+  </div>
+</template>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var cont = document.getElementById('receta-items');
+  var tpl = document.getElementById('receta-item-tpl');
+  function addItem() { cont.appendChild(tpl.content.cloneNode(true)); }
+  document.getElementById('receta-add-item').addEventListener('click', addItem);
+  if (!cont.children.length) addItem();
+})();
+</script>
+{% endblock %}

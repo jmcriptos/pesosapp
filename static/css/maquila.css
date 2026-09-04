@@ -1,0 +1,330 @@
+/* Módulo de maquila: resumen, ingredientes y recepciones. */
+
+/* Blindaje contra el tema oscuro global — verificado en el navegador con
+   getComputedStyle, no solo leído en el CSS (ver verificar-render-no-estado).
+   La causa real NO es dark-theme.css: es que `<body data-theme="dark">`
+   (siempre presente, es el marco de la app) hace que app-mobile.css
+   redefina TODA la paleta —`--color-bg`, `--color-text`, `--color-surface`,
+   etc.— a valores oscuros para cualquier descendiente, vía
+   `[data-theme="dark"] { --color-bg:#0a0a0f; --color-text:#f8fafc; ... }`.
+   Por eso un simple `var(--color-text, #0f172a)` NO alcanza: la variable
+   SÍ está definida (oscura), así que el fallback nunca se usa. Los módulos
+   que salen claros (Registros, Usuarios, Precios) lo consiguen porque
+   operaciones.css redefine esa misma paleta, en claro, para sus propias
+   root classes: `.ops-screen, .ops-admin, .ops-sheet { --color-bg:#f6f7fb;
+   --color-text:#0f172a; ... }`. `.maquila-wrap` no es ninguna de esas tres,
+   así que acá se repite el mismo truco (misma paleta, mismos valores) en
+   vez de tocar ese bloque compartido. */
+.maquila-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 12px;
+  --color-bg: #f6f7fb;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-subtle: #94a3b8;
+  --color-border: #e5e9f0;
+  --color-border-subtle: #eef1f6;
+  --color-border-strong: #cbd5e1;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.maquila-wrap h1,
+.maquila-wrap h2,
+.maquila-wrap h3 {
+  color: var(--color-text);
+}
+
+.maquila-wrap p {
+  color: var(--color-text-muted);
+}
+
+/* dark-theme.css además pisa `label`, `table`, `th` y `td` sin scope y con
+   `!important` (heredado de la reskin vieja, sigue cargado por si algún
+   componente legado todavía lo necesita). Los guards equivalentes de
+   operaciones.css también están atados a `.ops-screen/.ops-sheet/.ops-admin`,
+   así que hace falta el mismo contra-`!important` acá. */
+.maquila-wrap label {
+  color: var(--color-text-muted) !important;
+}
+
+.maquila-wrap .btn {
+  color: var(--btn-fg, var(--color-text));
+}
+
+.maquila-wrap table {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+.maquila-wrap th {
+  background-color: var(--color-surface-muted) !important;
+  color: var(--color-text-subtle) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+.maquila-wrap td {
+  color: var(--color-text) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+.maquila-wrap tr:nth-child(even) td {
+  background-color: var(--color-surface-muted) !important;
+}
+
+.maquila-wrap tr:hover td {
+  background-color: var(--color-surface-muted) !important;
+}
+
+/* Mismo motivo: dark-theme.css trae `form { background:#141820 !important;
+   color:#f1f5f9 !important }` y un bloque de `input[type=...], select,
+   textarea { background:#1a1f2b !important; ... }` sin scope, pensados para
+   la reskin oscura vieja. Sin este contra-blindaje, cualquier <form> y sus
+   campos salían oscuros encima de las tarjetas claras de este módulo. */
+.maquila-wrap form {
+  background: transparent !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+.maquila-wrap input,
+.maquila-wrap select,
+.maquila-wrap textarea {
+  background-color: var(--color-surface-muted) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.maquila-wrap input:focus,
+.maquila-wrap select:focus,
+.maquila-wrap textarea:focus {
+  background-color: var(--color-bg-elevated) !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .18) !important;
+}
+
+.maquila-wrap input::placeholder,
+.maquila-wrap textarea::placeholder {
+  color: var(--color-text-subtle) !important;
+}
+
+.maquila-nav {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.maquila-nav a {
+  color: var(--color-text-muted, #475569);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 0;
+}
+
+.maquila-nav a:hover,
+.maquila-nav a.is-active {
+  color: var(--color-text, #0f172a);
+  border-bottom: 2px solid var(--accent, #0f172a);
+}
+
+.maquila-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.maquila-tarjeta h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.maquila-tarjeta-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--color-text-subtle, #64748b);
+  margin-bottom: 10px;
+}
+
+.maquila-tabla,
+.maquila-tabla-mini {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.maquila-tabla th,
+.maquila-tabla td,
+.maquila-tabla-mini th,
+.maquila-tabla-mini td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(15, 23, 42, .08));
+}
+
+.maquila-tabla th,
+.maquila-tabla-mini th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--color-text-subtle, #64748b);
+}
+
+.maquila-filtro {
+  margin-bottom: 12px;
+}
+
+.maquila-cabecera {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.maquila-cabecera dt {
+  color: var(--color-text-subtle, #64748b);
+}
+
+.maquila-cabecera dd {
+  margin: 0;
+}
+
+.maquila-anulada {
+  color: var(--color-danger, #b91c1c);
+  font-weight: 600;
+}
+
+.maquila-galeria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.maquila-galeria img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle, rgba(15, 23, 42, .08));
+}
+
+/* Líneas repetibles de ingredientes en la recepción nueva. */
+.rec-linea {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rec-linea select,
+.rec-linea input {
+  width: 100%;
+}
+
+/* .ops-firma-label, .ops-firma-pad y .ops-firma-clear NO se redefinen acá:
+   ya vienen completas de operaciones.css (tamaño del pad, botón de borrar
+   superpuesto, blindaje contra dark-theme.css), que base_maquila.html carga
+   antes que esta hoja. */
+
+/* El footer va sticky, o el botón de guardar queda debajo de la tabbar fija
+   y no se puede pulsar. */
+.ops-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  padding: 12px;
+  background: var(--color-surface, #ffffff);
+  border-top: 1px solid rgba(15, 23, 42, .12);
+  z-index: 10;
+}
+
+@media (max-width: 640px) {
+  .rec-linea {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Reparto FIFO: fila roja cuando un ingrediente no tiene saldo suficiente
+   (repartir_fifo devolvió None). Mismo patrón local que el resto de esta
+   hoja: !important porque .maquila-wrap tr/td ya vienen forzados arriba. */
+.maquila-wrap tr.maquila-sin-saldo td {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  font-weight: 600;
+}
+
+/* Trazabilidad: caja pesada a mano sin corrida asociada. Una caja sin
+   origen tiene que verse, no disimularse — mismo motivo y mismo
+   !important que .maquila-sin-saldo arriba. */
+.maquila-wrap tr.maquila-sin-origen td {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+/* Trazabilidad: resultado ambiguo (trazar() ya no elige un candidato en
+   silencio). El aviso tiene que notarse tanto como la fila sin origen. */
+.maquila-wrap .maquila-ambiguo {
+  border: 2px solid #d97706;
+  background-color: #fffbeb !important;
+}
+
+.maquila-wrap .maquila-ambiguo h2 {
+  color: #92400e !important;
+}
+
+/* Rendimiento: varianza (corrida o ingrediente) por encima del 10% contra
+   el teórico. */
+.maquila-wrap .maquila-merma-alta {
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Checklist "Asignar de producción" (templates/maquila/_asignar_cajas.html),
+   incrustado en pesar.html vía include. Ese parcial vive FUERA de
+   `.maquila-wrap` — pesar.html no lo envuelve — así que no hereda la
+   paleta que este archivo redefine más arriba: acá se repiten colores
+   explícitos en vez de depender de esas variables. `.pesar-lote-card` (de
+   pesar.css) ya le da el marco de la tarjeta; estas reglas solo tocan el
+   checklist de cajas y quedan prefijadas con `.maquila-asignar` para no
+   poder pisar nada más de la pantalla de pesar. */
+.maquila-asignar .maquila-cajas {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maquila-asignar .maquila-cajas li {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.maquila-asignar .maquila-cajas label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.maquila-asignar .maquila-cajas input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  accent-color: #2563eb;
+}

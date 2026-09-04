@@ -1,0 +1,88 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Ajustes manuales{% endblock %}
+{% block maquila_title %}Ajustes manuales{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro">
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" data-autosubmit>
+        <option value="">Elegí un cliente</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</section>
+
+{% if not cliente_id %}
+<section class="ops-card">
+  <p class="ops-empty">Elegí un cliente para registrar o ver sus ajustes manuales.</p>
+</section>
+{% else %}
+
+<section class="ops-card">
+  <h2>Nuevo ajuste</h2>
+  <p class="ops-empty" style="margin-top:0">
+    Usá esto cuando el consumo real de una corrida supere lo recibido y no
+    quede saldo para cerrarla: el motivo es obligatorio, y queda en el
+    kardex como cualquier otro movimiento.
+  </p>
+  <form method="POST" action="{{ url_for('maquila.ajustes') }}" class="ops-sheet-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="cliente_id" value="{{ cliente_id }}">
+    <div class="ops-field">
+      <label for="ingrediente_id">Ingrediente</label>
+      <select id="ingrediente_id" name="ingrediente_id" required>
+        {% for i in ingredientes %}
+        <option value="{{ i.id }}" {{ 'selected' if ingrediente_id_sugerido == i.id else '' }}>{{ i.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="sentido">Sentido</label>
+      <select id="sentido" name="sentido" required>
+        <option value="entrada">Entrada (suma al saldo)</option>
+        <option value="salida">Salida (resta del saldo)</option>
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="cantidad">Cantidad</label>
+      <input type="number" step="0.001" min="0.001" id="cantidad" name="cantidad" required>
+    </div>
+    <div class="ops-field">
+      <label for="motivo">Motivo <small>(obligatorio)</small></label>
+      <textarea id="motivo" name="motivo" required></textarea>
+    </div>
+    <footer class="ops-sticky-footer">
+      <button type="submit" class="btn btn-primary">Registrar ajuste</button>
+    </footer>
+  </form>
+</section>
+
+<section class="ops-card">
+  <h2>Ajustes manuales registrados</h2>
+  {% if not ajustes %}
+    <p class="ops-empty">Todavía no hay ajustes manuales para este cliente.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Fecha</th><th>Ingrediente</th><th>Cantidad</th><th>Responsable</th><th>Motivo</th></tr>
+    </thead>
+    <tbody>
+      {% for a in ajustes %}
+      <tr>
+        <td>{{ a.fecha.strftime('%Y-%m-%d %H:%M') if a.fecha else '—' }}</td>
+        <td>{{ a.ingrediente }}</td>
+        <td>{{ a.cantidad }}</td>
+        <td>{{ a.responsable }}</td>
+        <td>{{ a.motivo or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

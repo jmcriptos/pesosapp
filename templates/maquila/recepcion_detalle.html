@@ -1,0 +1,74 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Recepción {{ recepcion.codigo }}{% endblock %}
+{% block maquila_title %}Recepción {{ recepcion.codigo }}{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <h2>{{ recepcion.codigo }}{% if recepcion.anulada %} <small>(Anulada)</small>{% endif %}</h2>
+  <dl class="maquila-cabecera">
+    <dt>Cliente</dt><dd>{{ recepcion.cliente.nombre }}</dd>
+    <dt>Fecha</dt><dd>{{ recepcion.recibido_en.strftime('%d/%m/%Y') }}</dd>
+    <dt>Documento del cliente</dt>
+    <dd>{{ recepcion.documento_cliente if recepcion.documento_cliente else 'Sin documento del cliente' }}</dd>
+    <dt>Temperatura</dt>
+    <dd>{{ (recepcion.temperatura ~ ' °C') if recepcion.temperatura is not none else '—' }}</dd>
+    <dt>Transportista</dt><dd>{{ recepcion.transportista or '—' }}</dd>
+  </dl>
+  {% if recepcion.anulada %}
+  <p class="maquila-anulada">Anulada: {{ recepcion.motivo_anulacion }}</p>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  <h2>Líneas</h2>
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Ingrediente</th><th>Lote cliente</th><th>Vencimiento</th><th>Peso</th><th>Saldo</th><th>Bultos</th></tr>
+    </thead>
+    <tbody>
+      {% for l in recepcion.lineas %}
+      <tr>
+        <td>{{ l.ingrediente.nombre }}</td>
+        <td>{{ l.lote_cliente or '—' }}</td>
+        <td>{{ l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else '—' }}</td>
+        <td>{{ l.peso_total }} {{ l.ingrediente.unidad }}</td>
+        <td>{{ saldos_linea[l.id] }}</td>
+        <td>{{ l.bultos|length }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="ops-card">
+  <h2>Evidencia</h2>
+  {% if recepcion.fotos %}
+  <div class="maquila-galeria">
+    {% for f in recepcion.fotos %}
+    <img src="{{ url_for('maquila.recepcion_foto', foto_id=f.id) }}" alt="Foto de la recepción {{ recepcion.codigo }}">
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="ops-empty">Sin fotos.</p>
+  {% endif %}
+
+  {% if recepcion.firma %}
+  <p>Firmada por {{ recepcion.transportista or 'quien entregó' }}.</p>
+  {% else %}
+  <p class="ops-empty">Sin firma.</p>
+  {% endif %}
+</section>
+
+{% if not recepcion.anulada %}
+<section class="ops-card">
+  <form method="POST" action="{{ url_for('maquila.recepcion_anular', recepcion_id=recepcion.id) }}"
+        class="ops-sheet-form" data-confirm="¿Anular esta recepción?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ops-field">
+      <label for="motivo">Motivo de la anulación</label>
+      <input type="text" id="motivo" name="motivo" required>
+    </div>
+    <button type="submit" class="btn btn-danger">Anular recepción</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

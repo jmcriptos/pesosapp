@@ -1,0 +1,242 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}{{ 'Nueva corrida' if not corrida else 'Corrida ' ~ corrida.codigo }}{% endblock %}
+{% block maquila_title %}{{ 'Nueva corrida' if not corrida else 'Corrida ' ~ corrida.codigo }}{% endblock %}
+{% block maquila_body %}
+
+{% if not corrida %}
+<form method="POST" action="{{ url_for('maquila.corrida_nueva') }}" class="ops-sheet-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="ops-card">
+    <h2>Abrir corrida</h2>
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" required>
+        {% for c in clientes %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" required>
+        {% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="lote">Lote</label>
+      <input type="text" id="lote" name="lote" required>
+    </div>
+    <div class="ops-field">
+      <label for="fecha_produccion">Fecha de producción</label>
+      <input type="date" id="fecha_produccion" name="fecha_produccion" required>
+    </div>
+    <div class="ops-field">
+      <label for="fecha_vencimiento">Fecha de vencimiento <small>(opcional)</small></label>
+      <input type="date" id="fecha_vencimiento" name="fecha_vencimiento">
+    </div>
+    <div class="ops-field">
+      <label for="notas">Notas <small>(opcional)</small></label>
+      <input type="text" id="notas" name="notas">
+    </div>
+  </section>
+  <footer class="ops-sticky-footer">
+    <button type="submit" class="btn btn-primary">Abrir corrida</button>
+  </footer>
+</form>
+
+{% else %}
+
+{% if falta_ingrediente_id %}
+<section class="ops-card maquila-ambiguo">
+  <h2>Falta saldo para cerrar</h2>
+  <p>El mensaje de arriba explica cuánto falta. Registrá un ajuste de entrada
+    con su motivo y volvé a cerrar la corrida.</p>
+  <a class="btn btn-primary"
+     href="{{ url_for('maquila.ajustes', cliente_id=corrida.cliente_id, ingrediente_id=falta_ingrediente_id) }}">
+    Ir a ajustes manuales
+  </a>
+</section>
+{% endif %}
+
+<section class="ops-card">
+  <h2>{{ corrida.codigo }} <small>({{ corrida.estado }})</small></h2>
+  <dl class="maquila-cabecera">
+    <dt>Cliente</dt><dd>{{ corrida.cliente.nombre }}</dd>
+    <dt>Producto</dt><dd>{{ corrida.producto.nombre }}</dd>
+    <dt>Lote</dt><dd>{{ corrida.lote }}</dd>
+    <dt>Fecha de producción</dt><dd>{{ corrida.fecha_produccion.strftime('%d/%m/%Y') }}</dd>
+    <dt>Fecha de vencimiento</dt>
+    <dd>{{ corrida.fecha_vencimiento.strftime('%d/%m/%Y') if corrida.fecha_vencimiento else '—' }}</dd>
+    <dt>Receta</dt><dd>{{ corrida.receta.nombre if corrida.receta else 'Sin receta asignada' }}</dd>
+  </dl>
+</section>
+
+<section class="ops-card">
+  <h2>Cajas producidas</h2>
+  {% if corrida.estado == 'abierta' %}
+  <form method="POST" action="{{ url_for('maquila.corrida_caja', corrida_id=corrida.id) }}"
+        class="ops-sheet-form maquila-filtro">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ops-field">
+      <label for="peso">Peso de la caja (kg)</label>
+      <input type="number" step="0.001" min="0.001" id="peso" name="peso" required>
+    </div>
+    <button type="submit" class="btn">Agregar caja</button>
+  </form>
+  {% endif %}
+  {% if not corrida.cajas %}
+    <p class="ops-empty">Todavía no hay cajas producidas.</p>
+  {% else %}
+  <table class="maquila-tabla-mini">
+    <thead><tr><th>#</th><th>Peso</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for caja in corrida.cajas %}
+      <tr>
+        <td>{{ caja.numero }}</td>
+        <td>{{ caja.peso }}</td>
+        <td>
+          {% if caja.anulada_en %}
+            Anulada
+          {% elif caja.caja_pesada_id %}
+            asignada al pedido
+            {{ caja.caja_pesada.detalle_pedido.pedido.id
+               if (caja.caja_pesada and caja.caja_pesada.detalle_pedido
+                   and caja.caja_pesada.detalle_pedido.pedido) else '?' }}
+          {% else %}
+            Disponible
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="1"><strong>Total</strong></td><td><strong>{{ corrida.peso_producido }}</strong></td><td></td></tr>
+    </tfoot>
+  </table>
+  {% endif %}
+</section>
+
+{% if corrida.estado == 'abierta' %}
+<form method="POST" action="{{ url_for('maquila.corrida_cerrar', corrida_id=corrida.id) }}"
+      class="ops-sheet-form" id="cierre-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card">
+    <h2>Consumo</h2>
+    {% if not ingredientes %}
+      <p class="ops-empty">No hay ingredientes activos para declarar consumo.</p>
+    {% else %}
+    <table class="maquila-tabla">
+      <thead><tr><th>Ingrediente</th><th>{{ 'Teórico / real' if reparto_origen == 'teorico' else 'Real declarado' }}</th></tr></thead>
+      <tbody>
+        {% for i in ingredientes %}
+        <tr>
+          <td>{{ i.nombre }}</td>
+          <td>
+            <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
+            <input type="number" step="0.001" min="0" name="consumo_real"
+                   value="{{ consumo_actual.get(i.id, '') }}">
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  <section class="ops-card">
+    <h2>Reparto FIFO</h2>
+    {% if reparto_origen == 'teorico' %}
+    <p class="ops-empty" style="margin-top:0">Reparto <strong>estimado según la receta</strong>: todavía no corresponde a lo que declaraste arriba. Si editaste el consumo, tocá «Recalcular reparto» antes de cerrar — si no, se cierra con este mismo estimado.</p>
+    {% else %}
+    <p class="ops-empty" style="margin-top:0">Reparto según el <strong>consumo declarado</strong>: esto es lo que se va a descontar si cerrás ahora. Si volvés a editar el consumo, recalculá de nuevo.</p>
+    {% endif %}
+    {% if not reparto %}
+      <p class="ops-empty">Sin receta, sin cajas producidas o sin consumo declarado: no hay reparto que previsualizar.</p>
+    {% else %}
+    <table class="maquila-tabla">
+      <thead><tr><th>Ingrediente</th><th>Recepción</th><th>Lote del cliente</th><th>Cantidad</th></tr></thead>
+      <tbody>
+        {% for ingrediente_id, tramos in reparto.items() %}
+          {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
+          {% if tramos is none %}
+          <tr class="maquila-sin-saldo">
+            <td>{{ ing.nombre if ing else ingrediente_id }}</td>
+            <td colspan="3">sin saldo suficiente</td>
+          </tr>
+          {% else %}
+            {% for linea_id, cantidad in tramos %}
+              {% set linea = lineas_reparto.get(linea_id) %}
+              <tr>
+                <td>{{ ing.nombre if ing else ingrediente_id }}</td>
+                <td>
+                  {% if linea %}
+                    {{ linea.recepcion.codigo }} ({{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }})
+                  {% else %}
+                    Línea #{{ linea_id }}
+                  {% endif %}
+                </td>
+                <td>{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
+                <td>{{ cantidad }}</td>
+              </tr>
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  <footer class="ops-sticky-footer">
+    <button type="submit" class="btn"
+            formaction="{{ url_for('maquila.corrida_recalcular', corrida_id=corrida.id) }}">Recalcular reparto</button>
+    <button type="submit" class="btn btn-primary"
+            data-confirm="Cerrar la corrida descuenta los ingredientes. ¿Continuar?">Cerrar corrida</button>
+  </footer>
+</form>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  // Un solo <form> con dos botones (Recalcular / Cerrar, cada uno con su
+  // propio `formaction`): comparten la misma tabla de consumo, así que lo
+  // que se ve en el reparto es exactamente lo que se manda a cerrar. Por
+  // eso NO lleva `data-confirm` en el <form> (confirmaría también al
+  // recalcular, que no es destructivo) — solo el botón de cerrar lo tiene,
+  // y este script lo lee de `e.submitter`, replicando a propósito (para
+  // este único caso de dos submits) el patrón de base.js.
+  var form = document.getElementById('cierre-form');
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    var boton = e.submitter;
+    var mensaje = boton && boton.dataset.confirm;
+    if (mensaje && !confirm(mensaje)) {
+      e.preventDefault();
+    }
+  });
+})();
+</script>
+{% else %}
+<section class="ops-card">
+  <h2>Cierre</h2>
+  {% if corrida.estado == 'cerrada' %}
+    <p>Merma: {{ merma }} kg</p>
+  {% elif corrida.estado == 'anulada' %}
+    <p class="maquila-anulada">Corrida anulada.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if corrida.estado != 'anulada' %}
+<section class="ops-card">
+  <form method="POST" action="{{ url_for('maquila.corrida_anular', corrida_id=corrida.id) }}"
+        class="ops-sheet-form" data-confirm="¿Anular esta corrida?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ops-field">
+      <label for="motivo">Motivo de la anulación</label>
+      <input type="text" id="motivo" name="motivo" required>
+    </div>
+    <button type="submit" class="btn btn-danger">Anular corrida</button>
+  </form>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}

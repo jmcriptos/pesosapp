@@ -1,0 +1,35 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Maquila{% endblock %}
+{% block maquila_title %}Maquila{% endblock %}
+{% block maquila_body %}
+  {% if not tarjetas %}
+    <p class="ops-empty">Todavía no hay recepciones de ingredientes registradas.</p>
+  {% else %}
+    <div class="maquila-tarjetas">
+      {% for t in tarjetas %}
+      <section class="ops-card maquila-tarjeta">
+        <h2>{{ t.cliente.nombre }}</h2>
+        <div class="maquila-tarjeta-meta">
+          <span>{{ t.corridas_abiertas }} corrida{{ 's' if t.corridas_abiertas != 1 else '' }} abierta{{ 's' if t.corridas_abiertas != 1 else '' }}</span>
+          {% if t.ultima %}
+            <span>Última recepción: {{ t.ultima.codigo }} ({{ t.ultima.recibido_en.strftime('%d/%m/%Y') }})</span>
+          {% endif %}
+        </div>
+        {% if t.saldos %}
+        <table class="maquila-tabla-mini">
+          <thead><tr><th>Ingrediente</th><th>Saldo</th></tr></thead>
+          <tbody>
+            {% for s in t.saldos %}
+            <tr><td>{{ s.ingrediente }}</td><td>{{ s.saldo }} {{ s.unidad }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="ops-empty">Sin movimientos de ingredientes.</p>
+        {% endif %}
+        <a class="btn" href="{{ url_for('maquila.recepciones', cliente_id=t.cliente.id) }}">Ver recepciones</a>
+      </section>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

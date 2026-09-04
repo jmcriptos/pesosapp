@@ -1,0 +1,62 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Saldos{% endblock %}
+{% block maquila_title %}Saldos{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro">
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" data-autosubmit>
+        <option value="">Elegí un cliente</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</section>
+
+<section class="ops-card">
+  {% if not cliente_id %}
+    <p class="ops-empty">Elegí un cliente para ver sus saldos de ingredientes.</p>
+  {% elif not filas %}
+    <p class="ops-empty">Este cliente todavía no tiene movimientos de ingredientes.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Ingrediente</th><th>Recibido</th><th>Consumido</th><th>Ajustes</th><th>Saldo</th></tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td>{{ f.ingrediente }}</td>
+        <td>{{ f.recibido }}</td>
+        <td>{{ f.consumido }}</td>
+        <td>{{ f.ajustes }}</td>
+        <td>{{ f.saldo }} {{ f.unidad }}</td>
+      </tr>
+      {% if f.lineas_abiertas %}
+      <tr>
+        <td colspan="5">
+          <table class="maquila-tabla-mini">
+            <thead><tr><th>Código</th><th>Fecha</th><th>Lote cliente</th><th>Saldo</th></tr></thead>
+            <tbody>
+              {% for l in f.lineas_abiertas %}
+              <tr>
+                <td>{{ l.codigo }}</td>
+                <td>{{ l.recibido_en.strftime('%d/%m/%Y') if l.recibido_en else '—' }}</td>
+                <td>{{ l.lote_cliente or '—' }}</td>
+                <td>{{ l.saldo }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}
