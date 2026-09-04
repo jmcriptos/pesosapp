@@ -645,3 +645,14 @@
   background: var(--color-surface);
   border-bottom-color: #4f46e5;
 }
+
+/* El aviso de desajuste entre los bultos y el peso total. No es un error —el
+   usuario puede querer justamente eso— así que va en ámbar de aviso, no en
+   rojo de falla. */
+.maquila-wrap .rec-desajuste {
+  color: #92400e;
+  background: #fffbeb;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-top: 6px;
+}

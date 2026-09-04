@@ -339,6 +339,11 @@ def recepcion_editar(recepcion_id):
                 'bultos': bultos,
                 'peso_total': _decimal(totales[i] if i < len(totales) else ''),
                 'quitar': quitar_linea,
+                # Nombre propio por línea, como `linea_quitar_<id>`: viaja solo
+                # y no depende del orden de las listas paralelas.
+                'peso_manual': bool(
+                    request.form.get(f'linea_peso_manual_{bruto_id}')
+                ) if bruto_id else bool(request.form.get('linea_peso_manual_nueva')),
             })
 
         fotos_nuevas = []
