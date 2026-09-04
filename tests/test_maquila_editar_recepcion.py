@@ -374,3 +374,76 @@ def test_corregir_bultos_a_peso_directo_borra_los_bultos_viejos(app):
         assert len(movs) == antes + 1
         assert movs[-1].tipo == 'ajuste'
         assert movs[-1].cantidad == Decimal('-10.000')
+
+
+def _login(app, username):
+    c = app.test_client()
+    c.post('/login', data={'username': username, 'password': 'pw'},
+           follow_redirects=True)
+    return c
+
+
+def test_la_pantalla_de_edicion_carga(app):
+    with app.app_context():
+        rec = _recepcion(100)
+        rec_id = rec.id
+    c = _login(app, 'admin')
+    r = c.get(f'/maquila/recepciones/{rec_id}/editar')
+    assert r.status_code == 200
+    assert b'Carne de res' in r.data
+
+
+def test_un_vendedor_no_entra_a_editar(app):
+    with app.app_context():
+        rec = _recepcion(100)
+        rec_id = rec.id
+    c = _login(app, 'vend')
+    r = c.get(f'/maquila/recepciones/{rec_id}/editar', follow_redirects=False)
+    assert r.status_code == 302
+
+
+def test_corregir_por_la_ruta(app):
+    from maquila.models import RecepcionLinea
+    with app.app_context():
+        rec = _recepcion(100)
+        rec_id, linea_id = rec.id, rec.lineas[0].id
+        ing = rec.lineas[0].ingrediente_id
+    c = _login(app, 'admin')
+    r = c.post(f'/maquila/recepciones/{rec_id}/editar', data={
+        'cliente_id': str(IDS['cliente']),
+        'recibido_en': '2026-09-01',
+        'motivo': 'Se tecleó mal',
+        'linea_id': [str(linea_id)],
+        'linea_ingrediente_id': [str(ing)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_bultos': [''],
+        'linea_peso_total': ['90'],
+        'linea_quitar': [''],
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        assert _db.session.get(RecepcionLinea, linea_id).peso_total == Decimal('90.000')
+
+
+def test_una_correccion_imposible_da_mensaje_no_500(app):
+    with app.app_context():
+        rec = _recepcion(100)
+        rec_id, linea_id = rec.id, rec.lineas[0].id
+        ing = rec.lineas[0].ingrediente_id
+        _consumir(linea_id, ing, 64)
+    c = _login(app, 'admin')
+    r = c.post(f'/maquila/recepciones/{rec_id}/editar', data={
+        'cliente_id': str(IDS['cliente']),
+        'recibido_en': '2026-09-01',
+        'motivo': 'Imposible',
+        'linea_id': [str(linea_id)],
+        'linea_ingrediente_id': [str(ing)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_bultos': [''],
+        'linea_peso_total': ['59'],
+        'linea_quitar': [''],
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'ya cedió'.encode() in r.data

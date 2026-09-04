@@ -294,6 +294,115 @@ def recepcion_detalle(recepcion_id):
                            recepcion=recepcion, saldos_linea=saldos_linea)
 
 
+@bp.route('/recepciones/<int:recepcion_id>/editar', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def recepcion_editar(recepcion_id):
+    recepcion = db.session.get(RecepcionIngrediente, recepcion_id) or abort(404)
+
+    if recepcion.anulada:
+        flash(f'{recepcion.codigo} está anulada: no se puede editar', 'error')
+        return redirect(url_for('maquila.recepcion_detalle',
+                                recepcion_id=recepcion_id))
+
+    if request.method == 'POST':
+        lineas = []
+        ids = request.form.getlist('linea_id')
+        ingredientes = request.form.getlist('linea_ingrediente_id')
+        lotes = request.form.getlist('linea_lote_cliente')
+        vencimientos = request.form.getlist('linea_fecha_vencimiento')
+        bultos_crudos = request.form.getlist('linea_bultos')
+        totales = request.form.getlist('linea_peso_total')
+        quitar = request.form.getlist('linea_quitar')
+
+        for i, ingrediente_id in enumerate(ingredientes):
+            if not ingrediente_id:
+                continue
+            crudos = (bultos_crudos[i] if i < len(bultos_crudos) else '') or ''
+            bultos = [b for b in (_decimal(x) for x in crudos.split(',') if x.strip())
+                      if b is not None]
+            bruto_id = (ids[i] if i < len(ids) else '') or ''
+            lineas.append({
+                'id': _entero(bruto_id) if bruto_id else None,
+                'ingrediente_id': _entero(ingrediente_id),
+                'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
+                'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
+                'bultos': bultos,
+                'peso_total': _decimal(totales[i] if i < len(totales) else ''),
+                'quitar': bool((quitar[i] if i < len(quitar) else '').strip()),
+            })
+
+        fotos_nuevas = []
+        for archivo in request.files.getlist('fotos'):
+            if not archivo or not archivo.filename:
+                continue
+            mimetype = (archivo.mimetype or '').lower()
+            if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
+                flash('Formato de foto no permitido', 'error')
+                return redirect(url_for('maquila.recepcion_editar',
+                                        recepcion_id=recepcion_id))
+            datos = archivo.read(MAX_FOTO_BYTES + 1)
+            if len(datos) > MAX_FOTO_BYTES:
+                flash('Una foto supera los 2 MB: redúcela antes de subirla', 'error')
+                return redirect(url_for('maquila.recepcion_editar',
+                                        recepcion_id=recepcion_id))
+            fotos_nuevas.append((datos, mimetype))
+
+        firma = None
+        firma_b64 = request.form.get('firma_png') or ''
+        if firma_b64.startswith('data:image/png;base64,'):
+            import base64
+            import binascii
+            try:
+                firma = base64.b64decode(firma_b64.split(',', 1)[1], validate=True)
+            except (binascii.Error, ValueError):
+                firma = None
+                flash('La firma no se pudo leer: se guardó sin cambiarla', 'error')
+
+        try:
+            servicios.editar_recepcion(
+                recepcion, vendedor_id=current_user.id,
+                cabecera={
+                    'cliente_id': _entero(request.form.get('cliente_id')),
+                    'recibido_en': _fecha(request.form.get('recibido_en')),
+                    'documento_cliente': request.form.get('documento_cliente'),
+                    'temperatura': _decimal(request.form.get('temperatura')),
+                    'transportista': request.form.get('transportista'),
+                    'notas': request.form.get('notas'),
+                },
+                lineas=lineas,
+                motivo=request.form.get('motivo'),
+                fotos_a_borrar=request.form.getlist('borrar_foto', type=int),
+                fotos_nuevas=fotos_nuevas,
+                firma=firma,
+                firma_mimetype='image/png' if firma else None)
+        except (servicios.CorreccionImposible, servicios.RecepcionInvalida,
+                servicios.MotivoRequerido, servicios.RecepcionNoEditable) as exc:
+            db.session.rollback()
+            flash(str(exc), 'error')
+            return redirect(url_for('maquila.recepcion_editar',
+                                    recepcion_id=recepcion_id))
+        except Exception:
+            db.session.rollback()
+            flash('No se pudo guardar la corrección', 'error')
+            return redirect(url_for('maquila.recepcion_editar',
+                                    recepcion_id=recepcion_id))
+
+        flash(f'{recepcion.codigo} corregida', 'success')
+        return redirect(url_for('maquila.recepcion_detalle',
+                                recepcion_id=recepcion_id))
+
+    vivas = [l for l in recepcion.lineas if not l.anulada]
+    return render_template(
+        'maquila/recepcion_editar.html',
+        recepcion=recepcion,
+        lineas=vivas,
+        consumido={l.id: servicios.consumido_de_linea(l) for l in vivas},
+        clientes=Cliente.query.order_by(Cliente.nombre).all(),
+        ingredientes=Ingrediente.query.filter_by(activo=True)
+                                      .order_by(Ingrediente.nombre).all())
+
+
 @bp.route('/recepciones/<int:recepcion_id>/anular', methods=['POST'])
 @login_required
 @requiere_rol(['super_admin'])

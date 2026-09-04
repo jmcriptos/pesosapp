@@ -15,6 +15,8 @@
   </dl>
   {% if recepcion.anulada %}
   <p class="maquila-anulada">Anulada: {{ recepcion.motivo_anulacion }}</p>
+  {% else %}
+  <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_editar', recepcion_id=recepcion.id) }}">Editar</a>
   {% endif %}
 </section>
 
@@ -25,7 +27,7 @@
       <tr><th>Ingrediente</th><th>Lote cliente</th><th>Vencimiento</th><th>Peso</th><th>Saldo</th><th>Bultos</th></tr>
     </thead>
     <tbody>
-      {% for l in recepcion.lineas %}
+      {% for l in recepcion.lineas if not l.anulada %}
       <tr>
         <td data-label="Ingrediente">{{ l.ingrediente.nombre }}</td>
         <td data-label="Lote cliente">{{ l.lote_cliente or '—' }}</td>

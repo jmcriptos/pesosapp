@@ -1,0 +1,375 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Corregir {{ recepcion.codigo }}{% endblock %}
+{% block maquila_title %}Corregir {{ recepcion.codigo }}{% endblock %}
+{% block maquila_body %}
+<form method="POST" enctype="multipart/form-data" class="ops-sheet-form" id="rec-form"
+      data-confirm="¿Guardar esta corrección? Queda en el historial de la recepción.">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card">
+    <h2>Cabecera</h2>
+    {#- El cliente seleccionado se compara contra el valor que ya trae el objeto.
+        NUNCA `args.get('cliente_id', type=int)`: Jinja no tiene los builtins de
+        Python, `int` ahí es Undefined, y werkzeug revienta al llamarlo — pero solo
+        cuando el parámetro viene en la query, que es cómo ese bug llegó a
+        producción sin que ningún test lo viera. -#}
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" required>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if c.id == recepcion.cliente_id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="recibido_en">Fecha</label>
+      <input type="date" id="recibido_en" name="recibido_en" required
+             value="{{ recepcion.recibido_en.strftime('%Y-%m-%d') if recepcion.recibido_en else '' }}">
+    </div>
+    <div class="ops-field">
+      <label for="documento_cliente">Documento del cliente <small>(opcional)</small></label>
+      <input type="text" id="documento_cliente" name="documento_cliente"
+             value="{{ recepcion.documento_cliente or '' }}"
+             placeholder="Guía o remisión, si la mandaron">
+    </div>
+    <div class="ops-field">
+      <label for="temperatura">Temperatura °C</label>
+      <input type="number" step="0.1" id="temperatura" name="temperatura"
+             value="{{ recepcion.temperatura if recepcion.temperatura is not none else '' }}">
+    </div>
+    <div class="ops-field">
+      <label for="transportista">Transportista</label>
+      <input type="text" id="transportista" name="transportista"
+             value="{{ recepcion.transportista or '' }}">
+    </div>
+    <div class="ops-field">
+      <label for="notas">Notas</label>
+      <textarea id="notas" name="notas">{{ recepcion.notas or '' }}</textarea>
+    </div>
+  </section>
+
+  <section class="ops-card">
+    <h2>Ingredientes</h2>
+    <div id="rec-lineas">
+      {#- Una línea existente. Los cinco campos llevan etiqueta asociada: la fila
+          repetible de recepcion_nueva.html NO las tiene y es un hallazgo abierto de
+          accesibilidad — no lo repitas al espejar.
+
+          Bultos vs. peso total: si la línea ya trae bultos, ELLOS GANAN y el
+          servicio ignora `peso_total` por completo (así funciona
+          `editar_recepcion`). El campo de peso total queda `readonly` (no
+          `disabled`: un campo disabled no se envía y desalinearía las listas
+          paralelas) mientras haya bultos cargados, con una leyenda fija abajo,
+          y el JS de más abajo lo reactiva en cuanto el campo de bultos queda
+          vacío. -#}
+      {% for l in lineas %}
+      <div class="rec-linea" data-linea-id="{{ l.id }}">
+        <input type="hidden" name="linea_id" value="{{ l.id }}">
+
+        <div class="rec-linea-campo">
+          <label for="ing-{{ l.id }}">Ingrediente</label>
+          <select id="ing-{{ l.id }}" name="linea_ingrediente_id" required>
+            {% for i in ingredientes %}
+            <option value="{{ i.id }}" {{ 'selected' if i.id == l.ingrediente_id else '' }}>{{ i.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="rec-linea-campo">
+          <label for="lote-{{ l.id }}">Lote del cliente</label>
+          <input type="text" id="lote-{{ l.id }}" name="linea_lote_cliente" value="{{ l.lote_cliente or '' }}">
+        </div>
+
+        <div class="rec-linea-campo">
+          <label for="venc-{{ l.id }}">Vencimiento</label>
+          <input type="date" id="venc-{{ l.id }}" name="linea_fecha_vencimiento"
+                 value="{{ l.fecha_vencimiento.strftime('%Y-%m-%d') if l.fecha_vencimiento else '' }}">
+        </div>
+
+        <div class="rec-linea-campo">
+          <label for="bultos-{{ l.id }}">Bultos</label>
+          <input type="text" id="bultos-{{ l.id }}" name="linea_bultos" inputmode="decimal"
+                 class="rec-bultos-input"
+                 value="{{ l.bultos|map(attribute='peso')|join(', ') }}">
+        </div>
+
+        <div class="rec-linea-campo">
+          <label for="total-{{ l.id }}">Peso total</label>
+          {#- El value va CRUDO: es un input numérico, no texto para leer. fmt_cant
+              metería una coma de miles y rompería el parseo. -#}
+          <input type="number" step="0.001" id="total-{{ l.id }}" name="linea_peso_total"
+                 class="rec-total-input {{ 'rec-campo-ignorado' if l.bultos else '' }}"
+                 {{ 'readonly' if l.bultos else '' }}
+                 value="{{ l.peso_total }}">
+          <p class="maquila-nota-unidad">
+            Si esta línea tiene bultos cargados, mandan ellos: este peso total se ignora mientras haya alguno.
+          </p>
+        </div>
+
+        {#- Importante: un checkbox sin marcar no viaja en el POST. Con listas
+            paralelas eso desalinea todo lo que viene después (marcar «quitar»
+            en la segunda línea terminaría quitando la primera). Por eso el
+            checkbox visible NO lleva `name`: el único que se envía es el
+            hidden de al lado, y el JS de más abajo lo sincroniza en cada
+            cambio — así siempre viaja exactamente un valor por línea, esté
+            marcado o no. -#}
+        <input type="hidden" name="linea_quitar" value="" data-quitar-hidden="{{ l.id }}">
+        <label class="rec-quitar">
+          <input type="checkbox" data-quitar-check="{{ l.id }}" value="1"
+                 {{ 'disabled' if consumido[l.id] > 0 else '' }}>
+          Quitar esta línea
+        </label>
+
+        {% if consumido[l.id] > 0 %}
+        <p class="maquila-nota-unidad">
+          Ya se consumieron {{ consumido[l.id]|fmt_cant(l.ingrediente.unidad) }} de esta línea:
+          no se puede quitar ni corregir por debajo de eso.
+        </p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn" id="rec-add-linea">Agregar ingrediente</button>
+  </section>
+
+  <section class="ops-card">
+    <h2>Evidencia</h2>
+
+    {% if recepcion.fotos %}
+    <div class="maquila-galeria">
+      {% for f in recepcion.fotos %}
+      <div class="rec-foto-item">
+        <img src="{{ url_for('maquila.recepcion_foto', foto_id=f.id) }}" alt="Foto de la recepción {{ recepcion.codigo }}">
+        <label class="rec-borrar-foto">
+          <input type="checkbox" name="borrar_foto" value="{{ f.id }}"> Borrar esta foto
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="ops-empty">Sin fotos.</p>
+    {% endif %}
+
+    <div class="ops-field">
+      <label for="fotos">Agregar fotos</label>
+      <input type="file" id="fotos" name="fotos" accept="image/*" capture="environment" multiple>
+    </div>
+
+    {% if recepcion.firma %}
+    <p>Ya hay una firma registrada.</p>
+    <button type="button" class="btn" id="firma-cambiar-btn">Cambiar firma</button>
+    {% endif %}
+
+    <div id="firma-bloque" {{ 'hidden' if recepcion.firma else '' }}>
+      <div class="ops-firma-label" id="firmaLabel">Firma de quien entrega</div>
+      {#- El botón de borrar va DENTRO del pad: `.ops-firma-clear` es
+           `position:absolute` y `.ops-firma-pad` es su `position:relative`. -#}
+      <div class="ops-firma-pad" id="firmaPad-wrap">
+        <canvas id="firmaPad" width="600" height="200"
+                role="img" aria-labelledby="firmaLabel"
+                aria-describedby="firmaAyuda"></canvas>
+        <div class="ops-firma-placeholder" id="firmaPlaceholder">Firmá acá con el dedo</div>
+        <button type="button" class="ops-firma-clear" id="firmaClear">Borrar firma</button>
+      </div>
+      <p class="maquila-firma-ayuda" id="firmaAyuda">
+        Si quien entrega no puede firmar en pantalla, dejalo escrito en las notas y guardá sin cambiar la firma.
+      </p>
+      <input type="hidden" name="firma_png" id="firma_png">
+    </div>
+  </section>
+
+  <section class="ops-card">
+    <div class="ops-field">
+      <label for="motivo">Motivo de la corrección <small>(solo hace falta si cambiás una cantidad)</small></label>
+      <input type="text" id="motivo" name="motivo">
+    </div>
+  </section>
+
+  <footer class="ops-sticky-footer">
+    <button type="submit" class="btn btn-primary" id="rec-submit-btn">Guardar corrección</button>
+  </footer>
+</form>
+
+<template id="rec-linea-tpl">
+  <div class="rec-linea">
+    <input type="hidden" name="linea_id" value="">
+    <div class="rec-linea-campo">
+      <label>Ingrediente
+        <select name="linea_ingrediente_id" required>
+          {% for i in ingredientes %}<option value="{{ i.id }}">{{ i.nombre }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Lote del cliente
+        <input type="text" name="linea_lote_cliente" placeholder="Opcional">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Vencimiento
+        <input type="date" name="linea_fecha_vencimiento">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Bultos
+        <input type="text" name="linea_bultos" class="rec-bultos-input" inputmode="decimal" placeholder="12.5, 11.5">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Peso total
+        <input type="number" step="0.001" name="linea_peso_total" class="rec-total-input" placeholder="o peso total">
+      </label>
+      <p class="maquila-nota-unidad">Si cargás bultos arriba, mandan ellos: este peso total se ignora.</p>
+    </div>
+  </div>
+</template>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var cont = document.getElementById('rec-lineas');
+  var tpl = document.getElementById('rec-linea-tpl');
+  function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
+  document.getElementById('rec-add-linea').addEventListener('click', addLinea);
+
+  // Bultos vs. peso total: mientras el campo de bultos tenga contenido, el
+  // peso total queda de solo lectura (no `disabled`, porque eso lo sacaría
+  // del POST y desalinearía las listas paralelas). Se aplica al cargar y en
+  // cada cambio, tanto en las líneas existentes como en las que se agreguen.
+  function actualizarModoTotal(bultosInput) {
+    var fila = bultosInput.closest('.rec-linea');
+    if (!fila) return;
+    var total = fila.querySelector('.rec-total-input');
+    if (!total) return;
+    var hayBultos = bultosInput.value.trim().length > 0;
+    total.readOnly = hayBultos;
+    total.classList.toggle('rec-campo-ignorado', hayBultos);
+  }
+  cont.addEventListener('input', function (e) {
+    if (e.target.matches('.rec-bultos-input')) actualizarModoTotal(e.target);
+  });
+  Array.prototype.forEach.call(cont.querySelectorAll('.rec-bultos-input'), actualizarModoTotal);
+
+  // «Quitar esta línea»: el checkbox visible no lleva `name` a propósito (ver
+  // el comentario en la plantilla). Acá se sincroniza su estado contra el
+  // hidden que sí viaja, por línea, para que las listas paralelas
+  // (linea_id / linea_ingrediente_id / ... / linea_quitar) nunca se corran.
+  cont.addEventListener('change', function (e) {
+    if (!e.target.matches('[data-quitar-check]')) return;
+    var hidden = cont.querySelector('[data-quitar-hidden="' + e.target.getAttribute('data-quitar-check') + '"]');
+    if (hidden) hidden.value = e.target.checked ? '1' : '';
+  });
+
+  // Color FIJO: los tokens claros están scopeados a .ops-*, así que leerlos de
+  // document.body devuelve el token OSCURO y la firma sale blanca sobre blanco.
+  var TINTA = '#0f172a';
+  var canvas = document.getElementById('firmaPad');
+  var ctx = canvas.getContext('2d');
+  var dibujando = false, hayFirma = false;
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = TINTA;
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var p = e.touches ? e.touches[0] : e;
+    return { x: (p.clientX - r.left) * canvas.width / r.width,
+             y: (p.clientY - r.top) * canvas.height / r.height };
+  }
+  var padWrap = document.getElementById('firmaPad-wrap');
+  var placeholder = document.getElementById('firmaPlaceholder');
+
+  function marcarFirmada(si) {
+    hayFirma = si;
+    padWrap.classList.toggle('has-sign', si);
+    placeholder.hidden = si;
+  }
+
+  function start(e) { dibujando = true; marcarFirmada(true); var q = pos(e);
+                      ctx.beginPath(); ctx.moveTo(q.x, q.y); e.preventDefault(); }
+  function move(e) { if (!dibujando) return; var q = pos(e);
+                     ctx.lineTo(q.x, q.y); ctx.stroke(); e.preventDefault(); }
+  function end() { dibujando = false; }
+
+  ['mousedown', 'touchstart'].forEach(function (ev) { canvas.addEventListener(ev, start); });
+  ['mousemove', 'touchmove'].forEach(function (ev) { canvas.addEventListener(ev, move); });
+  ['mouseup', 'mouseleave', 'touchend'].forEach(function (ev) { canvas.addEventListener(ev, end); });
+
+  document.getElementById('firmaClear').addEventListener('click', function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    marcarFirmada(false);
+  });
+
+  // Si ya había firma, el canvas arranca oculto: "Cambiar firma" lo revela
+  // para redibujar. Redibujar SIEMPRE reemplaza la firma guardada (el hidden
+  // solo se llena si hayFirma quedó true tras un trazo nuevo).
+  var cambiarBtn = document.getElementById('firma-cambiar-btn');
+  if (cambiarBtn) {
+    cambiarBtn.addEventListener('click', function () {
+      document.getElementById('firma-bloque').hidden = false;
+      cambiarBtn.hidden = true;
+    });
+  }
+
+  // Bandera compartida: mientras haya reducciones de foto en curso, el botón
+  // de guardar queda deshabilitado (abajo) Y el submit se corta acá también,
+  // por si un Enter en un campo de texto dispara el envío sin pasar por el
+  // click del botón.
+  var reduccionesPendientes = 0;
+
+  document.getElementById('rec-form').addEventListener('submit', function (e) {
+    if (reduccionesPendientes > 0) {
+      e.preventDefault();
+      return;
+    }
+    if (hayFirma) document.getElementById('firma_png').value = canvas.toDataURL('image/png');
+  });
+
+  // Reducir las fotos antes de subir: cuatro imágenes de iPhone en crudo
+  // hinchan la fila y la memoria del dyno.
+  var input = document.getElementById('fotos');
+  var submitBtn = document.getElementById('rec-submit-btn');
+  input.addEventListener('change', function () {
+    var dt = new DataTransfer();
+    var pendientes = input.files.length;
+    if (!pendientes) return;
+
+    reduccionesPendientes += pendientes;
+    if (submitBtn) submitBtn.disabled = true;
+
+    function terminarUna() {
+      reduccionesPendientes--;
+      if (--pendientes === 0) {
+        input.files = dt.files;
+      }
+      if (reduccionesPendientes <= 0 && submitBtn) {
+        submitBtn.disabled = false;
+      }
+    }
+
+    Array.prototype.forEach.call(input.files, function (file) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var max = 1280;
+        var escala = Math.min(1, max / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(function (blob) {
+          dt.items.add(blob
+            ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
+            : file);
+          terminarUna();
+        }, 'image/jpeg', 0.8);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        dt.items.add(file);
+        terminarUna();
+      };
+      img.src = url;
+    });
+  });
+})();
+</script>
+{% endblock %}
