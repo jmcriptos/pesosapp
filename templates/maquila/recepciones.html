@@ -1,0 +1,43 @@
+{% extends "maquila/base_maquila.html" %}
+{% block title %}Recepciones{% endblock %}
+{% block maquila_title %}Recepciones{% endblock %}
+{% block maquila_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro">
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" data-autosubmit>
+        <option value="">Todos los clientes</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  <a class="btn btn-primary" href="{{ url_for('maquila.recepcion_nueva') }}">Nueva recepción</a>
+</section>
+
+<section class="ops-card">
+  {% if not recepciones %}
+    <p class="ops-empty">No hay recepciones para este filtro.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Código</th><th>Fecha</th><th>Cliente</th><th>Líneas</th><th>Peso total</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+      {% for r in recepciones %}
+      <tr>
+        <td><a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=r.id) }}">{{ r.codigo }}</a></td>
+        <td>{{ r.recibido_en.strftime('%d/%m/%Y') }}</td>
+        <td>{{ r.cliente.nombre }}</td>
+        <td>{{ r.lineas|length }}</td>
+        <td>{{ r.lineas|sum(attribute='peso_total') }}</td>
+        <td>{{ 'Anulada' if r.anulada else 'Vigente' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

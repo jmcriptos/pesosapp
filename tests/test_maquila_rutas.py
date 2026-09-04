@@ -1,5 +1,7 @@
 """Tests de acceso y andamiaje del módulo de maquila."""
 import os
+from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -75,3 +77,64 @@ def test_vendedor_no_entra(app):
 def test_anonimo_no_entra(app):
     r = app.test_client().get('/maquila', follow_redirects=False)
     assert r.status_code == 302
+
+
+def test_alta_de_ingrediente(app):
+    from maquila.models import Ingrediente
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ingredientes', data={'nombre': 'Tripa natural',
+                                              'unidad': 'ud'},
+               follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        assert Ingrediente.query.filter_by(nombre='Tripa natural').count() == 1
+
+
+def test_alta_de_recepcion_por_la_ruta(app):
+    from maquila.models import Ingrediente, RecepcionIngrediente
+    with app.app_context():
+        from app import Cliente
+        cli = Cliente(nombre='Maquila SA')
+        ing = Ingrediente(nombre='Carne de res')
+        _db.session.add_all([cli, ing])
+        _db.session.commit()
+        cli_id, ing_id = cli.id, ing.id
+
+    c = _login(app, 'admin')
+    r = c.post('/maquila/recepciones/nueva', data={
+        'cliente_id': str(cli_id),
+        'recibido_en': '2026-09-03',
+        'documento_cliente': '',
+        'temperatura': '-18.5',
+        'linea_ingrediente_id': [str(ing_id)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_peso_total': [''],
+        'linea_bultos': ['12.5,11.5'],
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        rec = RecepcionIngrediente.query.one()
+        assert rec.codigo == 'R-2026-0001'
+        assert rec.documento_cliente is None
+        assert rec.lineas[0].peso_total == Decimal('24.000')
+        assert len(rec.lineas[0].bultos) == 2
+
+
+def test_el_indice_lista_los_clientes_con_recepciones(app):
+    from maquila.models import Ingrediente
+    from maquila import servicios
+    with app.app_context():
+        from app import Cliente
+        cli = Cliente(nombre='Maquila SA')
+        ing = Ingrediente(nombre='Carne de res')
+        _db.session.add_all([cli, ing])
+        _db.session.commit()
+        servicios.crear_recepcion(
+            cliente_id=cli.id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing.id, 'peso_total': Decimal('50')}])
+    c = _login(app, 'admin')
+    r = c.get('/maquila')
+    assert r.status_code == 200
+    assert b'Maquila SA' in r.data

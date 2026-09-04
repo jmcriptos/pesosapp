@@ -1,10 +1,15 @@
 {% extends "base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/maquila.css') }}">
+{% endblock %}
 {% block content %}
 <div class="ops-wrap maquila-wrap">
   <header class="ops-head">
     <h1 class="ops-title">{% block maquila_title %}Maquila{% endblock %}</h1>
     <nav class="maquila-nav">
       <a href="{{ url_for('maquila.index') }}">Resumen</a>
+      <a href="{{ url_for('maquila.recepciones') }}">Recepciones</a>
+      <a href="{{ url_for('maquila.ingredientes') }}">Ingredientes</a>
     </nav>
   </header>
   {% block maquila_body %}{% endblock %}
