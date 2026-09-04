@@ -447,3 +447,66 @@ def test_una_correccion_imposible_da_mensaje_no_500(app):
     }, follow_redirects=True)
     assert r.status_code == 200
     assert 'ya cedió'.encode() in r.data
+
+
+def test_ingrediente_desactivado_no_cambia_solo_al_guardar(app):
+    """Ronda 1: si el ingrediente de una línea se desactiva, editar la
+    recepción SIN tocar esa línea no puede cambiarle el ingrediente. El
+    <select> tiene que seguir ofreciendo la opción desactivada, o ninguna
+    queda `selected` y el navegador cae en la primera de la lista."""
+    from maquila.models import Ingrediente, RecepcionLinea
+    with app.app_context():
+        rec = _recepcion(100)
+        rec_id, linea_id = rec.id, rec.lineas[0].id
+        ing_id = rec.lineas[0].ingrediente_id
+        ing = _db.session.get(Ingrediente, ing_id)
+        ing.activo = False
+        _db.session.commit()
+
+    c = _login(app, 'admin')
+    r = c.get(f'/maquila/recepciones/{rec_id}/editar')
+    assert r.status_code == 200
+    assert f'value="{ing_id}"'.encode() in r.data
+
+    r = c.post(f'/maquila/recepciones/{rec_id}/editar', data={
+        'cliente_id': str(IDS['cliente']),
+        'recibido_en': '2026-09-01',
+        'temperatura': '2',
+        'linea_id': [str(linea_id)],
+        'linea_ingrediente_id': [str(ing_id)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_bultos': [''],
+        'linea_peso_total': ['100'],
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        assert _db.session.get(RecepcionLinea, linea_id).ingrediente_id == ing_id
+
+
+def test_quitar_una_linea_sin_js_por_nombre_propio(app):
+    """Ronda 1: `linea_quitar_<id>` viaja solo, sin hidden ni JS de
+    sincronización — el fallo silencioso de antes (JS no corre, checkbox
+    marcado no se envía, la línea sigue ahí) ya no puede pasar."""
+    from maquila.models import RecepcionLinea
+    with app.app_context():
+        rec = _recepcion(100)
+        rec_id, linea_id = rec.id, rec.lineas[0].id
+        ing = rec.lineas[0].ingrediente_id
+
+    c = _login(app, 'admin')
+    r = c.post(f'/maquila/recepciones/{rec_id}/editar', data={
+        'cliente_id': str(IDS['cliente']),
+        'recibido_en': '2026-09-01',
+        'motivo': 'No vino',
+        'linea_id': [str(linea_id)],
+        'linea_ingrediente_id': [str(ing)],
+        'linea_lote_cliente': [''],
+        'linea_fecha_vencimiento': [''],
+        'linea_bultos': [''],
+        'linea_peso_total': ['100'],
+        f'linea_quitar_{linea_id}': '1',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        assert _db.session.get(RecepcionLinea, linea_id).anulada is True

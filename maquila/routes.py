@@ -313,7 +313,6 @@ def recepcion_editar(recepcion_id):
         vencimientos = request.form.getlist('linea_fecha_vencimiento')
         bultos_crudos = request.form.getlist('linea_bultos')
         totales = request.form.getlist('linea_peso_total')
-        quitar = request.form.getlist('linea_quitar')
 
         for i, ingrediente_id in enumerate(ingredientes):
             if not ingrediente_id:
@@ -322,6 +321,16 @@ def recepcion_editar(recepcion_id):
             bultos = [b for b in (_decimal(x) for x in crudos.split(',') if x.strip())
                       if b is not None]
             bruto_id = (ids[i] if i < len(ids) else '') or ''
+            # `linea_quitar_<id>` se resuelve por id, no por posición en una
+            # lista paralela: un checkbox sin `name` propio no viaja si está
+            # sin marcar, y depender de un índice compartido con las demás
+            # listas es justo lo que se rompía si el JS de sincronización no
+            # llegaba a correr (usuario marca «quitar», el JS no corre, se
+            # guarda como si nada — falla en silencio, en la dirección
+            # peligrosa). Con nombre propio por id, el checkbox viaja solo:
+            # no hace falta JS ni hidden, y no hay índice que desalinear.
+            quitar_linea = (bool(bruto_id) and
+                            bool((request.form.get(f'linea_quitar_{bruto_id}') or '').strip()))
             lineas.append({
                 'id': _entero(bruto_id) if bruto_id else None,
                 'ingrediente_id': _entero(ingrediente_id),
@@ -329,7 +338,7 @@ def recepcion_editar(recepcion_id):
                 'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
                 'bultos': bultos,
                 'peso_total': _decimal(totales[i] if i < len(totales) else ''),
-                'quitar': bool((quitar[i] if i < len(quitar) else '').strip()),
+                'quitar': quitar_linea,
             })
 
         fotos_nuevas = []
@@ -393,14 +402,32 @@ def recepcion_editar(recepcion_id):
                                 recepcion_id=recepcion_id))
 
     vivas = [l for l in recepcion.lineas if not l.anulada]
+
+    ingredientes_activos = (Ingrediente.query.filter_by(activo=True)
+                            .order_by(Ingrediente.nombre).all())
+    # Si una línea usa un ingrediente que después se desactivó, ESE
+    # ingrediente tiene que seguir en el <select> (marcado como desactivado
+    # en la plantilla): si no aparece, ninguna <option> recibe `selected`, el
+    # navegador cae en la primera de la lista, y guardar sin haber tocado
+    # esa línea le cambia el ingrediente sin aviso. Es corrupción silenciosa
+    # justo del rastro que este módulo existe para blindar.
+    ids_usados = {l.ingrediente_id for l in vivas}
+    ids_activos = {i.id for i in ingredientes_activos}
+    faltantes_ids = ids_usados - ids_activos
+    ingredientes_editar = ingredientes_activos
+    if faltantes_ids:
+        faltantes = Ingrediente.query.filter(Ingrediente.id.in_(faltantes_ids)).all()
+        ingredientes_editar = sorted(ingredientes_activos + faltantes,
+                                     key=lambda ing: ing.nombre)
+
     return render_template(
         'maquila/recepcion_editar.html',
         recepcion=recepcion,
         lineas=vivas,
         consumido={l.id: servicios.consumido_de_linea(l) for l in vivas},
         clientes=Cliente.query.order_by(Cliente.nombre).all(),
-        ingredientes=Ingrediente.query.filter_by(activo=True)
-                                      .order_by(Ingrediente.nombre).all())
+        ingredientes=ingredientes_editar,
+        ingredientes_nuevos=ingredientes_activos)
 
 
 @bp.route('/recepciones/<int:recepcion_id>/anular', methods=['POST'])

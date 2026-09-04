@@ -69,8 +69,13 @@
         <div class="rec-linea-campo">
           <label for="ing-{{ l.id }}">Ingrediente</label>
           <select id="ing-{{ l.id }}" name="linea_ingrediente_id" required>
+            {#- Incluye también el ingrediente de esta línea aunque ya esté
+                desactivado (la ruta lo agrega a `ingredientes` si hace
+                falta): si faltara su <option>, ninguna quedaría `selected`,
+                el navegador caería en la primera de la lista, y guardar sin
+                tocar esta línea le cambiaría el ingrediente sin aviso. -#}
             {% for i in ingredientes %}
-            <option value="{{ i.id }}" {{ 'selected' if i.id == l.ingrediente_id else '' }}>{{ i.nombre }}</option>
+            <option value="{{ i.id }}" {{ 'selected' if i.id == l.ingrediente_id else '' }}>{{ i.nombre }}{{ ' (desactivado)' if not i.activo else '' }}</option>
             {% endfor %}
           </select>
         </div>
@@ -106,16 +111,19 @@
           </p>
         </div>
 
-        {#- Importante: un checkbox sin marcar no viaja en el POST. Con listas
-            paralelas eso desalinea todo lo que viene después (marcar «quitar»
-            en la segunda línea terminaría quitando la primera). Por eso el
-            checkbox visible NO lleva `name`: el único que se envía es el
-            hidden de al lado, y el JS de más abajo lo sincroniza en cada
-            cambio — así siempre viaja exactamente un valor por línea, esté
-            marcado o no. -#}
-        <input type="hidden" name="linea_quitar" value="" data-quitar-hidden="{{ l.id }}">
+        {#- El checkbox lleva NOMBRE PROPIO por línea (`linea_quitar_<id>`),
+            no un `name` compartido: así viaja solo, sin JS y sin depender
+            del índice de ninguna lista paralela. Un checkbox con `name`
+            compartido y sin marcar simplemente no se envía — con listas
+            paralelas eso corre el índice de todo lo que viene después
+            (marcar «quitar» en la segunda línea terminaría quitando la
+            primera), y la variante anterior de esto dependía de que un
+            hidden + JS lo compensaran: si el JS no llegaba a correr, el
+            usuario marcaba la casilla, guardaba, y la línea seguía ahí sin
+            aviso. Con nombre propio por id no hace falta ni lo uno ni lo
+            otro. -#}
         <label class="rec-quitar">
-          <input type="checkbox" data-quitar-check="{{ l.id }}" value="1"
+          <input type="checkbox" name="linea_quitar_{{ l.id }}" value="1"
                  {{ 'disabled' if consumido[l.id] > 0 else '' }}>
           Quitar esta línea
         </label>
@@ -195,8 +203,11 @@
     <input type="hidden" name="linea_id" value="">
     <div class="rec-linea-campo">
       <label>Ingrediente
+        {#- Una línea NUEVA no tiene un ingrediente desactivado que
+            preservar: solo los activos tienen sentido acá (mismo criterio
+            que el alta en recepcion_nueva.html). -#}
         <select name="linea_ingrediente_id" required>
-          {% for i in ingredientes %}<option value="{{ i.id }}">{{ i.nombre }}</option>{% endfor %}
+          {% for i in ingredientes_nuevos %}<option value="{{ i.id }}">{{ i.nombre }}</option>{% endfor %}
         </select>
       </label>
     </div>
@@ -249,15 +260,9 @@
   });
   Array.prototype.forEach.call(cont.querySelectorAll('.rec-bultos-input'), actualizarModoTotal);
 
-  // «Quitar esta línea»: el checkbox visible no lleva `name` a propósito (ver
-  // el comentario en la plantilla). Acá se sincroniza su estado contra el
-  // hidden que sí viaja, por línea, para que las listas paralelas
-  // (linea_id / linea_ingrediente_id / ... / linea_quitar) nunca se corran.
-  cont.addEventListener('change', function (e) {
-    if (!e.target.matches('[data-quitar-check]')) return;
-    var hidden = cont.querySelector('[data-quitar-hidden="' + e.target.getAttribute('data-quitar-check') + '"]');
-    if (hidden) hidden.value = e.target.checked ? '1' : '';
-  });
+  // «Quitar esta línea» ya NO depende de JS: el checkbox de cada línea
+  // existente lleva su propio `name="linea_quitar_<id>"` (ver la plantilla)
+  // y viaja solo, marcado o no. Nada que sincronizar acá.
 
   // Color FIJO: los tokens claros están scopeados a .ops-*, así que leerlos de
   // document.body devuelve el token OSCURO y la firma sale blanca sobre blanco.
