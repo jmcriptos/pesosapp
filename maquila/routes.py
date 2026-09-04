@@ -294,6 +294,142 @@ def recepcion_detalle(recepcion_id):
                            recepcion=recepcion, saldos_linea=saldos_linea)
 
 
+@bp.route('/recepciones/<int:recepcion_id>/editar', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def recepcion_editar(recepcion_id):
+    recepcion = db.session.get(RecepcionIngrediente, recepcion_id) or abort(404)
+
+    if recepcion.anulada:
+        flash(f'{recepcion.codigo} está anulada: no se puede editar', 'error')
+        return redirect(url_for('maquila.recepcion_detalle',
+                                recepcion_id=recepcion_id))
+
+    if request.method == 'POST':
+        lineas = []
+        ids = request.form.getlist('linea_id')
+        ingredientes = request.form.getlist('linea_ingrediente_id')
+        lotes = request.form.getlist('linea_lote_cliente')
+        vencimientos = request.form.getlist('linea_fecha_vencimiento')
+        bultos_crudos = request.form.getlist('linea_bultos')
+        totales = request.form.getlist('linea_peso_total')
+
+        for i, ingrediente_id in enumerate(ingredientes):
+            if not ingrediente_id:
+                continue
+            crudos = (bultos_crudos[i] if i < len(bultos_crudos) else '') or ''
+            bultos = [b for b in (_decimal(x) for x in crudos.split(',') if x.strip())
+                      if b is not None]
+            bruto_id = (ids[i] if i < len(ids) else '') or ''
+            # `linea_quitar_<id>` se resuelve por id, no por posición en una
+            # lista paralela: un checkbox sin `name` propio no viaja si está
+            # sin marcar, y depender de un índice compartido con las demás
+            # listas es justo lo que se rompía si el JS de sincronización no
+            # llegaba a correr (usuario marca «quitar», el JS no corre, se
+            # guarda como si nada — falla en silencio, en la dirección
+            # peligrosa). Con nombre propio por id, el checkbox viaja solo:
+            # no hace falta JS ni hidden, y no hay índice que desalinear.
+            quitar_linea = (bool(bruto_id) and
+                            bool((request.form.get(f'linea_quitar_{bruto_id}') or '').strip()))
+            lineas.append({
+                'id': _entero(bruto_id) if bruto_id else None,
+                'ingrediente_id': _entero(ingrediente_id),
+                'lote_cliente': (lotes[i] if i < len(lotes) else '') or None,
+                'fecha_vencimiento': _fecha(vencimientos[i] if i < len(vencimientos) else ''),
+                'bultos': bultos,
+                'peso_total': _decimal(totales[i] if i < len(totales) else ''),
+                'quitar': quitar_linea,
+            })
+
+        fotos_nuevas = []
+        for archivo in request.files.getlist('fotos'):
+            if not archivo or not archivo.filename:
+                continue
+            mimetype = (archivo.mimetype or '').lower()
+            if mimetype not in MIMETYPES_FOTO_PERMITIDOS:
+                flash('Formato de foto no permitido', 'error')
+                return redirect(url_for('maquila.recepcion_editar',
+                                        recepcion_id=recepcion_id))
+            datos = archivo.read(MAX_FOTO_BYTES + 1)
+            if len(datos) > MAX_FOTO_BYTES:
+                flash('Una foto supera los 2 MB: redúcela antes de subirla', 'error')
+                return redirect(url_for('maquila.recepcion_editar',
+                                        recepcion_id=recepcion_id))
+            fotos_nuevas.append((datos, mimetype))
+
+        firma = None
+        firma_b64 = request.form.get('firma_png') or ''
+        if firma_b64.startswith('data:image/png;base64,'):
+            import base64
+            import binascii
+            try:
+                firma = base64.b64decode(firma_b64.split(',', 1)[1], validate=True)
+            except (binascii.Error, ValueError):
+                firma = None
+                flash('La firma no se pudo leer: se guardó sin cambiarla', 'error')
+
+        try:
+            servicios.editar_recepcion(
+                recepcion, vendedor_id=current_user.id,
+                cabecera={
+                    'cliente_id': _entero(request.form.get('cliente_id')),
+                    'recibido_en': _fecha(request.form.get('recibido_en')),
+                    'documento_cliente': request.form.get('documento_cliente'),
+                    'temperatura': _decimal(request.form.get('temperatura')),
+                    'transportista': request.form.get('transportista'),
+                    'notas': request.form.get('notas'),
+                },
+                lineas=lineas,
+                motivo=request.form.get('motivo'),
+                fotos_a_borrar=request.form.getlist('borrar_foto', type=int),
+                fotos_nuevas=fotos_nuevas,
+                firma=firma,
+                firma_mimetype='image/png' if firma else None)
+        except (servicios.CorreccionImposible, servicios.RecepcionInvalida,
+                servicios.MotivoRequerido, servicios.RecepcionNoEditable) as exc:
+            db.session.rollback()
+            flash(str(exc), 'error')
+            return redirect(url_for('maquila.recepcion_editar',
+                                    recepcion_id=recepcion_id))
+        except Exception:
+            db.session.rollback()
+            flash('No se pudo guardar la corrección', 'error')
+            return redirect(url_for('maquila.recepcion_editar',
+                                    recepcion_id=recepcion_id))
+
+        flash(f'{recepcion.codigo} corregida', 'success')
+        return redirect(url_for('maquila.recepcion_detalle',
+                                recepcion_id=recepcion_id))
+
+    vivas = [l for l in recepcion.lineas if not l.anulada]
+
+    ingredientes_activos = (Ingrediente.query.filter_by(activo=True)
+                            .order_by(Ingrediente.nombre).all())
+    # Si una línea usa un ingrediente que después se desactivó, ESE
+    # ingrediente tiene que seguir en el <select> (marcado como desactivado
+    # en la plantilla): si no aparece, ninguna <option> recibe `selected`, el
+    # navegador cae en la primera de la lista, y guardar sin haber tocado
+    # esa línea le cambia el ingrediente sin aviso. Es corrupción silenciosa
+    # justo del rastro que este módulo existe para blindar.
+    ids_usados = {l.ingrediente_id for l in vivas}
+    ids_activos = {i.id for i in ingredientes_activos}
+    faltantes_ids = ids_usados - ids_activos
+    ingredientes_editar = ingredientes_activos
+    if faltantes_ids:
+        faltantes = Ingrediente.query.filter(Ingrediente.id.in_(faltantes_ids)).all()
+        ingredientes_editar = sorted(ingredientes_activos + faltantes,
+                                     key=lambda ing: ing.nombre)
+
+    return render_template(
+        'maquila/recepcion_editar.html',
+        recepcion=recepcion,
+        lineas=vivas,
+        consumido={l.id: servicios.consumido_de_linea(l) for l in vivas},
+        clientes=Cliente.query.order_by(Cliente.nombre).all(),
+        ingredientes=ingredientes_editar,
+        ingredientes_nuevos=ingredientes_activos)
+
+
 @bp.route('/recepciones/<int:recepcion_id>/anular', methods=['POST'])
 @login_required
 @requiere_rol(['super_admin'])

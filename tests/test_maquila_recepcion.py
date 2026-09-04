@@ -159,6 +159,53 @@ def test_anular_sin_motivo_se_rechaza(app):
             servicios.anular_recepcion(rec, IDS['vendedor'], '   ')
 
 
+def test_anular_tras_quitar_una_linea(app):
+    """Quitar una línea la marca `anulada_en` pero NO toca `peso_total`.
+    `anular_recepcion` recorre `recepcion.lineas` sin filtrar anuladas y
+    compara `saldo_de_linea(l) == l.peso_total`: para la línea quitada eso es
+    `0 != 15` (su inverso ya la dejó en 0), así que revienta con
+    `RecepcionConsumida` diciendo que se consumió algo que nunca se consumió,
+    y la recepción queda imposible de anular para siempre."""
+    from maquila import servicios
+    with app.app_context():
+        rec = servicios.crear_recepcion(
+            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': IDS['ingrediente'], 'peso_total': Decimal('15')},
+                    {'ingrediente_id': IDS['ingrediente2'], 'peso_total': Decimal('20')}])
+        linea_quitada = rec.lineas[0]
+        linea_intacta = rec.lineas[1]
+
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'],
+            cabecera={'cliente_id': rec.cliente_id, 'recibido_en': rec.recibido_en,
+                     'documento_cliente': None, 'temperatura': None,
+                     'transportista': None, 'notas': None},
+            lineas=[{'id': linea_quitada.id, 'ingrediente_id': linea_quitada.ingrediente_id,
+                    'lote_cliente': None, 'fecha_vencimiento': None, 'bultos': [],
+                    'peso_total': Decimal('15'), 'quitar': True},
+                   {'id': linea_intacta.id, 'ingrediente_id': linea_intacta.ingrediente_id,
+                    'lote_cliente': None, 'fecha_vencimiento': None, 'bultos': [],
+                    'peso_total': Decimal('20'), 'quitar': False}],
+            motivo='No vino')
+        _db.session.commit()
+        assert linea_quitada.anulada is True
+
+        # Antes del arreglo, esto lanzaba RecepcionConsumida.
+        servicios.anular_recepcion(rec, IDS['vendedor'], 'Ya no aplica')
+        _db.session.commit()
+
+        assert rec.anulada is True
+        assert servicios.saldo_de_linea(linea_quitada.id) == Decimal('0')
+        assert servicios.saldo_de_linea(linea_intacta.id) == Decimal('0')
+        # Sin doble compensación: el saldo por cliente/ingrediente también
+        # queda en cero, no en -15/-20.
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], IDS['ingrediente']) == Decimal('0')
+        assert servicios.saldo_cliente_ingrediente(
+            IDS['cliente'], IDS['ingrediente2']) == Decimal('0')
+
+
 def test_una_linea_valida_seguida_de_invalida_no_deja_residuo(app):
     """Si la línea 2 es inválida, línea 1 y cabecera no quedan persistidas."""
     from maquila import servicios

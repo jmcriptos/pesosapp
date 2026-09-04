@@ -336,13 +336,23 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     if recepcion.anulada:
         raise RecepcionInvalida('La recepción ya estaba anulada')
 
-    for linea in recepcion.lineas:
+    # Filtrar las líneas anuladas (quitadas desde `editar_recepcion`) en LOS
+    # DOS bucles: quitar una línea ya escribió su inverso y la dejó en saldo
+    # 0 sin tocar `peso_total`, así que comparar contra `peso_total` para una
+    # línea anulada compara 0 contra su peso original y siempre da falso —
+    # `RecepcionConsumida` disparando por algo que nunca se consumió, y la
+    # recepción queda imposible de anular. Y si esta guarda se relajara, el
+    # segundo bucle escribiría un segundo inverso sobre la línea ya anulada,
+    # dejando el saldo en negativo.
+    vivas = [l for l in recepcion.lineas if not l.anulada]
+
+    for linea in vivas:
         if saldo_de_linea(linea.id) != _dec(linea.peso_total):
             raise RecepcionConsumida(
                 f'La línea {linea.id} de {recepcion.codigo} ya se consumió; '
                 f'la corrección a esta altura es un ajuste, no una anulación')
 
-    for linea in recepcion.lineas:
+    for linea in vivas:
         registrar_movimiento(
             cliente_id=recepcion.cliente_id,
             ingrediente_id=linea.ingrediente_id,
@@ -358,6 +368,291 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     recepcion.anulada_en = datetime.utcnow()
     recepcion.anulada_por = vendedor_id
     recepcion.motivo_anulacion = motivo.strip()
+    return recepcion
+
+
+class RecepcionNoEditable(Exception):
+    """La recepción está anulada: no hay nada que corregir."""
+
+
+class CorreccionImposible(ValueError):
+    """La corrección pedida dejaría el rastro en un estado imposible.
+
+    Corregir por debajo de lo ya consumido, quitar una línea que ya alimentó
+    una corrida, o mover a otro cliente una recepción de la que ya se consumió.
+    """
+
+
+def consumido_de_linea(linea):
+    """Cuánto salió ya de esta línea hacia corridas de producción."""
+    return _dec(linea.peso_total) - saldo_de_linea(linea.id)
+
+
+def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
+                     fotos_a_borrar=None, fotos_nuevas=None,
+                     firma=None, firma_mimetype=None):
+    """Corrige una recepción en una sola transacción.
+
+    `peso_total` pasa al valor real Y se escribe un ajuste por la diferencia,
+    de modo que `peso_total − consumido == saldo_de_linea` se mantiene: es la
+    identidad de la que cuelga el FIFO. El ledger sigue append-only.
+
+    Solo se escribe movimiento para las líneas cuya cantidad cambió. Sin eso,
+    cada guardado dejaría un ajuste de cero por línea y el kardex —el único
+    reporte que hoy le sirve a un auditor— se volvería ilegible.
+    """
+    if recepcion.anulada:
+        raise RecepcionNoEditable(
+            f'{recepcion.codigo} está anulada: no se puede editar')
+
+    # `registrar_movimiento` recibe `cliente_id` explícito, así que la
+    # compensación de más abajo no puede depender de `recepcion.cliente_id`
+    # mientras el bucle de cabecera lo está reasignando: hay que leer el
+    # viejo ACÁ, antes de que nada lo pise.
+    cliente_viejo = recepcion.cliente_id
+
+    vivas = [l for l in recepcion.lineas if not l.anulada]
+    consumidas = {l.id: consumido_de_linea(l) for l in vivas}
+    hay_consumo = any(c > CERO for c in consumidas.values())
+
+    # --- Guardas: todas antes de escribir nada ---
+    nuevo_cliente = cabecera.get('cliente_id')
+    # `None` en `cliente_id`/`recibido_en` significa "no tocar" (columnas NOT
+    # NULL, y la ruta siempre manda las seis claves de cabecera aunque el
+    # campo no haya cambiado o el parseo haya fallado): la escritura de abajo
+    # tiene que leer esto mismo, o un `None` que acá no cuenta como cambio
+    # terminaría poniendo NULL en una columna que no lo admite.
+    cambia_cliente = nuevo_cliente is not None and nuevo_cliente != cliente_viejo
+    if cambia_cliente and hay_consumo:
+        raise CorreccionImposible(
+            f'{recepcion.codigo} ya alimentó una corrida: cambiarle el cliente '
+            f'movería carne de un cliente a otro')
+
+    por_id = {l.id: l for l in vivas}
+    planes = []
+    vistos = set()
+    for datos in lineas:
+        linea_id = datos.get('id')
+        if linea_id is None:
+            planes.append(('nueva', None, datos))
+            continue
+        # Un `id` repetido en el POST (dos entradas para la misma línea, la
+        # segunda con `linea_quitar_<id>` marcado) escribiría su inverso dos
+        # veces y dejaría `saldo_de_linea` en negativo: se rechaza acá,
+        # ANTES de la primera escritura, no se deduplica en silencio.
+        if linea_id in vistos:
+            raise CorreccionImposible(
+                f'La línea {linea_id} aparece más de una vez en la corrección: '
+                f'un id duplicado escribiría su inverso dos veces')
+        vistos.add(linea_id)
+        linea = por_id.get(linea_id)
+        if linea is None:
+            raise CorreccionImposible(
+                f'La línea {linea_id} no pertenece a {recepcion.codigo}')
+
+        if datos.get('quitar'):
+            if consumidas[linea.id] > CERO:
+                raise CorreccionImposible(
+                    f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
+                    f'corrida: se corrige su cantidad, no se quita')
+            planes.append(('quitar', linea, datos))
+            continue
+
+        # Cambiar el ingrediente de una línea ya consumida es tan corrupto
+        # como cambiarle el cliente: el kilo ya salió hacia una corrida bajo
+        # el ingrediente viejo, y no hay forma honesta de reescribir eso.
+        # Con la línea intacta, se acepta y se compensa igual que el cliente.
+        nuevo_ingrediente_id = datos.get('ingrediente_id')
+        cambia_ingrediente = (nuevo_ingrediente_id is not None
+                              and nuevo_ingrediente_id != linea.ingrediente_id)
+        if cambia_ingrediente and consumidas[linea.id] > CERO:
+            raise CorreccionImposible(
+                f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
+                f'corrida: no se puede cambiar de ingrediente')
+
+        bultos = [_dec(b) for b in (datos.get('bultos') or [])]
+        for i, peso in enumerate(bultos, start=1):
+            if peso <= CERO:
+                raise RecepcionInvalida(
+                    f'Bulto {i} de la línea {linea.id} tiene peso no positivo: {peso}')
+        nuevo_peso = sum(bultos, CERO) if bultos else _dec(datos.get('peso_total'))
+        if nuevo_peso <= CERO:
+            raise RecepcionInvalida(
+                f'La línea {linea.id} necesita una cantidad positiva; '
+                f'para dejarla en cero, quitala')
+        if nuevo_peso < consumidas[linea.id]:
+            raise CorreccionImposible(
+                f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
+                f'corrida: no se puede corregir a {nuevo_peso}')
+        planes.append(('editar', linea, {**datos, '_peso': nuevo_peso,
+                                         '_bultos': bultos,
+                                         '_cambia_ingrediente': cambia_ingrediente}))
+
+    cambia_cantidad = any(
+        (accion == 'quitar') or
+        (accion == 'editar' and (datos['_peso'] != _dec(linea.peso_total)
+                                 or datos['_cambia_ingrediente']))
+        for accion, linea, datos in planes)
+    if cambia_cantidad and not (motivo or '').strip():
+        raise MotivoRequerido(
+            'Corregir una cantidad o el ingrediente exige un motivo')
+
+    # --- Escritura ---
+    try:
+        for campo in ('cliente_id', 'recibido_en', 'documento_cliente',
+                      'temperatura', 'transportista', 'notas'):
+            if campo not in cabecera:
+                continue
+            valor = cabecera[campo]
+            if campo in ('cliente_id', 'recibido_en'):
+                if valor is None:
+                    continue
+                setattr(recepcion, campo, valor)
+                continue
+            if campo == 'temperatura' and valor not in (None, ''):
+                valor = _dec(valor)
+            setattr(recepcion, campo, valor or None
+                    if campo in ('documento_cliente', 'transportista', 'notas')
+                    else valor)
+
+        if cambia_cliente:
+            # Compensación en el ledger, no prohibición del cambio: por cada
+            # línea viva se escribe un `ajuste` de -peso_total contra el
+            # cliente VIEJO y una `entrada` de +peso_total contra el NUEVO,
+            # ambos anclados a la misma `recepcion_linea_id`. El saldo de
+            # línea no se mueve (-peso +peso sobre la misma línea); lo que
+            # cambia es a qué cliente pertenece. Usa `linea.peso_total` tal
+            # cual está AHORA, antes de que el bucle de abajo lo corrija —
+            # si la cantidad también cambia en este mismo pedido, esa
+            # corrección se escribe aparte, ya contra el cliente nuevo.
+            motivo_migracion = (f'Recepción {recepcion.codigo} movida del '
+                               f'cliente {cliente_viejo} al {nuevo_cliente}'
+                               + (f': {motivo.strip()}'
+                                  if (motivo or '').strip() else ''))
+            for linea_viva in vivas:
+                registrar_movimiento(
+                    cliente_id=cliente_viejo,
+                    ingrediente_id=linea_viva.ingrediente_id,
+                    tipo='ajuste', cantidad=-_dec(linea_viva.peso_total),
+                    origen_tipo='recepcion', origen_id=recepcion.id,
+                    vendedor_id=vendedor_id, recepcion_linea_id=linea_viva.id,
+                    motivo=motivo_migracion)
+                registrar_movimiento(
+                    cliente_id=nuevo_cliente,
+                    ingrediente_id=linea_viva.ingrediente_id,
+                    tipo='entrada', cantidad=_dec(linea_viva.peso_total),
+                    origen_tipo='recepcion', origen_id=recepcion.id,
+                    vendedor_id=vendedor_id, recepcion_linea_id=linea_viva.id)
+
+        for accion, linea, datos in planes:
+            if accion == 'quitar':
+                registrar_movimiento(
+                    cliente_id=recepcion.cliente_id,
+                    ingrediente_id=linea.ingrediente_id,
+                    tipo='ajuste', cantidad=-_dec(linea.peso_total),
+                    origen_tipo='recepcion', origen_id=recepcion.id,
+                    vendedor_id=vendedor_id, recepcion_linea_id=linea.id,
+                    motivo=f'Línea quitada de {recepcion.codigo}: {motivo.strip()}')
+                linea.anulada_en = datetime.utcnow()
+
+            elif accion == 'editar':
+                linea.lote_cliente = datos.get('lote_cliente') or None
+                linea.fecha_vencimiento = datos.get('fecha_vencimiento')
+                anterior = _dec(linea.peso_total)
+                nuevo = datos['_peso']
+
+                if datos['_cambia_ingrediente']:
+                    # Mismo patrón que el cambio de cliente: ajuste -peso
+                    # contra el ingrediente viejo, entrada +peso contra el
+                    # nuevo, ambos con la misma `recepcion_linea_id`. Usa
+                    # `anterior` (el peso ANTES de este mismo guardado): si
+                    # la cantidad también cambia acá, esa diferencia se
+                    # escribe después, ya contra el ingrediente nuevo.
+                    ingrediente_viejo = linea.ingrediente_id
+                    ingrediente_nuevo = datos['ingrediente_id']
+                    registrar_movimiento(
+                        cliente_id=recepcion.cliente_id,
+                        ingrediente_id=ingrediente_viejo,
+                        tipo='ajuste', cantidad=-anterior,
+                        origen_tipo='recepcion', origen_id=recepcion.id,
+                        vendedor_id=vendedor_id, recepcion_linea_id=linea.id,
+                        motivo=(f'Línea de {recepcion.codigo} reasignada del '
+                               f'ingrediente {ingrediente_viejo} al '
+                               f'{ingrediente_nuevo}: {motivo.strip()}'))
+                    registrar_movimiento(
+                        cliente_id=recepcion.cliente_id,
+                        ingrediente_id=ingrediente_nuevo,
+                        tipo='entrada', cantidad=anterior,
+                        origen_tipo='recepcion', origen_id=recepcion.id,
+                        vendedor_id=vendedor_id, recepcion_linea_id=linea.id)
+                    linea.ingrediente_id = ingrediente_nuevo
+
+                # Se borran los bultos viejos siempre, no solo cuando llegan
+                # bultos nuevos: un `peso_total` directo es el usuario diciendo
+                # que la línea pasó a ser a granel. Dejar los bultos viejos
+                # colgando (100 kg en bultos bajo una línea que ahora dice 90)
+                # es la mentira que se ve en planta, aunque no rompa el saldo.
+                RecepcionBulto.query.filter_by(
+                    recepcion_linea_id=linea.id).delete()
+                for numero, peso in enumerate(datos['_bultos'], start=1):
+                    db.session.add(RecepcionBulto(
+                        recepcion_linea_id=linea.id, numero=numero, peso=peso))
+                if nuevo != anterior:
+                    linea.peso_total = nuevo
+                    registrar_movimiento(
+                        cliente_id=recepcion.cliente_id,
+                        ingrediente_id=linea.ingrediente_id,
+                        tipo='ajuste', cantidad=(nuevo - anterior),
+                        origen_tipo='recepcion', origen_id=recepcion.id,
+                        vendedor_id=vendedor_id, recepcion_linea_id=linea.id,
+                        motivo=(f'Corrección de {recepcion.codigo}: '
+                                f'{anterior} → {nuevo}. {motivo.strip()}'))
+
+            else:  # nueva
+                bultos = [_dec(b) for b in (datos.get('bultos') or [])]
+                for i, peso in enumerate(bultos, start=1):
+                    if peso <= CERO:
+                        raise RecepcionInvalida(
+                            f'Bulto {i} de la línea nueva tiene peso no positivo: {peso}')
+                peso_total = sum(bultos, CERO) if bultos else _dec(datos.get('peso_total'))
+                if peso_total <= CERO:
+                    raise RecepcionInvalida(
+                        'Una línea nueva necesita bultos pesados o un peso total positivo')
+                nueva = RecepcionLinea(
+                    recepcion_id=recepcion.id,
+                    ingrediente_id=datos['ingrediente_id'],
+                    lote_cliente=datos.get('lote_cliente') or None,
+                    fecha_vencimiento=datos.get('fecha_vencimiento'),
+                    peso_total=peso_total)
+                db.session.add(nueva)
+                db.session.flush()
+                for numero, peso in enumerate(bultos, start=1):
+                    db.session.add(RecepcionBulto(
+                        recepcion_linea_id=nueva.id, numero=numero, peso=peso))
+                registrar_movimiento(
+                    cliente_id=recepcion.cliente_id,
+                    ingrediente_id=nueva.ingrediente_id,
+                    tipo='entrada', cantidad=peso_total,
+                    origen_tipo='recepcion', origen_id=recepcion.id,
+                    vendedor_id=vendedor_id, recepcion_linea_id=nueva.id)
+
+        for foto_id in (fotos_a_borrar or []):
+            foto = db.session.get(RecepcionFoto, foto_id)
+            if foto is not None and foto.recepcion_id == recepcion.id:
+                db.session.delete(foto)
+
+        for imagen, mimetype in (fotos_nuevas or []):
+            db.session.add(RecepcionFoto(
+                recepcion_id=recepcion.id, imagen=imagen, mimetype=mimetype))
+
+        if firma is not None:
+            recepcion.firma = firma
+            recepcion.firma_mimetype = firma_mimetype
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
     return recepcion
 
 

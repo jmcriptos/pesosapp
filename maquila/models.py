@@ -77,6 +77,15 @@ class RecepcionIngrediente(db.Model):
         return self.anulada_en is not None
 
     @property
+    def lineas_vivas(self):
+        """Las líneas que no se quitaron. Una línea quitada sigue en la fila
+        (el módulo no borra nada) pero sale de cualquier total visible: el
+        ledger ya la dejó en saldo 0 vía su inverso, y contarla en un total
+        que se muestra en pantalla es el número dejando de coincidir con lo
+        que dice el rastro."""
+        return [l for l in self.lineas if not l.anulada]
+
+    @property
     def totales_por_unidad(self):
         """Totales agrupados por unidad, no una suma única.
 
@@ -86,7 +95,7 @@ class RecepcionIngrediente(db.Model):
         """
         from decimal import Decimal
         acum = {}
-        for linea in self.lineas:
+        for linea in self.lineas_vivas:
             unidad = linea.ingrediente.unidad if linea.ingrediente else 'kg'
             acum[unidad] = acum.get(unidad, Decimal('0')) + Decimal(str(linea.peso_total or 0))
         return sorted(acum.items())
@@ -101,11 +110,20 @@ class RecepcionLinea(db.Model):
     lote_cliente = db.Column(db.String(50), nullable=True)
     fecha_vencimiento = db.Column(db.Date, nullable=True)
     peso_total = db.Column(db.Numeric(10, 3), nullable=False, default=0)
+    # Quitar una línea no la borra: el módulo no borra nada, nunca, y además
+    # borrar la fila dejaría huérfanos los movimiento_ingrediente que la
+    # referencian. Mismo patrón que recepcion_ingrediente.anulada_en y
+    # corrida_caja.anulada_en.
+    anulada_en = db.Column(db.DateTime, nullable=True)
 
     recepcion = db.relationship('RecepcionIngrediente', back_populates='lineas')
     ingrediente = db.relationship('Ingrediente')
     bultos = db.relationship('RecepcionBulto', back_populates='linea',
                              cascade='all, delete-orphan', order_by='RecepcionBulto.numero')
+
+    @property
+    def anulada(self):
+        return self.anulada_en is not None
 
 
 class RecepcionBulto(db.Model):
