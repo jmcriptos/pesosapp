@@ -480,12 +480,16 @@ def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
                 linea.fecha_vencimiento = datos.get('fecha_vencimiento')
                 anterior = _dec(linea.peso_total)
                 nuevo = datos['_peso']
-                if datos['_bultos']:
-                    RecepcionBulto.query.filter_by(
-                        recepcion_linea_id=linea.id).delete()
-                    for numero, peso in enumerate(datos['_bultos'], start=1):
-                        db.session.add(RecepcionBulto(
-                            recepcion_linea_id=linea.id, numero=numero, peso=peso))
+                # Se borran los bultos viejos siempre, no solo cuando llegan
+                # bultos nuevos: un `peso_total` directo es el usuario diciendo
+                # que la línea pasó a ser a granel. Dejar los bultos viejos
+                # colgando (100 kg en bultos bajo una línea que ahora dice 90)
+                # es la mentira que se ve en planta, aunque no rompa el saldo.
+                RecepcionBulto.query.filter_by(
+                    recepcion_linea_id=linea.id).delete()
+                for numero, peso in enumerate(datos['_bultos'], start=1):
+                    db.session.add(RecepcionBulto(
+                        recepcion_linea_id=linea.id, numero=numero, peso=peso))
                 if nuevo != anterior:
                     linea.peso_total = nuevo
                     registrar_movimiento(

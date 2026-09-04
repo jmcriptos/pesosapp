@@ -342,3 +342,35 @@ def test_el_fifo_reparte_bien_contra_una_linea_corregida(app):
         with pytest.raises(servicios.SaldoInsuficiente):
             servicios.repartir_fifo(IDS['cliente'], IDS['carne'],
                                     Decimal('91'))
+
+
+def test_corregir_bultos_a_peso_directo_borra_los_bultos_viejos(app):
+    """Un `peso_total` directo dice que la línea pasó a ser a granel: los
+    bultos viejos no pueden quedar colgando (100 kg en bultos bajo una línea
+    que ahora dice 90), aunque el saldo no se rompa."""
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente, RecepcionBulto
+    with app.app_context():
+        rec = servicios.crear_recepcion(
+            cliente_id=IDS['cliente'], recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['vendedor'],
+            lineas=[{'ingrediente_id': IDS['carne'],
+                     'bultos': [Decimal('60'), Decimal('40')]}])
+        linea = rec.lineas[0]
+        assert RecepcionBulto.query.filter_by(
+            recepcion_linea_id=linea.id).count() == 2
+        antes = MovimientoIngrediente.query.count()
+
+        servicios.editar_recepcion(
+            rec, vendedor_id=IDS['vendedor'], cabecera=_cabecera(rec),
+            lineas=[_linea_dict(linea, peso_total=Decimal('90'))],
+            motivo='Vino a granel')
+
+        assert Decimal(str(linea.peso_total)) == Decimal('90.000')
+        assert RecepcionBulto.query.filter_by(
+            recepcion_linea_id=linea.id).count() == 0
+        movs = MovimientoIngrediente.query.order_by(
+            MovimientoIngrediente.id).all()
+        assert len(movs) == antes + 1
+        assert movs[-1].tipo == 'ajuste'
+        assert movs[-1].cantidad == Decimal('-10.000')
