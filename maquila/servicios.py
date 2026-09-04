@@ -361,6 +361,190 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     return recepcion
 
 
+class RecepcionNoEditable(Exception):
+    """La recepción está anulada: no hay nada que corregir."""
+
+
+class CorreccionImposible(ValueError):
+    """La corrección pedida dejaría el rastro en un estado imposible.
+
+    Corregir por debajo de lo ya consumido, quitar una línea que ya alimentó
+    una corrida, o mover a otro cliente una recepción de la que ya se consumió.
+    """
+
+
+def consumido_de_linea(linea):
+    """Cuánto salió ya de esta línea hacia corridas de producción."""
+    return _dec(linea.peso_total) - saldo_de_linea(linea.id)
+
+
+def editar_recepcion(recepcion, *, vendedor_id, cabecera, lineas, motivo=None,
+                     fotos_a_borrar=None, fotos_nuevas=None,
+                     firma=None, firma_mimetype=None):
+    """Corrige una recepción en una sola transacción.
+
+    `peso_total` pasa al valor real Y se escribe un ajuste por la diferencia,
+    de modo que `peso_total − consumido == saldo_de_linea` se mantiene: es la
+    identidad de la que cuelga el FIFO. El ledger sigue append-only.
+
+    Solo se escribe movimiento para las líneas cuya cantidad cambió. Sin eso,
+    cada guardado dejaría un ajuste de cero por línea y el kardex —el único
+    reporte que hoy le sirve a un auditor— se volvería ilegible.
+    """
+    if recepcion.anulada:
+        raise RecepcionNoEditable(
+            f'{recepcion.codigo} está anulada: no se puede editar')
+
+    vivas = [l for l in recepcion.lineas if not l.anulada]
+    consumidas = {l.id: consumido_de_linea(l) for l in vivas}
+    hay_consumo = any(c > CERO for c in consumidas.values())
+
+    # --- Guardas: todas antes de escribir nada ---
+    nuevo_cliente = cabecera.get('cliente_id')
+    if nuevo_cliente is not None and nuevo_cliente != recepcion.cliente_id \
+            and hay_consumo:
+        raise CorreccionImposible(
+            f'{recepcion.codigo} ya alimentó una corrida: cambiarle el cliente '
+            f'movería carne de un cliente a otro')
+
+    por_id = {l.id: l for l in vivas}
+    planes = []
+    for datos in lineas:
+        linea_id = datos.get('id')
+        if linea_id is None:
+            planes.append(('nueva', None, datos))
+            continue
+        linea = por_id.get(linea_id)
+        if linea is None:
+            raise CorreccionImposible(
+                f'La línea {linea_id} no pertenece a {recepcion.codigo}')
+
+        if datos.get('quitar'):
+            if consumidas[linea.id] > CERO:
+                raise CorreccionImposible(
+                    f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
+                    f'corrida: se corrige su cantidad, no se quita')
+            planes.append(('quitar', linea, datos))
+            continue
+
+        bultos = [_dec(b) for b in (datos.get('bultos') or [])]
+        for i, peso in enumerate(bultos, start=1):
+            if peso <= CERO:
+                raise RecepcionInvalida(
+                    f'Bulto {i} de la línea {linea.id} tiene peso no positivo: {peso}')
+        nuevo_peso = sum(bultos, CERO) if bultos else _dec(datos.get('peso_total'))
+        if nuevo_peso <= CERO:
+            raise RecepcionInvalida(
+                f'La línea {linea.id} necesita una cantidad positiva; '
+                f'para dejarla en cero, quitala')
+        if nuevo_peso < consumidas[linea.id]:
+            raise CorreccionImposible(
+                f'La línea {linea.id} ya cedió {consumidas[linea.id]} a una '
+                f'corrida: no se puede corregir a {nuevo_peso}')
+        planes.append(('editar', linea, {**datos, '_peso': nuevo_peso,
+                                         '_bultos': bultos}))
+
+    cambia_cantidad = any(
+        (accion == 'quitar') or
+        (accion == 'editar' and datos['_peso'] != _dec(linea.peso_total))
+        for accion, linea, datos in planes)
+    if cambia_cantidad and not (motivo or '').strip():
+        raise MotivoRequerido(
+            'Corregir una cantidad exige un motivo')
+
+    # --- Escritura ---
+    try:
+        for campo in ('cliente_id', 'recibido_en', 'documento_cliente',
+                      'temperatura', 'transportista', 'notas'):
+            if campo in cabecera:
+                valor = cabecera[campo]
+                if campo == 'temperatura' and valor not in (None, ''):
+                    valor = _dec(valor)
+                setattr(recepcion, campo, valor or None
+                        if campo in ('documento_cliente', 'transportista', 'notas')
+                        else valor)
+
+        for accion, linea, datos in planes:
+            if accion == 'quitar':
+                registrar_movimiento(
+                    cliente_id=recepcion.cliente_id,
+                    ingrediente_id=linea.ingrediente_id,
+                    tipo='ajuste', cantidad=-_dec(linea.peso_total),
+                    origen_tipo='recepcion', origen_id=recepcion.id,
+                    vendedor_id=vendedor_id, recepcion_linea_id=linea.id,
+                    motivo=f'Línea quitada de {recepcion.codigo}: {motivo.strip()}')
+                linea.anulada_en = datetime.utcnow()
+
+            elif accion == 'editar':
+                linea.lote_cliente = datos.get('lote_cliente') or None
+                linea.fecha_vencimiento = datos.get('fecha_vencimiento')
+                anterior = _dec(linea.peso_total)
+                nuevo = datos['_peso']
+                if datos['_bultos']:
+                    RecepcionBulto.query.filter_by(
+                        recepcion_linea_id=linea.id).delete()
+                    for numero, peso in enumerate(datos['_bultos'], start=1):
+                        db.session.add(RecepcionBulto(
+                            recepcion_linea_id=linea.id, numero=numero, peso=peso))
+                if nuevo != anterior:
+                    linea.peso_total = nuevo
+                    registrar_movimiento(
+                        cliente_id=recepcion.cliente_id,
+                        ingrediente_id=linea.ingrediente_id,
+                        tipo='ajuste', cantidad=(nuevo - anterior),
+                        origen_tipo='recepcion', origen_id=recepcion.id,
+                        vendedor_id=vendedor_id, recepcion_linea_id=linea.id,
+                        motivo=(f'Corrección de {recepcion.codigo}: '
+                                f'{anterior} → {nuevo}. {motivo.strip()}'))
+
+            else:  # nueva
+                bultos = [_dec(b) for b in (datos.get('bultos') or [])]
+                for i, peso in enumerate(bultos, start=1):
+                    if peso <= CERO:
+                        raise RecepcionInvalida(
+                            f'Bulto {i} de la línea nueva tiene peso no positivo: {peso}')
+                peso_total = sum(bultos, CERO) if bultos else _dec(datos.get('peso_total'))
+                if peso_total <= CERO:
+                    raise RecepcionInvalida(
+                        'Una línea nueva necesita bultos pesados o un peso total positivo')
+                nueva = RecepcionLinea(
+                    recepcion_id=recepcion.id,
+                    ingrediente_id=datos['ingrediente_id'],
+                    lote_cliente=datos.get('lote_cliente') or None,
+                    fecha_vencimiento=datos.get('fecha_vencimiento'),
+                    peso_total=peso_total)
+                db.session.add(nueva)
+                db.session.flush()
+                for numero, peso in enumerate(bultos, start=1):
+                    db.session.add(RecepcionBulto(
+                        recepcion_linea_id=nueva.id, numero=numero, peso=peso))
+                registrar_movimiento(
+                    cliente_id=recepcion.cliente_id,
+                    ingrediente_id=nueva.ingrediente_id,
+                    tipo='entrada', cantidad=peso_total,
+                    origen_tipo='recepcion', origen_id=recepcion.id,
+                    vendedor_id=vendedor_id, recepcion_linea_id=nueva.id)
+
+        for foto_id in (fotos_a_borrar or []):
+            foto = db.session.get(RecepcionFoto, foto_id)
+            if foto is not None and foto.recepcion_id == recepcion.id:
+                db.session.delete(foto)
+
+        for imagen, mimetype in (fotos_nuevas or []):
+            db.session.add(RecepcionFoto(
+                recepcion_id=recepcion.id, imagen=imagen, mimetype=mimetype))
+
+        if firma is not None:
+            recepcion.firma = firma
+            recepcion.firma_mimetype = firma_mimetype
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return recepcion
+
+
 class RecetaDuplicada(ValueError):
     """Ya existe otra receta activa para ese producto y ese cliente.
 
