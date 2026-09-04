@@ -605,6 +605,19 @@ def ajustes():
             flash('Elegí si el ajuste es una entrada o una salida', 'error')
             return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
 
+        # `cliente_id` viaja en la query string (llega desde el link del
+        # mensaje de error de `corrida_cerrar`, o de un enlace viejo, o
+        # tecleado a mano): un cliente borrado o un id inventado no puede
+        # llegar hasta el INSERT y reventar con un IntegrityError de FK.
+        # Se valida ANTES de tocar `registrar_movimiento`, con el mismo
+        # criterio que el resto del módulo (mensaje, no 500).
+        if db.session.get(Cliente, cliente_id) is None:
+            flash('Ese cliente no existe', 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+        if db.session.get(Ingrediente, ingrediente_id) is None:
+            flash('Ese ingrediente no existe', 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+
         # El signo lo pone esta pantalla, no `registrar_movimiento`: para
         # `tipo='ajuste'` esa función guarda la cantidad tal cual llega (el
         # signo automático solo existe para `tipo='salida'`).
@@ -624,6 +637,15 @@ def ajustes():
         except servicios.MotivoRequerido as exc:
             db.session.rollback()
             flash(str(exc), 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+        except Exception:
+            # Resguardo genérico, mismo patrón que `recepcion_nueva` y
+            # `recepcion_anular`: la validación de arriba cubre el caso
+            # esperado (cliente/ingrediente borrado), pero esta ruta escribe
+            # en el ledger y no puede ser la única del módulo sin una red
+            # detrás para cualquier otro error inesperado.
+            db.session.rollback()
+            flash('No se pudo registrar el ajuste: ocurrió un error inesperado', 'error')
             return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
 
         flash('Ajuste registrado', 'success')

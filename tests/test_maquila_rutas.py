@@ -539,6 +539,33 @@ def test_ajuste_sin_motivo_se_rechaza_y_no_escribe_nada(app):
         assert MovimientoIngrediente.query.count() == 0
 
 
+def test_ajuste_con_cliente_inexistente_no_revienta_y_no_escribe_nada(app):
+    """El cliente_id de esta ruta viaja en la query string (llega desde el
+    link del mensaje de error de corrida_cerrar, un enlace viejo o tecleado
+    a mano): un id borrado o inventado tiene que dar un mensaje, no un 500
+    por IntegrityError de FK, y no puede dejar nada escrito en el ledger."""
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    _cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        from app import Cliente
+        cliente_inexistente_id = (
+            _db.session.query(_db.func.max(Cliente.id)).scalar() or 0) + 1000
+
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cliente_inexistente_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'entrada',
+        'cantidad': '25',
+        'motivo': 'Conteo físico',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'no existe'.encode() in r.data.lower()
+    with app.app_context():
+        assert MovimientoIngrediente.query.count() == 0
+
+
 def test_vendedor_no_entra_a_ajustes(app):
     c = _login(app, 'vend')
     for metodo, kwargs in (('get', {}),
