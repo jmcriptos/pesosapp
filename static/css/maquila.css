@@ -26,7 +26,7 @@
   --color-surface-muted: #f1f5f9;
   --color-text: #0f172a;
   --color-text-muted: #475569;
-  --color-text-subtle: #94a3b8;
+  --color-text-subtle: #64748b;  /* tinta-tenue de DESIGN.md: 4.76:1 sobre blanco */
   --color-border: #e5e9f0;
   --color-border-subtle: #eef1f6;
   --color-border-strong: #cbd5e1;
@@ -65,7 +65,11 @@
 
 .maquila-wrap th {
   background-color: var(--color-surface-muted) !important;
-  color: var(--color-text-subtle) !important;
+  /* tinta-MEDIA, no tinta-tenue: el th cae sobre --color-surface-muted, donde
+     #64748b da 4.34:1 y reprueba. Medido en el navegador, no deducido de la
+     paleta — la primera versión de este arreglo puso la regla correcta más
+     abajo y esta, con !important y misma especificidad, se la comía. */
+  color: var(--color-text-muted) !important;
   border-color: var(--color-border-subtle) !important;
 }
 
@@ -111,7 +115,10 @@
 
 .maquila-wrap input::placeholder,
 .maquila-wrap textarea::placeholder {
-  color: var(--color-text-subtle) !important;
+  /* Los inputs tienen fondo --color-surface-muted, así que aplica lo mismo que
+     al th: tinta-tenue daría 4.34:1. Sigue siendo claramente más suave que el
+     texto real (#0f172a), que es lo que un placeholder tiene que comunicar. */
+  color: var(--color-text-muted) !important;
 }
 
 /* El nav mide más que el teléfono (diez destinos, ~776px dentro de 335px).
@@ -206,7 +213,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .03em;
-  color: var(--color-text-subtle, #64748b);
+  /* El color lo fija `.maquila-wrap th` de arriba, que lleva !important. */
 }
 
 .maquila-filtro {
@@ -516,4 +523,84 @@
   font-size: 11px;
   color: var(--color-text-muted);
   margin-top: 2px;
+}
+
+
+/* ============================================================
+   P1-5 · Los botones también entran al blindaje
+   ============================================================
+   El módulo se protegió del tema oscuro para texto, tablas y formularios y se
+   olvidó de los botones: `.btn-primary` de styles.min.css gana por orden de
+   carga y pinta #3498db, que con texto blanco da 3.15:1 y reprueba AA. Además
+   ese azul genérico es lo que hacía que estas pantallas no se parecieran a
+   PesosApp: el índigo es la identidad y no aparecía ni una vez.
+
+   No se usa el #6366f1 de la marca tal cual: con blanco encima da 4.47:1 y
+   reprueba por poco. #4f46e5 (indigo-honda, misma familia de DESIGN.md) da
+   6.29:1. La identidad se mantiene; la legibilidad decide el tono. */
+.maquila-wrap .btn-primary {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+.maquila-wrap .btn-primary:hover:not(:disabled) {
+  background: #4338ca !important;
+  border-color: #4338ca !important;
+}
+
+.maquila-wrap .btn-primary:disabled {
+  background: #a5b4fc !important;
+  border-color: #a5b4fc !important;
+  color: #ffffff !important;
+}
+
+/* falla-marca de DESIGN.md: 6.29:1, contra el #dc2626 heredado. */
+.maquila-wrap .btn-danger {
+  background: #be123c !important;
+  border-color: #be123c !important;
+  color: #ffffff !important;
+}
+
+.maquila-wrap .btn-danger:hover:not(:disabled) {
+  background: #9f1239 !important;
+  border-color: #9f1239 !important;
+}
+
+/* El foco se ancla al índigo de la marca, que acá SÍ puede ser el #6366f1:
+   es un anillo, no texto sobre color, así que no le aplica el 4.5:1. */
+.maquila-wrap .btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+
+/* Los enlaces dentro del contenido heredaban `a { color:#60a5fa }` de
+   dark-theme.css —sin scope, pensado para fondo oscuro— y daban 2.54:1 sobre
+   blanco y 2.32:1 sobre fila alterna: el peor ratio de todo el módulo, y
+   justo en los códigos de recepción y los números de pedido, que son lo que
+   uno va a tocar. Se usa indigo-tinta: 7.90:1 y 7.21:1, y ancla los enlaces a
+   la identidad en vez de a un celeste que no es de nadie. El nav queda fuera:
+   ya tiene su propio tratamiento. */
+.maquila-wrap a:not(.btn):not(.maquila-nav a) {
+  color: #4338ca !important;
+  text-underline-offset: 2px;
+}
+
+.maquila-wrap a:not(.btn):not(.maquila-nav a):hover {
+  color: #312e81 !important;
+}
+
+.maquila-nav a {
+  color: var(--color-text-muted) !important;
+}
+
+.maquila-nav a:hover {
+  color: var(--color-text) !important;
+}
+
+.maquila-nav a.is-active {
+  color: var(--color-text) !important;
+  background: var(--color-surface);
+  border-bottom-color: #4f46e5;
 }

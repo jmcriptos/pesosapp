@@ -7,17 +7,28 @@
 <div class="ops-wrap maquila-wrap">
   <header class="ops-head">
     <h1 class="ops-title">{% block maquila_title %}Maquila{% endblock %}</h1>
+    {#- El nav marca dónde estás. La regla `.is-active` existía en el CSS desde
+        el principio pero nadie le ponía la clase, así que las diez pestañas se
+        veían iguales en las diez pantallas. `Resumen` compara exacto porque
+        /maquila es prefijo de todo lo demás. -#}
+    {%- set ruta = request.path -%}
+    {%- set destinos = [
+         ('maquila.index',                 'Resumen',      '/maquila'),
+         ('maquila.recepciones',           'Recepciones',  '/maquila/recepciones'),
+         ('maquila.ingredientes',          'Ingredientes', '/maquila/ingredientes'),
+         ('maquila.corridas',              'Producción',   '/maquila/corridas'),
+         ('maquila.recetas',               'Recetas',      '/maquila/recetas'),
+         ('maquila.ajustes',               'Ajustes',      '/maquila/ajustes'),
+         ('maquila.reporte_saldos',        'Saldos',       '/maquila/reportes/saldos'),
+         ('maquila.reporte_kardex',        'Kardex',       '/maquila/reportes/kardex'),
+         ('maquila.reporte_rendimiento',   'Rendimiento',  '/maquila/reportes/rendimiento'),
+         ('maquila.reporte_trazabilidad',  'Trazabilidad', '/maquila/reportes/trazabilidad'),
+       ] -%}
     <nav class="maquila-nav">
-      <a href="{{ url_for('maquila.index') }}">Resumen</a>
-      <a href="{{ url_for('maquila.recepciones') }}">Recepciones</a>
-      <a href="{{ url_for('maquila.ingredientes') }}">Ingredientes</a>
-      <a href="{{ url_for('maquila.corridas') }}">Producción</a>
-      <a href="{{ url_for('maquila.recetas') }}">Recetas</a>
-      <a href="{{ url_for('maquila.ajustes') }}">Ajustes</a>
-      <a href="{{ url_for('maquila.reporte_saldos') }}">Saldos</a>
-      <a href="{{ url_for('maquila.reporte_kardex') }}">Kardex</a>
-      <a href="{{ url_for('maquila.reporte_rendimiento') }}">Rendimiento</a>
-      <a href="{{ url_for('maquila.reporte_trazabilidad') }}">Trazabilidad</a>
+      {%- for endpoint, rotulo, base in destinos %}
+      {%- set activo = (ruta == base) if base == '/maquila' else ruta.startswith(base) %}
+      <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
+      {%- endfor %}
     </nav>
   </header>
   {% block maquila_body %}{% endblock %}
