@@ -109,8 +109,8 @@ def test_alta_de_recepcion_por_la_ruta(app):
         'linea_ingrediente_id': [str(ing_id)],
         'linea_lote_cliente': [''],
         'linea_fecha_vencimiento': [''],
-        'linea_peso_total': [''],
-        'linea_bultos': ['12.5,11.5'],
+        'linea_cantidad_bultos': ['2'],
+        'linea_peso_total': ['24'],
     }, follow_redirects=True)
     assert r.status_code == 200
     with app.app_context():
@@ -118,7 +118,7 @@ def test_alta_de_recepcion_por_la_ruta(app):
         assert rec.codigo == 'R-2026-0001'
         assert rec.documento_cliente is None
         assert rec.lineas[0].peso_total == Decimal('24.000')
-        assert len(rec.lineas[0].bultos) == 2
+        assert rec.lineas[0].cantidad_bultos == 2
 
 
 def test_rechaza_foto_con_mimetype_no_permitido(app):

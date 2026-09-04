@@ -110,6 +110,12 @@ class RecepcionLinea(db.Model):
     lote_cliente = db.Column(db.String(50), nullable=True)
     fecha_vencimiento = db.Column(db.Date, nullable=True)
     peso_total = db.Column(db.Numeric(10, 3), nullable=False, default=0)
+    # Cuántos paquetes llegaron. Es una CANTIDAD, no una lista de pesos: el
+    # peso total se escribe aparte y los dos números son independientes.
+    # Antes esto vivía en `recepcion_bulto`, una fila por bulto con su peso, y
+    # en el uso real nadie pesaba bulto por bulto: escribían «9» queriendo
+    # decir nueve paquetes y quedaba UN bulto de 9 kg en una línea de 121.
+    cantidad_bultos = db.Column(db.Integer, nullable=False, default=0)
     # Quitar una línea no la borra: el módulo no borra nada, nunca, y además
     # borrar la fila dejaría huérfanos los movimiento_ingrediente que la
     # referencian. Mismo patrón que recepcion_ingrediente.anulada_en y
@@ -118,6 +124,8 @@ class RecepcionLinea(db.Model):
 
     recepcion = db.relationship('RecepcionIngrediente', back_populates='lineas')
     ingrediente = db.relationship('Ingrediente')
+    # MUERTA desde 2026-09-04: se conserva por las filas históricas, pero
+    # nada la escribe ni la lee. La cantidad vive en `cantidad_bultos`.
     bultos = db.relationship('RecepcionBulto', back_populates='linea',
                              cascade='all, delete-orphan', order_by='RecepcionBulto.numero')
 
@@ -127,6 +135,14 @@ class RecepcionLinea(db.Model):
 
 
 class RecepcionBulto(db.Model):
+    """TABLA MUERTA. No la escribas.
+
+    Guardaba un peso por bulto. En planta nadie pesaba bulto por bulto:
+    escribían la cantidad en un campo que esperaba una lista de pesos
+    separada por comas, y quedaba un bulto de 9 kg en una línea de 121.
+    Desde 2026-09-04 la cantidad vive en `RecepcionLinea.cantidad_bultos` y
+    esta tabla solo conserva las filas viejas.
+    """
     __tablename__ = 'recepcion_bulto'
     id = db.Column(db.Integer, primary_key=True)
     recepcion_linea_id = db.Column(db.Integer, db.ForeignKey('recepcion_linea.id', ondelete='CASCADE'),
