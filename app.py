@@ -4200,6 +4200,9 @@ def _maquila_propuesta(detalles):
 
     Devuelve {} cuando el cliente no tiene corridas: la pantalla de pesar se
     comporta entonces exactamente como antes de que existiera este módulo.
+    Cada línea se calcula por separado y con su propio try/except: un bug de
+    maquila en una línea no puede tumbar el render de toda la pantalla de
+    pesar (que sigue funcionando hoy para 49 clientes que no usan el módulo).
     """
     try:
         from maquila import servicios as maquila_servicios
@@ -4208,7 +4211,13 @@ def _maquila_propuesta(detalles):
 
     propuesta = {}
     for detalle in detalles:
-        cajas = maquila_servicios.proponer_fefo(detalle)
+        try:
+            cajas = maquila_servicios.proponer_fefo(detalle)
+        except Exception:
+            app.logger.exception(
+                'maquila: no se pudo calcular la propuesta FEFO para el detalle %s',
+                detalle.id)
+            continue
         if cajas:
             propuesta[detalle.id] = cajas
     return propuesta
@@ -4217,6 +4226,13 @@ def _maquila_propuesta(detalles):
 def _build_pesar_context(pedido, active_detalle_id=None):
     detalles = _pedido_detalles_pesables(pedido)
     active_detalle = _get_active_pesable_detail(pedido, active_detalle_id=active_detalle_id)
+    # La asignación de producción sigue siendo solo de super_admin (mismo
+    # criterio que el resto del módulo maquila): un operario no debe ver un
+    # botón que su rol no puede usar, así que ni se calcula la propuesta para
+    # él. Para el operario la pantalla de pesar queda exactamente como hoy.
+    es_super_admin = (isinstance(current_user, Vendedor)
+                      and current_user.rol and current_user.rol.nombre == 'super_admin')
+    maquila_propuesta = _maquila_propuesta(detalles) if es_super_admin else {}
     return {
         'pedido': pedido,
         'detalles_pesables': detalles,
@@ -4226,7 +4242,7 @@ def _build_pesar_context(pedido, active_detalle_id=None):
         'cajas_pesadas_total': _pedido_cajas_pesadas_total(pedido),
         'cajas_objetivo_total': _pedido_cajas_objetivo_total(pedido),
         'puede_finalizar_pesar': _pedido_can_finalize_pesar(pedido),
-        'maquila_propuesta': _maquila_propuesta(detalles),
+        'maquila_propuesta': maquila_propuesta,
     }
 
 

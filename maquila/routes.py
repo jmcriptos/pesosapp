@@ -535,9 +535,33 @@ def corrida_anular(corrida_id):
 @requiere_rol(['super_admin'])
 def asignar_detalle(detalle_id):
     detalle = db.session.get(DetallePedido, detalle_id) or abort(404)
+
+    # Mismo corte que `registrar_caja_pesada` en app.py: la cifra de un
+    # pedido facturado ya está en QuickBooks, no se puede seguir metiendo
+    # cajas ahí aunque el POST llegue directo (sin pasar por la pantalla).
+    if detalle.pedido.estado == 'facturado':
+        flash('No se puede asignar cajas en un pedido facturado', 'error')
+        return redirect(url_for('pesar_pedido', pedido_id=detalle.pedido_id,
+                                detalle_id=detalle.id))
+
     ids = request.form.getlist('corrida_caja_id', type=int)
     cajas = [db.session.get(CorridaCaja, i) for i in ids]
     cajas = [c for c in cajas if c is not None]
+
+    # El checklist que arma `_asignar_cajas.html` siempre ofrece ids
+    # correctos, pero el servidor no puede confiar en eso: un POST con un id
+    # cambiado a mano podría pegar el lote de OTRO cliente (o de otro
+    # producto) a este pedido, que es exactamente lo que este módulo existe
+    # para blindar. Se rechaza el lote entero — nada se escribe — si una
+    # sola caja no es del cliente/producto de esta línea.
+    ajenas = [caja for caja in cajas
+             if caja.corrida.cliente_id != detalle.pedido.cliente_id
+             or caja.corrida.producto_id != detalle.producto_id]
+    if ajenas:
+        flash('Alguna caja seleccionada no es de este cliente o producto: '
+             'no se asignó ninguna', 'error')
+        return redirect(url_for('pesar_pedido', pedido_id=detalle.pedido_id,
+                                detalle_id=detalle.id))
 
     try:
         creadas = servicios.asignar_cajas(detalle, cajas, current_user.id)

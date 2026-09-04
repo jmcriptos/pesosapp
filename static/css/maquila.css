@@ -260,3 +260,45 @@
   color: #991b1b !important;
   font-weight: 600;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Checklist "Asignar de producción" (templates/maquila/_asignar_cajas.html),
+   incrustado en pesar.html vía include. Ese parcial vive FUERA de
+   `.maquila-wrap` — pesar.html no lo envuelve — así que no hereda la
+   paleta que este archivo redefine más arriba: acá se repiten colores
+   explícitos en vez de depender de esas variables. `.pesar-lote-card` (de
+   pesar.css) ya le da el marco de la tarjeta; estas reglas solo tocan el
+   checklist de cajas y quedan prefijadas con `.maquila-asignar` para no
+   poder pisar nada más de la pantalla de pesar. */
+.maquila-asignar .maquila-cajas {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maquila-asignar .maquila-cajas li {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.maquila-asignar .maquila-cajas label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.maquila-asignar .maquila-cajas input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  accent-color: #2563eb;
+}

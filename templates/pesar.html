@@ -8,6 +8,14 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pesar.css') }}">
   {# pesar_redesign.css MUST load AFTER pesar.css — mockup-faithful overrides win by source order. #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pesar_redesign.css') }}">
+  {% if maquila_propuesta %}
+    {# Solo se carga cuando hay algo que mostrar (super_admin + cliente con
+       corridas): las reglas ".maquila-asignar" del checklist "Asignar de
+       producción" viven en maquila.css, pero el resto de esa hoja depende
+       de ".maquila-wrap", que no existe en esta pantalla, así que no hay
+       riesgo de bleed sobre el resto de pesar.html. #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/maquila.css') }}">
+  {% endif %}
 {% endblock %}
 
 {% block header_title %}Pesar pedido{% endblock %}
