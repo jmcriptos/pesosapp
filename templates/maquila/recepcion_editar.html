@@ -30,27 +30,27 @@
     <div class="ops-field">
       <label for="recibido_en">Fecha</label>
       <input type="date" id="recibido_en" name="recibido_en" required
-             value="{{ recepcion.recibido_en.strftime('%Y-%m-%d') if recepcion.recibido_en else '' }}">
+             value="{{ form.get('recibido_en') or (recepcion.recibido_en.strftime('%Y-%m-%d') if recepcion.recibido_en else '') }}">
     </div>
     <div class="ops-field">
       <label for="documento_cliente">Documento del cliente <small>(opcional)</small></label>
       <input type="text" id="documento_cliente" name="documento_cliente"
-             value="{{ recepcion.documento_cliente or '' }}"
+             value="{{ form.get('documento_cliente', recepcion.documento_cliente or '') }}"
              placeholder="Guía o remisión, si la mandaron">
     </div>
     <div class="ops-field">
       <label for="temperatura">Temperatura °C</label>
       <input type="number" step="0.1" id="temperatura" name="temperatura"
-             value="{{ recepcion.temperatura if recepcion.temperatura is not none else '' }}">
+             value="{{ form.get('temperatura', recepcion.temperatura if recepcion.temperatura is not none else '') }}">
     </div>
     <div class="ops-field">
       <label for="transportista">Transportista</label>
       <input type="text" id="transportista" name="transportista"
-             value="{{ recepcion.transportista or '' }}">
+             value="{{ form.get('transportista', recepcion.transportista or '') }}">
     </div>
     <div class="ops-field">
       <label for="notas">Notas</label>
-      <textarea id="notas" name="notas">{{ recepcion.notas or '' }}</textarea>
+      <textarea id="notas" name="notas">{{ form.get('notas', recepcion.notas or '') }}</textarea>
     </div>
   </section>
 
@@ -110,7 +110,7 @@
           {#- El value va CRUDO: es un input numérico, no texto para leer. fmt_cant
               metería una coma de miles y rompería el parseo. -#}
           <input type="number" step="0.001" id="total-{{ l.id }}" name="linea_peso_total"
-                 value="{{ l.peso_total }}">
+                 value="{{ l.peso_total }}"{% if consumido[l.id] > 0 %} min="{{ consumido[l.id] }}" aria-describedby="consumido-{{ l.id }}"{% endif %}>
         </div>
 
         {#- El checkbox lleva NOMBRE PROPIO por línea (`linea_quitar_<id>`),
@@ -131,7 +131,7 @@
         </label>
 
         {% if consumido[l.id] > 0 %}
-        <p class="maquila-nota-unidad">
+        <p class="maquila-nota-unidad" id="consumido-{{ l.id }}">
           Ya se consumieron {{ consumido[l.id]|fmt_cant(l.ingrediente.unidad) }} de esta línea:
           no se puede quitar ni corregir por debajo de eso.
         </p>
@@ -199,7 +199,7 @@
   <section class="ops-card">
     <div class="ops-field">
       <label for="motivo">Motivo de la corrección <small id="motivo-ayuda">(obligatorio si cambiás una cantidad, un ingrediente o quitás una línea)</small></label>
-      <input type="text" id="motivo" name="motivo" autocomplete="off" placeholder="Qué estaba mal y cómo se verificó" aria-describedby="motivo-ayuda">
+      <input type="text" id="motivo" name="motivo" autocomplete="off" placeholder="Qué estaba mal y cómo se verificó" aria-describedby="motivo-ayuda" value="{{ form.get('motivo', '') }}">
     </div>
   </section>
 

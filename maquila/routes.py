@@ -363,10 +363,22 @@ def recepciones():
     cliente_id = request.args.get('cliente_id', type=int)
     if cliente_id:
         query = query.filter_by(cliente_id=cliente_id)
+    recepciones = query.order_by(RecepcionIngrediente.recibido_en.desc(),
+                                 RecepcionIngrediente.id.desc()).all()
+    # Cuánto queda de cada recepción (en kg), en una sola consulta: la
+    # lista tiene que distinguir una recepción intacta de una casi agotada
+    # sin abrirlas una por una.
+    saldos = servicios.saldos_por_linea(
+        l.id for r in recepciones for l in r.lineas_vivas)
+    queda = {}
+    for r in recepciones:
+        kg = [l for l in r.lineas_vivas if l.ingrediente and l.ingrediente.unidad == 'kg']
+        if kg:
+            queda[r.id] = (sum((saldos[l.id] for l in kg), Decimal('0')),
+                           sum((l.peso_total for l in kg), Decimal('0')))
     return render_template(
         'maquila/recepciones.html',
-        recepciones=query.order_by(RecepcionIngrediente.recibido_en.desc(),
-                                   RecepcionIngrediente.id.desc()).all(),
+        recepciones=recepciones, queda=queda,
         clientes=_clientes(),
         cliente_id=cliente_id)
 
@@ -380,8 +392,9 @@ def recepcion_nueva():
 
         fotos, error_foto = _leer_fotos_form(request.files)
         if error_foto:
-            flash(error_foto, 'error')
-            return redirect(url_for('maquila.recepcion_nueva'))
+            flash(f'{error_foto}. Lo tecleado se conserva; volvé a adjuntar '
+                  'las fotos y la firma.', 'error')
+            return _render_recepcion_nueva(request.form, lineas)
 
         firma, firma_ilegible = _leer_firma_form(request.form)
         if firma_ilegible:
@@ -402,17 +415,30 @@ def recepcion_nueva():
                 fotos=fotos)
         except servicios.RecepcionInvalida as exc:
             db.session.rollback()
-            flash(str(exc), 'error')
-            return redirect(url_for('maquila.recepcion_nueva'))
+            flash(f'{exc}. Lo tecleado se conserva; volvé a adjuntar las fotos '
+                  'y la firma.', 'error')
+            return _render_recepcion_nueva(request.form, lineas)
         except Exception:
             db.session.rollback()
-            flash('No se pudo registrar la recepción: ocurrió un error inesperado', 'error')
-            return redirect(url_for('maquila.recepcion_nueva'))
+            flash('No se pudo registrar la recepción: ocurrió un error inesperado. '
+                  'Lo tecleado se conserva; volvé a adjuntar las fotos y la firma.', 'error')
+            return _render_recepcion_nueva(request.form, lineas)
 
         flash(f'Recepción {recepcion.codigo} registrada', 'success')
         return redirect(url_for('maquila.recepcion_detalle',
                                 recepcion_id=recepcion.id))
 
+    return _render_recepcion_nueva()
+
+
+def _render_recepcion_nueva(form=None, lineas=None):
+    """El alta, vacía o con lo que el operario ya había tecleado.
+
+    Un rechazo del servidor (línea sin peso, foto rara) no puede devolver
+    el formulario en blanco: con guantes y la carne en la balanza, cuatro
+    líneas son un minuto de trabajo. Las fotos y la firma no se pueden
+    reponer desde el servidor; el flash lo dice.
+    """
     return render_template(
         'maquila/recepcion_nueva.html',
         clientes=_clientes(),
@@ -420,7 +446,9 @@ def recepcion_nueva():
         hoy=_hoy_local(),
         # Desde la tarjeta del cliente en el índice: llega preseleccionado.
         # Sin eso el <select> no tiene valor por defecto a propósito.
-        cliente_sugerido=request.args.get('cliente_id', type=int))
+        cliente_sugerido=request.args.get('cliente_id', type=int),
+        form=form or {},
+        lineas_previas=lineas or [])
 
 
 @bp.route('/recepciones/<int:recepcion_id>')
@@ -449,9 +477,9 @@ def recepcion_editar(recepcion_id):
 
         fotos_nuevas, error_foto = _leer_fotos_form(request.files)
         if error_foto:
-            flash(error_foto, 'error')
-            return redirect(url_for('maquila.recepcion_editar',
-                                    recepcion_id=recepcion_id))
+            flash(f'{error_foto}. La cabecera y el motivo se conservan; las líneas '
+                  'vuelven a lo guardado.', 'error')
+            return _render_recepcion_editar(recepcion, request.form)
 
         firma, firma_ilegible = _leer_firma_form(request.form)
         if firma_ilegible:
@@ -477,19 +505,26 @@ def recepcion_editar(recepcion_id):
         except (servicios.CorreccionImposible, servicios.RecepcionInvalida,
                 servicios.MotivoRequerido, servicios.RecepcionNoEditable) as exc:
             db.session.rollback()
-            flash(str(exc), 'error')
-            return redirect(url_for('maquila.recepcion_editar',
-                                    recepcion_id=recepcion_id))
+            flash(f'{exc}. La cabecera y el motivo se conservan; las líneas '
+                  'vuelven a lo guardado.', 'error')
+            return _render_recepcion_editar(recepcion, request.form)
         except Exception:
             db.session.rollback()
-            flash('No se pudo guardar la corrección', 'error')
-            return redirect(url_for('maquila.recepcion_editar',
-                                    recepcion_id=recepcion_id))
+            flash('No se pudo guardar la corrección. La cabecera y el motivo se '
+                  'conservan; las líneas vuelven a lo guardado.', 'error')
+            return _render_recepcion_editar(recepcion, request.form)
 
         flash(f'{recepcion.codigo} corregida', 'success')
         return redirect(url_for('maquila.recepcion_detalle',
                                 recepcion_id=recepcion_id))
 
+    return _render_recepcion_editar(recepcion)
+
+
+def _render_recepcion_editar(recepcion, form=None):
+    """La pantalla de corrección; con `form`, la cabecera y el motivo
+    vuelven con lo que se tecleó (las líneas se releen de la base: su
+    consistencia con el saldo la valida el servidor)."""
     vivas = [l for l in recepcion.lineas if not l.anulada]
 
     ingredientes_activos = _ingredientes_activos()
@@ -515,7 +550,8 @@ def recepcion_editar(recepcion_id):
         consumido=servicios.consumidos_por_linea(vivas),
         clientes=_clientes(),
         ingredientes=ingredientes_editar,
-        ingredientes_nuevos=ingredientes_activos)
+        ingredientes_nuevos=ingredientes_activos,
+        form=form or {})
 
 
 @bp.route('/recepciones/<int:recepcion_id>/anular', methods=['POST'])

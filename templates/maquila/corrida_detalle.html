@@ -136,20 +136,25 @@
     {% else %}
     <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos. Lo que se descuenta es lo que declarás en «Real»: no viene precargado a propósito, para que el rendimiento mida lo que salió de la cámara y no lo que dice la receta. Si coincide, usá «Copiar el teórico».</p>
     <table class="maquila-tabla maquila-tabla-consumo">
-      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th></tr></thead>
+      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
       <tbody>
         {% for i in ingredientes %}
+        {#- Lo que se cuenta (ud) no admite fracciones: el teórico se redondea
+            hacia arriba y el campo va de a uno. -#}
+        {% set teo = teoricos.get(i.id) %}
+        {% if teo is not none and i.unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
         <tr>
           <td data-label="Ingrediente">{{ i.nombre }}</td>
-          <td data-label="Teórico" class="maquila-num">{{ teoricos.get(i.id)|fmt_cant(i.unidad) if teoricos.get(i.id) is not none else '—' }}</td>
+          <td data-label="Teórico" class="maquila-num">{{ teo|fmt_cant(i.unidad) if teo is not none else '—' }}</td>
           <td data-label="Real" class="maquila-num">
             <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
-            <input type="number" step="0.001" min="0" inputmode="decimal" name="consumo_real"
+            <input type="number" step="{{ '1' if i.unidad == 'ud' else '0.001' }}" min="0" inputmode="{{ 'numeric' if i.unidad == 'ud' else 'decimal' }}" name="consumo_real"
                    aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
-                   placeholder="{{ 'sin declarar' if teoricos.get(i.id) is not none else '—' }}"
-                   data-teorico="{{ teoricos.get(i.id) if teoricos.get(i.id) is not none else '' }}"
+                   placeholder="{{ 'sin declarar' if teo is not none else '—' }}"
+                   data-teorico="{{ teo if teo is not none else '' }}" data-unidad="{{ i.unidad }}"
                    value="{{ consumo_actual.get(i.id, '') if reparto_origen == 'declarado' else '' }}">
           </td>
+          <td data-label="Diferencia" class="maquila-num"><span class="maquila-dif" data-dif aria-live="polite">—</span></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -162,6 +167,52 @@
     {% endif %}
   </section>
 
+  {#- Resumen del reparto ANTES de la sección: alimenta la franja del total,
+      la hoja de confirmación y el desglose por ingrediente. -#}
+  {% set ns = namespace(total_kg=0, faltantes=0, resumen=[], detalle=[]) %}
+  {% if reparto %}
+    {% for ingrediente_id, tramos in reparto.items() %}
+      {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
+      {% set nombre = ing.nombre if ing else ingrediente_id %}
+      {% set unidad = ing.unidad if ing else 'kg' %}
+      {% if tramos is none %}
+        {% set ns.faltantes = ns.faltantes + 1 %}
+        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': none, 'tramos': [], 'agota': false}] %}
+      {% else %}
+        {% set suma = namespace(v=0, agota=false) %}
+        {% for linea_id, cantidad in tramos %}
+          {% set suma.v = suma.v + cantidad %}
+          {% set saldo_l = saldos_reparto.get(linea_id) %}
+          {% if saldo_l is not none and (saldo_l - cantidad) <= 0 %}{% set suma.agota = true %}{% endif %}
+        {% endfor %}
+        {% if unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + suma.v %}{% endif %}
+        {% set ns.resumen = ns.resumen + [nombre ~ ' ' ~ (suma.v|fmt_cant(unidad))] %}
+        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': suma.v, 'tramos': tramos, 'agota': suma.agota}] %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% set merma_est = (ns.total_kg - corrida.peso_producido) if ns.total_kg > 0 else none %}
+  {% set merma_est_pct = ((merma_est / ns.total_kg) * 100)|round(1) if ns.total_kg > 0 else none %}
+  {% set hay_resumen = reparto and ns.resumen %}
+
+  {#- El número que se confirma, en rol Figure y ANTES del desglose: es la
+      cifra por la que existe esta pantalla. Si el operario edita un consumo,
+      el JS la marca como desactualizada hasta recalcular. -#}
+  {% if hay_resumen and reparto_origen == 'declarado' %}
+  <section class="ops-card maquila-total-franja" id="total-a-descontar">
+    <div class="maquila-titulo-fila">
+      <div class="maquila-dueno-label">A descontar del inventario de {{ corrida.cliente.nombre }}</div>
+      <span class="maquila-chip is-aviso" id="franja-desactualizada" hidden>Desactualizado: recalculá</span>
+    </div>
+    <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
+    <div class="maquila-total-detalle">{{ ns.resumen|join(' · ') }}</div>
+    {% if merma_est is not none %}
+    <div class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido; producidos {{ corrida.peso_producido|fmt_cant }}){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}</div>
+    {% endif %}
+    {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
+  </section>
+  {% endif %}
+
   <section class="ops-card" id="reparto">
     <div class="maquila-titulo-fila">
       <h2>Reparto FIFO</h2>
@@ -170,92 +221,59 @@
     {% if reparto_origen == 'teorico' %}
     <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: es una vista previa, no lo que se va a descontar. Declará el consumo real arriba (o copiá el teórico) y tocá «Recalcular reparto»; el cierre se habilita recién ahí.</p>
     {% else %}
-    <p class="maquila-nota">Reparto según el <strong>consumo declarado</strong>: esto es lo que se va a descontar si cerrás ahora. Si volvés a editar el consumo, recalculá de nuevo.</p>
+    <p class="maquila-nota">Reparto según el <strong>consumo declarado</strong>: de qué recepciones sale cada kilo, más antigua primero. Si volvés a editar el consumo, recalculá de nuevo.</p>
     {% endif %}
     {% if not reparto %}
       <p class="ops-empty">Sin receta, sin cajas producidas o sin consumo declarado: no hay reparto que previsualizar.</p>
     {% else %}
-    {#- Resumen del reparto ANTES de la tabla: alimenta el pie con rótulos y
-        el texto del confirm(), que tiene que repetir las cifras que el
-        operario vino a verificar. -#}
-    {% set ns = namespace(total_kg=0, faltantes=0, resumen=[]) %}
-    {% for ingrediente_id, tramos in reparto.items() %}
-      {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
-      {% if tramos is none %}
-        {% set ns.faltantes = ns.faltantes + 1 %}
+    {#- Un bloque plegable por ingrediente: la línea de resumen dice lo que
+        importa (cuánto, de cuántas recepciones, si alguna se agota); el
+        desglose por recepción se abre cuando el total no cuadra. En
+        escritorio arrancan abiertos; en el teléfono, plegados. -#}
+    {% for d in ns.detalle %}
+    <details class="maquila-reparto-ing" open>
+      <summary>
+        <span class="maquila-reparto-nombre">{{ d.nombre }}</span>
+        {% if d.total is none %}
+          {{ chip('Sin saldo suficiente', 'falla') }}
+        {% else %}
+          <span class="maquila-reparto-total maquila-num">{{ d.total|fmt_cant(d.unidad) }}</span>
+          <span class="maquila-meta">de {{ d.tramos|length }} recepci{{ 'ón' if d.tramos|length == 1 else 'ones' }}</span>
+          {% if d.agota %}{{ chip('Agota una línea', 'aviso') }}{% endif %}
+        {% endif %}
+      </summary>
+      {% if d.total is none %}
+      <p class="maquila-nota">No hay recepciones de {{ d.nombre|lower }} que cubran lo declarado. Registrá un ajuste de entrada con su motivo.</p>
       {% else %}
-        {% set suma = namespace(v=0) %}
-        {% for _linea_id, cantidad in tramos %}{% set suma.v = suma.v + cantidad %}{% endfor %}
-        {% if ing and ing.unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + suma.v %}{% endif %}
-        {% set ns.resumen = ns.resumen + [(ing.nombre if ing else ingrediente_id) ~ ' ' ~ (suma.v|fmt_cant(ing.unidad if ing else 'kg'))] %}
-      {% endif %}
-    {% endfor %}
-    {% set merma_est = (ns.total_kg - corrida.peso_producido) if ns.total_kg > 0 else none %}
-    {% set merma_est_pct = ((merma_est / ns.total_kg) * 100)|round(1) if ns.total_kg > 0 else none %}
-    <table class="maquila-tabla">
-      <thead><tr><th>Ingrediente</th><th>Recepción</th><th>Lote del cliente</th><th class="maquila-num">Se descuenta</th><th class="maquila-num">Queda en la línea</th></tr></thead>
-      <tbody>
-        {% for ingrediente_id, tramos in reparto.items() %}
-          {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
-          {% if tramos is none %}
-          <tr class="maquila-sin-saldo">
-            <td data-label="Ingrediente">{{ ing.nombre if ing else ingrediente_id }}</td>
-            <td colspan="4">{{ chip('Sin saldo suficiente', 'falla') }} No hay recepciones de este ingrediente que cubran lo declarado.</td>
+      <table class="maquila-tabla-mini maquila-reparto-tabla">
+        <thead><tr><th>Recepción</th><th>Lote del cliente</th><th class="maquila-num">Se descuenta</th><th class="maquila-num">Queda en la línea</th></tr></thead>
+        <tbody>
+          {% for linea_id, cantidad in d.tramos %}
+          {% set linea = lineas_reparto.get(linea_id) %}
+          {% set saldo = saldos_reparto.get(linea_id) %}
+          <tr>
+            <td>{% if linea %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=linea.recepcion_id) }}">{{ linea.recepcion.codigo }}</a> <span class="maquila-meta">{{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }}</span>{% else %}Línea #{{ linea_id }}{% endif %}</td>
+            <td>{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
+            <td class="maquila-num">{{ cantidad|fmt_cant(d.unidad) }}</td>
+            <td class="maquila-num">
+              {% if saldo is not none %}{% set queda = saldo - cantidad %}{{ queda|fmt_cant(d.unidad) }}{% if queda <= 0 %} {{ chip('Se agota', 'aviso') }}{% endif %}{% else %}—{% endif %}
+            </td>
           </tr>
-          {% else %}
-            {% for linea_id, cantidad in tramos %}
-              {% set linea = lineas_reparto.get(linea_id) %}
-              {% set saldo = saldos_reparto.get(linea_id) %}
-              <tr>
-                <td data-label="Ingrediente">{{ ing.nombre if ing else ingrediente_id }}</td>
-                <td data-label="Recepción">
-                  {% if linea %}
-                    <a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=linea.recepcion_id) }}">{{ linea.recepcion.codigo }}</a> ({{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }})
-                  {% else %}
-                    Línea #{{ linea_id }}
-                  {% endif %}
-                </td>
-                <td data-label="Lote del cliente">{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
-                <td data-label="Se descuenta" class="maquila-num">{{ cantidad|fmt_cant(ing.unidad if ing else 'kg') }}</td>
-                <td data-label="Queda en la línea" class="maquila-num">
-                  {% if saldo is not none %}
-                    {% set queda = saldo - cantidad %}
-                    {{ queda|fmt_cant(ing.unidad if ing else 'kg') }}
-                    {% if queda <= 0 %}{{ chip('Se agota', 'aviso') }}{% endif %}
-                  {% else %}—{% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          {% endif %}
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3" data-label="Total en peso a descontar" class="maquila-num maquila-cifra">{{ ns.total_kg|fmt_cant }}</td>
-          <td colspan="2" data-label="Merma estimada" class="maquila-num">{% if merma_est is not none %}{{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido; producidos {{ corrida.peso_producido|fmt_cant }}){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}{% else %}—{% endif %}</td>
-        </tr>
-      </tfoot>
-    </table>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </details>
+    {% endfor %}
+    <p class="maquila-total-detalle">Total en peso a descontar: <strong>{{ ns.total_kg|fmt_cant }}</strong>{% if merma_est is not none %} · merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido){% endif %}</p>
     {% endif %}
   </section>
 
-  {#- El número que se confirma, en rol Figure y siempre a la vista antes del
-      pie: es la cifra por la que existe esta pantalla. -#}
-  {% set hay_resumen = reparto and (ns is defined) and ns.resumen %}
-  {% if hay_resumen and reparto_origen == 'declarado' %}
-  <section class="ops-card maquila-total-franja" id="total-a-descontar">
-    <div class="maquila-dueno-label">A descontar del inventario de {{ corrida.cliente.nombre }}</div>
-    <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
-    <div class="maquila-total-detalle">{{ ns.resumen|join(' · ') }}</div>
-    {% if merma_est is not none %}
-    <div class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}</div>
-    {% endif %}
-    {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
-  </section>
-  {% endif %}
-
-  <p class="maquila-aviso-inline" id="cierre-aviso" aria-live="polite" data-origen="{{ reparto_origen }}"{% if reparto_origen == 'declarado' %} hidden{% endif %}>Declará el consumo real (o copiá el teórico) y tocá «Recalcular reparto»: el cierre se habilita cuando el reparto refleja lo declarado.</p>
   <footer class="ops-sticky-footer">
+    {#- El aviso vive pegado al botón que explica: en escritorio el pie es
+        visible desde el primer paint y el motivo del bloqueo tiene que estar
+        a la vista, no 2.000px arriba. -#}
+    <p class="maquila-aviso-inline" id="cierre-aviso" aria-live="polite" data-origen="{{ reparto_origen }}"{% if reparto_origen == 'declarado' %} hidden{% endif %}>Declará el consumo real (o copiá el teórico) y tocá «Recalcular reparto»: el cierre se habilita cuando el reparto refleja lo declarado.</p>
     <button type="submit" class="btn btn-primary" id="btn-cerrar"{% if reparto_origen != 'declarado' %} disabled{% endif %}>Cerrar corrida y descontar</button>
   </footer>
 </form>
@@ -325,14 +343,39 @@
   if (!cerrar || !inputs.length) return;
   var iniciales = inputs.map(function (i) { return i.value; });
   var origenDeclarado = aviso && aviso.dataset.origen === 'declarado';
+  var franja = document.getElementById('total-a-descontar');
+  var franjaChip = document.getElementById('franja-desactualizada');
+  function fmt(n, u) { return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + ' ' + u; }
+  // Diferencia Real − Teórico por fila, con signo y %: la comparación que
+  // justifica declarar, sin restar de cabeza.
+  function diferencias() {
+    inputs.forEach(function (i) {
+      var celda = i.closest('tr') && i.closest('tr').querySelector('[data-dif]');
+      if (!celda) return;
+      var teo = parseFloat(i.dataset.teorico), real = parseFloat(i.value);
+      if (isNaN(teo) || isNaN(real)) { celda.textContent = '—'; celda.className = 'maquila-dif'; return; }
+      var d = real - teo, pct = teo > 0 ? Math.round(d / teo * 1000) / 10 : null;
+      celda.textContent = (d > 0 ? '+' : '') + fmt(d, i.dataset.unidad) + (pct === null ? '' : ' (' + (d > 0 ? '+' : '') + pct + ' %)');
+      celda.className = 'maquila-dif ' + (d < 0 ? 'maquila-neg' : d > 0 ? 'maquila-pos' : '');
+    });
+  }
   function revisar() {
     var cambiado = inputs.some(function (i, k) { return i.value !== iniciales[k]; });
     var bloqueado = !origenDeclarado || cambiado;
     cerrar.disabled = bloqueado;
     if (aviso) aviso.hidden = !bloqueado;
+    // La única cifra en rol Figure no puede quedar diciendo un número viejo.
+    if (franja) { franja.classList.toggle('is-desactualizado', cambiado); if (franjaChip) franjaChip.hidden = !cambiado; }
+    diferencias();
   }
   inputs.forEach(function (i) { i.addEventListener('input', revisar); });
   revisar();
+
+  // En el teléfono, el desglose por recepción arranca plegado: la línea de
+  // resumen ya dice cuánto y de cuántas recepciones.
+  if (window.innerWidth < 768) {
+    document.querySelectorAll('details.maquila-reparto-ing').forEach(function (d) { d.open = false; });
+  }
 
   // «Copiar el teórico»: llena lo vacío con la receta, sin pisar lo tecleado.
   var usar = document.getElementById('btn-usar-teorico');
@@ -371,7 +414,8 @@
         <td data-label="Ingrediente">{{ consumo.ingrediente.nombre if consumo.ingrediente else '—' }}</td>
         <td data-label="Teórico" class="maquila-num">{{ consumo.cantidad_teorica|fmt_cant(u) }}</td>
         <td data-label="Real" class="maquila-num">{{ consumo.cantidad_real|fmt_cant(u) }}</td>
-        <td data-label="Diferencia" class="maquila-num">{{ (consumo.cantidad_real - consumo.cantidad_teorica)|fmt_cant(u) }}</td>
+        {% set dif = consumo.cantidad_real - consumo.cantidad_teorica %}
+        <td data-label="Diferencia" class="maquila-num {{ 'maquila-neg' if dif < 0 else ('maquila-pos' if dif > 0 else '') }}">{{ ('+' if dif > 0 else '') ~ (dif|fmt_cant(u)) }}</td>
         <td data-label="De qué recepciones">
           {% for o in consumo.origenes %}
             <a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=o.recepcion_linea.recepcion_id) }}">{{ o.recepcion_linea.recepcion.codigo }}</a> {{ o.cantidad|fmt_cant(u) }}{{ ' (manual)' if not o.automatico else '' }}{{ ' · ' if not loop.last }}
@@ -397,7 +441,7 @@
     {% if corrida.estado == 'cerrada' %}Anular devuelve cada consumo al saldo de {{ corrida.cliente.nombre }} y libera las cajas que no salieron en un pedido. No se puede si alguna caja ya salió en un pedido facturado.{% else %}Anular deja la corrida sin efecto. No descontó nada, así que no hay nada que devolver.{% endif %}
   </p>
   <form method="POST" action="{{ url_for('maquila.corrida_anular', corrida_id=corrida.id) }}"
-        class="ops-sheet-form" data-confirm="¿Anular esta corrida?">
+        class="ops-sheet-form" data-confirm="¿Anular {{ corrida.codigo }}?{% if corrida.estado == 'cerrada' and consumido_kg %} Devuelve {{ consumido_kg|fmt_cant }} al saldo de {{ corrida.cliente.nombre }} y libera las cajas que no salieron en un pedido.{% endif %}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="motivo">Motivo de la anulación</label>

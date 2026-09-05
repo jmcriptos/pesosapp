@@ -35,7 +35,7 @@
   </div>
   <table class="maquila-tabla">
     <thead>
-      <tr><th>Ingrediente</th><th class="maquila-num">Recibido</th><th class="maquila-num">Consumido</th><th class="maquila-num">Ajustes</th><th class="maquila-num">Saldo</th></tr>
+      <tr><th>Ingrediente</th><th class="maquila-num">Recibido</th><th class="maquila-num">Consumido</th><th class="maquila-num">Correcciones</th><th class="maquila-num">Ajustes manuales</th><th class="maquila-num">Saldo</th></tr>
     </thead>
     <tbody>
       {% for f in filas %}
@@ -43,7 +43,8 @@
         <td data-label="Ingrediente">{{ f.ingrediente }}</td>
         <td data-label="Recibido" class="maquila-num">{{ f.recibido|fmt_cant(f.unidad) }}</td>
         <td data-label="Consumido" class="maquila-num">{{ f.consumido|fmt_cant(f.unidad) }}</td>
-        <td data-label="Ajustes" class="maquila-num {{ 'maquila-neg' if f.ajustes < 0 else ('maquila-pos' if f.ajustes > 0 else '') }}">{{ ('+' if f.ajustes > 0 else '') ~ (f.ajustes|fmt_cant(f.unidad)) }}</td>
+        <td data-label="Correcciones" class="maquila-num {{ 'maquila-neg' if f.correcciones < 0 else ('maquila-pos' if f.correcciones > 0 else '') }}">{{ ('+' if f.correcciones > 0 else '') ~ (f.correcciones|fmt_cant(f.unidad)) }}</td>
+        <td data-label="Ajustes manuales" class="maquila-num {{ 'maquila-neg' if f.ajustes < 0 else ('maquila-pos' if f.ajustes > 0 else '') }}">{{ ('+' if f.ajustes > 0 else '') ~ (f.ajustes|fmt_cant(f.unidad)) }}</td>
         <td data-label="Saldo" class="maquila-num maquila-cifra">
           {{ f.saldo|fmt_cant(f.unidad) }}
           {% if f.saldo < 0 %}{{ chip('Negativo', 'falla') }}{% elif f.saldo == 0 %}{{ chip('Agotado', 'neutro') }}{% endif %}
@@ -51,9 +52,9 @@
       </tr>
       {% if f.lineas_abiertas %}
       <tr class="maquila-fila-sub">
-        <td colspan="5">
+        <td colspan="6">
           <div class="maquila-sub">
-            <div class="maquila-sub-titulo">Recepciones con saldo de {{ f.ingrediente|lower }} · más antigua primero (orden FIFO)</div>
+            <div class="maquila-sub-titulo">Recepciones con saldo de {{ f.ingrediente|lower }} · más antigua primero (orden FIFO por fecha de recepción; el vencimiento se muestra si la línea lo tiene)</div>
             <table class="maquila-tabla-mini maquila-sub-lista">
               <thead><tr><th>Código</th><th>Recibida</th><th>Vence</th><th>Lote cliente</th><th class="maquila-num">Saldo</th></tr></thead>
               <tbody>

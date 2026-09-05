@@ -61,7 +61,7 @@
       {% for f in filas %}
       <tr>
         <td data-label="Fecha" class="maquila-nowrap">{{ f.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-        <td data-label="Tipo">{{ chip_tipo_movimiento(f.tipo) }}</td>
+        <td data-label="Tipo">{{ chip_tipo_movimiento(f.tipo, f.origen_tipo) }}</td>
         <td data-label="Ingrediente">{{ f.ingrediente }}</td>
         <td data-label="Cantidad" class="maquila-num {{ 'maquila-neg' if f.cantidad < 0 else 'maquila-pos' }}">{{ ('+' if f.cantidad > 0 else '') ~ (f.cantidad|fmt_cant(f.unidad)) }}</td>
         <td data-label="Saldo acumulado" class="maquila-num">{{ f.saldo_acumulado|fmt_cant(f.unidad) }}</td>

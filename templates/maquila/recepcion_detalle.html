@@ -6,9 +6,18 @@
 {{ dueno(recepcion.cliente.nombre, recepcion.cliente_id) }}
 
 <section class="ops-card">
+  {% set tot = namespace(peso=0, saldo=0) %}
+  {% for l in recepcion.lineas if not l.anulada and l.ingrediente.unidad == 'kg' %}
+    {% set tot.peso = tot.peso + l.peso_total %}{% set tot.saldo = tot.saldo + saldos_linea[l.id] %}
+  {% endfor %}
+  {% set pct_consumido = ((tot.peso - tot.saldo) / tot.peso * 100)|round(0)|int if tot.peso > 0 else 0 %}
   <div class="maquila-titulo-fila">
     <h2>{{ recepcion.codigo }}</h2>
-    {{ chip('Anulada', 'falla') if recepcion.anulada else chip('Vigente', 'conforme') }}
+    {% if recepcion.anulada %}{{ chip('Anulada', 'falla') }}
+    {% elif pct_consumido >= 100 %}{{ chip('Agotada', 'neutro') }}
+    {% elif pct_consumido > 0 %}{{ chip('Consumida ' ~ pct_consumido ~ ' %', 'marca') }}
+    {% else %}{{ chip('Sin consumir', 'conforme') }}{% endif %}
+    {% if not recepcion.anulada and tot.peso > 0 %}<span class="maquila-meta">quedan {{ tot.saldo|fmt_cant }} de {{ tot.peso|fmt_cant }}</span>{% endif %}
   </div>
   <dl class="maquila-cabecera">
     <dt>Fecha</dt><dd>{{ recepcion.recibido_en.strftime('%d/%m/%Y') }}</dd>

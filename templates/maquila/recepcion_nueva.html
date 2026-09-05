@@ -1,4 +1,39 @@
 {% extends "maquila/base_maquila.html" %}
+{#- Una línea de ingrediente. La misma pieza sirve para el <template> que
+    clona el JS (sin valores) y para re-pintar lo tecleado cuando el servidor
+    rechazó el envío (con `l`), para que nada se pierda. -#}
+{% macro linea(ingredientes, l=None) -%}
+  <div class="rec-linea">
+    <div class="rec-linea-campo">
+      <label>Ingrediente
+        <select name="linea_ingrediente_id" required>
+          {% for i in ingredientes %}<option value="{{ i.id }}" {{ 'selected' if l and l.ingrediente_id == i.id else '' }}>{{ i.nombre }} ({{ i.unidad }})</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Lote del cliente
+        <input type="text" name="linea_lote_cliente" placeholder="Opcional" autocomplete="off" autocapitalize="characters" value="{{ l.lote_cliente or '' if l else '' }}">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Vencimiento
+        <input type="date" name="linea_fecha_vencimiento" value="{{ l.fecha_vencimiento.strftime('%Y-%m-%d') if l and l.fecha_vencimiento else '' }}">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Bultos
+        <input type="number" step="1" min="0" name="linea_cantidad_bultos" inputmode="numeric" placeholder="Cuántos" value="{{ l.cantidad_bultos or '' if l else '' }}">
+      </label>
+    </div>
+    <div class="rec-linea-campo">
+      <label>Peso total
+        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required value="{{ l.peso_total if l and l.peso_total is not none else '' }}">
+      </label>
+    </div>
+    <button type="button" class="btn rec-quitar-btn" data-rec-quitar aria-label="Quitar esta línea">Quitar</button>
+  </div>
+{%- endmacro %}
 {% block title %}Nueva recepción{% endblock %}
 {% block maquila_title %}Nueva recepción{% endblock %}
 {% block maquila_body %}
@@ -11,20 +46,21 @@
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
       <select id="cliente_id" name="cliente_id" required>
-        <option value="" disabled {{ 'selected' if not cliente_sugerido else '' }}>Elegí un cliente</option>
-        {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if cliente_sugerido == c.id else '' }}>{{ c.nombre }}</option>{% endfor %}
+        {% set cli_sel = (form.get('cliente_id')|int) if form.get('cliente_id') and form.get('cliente_id').isdigit() else cliente_sugerido %}
+        <option value="" disabled {{ 'selected' if not cli_sel else '' }}>Elegí un cliente</option>
+        {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if cli_sel == c.id else '' }}>{{ c.nombre }}</option>{% endfor %}
       </select>
     </div>
     <div class="ops-field">
       <label for="recibido_en">Fecha</label>
-      <input type="date" id="recibido_en" name="recibido_en" required value="{{ hoy.strftime('%Y-%m-%d') if hoy else '' }}">
+      <input type="date" id="recibido_en" name="recibido_en" required value="{{ form.get('recibido_en') or (hoy.strftime('%Y-%m-%d') if hoy else '') }}">
     </div>
   </section>
 
   <section class="ops-card">
     <h2>Ingredientes</h2>
     <p class="maquila-nota">Una línea por ingrediente. «Bultos» es cuántos paquetes llegaron; «Peso total» es lo que marcó la balanza para toda la línea. Son dos números independientes.</p>
-    <div id="rec-lineas"></div>
+    <div id="rec-lineas">{% for l in lineas_previas %}{{ linea(ingredientes, l) }}{% endfor %}</div>
     <div class="maquila-acciones">
       <button type="button" class="btn" id="rec-add-linea">Agregar otro ingrediente</button>
     </div>
@@ -38,19 +74,19 @@
     <div class="ops-field">
       <label for="documento_cliente">Documento del cliente <small>(opcional)</small></label>
       <input type="text" id="documento_cliente" name="documento_cliente" autocomplete="off"
-             placeholder="Guía o remisión, si la mandaron">
+             placeholder="Guía o remisión, si la mandaron" value="{{ form.get('documento_cliente', '') }}">
     </div>
     <div class="ops-field">
       <label for="temperatura">Temperatura °C <small>(opcional)</small></label>
-      <input type="number" step="0.1" inputmode="decimal" id="temperatura" name="temperatura" placeholder="Al recibir, por ejemplo -18.0">
+      <input type="number" step="0.1" inputmode="decimal" id="temperatura" name="temperatura" placeholder="Al recibir, por ejemplo -18.0" value="{{ form.get('temperatura', '') }}">
     </div>
     <div class="ops-field">
       <label for="transportista">Transportista <small>(opcional)</small></label>
-      <input type="text" id="transportista" name="transportista" autocomplete="off">
+      <input type="text" id="transportista" name="transportista" autocomplete="off" value="{{ form.get('transportista', '') }}">
     </div>
     <div class="ops-field">
       <label for="notas">Notas <small>(opcional)</small></label>
-      <textarea id="notas" name="notas" rows="2"></textarea>
+      <textarea id="notas" name="notas" rows="2">{{ form.get('notas', '') }}</textarea>
     </div>
   </details>
 
@@ -86,36 +122,7 @@
 </form>
 
 <template id="rec-linea-tpl">
-  <div class="rec-linea">
-    <div class="rec-linea-campo">
-      <label>Ingrediente
-        <select name="linea_ingrediente_id" required>
-          {% for i in ingredientes %}<option value="{{ i.id }}">{{ i.nombre }} ({{ i.unidad }})</option>{% endfor %}
-        </select>
-      </label>
-    </div>
-    <div class="rec-linea-campo">
-      <label>Lote del cliente
-        <input type="text" name="linea_lote_cliente" placeholder="Opcional" autocomplete="off" autocapitalize="characters">
-      </label>
-    </div>
-    <div class="rec-linea-campo">
-      <label>Vencimiento
-        <input type="date" name="linea_fecha_vencimiento">
-      </label>
-    </div>
-    <div class="rec-linea-campo">
-      <label>Bultos
-        <input type="number" step="1" min="0" name="linea_cantidad_bultos" inputmode="numeric" placeholder="Cuántos">
-      </label>
-    </div>
-    <div class="rec-linea-campo">
-      <label>Peso total
-        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required>
-      </label>
-    </div>
-    <button type="button" class="btn rec-quitar-btn" data-rec-quitar aria-label="Quitar esta línea">Quitar</button>
-  </div>
+  {{ linea(ingredientes) }}
 </template>
 
 <script nonce="{{ csp_nonce() }}">
@@ -124,7 +131,8 @@
   var tpl = document.getElementById('rec-linea-tpl');
   function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
-  addLinea();
+  // Si el servidor devolvió el formulario con líneas tecleadas, se respetan.
+  if (!cont.querySelector('.rec-linea')) addLinea();
 
   // En el teléfono, los datos secundarios arrancan plegados.
   var masDatos = document.getElementById('mas-datos');

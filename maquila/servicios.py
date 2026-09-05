@@ -144,6 +144,13 @@ def saldos_de_cliente(cliente_id):
                               else_=0)).label('salidas'),
                 func.sum(case((mov.tipo.in_(('ajuste', 'devolucion')),
                                mov.cantidad), else_=0)).label('ajustes'),
+                # Una corrección de recepción también es `tipo='ajuste'`,
+                # pero para quien lee el saldo es otra cosa: la cantidad
+                # recibida cambió, no hubo un ajuste de inventario. Se
+                # separa por `origen_tipo`.
+                func.sum(case((and_(mov.tipo == 'ajuste',
+                                    mov.origen_tipo == 'recepcion'),
+                               mov.cantidad), else_=0)).label('correcciones'),
                 func.sum(mov.cantidad).label('saldo'))
              .join(Ingrediente, Ingrediente.id == mov.ingrediente_id)
              .filter(mov.cliente_id == cliente_id)
@@ -157,9 +164,10 @@ def saldos_de_cliente(cliente_id):
         'unidad': unidad,
         'recibido': _dec(recibido),
         'consumido': abs(_dec(salidas)),
-        'ajustes': _dec(ajustes),
+        'correcciones': _dec(correcciones),
+        'ajustes': _dec(ajustes) - _dec(correcciones),
         'saldo': _dec(saldo),
-    } for ingrediente_id, nombre, unidad, recibido, salidas, ajustes, saldo in filas]
+    } for ingrediente_id, nombre, unidad, recibido, salidas, ajustes, correcciones, saldo in filas]
 
 
 class SaldoInsuficiente(Exception):
