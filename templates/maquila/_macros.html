@@ -19,10 +19,14 @@
 {{ chip(estado|capitalize, tonos.get(estado, 'neutro')) }}
 {%- endmacro %}
 
-{% macro chip_tipo_movimiento(tipo) -%}
+{% macro chip_tipo_movimiento(tipo, origen_tipo=None) -%}
 {%- set tonos = {'entrada': 'conforme', 'salida': 'neutro', 'ajuste': 'aviso',
                  'devolucion': 'marca'} -%}
+{%- if tipo == 'ajuste' and origen_tipo == 'recepcion' -%}
+{{ chip('Corrección', 'marca') }}
+{%- else -%}
 {{ chip(tipo|capitalize, tonos.get(tipo, 'neutro')) }}
+{%- endif -%}
 {%- endmacro %}
 
 {% macro dueno(nombre, cliente_id=None) -%}

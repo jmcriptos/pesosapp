@@ -289,3 +289,51 @@ def test_el_indice_con_varios_clientes_muestra_conteos_correctos(app):
     assert '0 corridas abiertas' in html
     assert 'R-2026-0002 (05/09/2026)' in html
     assert 'R-2026-0003 (03/09/2026)' in html
+
+
+def test_recepcion_rechazada_devuelve_el_formulario_con_lo_tecleado(app):
+    """Un rechazo del servidor no puede borrar cuatro líneas tecleadas con
+    guantes: se re-pinta el formulario con lo enviado (no un redirect al
+    alta vacía). Fotos y firma no se pueden reponer; el flash lo dice."""
+    from maquila.models import RecepcionIngrediente
+    c = _login(app)
+    r = c.post('/maquila/recepciones/nueva', data={
+        'cliente_id': str(IDS['cliente']),
+        'recibido_en': '2026-09-03',
+        'documento_cliente': 'GUIA-ROJA-77',
+        'transportista': 'Camión de Toño',
+        'linea_ingrediente_id': [str(IDS['ingrediente']), str(IDS['tripa'])],
+        'linea_lote_cliente': ['BR-2291', ''],
+        'linea_cantidad_bultos': ['3', ''],
+        'linea_peso_total': ['24', ''],   # la segunda línea sin peso → rechazo
+    })
+    assert r.status_code == 200          # re-render, no 302
+    html = r.data.decode()
+    assert 'GUIA-ROJA-77' in html
+    assert 'Camión de Toño' in html
+    assert 'BR-2291' in html
+    assert 'value="24"' in html
+    assert 'Lo tecleado se conserva' in html
+    with app.app_context():
+        assert RecepcionIngrediente.query.count() == 0
+
+
+def test_saldos_de_cliente_separa_correcciones_de_ajustes_manuales(app):
+    """Una corrección de recepción es tipo 'ajuste' con origen 'recepcion';
+    para quien lee el saldo no es un ajuste de inventario."""
+    from maquila import servicios
+    with app.app_context():
+        rec = _recibir(100)
+        servicios.registrar_movimiento(
+            cliente_id=IDS['cliente'], ingrediente_id=IDS['ingrediente'],
+            tipo='ajuste', cantidad=Decimal('2'), origen_tipo='recepcion',
+            origen_id=rec.id, vendedor_id=IDS['vendedor'], motivo='se repesó')
+        servicios.registrar_movimiento(
+            cliente_id=IDS['cliente'], ingrediente_id=IDS['ingrediente'],
+            tipo='ajuste', cantidad=Decimal('-5'), origen_tipo='manual',
+            vendedor_id=IDS['vendedor'], motivo='merma en cámara')
+        _db.session.commit()
+        fila = servicios.saldos_de_cliente(IDS['cliente'])[0]
+        assert fila['correcciones'] == Decimal('2')
+        assert fila['ajustes'] == Decimal('-5')
+        assert fila['saldo'] == Decimal('97')

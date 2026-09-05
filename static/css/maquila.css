@@ -1403,3 +1403,77 @@ main.app-content:has(.maquila-wrap) {
   border-color: #c7d2fe;
   background: #fafbff !important;
 }
+
+/* ============================================================
+   Critique 2026-09-05 (3ª) · P1-P3
+   ============================================================ */
+
+/* 40 · La hoja centrada: un reset global de `margin` le ganaba al
+   `margin:auto` del agente de usuario y el diálogo se pegaba a (0,0). */
+.maquila-hoja {
+  margin: auto !important;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+/* 41 · El aviso del cierre vive dentro del pie, encima del botón; y el
+   botón apagado se distingue por algo más que el color. */
+.maquila-wrap .ops-sticky-footer .maquila-aviso-inline {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.maquila-wrap .ops-sticky-footer .btn-primary:disabled {
+  border: 1.5px dashed #a5b4fc !important;
+  box-shadow: none;
+}
+
+/* 42 · La franja del total, desactualizada mientras se edita el consumo. */
+.maquila-total-franja.is-desactualizado .maquila-figure {
+  color: var(--color-text-subtle);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+.maquila-total-franja.is-desactualizado .maquila-total-detalle { color: var(--color-text-subtle); }
+.maquila-dif { font-variant-numeric: tabular-nums; }
+.maquila-wrap td .maquila-dif.maquila-neg { color: #9f1239; }
+.maquila-wrap td .maquila-dif.maquila-pos { color: #065f46; }
+
+/* 43 · Reparto por ingrediente: bloque plegable con resumen en la línea. */
+.maquila-reparto-ing {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: var(--color-surface);
+}
+.maquila-reparto-ing > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 48px;
+  padding: 6px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 15px;
+}
+.maquila-reparto-ing > summary::-webkit-details-marker { display: none; }
+.maquila-reparto-ing > summary::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: rotate(-45deg);
+  transition: transform .15s ease-out;
+  flex: 0 0 auto;
+}
+.maquila-reparto-ing[open] > summary::before { transform: rotate(45deg); }
+.maquila-reparto-nombre { font-weight: 600; flex: 1 1 auto; }
+.maquila-reparto-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+.maquila-wrap .maquila-reparto-tabla { margin: 0 12px 10px; width: calc(100% - 24px); }
+.maquila-reparto-ing > summary:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+
+/* 44 · Los enlaces meta de la tarjeta del índice no se pisan: 44px de
+   alto sin margen negativo. */
+.maquila-tarjeta-meta a { margin: 0; padding: 10px 4px; min-height: 44px; }
+.maquila-tarjeta-meta { gap: 0; }
