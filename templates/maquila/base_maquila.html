@@ -36,4 +36,15 @@
   </header>
   {% block maquila_body %}{% endblock %}
 </div>
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  // En el teléfono el nav se desliza: la sección actual tiene que estar a la
+  // vista al cargar, no a 600px a la derecha.
+  var activo = document.querySelector('.maquila-nav .is-active');
+  var nav = document.querySelector('.maquila-nav');
+  if (activo && nav && nav.scrollWidth > nav.clientWidth) {
+    nav.scrollLeft = activo.offsetLeft - (nav.clientWidth - activo.offsetWidth) / 2;
+  }
+})();
+</script>
 {% endblock %}

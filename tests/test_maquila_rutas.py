@@ -303,9 +303,9 @@ def test_recalcular_reparto_muestra_el_declarado_no_el_teorico(app):
     assert b'10.000' in r.data
     assert 'estimado según la receta'.encode('utf-8') in r.data
 
-    r = c.post(f'/maquila/corridas/{corrida_id}/recalcular', data={
+    r = c.post(f'/maquila/corridas/{corrida_id}/recalcular', follow_redirects=True, data={
         'consumo_ingrediente_id': [str(ing_id)],
-        'consumo_real': ['37.5']}, follow_redirects=True)
+        'consumo_real': ['37.5']})
     assert r.status_code == 200
     assert b'37.5' in r.data
     assert b'consumo declarado' in r.data
@@ -406,7 +406,7 @@ def test_kardex_incluye_movimientos_de_la_ultima_hora_local_del_dia_hasta(app):
               '&desde=2026-09-03&hasta=2026-09-03')
     assert r.status_code == 200
     assert b'Carne de res' in r.data
-    assert b'2026-09-03 22:00' in r.data
+    assert b'03/09/2026 22:00' in r.data
 
 
 def test_trazabilidad_ambigua_muestra_los_candidatos_por_cliente(app):

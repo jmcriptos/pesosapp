@@ -20,6 +20,7 @@
     <div class="ops-field">
       <label for="producto_id">Producto</label>
       <select id="producto_id" name="producto_id" required>
+        <option value="" disabled selected>Elegí un producto</option>
         {% for p in productos %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
       </select>
     </div>
@@ -85,7 +86,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="peso">Peso de la caja (kg)</label>
-      <input type="number" step="0.001" min="0.001" inputmode="decimal" id="peso" name="peso" required autocomplete="off">
+      <input type="number" step="0.001" min="0.001" inputmode="decimal" id="peso" name="peso" required autocomplete="off" autofocus>
     </div>
     <button type="submit" class="btn">Agregar caja</button>
   </form>
@@ -128,12 +129,12 @@
       class="ops-sheet-form" id="cierre-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-  <section class="ops-card">
+  <section class="ops-card" id="consumo">
     <h2>Consumo real</h2>
     {% if not ingredientes %}
       <p class="ops-empty">No hay ingredientes activos para declarar consumo.</p>
     {% else %}
-    <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos; lo que se descuenta es lo que declarás en «Real». Dejá en blanco lo que no se usó.</p>
+    <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos. Lo que se descuenta es lo que declarás en «Real»: no viene precargado a propósito, para que el rendimiento mida lo que salió de la cámara y no lo que dice la receta. Si coincide, usá «Copiar el teórico».</p>
     <table class="maquila-tabla maquila-tabla-consumo">
       <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th></tr></thead>
       <tbody>
@@ -145,40 +146,58 @@
             <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
             <input type="number" step="0.001" min="0" inputmode="decimal" name="consumo_real"
                    aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
-                   value="{{ consumo_actual.get(i.id, '') }}">
+                   placeholder="{{ 'sin declarar' if teoricos.get(i.id) is not none else '—' }}"
+                   data-teorico="{{ teoricos.get(i.id) if teoricos.get(i.id) is not none else '' }}"
+                   value="{{ consumo_actual.get(i.id, '') if reparto_origen == 'declarado' else '' }}">
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     <div class="maquila-acciones">
+      <button type="button" class="btn" id="btn-usar-teorico">Copiar el teórico</button>
       <button type="submit" class="btn"
               formaction="{{ url_for('maquila.corrida_recalcular', corrida_id=corrida.id) }}">Recalcular reparto</button>
     </div>
     {% endif %}
   </section>
 
-  <section class="ops-card">
+  <section class="ops-card" id="reparto">
     <div class="maquila-titulo-fila">
       <h2>Reparto FIFO</h2>
       {{ chip('Estimado', 'aviso') if reparto_origen == 'teorico' else chip('Según lo declarado', 'conforme') }}
     </div>
     {% if reparto_origen == 'teorico' %}
-    <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: todavía no corresponde a lo que declaraste arriba. Si editaste el consumo, tocá «Recalcular reparto» antes de cerrar — si no, se cierra con este mismo estimado.</p>
+    <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: es una vista previa, no lo que se va a descontar. Declará el consumo real arriba (o copiá el teórico) y tocá «Recalcular reparto»; el cierre se habilita recién ahí.</p>
     {% else %}
     <p class="maquila-nota">Reparto según el <strong>consumo declarado</strong>: esto es lo que se va a descontar si cerrás ahora. Si volvés a editar el consumo, recalculá de nuevo.</p>
     {% endif %}
     {% if not reparto %}
       <p class="ops-empty">Sin receta, sin cajas producidas o sin consumo declarado: no hay reparto que previsualizar.</p>
     {% else %}
-    {% set ns = namespace(total_kg=0, faltantes=0) %}
+    {#- Resumen del reparto ANTES de la tabla: alimenta el pie con rótulos y
+        el texto del confirm(), que tiene que repetir las cifras que el
+        operario vino a verificar. -#}
+    {% set ns = namespace(total_kg=0, faltantes=0, resumen=[]) %}
+    {% for ingrediente_id, tramos in reparto.items() %}
+      {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
+      {% if tramos is none %}
+        {% set ns.faltantes = ns.faltantes + 1 %}
+      {% else %}
+        {% set suma = namespace(v=0) %}
+        {% for _linea_id, cantidad in tramos %}{% set suma.v = suma.v + cantidad %}{% endfor %}
+        {% if ing and ing.unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + suma.v %}{% endif %}
+        {% set ns.resumen = ns.resumen + [(ing.nombre if ing else ingrediente_id) ~ ' ' ~ (suma.v|fmt_cant(ing.unidad if ing else 'kg'))] %}
+      {% endif %}
+    {% endfor %}
+    {% set merma_est = (ns.total_kg - corrida.peso_producido) if ns.total_kg > 0 else none %}
+    {% set merma_est_pct = ((merma_est / ns.total_kg) * 100)|round(1) if ns.total_kg > 0 else none %}
     <table class="maquila-tabla">
       <thead><tr><th>Ingrediente</th><th>Recepción</th><th>Lote del cliente</th><th class="maquila-num">Se descuenta</th><th class="maquila-num">Queda en la línea</th></tr></thead>
       <tbody>
         {% for ingrediente_id, tramos in reparto.items() %}
           {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
           {% if tramos is none %}
-          {% set ns.faltantes = ns.faltantes + 1 %}
           <tr class="maquila-sin-saldo">
             <td data-label="Ingrediente">{{ ing.nombre if ing else ingrediente_id }}</td>
             <td colspan="4">{{ chip('Sin saldo suficiente', 'falla') }} No hay recepciones de este ingrediente que cubran lo declarado.</td>
@@ -187,7 +206,6 @@
             {% for linea_id, cantidad in tramos %}
               {% set linea = lineas_reparto.get(linea_id) %}
               {% set saldo = saldos_reparto.get(linea_id) %}
-              {% if ing and ing.unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + cantidad %}{% endif %}
               <tr>
                 <td data-label="Ingrediente">{{ ing.nombre if ing else ingrediente_id }}</td>
                 <td data-label="Recepción">
@@ -214,18 +232,56 @@
       <tfoot>
         <tr>
           <td colspan="3" data-label="Total en peso a descontar" class="maquila-num maquila-cifra">{{ ns.total_kg|fmt_cant }}</td>
-          <td colspan="2" data-label="Merma estimada" class="maquila-num">{% if corrida.peso_producido > 0 and ns.total_kg > 0 %}{{ (ns.total_kg - corrida.peso_producido)|fmt_cant }} sobre {{ corrida.peso_producido|fmt_cant }} producidos{% else %}—{% endif %}</td>
+          <td colspan="2" data-label="Merma estimada" class="maquila-num">{% if merma_est is not none %}{{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido; producidos {{ corrida.peso_producido|fmt_cant }}){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}{% else %}—{% endif %}</td>
         </tr>
       </tfoot>
     </table>
     {% endif %}
   </section>
 
+  {#- El número que se confirma, en rol Figure y siempre a la vista antes del
+      pie: es la cifra por la que existe esta pantalla. -#}
+  {% set hay_resumen = reparto and (ns is defined) and ns.resumen %}
+  {% if hay_resumen and reparto_origen == 'declarado' %}
+  <section class="ops-card maquila-total-franja" id="total-a-descontar">
+    <div class="maquila-dueno-label">A descontar del inventario de {{ corrida.cliente.nombre }}</div>
+    <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
+    <div class="maquila-total-detalle">{{ ns.resumen|join(' · ') }}</div>
+    {% if merma_est is not none %}
+    <div class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}</div>
+    {% endif %}
+    {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <p class="maquila-aviso-inline" id="cierre-aviso" aria-live="polite" data-origen="{{ reparto_origen }}"{% if reparto_origen == 'declarado' %} hidden{% endif %}>Declará el consumo real (o copiá el teórico) y tocá «Recalcular reparto»: el cierre se habilita cuando el reparto refleja lo declarado.</p>
   <footer class="ops-sticky-footer">
-    <button type="submit" class="btn btn-primary btn-guante"
-            data-confirm="Cerrar la corrida descuenta los ingredientes del inventario de {{ corrida.cliente.nombre }}. ¿Continuar?">Cerrar corrida y descontar</button>
+    <button type="submit" class="btn btn-primary" id="btn-cerrar"{% if reparto_origen != 'declarado' %} disabled{% endif %}>Cerrar corrida y descontar</button>
   </footer>
 </form>
+
+{#- La hoja de confirmación propia: cliente en 17px, total en 32px, la lista
+    y dos botones de 56px. Un confirm() nativo no cumple ni el mínimo táctil
+    ni el piso tipográfico, y aceptaba con Enter. -#}
+<dialog class="maquila-hoja" id="hoja-cierre" aria-labelledby="hoja-cierre-titulo">
+  <div class="maquila-dueno-label">Inventario en custodia de</div>
+  <h2 class="maquila-hoja-cliente" id="hoja-cierre-titulo">{{ corrida.cliente.nombre }}</h2>
+  {% if hay_resumen %}
+  <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
+  <p class="maquila-total-detalle">a descontar en peso · {{ corrida.codigo }} · lote {{ corrida.lote }}</p>
+  <ul class="maquila-hoja-lista">
+    {% for r in ns.resumen %}<li>{{ r }}</li>{% endfor %}
+  </ul>
+  {% if merma_est is not none %}<p class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido)</p>{% endif %}
+  {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
+  {% else %}
+  <p class="maquila-aviso-inline">No hay reparto que previsualizar: cerrar descuenta lo declarado sin vista previa.</p>
+  {% endif %}
+  <div class="maquila-hoja-acciones">
+    <button type="button" class="btn" id="hoja-volver" autofocus>Volver a revisar</button>
+    <button type="button" class="btn btn-danger" id="hoja-confirmar">Sí, cerrar y descontar</button>
+  </div>
+</dialog>
 
 <script nonce="{{ csp_nonce() }}">
 (function () {
@@ -238,12 +294,51 @@
   // este único caso de dos submits) el patrón de base.js.
   var form = document.getElementById('cierre-form');
   if (!form) return;
+  var cerrar = document.getElementById('btn-cerrar');
+  var aviso = document.getElementById('cierre-aviso');
+  var hoja = document.getElementById('hoja-cierre');
+  var inputs = Array.prototype.slice.call(form.querySelectorAll('input[name="consumo_real"]'));
+  var confirmado = false;
+
+  // La hoja propia reemplaza al confirm(): «Cerrar» abre la hoja; solo el
+  // botón rojo de la hoja envía de verdad. Enter cae en «Volver a revisar».
   form.addEventListener('submit', function (e) {
-    var boton = e.submitter;
-    var mensaje = boton && boton.dataset.confirm;
-    if (mensaje && !confirm(mensaje)) {
-      e.preventDefault();
+    if (e.submitter !== cerrar || confirmado) return;
+    e.preventDefault();
+    if (hoja && typeof hoja.showModal === 'function') {
+      hoja.showModal();
+    } else if (confirm('¿Cerrar la corrida y descontar del inventario del cliente?')) {
+      confirmado = true; form.requestSubmit(cerrar);
     }
+  });
+  if (hoja) {
+    document.getElementById('hoja-volver').addEventListener('click', function () { hoja.close(); });
+    document.getElementById('hoja-confirmar').addEventListener('click', function () {
+      confirmado = true; hoja.close(); form.requestSubmit(cerrar);
+    });
+  }
+
+  // El reparto de la pantalla se calculó con los consumos que se ven al
+  // cargar. Si el operario edita uno, lo que se ve ya no es lo que se va a
+  // descontar: «Cerrar» se apaga y el aviso (legible, fuera del botón) dice
+  // qué hacer, hasta que recalcule. Con reparto teórico arranca apagado.
+  if (!cerrar || !inputs.length) return;
+  var iniciales = inputs.map(function (i) { return i.value; });
+  var origenDeclarado = aviso && aviso.dataset.origen === 'declarado';
+  function revisar() {
+    var cambiado = inputs.some(function (i, k) { return i.value !== iniciales[k]; });
+    var bloqueado = !origenDeclarado || cambiado;
+    cerrar.disabled = bloqueado;
+    if (aviso) aviso.hidden = !bloqueado;
+  }
+  inputs.forEach(function (i) { i.addEventListener('input', revisar); });
+  revisar();
+
+  // «Copiar el teórico»: llena lo vacío con la receta, sin pisar lo tecleado.
+  var usar = document.getElementById('btn-usar-teorico');
+  if (usar) usar.addEventListener('click', function () {
+    inputs.forEach(function (i) { if (!i.value && i.dataset.teorico) i.value = i.dataset.teorico; });
+    revisar();
   });
 })();
 </script>
@@ -258,8 +353,9 @@
     <dt>Consumido en peso</dt><dd>{{ consumido_kg|fmt_cant }}</dd>
     <dt>Merma</dt>
     <dd>
-      {{ merma|fmt_cant }}{% if merma_pct is not none %} ({{ merma_pct }} %){% endif %}
+      {{ merma|fmt_cant }}{% if merma_pct is not none %} ({{ merma_pct }} % del consumido){% endif %}
       {% if merma_pct is not none and merma_pct|abs > 10 %}{{ chip('Merma alta', 'falla') }}{% endif %}
+      {% if merma is not none and merma < 0 %}{{ chip('Negativa', 'aviso') }} <span class="maquila-meta">salió más peso del que se declaró consumido: revisá el consumo real</span>{% endif %}
     </dd>
   </dl>
   <h3>Qué se descontó del inventario de {{ corrida.cliente.nombre }}</h3>

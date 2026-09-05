@@ -2,12 +2,15 @@
 {% block title %}Corregir {{ recepcion.codigo }}{% endblock %}
 {% block maquila_title %}Corregir {{ recepcion.codigo }}{% endblock %}
 {% block maquila_body %}
-<form method="POST" enctype="multipart/form-data" class="ops-sheet-form" id="rec-form"
-      data-confirm="¿Guardar esta corrección? Queda en el historial de la recepción.">
+{% set hay_consumo = (consumido.values() | select('gt', 0) | list | length) > 0 %}
+<form method="POST" enctype="multipart/form-data" class="ops-sheet-form" id="rec-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <section class="ops-card">
     <h2>Cabecera</h2>
+    {% if hay_consumo %}
+    <p class="maquila-nota">Parte de esta recepción ya salió hacia producción: el cliente y el ingrediente de las líneas consumidas no se pueden cambiar (movería carne de un cliente a otro después de usada). Sí se pueden corregir fechas, documento, evidencia y las líneas intactas.</p>
+    {% endif %}
     {#- El cliente seleccionado se compara contra el valor que ya trae el objeto.
         NUNCA `args.get('cliente_id', type=int)`: Jinja no tiene los builtins de
         Python, `int` ahí es Undefined, y werkzeug revienta al llamarlo — pero solo
@@ -15,7 +18,10 @@
         producción sin que ningún test lo viera. -#}
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
-      <select id="cliente_id" name="cliente_id" required>
+      {#- Deshabilitado cuando hay consumo: `editar_recepcion` trata un
+          `cliente_id` ausente como «no tocar», así que no hace falta un
+          hidden. -#}
+      <select id="cliente_id" name="cliente_id" required {{ 'disabled' if hay_consumo else '' }}>
         {% for c in clientes %}
         <option value="{{ c.id }}" {{ 'selected' if c.id == recepcion.cliente_id else '' }}>{{ c.nombre }}</option>
         {% endfor %}
@@ -61,7 +67,11 @@
 
         <div class="rec-linea-campo">
           <label for="ing-{{ l.id }}">Ingrediente</label>
-          <select id="ing-{{ l.id }}" name="linea_ingrediente_id" required>
+          {#- Una línea consumida no puede cambiar de ingrediente: el select va
+              deshabilitado y SIN name, y un hidden manda el valor para que
+              las listas paralelas del POST no se desalineen. -#}
+          {% if consumido[l.id] > 0 %}<input type="hidden" name="linea_ingrediente_id" value="{{ l.ingrediente_id }}">{% endif %}
+          <select id="ing-{{ l.id }}" {% if consumido[l.id] > 0 %}disabled{% else %}name="linea_ingrediente_id"{% endif %} required>
             {#- Incluye también el ingrediente de esta línea aunque ya esté
                 desactivado (la ruta lo agrega a `ingredientes` si hace
                 falta): si faltara su <option>, ninguna quedaría `selected`,
@@ -154,15 +164,21 @@
 
     <div class="ops-field">
       <label for="fotos">Agregar fotos</label>
-      <input type="file" id="fotos" name="fotos" accept="image/*" capture="environment" multiple>
+      <input type="file" id="fotos" name="fotos" accept="image/*" multiple>
     </div>
 
+    {#- El pad arranca oculto en los dos casos: con firma, para no invitar a
+        pisarla; sin firma, porque un pad vacío de 180px en una corrección es
+        ruido. El botón lo revela. -#}
     {% if recepcion.firma %}
-    <p>Ya hay una firma registrada.</p>
+    <p class="maquila-nota">Ya hay una firma registrada. Redibujar reemplaza la guardada.</p>
     <button type="button" class="btn" id="firma-cambiar-btn">Cambiar firma</button>
+    {% else %}
+    <p class="maquila-nota">Sin firma de quien entregó.</p>
+    <button type="button" class="btn" id="firma-cambiar-btn">Agregar firma</button>
     {% endif %}
 
-    <div id="firma-bloque" {{ 'hidden' if recepcion.firma else '' }}>
+    <div id="firma-bloque" hidden>
       <div class="ops-firma-label" id="firmaLabel">Firma de quien entrega</div>
       {#- El botón de borrar va DENTRO del pad: `.ops-firma-clear` es
            `position:absolute` y `.ops-firma-pad` es su `position:relative`. -#}
@@ -182,8 +198,8 @@
 
   <section class="ops-card">
     <div class="ops-field">
-      <label for="motivo">Motivo de la corrección <small>(obligatorio si cambiás una cantidad, un ingrediente o quitás una línea)</small></label>
-      <input type="text" id="motivo" name="motivo" autocomplete="off" placeholder="Qué estaba mal y cómo se verificó">
+      <label for="motivo">Motivo de la corrección <small id="motivo-ayuda">(obligatorio si cambiás una cantidad, un ingrediente o quitás una línea)</small></label>
+      <input type="text" id="motivo" name="motivo" autocomplete="off" placeholder="Qué estaba mal y cómo se verificó" aria-describedby="motivo-ayuda">
     </div>
   </section>
 
@@ -289,9 +305,9 @@
     marcarFirmada(false);
   });
 
-  // Si ya había firma, el canvas arranca oculto: "Cambiar firma" lo revela
-  // para redibujar. Redibujar SIEMPRE reemplaza la firma guardada (el hidden
-  // solo se llena si hayFirma quedó true tras un trazo nuevo).
+  // El canvas arranca oculto: «Cambiar firma» / «Agregar firma» lo revela.
+  // Redibujar SIEMPRE reemplaza la firma guardada (el hidden solo se llena
+  // si hayFirma quedó true tras un trazo nuevo).
   var cambiarBtn = document.getElementById('firma-cambiar-btn');
   if (cambiarBtn) {
     cambiarBtn.addEventListener('click', function () {
@@ -306,8 +322,35 @@
   // click del botón.
   var reduccionesPendientes = 0;
 
-  document.getElementById('rec-form').addEventListener('submit', function (e) {
+  // Lo que deja rastro en el kardex (cantidad, ingrediente, quitar, línea
+  // nueva) exige motivo. Se marca `required` en cuanto se toca uno de esos
+  // campos —antes de enviar, no después del confirm— y la confirmación se
+  // pide SOLO en ese caso: corregir una nota no la merece.
+  var formRec = document.getElementById('rec-form');
+  var motivo = document.getElementById('motivo');
+  var ayuda = document.getElementById('motivo-ayuda');
+  var conRastro = false;
+  function marcarRastro() {
+    if (conRastro) return;
+    conRastro = true;
+    motivo.required = true;
+    if (ayuda) ayuda.textContent = '(obligatorio: esta corrección deja rastro en el kardex)';
+    motivo.closest('.ops-field').classList.add('maquila-requerido');
+  }
+  function esRastro(el) {
+    var n = (el && el.name) || '';
+    return n === 'linea_peso_total' || n === 'linea_ingrediente_id' || n.indexOf('linea_quitar_') === 0;
+  }
+  formRec.addEventListener('input', function (e) { if (esRastro(e.target)) marcarRastro(); });
+  formRec.addEventListener('change', function (e) { if (esRastro(e.target)) marcarRastro(); });
+  document.getElementById('rec-add-linea').addEventListener('click', marcarRastro);
+
+  formRec.addEventListener('submit', function (e) {
     if (reduccionesPendientes > 0) {
+      e.preventDefault();
+      return;
+    }
+    if (conRastro && !confirm('Esta corrección cambia cantidades o líneas y queda en el kardex con tu motivo. ¿Guardar?')) {
       e.preventDefault();
       return;
     }

@@ -264,7 +264,7 @@
 }
 
 .rec-linea select,
-.rec-linea input {
+.rec-linea input:not([type="checkbox"]) {
   width: 100%;
 }
 
@@ -540,12 +540,45 @@
   grid-column: 1 / -1;
 }
 
+/* «Quitar esta línea» es un chip-toggle de 44px con la casilla a la
+   izquierda: la casilla sola medía 885×13 (heredaba el `width:100%` de los
+   inputs de la línea) y no se podía tocar con guante. Marcado, pasa al tono
+   de falla: es la línea que va a desaparecer del inventario. */
 .maquila-wrap .rec-quitar {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 600;
+  gap: 10px;
+  width: fit-content;
+  min-height: 44px;
+  padding: 0 14px 0 12px;
   margin: 4px 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 9999px;
+  background: var(--color-surface);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s ease-out, border-color .15s ease-out, color .15s ease-out;
+}
+.maquila-wrap .rec-quitar input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: 0 0 20px;
+  accent-color: #be123c;
+}
+.maquila-wrap .rec-quitar:has(input:checked) {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #9f1239;
+}
+.maquila-wrap .rec-quitar:has(input:disabled) {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.maquila-wrap .rec-quitar:has(input:focus-visible) {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
 }
 
 .maquila-wrap .rec-foto-item {
@@ -639,16 +672,6 @@
   border-bottom-color: #4f46e5;
 }
 
-/* El aviso de desajuste entre los bultos y el peso total. No es un error —el
-   usuario puede querer justamente eso— así que va en ámbar de aviso, no en
-   rojo de falla. */
-.maquila-wrap .rec-desajuste {
-  color: #92400e;
-  background: #fffbeb;
-  border-radius: 8px;
-  padding: 6px 8px;
-  margin-top: 6px;
-}
 
 
 /* ============================================================
@@ -935,7 +958,10 @@
 .rec-linea .rec-quitar-btn { min-height: 44px; }
 @media (max-width: 640px) {
   .rec-linea { grid-template-columns: 1fr 1fr; }
-  .rec-linea .rec-linea-campo:first-child,
+  /* `first-of-type`, no `first-child`: en la línea existente el primer hijo
+     es el `<input type=hidden name=linea_id>`, y el ingrediente quedaba en
+     media columna con el nombre recortado. */
+  .rec-linea > .rec-linea-campo:first-of-type,
   .rec-linea .rec-quitar-btn,
   .rec-linea > .rec-quitar { grid-column: 1 / -1; }
 }
@@ -1083,3 +1109,297 @@ main.app-content:has(.maquila-wrap) {
    renglones. */
 .maquila-filtro-grid .maquila-acciones { grid-column: 1 / -1; }
 .maquila-wrap .maquila-nowrap { white-space: nowrap; }
+
+/* ============================================================
+   Critique 2026-09-05 · polish (P2/P3)
+   ============================================================ */
+
+/* 23 · Piso de 11px: los «(opcional)» heredaban un `small` al 62% y
+   quedaban en 9,58px; la etiqueta de la firma en 10,5px. */
+.maquila-wrap label small,
+.maquila-wrap .ops-field label small {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.maquila-wrap .ops-firma-label { font-size: 11px; }
+
+/* 24 · Signo con color: el `td` del módulo fuerza `color !important`, así
+   que estas clases nunca habían pintado. */
+.maquila-wrap td.maquila-neg { color: #9f1239 !important; }
+.maquila-wrap td.maquila-pos { color: #065f46 !important; }
+
+/* 25 · Blancos táctiles de 44px en enlaces de texto, sin agrandar la fila:
+   el área de toque crece con padding y se compensa con margen negativo. */
+.maquila-dueno-links a,
+.maquila-tarjeta-meta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px 0;
+  padding: 0 4px;
+}
+.maquila-wrap .maquila-tabla td a,
+.maquila-wrap .maquila-tabla-mini td a {
+  display: inline-block;
+  padding: 13px 0;
+  margin: -13px 0;
+}
+
+/* 26 · Foco visible también en los controles que Chrome pinta por su cuenta
+   (fecha, archivo): anillo índigo, no el borde gris del sistema. */
+.maquila-wrap input[type="date"]:focus,
+.maquila-wrap input[type="file"]:focus,
+.maquila-wrap details summary:focus-visible {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 2px;
+}
+
+/* 27 · Elementos que piden 44px de alto. */
+.maquila-sub summary { min-height: 44px; }
+.maquila-asignar input[type="checkbox"] { accent-color: #4f46e5; }
+
+/* 28 · Pie de tabla con rótulo también en escritorio (en fichas ya lo
+   ponía `::before`): «30.713 kg» solo no dice qué es. */
+@media (min-width: 768px) {
+  .maquila-wrap .maquila-tabla tfoot td[data-label]::before {
+    content: attr(data-label) ': ';
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-right: 6px;
+  }
+}
+
+/* 29 · Bloque plegable «Más datos de la entrega». */
+.maquila-wrap details.maquila-detalles > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  list-style: none;
+}
+.maquila-wrap details.maquila-detalles > summary::-webkit-details-marker { display: none; }
+.maquila-wrap details.maquila-detalles > summary::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: rotate(-45deg);
+  transition: transform .15s ease-out;
+  margin-right: 4px;
+}
+.maquila-wrap details.maquila-detalles[open] > summary::before { transform: rotate(45deg); }
+.maquila-wrap details.maquila-detalles[open] > summary { margin-bottom: 12px; }
+
+/* 30 · El motivo pasa a obligatorio en cuanto una corrección deja rastro. */
+.maquila-wrap .ops-field.maquila-requerido label { color: #92400e; }
+.maquila-wrap .ops-field.maquila-requerido input { border-color: #f59e0b; }
+
+/* 31 · Botón de cierre apagado hasta recalcular: se ve apagado Y lo dice. */
+.maquila-wrap .ops-sticky-footer .btn-primary:disabled { opacity: 1; cursor: not-allowed; }
+
+/* 32 · Kardex en el teléfono: dos líneas por movimiento, no ocho.
+   Línea 1: ingrediente + cantidad con signo. Línea 2: tipo · origen · fecha
+   y el saldo acumulado a la derecha. Responsable y motivo vacío no se
+   repiten 24 veces. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-tabla-kardex tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    padding: 10px 12px;
+  }
+  .maquila-wrap .maquila-tabla-kardex td {
+    display: block;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+  .maquila-wrap .maquila-tabla-kardex td::before { content: none; }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Ingrediente"] {
+    order: 1;
+    flex: 1 1 calc(100% - 130px);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Cantidad"] {
+    order: 2;
+    flex: 0 0 120px;
+    text-align: right;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Tipo"] { order: 3; }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Origen"] { order: 4; }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Fecha"] { order: 5; }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Saldo acumulado"] {
+    order: 6;
+    margin-left: auto;
+    text-align: right;
+  }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Saldo acumulado"]::before {
+    content: 'acum. ';
+    font-size: 11px;
+  }
+  .maquila-wrap .maquila-tabla-kardex td[data-label="Motivo"] {
+    order: 7;
+    flex: 1 1 100%;
+    font-style: italic;
+  }
+  .maquila-wrap .maquila-tabla-kardex td.maquila-secundario,
+  .maquila-wrap .maquila-tabla-kardex td.maquila-vacio { display: none; }
+  .maquila-wrap .maquila-tabla-kardex td .maquila-chip { font-size: 10px; padding: 1px 8px; }
+}
+
+/* 33 · Kardex compacto: la fecha ya no es «la primera celda» con 17px en
+   negrita, y las celdas no heredan el fondo alterno de la tabla de escritorio. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-tabla-kardex td,
+  .maquila-wrap .maquila-tabla-kardex td:first-child,
+  .maquila-wrap .maquila-tabla-kardex tr:nth-child(even) td {
+    background: transparent !important;
+  }
+  .maquila-wrap .maquila-tabla-kardex td:first-child {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    padding: 0;
+  }
+  .maquila-wrap .maquila-tabla-kardex tr:nth-child(even) { background: var(--color-surface-muted); }
+}
+
+/* 34 · «Quitar» con una sola línea no hace nada: que se vea y se anuncie. */
+.maquila-wrap .rec-quitar-btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* ============================================================
+   Critique 2026-09-05 (2ª) · P0-P3
+   ============================================================ */
+
+/* 35 · La cifra por la que existe la pantalla, en rol Figure (32/700). */
+.maquila-figure {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  margin: 4px 0;
+}
+.maquila-wrap .maquila-total-franja {
+  border-color: #c7d2fe;
+  background: #fafbff !important;
+}
+.maquila-total-detalle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 2px 0 0;
+}
+.maquila-aviso-inline {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.maquila-wrap p.maquila-aviso-inline[hidden] { display: none; }
+
+/* 36 · Botón de cierre apagado: legible (índigo tinta sobre índigo claro,
+   7:1), sin cambiar de texto; la instrucción vive en el aviso de arriba. */
+.maquila-wrap .ops-sticky-footer .btn-primary:disabled {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #3730a3 !important;
+  opacity: 1;
+}
+
+/* 37 · Hoja de confirmación del cierre. */
+.maquila-hoja {
+  border: 0;
+  border-radius: 16px;
+  padding: 20px;
+  width: min(440px, calc(100vw - 32px));
+  box-shadow: 0 20px 48px rgba(15, 23, 42, .28);
+  color: var(--color-text, #0f172a);
+  background: #fff;
+  font-family: inherit;
+}
+.maquila-hoja::backdrop { background: rgba(15, 23, 42, .55); }
+.maquila-hoja-cliente {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 2px 0 8px;
+}
+.maquila-hoja-lista {
+  margin: 12px 0;
+  padding: 0 0 0 18px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.maquila-hoja-acciones {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.maquila-hoja-acciones .btn { flex: 1 1 0; min-height: 56px; font-size: 15px; }
+
+/* 38 · Ninguna cifra se recorta en modo ficha: las celdas largas (pie del
+   reparto, «Recepción», «De qué recepciones») pasan a dos líneas, con el
+   valor debajo del rótulo. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-tabla tfoot td,
+  .maquila-wrap .maquila-tabla td[data-label="Recepción"],
+  .maquila-wrap .maquila-tabla td[data-label="De qué recepciones"],
+  .maquila-wrap .maquila-tabla td[data-label="Merma estimada"],
+  .maquila-wrap .maquila-tabla td[data-label="Queda en la línea"] {
+    white-space: normal;
+    flex-wrap: wrap;
+    text-align: left;
+  }
+  .maquila-wrap .maquila-tabla tfoot td::before,
+  .maquila-wrap .maquila-tabla td[data-label="Recepción"]::before,
+  .maquila-wrap .maquila-tabla td[data-label="De qué recepciones"]::before,
+  .maquila-wrap .maquila-tabla td[data-label="Merma estimada"]::before {
+    flex: 1 1 100%;
+  }
+  .maquila-wrap .maquila-tabla-kardex td .maquila-chip { font-size: 11px; }
+  .maquila-dueno { padding: 8px 12px; gap: 2px 10px; }
+  .maquila-dueno-links { margin-left: 0; flex-basis: 100%; }
+}
+
+/* 39 · Restos medidos: foco del textarea, área táctil de los enlaces en
+   fichas de cabecera, separadores heredados en las tablas mini, recibo. */
+.maquila-wrap textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .18);
+}
+.maquila-cabecera dd a {
+  display: inline-block;
+  padding: 12px 0;
+  margin: -12px 0;
+}
+.maquila-wrap .maquila-tabla-mini td,
+.maquila-wrap .maquila-tabla-mini th {
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+.maquila-wrap .maquila-recibo {
+  border-color: #c7d2fe;
+  background: #fafbff !important;
+}

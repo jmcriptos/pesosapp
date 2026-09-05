@@ -46,7 +46,7 @@
           {{ saldos_linea[l.id]|fmt_cant(l.ingrediente.unidad) }}
           {% if saldos_linea[l.id] <= 0 %}{{ chip('Agotada', 'neutro') }}{% endif %}
         </td>
-        <td data-label="Bultos" class="maquila-num">{{ l.cantidad_bultos }}</td>
+        <td data-label="Bultos" class="maquila-num">{{ l.cantidad_bultos if l.cantidad_bultos else '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -78,10 +78,25 @@
   </dl>
 </section>
 
-{% if not recepcion.anulada %}
+{#- La pantalla no ofrece lo que el servidor va a rechazar: si alguna línea
+    ya alimentó una corrida, `anular_recepcion` lanza RecepcionConsumida. En
+    vez de un formulario que falla después del confirm, se dice qué se
+    consumió y adónde ir. -#}
+{% set ns = namespace(consumidas=[]) %}
+{% for l in recepcion.lineas if not l.anulada %}
+  {% if saldos_linea[l.id] < l.peso_total %}
+    {% set ns.consumidas = ns.consumidas + [l.ingrediente.nombre ~ ' ' ~ ((l.peso_total - saldos_linea[l.id])|fmt_cant(l.ingrediente.unidad))] %}
+  {% endif %}
+{% endfor %}
+{% if not recepcion.anulada and ns.consumidas %}
 <section class="ops-card">
   <h2>Anular recepción</h2>
-  <p class="maquila-nota">Solo se puede anular si ninguna línea alimentó una corrida. Los movimientos inversos quedan en el kardex; nada se borra.</p>
+  <p class="maquila-nota">No se puede anular: ya salió material de esta recepción hacia producción ({{ ns.consumidas|join(' · ') }}). Lo que sí se puede es corregir las líneas intactas desde «Corregir recepción», o ver en el <a href="{{ url_for('maquila.reporte_kardex', cliente_id=recepcion.cliente_id) }}">kardex</a> qué corrida lo consumió.</p>
+</section>
+{% elif not recepcion.anulada %}
+<section class="ops-card">
+  <h2>Anular recepción</h2>
+  <p class="maquila-nota">Ninguna línea alimentó una corrida todavía, así que se puede anular. Los movimientos inversos quedan en el kardex; nada se borra.</p>
   <form method="POST" action="{{ url_for('maquila.recepcion_anular', recepcion_id=recepcion.id) }}"
         class="ops-sheet-form" data-confirm="¿Anular esta recepción? Se escriben los movimientos inversos en el kardex.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

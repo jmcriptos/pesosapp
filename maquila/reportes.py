@@ -61,9 +61,13 @@ def saldos(cliente_id):
         if saldo <= CERO:
             continue
         abiertas.setdefault(linea.ingrediente_id, []).append({
+            'recepcion_id': recepcion.id,
             'codigo': recepcion.codigo,
             'recibido_en': recepcion.recibido_en,
             'lote_cliente': linea.lote_cliente,
+            # Para carne cruda el orden que importa suele ser el vencimiento
+            # del lote del cliente: se muestra al lado de la fecha de entrada.
+            'fecha_vencimiento': linea.fecha_vencimiento,
             'saldo': saldo,
         })
 
@@ -88,6 +92,23 @@ def kardex(cliente_id, ingrediente_id=None, desde=None, hasta=None):
     movimientos = query.order_by(MovimientoIngrediente.registrado_en.asc(),
                                  MovimientoIngrediente.id.asc()).all()
 
+    # El origen se muestra con su CÓDIGO (R-2026-0001, P-2026-0003), no con
+    # el id interno: «recepción #1» obligaba a traducir de memoria. Dos
+    # consultas en lote, una por tipo.
+    ids_rec = {m.origen_id for m, _, _ in movimientos
+               if m.origen_tipo == 'recepcion' and m.origen_id}
+    ids_cor = {m.origen_id for m, _, _ in movimientos
+               if m.origen_tipo == 'corrida' and m.origen_id}
+    codigos = {}
+    if ids_rec:
+        codigos.update({('recepcion', r.id): r.codigo for r in
+                        RecepcionIngrediente.query.filter(
+                            RecepcionIngrediente.id.in_(ids_rec)).all()})
+    if ids_cor:
+        codigos.update({('corrida', c.id): c.codigo for c in
+                        CorridaProduccion.query.filter(
+                            CorridaProduccion.id.in_(ids_cor)).all()})
+
     acumulado = {}
     filas = []
     for mov, ingrediente, vendedor in movimientos:
@@ -106,6 +127,7 @@ def kardex(cliente_id, ingrediente_id=None, desde=None, hasta=None):
             'cantidad': _dec(mov.cantidad),
             'saldo_acumulado': acumulado[clave],
             'origen': f'{mov.origen_tipo}:{mov.origen_id}' if mov.origen_id else mov.origen_tipo,
+            'origen_codigo': codigos.get((mov.origen_tipo, mov.origen_id)),
             'origen_tipo': mov.origen_tipo,
             'origen_id': mov.origen_id,
             'responsable': vendedor.nombre_completo if vendedor else '—',
@@ -194,6 +216,7 @@ def _atras_desde_corrida(corrida):
                 .filter(CorridaConsumo.corrida_id == corrida.id)
                 .all())
     return [{
+        'recepcion_id': recepcion.id,
         'codigo': recepcion.codigo,
         'recibido_en': recepcion.recibido_en,
         'documento_cliente': recepcion.documento_cliente,
@@ -367,6 +390,7 @@ def trazar(termino):
                 'ambiguo': False,
                 'corridas': corridas,
                 'hacia_atras': [{
+                    'recepcion_id': recepcion.id,
                     'codigo': recepcion.codigo,
                     'recibido_en': recepcion.recibido_en,
                     'documento_cliente': recepcion.documento_cliente,

@@ -6,7 +6,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <section class="ops-card">
-    <h2>Cabecera</h2>
+    <h2>Recepción</h2>
     <p class="maquila-nota">Lo que se registra acá entra al inventario del cliente y queda a su nombre. El cliente no tiene valor por defecto a propósito: una recepción cargada al cliente equivocado es carne ajena en la cuenta de otro.</p>
     <div class="ops-field">
       <label for="cliente_id">Cliente</label>
@@ -19,6 +19,22 @@
       <label for="recibido_en">Fecha</label>
       <input type="date" id="recibido_en" name="recibido_en" required value="{{ hoy.strftime('%Y-%m-%d') if hoy else '' }}">
     </div>
+  </section>
+
+  <section class="ops-card">
+    <h2>Ingredientes</h2>
+    <p class="maquila-nota">Una línea por ingrediente. «Bultos» es cuántos paquetes llegaron; «Peso total» es lo que marcó la balanza para toda la línea. Son dos números independientes.</p>
+    <div id="rec-lineas"></div>
+    <div class="maquila-acciones">
+      <button type="button" class="btn" id="rec-add-linea">Agregar otro ingrediente</button>
+    </div>
+  </section>
+
+  {#- Lo que no hace falta para pesar va después de las líneas y plegado en
+      el teléfono: con la carne en la balanza, el primer «Peso total» tiene
+      que estar a un scroll, no a tres. -#}
+  <details class="ops-card maquila-detalles" id="mas-datos" open>
+    <summary>Más datos de la entrega <span class="maquila-meta">documento, temperatura, transportista, notas</span></summary>
     <div class="ops-field">
       <label for="documento_cliente">Documento del cliente <small>(opcional)</small></label>
       <input type="text" id="documento_cliente" name="documento_cliente" autocomplete="off"
@@ -36,22 +52,13 @@
       <label for="notas">Notas <small>(opcional)</small></label>
       <textarea id="notas" name="notas" rows="2"></textarea>
     </div>
-  </section>
-
-  <section class="ops-card">
-    <h2>Ingredientes</h2>
-    <p class="maquila-nota">Una línea por ingrediente. «Bultos» es cuántos paquetes llegaron; «Peso total» es lo que marcó la balanza para toda la línea. Son dos números independientes.</p>
-    <div id="rec-lineas"></div>
-    <div class="maquila-acciones">
-      <button type="button" class="btn" id="rec-add-linea">Agregar otro ingrediente</button>
-    </div>
-  </section>
+  </details>
 
   <section class="ops-card">
     <h2>Evidencia</h2>
     <div class="ops-field">
       <label for="fotos">Fotos <small>(opcional)</small></label>
-      <input type="file" id="fotos" name="fotos" accept="image/*" capture="environment" multiple>
+      <input type="file" id="fotos" name="fotos" accept="image/*" multiple>
     </div>
     <div class="ops-firma-label" id="firmaLabel">Firma de quien entrega</div>
     <!-- El botón de borrar va DENTRO del pad: `.ops-firma-clear` es
@@ -119,14 +126,26 @@
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
   addLinea();
 
+  // En el teléfono, los datos secundarios arrancan plegados.
+  var masDatos = document.getElementById('mas-datos');
+  if (masDatos && window.innerWidth < 768) masDatos.open = false;
+
   // Quitar una línea agregada de más. Siempre queda al menos una: una
-  // recepción sin líneas no existe, y el servidor lo rechaza igual.
+  // recepción sin líneas no existe, y el servidor lo rechaza igual. Con una
+  // sola línea el botón se deshabilita en vez de no hacer nada en silencio.
+  function refrescarQuitar() {
+    var botones = cont.querySelectorAll('[data-rec-quitar]');
+    var sola = botones.length <= 1;
+    botones.forEach(function (b) { b.disabled = sola; b.setAttribute('aria-disabled', sola ? 'true' : 'false'); });
+  }
   cont.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-rec-quitar]');
-    if (!btn) return;
-    if (cont.querySelectorAll('.rec-linea').length <= 1) return;
+    if (!btn || btn.disabled) return;
     btn.closest('.rec-linea').remove();
+    refrescarQuitar();
   });
+  document.getElementById('rec-add-linea').addEventListener('click', refrescarQuitar);
+  refrescarQuitar();
 
   // Color FIJO: los tokens claros están scopeados a .ops-*, así que leerlos de
   // document.body devuelve el token OSCURO y la firma sale blanca sobre blanco.

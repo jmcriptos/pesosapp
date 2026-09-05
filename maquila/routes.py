@@ -717,9 +717,22 @@ def corrida_detalle(corrida_id):
     # de tener que ir a `/maquila/ajustes` y volver a elegir todo a mano.
     falta_ingrediente_id = request.args.get('falta_ingrediente_id', type=int)
 
+    # «Recalcular» redirige acá con el consumo declarado en la query
+    # (`c<ingrediente_id>=<cantidad>`): así F5 no reenvía un POST y «atrás»
+    # no vuelve en silencio al reparto teórico.
+    declarados = {}
+    for clave, valor in request.args.items():
+        if clave.startswith('c') and clave[1:].isdigit():
+            cantidad = _decimal(valor)
+            if cantidad and cantidad > 0:
+                declarados[int(clave[1:])] = cantidad
+    reparto_origen = 'teorico'
+    if declarados and corrida.estado == 'abierta':
+        consumo_actual, reparto_origen = declarados, 'declarado'
+
     return render_template(
         'maquila/corrida_detalle.html',
-        **_contexto_corrida(corrida, consumo_actual, 'teorico',
+        **_contexto_corrida(corrida, consumo_actual, reparto_origen,
                             falta_ingrediente_id=falta_ingrediente_id))
 
 
@@ -737,9 +750,16 @@ def corrida_recalcular(corrida_id):
         return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
 
     consumos = _leer_consumos_form(request.form)
-    return render_template(
-        'maquila/corrida_detalle.html',
-        **_contexto_corrida(corrida, consumos, 'declarado'))
+    if not consumos:
+        flash('Declará al menos un consumo real antes de recalcular', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                                _anchor='consumo'))
+    total = sum((v for k, v in consumos.items()), Decimal('0'))
+    flash(f'Reparto recalculado con lo declarado ({len(consumos)} ingrediente(s)). '
+          'Revisá el total antes de cerrar.', 'success')
+    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                            _anchor='reparto',
+                            **{f'c{k}': str(v) for k, v in consumos.items()}))
 
 
 @bp.route('/corridas/<int:corrida_id>/caja', methods=['POST'])
@@ -754,7 +774,9 @@ def corrida_caja(corrida_id):
     except servicios.CorridaInvalida as exc:
         db.session.rollback()
         flash(str(exc), 'error')
-    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+    # Vuelve al campo de peso: la siguiente caja ya está en la balanza.
+    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                            _anchor='peso'))
 
 
 @bp.route('/corridas/<int:corrida_id>/cerrar', methods=['POST'])
@@ -782,8 +804,11 @@ def corrida_cerrar(corrida_id):
         flash(str(exc), 'error')
         return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
 
-    flash(f'Corrida {corrida.codigo} cerrada. '
-          f'Merma: {servicios.merma_de_corrida(corrida)} kg', 'success')
+    merma = servicios.merma_de_corrida(corrida)
+    consumido = servicios.consumo_en_peso(corrida)
+    pct = f' ({(merma / consumido * 100).quantize(Decimal("0.1"))} %)' if consumido > 0 else ''
+    flash(f'Corrida {corrida.codigo} cerrada: se descontaron {consumido} kg del '
+          f'inventario de {corrida.cliente.nombre}. Merma: {merma} kg{pct}', 'success')
     return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
 
 
@@ -892,10 +917,16 @@ def ajustes():
                 'motivo': mov.motivo,
             })
 
+    # El saldo actual de cada ingrediente viaja con las opciones: quien
+    # registra un ajuste tiene que ver contra qué lo hace, sin ir a Saldos.
+    saldos_actuales = {f['ingrediente_id']: f['saldo']
+                       for f in servicios.saldos_de_cliente(cliente_id)} if cliente_id else {}
+
     return render_template(
         'maquila/ajustes.html',
         clientes=_clientes_con_maquila(),
         ingredientes=_ingredientes_activos(),
+        saldos_actuales=saldos_actuales,
         cliente_id=cliente_id,
         ingrediente_id_sugerido=request.args.get('ingrediente_id', type=int),
         ajustes=ajustes_de_cliente)
@@ -975,8 +1006,10 @@ def reporte_kardex():
     # pasa `Undefined` como conversor y werkzeug revienta al llamarlo — pero
     # solo cuando el parámetro viene en la query, que es justo lo que ningún
     # test cubría. El parseo se hace acá, donde `int` existe.
+    # Más reciente primero en pantalla (el saldo acumulado ya viene calculado
+    # en orden cronológico); la exportación conserva el orden del libro.
     return render_template(
-        'maquila/reporte_kardex.html', filas=filas, cliente_id=cliente_id,
+        'maquila/reporte_kardex.html', filas=list(reversed(filas)), cliente_id=cliente_id,
         ingrediente_id=ingrediente_id,
         clientes=_clientes_con_maquila(),
         ingredientes=Ingrediente.query.order_by(Ingrediente.nombre).all(),

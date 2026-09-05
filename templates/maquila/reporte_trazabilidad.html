@@ -90,7 +90,7 @@
           {% if resultado.ambiguo %}
           <td data-label="Candidato">{{ f.get('cliente') or ('Pedido #' ~ f.get('pedido_id') if f.get('pedido_id') else '—') }}</td>
           {% endif %}
-          <td data-label="Recepción">{{ f.codigo }}{% if f.sin_origen %} {{ chip('Pesada a mano, sin origen', 'aviso') }}{% endif %}</td>
+          <td data-label="Recepción">{% if f.get('recepcion_id') %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=f.recepcion_id) }}">{{ f.codigo }}</a>{% else %}{{ f.codigo }}{% endif %}{% if f.sin_origen %} {{ chip('Pesada a mano, sin origen', 'aviso') }}{% endif %}</td>
           <td data-label="Fecha">{{ f.recibido_en.strftime('%d/%m/%Y') if f.recibido_en else '—' }}</td>
           <td data-label="Documento">{{ f.documento_cliente or '—' }}</td>
           <td data-label="Lote cliente">{{ f.lote_cliente or '—' }}</td>
