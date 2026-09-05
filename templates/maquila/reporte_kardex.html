@@ -51,7 +51,8 @@
   {% elif not filas %}
     <p class="ops-empty">Sin movimientos para este filtro.</p>
   {% else %}
-  <table class="maquila-tabla">
+  <p class="maquila-nota">Más reciente primero. El saldo acumulado es el del ingrediente después de ese movimiento.</p>
+  <table class="maquila-tabla maquila-tabla-kardex">
     <thead>
       <tr><th>Fecha</th><th>Tipo</th><th>Ingrediente</th><th class="maquila-num">Cantidad</th>
         <th class="maquila-num">Saldo acumulado</th><th>Origen</th><th>Responsable</th><th>Motivo</th></tr>
@@ -59,18 +60,18 @@
     <tbody>
       {% for f in filas %}
       <tr>
-        <td data-label="Fecha" class="maquila-nowrap">{{ f.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="Fecha" class="maquila-nowrap">{{ f.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
         <td data-label="Tipo">{{ chip_tipo_movimiento(f.tipo) }}</td>
         <td data-label="Ingrediente">{{ f.ingrediente }}</td>
         <td data-label="Cantidad" class="maquila-num {{ 'maquila-neg' if f.cantidad < 0 else 'maquila-pos' }}">{{ ('+' if f.cantidad > 0 else '') ~ (f.cantidad|fmt_cant(f.unidad)) }}</td>
         <td data-label="Saldo acumulado" class="maquila-num">{{ f.saldo_acumulado|fmt_cant(f.unidad) }}</td>
         <td data-label="Origen">
-          {% if f.origen_tipo == 'recepcion' and f.origen_id %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=f.origen_id) }}">recepción #{{ f.origen_id }}</a>
-          {% elif f.origen_tipo == 'corrida' and f.origen_id %}<a href="{{ url_for('maquila.corrida_detalle', corrida_id=f.origen_id) }}">corrida #{{ f.origen_id }}</a>
-          {% else %}{{ f.origen }}{% endif %}
+          {% if f.origen_tipo == 'recepcion' and f.origen_id %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=f.origen_id) }}">{{ f.origen_codigo or ('recepción #' ~ f.origen_id) }}</a>
+          {% elif f.origen_tipo == 'corrida' and f.origen_id %}<a href="{{ url_for('maquila.corrida_detalle', corrida_id=f.origen_id) }}">{{ f.origen_codigo or ('corrida #' ~ f.origen_id) }}</a>
+          {% else %}{{ 'ajuste manual' if f.origen_tipo == 'manual' else f.origen }}{% endif %}
         </td>
-        <td data-label="Responsable">{{ f.responsable }}</td>
-        <td data-label="Motivo">{{ f.motivo or '—' }}</td>
+        <td data-label="Responsable" class="maquila-secundario">{{ f.responsable }}</td>
+        <td data-label="Motivo" class="{{ 'maquila-vacio' if not f.motivo else '' }}">{{ f.motivo or '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -39,9 +39,11 @@
       <label for="ingrediente_id">Ingrediente</label>
       <select id="ingrediente_id" name="ingrediente_id" required>
         {% for i in ingredientes %}
-        <option value="{{ i.id }}" {{ 'selected' if ingrediente_id_sugerido == i.id else '' }}>{{ i.nombre }} ({{ i.unidad }})</option>
+        <option value="{{ i.id }}" data-unidad="{{ i.unidad }}" data-saldo="{{ saldos_actuales.get(i.id)|fmt_cant(i.unidad) if saldos_actuales.get(i.id) is not none else 'sin movimientos' }}"
+                {{ 'selected' if ingrediente_id_sugerido == i.id else '' }}>{{ i.nombre }}</option>
         {% endfor %}
       </select>
+      <p class="maquila-meta" id="saldo-actual" aria-live="polite"></p>
     </div>
     <div class="ops-field">
       <label for="sentido">Sentido</label>
@@ -51,18 +53,46 @@
       </select>
     </div>
     <div class="ops-field">
-      <label for="cantidad">Cantidad</label>
+      <label for="cantidad">Cantidad <small id="cantidad-unidad"></small></label>
       <input type="number" step="0.001" min="0.001" inputmode="decimal" id="cantidad" name="cantidad" required autocomplete="off">
     </div>
     <div class="ops-field">
       <label for="motivo">Motivo <small>(obligatorio)</small></label>
       <textarea id="motivo" name="motivo" required placeholder="Qué pasó y cómo se contó"></textarea>
     </div>
-    <footer class="ops-sticky-footer">
+    <div class="maquila-acciones">
       <button type="submit" class="btn btn-primary">Registrar ajuste</button>
-    </footer>
+    </div>
   </form>
 </section>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  // El saldo actual y la unidad del ingrediente elegido se ven junto al
+  // formulario: un ajuste se decide contra un número, no de memoria. Y una
+  // salida resta inventario ajeno, así que pide confirmación; una entrada no.
+  var sel = document.getElementById('ingrediente_id');
+  var saldo = document.getElementById('saldo-actual');
+  var unidad = document.getElementById('cantidad-unidad');
+  var sentido = document.getElementById('sentido');
+  if (!sel) return;
+  function pintar() {
+    var o = sel.options[sel.selectedIndex];
+    if (!o) return;
+    saldo.textContent = 'Saldo actual: ' + o.dataset.saldo;
+    unidad.textContent = 'en ' + o.dataset.unidad;
+  }
+  sel.addEventListener('change', pintar);
+  pintar();
+  sel.closest('form').addEventListener('submit', function (e) {
+    if (sentido.value === 'salida') {
+      var o = sel.options[sel.selectedIndex];
+      var cant = document.getElementById('cantidad').value;
+      if (!confirm('Vas a restar ' + cant + ' ' + o.dataset.unidad + ' de ' + o.text + ' (saldo actual: ' + o.dataset.saldo + '). ¿Registrar la salida?')) e.preventDefault();
+    }
+  });
+})();
+</script>
 
 <section class="ops-card">
   <h2>Ajustes manuales registrados</h2>

@@ -14,7 +14,6 @@
       {% for t in tarjetas %}
       <section class="ops-card maquila-tarjeta">
         <div class="maquila-tarjeta-cab">
-          <span class="maquila-dueno-label">Inventario en custodia de</span>
           <h2><a href="{{ url_for('maquila.reporte_saldos', cliente_id=t.cliente.id) }}">{{ t.cliente.nombre }}</a></h2>
         </div>
         <div class="maquila-tarjeta-meta">
