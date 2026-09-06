@@ -994,7 +994,7 @@ class FirmaRequerida(Exception):
 
 def _motivo_correccion(corrida, ingrediente, anterior, nuevo, motivo):
     nombre = ingrediente.nombre if ingrediente else '?'
-    return (f'Corrección de {corrida.codigo}: {nombre} {anterior} → {nuevo}. '
+    return (f'Corrección de {corrida.codigo}: {nombre} {anterior:.3f} → {nuevo:.3f}. '
             f'{motivo}')
 
 

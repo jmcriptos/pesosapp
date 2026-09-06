@@ -24,19 +24,23 @@ def app():
         from app import Rol, Territorio, Vendedor, Cliente, Producto
         from maquila.models import Ingrediente
         ra = Rol(nombre='super_admin', descripcion='Admin')
+        rv = Rol(nombre='vendedor', descripcion='Vendedor')
         terr = Territorio(nombre='t1', descripcion='T1')
-        _db.session.add_all([ra, terr])
+        _db.session.add_all([ra, rv, terr])
         _db.session.flush()
         v = Vendedor(username='admin', email='a@t.com', nombre_completo='Admin',
                      rol_id=ra.id, territorio_id=terr.id, activo=True)
         v.set_password('pw')
+        vend = Vendedor(username='vend', email='v@t.com', nombre_completo='Vend',
+                        rol_id=rv.id, territorio_id=terr.id, activo=True)
+        vend.set_password('pw')
         cli = Cliente(nombre='Maquila SA')
         otro = Cliente(nombre='Otro cliente')
         prod = Producto(nombre='Chorizo', se_pesa=True, tax_rate=10)
         prod2 = Producto(nombre='Salchicha', se_pesa=True, tax_rate=10)
         carne = Ingrediente(nombre='Carne de res', unidad='kg')
         grasa = Ingrediente(nombre='Grasa', unidad='kg')
-        _db.session.add_all([v, cli, otro, prod, prod2, carne, grasa])
+        _db.session.add_all([v, vend, cli, otro, prod, prod2, carne, grasa])
         _db.session.commit()
         IDS.update(vendedor=v.id, cliente=cli.id, otro_cliente=otro.id,
                    producto=prod.id, producto2=prod2.id,
@@ -514,3 +518,154 @@ def test_corregir_el_consumo_recalcula_el_teorico_con_el_peso_actual(app):
 
         assert corrida.consumos[0].cantidad_teorica == Decimal('48.000')
         assert corrida.consumos[0].cantidad_real == Decimal('50.000')
+
+
+# -------------------------------------------------------------------- ruta
+
+import base64
+
+FIRMA_B64 = 'data:image/png;base64,' + base64.b64encode(FIRMA).decode()
+
+
+def _login(app, username='admin'):
+    c = app.test_client()
+    c.post('/login', data={'username': username, 'password': 'pw'}, follow_redirects=True)
+    return c
+
+
+def _form_cajas(corrida, **por_numero):
+    """Listas paralelas tal como viajan en el POST, con overrides por número."""
+    ids, pesos, extra = [], [], {}
+    for caja in corrida.cajas:
+        if caja.anulada_en is not None:
+            continue
+        datos = por_numero.get(f'c{caja.numero}', {})
+        ids.append(str(caja.id))
+        pesos.append(str(datos.get('peso', caja.peso)))
+        if datos.get('quitar'):
+            extra[f'caja_quitar_{caja.id}'] = '1'
+    return {'caja_id': ids, 'caja_peso': pesos, **extra}
+
+
+def _form_cabecera(corrida, **cambios):
+    base = {'cliente_id': str(corrida.cliente_id), 'producto_id': str(corrida.producto_id),
+            'receta_id': str(corrida.receta_id or ''), 'lote': corrida.lote,
+            'fecha_produccion': corrida.fecha_produccion.strftime('%Y-%m-%d'),
+            'fecha_vencimiento': (corrida.fecha_vencimiento.strftime('%Y-%m-%d')
+                                  if corrida.fecha_vencimiento else ''),
+            'notas': corrida.notas or ''}
+    base.update(cambios)
+    return base
+
+
+def test_ruta_get_muestra_el_formulario_al_admin(app):
+    with app.app_context():
+        corrida = _corrida()
+        cid = corrida.id
+    c = _login(app)
+    r = c.get(f'/maquila/corridas/{cid}/editar')
+    assert r.status_code == 200
+    html = r.get_data(as_text=True)
+    assert 'name="lote"' in html and 'value="L-1"' in html
+    assert 'name="caja_peso"' in html
+
+
+def test_ruta_un_vendedor_no_entra(app):
+    with app.app_context():
+        cid = _corrida().id
+    c = _login(app, 'vend')
+    r = c.get(f'/maquila/corridas/{cid}/editar', follow_redirects=False)
+    assert r.status_code in (302, 403)
+
+
+def test_ruta_post_corrige_cabecera_y_cajas_de_una_abierta(app):
+    from maquila.models import CorridaProduccion
+    with app.app_context():
+        corrida = _corrida(cajas=(10, 12))
+        cid = corrida.id
+        datos = {**_form_cabecera(corrida, lote='L-7', notas='ok'),
+                 **_form_cajas(corrida, c2={'peso': '11.5'})}
+    c = _login(app)
+    r = c.post(f'/maquila/corridas/{cid}/editar', data=datos, follow_redirects=False)
+    assert r.status_code == 302 and r.headers['Location'].endswith(f'/maquila/corridas/{cid}')
+    with app.app_context():
+        corrida = _db.session.get(CorridaProduccion, cid)
+        assert corrida.lote == 'L-7' and corrida.notas == 'ok'
+        assert {c.numero: Decimal(str(c.peso)) for c in corrida.cajas} == \
+            {1: Decimal('10'), 2: Decimal('11.5')}
+
+
+def test_ruta_post_quita_una_caja_con_motivo(app):
+    from maquila.models import CorridaProduccion
+    with app.app_context():
+        corrida = _corrida(cajas=(10, 12))
+        cid = corrida.id
+        datos = {**_form_cabecera(corrida), **_form_cajas(corrida, c2={'quitar': True}),
+                 'motivo': 'dup'}
+    c = _login(app)
+    c.post(f'/maquila/corridas/{cid}/editar', data=datos)
+    with app.app_context():
+        corrida = _db.session.get(CorridaProduccion, cid)
+        anulada = [x for x in corrida.cajas if x.numero == 2][0]
+        assert anulada.anulada_en is not None and anulada.motivo_anulacion == 'dup'
+
+
+def test_ruta_post_corrige_el_consumo_de_una_cerrada_con_motivo_y_firma(app):
+    from maquila.models import CorridaProduccion
+    with app.app_context():
+        linea = _recepcion(100).lineas[0]
+        corrida = _corrida(cerrar=True)
+        cid, lid = corrida.id, linea.id
+        datos = {**_form_cabecera(corrida), **_form_cajas(corrida),
+                 'consumo_ingrediente_id': [str(IDS['carne']), str(IDS['grasa'])],
+                 'consumo_real': ['10', ''],
+                 'motivo': 'faltaban 2 kg', 'firma_png': FIRMA_B64}
+    c = _login(app)
+    r = c.post(f'/maquila/corridas/{cid}/editar', data=datos, follow_redirects=False)
+    assert r.status_code == 302
+    with app.app_context():
+        corrida = _db.session.get(CorridaProduccion, cid)
+        assert corrida.consumos[0].cantidad_real == Decimal('10.000')
+        assert _saldo(lid) == Decimal('90')
+        assert corrida.firma_cierre == FIRMA
+
+
+def test_ruta_post_rechazado_se_repinta_con_lo_tecleado(app):
+    from maquila.models import CorridaProduccion
+    with app.app_context():
+        _recepcion(100)
+        corrida = _corrida(cerrar=True)
+        cid = corrida.id
+        datos = {**_form_cabecera(corrida, lote='L-77'), **_form_cajas(corrida),
+                 'consumo_ingrediente_id': [str(IDS['carne'])], 'consumo_real': ['10'],
+                 'motivo': 'x'}             # sin firma
+    c = _login(app)
+    r = c.post(f'/maquila/corridas/{cid}/editar', data=datos)
+    assert r.status_code == 200
+    html = r.get_data(as_text=True)
+    assert 'firma' in html.lower()
+    assert 'value="L-77"' in html
+    with app.app_context():
+        corrida = _db.session.get(CorridaProduccion, cid)
+        assert corrida.lote == 'L-1'
+        assert corrida.consumos[0].cantidad_real == Decimal('8.000')
+
+
+def test_ruta_una_anulada_redirige_al_detalle(app):
+    from maquila import servicios
+    with app.app_context():
+        corrida = _corrida()
+        servicios.anular_corrida(corrida, IDS['vendedor'], 'error')
+        _db.session.commit()
+        cid = corrida.id
+    c = _login(app)
+    r = c.get(f'/maquila/corridas/{cid}/editar', follow_redirects=False)
+    assert r.status_code == 302 and r.headers['Location'].endswith(f'/maquila/corridas/{cid}')
+
+
+def test_el_detalle_enlaza_a_corregir(app):
+    with app.app_context():
+        cid = _corrida().id
+    c = _login(app)
+    html = c.get(f'/maquila/corridas/{cid}').get_data(as_text=True)
+    assert f'/maquila/corridas/{cid}/editar' in html
