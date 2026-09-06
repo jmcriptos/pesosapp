@@ -1,0 +1,319 @@
+{% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip, chip_estado, dueno %}
+{% block title %}Cerrar {{ corrida.codigo }}{% endblock %}
+{% block maquila_title %}Cerrar {{ corrida.codigo }}{% endblock %}
+{% block maquila_body %}
+{{ dueno(corrida.cliente.nombre, corrida.cliente_id) }}
+
+{% if falta_ingrediente_id %}
+{% set falta = (ingredientes | selectattr('id', 'equalto', falta_ingrediente_id) | first) %}
+<section class="ops-card maquila-aviso">
+  <h2>Falta saldo{% if falta %} de {{ falta.nombre }}{% endif %} para cerrar</h2>
+  <p>El consumo declarado supera lo que {{ corrida.cliente.nombre }} tiene en cámara. Registrá un ajuste de entrada con su motivo y volvé a cerrar la corrida.</p>
+  <a class="btn btn-primary"
+     href="{{ url_for('maquila.ajustes', cliente_id=corrida.cliente_id, ingrediente_id=falta_ingrediente_id) }}">
+    Registrar el ajuste
+  </a>
+</section>
+{% endif %}
+
+<section class="ops-card maquila-cierre-cab">
+  <div class="maquila-titulo-fila">
+    <h2><a href="{{ url_for('maquila.corrida_detalle', corrida_id=corrida.id) }}">{{ corrida.codigo }}</a></h2>
+    {{ chip_estado(corrida.estado) }}
+    <span class="maquila-meta">{{ corrida.producto.nombre }} · lote {{ corrida.lote }} · {{ corrida.peso_producido|fmt_cant }} en {{ corrida.cajas|length }} caja{{ 's' if corrida.cajas|length != 1 else '' }}</span>
+  </div>
+  <p class="maquila-nota">Cerrar descuenta el consumo real del inventario de {{ corrida.cliente.nombre }}. Declará, recalculá, revisá el total y firmá. Para pesar más cajas o anular, volvé a la <a href="{{ url_for('maquila.corrida_detalle', corrida_id=corrida.id) }}">corrida</a>.</p>
+</section>
+
+<form method="POST" action="{{ url_for('maquila.corrida_cerrar', corrida_id=corrida.id) }}"
+      class="ops-sheet-form" id="cierre-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card" id="consumo">
+    <h2>Consumo real</h2>
+    {% if not ingredientes %}
+      <p class="ops-empty">No hay ingredientes activos para declarar consumo.</p>
+    {% else %}
+    <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos. Lo que se descuenta es lo que declarás en «Real»: no viene precargado a propósito, para que el rendimiento mida lo que salió de la cámara y no lo que dice la receta. Si coincide, usá «Copiar el teórico».</p>
+    <table class="maquila-tabla maquila-tabla-consumo">
+      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
+      <tbody>
+        {% for i in ingredientes %}
+        {#- Lo que se cuenta (ud) no admite fracciones: el teórico se redondea
+            hacia arriba y el campo va de a uno. -#}
+        {% set teo = teoricos.get(i.id) %}
+        {% if teo is not none and i.unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
+        <tr>
+          <td data-label="Ingrediente">{{ i.nombre }}</td>
+          <td data-label="Teórico" class="maquila-num">{{ teo|fmt_cant(i.unidad) if teo is not none else '—' }}</td>
+          <td data-label="Real" class="maquila-num">
+            <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
+            <input type="number" step="{{ '1' if i.unidad == 'ud' else '0.001' }}" min="0" inputmode="{{ 'numeric' if i.unidad == 'ud' else 'decimal' }}" name="consumo_real"
+                   aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
+                   placeholder="{{ 'sin declarar' if teo is not none else '—' }}"
+                   data-teorico="{{ teo if teo is not none else '' }}" data-unidad="{{ i.unidad }}"
+                   value="{{ consumo_actual.get(i.id, '') if reparto_origen == 'declarado' else '' }}">
+          </td>
+          <td data-label="Diferencia" class="maquila-num"><span class="maquila-dif" data-dif aria-live="polite">—</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="maquila-acciones">
+      <button type="button" class="btn" id="btn-usar-teorico">Copiar el teórico</button>
+      <button type="submit" class="btn"
+              formaction="{{ url_for('maquila.corrida_recalcular', corrida_id=corrida.id) }}">Recalcular reparto</button>
+    </div>
+    {% endif %}
+  </section>
+
+  {#- Resumen del reparto ANTES de la sección: alimenta la franja del total,
+      la hoja de confirmación y el desglose por ingrediente. -#}
+  {% set ns = namespace(total_kg=0, faltantes=0, resumen=[], detalle=[]) %}
+  {% if reparto %}
+    {% for ingrediente_id, tramos in reparto.items() %}
+      {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
+      {% set nombre = ing.nombre if ing else ingrediente_id %}
+      {% set unidad = ing.unidad if ing else 'kg' %}
+      {% if tramos is none %}
+        {% set ns.faltantes = ns.faltantes + 1 %}
+        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': none, 'tramos': [], 'agota': false}] %}
+      {% else %}
+        {% set suma = namespace(v=0, agota=false, agotan=[]) %}
+        {% for linea_id, cantidad in tramos %}
+          {% set suma.v = suma.v + cantidad %}
+          {% set saldo_l = saldos_reparto.get(linea_id) %}
+          {% if saldo_l is not none and (saldo_l - cantidad) <= 0 %}
+            {% set suma.agota = true %}
+            {% set lin = lineas_reparto.get(linea_id) %}
+            {% set suma.agotan = suma.agotan + [lin.recepcion.codigo if lin else ('línea #' ~ linea_id)] %}
+          {% endif %}
+        {% endfor %}
+        {% if unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + suma.v %}{% endif %}
+        {#- Desviación contra la receta, para la hoja: se confirma un total
+            viendo cuánto se aparta de lo esperado. -#}
+        {% set teo = teoricos.get(ingrediente_id) %}
+        {% if teo is not none and unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
+        {% set desvio_pct = (((suma.v - teo) / teo) * 100)|round(1) if teo else none %}
+        {% set ns.resumen = ns.resumen + [nombre ~ ' ' ~ (suma.v|fmt_cant(unidad))] %}
+        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': suma.v, 'tramos': tramos, 'agota': suma.agota, 'agotan': suma.agotan, 'desvio_pct': desvio_pct}] %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% set merma_est = (ns.total_kg - corrida.peso_producido) if ns.total_kg > 0 else none %}
+  {% set merma_est_pct = ((merma_est / ns.total_kg) * 100)|round(1) if ns.total_kg > 0 else none %}
+  {% set hay_resumen = reparto and ns.resumen %}
+
+  {#- El número que se confirma, en rol Figure y ANTES del desglose: es la
+      cifra por la que existe esta pantalla. Si el operario edita un consumo,
+      el JS la marca como desactualizada hasta recalcular. -#}
+  {% if hay_resumen and reparto_origen == 'declarado' %}
+  <section class="ops-card maquila-total-franja" id="total-a-descontar">
+    {% if request.args.get('recalculado') %}
+    <p class="maquila-franja-ok" role="status" aria-live="polite">{{ chip('Recalculado', 'conforme') }} Reparto recalculado con lo declarado. Revisá el total antes de cerrar.</p>
+    {% endif %}
+    <div class="maquila-titulo-fila">
+      <div class="maquila-dueno-label">A descontar del inventario de {{ corrida.cliente.nombre }}</div>
+      <span class="maquila-chip is-aviso" id="franja-desactualizada" hidden>Desactualizado: recalculá</span>
+    </div>
+    <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
+    <div class="maquila-total-detalle">{{ ns.resumen|join(' · ') }}</div>
+    {% if merma_est is not none %}
+    <div class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido; producidos {{ corrida.peso_producido|fmt_cant }}){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}</div>
+    {% endif %}
+    {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="ops-card" id="reparto">
+    <div class="maquila-titulo-fila">
+      <h2>Reparto FIFO</h2>
+      <span id="reparto-chip">{{ chip('Estimado', 'aviso') if reparto_origen == 'teorico' else chip('Según lo declarado', 'conforme') }}</span>
+    </div>
+    {% if reparto_origen == 'teorico' %}
+    <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: es una vista previa, no lo que se va a descontar. Declará el consumo real arriba (o copiá el teórico) y tocá «Recalcular reparto»; el cierre se habilita recién ahí.</p>
+    {% else %}
+    <p class="maquila-nota">Reparto según el <strong>consumo declarado</strong>: de qué recepciones sale cada kilo, más antigua primero. Si volvés a editar el consumo, recalculá de nuevo.</p>
+    {% endif %}
+    {% if not reparto %}
+      <p class="ops-empty">Sin receta, sin cajas producidas o sin consumo declarado: no hay reparto que previsualizar.</p>
+    {% else %}
+    {#- Un bloque plegable por ingrediente: la línea de resumen dice lo que
+        importa (cuánto, de cuántas recepciones, si alguna se agota); el
+        desglose por recepción se abre cuando el total no cuadra. En
+        escritorio arrancan abiertos; en el teléfono, plegados. -#}
+    {% for d in ns.detalle %}
+    <details class="maquila-reparto-ing" open>
+      <summary>
+        <span class="maquila-reparto-nombre">{{ d.nombre }}</span>
+        {% if d.total is none %}
+          {{ chip('Sin saldo suficiente', 'falla') }}
+        {% else %}
+          <span class="maquila-reparto-total maquila-num">{{ d.total|fmt_cant(d.unidad) }}</span>
+          <span class="maquila-meta">de {{ d.tramos|length }} recepci{{ 'ón' if d.tramos|length == 1 else 'ones' }}</span>
+          {% if d.agota %}{{ chip('Agota una línea', 'aviso') }}{% endif %}
+        {% endif %}
+      </summary>
+      {% if d.total is none %}
+      <p class="maquila-nota">No hay recepciones de {{ d.nombre|lower }} que cubran lo declarado. Registrá un ajuste de entrada con su motivo.</p>
+      {% else %}
+      <table class="maquila-tabla-mini maquila-reparto-tabla">
+        <thead><tr><th>Recepción</th><th>Lote del cliente</th><th class="maquila-num">Se descuenta</th><th class="maquila-num">Queda en la línea</th></tr></thead>
+        <tbody>
+          {% for linea_id, cantidad in d.tramos %}
+          {% set linea = lineas_reparto.get(linea_id) %}
+          {% set saldo = saldos_reparto.get(linea_id) %}
+          <tr>
+            <td>{% if linea %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=linea.recepcion_id) }}">{{ linea.recepcion.codigo }}</a> <span class="maquila-meta">{{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }}</span>{% else %}Línea #{{ linea_id }}{% endif %}</td>
+            <td>{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
+            <td class="maquila-num">{{ cantidad|fmt_cant(d.unidad) }}</td>
+            <td class="maquila-num">
+              {% if saldo is not none %}{% set queda = saldo - cantidad %}{{ queda|fmt_cant(d.unidad) }}{% if queda <= 0 %} {{ chip('Se agota', 'aviso') }}{% endif %}{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </details>
+    {% endfor %}
+    <p class="maquila-total-detalle">Total en peso a descontar: <strong>{{ ns.total_kg|fmt_cant }}</strong>{% if merma_est is not none %} · merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido){% endif %}</p>
+    {% endif %}
+  </section>
+
+  <section class="ops-card" id="firma-cierre">
+    <h2>Firma de quien cierra</h2>
+    <p class="maquila-nota">Con la firma queda constancia de quién revisó el descuento del inventario de {{ corrida.cliente.nombre }}. Es obligatoria: sin trazo, el cierre no se habilita.</p>
+    <div class="ops-firma-label" id="firmaLabel">Firma de quien cierra</div>
+    <div class="ops-firma-pad" id="firmaPad-wrap">
+      <canvas id="firmaPad" width="600" height="200" role="img" aria-labelledby="firmaLabel" aria-describedby="firmaAyuda"></canvas>
+      <div class="ops-firma-placeholder" id="firmaPlaceholder">Firmá acá con el dedo</div>
+      <button type="button" class="ops-firma-clear" id="firmaClear">Borrar firma</button>
+    </div>
+    <p class="maquila-firma-ayuda" id="firmaAyuda">Quien firma es quien cierra: {{ current_user.nombre_completo }}.</p>
+    <input type="hidden" name="firma_png" id="firma_png">
+  </section>
+
+  <footer class="ops-sticky-footer">
+    {#- El aviso vive pegado al botón que explica: en escritorio el pie es
+        visible desde el primer paint y el motivo del bloqueo tiene que estar
+        a la vista, no 2.000px arriba. -#}
+    <p class="maquila-aviso-inline" id="cierre-aviso" aria-live="polite" data-origen="{{ reparto_origen }}">Declará el consumo real (o copiá el teórico) y tocá «Recalcular reparto».</p>
+    <button type="submit" class="btn btn-primary" id="btn-cerrar" disabled>Cerrar y descontar</button>
+  </footer>
+</form>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var form = document.getElementById('cierre-form');
+  if (!form) return;
+  var cerrar = document.getElementById('btn-cerrar');
+  var aviso = document.getElementById('cierre-aviso');
+  var inputs = Array.prototype.slice.call(form.querySelectorAll('input[name="consumo_real"]'));
+  var franja = document.getElementById('total-a-descontar');
+  var franjaChip = document.getElementById('franja-desactualizada');
+  var origenDeclarado = aviso && aviso.dataset.origen === 'declarado';
+  var iniciales = inputs.map(function (i) { return i.value; });
+
+  // --- Firma de quien cierra: mismo pad que la recepción. Color FIJO: los
+  // tokens claros están scopeados a .ops-*, así que leerlos de body devuelve
+  // el token oscuro y la firma saldría blanca sobre blanco.
+  var TINTA = '#0f172a';
+  var canvas = document.getElementById('firmaPad');
+  var ctx = canvas.getContext('2d');
+  var dibujando = false, hayFirma = false;
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = TINTA;
+  var padWrap = document.getElementById('firmaPad-wrap');
+  var placeholder = document.getElementById('firmaPlaceholder');
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var p = e.touches ? e.touches[0] : e;
+    return { x: (p.clientX - r.left) * canvas.width / r.width,
+             y: (p.clientY - r.top) * canvas.height / r.height };
+  }
+  function marcarFirmada(si) {
+    hayFirma = si;
+    padWrap.classList.toggle('has-sign', si);
+    placeholder.hidden = si;
+    revisar();
+  }
+  function start(e) { dibujando = true; marcarFirmada(true); var q = pos(e);
+                      ctx.beginPath(); ctx.moveTo(q.x, q.y); e.preventDefault(); }
+  function move(e) { if (!dibujando) return; var q = pos(e);
+                     ctx.lineTo(q.x, q.y); ctx.stroke(); e.preventDefault(); }
+  function end() { dibujando = false; }
+  ['mousedown', 'touchstart'].forEach(function (ev) { canvas.addEventListener(ev, start); });
+  ['mousemove', 'touchmove'].forEach(function (ev) { canvas.addEventListener(ev, move); });
+  ['mouseup', 'mouseleave', 'touchend'].forEach(function (ev) { canvas.addEventListener(ev, end); });
+  document.getElementById('firmaClear').addEventListener('click', function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    marcarFirmada(false);
+  });
+
+  // --- Diferencia Real − Teórico por fila, con signo y %; color por umbral
+  // de desviación (aviso > 5 %, falla > 10 %), no por signo.
+  function fmt(n, u) { return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + ' ' + u; }
+  function diferencias() {
+    inputs.forEach(function (i) {
+      var celda = i.closest('tr') && i.closest('tr').querySelector('[data-dif]');
+      if (!celda) return;
+      var teo = parseFloat(i.dataset.teorico), real = parseFloat(i.value);
+      if (isNaN(teo) || isNaN(real)) { celda.textContent = '—'; celda.className = 'maquila-dif'; return; }
+      var d = real - teo, pct = teo > 0 ? Math.round(d / teo * 1000) / 10 : null;
+      celda.textContent = (d > 0 ? '+' : '') + fmt(d, i.dataset.unidad) + (pct === null ? '' : ' (' + (d > 0 ? '+' : '') + pct + ' %)');
+      var ap = pct === null ? 0 : Math.abs(pct);
+      celda.className = 'maquila-dif ' + (ap > 10 ? 'maquila-desvio-falla' : ap > 5 ? 'maquila-desvio-aviso' : '');
+    });
+  }
+
+  // --- «Cerrar y descontar» se habilita con las dos cosas: reparto que
+  // refleja lo declarado (sin editar después) y firma capturada. El aviso
+  // del pie dice cuál falta. La revisión en la propia página y la firma
+  // son la confirmación: no hay modal.
+  function revisar() {
+    var cambiado = inputs.some(function (i, k) { return i.value !== iniciales[k]; });
+    var faltaReparto = !origenDeclarado || cambiado;
+    var bloqueado = faltaReparto || !hayFirma;
+    cerrar.disabled = bloqueado;
+    if (aviso) {
+      aviso.hidden = !bloqueado;
+      aviso.textContent = faltaReparto
+        ? (cambiado ? 'Editaste el consumo: tocá «Recalcular reparto» para que el total refleje lo declarado.'
+                    : 'Declará el consumo real (o copiá el teórico) y tocá «Recalcular reparto».')
+        : 'Falta la firma de quien cierra: firmá en el pad de arriba.';
+    }
+    if (franja) { franja.classList.toggle('is-desactualizado', cambiado); if (franjaChip) franjaChip.hidden = !cambiado; }
+    var repartoChip = document.getElementById('reparto-chip');
+    if (repartoChip) {
+      if (!repartoChip.dataset.original) repartoChip.dataset.original = repartoChip.innerHTML;
+      repartoChip.innerHTML = cambiado ? '<span class="maquila-chip is-aviso">Desactualizado: recalculá</span>' : repartoChip.dataset.original;
+    }
+    document.querySelectorAll('details.maquila-reparto-ing').forEach(function (d) { d.classList.toggle('is-desactualizado', cambiado); });
+    var ok = document.querySelector('.maquila-franja-ok');
+    if (ok) ok.hidden = cambiado;
+    diferencias();
+  }
+  inputs.forEach(function (i) { i.addEventListener('input', revisar); });
+  revisar();
+
+  form.addEventListener('submit', function (e) {
+    if (e.submitter !== cerrar) return;          // Recalcular pasa sin más
+    if (cerrar.disabled || !hayFirma) { e.preventDefault(); return; }
+    document.getElementById('firma_png').value = canvas.toDataURL('image/png');
+  });
+
+  // «Copiar el teórico»: llena lo vacío con la receta, sin pisar lo tecleado.
+  var usar = document.getElementById('btn-usar-teorico');
+  if (usar) usar.addEventListener('click', function () {
+    inputs.forEach(function (i) { if (!i.value && i.dataset.teorico) i.value = i.dataset.teorico; });
+    revisar();
+  });
+
+  // En el teléfono, el desglose por recepción arranca plegado.
+  if (window.innerWidth < 768) {
+    document.querySelectorAll('details.maquila-reparto-ing').forEach(function (d) { d.open = false; });
+  }
+})();
+</script>
+{% endblock %}
