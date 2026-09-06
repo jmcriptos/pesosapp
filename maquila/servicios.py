@@ -984,6 +984,266 @@ def anular_corrida(corrida, vendedor_id, motivo):
     return corrida
 
 
+class CorridaNoEditable(Exception):
+    """La corrida está anulada: no hay nada que corregir."""
+
+
+class FirmaRequerida(Exception):
+    """Corregir el consumo de una corrida cerrada exige la firma de quien corrige."""
+
+
+def _motivo_correccion(corrida, ingrediente, anterior, nuevo, motivo):
+    nombre = ingrediente.nombre if ingrediente else '?'
+    return (f'Corrección de {corrida.codigo}: {nombre} {anterior:.3f} → {nuevo:.3f}. '
+            f'{motivo}')
+
+
+def editar_corrida(corrida, *, vendedor_id, cabecera, cajas, consumos=None,
+                   motivo=None, firma=None, firma_mimetype=None):
+    """Corrige una corrida en una sola transacción.
+
+    Cabecera y cajas se corrigen en cualquier estado salvo anulada. El consumo
+    solo existe en una corrida cerrada, y se corrige POR DIFERENCIA: lo que
+    sube se toma por FIFO con salidas nuevas; lo que baja se devuelve a las
+    líneas de origen empezando por la más nueva (LIFO), con un `ajuste`
+    positivo anclado a la misma línea. Los orígenes existentes se conservan
+    y el kardex muestra solo lo que cambió, igual que `editar_recepcion`.
+    El ledger sigue append-only.
+
+    `consumos=None` significa «no tocar el consumo»; un dict es la declaración
+    COMPLETA: un ingrediente ausente (o en cero) se devuelve entero.
+    """
+    if corrida.estado == 'anulada':
+        raise CorridaNoEditable(f'{corrida.codigo} está anulada: no se puede editar')
+    cerrada = corrida.estado == 'cerrada'
+    motivo = (motivo or '').strip()
+
+    # --- Guardas de cabecera ---
+    nuevo_cliente = cabecera.get('cliente_id')
+    nuevo_producto = cabecera.get('producto_id')
+    cambia_cliente = nuevo_cliente is not None and nuevo_cliente != corrida.cliente_id
+    cambia_producto = nuevo_producto is not None and nuevo_producto != corrida.producto_id
+    if cerrada and cambia_cliente:
+        raise CorreccionImposible(
+            f'{corrida.codigo} ya descontó del inventario de su cliente: '
+            f'cambiarle el cliente movería carne de un cliente a otro')
+    if cerrada and cambia_producto:
+        raise CorreccionImposible(
+            f'{corrida.codigo} ya produjo cajas de su producto: '
+            f'no se le puede cambiar el producto')
+
+    nuevo_lote = corrida.lote
+    if 'lote' in cabecera:
+        nuevo_lote = (cabecera.get('lote') or '').strip()
+        if not nuevo_lote:
+            raise CorridaInvalida('La corrida necesita un lote')
+    cliente_final = nuevo_cliente if cambia_cliente else corrida.cliente_id
+    if nuevo_lote != corrida.lote or cambia_cliente:
+        repetido = (CorridaProduccion.query
+                    .filter(CorridaProduccion.cliente_id == cliente_final,
+                            CorridaProduccion.lote == nuevo_lote,
+                            CorridaProduccion.id != corrida.id)
+                    .first())
+        if repetido:
+            raise CorridaInvalida(
+                f'El cliente ya tiene la corrida {repetido.codigo} con el lote {nuevo_lote}')
+
+    nueva_fecha_prod = cabecera.get('fecha_produccion') or corrida.fecha_produccion
+    nuevo_venc = (cabecera['fecha_vencimiento'] if 'fecha_vencimiento' in cabecera
+                  else corrida.fecha_vencimiento)
+    cambia_etiqueta = (nuevo_lote != corrida.lote
+                       or nueva_fecha_prod != corrida.fecha_produccion
+                       or nuevo_venc != corrida.fecha_vencimiento)
+
+    # Las cajas que ya salieron a un pedido llevan copiados lote y fechas
+    # (`asignar_cajas`): se propagan mientras el pedido no esté facturado.
+    # Facturado, la factura ya los lleva y no hay corrección honesta.
+    pesadas_a_propagar = []
+    for caja in corrida.cajas:
+        if caja.caja_pesada_id is None:
+            continue
+        pedido = getattr(getattr(caja.caja_pesada, 'detalle_pedido', None), 'pedido', None)
+        if cambia_etiqueta and pedido is not None and pedido.estado == 'facturado':
+            raise CorridaFacturada(
+                f'La caja {caja.numero} de {corrida.codigo} salió en el pedido '
+                f'{pedido.id}, que ya está facturado: el lote y las fechas '
+                f'no se pueden cambiar')
+        pesadas_a_propagar.append(caja.caja_pesada)
+
+    # --- Guardas de cajas ---
+    por_id = {c.id: c for c in corrida.cajas}
+    vistas = set()
+    planes_cajas = []
+    for datos in cajas:
+        caja = por_id.get(datos.get('id'))
+        if caja is None:
+            raise CorreccionImposible(
+                f'La caja {datos.get("id")} no pertenece a {corrida.codigo}')
+        if caja.id in vistas:
+            raise CorreccionImposible(
+                f'La caja {caja.numero} aparece más de una vez en la corrección')
+        vistas.add(caja.id)
+        if datos.get('quitar'):
+            if not caja.disponible:
+                raise CorreccionImposible(
+                    f'La caja {caja.numero} ya salió en un pedido o está anulada: '
+                    f'no se puede quitar')
+            planes_cajas.append(('quitar', caja, None))
+            continue
+        peso = _dec(datos.get('peso'))
+        if peso == _dec(caja.peso):
+            continue
+        if not caja.disponible:
+            raise CorreccionImposible(
+                f'La caja {caja.numero} ya salió en un pedido o está anulada: '
+                f'no se le puede cambiar el peso')
+        if peso <= CERO:
+            raise CorridaInvalida(f'El peso de la caja {caja.numero} debe ser positivo')
+        planes_cajas.append(('peso', caja, peso))
+
+    quita_cajas = any(accion == 'quitar' for accion, _, _ in planes_cajas)
+    if quita_cajas and not motivo:
+        raise MotivoRequerido('Quitar una caja exige un motivo')
+
+    # --- Guardas de consumo ---
+    deltas = {}
+    if consumos is not None:
+        if not cerrada:
+            raise CorridaInvalida(
+                f'{corrida.codigo} está abierta: el consumo se declara al cerrarla')
+        nuevos = {}
+        for ingrediente_id, cantidad in consumos.items():
+            cantidad = _dec(cantidad)
+            if cantidad < CERO:
+                raise CorridaInvalida(
+                    f'El consumo del ingrediente {ingrediente_id} no puede ser negativo')
+            if cantidad > CERO:
+                nuevos[ingrediente_id] = cantidad
+        viejos = {c.ingrediente_id: c for c in corrida.consumos}
+        for ingrediente_id in set(nuevos) | set(viejos):
+            anterior = _dec(viejos[ingrediente_id].cantidad_real) if ingrediente_id in viejos else CERO
+            delta = nuevos.get(ingrediente_id, CERO) - anterior
+            if delta != CERO:
+                deltas[ingrediente_id] = (anterior, nuevos.get(ingrediente_id, CERO), delta)
+        if deltas:
+            if not motivo:
+                raise MotivoRequerido('Corregir el consumo exige un motivo')
+            if not firma:
+                raise FirmaRequerida(
+                    'Corregir el consumo exige la firma de quien corrige')
+
+    # --- Escritura ---
+    try:
+        if cambia_cliente:
+            corrida.cliente_id = nuevo_cliente
+        if cambia_producto:
+            corrida.producto_id = nuevo_producto
+        corrida.lote = nuevo_lote
+        if cabecera.get('fecha_produccion') is not None:
+            corrida.fecha_produccion = cabecera['fecha_produccion']
+        if 'fecha_vencimiento' in cabecera:
+            corrida.fecha_vencimiento = cabecera['fecha_vencimiento']
+        if 'receta_id' in cabecera:
+            corrida.receta_id = cabecera['receta_id']
+        if 'notas' in cabecera:
+            corrida.notas = (cabecera.get('notas') or '').strip() or None
+
+        if cambia_etiqueta:
+            for pesada in pesadas_a_propagar:
+                pesada.lote = nuevo_lote
+                pesada.fecha_elaboracion = nueva_fecha_prod
+                pesada.fecha_vencimiento = nuevo_venc or nueva_fecha_prod
+
+        for accion, caja, peso in planes_cajas:
+            if accion == 'quitar':
+                caja.anulada_en = datetime.utcnow()
+                caja.motivo_anulacion = motivo
+            else:
+                caja.peso = peso
+
+        if deltas:
+            viejos = {c.ingrediente_id: c for c in corrida.consumos}
+            for ingrediente_id, (anterior, nuevo, delta) in deltas.items():
+                ingrediente = db.session.get(Ingrediente, ingrediente_id)
+                nota = _motivo_correccion(corrida, ingrediente, anterior, nuevo, motivo)
+                consumo = viejos.get(ingrediente_id)
+                if delta > CERO:
+                    tramos = repartir_fifo(corrida.cliente_id, ingrediente_id, delta)
+                    if consumo is None:
+                        consumo = CorridaConsumo(
+                            corrida_id=corrida.id, ingrediente_id=ingrediente_id,
+                            cantidad_teorica=CERO, cantidad_real=CERO)
+                        db.session.add(consumo)
+                        db.session.flush()
+                    por_linea = {o.recepcion_linea_id: o for o in consumo.origenes}
+                    for linea_id, tramo in tramos:
+                        origen = por_linea.get(linea_id)
+                        if origen is not None:
+                            origen.cantidad = _dec(origen.cantidad) + tramo
+                        else:
+                            db.session.add(CorridaConsumoOrigen(
+                                corrida_consumo_id=consumo.id,
+                                recepcion_linea_id=linea_id,
+                                cantidad=tramo, automatico=True))
+                        registrar_movimiento(
+                            cliente_id=corrida.cliente_id,
+                            ingrediente_id=ingrediente_id, tipo='salida',
+                            cantidad=tramo, origen_tipo='corrida',
+                            origen_id=corrida.id, vendedor_id=vendedor_id,
+                            recepcion_linea_id=linea_id, motivo=nota)
+                    consumo.cantidad_real = nuevo
+                else:
+                    restante = -delta
+                    # Se devuelve empezando por el origen más nuevo: el FIFO
+                    # tomó de la línea vieja primero, así que deshacer al
+                    # revés deja la vieja tal como se consumió.
+                    for origen in sorted(consumo.origenes, key=lambda o: o.id, reverse=True):
+                        if restante <= CERO:
+                            break
+                        disponible = _dec(origen.cantidad)
+                        toma = disponible if disponible < restante else restante
+                        registrar_movimiento(
+                            cliente_id=corrida.cliente_id,
+                            ingrediente_id=ingrediente_id, tipo='ajuste',
+                            cantidad=toma, origen_tipo='corrida',
+                            origen_id=corrida.id, vendedor_id=vendedor_id,
+                            recepcion_linea_id=origen.recepcion_linea_id,
+                            motivo=nota)
+                        restante -= toma
+                        if toma == disponible:
+                            db.session.delete(origen)
+                        else:
+                            origen.cantidad = disponible - toma
+                    if restante > CERO:
+                        raise CorridaInvalida(
+                            f'Los orígenes de {ingrediente.nombre if ingrediente else ingrediente_id} '
+                            f'en {corrida.codigo} no cubren lo que se quiere devolver')
+                    if nuevo == CERO:
+                        db.session.delete(consumo)
+                    else:
+                        consumo.cantidad_real = nuevo
+
+            db.session.flush()
+            db.session.expire(corrida, ['consumos'])
+            teoricos = {}
+            if corrida.receta and corrida.peso_producido > CERO:
+                teoricos = consumo_teorico(corrida.receta, corrida.peso_producido)
+            for consumo in corrida.consumos:
+                consumo.cantidad_teorica = teoricos.get(consumo.ingrediente_id, CERO)
+
+        if firma is not None:
+            corrida.firma_cierre = firma
+            corrida.firma_cierre_mimetype = firma_mimetype or 'image/png'
+        if motivo and (deltas or quita_cajas):
+            corrida.notas = ((corrida.notas or '') + f'\nCorregida: {motivo}').strip()
+
+        db.session.commit()
+        return corrida
+    except Exception:
+        db.session.rollback()
+        raise
+
+
 # Las corridas sin vencimiento van al final del orden FEFO. Se usa un coalesce en
 # vez de NULLS LAST porque ese modificador no es portable entre SQLite y Postgres
 # y cambió de nombre entre versiones de SQLAlchemy.

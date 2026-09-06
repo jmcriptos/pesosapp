@@ -76,6 +76,11 @@
     <dt>Receta</dt><dd>{{ corrida.receta.nombre if corrida.receta else 'Sin receta asignada' }}</dd>
     {% if corrida.notas %}<dt>Notas</dt><dd>{{ corrida.notas }}</dd>{% endif %}
   </dl>
+  {% if corrida.estado != 'anulada' %}
+  <div class="maquila-acciones">
+    <a class="btn" href="{{ url_for('maquila.corrida_editar', corrida_id=corrida.id) }}">Corregir</a>
+  </div>
+  {% endif %}
 </section>
 
 <section class="ops-card">

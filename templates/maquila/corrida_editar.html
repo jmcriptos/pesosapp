@@ -1,0 +1,252 @@
+{% extends "maquila/base_maquila.html" %}
+{% from "maquila/_macros.html" import chip, chip_estado, dueno %}
+{% block title %}Corregir {{ corrida.codigo }}{% endblock %}
+{% block maquila_title %}Corregir {{ corrida.codigo }}{% endblock %}
+{% block maquila_body %}
+{{ dueno(corrida.cliente.nombre, corrida.cliente_id) }}
+
+<form method="POST" class="ops-sheet-form" id="corr-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card">
+    <div class="maquila-titulo-fila">
+      <h2><a href="{{ url_for('maquila.corrida_detalle', corrida_id=corrida.id) }}">{{ corrida.codigo }}</a></h2>
+      {{ chip_estado(corrida.estado) }}
+    </div>
+    {% if cerrada %}
+    <p class="maquila-nota">La corrida ya descontó del inventario de {{ corrida.cliente.nombre }}: el cliente y el producto no se cambian. {% if facturada %}Alguna caja salió en un pedido <strong>facturado</strong>: el lote y las fechas tampoco, porque la factura ya los lleva.{% else %}El lote y las fechas sí, y se copian a las cajas que ya salieron en un pedido.{% endif %}</p>
+    {% else %}
+    <p class="maquila-nota">La corrida está abierta: no descontó nada todavía, así que todo se puede corregir sin dejar rastro en el kardex.</p>
+    {% endif %}
+
+    {#- Deshabilitado = no viaja = «no tocar» para `editar_corrida`. Sin hidden. -#}
+    <div class="ops-field">
+      <label for="cliente_id">Cliente</label>
+      <select id="cliente_id" name="cliente_id" required {{ 'disabled' if cerrada else '' }}>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if (form.get('cliente_id')|int if form.get('cliente_id') else corrida.cliente_id) == c.id else '' }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" required {{ 'disabled' if cerrada else '' }}>
+        {% for p in productos %}
+        <option value="{{ p.id }}" {{ 'selected' if (form.get('producto_id')|int if form.get('producto_id') else corrida.producto_id) == p.id else '' }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="lote">Lote</label>
+      <input type="text" id="lote" name="lote" required autocomplete="off" autocapitalize="characters"
+             value="{{ form.get('lote', corrida.lote) }}" {{ 'disabled' if facturada else '' }}>
+    </div>
+    <div class="ops-field">
+      <label for="fecha_produccion">Fecha de producción</label>
+      <input type="date" id="fecha_produccion" name="fecha_produccion" required
+             value="{{ form.get('fecha_produccion') or corrida.fecha_produccion.strftime('%Y-%m-%d') }}" {{ 'disabled' if facturada else '' }}>
+    </div>
+    <div class="ops-field">
+      <label for="fecha_vencimiento">Fecha de vencimiento <small>(opcional)</small></label>
+      <input type="date" id="fecha_vencimiento" name="fecha_vencimiento"
+             value="{{ form.get('fecha_vencimiento') if 'fecha_vencimiento' in form else (corrida.fecha_vencimiento.strftime('%Y-%m-%d') if corrida.fecha_vencimiento else '') }}" {{ 'disabled' if facturada else '' }}>
+    </div>
+    <div class="ops-field">
+      <label for="receta_id">Receta</label>
+      {% set receta_sel = (form.get('receta_id')|int if form.get('receta_id') else corrida.receta_id) if 'receta_id' not in form or form.get('receta_id') else none %}
+      <select id="receta_id" name="receta_id">
+        <option value="" {{ 'selected' if not receta_sel else '' }}>Sin receta</option>
+        {% for r in recetas %}
+        <option value="{{ r.id }}" {{ 'selected' if receta_sel == r.id else '' }}>{{ r.nombre }}{{ ' (desactivada)' if not r.activa else '' }}</option>
+        {% endfor %}
+      </select>
+      {% if cerrada %}<p class="maquila-nota-unidad">Cambiar la receta recalcula el teórico solo si también corregís el consumo.</p>{% endif %}
+    </div>
+    <div class="ops-field">
+      <label for="notas">Notas</label>
+      <textarea id="notas" name="notas">{{ form.get('notas', corrida.notas or '') }}</textarea>
+    </div>
+  </section>
+
+  <section class="ops-card" id="cajas">
+    <h2>Cajas producidas</h2>
+    {% if not corrida.cajas %}
+      <p class="ops-empty">Todavía no hay cajas producidas.</p>
+    {% else %}
+    <p class="maquila-nota">Una caja que ya salió en un pedido no se toca acá: se corrige desde el pedido. Quitar una caja la deja anulada, con su número y el motivo.</p>
+    <table class="maquila-tabla-mini maquila-cajas-editar">
+      <thead><tr><th>#</th><th class="maquila-num">Peso (kg)</th><th>Estado</th><th>Quitar</th></tr></thead>
+      <tbody>
+        {% for caja in corrida.cajas %}
+        {% set pedido = pedidos_por_caja.get(caja.id) %}
+        <tr>
+          <td>{{ caja.numero }}</td>
+          <td class="maquila-num">
+            {% if caja.disponible %}
+            <input type="hidden" name="caja_id" value="{{ caja.id }}">
+            {#- El value va CRUDO (input numérico): fmt_cant metería separador de miles. -#}
+            <input type="number" step="0.001" min="0.001" inputmode="decimal" name="caja_peso"
+                   aria-label="Peso de la caja {{ caja.numero }}" value="{{ caja.peso }}" required>
+            {% else %}
+            {{ caja.peso|fmt_cant }}
+            {% endif %}
+          </td>
+          <td>
+            {% if caja.anulada_en %}
+              {{ chip('Anulada', 'falla') }}{% if caja.motivo_anulacion %} <span class="maquila-meta">{{ caja.motivo_anulacion }}</span>{% endif %}
+            {% elif caja.caja_pesada_id %}
+              {{ chip('En pedido', 'marca') }}
+              {% if pedido %}<a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">#{{ pedido.id }}</a>{% if pedido.estado == 'facturado' %} {{ chip('Facturado', 'neutro') }}{% endif %}{% endif %}
+            {% else %}
+              {{ chip('Disponible', 'conforme') }}
+            {% endif %}
+          </td>
+          <td>
+            {% if caja.disponible %}
+            <label class="rec-quitar"><input type="checkbox" name="caja_quitar_{{ caja.id }}" value="1"> Quitar</label>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  {% if cerrada %}
+  <section class="ops-card" id="consumo">
+    <h2>Consumo real</h2>
+    <p class="maquila-nota">Se corrige <strong>por diferencia</strong>: lo que suba se descuenta de las recepciones más antiguas con saldo; lo que baje vuelve a las recepciones de donde salió, empezando por la más nueva. Un ingrediente en cero se devuelve entero. Cada cambio deja su movimiento en el kardex con el motivo de abajo.</p>
+    {% if not ingredientes %}
+      <p class="ops-empty">No hay ingredientes activos.</p>
+    {% else %}
+    <table class="maquila-tabla maquila-tabla-consumo">
+      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Descontado hoy</th><th class="maquila-num">Real corregido</th><th>De qué recepciones</th></tr></thead>
+      <tbody>
+        {% for i in ingredientes %}
+        {% set teo = teoricos.get(i.id) %}
+        {% if teo is not none and i.unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
+        {% set actual = consumo_actual.get(i.id) %}
+        {% set consumo_obj = (corrida.consumos | selectattr('ingrediente_id', 'equalto', i.id) | first) %}
+        <tr>
+          <td data-label="Ingrediente">{{ i.nombre }}{{ ' (desactivado)' if not i.activo else '' }}</td>
+          <td data-label="Teórico" class="maquila-num">{{ teo|fmt_cant(i.unidad) if teo is not none else '—' }}</td>
+          <td data-label="Descontado hoy" class="maquila-num">{{ actual|fmt_cant(i.unidad) if actual is not none else '—' }}</td>
+          <td data-label="Real corregido" class="maquila-num">
+            <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
+            <input type="number" step="{{ '1' if i.unidad == 'ud' else '0.001' }}" min="0"
+                   inputmode="{{ 'numeric' if i.unidad == 'ud' else 'decimal' }}" name="consumo_real"
+                   aria-label="Consumo real corregido de {{ i.nombre }} en {{ i.unidad }}"
+                   data-actual="{{ actual if actual is not none else '' }}"
+                   value="{{ consumos_form.get(i.id|string) if (i.id|string) in consumos_form else (actual if actual is not none else '') }}">
+          </td>
+          <td data-label="De qué recepciones">
+            {% if consumo_obj %}{% for o in consumo_obj.origenes %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=o.recepcion_linea.recepcion_id) }}">{{ o.recepcion_linea.recepcion.codigo }}</a> {{ o.cantidad|fmt_cant(i.unidad) }}{{ ' · ' if not loop.last }}{% else %}—{% endfor %}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="ops-card">
+    <div class="ops-field">
+      <label for="motivo">Motivo de la corrección <small id="motivo-ayuda">(obligatorio si {{ 'cambiás el consumo o ' if cerrada else '' }}quitás una caja)</small></label>
+      <input type="text" id="motivo" name="motivo" autocomplete="off" placeholder="Qué estaba mal y cómo se verificó" aria-describedby="motivo-ayuda" value="{{ form.get('motivo', '') }}">
+    </div>
+    {% if cerrada %}
+    <div class="ops-firma-label" id="firmaLabel">Firma de quien corrige</div>
+    <div class="ops-firma-pad" id="firmaPad-wrap">
+      <canvas id="firmaPad" width="600" height="200" role="img" aria-labelledby="firmaLabel" aria-describedby="firmaAyuda"></canvas>
+      <div class="ops-firma-placeholder" id="firmaPlaceholder">Firmá acá con el dedo</div>
+      <button type="button" class="ops-firma-clear" id="firmaClear">Borrar firma</button>
+    </div>
+    <p class="maquila-firma-ayuda" id="firmaAyuda">Obligatoria si cambiás el consumo: reemplaza la firma del cierre. Quien firma: {{ current_user.nombre_completo }}.</p>
+    <input type="hidden" name="firma_png" id="firma_png">
+    {% endif %}
+  </section>
+
+  <footer class="ops-sticky-footer">
+    <p class="maquila-aviso-inline" id="corr-aviso" aria-live="polite" hidden></p>
+    <button type="submit" class="btn btn-primary" id="btn-guardar">Guardar corrección</button>
+  </footer>
+</form>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var form = document.getElementById('corr-form');
+  if (!form) return;
+  var canvas = document.getElementById('firmaPad');
+  var aviso = document.getElementById('corr-aviso');
+  var consumos = Array.prototype.slice.call(form.querySelectorAll('input[name="consumo_real"]'));
+  var hayFirma = false;
+
+  if (canvas) {
+    // Mismo pad que el cierre. Color FIJO: los tokens claros están scopeados
+    // a .ops-*, leerlos de body devuelve el oscuro y la firma saldría blanca.
+    var ctx = canvas.getContext('2d');
+    var dibujando = false;
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#0f172a';
+    var padWrap = document.getElementById('firmaPad-wrap');
+    var placeholder = document.getElementById('firmaPlaceholder');
+    function pos(e) {
+      var r = canvas.getBoundingClientRect();
+      var p = e.touches ? e.touches[0] : e;
+      return { x: (p.clientX - r.left) * canvas.width / r.width,
+               y: (p.clientY - r.top) * canvas.height / r.height };
+    }
+    function marcarFirmada(si) {
+      hayFirma = si;
+      padWrap.classList.toggle('has-sign', si);
+      placeholder.hidden = si;
+      revisar();
+    }
+    function start(e) { dibujando = true; marcarFirmada(true); var q = pos(e);
+                        ctx.beginPath(); ctx.moveTo(q.x, q.y); e.preventDefault(); }
+    function move(e) { if (!dibujando) return; var q = pos(e);
+                       ctx.lineTo(q.x, q.y); ctx.stroke(); e.preventDefault(); }
+    function end() { dibujando = false; }
+    ['mousedown', 'touchstart'].forEach(function (ev) { canvas.addEventListener(ev, start); });
+    ['mousemove', 'touchmove'].forEach(function (ev) { canvas.addEventListener(ev, move); });
+    ['mouseup', 'mouseleave', 'touchend'].forEach(function (ev) { canvas.addEventListener(ev, end); });
+    document.getElementById('firmaClear').addEventListener('click', function () {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      marcarFirmada(false);
+    });
+  }
+
+  // El aviso del pie explica qué falta ANTES de enviar: cambiar el consumo
+  // exige motivo y firma, quitar una caja exige motivo. El servidor lo
+  // vuelve a comprobar; esto solo evita un viaje.
+  function consumoCambiado() {
+    return consumos.some(function (i) {
+      var actual = parseFloat(i.dataset.actual || '0'), v = parseFloat(i.value || '0');
+      return Math.abs(actual - v) > 0.0005;
+    });
+  }
+  function cajaQuitada() {
+    return Array.prototype.some.call(form.querySelectorAll('input[name^="caja_quitar_"]'), function (c) { return c.checked; });
+  }
+  function revisar() {
+    var motivo = (form.querySelector('#motivo').value || '').trim();
+    var falta = '';
+    if (consumoCambiado()) {
+      if (!motivo) falta = 'Cambiaste el consumo: escribí el motivo.';
+      else if (canvas && !hayFirma) falta = 'Cambiaste el consumo: falta la firma de quien corrige.';
+    } else if (cajaQuitada() && !motivo) {
+      falta = 'Quitar una caja exige un motivo.';
+    }
+    if (aviso) { aviso.hidden = !falta; aviso.textContent = falta; }
+  }
+  form.addEventListener('input', revisar);
+  form.addEventListener('change', revisar);
+  revisar();
+
+  form.addEventListener('submit', function () {
+    if (canvas && hayFirma) document.getElementById('firma_png').value = canvas.toDataURL('image/png');
+  });
+})();
+</script>
+{% endblock %}

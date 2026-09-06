@@ -281,6 +281,38 @@ def _leer_consumos_form(form):
     return consumos
 
 
+def _leer_cajas_form(form):
+    """Las cajas de una corrida tal como viajan en el POST de corrección:
+    listas paralelas `caja_id`/`caja_peso` y un checkbox con nombre propio
+    `caja_quitar_<id>` (mismo motivo que `linea_quitar_<id>` en recepciones:
+    un checkbox sin marcar no viaja y correría el índice de las demás)."""
+    pesos = form.getlist('caja_peso')
+    cajas = []
+    for i, bruto_id in enumerate(form.getlist('caja_id')):
+        caja_id = _entero(bruto_id)
+        if caja_id is None:
+            continue
+        cajas.append({
+            'id': caja_id,
+            'peso': _decimal(_en(pesos, i)),
+            'quitar': bool((form.get(f'caja_quitar_{caja_id}') or '').strip()),
+        })
+    return cajas
+
+
+def _leer_consumos_correccion_form(form):
+    """Como `_leer_consumos_form`, pero es la declaración COMPLETA: un
+    ingrediente presente y vacío vale 0 (se devuelve entero), y un negativo
+    viaja tal cual para que el servicio lo rechace con su mensaje."""
+    consumos = {}
+    for ingrediente_id_raw, cantidad in zip(form.getlist('consumo_ingrediente_id'),
+                                            form.getlist('consumo_real')):
+        ingrediente_id = _entero(ingrediente_id_raw)
+        if ingrediente_id:
+            consumos[ingrediente_id] = _decimal(cantidad) or Decimal('0')
+    return consumos
+
+
 @bp.route('', strict_slashes=False)
 @login_required
 @requiere_rol(['super_admin'])
@@ -881,6 +913,134 @@ def corrida_cerrar(corrida_id):
           f'inventario de {corrida.cliente.nombre}. Merma: {merma} kg{pct}', 'success')
     return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
                             _anchor='recibo'))
+
+
+@bp.route('/corridas/<int:corrida_id>/editar', methods=['GET', 'POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def corrida_editar(corrida_id):
+    """Corregir una corrida: cabecera, cajas y —si está cerrada— el consumo
+    por diferencia. Mismo patrón que `recepcion_editar`: al rechazar, la
+    cabecera, el consumo y el motivo vuelven con lo tecleado; las cajas se
+    releen de la base."""
+    corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
+
+    if corrida.estado == 'anulada':
+        flash(f'{corrida.codigo} está anulada: no se puede editar', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+
+    if request.method == 'POST':
+        cabecera = {
+            'cliente_id': _entero(request.form.get('cliente_id')),
+            'producto_id': _entero(request.form.get('producto_id')),
+            'lote': request.form.get('lote', ''),
+            'fecha_produccion': _fecha(request.form.get('fecha_produccion')),
+            'notas': request.form.get('notas'),
+        }
+        # Un campo bloqueado (lote/fechas con caja facturada) viaja
+        # deshabilitado, o sea no viaja: solo se toca lo que llegó.
+        if 'fecha_vencimiento' in request.form:
+            cabecera['fecha_vencimiento'] = _fecha(request.form.get('fecha_vencimiento'))
+        if 'receta_id' in request.form:
+            cabecera['receta_id'] = _entero(request.form.get('receta_id'))
+        if 'lote' not in request.form:
+            del cabecera['lote']
+
+        consumos = (_leer_consumos_correccion_form(request.form)
+                    if corrida.estado == 'cerrada' else None)
+        firma, firma_ilegible = _leer_firma_form(request.form)
+        if firma_ilegible:
+            flash('La firma no se pudo leer: firmá de nuevo.', 'error')
+            return _render_corrida_editar(corrida, request.form)
+
+        try:
+            servicios.editar_corrida(
+                corrida, vendedor_id=current_user.id, cabecera=cabecera,
+                cajas=_leer_cajas_form(request.form), consumos=consumos,
+                motivo=request.form.get('motivo'),
+                firma=firma, firma_mimetype='image/png' if firma else None)
+        except servicios.SaldoInsuficiente as exc:
+            db.session.rollback()
+            ing = db.session.get(Ingrediente, exc.ingrediente_id)
+            flash(f'Faltan {exc.faltante} de {ing.nombre if ing else exc.ingrediente_id}: '
+                  f'se piden {exc.pedido} y hay {exc.disponible}. Registrá un ajuste '
+                  f'de entrada con su motivo antes de corregir.', 'error')
+            return _render_corrida_editar(corrida, request.form)
+        except (servicios.CorreccionImposible, servicios.CorridaInvalida,
+                servicios.CorridaFacturada, servicios.CorridaNoEditable,
+                servicios.MotivoRequerido, servicios.FirmaRequerida) as exc:
+            db.session.rollback()
+            flash(f'{exc}. La cabecera, el consumo y el motivo se conservan; '
+                  'las cajas vuelven a lo guardado.', 'error')
+            return _render_corrida_editar(corrida, request.form)
+        except Exception:
+            db.session.rollback()
+            flash('No se pudo guardar la corrección. La cabecera, el consumo y el '
+                  'motivo se conservan; las cajas vuelven a lo guardado.', 'error')
+            return _render_corrida_editar(corrida, request.form)
+
+        flash(f'{corrida.codigo} corregida', 'success')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+
+    return _render_corrida_editar(corrida)
+
+
+def _render_corrida_editar(corrida, form=None):
+    cerrada = corrida.estado == 'cerrada'
+
+    # Qué cajas ya salieron y si alguna va en un pedido facturado: eso
+    # bloquea lote y fechas (la factura ya los lleva).
+    pedidos_por_caja = {}
+    facturada = False
+    for caja in corrida.cajas:
+        if caja.caja_pesada_id is None:
+            continue
+        pedido = getattr(getattr(caja.caja_pesada, 'detalle_pedido', None), 'pedido', None)
+        pedidos_por_caja[caja.id] = pedido
+        if pedido is not None and pedido.estado == 'facturado':
+            facturada = True
+
+    # Recetas del producto para este cliente (o generales), más la actual
+    # aunque esté desactivada: si faltara su <option>, guardar sin tocarla
+    # la cambiaría en silencio (misma trampa que el ingrediente desactivado
+    # en recepcion_editar).
+    recetas = (Receta.query
+               .filter(Receta.producto_id == corrida.producto_id,
+                       Receta.activa.is_(True),
+                       (Receta.cliente_id == corrida.cliente_id) | (Receta.cliente_id.is_(None)))
+               .order_by(Receta.nombre).all())
+    if corrida.receta and corrida.receta not in recetas:
+        recetas = sorted(recetas + [corrida.receta], key=lambda r: r.nombre)
+
+    ingredientes = _ingredientes_activos()
+    consumo_actual = {}
+    teoricos = {}
+    if cerrada:
+        consumo_actual = {c.ingrediente_id: c.cantidad_real for c in corrida.consumos}
+        ids_activos = {i.id for i in ingredientes}
+        faltantes = [c.ingrediente for c in corrida.consumos
+                     if c.ingrediente and c.ingrediente_id not in ids_activos]
+        if faltantes:
+            ingredientes = sorted(ingredientes + faltantes, key=lambda i: i.nombre)
+        if corrida.receta and corrida.peso_producido > 0:
+            teoricos = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
+
+    # Lo tecleado en «Real corregido», por ingrediente, para re-pintar el
+    # rechazo. Se arma ACÁ: Jinja no tiene `zip` (ni `int`, ni `type`) y un
+    # builtin de Python en la plantilla da 500 —ver jinja-sin-builtins—.
+    consumos_form = {}
+    if form is not None and hasattr(form, 'getlist'):
+        consumos_form = dict(zip(form.getlist('consumo_ingrediente_id'),
+                                 form.getlist('consumo_real')))
+
+    return render_template(
+        'maquila/corrida_editar.html',
+        corrida=corrida, cerrada=cerrada, facturada=facturada,
+        consumos_form=consumos_form,
+        pedidos_por_caja=pedidos_por_caja,
+        clientes=_clientes(), productos=_productos(), recetas=recetas,
+        ingredientes=ingredientes, consumo_actual=consumo_actual,
+        teoricos=teoricos, form=form or {})
 
 
 @bp.route('/corridas/<int:corrida_id>/anular', methods=['POST'])
