@@ -83,11 +83,32 @@
   if (!fila || !nav) return;
 
   // En el teléfono el riel puede seguir deslizándose: la sección actual tiene
-  // que estar a la vista al cargar, no fuera de cuadro.
-  var activo = nav.querySelector('.is-active');
-  if (activo && nav.scrollWidth > nav.clientWidth) {
-    nav.scrollLeft = activo.offsetLeft - (nav.clientWidth - activo.offsetWidth) / 2;
+  // que estar a la vista al cargar, no fuera de cuadro. Y la máscara de
+  // desvanecido solo se pone si de verdad queda contenido por ver: aplicada
+  // siempre, le comía el borde derecho al último destino.
+  function medirDesborde() {
+    var desborda = nav.scrollWidth > nav.clientWidth + 1;
+    nav.classList.toggle('is-desbordado', desborda);
+    return desborda;
   }
+  var activo = nav.querySelector('.is-active');
+  function acomodar() {
+    if (medirDesborde() && activo) {
+      nav.scrollLeft = activo.offsetLeft - (nav.clientWidth - activo.offsetWidth) / 2;
+    }
+  }
+  acomodar();
+  // Medir una sola vez, acá, no alcanza: este script corre al parsear, cuando
+  // la fuente web todavía no cargó y el texto de los destinos es más angosto
+  // que el definitivo. El riel «no desbordaba», la fuente entraba después y
+  // nadie volvía a mirar. El ResizeObserver cubre la fuente, el giro del
+  // teléfono y cualquier cambio de ancho con una sola herramienta.
+  if (window.ResizeObserver) {
+    new ResizeObserver(medirDesborde).observe(nav);
+  } else {
+    window.addEventListener('resize', medirDesborde);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(acomodar);
 
   // El panel de «Más» se cierra tocando fuera o con Escape: si no, queda
   // abierto tapando el contenido después de elegir y volver con «atrás».

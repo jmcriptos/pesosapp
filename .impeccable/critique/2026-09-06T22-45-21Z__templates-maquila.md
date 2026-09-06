@@ -461,3 +461,44 @@ cerrado ningún enlace es alcanzable. Dos tests nuevos lo fijan: que el
 bajen de 48px.
 
 Suite tras la corrección: **1.132 pasan, 1 salteado**.
+
+
+## Segunda corrección — «Más» quedaba solo contra el borde derecho
+
+También lo reportó JM al usarlo. Al sacar el disclosure del riel le puse a
+este `flex: 1 1 auto`, así que el riel se estiraba a toda la fila y empujaba
+«Más» al extremo: en escritorio quedaban ~500px de blanco entre «Ajustes» y
+«Más», leyéndose como dos menús distintos.
+
+`flex: 0 1 auto` y el riel vuelve a medir lo que mide su contenido, encogiendo
+solo cuando la fila no da. Medido en 1440: «Ajustes» termina en x=421 y «Más»
+empieza en x=425 — cuatro píxeles, el mismo `gap` que separa a los demás.
+
+**Y debajo había un segundo bug, del tipo que no se ve leyendo el código.** La
+máscara de desvanecido del riel estaba aplicada siempre; con el riel ya del
+ancho de su contenido, dejó de caer sobre espacio vacío y pasó a comerse el
+borde derecho del último destino. Se condicionó a una clase `is-desbordado`
+que pone el script midiendo `scrollWidth > clientWidth`… y **medir una sola
+vez, al parsear, no alcanza**: en ese momento la fuente web todavía no cargó,
+el texto es más angosto que el definitivo, el riel «no desborda» y nadie
+vuelve a mirar. Verificado: la clase no se aplicaba nunca en 390px pese a que
+el contenido medía 403px dentro de 284. Lo cubre un `ResizeObserver` sobre el
+riel, que atrapa la fuente, el giro del teléfono y cualquier cambio de ancho
+con una sola herramienta.
+
+Medido después: a 390 y a 320 el riel desborda y la máscara aparece; a 1440 no
+desborda y no hay máscara. El menú sigue abriendo con sus seis destinos de
+48px, todos alcanzables, y «Kardex» navega.
+
+Dos tests más: que el riel no vuelva a estirarse, y que la máscara siga
+condicionada y con algo que re-mida después de la fuente. Suite: **1.134
+pasan, 1 salteado**.
+
+### Nota de método
+
+Los dos bugs de esta sección y el del menú vacío tienen la misma raíz: **la
+auditoría mide la página como carga y en reposo**. No abre menús, no espera a
+la fuente, no toca nada. Todo lo que solo falla al interactuar —o unos cientos
+de milisegundos más tarde— le pasa por al lado. Las tres cosas las encontró JM
+usando la app. Para la próxima ronda, el barrido tiene que abrir cada
+disclosure y re-medir tras `document.fonts.ready`.

@@ -201,6 +201,35 @@ def test_el_panel_de_mas_no_vive_dentro_del_riel_que_scrollea(app):
     assert 'overflow: visible' in fila, 'la fila no puede recortar el panel'
 
 
+def test_el_riel_no_se_estira_y_deja_a_mas_pegado_al_ultimo_destino():
+    """Con `flex: 1 1 auto` el riel ocupaba toda la fila y «Más» quedaba solo,
+    contra el borde derecho, a media pantalla de «Ajustes»."""
+    css = _css()
+    regla = css[css.index('.maquila-nav-fila > .maquila-nav {'):]
+    regla = regla[:regla.index('}')]
+    assert 'flex: 0 1 auto' in regla, 'el riel mide su contenido, no toda la fila'
+
+
+def test_la_mascara_de_desvanecido_solo_aplica_cuando_el_riel_desborda():
+    """Aplicada siempre le comía el borde derecho al último destino visible.
+
+    Y la clase la tiene que poner algo que vuelva a medir DESPUÉS de que
+    cargue la fuente web: al parsear, el texto es más angosto que el
+    definitivo y el riel «no desborda».
+    """
+    css = _css()
+    assert '.maquila-nav.is-desbordado {' in css, 'la máscara va condicionada'
+    base = css[css.index('.maquila-nav {'):]
+    base = base[:base.index('}')]
+    assert 'mask-image' not in base, 'la regla base no puede enmascarar siempre'
+
+    with open(os.path.join(os.path.dirname(__file__), '..', 'templates',
+                           'maquila', 'base_maquila.html'), encoding='utf-8') as fh:
+        plantilla = fh.read()
+    assert 'ResizeObserver' in plantilla, (
+        'medir solo al parsear falla: la fuente web todavía no cargó')
+
+
 def test_los_enlaces_del_panel_llegan_al_piso_de_48px():
     """Al salir del riel dejaron de heredar `.maquila-nav a`: sin regla propia
     salían como enlaces crudos de 19px, subrayados."""

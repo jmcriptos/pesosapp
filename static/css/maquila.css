@@ -157,7 +157,10 @@ body[data-maquila-screen] .app-content {
   overflow: visible;
   position: relative;
 }
-.maquila-nav-fila > .maquila-nav { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+/* `0 1 auto`, no `1 1 auto`: el riel mide lo que mide su contenido y encoge
+   solo si la fila no da. Con `1 1 auto` se estiraba a todo el ancho y dejaba
+   a «Más» solo, pegado al borde derecho, a media pantalla de «Ajustes». */
+.maquila-nav-fila > .maquila-nav { flex: 0 1 auto; min-width: 0; margin-top: 0; }
 
 .maquila-nav {
   display: flex;
@@ -168,7 +171,12 @@ body[data-maquila-screen] .app-content {
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  /* La máscara se desvanece solo del lado donde queda contenido por ver. */
+}
+
+/* La máscara se desvanece solo del lado donde queda contenido por ver, y solo
+   cuando lo hay: aplicada siempre, le comía el borde derecho al último
+   destino visible. La clase la pone el script del nav midiendo el desborde. */
+.maquila-nav.is-desbordado {
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
   padding-right: 24px;
