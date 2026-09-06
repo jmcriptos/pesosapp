@@ -431,6 +431,19 @@ def recepcion_nueva():
     return _render_recepcion_nueva()
 
 
+def _lineas_invalidas(lineas):
+    """Índices de las líneas que el servidor va a rechazar (sin ingrediente o
+    sin peso positivo): para señalarlas en el formulario devuelto, no solo
+    nombrar el error en un flash a 400 px del campo."""
+    malas = {}
+    for i, l in enumerate(lineas or []):
+        if not l.get('ingrediente_id'):
+            malas[i] = 'Elegí el ingrediente'
+        elif l.get('peso_total') is None or l['peso_total'] <= 0:
+            malas[i] = 'Falta el peso total de la balanza'
+    return malas
+
+
 def _render_recepcion_nueva(form=None, lineas=None):
     """El alta, vacía o con lo que el operario ya había tecleado.
 
@@ -448,7 +461,8 @@ def _render_recepcion_nueva(form=None, lineas=None):
         # Sin eso el <select> no tiene valor por defecto a propósito.
         cliente_sugerido=request.args.get('cliente_id', type=int),
         form=form or {},
-        lineas_previas=lineas or [])
+        lineas_previas=lineas or [],
+        lineas_invalidas=_lineas_invalidas(lineas) if form else {})
 
 
 @bp.route('/recepciones/<int:recepcion_id>')
@@ -790,11 +804,12 @@ def corrida_recalcular(corrida_id):
         flash('Declará al menos un consumo real antes de recalcular', 'error')
         return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
                                 _anchor='consumo'))
-    total = sum((v for k, v in consumos.items()), Decimal('0'))
-    flash(f'Reparto recalculado con lo declarado ({len(consumos)} ingrediente(s)). '
-          'Revisá el total antes de cerrar.', 'success')
+    # Aterriza en la franja del total (no en el desglose): es el número que
+    # acaba de cambiar y el que hay que leer antes de cerrar. El mensaje de
+    # éxito va DENTRO de la franja (`recalculado=1`), no en un flash arriba
+    # que quedaba 1.500 px fuera de pantalla.
     return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
-                            _anchor='reparto',
+                            _anchor='total-a-descontar', recalculado=1,
                             **{f'c{k}': str(v) for k, v in consumos.items()}))
 
 
