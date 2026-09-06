@@ -167,8 +167,9 @@ body[data-maquila-screen] .app-content {
   text-decoration: none;
   font-weight: 600;
   font-size: 13px;
-  /* 44px de alto: el mínimo táctil, y esto se opera con guantes. */
-  min-height: 44px;
+  /* 48px: el mínimo táctil del sistema (design.json, `ds-btn-primary`).
+     44px es el número genérico de iOS, no el nuestro. */
+  min-height: 48px;
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
@@ -515,7 +516,7 @@ body[data-maquila-screen] .app-content {
    ============================================================ */
 .maquila-wrap .ops-firma-clear {
   /* 25px de alto era la mitad del mínimo táctil, y esto se firma con guante. */
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 14px;
   font-size: 12px;
   background: var(--color-surface) !important;
@@ -567,7 +568,7 @@ body[data-maquila-screen] .app-content {
   align-items: center;
   gap: 10px;
   width: fit-content;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 14px 0 12px;
   margin: 4px 0;
   border: 1px solid var(--color-border-strong);
@@ -873,7 +874,7 @@ body[data-maquila-screen] .app-content {
   color: var(--color-text-muted);
   margin-bottom: 6px;
 }
-.maquila-sub summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.maquila-sub summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; }
 .maquila-wrap .maquila-sub .maquila-tabla-mini th,
 .maquila-wrap .maquila-sub .maquila-tabla-mini tr:nth-child(even) td { background: transparent !important; }
 
@@ -972,8 +973,8 @@ body[data-maquila-screen] .app-content {
   margin-bottom: 4px;
 }
 .rec-linea-campo select,
-.rec-linea-campo input { margin-top: 4px; min-height: 44px; }
-.rec-linea .rec-quitar-btn { min-height: 44px; }
+.rec-linea-campo input { margin-top: 4px; min-height: 48px; }
+.rec-linea .rec-quitar-btn { min-height: 48px; }
 @media (max-width: 640px) {
   .rec-linea { grid-template-columns: 1fr 1fr; }
   /* `first-of-type`, no `first-child`: en la línea existente el primer hijo
@@ -984,13 +985,18 @@ body[data-maquila-screen] .app-content {
   .rec-linea > .rec-quitar { grid-column: 1 / -1; }
 }
 
-/* 14 · Consumo: el campo «Real» vive en su celda, alineado con la cifra. */
+/* 14 · Consumo: el campo «Real» vive en su celda, alineado con la cifra.
+   56px: es el número que descuenta inventario ajeno y se teclea con el
+   guante puesto, así que va a la altura de «Acción con guante», no al
+   mínimo táctil. */
 .maquila-tabla-consumo input[type="number"] {
-  width: 150px;
+  width: 170px;
   max-width: 100%;
   margin-left: auto;
   text-align: right;
-  min-height: 44px;
+  min-height: 56px;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 15 · Imprimir la trazabilidad: solo el informe. */
@@ -1010,7 +1016,16 @@ body[data-maquila-screen] .app-content {
    del índice, los tres botones llenan el ancho disponible por filas. */
 .maquila-wrap .btn { margin: 0; }
 .maquila-tarjeta .maquila-acciones .btn { flex: 1 1 140px; }
-.maquila-wrap .maquila-tarjeta-cab h2 a { text-decoration: none; }
+.maquila-wrap .maquila-tarjeta-cab h2 a {
+  text-decoration: none;
+  /* El nombre del cliente ES el enlace a sus saldos y medía 24px de alto:
+     el mismo tratamiento de padding con margen negativo que sus enlaces
+     meta, para llegar a 48px sin mover el título de sitio. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin: -12px 0;
+}
 .maquila-wrap .maquila-tarjeta-cab h2 a:hover { text-decoration: underline; }
 
 /* 17 · El pie fijo tiene que quedar POR ENCIMA de la tabbar (fija, 69.5px +
@@ -1148,21 +1163,19 @@ main.app-content:has(.maquila-wrap) {
 .maquila-wrap td.maquila-neg { color: #9f1239 !important; }
 .maquila-wrap td.maquila-pos { color: #065f46 !important; }
 
-/* 25 · Blancos táctiles de 44px en enlaces de texto, sin agrandar la fila:
+/* 25 · Blancos táctiles de 48px en enlaces de texto, sin agrandar la fila:
    el área de toque crece con padding y se compensa con margen negativo. */
 .maquila-dueno-links a,
 .maquila-tarjeta-meta a {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  margin: -12px 0;
+  min-height: 48px;
+  margin: -14px 0;
   padding: 0 4px;
 }
 .maquila-wrap .maquila-tabla td a,
 .maquila-wrap .maquila-tabla-mini td a {
   display: inline-block;
-  padding: 13px 0;
-  margin: -13px 0;
 }
 
 /* 26 · Foco visible también en los controles que Chrome pinta por su cuenta
@@ -1174,8 +1187,8 @@ main.app-content:has(.maquila-wrap) {
   outline-offset: 2px;
 }
 
-/* 27 · Elementos que piden 44px de alto. */
-.maquila-sub summary { min-height: 44px; }
+/* 27 · Elementos que piden el mínimo táctil de 48px. */
+.maquila-sub summary { min-height: 48px; }
 .maquila-asignar input[type="checkbox"] { accent-color: #4f46e5; }
 
 /* 28 · Pie de tabla con rótulo también en escritorio (en fichas ya lo
@@ -1195,7 +1208,7 @@ main.app-content:has(.maquila-wrap) {
 /* 29 · Bloque plegable «Más datos de la entrega». */
 .maquila-wrap details.maquila-detalles > summary {
   cursor: pointer;
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1491,9 +1504,9 @@ main.app-content:has(.maquila-wrap) {
 .maquila-wrap .maquila-reparto-tabla { margin: 0 12px 10px; width: calc(100% - 24px); }
 .maquila-reparto-ing > summary:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
 
-/* 44 · Los enlaces meta de la tarjeta del índice no se pisan: 44px de
+/* 44 · Los enlaces meta de la tarjeta del índice no se pisan: 48px de
    alto sin margen negativo. */
-.maquila-tarjeta-meta a { margin: 0; padding: 10px 4px; min-height: 44px; }
+.maquila-tarjeta-meta a { margin: 0; padding: 12px 4px; min-height: 48px; }
 .maquila-tarjeta-meta { gap: 0; }
 
 /* 45 · Tras recalcular, el mensaje de éxito vive DENTRO de la franja del
@@ -1608,3 +1621,161 @@ main.app-content:has(.maquila-wrap) {
   font-weight: 600;
   color: #9f1239;
 }
+
+/* ============================================================
+   46 · Ronda de critique 2026-09-06 · el piso táctil es 48px
+   ============================================================
+   El módulo usaba 44px —el número genérico de iOS— en el 65 % de sus
+   destinos, argumentando el guante en el comentario. El sistema tiene dos
+   números propios y más grandes por ese mismo guante: 48px de mínimo
+   (`ds-btn-primary`) y 56px para lo que se opera con el guante puesto
+   (`ds-btn-glove`). Lo que sigue son los destinos que no alcanzaba ninguna
+   regla anterior. */
+
+/* El peso de cada caja en «Corregir corrida»: medido en 40×67px, ocho veces
+   en la misma pantalla, y es un número de tres decimales. */
+.maquila-wrap .maquila-cajas-editar input[type="number"] {
+  min-height: 56px;
+  width: 130px;
+  max-width: 100%;
+  margin-left: auto;
+  text-align: right;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La salida de la pantalla de cierre («volvé a la corrida») era un enlace en
+   prosa de 16px de alto: la única forma de volver a pesar cajas o anular. */
+.maquila-wrap .maquila-salida {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 12px;
+  margin: 4px 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+}
+.maquila-wrap .maquila-salida:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-subtle);
+}
+
+/* Riel de secciones: cuatro destinos de operación y el resto detrás de
+   «Más». El disclosure es un `<details>` para que funcione sin JS. */
+.maquila-nav-mas { position: relative; flex: 0 0 auto; }
+.maquila-nav-mas > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.maquila-nav-mas > summary::-webkit-details-marker { display: none; }
+.maquila-nav-mas > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+.maquila-nav-mas[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.maquila-nav-mas > summary:hover { color: var(--color-text); background: var(--color-surface-muted); }
+/* Activo como el enlace activo del riel: tinta plena sobre superficie, con
+   el índigo SOLO en el trazo inferior. `var(--color-primary)` acá resuelve a
+   #6366f1 (la paleta global; .maquila-wrap no lo redefine) y a 13px sobre el
+   fondo de pantalla da 4,17:1 — medido, falla AA. El color no es el que dice
+   dónde estás: el trazo y el fondo lo dicen. */
+.maquila-nav-mas.is-active > summary {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-bottom-color: #4f46e5;
+}
+.maquila-nav-mas > summary:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+.maquila-nav-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 12px 28px -8px rgba(15, 23, 42, .22), 0 2px 6px rgba(15, 23, 42, .06);
+}
+.maquila-nav-panel a { width: 100%; }
+.maquila-nav-panel-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--color-border-subtle);
+}
+
+/* «Por qué "Real" viene vacío»: disclosure de una línea, no el título de 20px
+   que usa `.maquila-detalles` para «Más datos de la entrega». */
+.maquila-wrap details.maquila-porque > summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  min-height: 48px;
+}
+.maquila-wrap details.maquila-porque > p { margin-bottom: 4px; }
+
+/* Restos medidos tras subir el piso: los enlaces de código en tablas
+   quedaban en 44px (padding 13+13 sobre 18 de línea) y el código de la
+   corrida en la cabecera del cierre, en 24px. */
+.maquila-wrap .maquila-titulo-fila h2 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin: -12px 0;
+}
+
+/* Un enlace dentro de una frase no puede crecer en alto sin romper el
+   interlineado; se le da el blanco táctil en horizontal y un subrayado
+   grueso, que es lo que lo hace apuntable en un teléfono. */
+.maquila-wrap .maquila-nota a,
+.maquila-wrap .ops-card > p a {
+  padding: 0 3px;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Los campos de formulario vienen de `operaciones.css:451`, que fija 44px
+   para .ops-field en TODOS los módulos (Registros, Usuarios, Precios…). El
+   piso se sube acá, scopeado a maquila: subirlo en la hoja compartida
+   cambiaría cuatro módulos que esta ronda no midió. */
+.maquila-wrap .ops-field input,
+.maquila-wrap .ops-field select,
+.maquila-wrap .ops-field textarea {
+  min-height: 48px;
+}
+
+/* El enlace de código en una tabla quedaba en 46px: la caja de línea es de
+   ~16px y el padding de 15 no llegaba. Se fija el alto en vez de calcularlo. */
+.maquila-wrap .maquila-tabla td a,
+.maquila-wrap .maquila-tabla-mini td a {
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+}
+/* En la fila de la cabecera la salida se va al extremo, para que el código y
+   el chip queden juntos y se lean como una sola cosa. */
+.maquila-cierre-cab .maquila-titulo-fila .maquila-salida { margin-left: auto; }
