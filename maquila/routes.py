@@ -3,7 +3,7 @@ import base64
 import binascii
 import io
 from datetime import datetime, time, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 import xlsxwriter
 from flask import (Blueprint, Response, abort, flash, redirect,
@@ -397,22 +397,58 @@ def recepciones():
         query = query.filter_by(cliente_id=cliente_id)
     recepciones = query.order_by(RecepcionIngrediente.recibido_en.desc(),
                                  RecepcionIngrediente.id.desc()).all()
-    # Cuánto queda de cada recepción (en kg), en una sola consulta: la
+    # Cuánto queda de cada recepción, POR UNIDAD y en una sola consulta: la
     # lista tiene que distinguir una recepción intacta de una casi agotada
     # sin abrirlas una por una.
+    #
+    # Antes esto miraba solo los kilos, y el chip de estado de la fila entera
+    # se pintaba con ese número: una recepción de 240 kg de carne + 600 ud de
+    # tripa, con la tripa entera consumida y la carne intacta, decía «Sin
+    # consumir» en verde mientras la celda de al lado imprimía las 600 ud.
+    # Sumar kg con ud sigue estando prohibido (da un número que no es nada),
+    # así que se agrupa por unidad y el estado lo fija la unidad peor parada.
     saldos = servicios.saldos_por_linea(
         l.id for r in recepciones for l in r.lineas_vivas)
     queda = {}
     for r in recepciones:
-        kg = [l for l in r.lineas_vivas if l.ingrediente and l.ingrediente.unidad == 'kg']
-        if kg:
-            queda[r.id] = (sum((saldos[l.id] for l in kg), Decimal('0')),
-                           sum((l.peso_total for l in kg), Decimal('0')))
+        por_unidad = {}
+        for l in r.lineas_vivas:
+            unidad = l.ingrediente.unidad if l.ingrediente else 'kg'
+            saldo, total = por_unidad.get(unidad, (Decimal('0'), Decimal('0')))
+            por_unidad[unidad] = (saldo + saldos[l.id],
+                                  total + Decimal(str(l.peso_total or 0)))
+        if por_unidad:
+            queda[r.id] = _estado_consumo(por_unidad)
     return render_template(
         'maquila/recepciones.html',
         recepciones=recepciones, queda=queda,
         clientes=_clientes(),
         cliente_id=cliente_id)
+
+
+def _estado_consumo(por_unidad):
+    """Cómo va el consumo de una recepción, mirando TODAS sus unidades.
+
+    `por_unidad` es {unidad: (saldo, recibido)}. Devuelve el saldo de cada
+    unidad para la columna «Queda» y un estado para el chip, fijado por la
+    unidad más consumida —el porcentaje que se muestra es el peor, porque es
+    el que decide si a esta recepción todavía se le puede sacar algo—.
+    """
+    saldos_por_unidad = sorted((u, s) for u, (s, _t) in por_unidad.items())
+    pct_por_unidad = [(u, (t - s) / t * 100) for u, (s, t) in por_unidad.items() if t > 0]
+    peor = max((p for _u, p in pct_por_unidad), default=Decimal('0'))
+    if all(s <= 0 for _u, s in saldos_por_unidad):
+        clave = 'agotada'
+    elif peor > 0:
+        clave = 'parcial'
+    else:
+        clave = 'intacta'
+    return {'saldos': saldos_por_unidad, 'clave': clave,
+            'pct': int(peor.to_integral_value(rounding=ROUND_HALF_UP)),
+            # Cuando una unidad está agotada y otra no, el chip lo dice: es
+            # el caso que antes salía en verde.
+            'agotadas': [u for u, s in saldos_por_unidad if s <= 0]
+                        if clave == 'parcial' else []}
 
 
 @bp.route('/recepciones/nueva', methods=['GET', 'POST'])

@@ -19,8 +19,15 @@
 {{ chip(estado|capitalize, tonos.get(estado, 'neutro')) }}
 {%- endmacro %}
 
+{#- El tipo de movimiento NO es un estado: una entrada no está «conforme» y un
+    ajuste no es un «aviso». Verde y ámbar estaban acá haciendo de tercera y
+    cuarta serie de una paleta categórica, que es justo lo que prohíbe la
+    regla del estado reservado —y en el kardex, apilados en columna, se leían
+    como «las entradas van bien, los ajustes preocupan». Los cuatro tipos van
+    en neutro o en marca (índigo es identidad, no estado); lo que distingue
+    es la palabra, que ya llevaban. -#}
 {% macro chip_tipo_movimiento(tipo, origen_tipo=None) -%}
-{%- set tonos = {'entrada': 'conforme', 'salida': 'neutro', 'ajuste': 'aviso',
+{%- set tonos = {'entrada': 'marca', 'salida': 'neutro', 'ajuste': 'neutro',
                  'devolucion': 'marca'} -%}
 {%- if tipo == 'ajuste' and origen_tipo == 'recepcion' -%}
 {{ chip('Corrección', 'marca') }}

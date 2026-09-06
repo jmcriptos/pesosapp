@@ -35,11 +35,14 @@
         <td data-label="Líneas" class="maquila-num">{{ r.lineas_vivas|length }}</td>
         <td data-label="Recibido" class="maquila-num">{% for unidad, total in r.totales_por_unidad %}{{ total|fmt_cant(unidad) }}{{ ' · ' if not loop.last }}{% else %}—{% endfor %}</td>
         {% set q = queda.get(r.id) %}
-        <td data-label="Queda" class="maquila-num">{% if q %}{{ q[0]|fmt_cant }}{% else %}—{% endif %}</td>
+        {#- «Queda» y el chip miran TODAS las unidades, no solo los kilos: la
+            tripa se agota antes que la carne y antes salía en verde. -#}
+        <td data-label="Queda" class="maquila-num">{% if q %}{% for unidad, saldo in q.saldos %}{{ saldo|fmt_cant(unidad) }}{{ ' · ' if not loop.last }}{% endfor %}{% else %}—{% endif %}</td>
         <td data-label="Estado">
           {% if r.anulada %}{{ chip('Anulada', 'falla') }}
-          {% elif q and q[0] <= 0 %}{{ chip('Agotada', 'neutro') }}
-          {% elif q and q[0] < q[1] %}{{ chip('Consumida ' ~ (((q[1] - q[0]) / q[1] * 100)|round(0)|int) ~ ' %', 'marca') }}
+          {% elif not q %}{{ chip('Sin líneas', 'neutro') }}
+          {% elif q.clave == 'agotada' %}{{ chip('Agotada', 'neutro') }}
+          {% elif q.clave == 'parcial' %}{{ chip('Consumida ' ~ q.pct ~ ' %', 'marca') }}{% for unidad in q.agotadas %} {{ chip('Sin ' ~ unidad, 'aviso') }}{% endfor %}
           {% else %}{{ chip('Sin consumir', 'conforme') }}{% endif %}
         </td>
       </tr>

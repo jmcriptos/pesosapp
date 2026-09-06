@@ -17,13 +17,22 @@
 </section>
 {% endif %}
 
+{#- La cabecera es una línea, no un párrafo. Medido antes de este cambio: la
+    pantalla cargaba con 162 palabras de prosa y el primer campo «Real» a
+    y=745 en un viewport de 844 —debajo del pie sticky—, así que en un
+    teléfono no se veía una sola entrada al llegar. Lo que el párrafo decía
+    («declará, recalculá, revisá, firmá») ya lo dice el pie, paso a paso y
+    pegado al botón que se bloquea. -#}
 <section class="ops-card maquila-cierre-cab">
   <div class="maquila-titulo-fila">
     <h2><a href="{{ url_for('maquila.corrida_detalle', corrida_id=corrida.id) }}">{{ corrida.codigo }}</a></h2>
     {{ chip_estado(corrida.estado) }}
     <span class="maquila-meta">{{ corrida.producto.nombre }} · lote {{ corrida.lote }} · {{ corrida.peso_producido|fmt_cant }} en {{ corrida.cajas|length }} caja{{ 's' if corrida.cajas|length != 1 else '' }}</span>
+    {#- La salida comparte la fila de la cabecera en vez de ocupar una propia:
+        en un teléfono esos ~60px son lo que separa al primer campo «Real» de
+        quedar debajo del pie sticky. -#}
+    <a class="maquila-salida" href="{{ url_for('maquila.corrida_detalle', corrida_id=corrida.id) }}">Volver a la corrida</a>
   </div>
-  <p class="maquila-nota">Cerrar descuenta el consumo real del inventario de {{ corrida.cliente.nombre }}. Declará, recalculá, revisá el total y firmá. Para pesar más cajas o anular, volvé a la <a href="{{ url_for('maquila.corrida_detalle', corrida_id=corrida.id) }}">corrida</a>.</p>
 </section>
 
 <form method="POST" action="{{ url_for('maquila.corrida_cerrar', corrida_id=corrida.id) }}"
@@ -35,7 +44,6 @@
     {% if not ingredientes %}
       <p class="ops-empty">No hay ingredientes activos para declarar consumo.</p>
     {% else %}
-    <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos. Lo que se descuenta es lo que declarás en «Real»: no viene precargado a propósito, para que el rendimiento mida lo que salió de la cámara y no lo que dice la receta. Si coincide, usá «Copiar el teórico».</p>
     <table class="maquila-tabla maquila-tabla-consumo">
       <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
       <tbody>
@@ -60,6 +68,13 @@
         {% endfor %}
       </tbody>
     </table>
+    {#- La explicación va DESPUÉS de la tabla: es cierta y hace falta la
+        primera vez, pero delante costaba 60px y dejaba el primer campo «Real»
+        debajo del pie sticky (medido: campo 617-673, pie desde 635). -#}
+    <details class="maquila-detalles maquila-porque">
+      <summary>Por qué «Real» viene vacío</summary>
+      <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos. Lo que se descuenta es lo que declarás en «Real»: no viene precargado a propósito, para que el rendimiento mida lo que salió de la cámara y no lo que dice la receta. Si coincide, usá «Copiar el teórico».</p>
+    </details>
     <div class="maquila-acciones">
       <button type="button" class="btn" id="btn-usar-teorico">Copiar el teórico</button>
       <button type="submit" class="btn"

@@ -7,7 +7,12 @@ p0_count: 0
 p1_count: 2
 timestamp: 2026-09-06T22-45-21Z
 slug: templates-maquila
+resuelto: P1-1, P1-2, P2-1, P2-2, P2-3
 ---
+
+> **Estado (2026-09-06, mismo día):** los dos P1 y los tres P2 están aplicados
+> y verificados en el navegador. Lo medido después del arreglo, al pie del
+> documento en «Cierre de la ronda». Los P3 y los menores siguen abiertos.
 
 # Crítica — /maquila (módulo completo, 16 pantallas)
 
@@ -385,3 +390,43 @@ pantalla, y si toca los tres del final del riel encuentra selectores vacíos.
   `FLASK_ENV == "production"` (`app.py:371`).
 - La locale del navegador no es configurable en este contenedor; el hallazgo de
   formato de fecha queda acotado a lo que sí se verificó.
+
+
+## Cierre de la ronda — qué se arregló y qué mide ahora
+
+Mismo instrumento, mismas 16 rutas × 2 breakpoints, con el servidor
+reiniciado para que no quedara ninguna plantilla en caché.
+
+| Hallazgo | Antes | Después |
+|---|---|---|
+| P1-1 · destinos táctiles bajo 48px | 423 de 646 (65 %) en 44,0px clavados | **0** destinos reales |
+| P1-1 · campos que se teclean con guante | 44px | **56px** (consumo real y peso de caja) |
+| P1-2 · primer campo «Real» del cierre | y=745, tapado por el pie sticky (que arranca en 635) | **y=567–623, visible entero** |
+| P1-2 · prosa antes del primer campo | 162 palabras en 6 bloques | **133 en 5**, y la explicación larga pasó a un `<details>` debajo de la tabla |
+| P2-1 · riel de secciones | 1.063px de ancho en 356px útiles | **499px**, cuatro destinos de operación y seis tras «Más» |
+| P2-2 · estado de una recepción | miraba solo los kilos | mira **todas las unidades**; la columna «Queda» las separa |
+| P2-3 · tipo de movimiento | verde para «entrada», ámbar para «ajuste» | **neutro y marca**; verde y ámbar vuelven a ser solo estado |
+
+Lo que ya estaba bien y sigue igual, remedido: **1.306 pares de texto sin una
+sola falla AA** (peor caso 4,76:1), ningún texto por debajo de 11px, cero
+desbordes de página, 16 pantallas en 200.
+
+**Una regresión propia, encontrada y corregida en la misma ronda.** El estado
+activo del disclosure «Más» salió con `var(--color-primary)`, que en
+`.maquila-wrap` resuelve a `#6366f1` y a 13px sobre el fondo de pantalla da
+**4,17:1** — falla AA. Se midió, se cambió al mismo tratamiento que el enlace
+activo del riel (tinta plena sobre superficie, índigo solo en el trazo
+inferior) y volvió a 0 fallas. Es exactamente la clase de error que el
+detector de esta ronda existe para atrapar: el color como única señal de
+dónde estás.
+
+**Qué NO se tocó, a propósito.** `operaciones.css:451` fija 44px para
+`.ops-field` en todos los módulos (Registros, Usuarios, Precios y los demás).
+El piso se subió scopeado a `.maquila-wrap`: subirlo en la hoja compartida
+cambiaría cuatro módulos que esta ronda no midió. Queda como el candidato
+natural de la próxima ronda, junto con los P3 (hex a mano, formato de fecha) y
+los menores.
+
+**Cobertura.** `tests/test_maquila_critique_2026_09.py`, 18 tests que fijan los
+cinco hallazgos —incluida la regla de que ninguna línea de `maquila.css` puede
+volver a decir `min-height: 44px`—. Suite completa: 1.130 pasan, 1 salteado.

@@ -11,15 +11,27 @@
   <header class="ops-head">
     <h1 class="ops-title">{% block maquila_title %}Maquila{% endblock %}</h1>
     {#- El nav marca dónde estás. `Resumen` compara exacto porque /maquila es
-        prefijo de todo lo demás. Los diez destinos van en tres grupos —operar,
-        configurar, consultar— separados por un trazo: diez enlaces planos del
-        mismo peso obligaban a leerlos todos en cada pantalla. -#}
+        prefijo de todo lo demás.
+
+        Los diez destinos NO caben en un teléfono: medido, el riel daba 1.063px
+        de ancho dentro de 356px útiles, con tres destinos a la vista y 707px
+        fuera de cuadro. Ahora el riel lleva los cuatro destinos de operación
+        —los que se tocan varias veces por día— y los otros seis viven detrás
+        de «Más», en dos grupos: configurar y consultar.
+
+        Va en un `<details>`, no en un menú con JS: funciona sin script y el
+        teclado lo abre solo. Y tres de esos seis (Saldos, Kardex,
+        Trazabilidad) abren en un selector vacío, así que sacarlos del riel no
+        esconde trabajo: el banner de dueño ya lleva a Saldos y Kardex del
+        cliente que estás mirando, con el cliente puesto. -#}
     {%- set ruta = request.path -%}
-    {%- set grupos = [
-         [('maquila.index',                 'Resumen',      '/maquila'),
-          ('maquila.recepciones',           'Recepciones',  '/maquila/recepciones'),
-          ('maquila.corridas',              'Producción',   '/maquila/corridas'),
-          ('maquila.ajustes',               'Ajustes',      '/maquila/ajustes')],
+    {%- set operar = [
+         ('maquila.index',                 'Resumen',      '/maquila'),
+         ('maquila.recepciones',           'Recepciones',  '/maquila/recepciones'),
+         ('maquila.corridas',              'Producción',   '/maquila/corridas'),
+         ('maquila.ajustes',               'Ajustes',      '/maquila/ajustes'),
+       ] -%}
+    {%- set grupos_mas = [
          [('maquila.ingredientes',          'Ingredientes', '/maquila/ingredientes'),
           ('maquila.recetas',               'Recetas',      '/maquila/recetas')],
          [('maquila.reporte_saldos',        'Saldos',       '/maquila/reportes/saldos'),
@@ -27,27 +39,57 @@
           ('maquila.reporte_rendimiento',   'Rendimiento',  '/maquila/reportes/rendimiento'),
           ('maquila.reporte_trazabilidad',  'Trazabilidad', '/maquila/reportes/trazabilidad')],
        ] -%}
+    {%- set ns_nav = namespace(en_mas=false) -%}
+    {%- for grupo in grupos_mas %}{% for _, _, base in grupo %}
+      {%- if ruta.startswith(base) %}{% set ns_nav.en_mas = true %}{% endif %}
+    {%- endfor %}{% endfor -%}
     <nav class="maquila-nav" aria-label="Secciones de maquila">
-      {%- for grupo in grupos %}
-      {%- if not loop.first %}<span class="maquila-nav-sep" aria-hidden="true"></span>{% endif %}
-      {%- for endpoint, rotulo, base in grupo %}
+      {%- for endpoint, rotulo, base in operar %}
       {%- set activo = (ruta == base) if base == '/maquila' else ruta.startswith(base) %}
       <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
       {%- endfor %}
-      {%- endfor %}
+      {#- Marcado como activo, pero NO abierto: el panel flota sobre el
+          contenido y abrirlo solo porque estás en una de sus pantallas
+          taparía lo que viniste a leer. -#}
+      <details class="maquila-nav-mas{{ ' is-active' if ns_nav.en_mas else '' }}">
+        <summary aria-label="Más secciones de maquila">Más</summary>
+        <div class="maquila-nav-panel">
+          {%- for grupo in grupos_mas %}
+          {%- if not loop.first %}<span class="maquila-nav-panel-sep" aria-hidden="true"></span>{% endif %}
+          {%- for endpoint, rotulo, base in grupo %}
+          {%- set activo = ruta.startswith(base) %}
+          <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
+          {%- endfor %}
+          {%- endfor %}
+        </div>
+      </details>
     </nav>
   </header>
   {% block maquila_body %}{% endblock %}
 </div>
 <script nonce="{{ csp_nonce() }}">
 (function () {
-  // En el teléfono el nav se desliza: la sección actual tiene que estar a la
-  // vista al cargar, no a 600px a la derecha.
-  var activo = document.querySelector('.maquila-nav .is-active');
   var nav = document.querySelector('.maquila-nav');
-  if (activo && nav && nav.scrollWidth > nav.clientWidth) {
+  if (!nav) return;
+
+  // En el teléfono el nav puede seguir deslizándose: la sección actual tiene
+  // que estar a la vista al cargar, no fuera de cuadro. `:scope > .is-active`
+  // para no centrar sobre un enlace que vive DENTRO del panel de «Más».
+  var activo = nav.querySelector(':scope > .is-active');
+  if (activo && nav.scrollWidth > nav.clientWidth) {
     nav.scrollLeft = activo.offsetLeft - (nav.clientWidth - activo.offsetWidth) / 2;
   }
+
+  // El panel de «Más» se cierra tocando fuera o con Escape: si no, queda
+  // abierto tapando el contenido después de elegir y volver con «atrás».
+  var mas = nav.querySelector('.maquila-nav-mas');
+  if (!mas) return;
+  document.addEventListener('click', function (e) {
+    if (mas.open && !mas.contains(e.target)) mas.open = false;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && mas.open) { mas.open = false; mas.querySelector('summary').focus(); }
+  });
 })();
 </script>
 {% endblock %}
