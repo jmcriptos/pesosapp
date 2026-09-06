@@ -66,7 +66,7 @@ def _css():
 
 def _nav(html):
     """El nav de maquila. `html.index('</nav>')` tomaba el de la topbar."""
-    i = html.index('<nav class="maquila-nav"')
+    i = html.index('<nav class="maquila-nav-fila"')
     return html[i:html.index('</nav>', i)]
 
 
@@ -177,6 +177,39 @@ def test_el_primer_campo_real_llega_antes_que_la_explicacion(app):
 
 
 # ---------------------------------------------------------------- P2-1
+
+def test_el_panel_de_mas_no_vive_dentro_del_riel_que_scrollea(app):
+    """El bug de la primera versión: el menú se renderizaba y no se veía.
+
+    `.maquila-nav` scrollea en horizontal (`overflow-x:auto`), esconde el
+    desborde vertical (`overflow-y:hidden`) y lleva una `mask-image`. Cada una
+    de las tres recorta por su cuenta un panel absoluto que cae por debajo del
+    riel, así que «Más» abría un panel invisible. El `<details>` tiene que ser
+    HERMANO del riel, no descendiente.
+    """
+    html = _login(app).get('/maquila').get_data(as_text=True)
+    nav = _nav(html)
+    riel = nav[nav.index('<div class="maquila-nav">'):]
+    riel = riel[:riel.index('</div>')]
+    assert 'maquila-nav-mas' not in riel, (
+        'el disclosure dentro del riel queda recortado por su overflow')
+
+    # Y la fila que sí lo contiene no puede recortar.
+    css = _css()
+    fila = css[css.index('.maquila-nav-fila {'):]
+    fila = fila[:fila.index('}')]
+    assert 'overflow: visible' in fila, 'la fila no puede recortar el panel'
+
+
+def test_los_enlaces_del_panel_llegan_al_piso_de_48px():
+    """Al salir del riel dejaron de heredar `.maquila-nav a`: sin regla propia
+    salían como enlaces crudos de 19px, subrayados."""
+    css = _css()
+    assert _min_height(css, '.maquila-nav-panel a') >= 48
+    bloque = css[css.index('.maquila-nav-panel a {'):]
+    bloque = bloque[:bloque.index('}')]
+    assert 'text-decoration: none' in bloque
+
 
 def test_el_riel_lleva_cuatro_destinos_y_el_resto_va_tras_mas(app):
     """Medido: diez destinos daban 1.063px de riel en 356px útiles, con tres a

@@ -43,11 +43,20 @@
     {%- for grupo in grupos_mas %}{% for _, _, base in grupo %}
       {%- if ruta.startswith(base) %}{% set ns_nav.en_mas = true %}{% endif %}
     {%- endfor %}{% endfor -%}
-    <nav class="maquila-nav" aria-label="Secciones de maquila">
-      {%- for endpoint, rotulo, base in operar %}
-      {%- set activo = (ruta == base) if base == '/maquila' else ruta.startswith(base) %}
-      <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
-      {%- endfor %}
+    {#- El riel y «Más» son HERMANOS, no anidados: `.maquila-nav` scrollea
+        en horizontal (`overflow-x:auto`), esconde el desborde vertical
+        (`overflow-y:hidden`) y lleva una `mask-image`. Cada una de las tres
+        recorta por su cuenta un panel absoluto que cae por debajo del riel,
+        así que dentro del riel el menú se renderiza y no se ve. Acá solo
+        scrollea el `<div>`; el `<details>` vive fuera, con overflow visible,
+        y queda fijo a la derecha en vez de irse con el scroll. -#}
+    <nav class="maquila-nav-fila" aria-label="Secciones de maquila">
+      <div class="maquila-nav">
+        {%- for endpoint, rotulo, base in operar %}
+        {%- set activo = (ruta == base) if base == '/maquila' else ruta.startswith(base) %}
+        <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
+        {%- endfor %}
+      </div>
       {#- Marcado como activo, pero NO abierto: el panel flota sobre el
           contenido y abrirlo solo porque estás en una de sus pantallas
           taparía lo que viniste a leer. -#}
@@ -69,20 +78,20 @@
 </div>
 <script nonce="{{ csp_nonce() }}">
 (function () {
+  var fila = document.querySelector('.maquila-nav-fila');
   var nav = document.querySelector('.maquila-nav');
-  if (!nav) return;
+  if (!fila || !nav) return;
 
-  // En el teléfono el nav puede seguir deslizándose: la sección actual tiene
-  // que estar a la vista al cargar, no fuera de cuadro. `:scope > .is-active`
-  // para no centrar sobre un enlace que vive DENTRO del panel de «Más».
-  var activo = nav.querySelector(':scope > .is-active');
+  // En el teléfono el riel puede seguir deslizándose: la sección actual tiene
+  // que estar a la vista al cargar, no fuera de cuadro.
+  var activo = nav.querySelector('.is-active');
   if (activo && nav.scrollWidth > nav.clientWidth) {
     nav.scrollLeft = activo.offsetLeft - (nav.clientWidth - activo.offsetWidth) / 2;
   }
 
   // El panel de «Más» se cierra tocando fuera o con Escape: si no, queda
   // abierto tapando el contenido después de elegir y volver con «atrás».
-  var mas = nav.querySelector('.maquila-nav-mas');
+  var mas = fila.querySelector('.maquila-nav-mas');
   if (!mas) return;
   document.addEventListener('click', function (e) {
     if (mas.open && !mas.contains(e.target)) mas.open = false;

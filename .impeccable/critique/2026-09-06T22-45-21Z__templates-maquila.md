@@ -430,3 +430,34 @@ los menores.
 **Cobertura.** `tests/test_maquila_critique_2026_09.py`, 18 tests que fijan los
 cinco hallazgos —incluida la regla de que ninguna línea de `maquila.css` puede
 volver a decir `min-height: 44px`—. Suite completa: 1.130 pasan, 1 salteado.
+
+
+## Corrección posterior — el menú «Más» abría vacío
+
+Lo reportó JM al usarlo, no el instrumento. **El panel se renderizaba y no se
+veía.** `.maquila-nav` scrollea en horizontal (`overflow-x:auto`), esconde el
+desborde vertical (`overflow-y:hidden`) y lleva una `mask-image`: cada una de
+las tres, por su cuenta, recorta un panel absoluto que cae por debajo del riel.
+El `<details>` estaba dentro del riel, así que el menú existía en el DOM,
+respondía al toque y no pintaba nada.
+
+**Por qué la auditoría no lo vio:** midió los elementos tal como cargan la
+página y **nunca abrió el disclosure**. Un control que solo falla después de
+interactuar con él es invisible para un barrido estático, por completo que sea.
+Es la lección de esta ronda: medir el estado inicial no es probar la pantalla.
+
+**Arreglo.** El riel y «Más» pasan a ser hermanos dentro de un
+`.maquila-nav-fila` con `overflow: visible`; solo el `<div class="maquila-nav">`
+scrollea, y el `<details>` queda fijo a la derecha en vez de irse con el scroll.
+Al salir del riel, los enlaces del panel dejaron de heredar `.maquila-nav a` y
+salían crudos —19px, subrayados, azul de enlace—: llevan ahora su propia regla
+con el mismo piso de 48px del resto del módulo.
+
+**Verificado abriendo el menú de verdad**, en 390×844 y en 1440×900: los seis
+destinos miden 48px, `elementFromPoint` devuelve el enlace en el centro de cada
+uno, un clic en «Kardex» navega a `/maquila/reportes/kardex`, y con el panel
+cerrado ningún enlace es alcanzable. Dos tests nuevos lo fijan: que el
+`<details>` no vuelva a vivir dentro del riel, y que los enlaces del panel no
+bajen de 48px.
+
+Suite tras la corrección: **1.132 pasan, 1 salteado**.

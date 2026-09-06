@@ -145,6 +145,20 @@ body[data-maquila-screen] .app-content {
    pantalla de cuadro y dejaba el bisel negro. Ahora el propio nav es el
    contenedor de scroll, con snap y una máscara de borde que anuncia que hay
    más. Nada del módulo puede volver a arrastrar el marco. */
+/* La fila: el riel scrollea, «Más» queda fijo a su derecha. El overflow
+   visible de acá es lo que deja que el panel de «Más» se pinte por debajo
+   —dentro del riel lo recortaban el overflow-y:hidden, el overflow-x:auto y
+   la mask-image, cada uno por su cuenta. */
+.maquila-nav-fila {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  overflow: visible;
+  position: relative;
+}
+.maquila-nav-fila > .maquila-nav { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+
 .maquila-nav {
   display: flex;
   gap: 4px;
@@ -1709,7 +1723,7 @@ main.app-content:has(.maquila-wrap) {
   position: absolute;
   z-index: 30;
   top: calc(100% + 4px);
-  left: 0;
+  right: 0;
   min-width: 190px;
   display: flex;
   flex-direction: column;
@@ -1719,7 +1733,33 @@ main.app-content:has(.maquila-wrap) {
   background: var(--color-surface);
   box-shadow: 0 12px 28px -8px rgba(15, 23, 42, .22), 0 2px 6px rgba(15, 23, 42, .06);
 }
-.maquila-nav-panel a { width: 100%; }
+/* Los enlaces del panel ya NO son descendientes de `.maquila-nav`, así que
+   no heredan nada de su regla: sin esto salían como enlaces crudos de 19px,
+   subrayados y en azul. Mismo tratamiento que el riel, y el mismo piso de
+   48px que el resto del módulo. */
+.maquila-nav-panel a {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.maquila-nav-panel a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-muted);
+}
+.maquila-nav-panel a.is-active {
+  color: var(--color-text);
+  background: var(--color-surface-muted);
+  font-weight: 700;
+}
+.maquila-nav-panel a:focus-visible { outline: 2px solid #6366f1; outline-offset: -2px; }
 .maquila-nav-panel-sep {
   height: 1px;
   margin: 4px 6px;
