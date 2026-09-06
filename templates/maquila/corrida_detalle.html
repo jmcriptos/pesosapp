@@ -179,15 +179,24 @@
         {% set ns.faltantes = ns.faltantes + 1 %}
         {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': none, 'tramos': [], 'agota': false}] %}
       {% else %}
-        {% set suma = namespace(v=0, agota=false) %}
+        {% set suma = namespace(v=0, agota=false, agotan=[]) %}
         {% for linea_id, cantidad in tramos %}
           {% set suma.v = suma.v + cantidad %}
           {% set saldo_l = saldos_reparto.get(linea_id) %}
-          {% if saldo_l is not none and (saldo_l - cantidad) <= 0 %}{% set suma.agota = true %}{% endif %}
+          {% if saldo_l is not none and (saldo_l - cantidad) <= 0 %}
+            {% set suma.agota = true %}
+            {% set lin = lineas_reparto.get(linea_id) %}
+            {% set suma.agotan = suma.agotan + [lin.recepcion.codigo if lin else ('línea #' ~ linea_id)] %}
+          {% endif %}
         {% endfor %}
         {% if unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + suma.v %}{% endif %}
+        {#- Desviación contra la receta, para la hoja: se confirma un total
+            viendo cuánto se aparta de lo esperado. -#}
+        {% set teo = teoricos.get(ingrediente_id) %}
+        {% if teo is not none and unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
+        {% set desvio_pct = (((suma.v - teo) / teo) * 100)|round(1) if teo else none %}
         {% set ns.resumen = ns.resumen + [nombre ~ ' ' ~ (suma.v|fmt_cant(unidad))] %}
-        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': suma.v, 'tramos': tramos, 'agota': suma.agota}] %}
+        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': suma.v, 'tramos': tramos, 'agota': suma.agota, 'agotan': suma.agotan, 'desvio_pct': desvio_pct}] %}
       {% endif %}
     {% endfor %}
   {% endif %}
@@ -200,6 +209,9 @@
       el JS la marca como desactualizada hasta recalcular. -#}
   {% if hay_resumen and reparto_origen == 'declarado' %}
   <section class="ops-card maquila-total-franja" id="total-a-descontar">
+    {% if request.args.get('recalculado') %}
+    <p class="maquila-franja-ok" role="status" aria-live="polite">{{ chip('Recalculado', 'conforme') }} Reparto recalculado con lo declarado. Revisá el total antes de cerrar.</p>
+    {% endif %}
     <div class="maquila-titulo-fila">
       <div class="maquila-dueno-label">A descontar del inventario de {{ corrida.cliente.nombre }}</div>
       <span class="maquila-chip is-aviso" id="franja-desactualizada" hidden>Desactualizado: recalculá</span>
@@ -216,7 +228,7 @@
   <section class="ops-card" id="reparto">
     <div class="maquila-titulo-fila">
       <h2>Reparto FIFO</h2>
-      {{ chip('Estimado', 'aviso') if reparto_origen == 'teorico' else chip('Según lo declarado', 'conforme') }}
+      <span id="reparto-chip">{{ chip('Estimado', 'aviso') if reparto_origen == 'teorico' else chip('Según lo declarado', 'conforme') }}</span>
     </div>
     {% if reparto_origen == 'teorico' %}
     <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: es una vista previa, no lo que se va a descontar. Declará el consumo real arriba (o copiá el teórico) y tocá «Recalcular reparto»; el cierre se habilita recién ahí.</p>
@@ -269,7 +281,7 @@
     {% endif %}
   </section>
 
-  <footer class="ops-sticky-footer">
+  <footer class="ops-sticky-footer{% if reparto_origen != 'declarado' %} is-teorico{% endif %}">
     {#- El aviso vive pegado al botón que explica: en escritorio el pie es
         visible desde el primer paint y el motivo del bloqueo tiene que estar
         a la vista, no 2.000px arriba. -#}
@@ -288,8 +300,13 @@
   <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
   <p class="maquila-total-detalle">a descontar en peso · {{ corrida.codigo }} · lote {{ corrida.lote }}</p>
   <ul class="maquila-hoja-lista">
-    {% for r in ns.resumen %}<li>{{ r }}</li>{% endfor %}
+    {% for d in ns.detalle if d.total is not none %}
+    <li>{{ d.nombre }} <strong>{{ d.total|fmt_cant(d.unidad) }}</strong>{% if d.desvio_pct is not none %} <span class="maquila-meta {{ 'maquila-desvio-falla' if d.desvio_pct|abs > 10 else ('maquila-desvio-aviso' if d.desvio_pct|abs > 5 else '') }}">{{ '+' if d.desvio_pct > 0 else '' }}{{ d.desvio_pct }} % vs. receta</span>{% endif %}</li>
+    {% endfor %}
   </ul>
+  {% set agotan = namespace(lista=[]) %}
+  {% for d in ns.detalle %}{% for c in d.agotan %}{% set agotan.lista = agotan.lista + [c ~ ' (' ~ d.nombre|lower ~ ')'] %}{% endfor %}{% endfor %}
+  {% if agotan.lista %}<p class="maquila-total-detalle">Se agotan: {{ agotan.lista|join(' · ') }}</p>{% endif %}
   {% if merma_est is not none %}<p class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido)</p>{% endif %}
   {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
   {% else %}
@@ -356,7 +373,8 @@
       if (isNaN(teo) || isNaN(real)) { celda.textContent = '—'; celda.className = 'maquila-dif'; return; }
       var d = real - teo, pct = teo > 0 ? Math.round(d / teo * 1000) / 10 : null;
       celda.textContent = (d > 0 ? '+' : '') + fmt(d, i.dataset.unidad) + (pct === null ? '' : ' (' + (d > 0 ? '+' : '') + pct + ' %)');
-      celda.className = 'maquila-dif ' + (d < 0 ? 'maquila-neg' : d > 0 ? 'maquila-pos' : '');
+      var ap = pct === null ? 0 : Math.abs(pct);
+      celda.className = 'maquila-dif ' + (ap > 10 ? 'maquila-desvio-falla' : ap > 5 ? 'maquila-desvio-aviso' : '');
     });
   }
   function revisar() {
@@ -364,8 +382,17 @@
     var bloqueado = !origenDeclarado || cambiado;
     cerrar.disabled = bloqueado;
     if (aviso) aviso.hidden = !bloqueado;
-    // La única cifra en rol Figure no puede quedar diciendo un número viejo.
+    // La única cifra en rol Figure no puede quedar diciendo un número viejo;
+    // tampoco el chip del reparto ni los resúmenes por ingrediente.
     if (franja) { franja.classList.toggle('is-desactualizado', cambiado); if (franjaChip) franjaChip.hidden = !cambiado; }
+    var repartoChip = document.getElementById('reparto-chip');
+    if (repartoChip) {
+      if (!repartoChip.dataset.original) repartoChip.dataset.original = repartoChip.innerHTML;
+      repartoChip.innerHTML = cambiado ? '<span class="maquila-chip is-aviso">Desactualizado: recalculá</span>' : repartoChip.dataset.original;
+    }
+    document.querySelectorAll('details.maquila-reparto-ing').forEach(function (d) { d.classList.toggle('is-desactualizado', cambiado); });
+    var ok = document.querySelector('.maquila-franja-ok');
+    if (ok) ok.hidden = cambiado;
     diferencias();
   }
   inputs.forEach(function (i) { i.addEventListener('input', revisar); });
@@ -415,7 +442,8 @@
         <td data-label="Teórico" class="maquila-num">{{ consumo.cantidad_teorica|fmt_cant(u) }}</td>
         <td data-label="Real" class="maquila-num">{{ consumo.cantidad_real|fmt_cant(u) }}</td>
         {% set dif = consumo.cantidad_real - consumo.cantidad_teorica %}
-        <td data-label="Diferencia" class="maquila-num {{ 'maquila-neg' if dif < 0 else ('maquila-pos' if dif > 0 else '') }}">{{ ('+' if dif > 0 else '') ~ (dif|fmt_cant(u)) }}</td>
+        {% set dif_pct = ((dif / consumo.cantidad_teorica) * 100)|round(1) if consumo.cantidad_teorica else none %}
+        <td data-label="Diferencia" class="maquila-num {{ 'maquila-desvio-falla' if dif_pct is not none and dif_pct|abs > 10 else ('maquila-desvio-aviso' if dif_pct is not none and dif_pct|abs > 5 else '') }}">{{ ('+' if dif > 0 else '') ~ (dif|fmt_cant(u)) }}{% if dif_pct is not none %} <span class="maquila-meta">({{ '+' if dif_pct > 0 else '' }}{{ dif_pct }} %)</span>{% endif %}</td>
         <td data-label="De qué recepciones">
           {% for o in consumo.origenes %}
             <a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=o.recepcion_linea.recepcion_id) }}">{{ o.recepcion_linea.recepcion.codigo }}</a> {{ o.cantidad|fmt_cant(u) }}{{ ' (manual)' if not o.automatico else '' }}{{ ' · ' if not loop.last }}

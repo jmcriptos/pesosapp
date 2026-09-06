@@ -1477,3 +1477,116 @@ main.app-content:has(.maquila-wrap) {
    alto sin margen negativo. */
 .maquila-tarjeta-meta a { margin: 0; padding: 10px 4px; min-height: 44px; }
 .maquila-tarjeta-meta { gap: 0; }
+
+/* 45 · Tras recalcular, el mensaje de éxito vive DENTRO de la franja del
+   total (adonde aterriza la redirección), no en un flash fuera de pantalla.
+   Y al editar un consumo, los resúmenes del reparto se apagan con la franja. */
+.maquila-franja-ok {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #065f46;
+}
+.maquila-reparto-ing.is-desactualizado > summary .maquila-reparto-total,
+.maquila-reparto-ing.is-desactualizado > summary .maquila-chip {
+  color: var(--color-text-subtle);
+  text-decoration: line-through;
+}
+
+/* ============================================================
+   Critique 2026-09-05 (4ª) · P0-P2
+   ============================================================ */
+
+/* 46 · Las anclas aterrizan debajo de la topbar fija, no detrás. */
+#total-a-descontar, #reparto, #consumo, #peso { scroll-margin-top: 96px; }
+
+/* 47 · El color significa estado, no signo (Regla del Estado Reservado):
+   una diferencia +5 % sobre la receta no es «conforme». Los signos van en
+   tinta; el color aparece por umbral de desviación, el mismo que usa
+   Rendimiento (aviso > 5 %, falla > 10 %). */
+.maquila-wrap td.maquila-pos,
+.maquila-wrap td.maquila-neg,
+.maquila-pos, .maquila-neg { color: var(--color-text) !important; }
+.maquila-wrap td.maquila-desvio-aviso,
+.maquila-wrap td .maquila-desvio-aviso,
+.maquila-desvio-aviso { color: #92400e !important; }
+.maquila-wrap td.maquila-desvio-falla,
+.maquila-wrap td .maquila-desvio-falla,
+.maquila-desvio-falla { color: #9f1239 !important; font-weight: 600; }
+
+/* 48 · Contraste de los metadatos sobre superficie tenue: 4,34:1 con el
+   gris tenue; con tinta-media, 7:1. */
+.maquila-meta { color: var(--color-text-muted); }
+
+/* 49 · Cierre en el teléfono: cada ingrediente del consumo en dos líneas
+   (nombre y teórico / campo y diferencia) en vez de cuatro celdas
+   apiladas de 218 px; el aviso del pie en una línea; y con reparto teórico
+   el pie no flota: no hay nada que tocar ahí todavía. */
+@media (max-width: 767px) {
+  .maquila-wrap .maquila-tabla-consumo tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 10px 12px;
+  }
+  .maquila-wrap .maquila-tabla-consumo td {
+    display: block;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    background: transparent !important;
+  }
+  .maquila-wrap .maquila-tabla-consumo td::before { content: none; }
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Ingrediente"] {
+    flex: 1 1 55%;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+    padding: 0;
+  }
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Teórico"] {
+    flex: 0 0 auto;
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Teórico"]::before {
+    content: 'teórico ';
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Real"] { flex: 1 1 55%; }
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Real"] input[type="number"] {
+    width: 100%;
+    margin: 0;
+    text-align: left;
+  }
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Diferencia"] {
+    flex: 0 0 auto;
+    margin-left: auto;
+    font-size: 13px;
+    text-align: right;
+  }
+  .maquila-wrap .ops-sticky-footer .maquila-aviso-inline {
+    font-size: 13px;
+    line-height: 1.3;
+    padding: 6px 10px;
+  }
+  .maquila-wrap .ops-sticky-footer.is-teorico { position: static; }
+}
+
+/* 50 · Línea rechazada por el servidor: se marca y se explica al lado. */
+.maquila-wrap .rec-linea.is-invalida {
+  border-color: #fecdd3;
+  background: #fff1f2;
+}
+.maquila-wrap .rec-linea.is-invalida input[aria-invalid="true"] { border-color: #be123c; }
+.maquila-wrap .rec-linea-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9f1239;
+}

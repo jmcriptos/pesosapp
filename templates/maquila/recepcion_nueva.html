@@ -2,8 +2,8 @@
 {#- Una línea de ingrediente. La misma pieza sirve para el <template> que
     clona el JS (sin valores) y para re-pintar lo tecleado cuando el servidor
     rechazó el envío (con `l`), para que nada se pierda. -#}
-{% macro linea(ingredientes, l=None) -%}
-  <div class="rec-linea">
+{% macro linea(ingredientes, l=None, error=None) -%}
+  <div class="rec-linea{% if error %} is-invalida{% endif %}">
     <div class="rec-linea-campo">
       <label>Ingrediente
         <select name="linea_ingrediente_id" required>
@@ -28,10 +28,11 @@
     </div>
     <div class="rec-linea-campo">
       <label>Peso total
-        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required value="{{ l.peso_total if l and l.peso_total is not none else '' }}">
+        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required value="{{ l.peso_total if l and l.peso_total is not none else '' }}"{% if error %} aria-invalid="true"{% endif %}>
       </label>
     </div>
     <button type="button" class="btn rec-quitar-btn" data-rec-quitar aria-label="Quitar esta línea">Quitar</button>
+    {% if error %}<p class="rec-linea-error" role="alert">{{ error }}</p>{% endif %}
   </div>
 {%- endmacro %}
 {% block title %}Nueva recepción{% endblock %}
@@ -60,7 +61,7 @@
   <section class="ops-card">
     <h2>Ingredientes</h2>
     <p class="maquila-nota">Una línea por ingrediente. «Bultos» es cuántos paquetes llegaron; «Peso total» es lo que marcó la balanza para toda la línea. Son dos números independientes.</p>
-    <div id="rec-lineas">{% for l in lineas_previas %}{{ linea(ingredientes, l) }}{% endfor %}</div>
+    <div id="rec-lineas">{% for l in lineas_previas %}{{ linea(ingredientes, l, lineas_invalidas.get(loop.index0)) }}{% endfor %}</div>
     <div class="maquila-acciones">
       <button type="button" class="btn" id="rec-add-linea">Agregar otro ingrediente</button>
     </div>
@@ -131,8 +132,11 @@
   var tpl = document.getElementById('rec-linea-tpl');
   function addLinea() { cont.appendChild(tpl.content.cloneNode(true)); }
   document.getElementById('rec-add-linea').addEventListener('click', addLinea);
-  // Si el servidor devolvió el formulario con líneas tecleadas, se respetan.
+  // Si el servidor devolvió el formulario con líneas tecleadas, se respetan,
+  // y el foco va a la primera línea rechazada.
   if (!cont.querySelector('.rec-linea')) addLinea();
+  var invalida = cont.querySelector('[aria-invalid="true"]');
+  if (invalida) { invalida.scrollIntoView({ block: 'center' }); invalida.focus(); }
 
   // En el teléfono, los datos secundarios arrancan plegados.
   var masDatos = document.getElementById('mas-datos');

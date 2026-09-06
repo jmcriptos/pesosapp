@@ -314,6 +314,10 @@ def test_recepcion_rechazada_devuelve_el_formulario_con_lo_tecleado(app):
     assert 'BR-2291' in html
     assert 'value="24"' in html
     assert 'Lo tecleado se conserva' in html
+    # La línea rechazada queda señalada en el propio formulario, no solo en
+    # el flash: aria-invalid en el campo y el motivo al lado.
+    assert html.count('aria-invalid="true">') == 1   # el input; el selector del JS no cuenta
+    assert 'Falta el peso total de la balanza' in html
     with app.app_context():
         assert RecepcionIngrediente.query.count() == 0
 
