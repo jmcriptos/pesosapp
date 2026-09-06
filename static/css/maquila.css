@@ -15,11 +15,29 @@
    --color-text:#0f172a; ... }`. `.maquila-wrap` no es ninguna de esas tres,
    así que acá se repite el mismo truco (misma paleta, mismos valores) en
    vez de tocar ese bloque compartido. */
+/* Ocupa toda la pantalla, como Pedidos: antes era una tarjeta de 1100px
+   centrada sobre el marco oscuro (medido: x=90 en 1280, con 12px de radio y
+   el fondo #0b0e14 asomando a los lados y debajo). El fondo claro se pinta
+   hasta el borde de la ventana —html, body, .app-container y main— con el
+   mismo patrón que pedidos_list.css, porque dark-theme.css pinta esos
+   cuatro en oscuro y `.app-content` lo hace sin !important pero el
+   `.app-container` y el body vienen del marco. Los tokens de color siguen
+   en `.maquila-wrap` (nunca en el body: ver la nota de la firma/canvas). */
+html:has(body[data-maquila-screen]),
+body[data-maquila-screen],
+body[data-maquila-screen] .app-container,
+body[data-maquila-screen] .app-content {
+  background: #f6f7fb !important;
+  background-image: none !important;
+}
+
 .maquila-wrap {
-  max-width: 1100px;
-  margin: 0 auto;
+  max-width: none;
+  width: 100%;
+  margin: 0;
   padding: 16px;
-  border-radius: 12px;
+  min-height: 100vh;
+  border-radius: 0;
   --color-bg: #f6f7fb;
   --color-bg-elevated: #ffffff;
   --color-surface: #ffffff;
