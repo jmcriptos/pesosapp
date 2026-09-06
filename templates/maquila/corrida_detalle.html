@@ -125,300 +125,25 @@
 </section>
 
 {% if corrida.estado == 'abierta' %}
-<form method="POST" action="{{ url_for('maquila.corrida_cerrar', corrida_id=corrida.id) }}"
-      class="ops-sheet-form" id="cierre-form">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-  <section class="ops-card" id="consumo">
-    <h2>Consumo real</h2>
-    {% if not ingredientes %}
-      <p class="ops-empty">No hay ingredientes activos para declarar consumo.</p>
-    {% else %}
-    <p class="maquila-nota">El teórico sale de la receta y de los kilos producidos. Lo que se descuenta es lo que declarás en «Real»: no viene precargado a propósito, para que el rendimiento mida lo que salió de la cámara y no lo que dice la receta. Si coincide, usá «Copiar el teórico».</p>
-    <table class="maquila-tabla maquila-tabla-consumo">
-      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
-      <tbody>
-        {% for i in ingredientes %}
-        {#- Lo que se cuenta (ud) no admite fracciones: el teórico se redondea
-            hacia arriba y el campo va de a uno. -#}
-        {% set teo = teoricos.get(i.id) %}
-        {% if teo is not none and i.unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
-        <tr>
-          <td data-label="Ingrediente">{{ i.nombre }}</td>
-          <td data-label="Teórico" class="maquila-num">{{ teo|fmt_cant(i.unidad) if teo is not none else '—' }}</td>
-          <td data-label="Real" class="maquila-num">
-            <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
-            <input type="number" step="{{ '1' if i.unidad == 'ud' else '0.001' }}" min="0" inputmode="{{ 'numeric' if i.unidad == 'ud' else 'decimal' }}" name="consumo_real"
-                   aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
-                   placeholder="{{ 'sin declarar' if teo is not none else '—' }}"
-                   data-teorico="{{ teo if teo is not none else '' }}" data-unidad="{{ i.unidad }}"
-                   value="{{ consumo_actual.get(i.id, '') if reparto_origen == 'declarado' else '' }}">
-          </td>
-          <td data-label="Diferencia" class="maquila-num"><span class="maquila-dif" data-dif aria-live="polite">—</span></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <div class="maquila-acciones">
-      <button type="button" class="btn" id="btn-usar-teorico">Copiar el teórico</button>
-      <button type="submit" class="btn"
-              formaction="{{ url_for('maquila.corrida_recalcular', corrida_id=corrida.id) }}">Recalcular reparto</button>
-    </div>
-    {% endif %}
-  </section>
-
-  {#- Resumen del reparto ANTES de la sección: alimenta la franja del total,
-      la hoja de confirmación y el desglose por ingrediente. -#}
-  {% set ns = namespace(total_kg=0, faltantes=0, resumen=[], detalle=[]) %}
-  {% if reparto %}
-    {% for ingrediente_id, tramos in reparto.items() %}
-      {% set ing = (ingredientes | selectattr('id', 'equalto', ingrediente_id) | first) %}
-      {% set nombre = ing.nombre if ing else ingrediente_id %}
-      {% set unidad = ing.unidad if ing else 'kg' %}
-      {% if tramos is none %}
-        {% set ns.faltantes = ns.faltantes + 1 %}
-        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': none, 'tramos': [], 'agota': false}] %}
-      {% else %}
-        {% set suma = namespace(v=0, agota=false, agotan=[]) %}
-        {% for linea_id, cantidad in tramos %}
-          {% set suma.v = suma.v + cantidad %}
-          {% set saldo_l = saldos_reparto.get(linea_id) %}
-          {% if saldo_l is not none and (saldo_l - cantidad) <= 0 %}
-            {% set suma.agota = true %}
-            {% set lin = lineas_reparto.get(linea_id) %}
-            {% set suma.agotan = suma.agotan + [lin.recepcion.codigo if lin else ('línea #' ~ linea_id)] %}
-          {% endif %}
-        {% endfor %}
-        {% if unidad == 'kg' %}{% set ns.total_kg = ns.total_kg + suma.v %}{% endif %}
-        {#- Desviación contra la receta, para la hoja: se confirma un total
-            viendo cuánto se aparta de lo esperado. -#}
-        {% set teo = teoricos.get(ingrediente_id) %}
-        {% if teo is not none and unidad == 'ud' %}{% set teo = teo|round(0, 'ceil')|int %}{% endif %}
-        {% set desvio_pct = (((suma.v - teo) / teo) * 100)|round(1) if teo else none %}
-        {% set ns.resumen = ns.resumen + [nombre ~ ' ' ~ (suma.v|fmt_cant(unidad))] %}
-        {% set ns.detalle = ns.detalle + [{'nombre': nombre, 'unidad': unidad, 'total': suma.v, 'tramos': tramos, 'agota': suma.agota, 'agotan': suma.agotan, 'desvio_pct': desvio_pct}] %}
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-  {% set merma_est = (ns.total_kg - corrida.peso_producido) if ns.total_kg > 0 else none %}
-  {% set merma_est_pct = ((merma_est / ns.total_kg) * 100)|round(1) if ns.total_kg > 0 else none %}
-  {% set hay_resumen = reparto and ns.resumen %}
-
-  {#- El número que se confirma, en rol Figure y ANTES del desglose: es la
-      cifra por la que existe esta pantalla. Si el operario edita un consumo,
-      el JS la marca como desactualizada hasta recalcular. -#}
-  {% if hay_resumen and reparto_origen == 'declarado' %}
-  <section class="ops-card maquila-total-franja" id="total-a-descontar">
-    {% if request.args.get('recalculado') %}
-    <p class="maquila-franja-ok" role="status" aria-live="polite">{{ chip('Recalculado', 'conforme') }} Reparto recalculado con lo declarado. Revisá el total antes de cerrar.</p>
-    {% endif %}
-    <div class="maquila-titulo-fila">
-      <div class="maquila-dueno-label">A descontar del inventario de {{ corrida.cliente.nombre }}</div>
-      <span class="maquila-chip is-aviso" id="franja-desactualizada" hidden>Desactualizado: recalculá</span>
-    </div>
-    <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
-    <div class="maquila-total-detalle">{{ ns.resumen|join(' · ') }}</div>
-    {% if merma_est is not none %}
-    <div class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido; producidos {{ corrida.peso_producido|fmt_cant }}){% if merma_est_pct|abs > 10 %} {{ chip('Alta', 'falla') }}{% endif %}</div>
-    {% endif %}
-    {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
-  </section>
-  {% endif %}
-
-  <section class="ops-card" id="reparto">
-    <div class="maquila-titulo-fila">
-      <h2>Reparto FIFO</h2>
-      <span id="reparto-chip">{{ chip('Estimado', 'aviso') if reparto_origen == 'teorico' else chip('Según lo declarado', 'conforme') }}</span>
-    </div>
-    {% if reparto_origen == 'teorico' %}
-    <p class="maquila-nota">Reparto <strong>estimado según la receta</strong>: es una vista previa, no lo que se va a descontar. Declará el consumo real arriba (o copiá el teórico) y tocá «Recalcular reparto»; el cierre se habilita recién ahí.</p>
-    {% else %}
-    <p class="maquila-nota">Reparto según el <strong>consumo declarado</strong>: de qué recepciones sale cada kilo, más antigua primero. Si volvés a editar el consumo, recalculá de nuevo.</p>
-    {% endif %}
-    {% if not reparto %}
-      <p class="ops-empty">Sin receta, sin cajas producidas o sin consumo declarado: no hay reparto que previsualizar.</p>
-    {% else %}
-    {#- Un bloque plegable por ingrediente: la línea de resumen dice lo que
-        importa (cuánto, de cuántas recepciones, si alguna se agota); el
-        desglose por recepción se abre cuando el total no cuadra. En
-        escritorio arrancan abiertos; en el teléfono, plegados. -#}
-    {% for d in ns.detalle %}
-    <details class="maquila-reparto-ing" open>
-      <summary>
-        <span class="maquila-reparto-nombre">{{ d.nombre }}</span>
-        {% if d.total is none %}
-          {{ chip('Sin saldo suficiente', 'falla') }}
-        {% else %}
-          <span class="maquila-reparto-total maquila-num">{{ d.total|fmt_cant(d.unidad) }}</span>
-          <span class="maquila-meta">de {{ d.tramos|length }} recepci{{ 'ón' if d.tramos|length == 1 else 'ones' }}</span>
-          {% if d.agota %}{{ chip('Agota una línea', 'aviso') }}{% endif %}
-        {% endif %}
-      </summary>
-      {% if d.total is none %}
-      <p class="maquila-nota">No hay recepciones de {{ d.nombre|lower }} que cubran lo declarado. Registrá un ajuste de entrada con su motivo.</p>
-      {% else %}
-      <table class="maquila-tabla-mini maquila-reparto-tabla">
-        <thead><tr><th>Recepción</th><th>Lote del cliente</th><th class="maquila-num">Se descuenta</th><th class="maquila-num">Queda en la línea</th></tr></thead>
-        <tbody>
-          {% for linea_id, cantidad in d.tramos %}
-          {% set linea = lineas_reparto.get(linea_id) %}
-          {% set saldo = saldos_reparto.get(linea_id) %}
-          <tr>
-            <td>{% if linea %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=linea.recepcion_id) }}">{{ linea.recepcion.codigo }}</a> <span class="maquila-meta">{{ linea.recepcion.recibido_en.strftime('%d/%m/%Y') }}</span>{% else %}Línea #{{ linea_id }}{% endif %}</td>
-            <td>{{ linea.lote_cliente if linea and linea.lote_cliente else '—' }}</td>
-            <td class="maquila-num">{{ cantidad|fmt_cant(d.unidad) }}</td>
-            <td class="maquila-num">
-              {% if saldo is not none %}{% set queda = saldo - cantidad %}{{ queda|fmt_cant(d.unidad) }}{% if queda <= 0 %} {{ chip('Se agota', 'aviso') }}{% endif %}{% else %}—{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
-    </details>
-    {% endfor %}
-    <p class="maquila-total-detalle">Total en peso a descontar: <strong>{{ ns.total_kg|fmt_cant }}</strong>{% if merma_est is not none %} · merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido){% endif %}</p>
-    {% endif %}
-  </section>
-
-  <footer class="ops-sticky-footer{% if reparto_origen != 'declarado' %} is-teorico{% endif %}">
-    {#- El aviso vive pegado al botón que explica: en escritorio el pie es
-        visible desde el primer paint y el motivo del bloqueo tiene que estar
-        a la vista, no 2.000px arriba. -#}
-    <p class="maquila-aviso-inline" id="cierre-aviso" aria-live="polite" data-origen="{{ reparto_origen }}"{% if reparto_origen == 'declarado' %} hidden{% endif %}>Declará el consumo real (o copiá el teórico) y tocá «Recalcular reparto»: el cierre se habilita cuando el reparto refleja lo declarado.</p>
-    <button type="submit" class="btn btn-primary" id="btn-cerrar"{% if reparto_origen != 'declarado' %} disabled{% endif %}>Cerrar corrida y descontar</button>
-  </footer>
-</form>
-
-{#- La hoja de confirmación propia: cliente en 17px, total en 32px, la lista
-    y dos botones de 56px. Un confirm() nativo no cumple ni el mínimo táctil
-    ni el piso tipográfico, y aceptaba con Enter. -#}
-<dialog class="maquila-hoja" id="hoja-cierre" aria-labelledby="hoja-cierre-titulo">
-  <div class="maquila-dueno-label">Inventario en custodia de</div>
-  <h2 class="maquila-hoja-cliente" id="hoja-cierre-titulo">{{ corrida.cliente.nombre }}</h2>
-  {% if hay_resumen %}
-  <div class="maquila-figure">{{ ns.total_kg|fmt_cant }}</div>
-  <p class="maquila-total-detalle">a descontar en peso · {{ corrida.codigo }} · lote {{ corrida.lote }}</p>
-  <ul class="maquila-hoja-lista">
-    {% for d in ns.detalle if d.total is not none %}
-    <li>{{ d.nombre }} <strong>{{ d.total|fmt_cant(d.unidad) }}</strong>{% if d.desvio_pct is not none %} <span class="maquila-meta {{ 'maquila-desvio-falla' if d.desvio_pct|abs > 10 else ('maquila-desvio-aviso' if d.desvio_pct|abs > 5 else '') }}">{{ '+' if d.desvio_pct > 0 else '' }}{{ d.desvio_pct }} % vs. receta</span>{% endif %}</li>
-    {% endfor %}
-  </ul>
-  {% set agotan = namespace(lista=[]) %}
-  {% for d in ns.detalle %}{% for c in d.agotan %}{% set agotan.lista = agotan.lista + [c ~ ' (' ~ d.nombre|lower ~ ')'] %}{% endfor %}{% endfor %}
-  {% if agotan.lista %}<p class="maquila-total-detalle">Se agotan: {{ agotan.lista|join(' · ') }}</p>{% endif %}
-  {% if merma_est is not none %}<p class="maquila-total-detalle">Merma estimada {{ merma_est|fmt_cant }} ({{ merma_est_pct }} % del consumido)</p>{% endif %}
-  {% if ns.faltantes %}<p class="maquila-aviso-inline">{{ ns.faltantes }} ingrediente(s) sin saldo suficiente: el cierre va a fallar hasta registrar el ajuste.</p>{% endif %}
-  {% else %}
-  <p class="maquila-aviso-inline">No hay reparto que previsualizar: cerrar descuenta lo declarado sin vista previa.</p>
-  {% endif %}
-  <div class="maquila-hoja-acciones">
-    <button type="button" class="btn" id="hoja-volver" autofocus>Volver a revisar</button>
-    <button type="button" class="btn btn-danger" id="hoja-confirmar">Sí, cerrar y descontar</button>
+<section class="ops-card" id="cerrar">
+  <h2>Cerrar corrida</h2>
+  {% if corrida.cajas %}
+  <p class="maquila-nota">Cerrar descuenta el consumo real del inventario de {{ corrida.cliente.nombre }}. Se hace en su propia pantalla: consumo, reparto, total en grande y firma de quien cierra.</p>
+  <div class="maquila-acciones">
+    <a class="btn btn-primary" href="{{ url_for('maquila.corrida_cerrar', corrida_id=corrida.id) }}">Cerrar corrida</a>
   </div>
-</dialog>
-
-<script nonce="{{ csp_nonce() }}">
-(function () {
-  // Un solo <form> con dos botones (Recalcular / Cerrar, cada uno con su
-  // propio `formaction`): comparten la misma tabla de consumo, así que lo
-  // que se ve en el reparto es exactamente lo que se manda a cerrar. Por
-  // eso NO lleva `data-confirm` en el <form> (confirmaría también al
-  // recalcular, que no es destructivo) — solo el botón de cerrar lo tiene,
-  // y este script lo lee de `e.submitter`, replicando a propósito (para
-  // este único caso de dos submits) el patrón de base.js.
-  var form = document.getElementById('cierre-form');
-  if (!form) return;
-  var cerrar = document.getElementById('btn-cerrar');
-  var aviso = document.getElementById('cierre-aviso');
-  var hoja = document.getElementById('hoja-cierre');
-  var inputs = Array.prototype.slice.call(form.querySelectorAll('input[name="consumo_real"]'));
-  var confirmado = false;
-
-  // La hoja propia reemplaza al confirm(): «Cerrar» abre la hoja; solo el
-  // botón rojo de la hoja envía de verdad. Enter cae en «Volver a revisar».
-  form.addEventListener('submit', function (e) {
-    if (e.submitter !== cerrar || confirmado) return;
-    e.preventDefault();
-    if (hoja && typeof hoja.showModal === 'function') {
-      hoja.showModal();
-    } else if (confirm('¿Cerrar la corrida y descontar del inventario del cliente?')) {
-      confirmado = true; form.requestSubmit(cerrar);
-    }
-  });
-  if (hoja) {
-    document.getElementById('hoja-volver').addEventListener('click', function () { hoja.close(); });
-    document.getElementById('hoja-confirmar').addEventListener('click', function () {
-      confirmado = true; hoja.close(); form.requestSubmit(cerrar);
-    });
-  }
-
-  // El reparto de la pantalla se calculó con los consumos que se ven al
-  // cargar. Si el operario edita uno, lo que se ve ya no es lo que se va a
-  // descontar: «Cerrar» se apaga y el aviso (legible, fuera del botón) dice
-  // qué hacer, hasta que recalcule. Con reparto teórico arranca apagado.
-  if (!cerrar || !inputs.length) return;
-  var iniciales = inputs.map(function (i) { return i.value; });
-  var origenDeclarado = aviso && aviso.dataset.origen === 'declarado';
-  var franja = document.getElementById('total-a-descontar');
-  var franjaChip = document.getElementById('franja-desactualizada');
-  function fmt(n, u) { return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + ' ' + u; }
-  // Diferencia Real − Teórico por fila, con signo y %: la comparación que
-  // justifica declarar, sin restar de cabeza.
-  function diferencias() {
-    inputs.forEach(function (i) {
-      var celda = i.closest('tr') && i.closest('tr').querySelector('[data-dif]');
-      if (!celda) return;
-      var teo = parseFloat(i.dataset.teorico), real = parseFloat(i.value);
-      if (isNaN(teo) || isNaN(real)) { celda.textContent = '—'; celda.className = 'maquila-dif'; return; }
-      var d = real - teo, pct = teo > 0 ? Math.round(d / teo * 1000) / 10 : null;
-      celda.textContent = (d > 0 ? '+' : '') + fmt(d, i.dataset.unidad) + (pct === null ? '' : ' (' + (d > 0 ? '+' : '') + pct + ' %)');
-      var ap = pct === null ? 0 : Math.abs(pct);
-      celda.className = 'maquila-dif ' + (ap > 10 ? 'maquila-desvio-falla' : ap > 5 ? 'maquila-desvio-aviso' : '');
-    });
-  }
-  function revisar() {
-    var cambiado = inputs.some(function (i, k) { return i.value !== iniciales[k]; });
-    var bloqueado = !origenDeclarado || cambiado;
-    cerrar.disabled = bloqueado;
-    if (aviso) aviso.hidden = !bloqueado;
-    // La única cifra en rol Figure no puede quedar diciendo un número viejo;
-    // tampoco el chip del reparto ni los resúmenes por ingrediente.
-    if (franja) { franja.classList.toggle('is-desactualizado', cambiado); if (franjaChip) franjaChip.hidden = !cambiado; }
-    var repartoChip = document.getElementById('reparto-chip');
-    if (repartoChip) {
-      if (!repartoChip.dataset.original) repartoChip.dataset.original = repartoChip.innerHTML;
-      repartoChip.innerHTML = cambiado ? '<span class="maquila-chip is-aviso">Desactualizado: recalculá</span>' : repartoChip.dataset.original;
-    }
-    document.querySelectorAll('details.maquila-reparto-ing').forEach(function (d) { d.classList.toggle('is-desactualizado', cambiado); });
-    var ok = document.querySelector('.maquila-franja-ok');
-    if (ok) ok.hidden = cambiado;
-    diferencias();
-  }
-  inputs.forEach(function (i) { i.addEventListener('input', revisar); });
-  revisar();
-
-  // En el teléfono, el desglose por recepción arranca plegado: la línea de
-  // resumen ya dice cuánto y de cuántas recepciones.
-  if (window.innerWidth < 768) {
-    document.querySelectorAll('details.maquila-reparto-ing').forEach(function (d) { d.open = false; });
-  }
-
-  // «Copiar el teórico»: llena lo vacío con la receta, sin pisar lo tecleado.
-  var usar = document.getElementById('btn-usar-teorico');
-  if (usar) usar.addEventListener('click', function () {
-    inputs.forEach(function (i) { if (!i.value && i.dataset.teorico) i.value = i.dataset.teorico; });
-    revisar();
-  });
-})();
-</script>
-
+  {% else %}
+  <p class="maquila-nota">Para cerrar hace falta al menos una caja producida: pesá la primera arriba.</p>
+  {% endif %}
+</section>
 {% elif corrida.estado == 'cerrada' %}
-<section class="ops-card maquila-recibo">
+<section class="ops-card maquila-recibo" id="recibo">
   <h2>Cierre</h2>
   <dl class="maquila-cabecera">
     <dt>Cerrada</dt>
-    <dd>{{ cerrada_en_local.strftime('%d/%m/%Y %H:%M') if cerrada_en_local else '—' }}{% if cerrada_por_nombre %} · {{ cerrada_por_nombre }}{% endif %}</dd>
+    <dd>{{ cerrada_en_local.strftime('%d/%m/%Y %H:%M') if cerrada_en_local else '—' }} <span class="maquila-meta">hora local</span>{% if cerrada_por_nombre %} · {{ cerrada_por_nombre }}{% endif %}</dd>
+    <dt>Firma</dt>
+    <dd>{% if corrida.firma_cierre %}{{ chip('Firmada', 'conforme') }} por {{ cerrada_por_nombre or 'quien cerró' }}{% else %}{{ chip('Sin firma', 'neutro') }} <span class="maquila-meta">cerrada antes de que la firma fuera obligatoria</span>{% endif %}</dd>
     <dt>Producido</dt><dd>{{ corrida.peso_producido|fmt_cant }} en {{ corrida.cajas|length }} caja{{ 's' if corrida.cajas|length != 1 else '' }}</dd>
     <dt>Consumido en peso</dt><dd>{{ consumido_kg|fmt_cant }}</dd>
     <dt>Merma</dt>
@@ -454,6 +179,11 @@
     </tbody>
   </table>
   {% endif %}
+  {#- El siguiente paso a la vista: las cajas tienen que salir en un pedido. -#}
+  <div class="maquila-acciones">
+    <a class="btn btn-primary" href="{{ url_for('lista_pedidos', q=corrida.cliente.nombre) }}">Asignar cajas a un pedido</a>
+    <a class="btn" href="{{ url_for('maquila.reporte_saldos', cliente_id=corrida.cliente_id) }}">Ver saldos del cliente</a>
+  </div>
 </section>
 {% elif corrida.estado == 'anulada' %}
 <section class="ops-card">

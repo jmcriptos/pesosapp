@@ -13,6 +13,10 @@ from app import app as flask_app, db as _db
 
 IDS = {}
 
+# Un PNG de 1×1 válido, como el que manda el pad de firma.
+FIRMA_PNG = ('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+             'AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
+
 
 @pytest.fixture
 def app():
@@ -259,7 +263,7 @@ def test_cerrar_una_corrida_sin_saldo_avisa_y_no_cierra(app):
     c = _login(app, 'admin')
     r = c.post(f'/maquila/corridas/{corrida_id}/cerrar', data={
         'consumo_ingrediente_id': [str(ing_id)],
-        'consumo_real': ['50']}, follow_redirects=True)
+        'consumo_real': ['50'], 'firma_png': FIRMA_PNG}, follow_redirects=True)
     assert r.status_code == 200
     assert b'Faltan' in r.data
     with app.app_context():
@@ -298,7 +302,7 @@ def test_recalcular_reparto_muestra_el_declarado_no_el_teorico(app):
 
     # El teórico para 20kg producidos con esa receta es 10.000: se ve como
     # estimado hasta que alguien lo recalcule contra lo declarado.
-    r = c.get(f'/maquila/corridas/{corrida_id}')
+    r = c.get(f'/maquila/corridas/{corrida_id}/cerrar')
     assert r.status_code == 200
     assert b'10.000' in r.data
     assert 'estimado según la receta'.encode('utf-8') in r.data
@@ -610,3 +614,79 @@ def test_los_filtros_no_revientan_al_elegir_un_valor(app):
     ):
         r = c.get(url)
         assert r.status_code == 200, f'{url} devolvió {r.status_code}'
+
+
+def test_la_pantalla_de_cierre_existe_y_pide_firma(app):
+    """El cierre vive en su propia pantalla: consumo, reparto, total y firma
+    de quien cierra. El detalle solo enlaza a ella."""
+    from maquila import servicios
+    from decimal import Decimal as D
+    cli_id, prod_id, _ing = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        corrida = servicios.abrir_corrida(
+            cliente_id=cli_id, producto_id=prod_id, lote='L-9',
+            fecha_produccion=date(2026, 9, 3), vendedor_id=IDS['admin'])
+        servicios.agregar_caja_producida(corrida, D('40'))
+        _db.session.commit()
+        corrida_id = corrida.id
+    c = _login(app, 'admin')
+    r = c.get(f'/maquila/corridas/{corrida_id}')
+    assert b'Cerrar corrida' in r.data
+    assert b'consumo_real' not in r.data
+    r = c.get(f'/maquila/corridas/{corrida_id}/cerrar')
+    assert r.status_code == 200
+    assert b'Firma de quien cierra' in r.data
+    assert b'consumo_real' in r.data
+
+
+def test_cerrar_sin_firma_no_cierra(app):
+    from maquila import servicios
+    from maquila.models import CorridaProduccion
+    from decimal import Decimal as D
+    cli_id, prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1), vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': D('100')}])
+        corrida = servicios.abrir_corrida(
+            cliente_id=cli_id, producto_id=prod_id, lote='L-10',
+            fecha_produccion=date(2026, 9, 3), vendedor_id=IDS['admin'])
+        servicios.agregar_caja_producida(corrida, D('40'))
+        _db.session.commit()
+        corrida_id = corrida.id
+    c = _login(app, 'admin')
+    r = c.post(f'/maquila/corridas/{corrida_id}/cerrar', data={
+        'consumo_ingrediente_id': [str(ing_id)], 'consumo_real': ['50']},
+        follow_redirects=True)
+    assert r.status_code == 200
+    assert 'firma de quien cierra es obligatoria'.encode() in r.data
+    with app.app_context():
+        assert _db.session.get(CorridaProduccion, corrida_id).estado == 'abierta'
+
+
+def test_cerrar_con_firma_la_guarda_y_deja_recibo(app):
+    from maquila import servicios
+    from maquila.models import CorridaProduccion
+    from decimal import Decimal as D
+    cli_id, prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1), vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': D('100')}])
+        corrida = servicios.abrir_corrida(
+            cliente_id=cli_id, producto_id=prod_id, lote='L-11',
+            fecha_produccion=date(2026, 9, 3), vendedor_id=IDS['admin'])
+        servicios.agregar_caja_producida(corrida, D('40'))
+        _db.session.commit()
+        corrida_id = corrida.id
+    c = _login(app, 'admin')
+    r = c.post(f'/maquila/corridas/{corrida_id}/cerrar', data={
+        'consumo_ingrediente_id': [str(ing_id)], 'consumo_real': ['50'],
+        'firma_png': FIRMA_PNG}, follow_redirects=True)
+    assert r.status_code == 200
+    assert b'Firmada' in r.data
+    assert b'Asignar cajas a un pedido' in r.data
+    with app.app_context():
+        corrida = _db.session.get(CorridaProduccion, corrida_id)
+        assert corrida.estado == 'cerrada'
+        assert corrida.firma_cierre and corrida.firma_cierre_mimetype == 'image/png'

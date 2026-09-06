@@ -751,39 +751,24 @@ def corrida_nueva():
 @requiere_rol(['super_admin'])
 def corrida_detalle(corrida_id):
     corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
+    # El consumo, el reparto y la confirmación viven en su propia pantalla
+    # (`corrida_cerrar`): acá solo la cabecera, las cajas, el recibo y anular.
+    return render_template(
+        'maquila/corrida_detalle.html',
+        **_contexto_corrida(corrida, {}, 'teorico'))
 
-    # El reparto FIFO se muestra ANTES de confirmar, para poder corregirlo.
-    # Acá parte siempre del teórico de la receta: si el operario edita el
-    # consumo real, `corrida_recalcular` vuelve a esta misma plantilla con el
-    # reparto recalculado contra lo declarado (`reparto_origen='declarado'`).
-    consumo_actual = {}
-    if corrida.estado == 'abierta' and corrida.receta and corrida.peso_producido > 0:
-        consumo_actual = servicios.consumo_teorico(corrida.receta, corrida.peso_producido)
 
-    # Si venimos de un cierre rechazado por falta de saldo (`corrida_cerrar`
-    # abajo), el ingrediente que faltó viaja en la query string para poder
-    # ofrecer un link directo a la pantalla de ajustes, precargado con el
-    # cliente y el ingrediente correctos: el operario llega en un clic en vez
-    # de tener que ir a `/maquila/ajustes` y volver a elegir todo a mano.
-    falta_ingrediente_id = request.args.get('falta_ingrediente_id', type=int)
-
-    # «Recalcular» redirige acá con el consumo declarado en la query
-    # (`c<ingrediente_id>=<cantidad>`): así F5 no reenvía un POST y «atrás»
-    # no vuelve en silencio al reparto teórico.
+def _consumos_de_query():
+    """El consumo declarado viaja en la query (`c<ingrediente_id>=<cantidad>`)
+    entre «Recalcular» y la pantalla de cierre: F5 no reenvía un POST y
+    «atrás» no vuelve en silencio al reparto teórico."""
     declarados = {}
     for clave, valor in request.args.items():
         if clave.startswith('c') and clave[1:].isdigit():
             cantidad = _decimal(valor)
             if cantidad and cantidad > 0:
                 declarados[int(clave[1:])] = cantidad
-    reparto_origen = 'teorico'
-    if declarados and corrida.estado == 'abierta':
-        consumo_actual, reparto_origen = declarados, 'declarado'
-
-    return render_template(
-        'maquila/corrida_detalle.html',
-        **_contexto_corrida(corrida, consumo_actual, reparto_origen,
-                            falta_ingrediente_id=falta_ingrediente_id))
+    return declarados
 
 
 @bp.route('/corridas/<int:corrida_id>/recalcular', methods=['POST'])
@@ -802,13 +787,13 @@ def corrida_recalcular(corrida_id):
     consumos = _leer_consumos_form(request.form)
     if not consumos:
         flash('Declará al menos un consumo real antes de recalcular', 'error')
-        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+        return redirect(url_for('maquila.corrida_cerrar', corrida_id=corrida_id,
                                 _anchor='consumo'))
     # Aterriza en la franja del total (no en el desglose): es el número que
     # acaba de cambiar y el que hay que leer antes de cerrar. El mensaje de
     # éxito va DENTRO de la franja (`recalculado=1`), no en un flash arriba
     # que quedaba 1.500 px fuera de pantalla.
-    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+    return redirect(url_for('maquila.corrida_cerrar', corrida_id=corrida_id,
                             _anchor='total-a-descontar', recalculado=1,
                             **{f'c{k}': str(v) for k, v in consumos.items()}))
 
@@ -830,37 +815,72 @@ def corrida_caja(corrida_id):
                             _anchor='peso'))
 
 
-@bp.route('/corridas/<int:corrida_id>/cerrar', methods=['POST'])
+@bp.route('/corridas/<int:corrida_id>/cerrar', methods=['GET', 'POST'])
 @login_required
 @requiere_rol(['super_admin'])
 def corrida_cerrar(corrida_id):
+    """La pantalla de cierre: consumo real, reparto, total en grande, firma
+    de quien cierra y una sola acción. Es la de mayor consecuencia del
+    módulo (descuenta inventario ajeno), así que vive sola, sin el pesaje
+    de cajas ni la anulación alrededor."""
     corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
+
+    if corrida.estado != 'abierta':
+        flash(f'La corrida {corrida.codigo} no está abierta', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+    if not corrida.cajas:
+        flash('Para cerrar hace falta al menos una caja producida', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                                _anchor='peso'))
+
+    if request.method == 'GET':
+        declarados = _consumos_de_query()
+        origen = 'declarado' if declarados else 'teorico'
+        return render_template(
+            'maquila/corrida_cerrar.html',
+            **_contexto_corrida(corrida, declarados, origen,
+                                falta_ingrediente_id=request.args.get(
+                                    'falta_ingrediente_id', type=int)))
+
     consumos = _leer_consumos_form(request.form)
+    firma, firma_ilegible = _leer_firma_form(request.form)
+    if not firma:
+        flash('La firma de quien cierra es obligatoria: firmá en el pad y volvé '
+              'a tocar «Cerrar y descontar».' if not firma_ilegible else
+              'La firma no se pudo leer: firmá de nuevo.', 'error')
+        # Se vuelve a la pantalla con lo declarado ya repartido, sin perder nada.
+        return render_template(
+            'maquila/corrida_cerrar.html',
+            **_contexto_corrida(corrida, consumos, 'declarado' if consumos else 'teorico'))
 
     try:
-        servicios.cerrar_corrida(corrida, consumos, current_user.id)
+        servicios.cerrar_corrida(corrida, consumos, current_user.id,
+                                 firma=firma, firma_mimetype='image/png')
     except servicios.SaldoInsuficiente as exc:
         db.session.rollback()
         ing = db.session.get(Ingrediente, exc.ingrediente_id)
         flash(f'Faltan {exc.faltante} de {ing.nombre if ing else exc.ingrediente_id}: '
               f'se piden {exc.pedido} y hay {exc.disponible}. '
               f'Registra un ajuste de entrada con su motivo antes de cerrar.', 'error')
-        # El ingrediente que faltó viaja en la query string para que
-        # corrida_detalle pueda ofrecer un link directo a /maquila/ajustes,
-        # precargado con el cliente y el ingrediente correctos.
-        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
-                                falta_ingrediente_id=exc.ingrediente_id))
+        # El ingrediente que faltó viaja en la query string para ofrecer un
+        # link directo a /maquila/ajustes precargado; el consumo declarado
+        # también, para no perderlo.
+        return redirect(url_for('maquila.corrida_cerrar', corrida_id=corrida_id,
+                                falta_ingrediente_id=exc.ingrediente_id,
+                                **{f'c{k}': str(v) for k, v in consumos.items()}))
     except servicios.CorridaInvalida as exc:
         db.session.rollback()
         flash(str(exc), 'error')
-        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+        return redirect(url_for('maquila.corrida_cerrar', corrida_id=corrida_id,
+                                **{f'c{k}': str(v) for k, v in consumos.items()}))
 
     merma = servicios.merma_de_corrida(corrida)
     consumido = servicios.consumo_en_peso(corrida)
     pct = f' ({(merma / consumido * 100).quantize(Decimal("0.1"))} %)' if consumido > 0 else ''
     flash(f'Corrida {corrida.codigo} cerrada: se descontaron {consumido} kg del '
           f'inventario de {corrida.cliente.nombre}. Merma: {merma} kg{pct}', 'success')
-    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id))
+    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                            _anchor='recibo'))
 
 
 @bp.route('/corridas/<int:corrida_id>/anular', methods=['POST'])

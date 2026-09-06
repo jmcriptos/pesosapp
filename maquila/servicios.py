@@ -788,7 +788,8 @@ def agregar_caja_producida(corrida, peso):
     return caja
 
 
-def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
+def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None,
+                   firma=None, firma_mimetype=None):
     """Cierra la corrida: snapshot del teórico, reparto FIFO y salidas del ledger.
 
     Todo en una transacción: si algo falla a mitad de camino (saldo
@@ -911,6 +912,9 @@ def cerrar_corrida(corrida, consumos_reales, vendedor_id, reparto_manual=None):
         corrida.estado = 'cerrada'
         corrida.cerrada_por = vendedor_id
         corrida.cerrada_en = datetime.utcnow()
+        if firma:
+            corrida.firma_cierre = firma
+            corrida.firma_cierre_mimetype = firma_mimetype or 'image/png'
         db.session.commit()
         return corrida
     except Exception:

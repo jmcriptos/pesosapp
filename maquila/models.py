@@ -218,6 +218,11 @@ class CorridaProduccion(db.Model):
     registrado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     cerrada_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
     cerrada_en = db.Column(db.DateTime, nullable=True)
+    # Firma de quien cierra (PNG del pad), evidencia frente al dueño de la
+    # carne de que alguien revisó el descuento. Columnas agregadas el
+    # 2026-09-05; en producción el ALTER va a mano antes del push.
+    firma_cierre = db.Column(db.LargeBinary, nullable=True)
+    firma_cierre_mimetype = db.Column(db.String(50), nullable=True)
 
     cliente = db.relationship('Cliente')
     producto = db.relationship('Producto')
