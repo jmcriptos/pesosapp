@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# La marca en el body es lo que deja pintar el fondo claro hasta el borde
+   (maquila.css); el resto de atributos sigue viniendo de base.html. #}
+{% block body_attrs %}{{ super() }} data-maquila-screen="1"{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/maquila.css') }}">
