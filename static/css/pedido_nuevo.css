@@ -357,6 +357,23 @@ body[data-pedido-nuevo-screen] .app-content {
 
 /* ── Líneas del pedido (paso 02) ────────────────────────────────────────── */
 
+/* Encabezado de familia («Atún Van Camps», «Cocidos y Ahumados»…). Mismo
+   tratamiento tipográfico que `.pn-grupo-meta`: es un rótulo, no una línea
+   del pedido, y no debe competir con los nombres de producto. Sin borde
+   inferior propio — lo trae la línea de arriba. */
+.pn-linea-familia {
+    margin: 0;
+    padding: 14px 24px 6px;
+    background: var(--pn-realce);
+    border-bottom: 1px solid var(--pn-regla);
+    font-family: var(--pn-mono);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--pn-gris-fuerte);
+}
+
 .pn-linea {
     display: flex;
     align-items: center;
@@ -836,6 +853,17 @@ body[data-pedido-nuevo-screen] .app-content {
     white-space: nowrap;
 }
 .ts-dropdown.pn-dropdown .pn-opt-precio.es-sin-precio { color: #b1370f; }
+.ts-dropdown.pn-dropdown .optgroup-header {
+    padding: 13px 20px 6px;
+    background: #f4f4ef;
+    border-bottom: 1px solid #e4e4dd;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #727268;
+}
 .ts-dropdown.pn-dropdown .no-results { padding: 16px 20px; color: #8a8a80; }
 
 /* ── Blindaje contra el tema global ─────────────────────────────────────── */
@@ -897,8 +925,11 @@ html:has(body[data-pedido-nuevo-screen]) {
 
 .pn-shell .pn-head-nota,
 .pn-shell .pn-grupo-ejemplos,
+.pn-shell .pn-linea-familia,
 .pn-shell .pn-revision-notas,
 .pn-shell .pn-revision-producto { color: var(--pn-gris-fuerte) !important; }
+
+.pn-shell .pn-linea-familia { background: var(--pn-realce) !important; }
 
 .pn-shell .pn-linea-meta.es-mas { color: var(--pn-alta) !important; }
 .pn-shell .pn-linea-meta.es-menos,
@@ -1049,6 +1080,10 @@ html:has(body[data-pedido-nuevo-screen]) {
 .ts-dropdown.pn-dropdown .pn-opt-precio { color: #727268 !important; }
 .ts-dropdown.pn-dropdown .pn-opt-precio.es-sin-precio { color: #b1370f !important; }
 .ts-dropdown.pn-dropdown .no-results { color: #727268 !important; }
+.ts-dropdown.pn-dropdown .optgroup-header {
+    background: #f4f4ef !important;
+    color: #727268 !important;
+}
 
 /* Esta pantalla es clara SIEMPRE, también con el teléfono en modo oscuro.
    `color-scheme` va en el elemento raíz de la pantalla y en los controles

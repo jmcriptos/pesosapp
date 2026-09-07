@@ -587,6 +587,10 @@
                las tarjetas y evita que las opciones queden clippeadas. */
             dropdownParent: 'body',
             sortField: { field: 'text', direction: 'asc' },
+            /* Alfabético DENTRO de cada <optgroup>, pero los grupos conservan
+               el orden del <select>: quien los escribe ya decidió ese orden
+               (el catálogo de productos sale por familia, no por alfabeto). */
+            lockOptgroupOrder: true,
             onType: function() { this.clear(); }
         });
     });
