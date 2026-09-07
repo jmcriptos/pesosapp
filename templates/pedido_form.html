@@ -430,6 +430,24 @@ function grupoDeProducto(id) {
     return p ? (p.grupo || null) : null;
 }
 
+/* La familia comercial del producto («Atún Van Camps», «Cocidos y Ahumados»…),
+   que NO es el grupo de facturación de arriba: ese es el impuesto y no se
+   puede mezclar en un pedido; esta solo agrupa y ordena lo que se ve. El
+   catálogo llega del servidor ya ordenado por familia (`_orden_producto`), así
+   que el índice en `productos` alcanza como criterio de orden — sin repetir
+   acá la tabla de familias ni el desempate por nombre. */
+function claseDeProducto(id) {
+    const p = productos.find(x => x.id === id);
+    return p && p.clase ? p.clase : 'Otros';
+}
+
+function ordenDeProducto(id) {
+    const idx = productos.findIndex(x => x.id === id);
+    // Un producto que no está en el catálogo del cliente va al final, no al
+    // principio: -1 lo pondría antes que todo lo demás.
+    return idx === -1 ? productos.length : idx;
+}
+
 function sinPrecio(linea) {
     return linea.precio === null || linea.precio === undefined;
 }
@@ -688,15 +706,35 @@ function cargarProductosEnSelect() {
         ? productos.filter(p => p.grupo === grupoActual)
         : productos;
 
+    // Un <optgroup> por familia, en el orden en que vienen del servidor
+    // (`_orden_producto`). Hojear el catálogo era el caso que esto arregla: 57
+    // productos alfabéticos dejaban los nueve atunes repartidos entre jamones
+    // y aceites. Con la familia como encabezado se busca como en el pedido de
+    // papel — primero la marca, después el producto.
+    let grupoActualEl = null;
+    let claseActual = null;
     disponibles.forEach(producto => {
+        const clase = producto.clase || 'Otros';
+        if (clase !== claseActual) {
+            claseActual = clase;
+            grupoActualEl = document.createElement('optgroup');
+            grupoActualEl.label = clase;
+            productoSelect.appendChild(grupoActualEl);
+        }
         const option = document.createElement('option');
         option.value = producto.id;
         option.textContent = producto.nombre;
-        productoSelect.appendChild(option);
+        grupoActualEl.appendChild(option);
     });
 
     if (tomProducto) {
         tomProducto.clearOptions();
+        // `clearOptgroups` no existe en Tom Select 2.2.2: los grupos viejos
+        // quedarían registrados al cambiar de grupo de facturación. No molesta
+        // —un optgroup sin opciones no se pinta— pero sí ordena, así que se
+        // vacía el registro a mano antes de que `sync()` lo rearme desde el
+        // DOM ya ordenado.
+        tomProducto.optgroups = {};
         tomProducto.sync();
     }
 }
@@ -718,7 +756,32 @@ function actualizarTablaProductos() {
     // productos[N] que el backend recorre hasta el primer faltante.
     let idxForm = 0;
 
-    productosAgregados.forEach((p, idx) => {
+    // Las líneas se PINTAN agrupadas por familia, pero `productosAgregados`
+    // conserva el orden en que se cargaron: `data-idx` tiene que seguir
+    // apuntando a la posición real del arreglo o los botones +/− y «quitar»
+    // operarían sobre otra línea. Por eso se ordena una copia con el índice
+    // original pegado, no el arreglo. Como los <input> hidden se emiten en
+    // este mismo recorrido, el pedido también LLEGA agrupado al servidor.
+    const enOrden = productosAgregados
+        .map((p, idx) => ({ p, idx }))
+        .sort((a, b) => ordenDeProducto(a.p.id) - ordenDeProducto(b.p.id));
+
+    let claseRenderizada = null;
+
+    enOrden.forEach(({ p, idx }) => {
+        const clase = claseDeProducto(p.id);
+        // El encabezado se emite en CUALQUIER cambio de familia, también si la
+        // línea está quitada. Saltearlo para las quitadas dejaba la línea
+        // «Fuera del pedido» colgando bajo el encabezado de la familia
+        // anterior — un Mantova listado bajo «Untables Underwood».
+        if (clase !== claseRenderizada) {
+            claseRenderizada = clase;
+            const encabezado = document.createElement('p');
+            encabezado.className = 'pn-linea-familia';
+            encabezado.textContent = clase;
+            tbody.appendChild(encabezado);
+        }
+
         const card = document.createElement('div');
         card.className = 'pn-linea';
 
@@ -1157,7 +1220,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // arriba) que dispara el mismo evento sin que nadie lo haya pedido:
         // eso se corta en onDropdownOpen, más abajo.
         onType: function () { this.clear(); },
+        // Alfabético DENTRO de cada familia. Los encabezados de familia
+        // conservan el orden del <select> (el del formato de pedidos en
+        // papel) gracias a `lockOptgroupOrder`: sin eso Tom Select los
+        // reordena por su cuenta y «Atún Van Camps» vuelve a caer primero.
         sortField: { field: 'text', direction: 'asc' },
+        lockOptgroupOrder: true,
         // El desplegable cuelga de <body> (dropdownParent), fuera del flujo, y
         // se abre justo debajo del buscador: sin margen para acotarlo (el
         // botón «Añadir» está a 10px), tapaba ese botón y, si la lista era

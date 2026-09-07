@@ -3624,7 +3624,9 @@ def _pedido_detalles_pesables(pedido):
         detalle for detalle in pedido.detalles
         if detalle.es_linea_pedido and detalle.producto and detalle.producto.se_pesa
     ]
-    return sorted(detalles, key=lambda detalle: (detalle.producto.nombre.lower(), detalle.id))
+    # Por familia y después por nombre (`_orden_detalle`): quien pesa recorre
+    # los ahumados de corrido en vez de saltar de un jamón a un atún y volver.
+    return sorted(detalles, key=_orden_detalle)
 
 
 def _legacy_prep_lines_for_producto(pedido, producto_id):
@@ -4321,12 +4323,70 @@ def _htmx_error_response(message, status=422):
 # agregar una línea acá; son cinco valores estables, una tabla propia sería
 # sobreingeniería.
 CLASES_QBO = {
-    '600000000005541105': 'Cocidos y Ahumados',
-    '600000000005391641': 'Atún Van Camps',
-    '529395': 'Mantova',
-    '600000000005012031': 'Tomate',
     '600000000005391660': 'Untables Underwood',
+    '529395': 'Mantova',
+    '600000000005391641': 'Atún Van Camps',
+    '600000000005541105': 'Cocidos y Ahumados',
+    '600000000005012031': 'Tomate',
 }
+
+# El ORDEN del diccionario de arriba no es decorativo: es el del formato de
+# pedidos en papel (Underwood, Mantova, Van Camps, Mr. Raucher). Un pedido se
+# arma y se prepara por familia —los atunes juntos, los ahumados juntos—, y
+# hasta acá el catálogo salía alfabético: «Lomitos de Atún Claro en Agua»
+# quedaba a nueve renglones de «Lomitos … en Aceite de Oliva» con seis
+# ahumados en medio. La clase de QuickBooks ya era esa familia; solo faltaba
+# usarla para ordenar.
+_ORDEN_CLASES = {clase: i for i, clase in enumerate(CLASES_QBO)}
+
+# Un producto sin clase no se esconde ni rompe el orden: cae al final, en su
+# propia sección. Exigir la clase dejaría fuera del pedido a los productos que
+# todavía no se clasificaron (mismo criterio que `_productos_sin_clase`).
+CLASE_SIN_CLASIFICAR = 'Otros'
+
+
+def _etiqueta_clase(producto):
+    """Familia a la que pertenece el producto: «Atún Van Camps», «Mantova»…"""
+    clase = getattr(producto, 'clase_qbo', None) if producto is not None else None
+    return CLASES_QBO.get(clase, CLASE_SIN_CLASIFICAR)
+
+
+def _orden_producto(producto):
+    """Clave de orden de un producto dentro de un pedido: familia, luego nombre.
+
+    Alfabético DENTRO de la familia y no la secuencia exacta del papel: esa
+    secuencia habría que mantenerla a mano producto por producto, y un
+    producto nuevo entraría sin lugar. Con el nombre, entra solo.
+    """
+    clase = getattr(producto, 'clase_qbo', None) if producto is not None else None
+    nombre = (getattr(producto, 'nombre', '') or '') if producto is not None else ''
+    return (_ORDEN_CLASES.get(clase, len(CLASES_QBO)), nombre.lower())
+
+
+def _agrupar_por_familia(productos):
+    """[(familia, [productos])] en el orden de `_orden_producto`.
+
+    Jinja tiene `groupby`, pero ordena alfabéticamente por la clave y eso
+    devolvería «Atún Van Camps» antes que «Untables Underwood» — justo el
+    orden que este cambio viene a corregir.
+    """
+    grupos = []
+    for producto in sorted(productos, key=_orden_producto):
+        etiqueta = _etiqueta_clase(producto)
+        if not grupos or grupos[-1][0] != etiqueta:
+            grupos.append((etiqueta, []))
+        grupos[-1][1].append(producto)
+    return grupos
+
+
+def _orden_detalle(detalle):
+    """Igual que `_orden_producto`, para una línea de pedido.
+
+    El id desempata: dos líneas del mismo producto (un pesable con varias
+    preparaciones) conservan entre sí el orden en que se cargaron.
+    """
+    return _orden_producto(getattr(detalle, 'producto', None)) + (detalle.id or 0,)
+
 
 # TaxCode de QuickBooks para exportación. Ver la tabla de TaxCodes en
 # docs/superpowers/specs/2026-08-28-factura-qbo-sin-correcciones-design.md
@@ -7094,13 +7154,17 @@ def _productos_dicts_para_cliente(cliente_id):
     precio None = sin precio en ninguna lista → el buscador dice «sin precio»
     en vez de 0.00, que se lee como gratis.
     """
-    productos = Producto.query.all()
+    productos = sorted(Producto.query.all(), key=_orden_producto)
     precios = _precios_vigentes_para_cliente(cliente_id, [p.id for p in productos])
     return [{
         'id': p.id,
         'nombre': p.nombre,
         'precio': float(precios[p.id]) if precios[p.id] is not None else None,
         'grupo': _clave_grupo(_grupo_facturable(p)),
+        # `grupo` es el de FACTURACIÓN (el impuesto, que no se puede mezclar en
+        # un pedido); `clase` es la familia comercial con la que el buscador
+        # agrupa y ordena. Son dos cosas distintas y conviven en la pantalla.
+        'clase': _etiqueta_clase(p),
     } for p in productos]
 
 
@@ -7355,7 +7419,13 @@ def _pedido_confirmacion_json(pedido, cliente, lineas_form, productos_por_id, si
             'precio': float(l['precio_unitario']),
             'subtotal': float(l['subtotal']),
             'sin_precio': bool(l.get('sin_precio')),
+            '_orden': _orden_producto(producto),
         })
+    # La confirmación repite lo que se va a cobrar: con las líneas agrupadas
+    # por familia se contrasta contra el pedido en papel de un vistazo.
+    lineas.sort(key=lambda linea: linea['_orden'])
+    for linea in lineas:
+        del linea['_orden']
     return {
         'ok': True,
         'pedido_id': pedido.id,
@@ -7404,7 +7474,14 @@ def _pedido_confirmacion_json_desde_pedido(pedido):
             'precio': float(precio),
             'subtotal': float(sub),
             'sin_precio': falta,
+            '_detalle_id': d.id,
         })
+    # Mismo orden que la confirmación del form: un reintento idempotente tiene
+    # que dar una respuesta indistinguible de la del primer intento.
+    posicion = {d.id: i for i, d in enumerate(sorted(detalles, key=_orden_detalle))}
+    lineas.sort(key=lambda linea: posicion.get(linea['_detalle_id'], 0))
+    for linea in lineas:
+        del linea['_detalle_id']
     return {
         'ok': True,
         'pedido_id': pedido.id,
@@ -8019,7 +8096,7 @@ def detalles_pedido(pedido_id):
             flash('No tienes permisos para acceder a este pedido', 'error')
             return redirect(url_for('lista_pedidos'))
 
-    productos = Producto.query.all()
+    productos = sorted(Producto.query.all(), key=_orden_producto)
     detalle_context_key = f'last_detalle:{pedido.id}'
 
     # ── 2) Alta de un nuevo detalle ───────────────────────────
@@ -8107,8 +8184,9 @@ def detalles_pedido(pedido_id):
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
     # ── 3) GET: mostrar plantilla ─────────────────────────────
-    # Ordenar detalles por nombre de producto y luego por id
-    detalles_ordenados = sorted(pedido.detalles, key=lambda d: (d.producto.nombre, d.id))
+    # Por familia, después por nombre y por id (`_orden_detalle`): el detalle
+    # se lee y se prepara agrupado, igual que el formato de pedidos en papel.
+    detalles_ordenados = sorted(pedido.detalles, key=_orden_detalle)
 
     # Calcular conteo de registros por producto para mostrar "#/Total"
     # Excluir líneas originales del pedido (es_linea_pedido=True)
@@ -8158,6 +8236,7 @@ def detalles_pedido(pedido_id):
                            # Día LOCAL (Curaçao, UTC−4), como en lista_pedidos.
                            hoy_local=datetime.now(DASHBOARD_TIMEZONE).date(),
                            productos= productos,
+                           productos_por_familia=_agrupar_por_familia(productos),
                            saved_detalle_context=saved_detalle_context,
                            conteo_por_producto=conteo_por_producto,
                            indice_detalle=indice_detalle,

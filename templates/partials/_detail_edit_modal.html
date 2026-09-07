@@ -25,8 +25,16 @@
                         <label class="mobile-form-label" for="edit_producto_id">Producto</label>
                         <select name="producto_id" id="edit_producto_id" class="mobile-form-control ts-select" required>
                                 <option value="">Seleccionar...</option>
-                                {% for p in productos|sort(attribute='nombre') %}
-                                    <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
+                                {# Agrupado por familia (atunes con atunes, ahumados con ahumados)
+                                   y en el orden del formato de pedidos. El orden lo arma
+                                   `_agrupar_por_familia` en el servidor: `groupby` de Jinja
+                                   ordenaría las familias alfabéticamente. #}
+                                {% for familia, items in productos_por_familia %}
+                                    <optgroup label="{{ familia }}">
+                                        {% for p in items %}
+                                            <option value="{{ p.id }}" data-se-pesa="{{ 'true' if p.se_pesa else 'false' }}">{{ p.nombre }}</option>
+                                        {% endfor %}
+                                    </optgroup>
                                 {% endfor %}
                             </select>
                     </div>
