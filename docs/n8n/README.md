@@ -24,7 +24,11 @@ copiarlo desde un editor.
 
 ```sh
 node --check docs/n8n/generar-numero-factura.js
+node docs/n8n/test-monto-linea.js
 ```
+
+El segundo corre el nodo entero contra el pedido 1334 y comprueba
+que los montos de línea son los que QuickBooks vuelve a calcular.
 
 ## Trampa del workflow
 
@@ -54,6 +58,32 @@ El payload lo arma `pedido_a_json`. Campos que el nodo consume:
 Diseño completo:
 `docs/superpowers/specs/2026-08-28-factura-qbo-sin-correcciones-design.md`
 
+
+## La trampa del medio centavo
+
+QuickBooks **revalida** cada línea: `Amount` tiene que ser
+`UnitPrice * Qty` redondeado a centavos **media-arriba**. Si no
+coincide devuelve:
+
+```
+6070 — Amount is not equal to UnitPrice * Qty.
+       Supplied value: 1,861.07
+```
+
+Los pesos traen 3 decimales y los precios 2, así que el producto
+cae bastante seguido justo en el medio centavo: 128.350 kg a
+14.50 son **1861.075 exactos**. En coma flotante 128.35 se guarda
+como 128.34999999999999432, el producto da 1861.0749999999998 y
+el redondeo lo baja a 1861.07 — QBO esperaba 1861.08. Le pasó al
+pedido 1334 el 2026-09-08. `Number.EPSILON` no salva: es 25 veces
+más chico que el error que ya trae la suma de ocho pesos.
+
+Por eso el nodo hace la cuenta **en enteros** —el peso en
+milésimas, el precio en centavos— y manda `Qty` y `UnitPrice` con
+esos mismos decimales, para que QBO rehaga exactamente la misma
+cuenta. El `amount` que manda la app no se usa: n8n agrupa las
+líneas por `(product_qbo_id, unit_price)` y el monto tiene que
+salir de la cantidad ya sumada.
 
 ## La trampa del impuesto (modo US)
 

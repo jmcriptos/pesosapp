@@ -28,6 +28,14 @@
  *     0.30000000000000004).
  *  5. Se elimino getProductName(): buscaba datos de Item en
  *     $input, donde solo llegan las consultas de DocNumber.
+ *
+ *  CAMBIOS 2026-09-08
+ *  1. MONTO DE LINEA: el redondeo en coma flotante bajaba el
+ *     medio centavo en vez de subirlo y QBO rechazaba la
+ *     factura con 6070 "Amount is not equal to UnitPrice *
+ *     Qty". Ahora la cuenta va en enteros (peso en milesimas,
+ *     precio en centavos) con redondeo media-arriba, el mismo
+ *     de QuickBooks. Ver docs/n8n/test-monto-linea.js.
  */
 
 // ---------- helpers ----------
@@ -63,8 +71,29 @@ const today = (d = 0) =>
 
 const formatDecimal = (num) => Number(num).toFixed(2);
 
-const round2 = (num) =>
-  Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+// ---------- dinero en enteros ----------
+// QuickBooks revalida Amount == UnitPrice * Qty con decimales
+// exactos y redondeo media-arriba. Calcularlo en coma flotante
+// falla justo en el medio centavo: 128.350 kg a 14.50 son
+// 1861.075 exactos, pero el double da 1861.0749999999998 y el
+// monto salia 1861.07 -> error 6070 (pedido 1334, 2026-09-08).
+// Number.EPSILON no alcanzaba: es 25 veces mas chico que el
+// error que ya traia la suma de ocho pesos. Por eso el peso
+// viaja en milesimas y el precio en centavos, como enteros.
+const MIL = 1000;   // el peso trae 3 decimales
+const CENT = 100;   // el precio trae 2
+
+const enEnteros = (num, escala) =>
+  Math.round(Number(num) * escala);
+
+// Division de enteros con redondeo media-arriba, como QBO.
+const divMediaArriba = (num, den) => {
+  const signo = num < 0 ? -1 : 1;
+  const n = Math.abs(num);
+  const resto = n % den;
+  const entero = (n - resto) / den;
+  return signo * (resto * 2 >= den ? entero + 1 : entero);
+};
 
 // ---------- clases (red de seguridad) ----------
 // Solo se usa cuando la linea NO trae class_ref. Desde que el
@@ -241,12 +270,12 @@ if (body.currency_qbo) {
 console.log(`DocNumber generado: ${factura.DocNumber}`);
 
 // ---------- agrupar lineas ----------
-let subtotal = 0;
+let subtotalCent = 0;
 const map = new Map();
 for (const l of body.lines ?? []) {
   const key = `${l.product_qbo_id}_${l.unit_price}`;
-  const e = map.get(key) ?? { ...l, qty: 0, descriptions: [] };
-  e.qty += Number(l.qty);
+  const e = map.get(key) ?? { ...l, qtyMil: 0, descriptions: [] };
+  e.qtyMil += enEnteros(l.qty, MIL);
   e.descriptions.push(formatDecimal(l.qty));
   map.set(key, e);
 }
@@ -267,17 +296,22 @@ for (const l of map.values()) {
 
   const codigoLinea = taxCodeDe(l) || taxCodeFactura;
 
+  const precioCent = enEnteros(l.unit_price, CENT);
+  const montoCent = divMediaArriba(l.qtyMil * precioCent, MIL);
+
   const lineItem = {
     DetailType: 'SalesItemLineDetail',
     Description: l.descriptions.join('\t'),
-    Amount: round2(l.qty * l.unit_price),
+    Amount: montoCent / CENT,
     SalesItemLineDetail: {
       ItemRef: {
         value: l.product_qbo_id,
         name: fullProductName
       },
-      Qty: l.qty,
-      UnitPrice: l.unit_price
+      // Qty y UnitPrice son los que QBO usa para rehacer la
+      // cuenta: van con los mismos decimales que el monto.
+      Qty: l.qtyMil / MIL,
+      UnitPrice: precioCent / CENT
     }
   };
 
@@ -304,7 +338,7 @@ for (const l of map.values()) {
     console.log(`Sin clase: ${fullProductName}`);
   }
 
-  subtotal += lineItem.Amount;
+  subtotalCent += montoCent;
   factura.Line.push(lineItem);
 }
 
@@ -315,7 +349,8 @@ for (const l of map.values()) {
 const pct = PCT_POR_CODIGO[taxCodeFactura] ?? 0;
 
 if (pct > 0) {
-  const impuesto = round2((subtotal * pct) / 100);
+  const impuesto = divMediaArriba(subtotalCent * pct, 100) / CENT;
+  const neto = subtotalCent / CENT;
   factura.TxnTaxDetail = {
     TotalTax: impuesto,
     TxnTaxCodeRef: { value: taxCodeFactura },
@@ -324,13 +359,13 @@ if (pct > 0) {
       DetailType: 'TaxLineDetail',
       TaxLineDetail: {
         TaxPercent: pct,
-        NetAmountTaxable: round2(subtotal),
+        NetAmountTaxable: neto,
         PercentBased: true,
         TaxRateRef: { value: TAX_RATE_REF }
       }
     }]
   };
-  console.log(`Impuesto ${pct}% = ${impuesto} sobre ${subtotal}`);
+  console.log(`Impuesto ${pct}% = ${impuesto} sobre ${neto}`);
 } else {
   console.log(`Sin impuesto (codigo ${taxCodeFactura})`);
 }
