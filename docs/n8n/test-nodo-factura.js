@@ -24,6 +24,13 @@
  *  0% lo define el codigo de la TRANSACCION, no el TAX/NON de la
  *  linea. La linea va TAX siempre.
  *
+ *  3) LOS DOS CAMPOS DE MONEDA
+ *
+ *  `Currency2` (1000000003) es el que se ve en la pantalla de QBO
+ *  y nadie lo escribia: se quedaba en XCG. El `Currency` legacy
+ *  (DefinitionId 1) que si se llenaba es OTRO campo, que la
+ *  pantalla no muestra.
+ *
  *  Correr:  node docs/n8n/test-nodo-factura.js
  */
 
@@ -129,9 +136,40 @@ for (const codigo of [10, 13, 14]) {
   );
 }
 
+// ---------- Currency2 ----------
+// Es una LISTA: guarda el id de la opcion, no el texto. Medido el
+// 2026-09-08 sobre la 5864 (XCG -> '1') y la 5856 (USD -> '2').
+// Y es OTRO campo que el `Currency` legacy: la 5856 tenia el legacy
+// en 'USD - US Dollar' y el Currency2 en '1' (XCG) al mismo tiempo.
+const campo = (f, id) =>
+  (f.CustomField || []).find((c) => c.DefinitionId === id);
+
+const moneda = [
+  ['XCG', 'XCG - Caribbean Guilder', '1'],
+  ['USD', 'USD - US Dollar', '2']
+];
+
+for (const [cur, display, opcion] of moneda) {
+  const f = correrNodo(armarBody(
+    [linea(10, 14.5, '1359')],
+    { currency: cur, currency_display: display }
+  ));
+  chequear(
+    `Currency2 en ${cur}`,
+    (campo(f, '1000000003') || {}).StringValue,
+    opcion
+  );
+  // El legacy sigue yendo: es otro campo, no una vista del mismo.
+  chequear(
+    `Currency legacy en ${cur}`,
+    (campo(f, '1') || {}).StringValue,
+    display
+  );
+}
+
 if (fallos.length) {
   console.error('FALLA:');
   for (const f of fallos) console.error('  - ' + f);
   process.exit(1);
 }
-console.log('OK: montos y taxable de linea como los espera QuickBooks');
+console.log('OK: montos, taxable de linea y Currency2');

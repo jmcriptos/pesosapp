@@ -30,11 +30,17 @@
  *     $input, donde solo llegan las consultas de DocNumber.
  *
  *  CAMBIOS 2026-09-08
- *  1. TAXABLE DE LINEA: se mandaba 'NON' en los codigos 13 y
+ *  1. CURRENCY2: el campo de moneda que se ve en la pantalla de
+ *     QBO no lo escribia nadie y se quedaba en XCG. El que la app
+ *     llenaba bien es otro campo, que la pantalla no muestra.
+ *     OJO: el nodo HTTP que crea la factura necesita
+ *     `?minorversion=75&include=enhancedAllCustomFields` en la
+ *     URL o QuickBooks ignora este CustomField.
+ *  2. TAXABLE DE LINEA: se mandaba 'NON' en los codigos 13 y
  *     14, y habia que marcar cada linea como taxable a mano o
  *     la venta se caia del reporte de ventas gravadas. Va TAX
  *     siempre; el 0% lo pone el codigo de la transaccion.
- *  2. MONTO DE LINEA: el redondeo en coma flotante bajaba el
+ *  3. MONTO DE LINEA: el redondeo en coma flotante bajaba el
  *     medio centavo en vez de subirlo y QBO rechazaba la
  *     factura con 6070 "Amount is not equal to UnitPrice *
  *     Qty". Ahora la cuenta va en enteros (peso en milesimas,
@@ -230,6 +236,24 @@ const currencyDisplay =
 
 console.log(`Currency display: ${currencyDisplay}`);
 
+// `Currency2` (DefinitionId 1000000003) es el campo de moneda que
+// SE VE en la pantalla de QuickBooks. El `Currency` legacy
+// (DefinitionId 1) que se venia llenando bien desde el 2026-08-28
+// no aparece en la pantalla: son dos campos distintos, no dos
+// vistas del mismo. La 5856 los tenia en desacuerdo -- legacy en
+// 'USD - US Dollar' y Currency2 en XCG -- y salio por email asi.
+//
+// Currency2 es una LISTA: guarda el id de la opcion, no el texto.
+// Medido el 2026-09-08: 1 = XCG, 2 = USD, 3 = ANG. Nunca mandamos
+// el 3; QBO llama ANG a la moneda local pero la empresa la llama
+// XCG, que es lo que dice el desplegable.
+const CURRENCY2_OPCION = { XCG: '1', ANG: '1', USD: '2' };
+const currency2 = CURRENCY2_OPCION[
+  String(currencyInput).toUpperCase()
+] || '1';
+
+console.log(`Currency2: ${currency2}`);
+
 const defaultClass = body.default_class || body.class_ref || null;
 
 // ---------- factura base ----------
@@ -259,6 +283,12 @@ const factura = {
       Name: 'Tax ID No.',
       Type: 'StringType',
       StringValue: body.tax_id || ''
+    },
+    {
+      DefinitionId: '1000000003',
+      Name: 'Currency2',
+      Type: 'StringType',
+      StringValue: currency2
     }
   ],
 

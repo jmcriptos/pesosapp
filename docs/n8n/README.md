@@ -48,7 +48,8 @@ El payload lo arma `pedido_a_json`. Campos que el nodo consume:
 |---|---|
 | `customer_qbo_id` | `CustomerRef` |
 | `currency_qbo` | `CurrencyRef` (QBO llama **ANG** a la moneda local) |
-| `currency_display` | CustomField «Currency» |
+| `currency_display` | CustomField «Currency» (legacy, `DefinitionId 1`) |
+| `currency` | CustomField «Currency2» (`DefinitionId 1000000003`) — ver abajo |
 | `exchange_rate` | `ExchangeRate` |
 | `lines[].product_qbo_id` | `ItemRef.value` |
 | `lines[].descripcion` | `ItemRef.name` (n8n también acepta `product_name`) |
@@ -59,6 +60,36 @@ El payload lo arma `pedido_a_json`. Campos que el nodo consume:
 Diseño completo:
 `docs/superpowers/specs/2026-08-28-factura-qbo-sin-correcciones-design.md`
 
+
+## Los DOS campos de moneda
+
+La factura tiene dos, y no son dos vistas del mismo:
+
+| Campo | `DefinitionId` | Qué guarda | Se ve en QBO |
+|---|---|---|---|
+| `Currency` | `1` (legacy) | el texto: `USD - US Dollar` | **no** |
+| `Currency2` | `1000000003` | el **id de la opción**: `1`/`2`/`3` | sí |
+
+`Currency2` es una **lista**, así que guarda el id, no el texto:
+`1` = XCG, `2` = USD, `3` = ANG (medido el 2026-09-08 sobre las facturas
+5864 y 5856). Nunca se manda el `3`: QuickBooks llama ANG a la moneda local,
+pero el desplegable dice XCG, que es como la llama la empresa.
+
+Que sean dos campos se comprobó viéndolos en desacuerdo: la 5856 tenía el
+legacy en `USD - US Dollar` y el `Currency2` en `1` (XCG) **al mismo
+tiempo**, y salió por email al cliente así. Desde el 2026-08-28 se llenaba
+bien el legacy —el que la pantalla no muestra— y por eso la moneda se seguía
+viendo mal.
+
+> **La URL importa.** Los campos personalizados nuevos (`udcf_*`) sólo
+> viajan si el nodo HTTP que crea la factura lleva
+> `?minorversion=75&include=enhancedAllCustomFields`. Sin eso QuickBooks
+> ignora el `CustomField` con `DefinitionId 1000000003` sin avisar.
+>
+> Con ese parámetro, **la respuesta también cambia de forma**: devuelve
+> `Currency2` y `Sales Rep` con ids nuevos, y no devuelve `Currency` ni
+> `Tax ID No.`. La app sólo lee `Invoice.Id` y `DocNumber` de esa respuesta
+> (`_extraer_invoice_id`), así que no la afecta.
 
 ## La trampa del medio centavo
 
