@@ -156,12 +156,12 @@ llevando el código 10. Hay que mandarle `TotalTax` y `TaxLine` calculados,
 como hacía el código viejo — pero con el porcentaje que de verdad corresponde
 al código, no interpretando el código como porcentaje:
 
-| TaxCode | Porcentaje | `TaxRateRef` |
-|---|---|---|
-| `10` | 6% | `17` |
-| `11` | 9% | `18` |
-| `13` | 0% | `19` |
-| `14` | 0% | `25` |
+| TaxCode | Porcentaje |
+|---|---|
+| `10` | 6% |
+| `11` | 9% |
+| `13` | 0% |
+| `14` | 0% |
 
 **El bloque va SIEMPRE, también al 0%.** Omitirlo no deja la factura «exenta
 y limpia»: la deja **sin código**. La 5865 salió con `TxnTaxDetail:
@@ -170,9 +170,22 @@ Hasta el 2026-09-08 no se notaba porque al marcar las líneas como gravables a
 mano, QuickBooks recalculaba y le estampaba el código; sin esa edición, la
 factura queda como la mandamos.
 
-El `TaxRateRef` es otra entidad que el `TaxCode`. QuickBooks reescribe el que
-le mandemos si no corresponde (la 5863 se mandó con `25` y quedó guardada con
-`17`), pero mandar el correcto deja el payload igual a lo que QBO guarda.
+### El `TaxRateRef` va siempre en `25`, y está mal a propósito
+
+El `TaxRateRef` es otra entidad que el `TaxCode`. Las tasas reales de esta
+empresa son `17` = OB 6%, `18` = OB 9%, `19` = Non Tax, `25` = OB Non Tax
+Local Prod. El nodo manda **`25` siempre**, sea cual sea el código.
+
+Suena a bug y no lo es: QuickBooks **no acepta** la tasa que le mandamos,
+recalcula la que corresponde al `TxnTaxCodeRef` y guarda esa. La 5863 se
+mandó con `25` y quedó guardada con `17`, al 6% correcto.
+
+> **No lo "arregles".** El 2026-09-08 se cambió a la tasa que corresponde a
+> cada código, razonando que QBO la reescribe igual y que así el payload
+> queda idéntico a lo guardado. La primera factura al 6% emitida con ese
+> cambio —la **5867**— salió al **0%** y hubo que ajustarla a mano.
+> Mandarle la `17` no le confirma el 6%: le rompe el cálculo. El `25`
+> funciona *porque* obliga a QuickBooks a resolver la tasa desde el código.
 
 > **Resuelto (2026-09-08):** el `TaxRateRef` fijo en `'25'` está mal —el 25 es
 > la tasa del 0% local, no la del 6%— pero **QuickBooks lo ignora** y pone la

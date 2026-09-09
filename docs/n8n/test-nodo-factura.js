@@ -141,13 +141,16 @@ for (const codigo of [10, 13, 14]) {
     (tl || {}).TaxPercent,
     codigo === 10 ? 6 : 0
   );
-  // La TaxRateRef que corresponde al codigo. QBO la reescribe si no
-  // coincide (la 5863 se mando con 25 y quedo con 17), pero mandar
-  // la correcta deja el payload igual a lo que QBO va a guardar.
+  // La TaxRateRef va SIEMPRE en 25, para cualquier codigo. No es
+  // la que corresponde -- la del 6% es la 17 -- y esa es la
+  // gracia: QuickBooks no la acepta, recalcula la tasa desde el
+  // codigo de la transaccion y guarda la correcta. Mandarle la 17
+  // "correcta" le rompe el calculo: la 5867 salio al 0% y hubo que
+  // ajustarla a mano (2026-09-08). Ver el README.
   chequear(
     `TaxRateRef con ${codigo}`,
     ((tl || {}).TaxRateRef || {}).value,
-    { 10: '17', 13: '19', 14: '25' }[codigo]
+    '25'
   );
 }
 
