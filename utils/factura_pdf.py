@@ -437,8 +437,15 @@ def render_factura_pdf(invoice_json, pesables=None):
     # Control de despacho: cuántos bultos salen con esta factura. Va del
     # lado izquierdo y debajo de la tabla, lejos de la columna de importes,
     # para que no se lea como un monto más.
-    flow.append(Paragraph(
-        _xe(f'TOTAL CAJAS: {_cajas_txt(d["total_cajas"])}'), st_cajas))
+    #
+    # En cero no se imprime. Las cajas se deducen de los pesos que QBO trae en
+    # la descripción, y esa descripción se edita a mano: borrada, no queda de
+    # dónde contar (el Qty de un producto que se pesa son kilos, no cajas) y el
+    # total da 0. «TOTAL CAJAS: 0» se lee como «salieron cero bultos», que es
+    # una afirmación falsa; la ausencia del renglón, en cambio, se pregunta.
+    if d['total_cajas']:
+        flow.append(Paragraph(
+            _xe(f'TOTAL CAJAS: {_cajas_txt(d["total_cajas"])}'), st_cajas))
 
     flow.append(Spacer(1, 6 * mm))
 

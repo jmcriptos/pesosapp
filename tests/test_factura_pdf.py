@@ -555,6 +555,35 @@ def test_render_muestra_el_total_de_cajas():
     assert '4' in texto
 
 
+def test_sin_cajas_que_contar_no_se_imprime_el_renglón():
+    """Medido sobre la factura 5870 (Deli Nova, 2026-09-09): las dos líneas
+    son de un producto que se pesa, pero la descripción con los pesos se borró
+    a mano en QuickBooks y quedó el nombre del producto. Sin pesos no hay cómo
+    contar las cajas, y el Qty no sirve de reemplazo: son kilos (156), no
+    cajas. Antes eso imprimía «TOTAL CAJAS: 0», que se lee como «salieron cero
+    bultos». Un renglón ausente se pregunta; un cero se cree."""
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(
+        _invoice_lineas(('1375', 156, 'Cooked Chicken Wings'),
+                        ('1375', 132.8, 'Smoked Bacon')),
+        pesables={'1375'})
+
+    assert 'TOTAL CAJAS' not in _texto_extraido(pdf)
+
+
+def test_los_datos_siguen_diciendo_cero_aunque_no_se_imprima():
+    """Lo que se oculta es el renglón, no el dato: `total_cajas` sigue siendo
+    0 para quien lo lea (y para poder distinguir «no hay» de «no se sabe»)."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1375', 156, 'Cooked Chicken Wings')),
+        pesables={'1375'})
+
+    assert datos['total_cajas'] == 0
+
+
 def test_render_del_total_de_cajas_con_fraccion():
     from utils.factura_pdf import render_factura_pdf
 
