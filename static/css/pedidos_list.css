@@ -1550,3 +1550,110 @@ body[data-pedidos-list-screen] {
 body[data-pedidos-list-screen] .status-pill.esta-vencido {
   box-shadow: inset 0 0 0 2px #9f1239;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Mover la entrega desde la tarjeta (2026-09-09)
+   ────────────────────────────────────────────────────────────
+
+   Fila propia, debajo del pie. NO va dentro de `.pc-actions`: ese pie ya
+   documenta arriba que a 390px, con tres botones, «entrega 26/08» queda
+   cortado a la mitad. Meterle dos botones más lo rompe seguro.
+
+   El blindaje por `body[data-pedidos-list-screen]` no es decorativo. Medido en
+   el render quitándole el atributo al body: sin él, `button, .btn` de
+   dark-theme.css deja el botón sin borde (0px), con radio 5px, min-height 0 y
+   —lo grave— el texto en rgb(241,245,249) sobre un fondo casi blanco, o sea
+   ILEGIBLE. Esa regla pinta para el marco oscuro (topbar/tabbar), no para el
+   contenido de la tarjeta, que es claro. */
+body[data-pedidos-list-screen] .pc-entrega {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: var(--space-2, 8px) 0 0 !important;
+  /* `!important` porque una regla global de `form` le mete 20px arriba y abajo
+     —medido en el render: paddingTop 20px—, y eso son 32px de aire muerto al
+     pie de CADA tarjeta. */
+  padding: var(--space-2, 8px) 0 0 !important;
+  border-top: 1px solid var(--color-border-subtle);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-pedidos-list-screen] .pc-entrega-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+  color: var(--color-text-subtle);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Apagados a propósito: mover el día es frecuente, pero NO es la acción
+   principal de la tarjeta. Si salieran en el azul de `.pc-action-main`,
+   competirían con «Pesar» y «Facturar», que es a lo que se viene. */
+body[data-pedidos-list-screen] .pc-entrega-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body[data-pedidos-list-screen] .pc-entrega-btn:active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-fg);
+  border-color: transparent;
+}
+
+/* El selector de día.
+   Los `!important` y el selector largo NO son adorno: medido en el render,
+   `input[type="date"]` de forms.css y `[data-theme="dark"] input` de
+   dark-theme.css le ganaban con `!important` y lo dejaban `display:block`,
+   `width:100%` y pintado de rgb(26,31,43) — o sea una barra negra a todo el
+   ancho dentro de una tarjeta blanca, que fue lo que se vio en el preview.
+   `width:auto` es lo que devuelve la fila a UNA línea; sin eso el selector se
+   come su propio renglón y la tarjeta crece ~40px.
+   `min-width` porque en iOS el input de fecha colapsa al ancho del contenido y
+   deja un objetivo táctil de ~90px con el texto pegado al borde. */
+body[data-pedidos-list-screen] .pc-entrega input.pc-entrega-fecha {
+  display: inline-flex !important;
+  align-items: center;
+  width: auto !important;
+  min-width: 132px;
+  min-height: 34px;
+  height: 34px;
+  flex: 0 1 auto;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+/* Bajo 420px la palabra «entregar» es lo primero que se sacrifica: sin ella la
+   fila entra en UNA línea (medido: 348px necesarios en 315 disponibles), y con
+   ella cada tarjeta del teléfono crece 40px. El icono y el `sr-only` se
+   quedan, así que no se pierde el rótulo — solo el pixel. */
+@media (max-width: 419px) {
+  body[data-pedidos-list-screen] .pc-entrega-label-txt {
+    display: none;
+  }
+}

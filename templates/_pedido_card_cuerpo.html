@@ -200,3 +200,61 @@
         </div>
         {% endif %}
       </div>
+
+      {# Mover la entrega SIN abrir el pedido.
+         El tablero agrupa por `fecha_entrega`, y hasta ahora la única puerta
+         para cambiarla era el formulario de 4 pasos —que además recotiza los
+         precios—. En la operación los pedidos se corren de día varias veces
+         por semana, así que esa puerta era demasiado cara y las fechas
+         envejecían: el tablero mostraba en «Atrasados» cosas que en realidad
+         se habían acordado para el jueves.
+
+         Va en fila propia y no dentro de `.pc-actions` porque ese pie ya
+         peleó por los 375px del teléfono, y ahí adentro competiría con
+         «Pesar»/«Facturar», que son a lo que el vendedor viene.
+
+         Visible y no escondida detrás de un toque: mover fechas es la
+         operación del día, no la excepción.
+
+         Los botones son submits de ESTE formulario, así que mandan `atajo`
+         junto con el `fecha` del selector; la ruta le da prioridad al atajo.
+
+         Un facturado no la lleva: ese trabajo cerró y la ruta lo rechaza, así
+         que el control solo serviría para hacer rebotar al vendedor. #}
+      {% if pedido.estado != 'facturado' %}
+      <form class="pc-entrega" method="POST"
+            action="{{ url_for('mover_entrega_pedido', pedido_id=pedido.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
+        {# El icono queda siempre; la PALABRA se esconde bajo 420px por CSS.
+           Medido a 375px: con «entregar» completo la fila necesita 348px en los
+           315 disponibles y se parte en dos, sumando 40px a cada tarjeta del
+           teléfono, que es el aparato donde se reparte. El `sr-only` mantiene
+           el rótulo para lector de pantalla en los dos tamaños, y cada control
+           lleva su propio `aria-label`. #}
+        <span class="pc-entrega-label">
+          <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+          <span class="pc-entrega-label-txt">entregar</span>
+          <span class="sr-only">Mover la entrega de PED-{{ pedido.id }}</span>
+        </span>
+        {# El botón del día que el pedido YA tiene no se dibuja: ofrecer «Hoy»
+           a algo que ya es de hoy es una acción que no hace nada. #}
+        {% if pedido.fecha_entrega != hoy_local %}
+        <button type="submit" name="atajo" value="hoy" class="pc-entrega-btn"
+                aria-label="Entregar PED-{{ pedido.id }} hoy">Hoy</button>
+        {% endif %}
+        {# La resta de fechas y no `hoy_local + timedelta(days=1)`: Jinja no
+           tiene los builtins de Python, así que `timedelta` acá adentro es un
+           500 —y solo en las tarjetas que se dibujan, o sea en producción—. #}
+        {% if not pedido.fecha_entrega or (pedido.fecha_entrega - hoy_local).days != 1 %}
+        <button type="submit" name="atajo" value="manana" class="pc-entrega-btn"
+                aria-label="Entregar PED-{{ pedido.id }} mañana">Mañana</button>
+        {% endif %}
+        {# `data-autosubmit` lo maneja base.js sobre `change` delegado en
+           document, así que también funciona en las tarjetas que la búsqueda
+           reinyecta por fetch. #}
+        <input type="date" name="fecha" class="pc-entrega-fecha" data-autosubmit
+               value="{{ pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else '' }}"
+               aria-label="Elegir el día de entrega de PED-{{ pedido.id }}">
+      </form>
+      {% endif %}

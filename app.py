@@ -7148,6 +7148,28 @@ def _parsear_fecha_entrega(valor):
         return None
 
 
+def _dia_de_entrega(valor, hoy_local):
+    """Traduce lo que manda la tarjeta a un día: `hoy`, `manana` o `YYYY-MM-DD`.
+
+    Devuelve None cuando NO se entiende el valor, y eso no es lo mismo que
+    "sin fecha": el caller tiene que dejar el pedido como estaba.
+    `_parsear_fecha_entrega` convierte la basura en None a propósito —al dar de
+    alta, el pedido con sus líneas vale más que el día—, pero acá esa misma
+    caída borraría una fecha que ya existía y mandaría el pedido al grupo «Sin
+    fecha de entrega», que es exactamente donde el trabajo se vuelve invisible.
+
+    `hoy_local` lo calcula el caller en DASHBOARD_TIMEZONE (Curaçao, UTC−4) y
+    no con `date.today()`: a las 21:00 locales el servidor ya está en el día
+    siguiente, y "Hoy" habría movido el pedido a mañana.
+    """
+    valor = (valor or '').strip().lower()
+    if valor == 'hoy':
+        return hoy_local
+    if valor in ('manana', 'mañana'):
+        return hoy_local + timedelta(days=1)
+    return _parsear_fecha_entrega(valor)
+
+
 def _productos_dicts_para_cliente(cliente_id):
     """Catálogo para el form con el precio que vería ESTE cliente (jerarquía).
 
@@ -8040,6 +8062,80 @@ def editar_pedido(pedido_id):
     )
 
 
+
+
+@app.route('/pedidos/<int:pedido_id>/entrega', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def mover_entrega_pedido(pedido_id):
+    """Cambia ÚNICAMENTE `fecha_entrega`. No pasa por el formulario.
+
+    El tablero de `/pedidos` agrupa por `fecha_entrega`, pero la única puerta
+    para cambiarla era `editar_pedido`: cuatro pasos, y de paso vuelve a
+    resolver los precios por jerarquía. Demasiado caro para algo que en la
+    operación pasa varias veces al día —un cliente que pide para mañana, una
+    entrega que no entró en el camión—, así que las fechas envejecían y el
+    tablero dejaba de decir la verdad sobre el día.
+
+    Esta ruta toca un solo campo: ni líneas, ni `tipo_cambio`, ni estado.
+    """
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para mover este pedido', 'error')
+        return _volver_a('lista_pedidos')
+
+    # Un pedido facturado ya cerró y su factura salió a QuickBooks: correrle el
+    # día no cambia nada de lo que pasó, y solo desalinearía el tablero de la
+    # realidad. El tablero los muestra en «Hoy» marcados como hechos.
+    if pedido.estado == 'facturado':
+        flash(f'PED-{pedido.id} ya está facturado: su entrega no se mueve.', 'warning')
+        return _volver_a('lista_pedidos')
+
+    hoy_local = datetime.now(DASHBOARD_TIMEZONE).date()
+    # `atajo` le gana a `fecha` porque viajan juntos: los botones «Hoy» y
+    # «Mañana» son submits del MISMO formulario que lleva el selector de día,
+    # así que al tocarlos el navegador manda también el valor del selector.
+    # Con los dos bajo el mismo nombre, cuál gana dependería del orden de los
+    # controles en el HTML.
+    nueva = _dia_de_entrega(
+        request.form.get('atajo') or request.form.get('fecha'), hoy_local)
+    if nueva is None:
+        flash('No entendí esa fecha de entrega. El pedido quedó como estaba.', 'error')
+        return _volver_a('lista_pedidos')
+
+    anterior = pedido.fecha_entrega
+    if anterior == nueva:
+        return _volver_a('lista_pedidos')
+
+    pedido.fecha_entrega = nueva
+
+    # Cuántas veces se le corrió la entrega a un cliente es una pregunta que
+    # aparece sola en cuanto esto se use; el evento es gratis y sin él la
+    # respuesta no existe en ningún lado (la columna solo guarda el último día).
+    _log_pedido_evento(
+        pedido,
+        'entrega_movida',
+        (
+            f"Entrega: {anterior.strftime('%d/%m/%Y') if anterior else 'sin fecha'}"
+            f" → {nueva.strftime('%d/%m/%Y')}"
+        ),
+        meta={
+            'anterior': anterior.isoformat() if anterior else None,
+            'nueva': nueva.isoformat(),
+        },
+    )
+    db.session.commit()
+
+    if nueva == hoy_local:
+        cuando = 'hoy'
+    elif nueva == hoy_local + timedelta(days=1):
+        cuando = 'mañana'
+    else:
+        cuando = f"el {nueva.strftime('%d/%m')}"
+    flash(f'PED-{pedido.id} se entrega {cuando}.', 'success')
+
+    return _volver_a('lista_pedidos')
 
 
 @app.route('/pedidos/<int:pedido_id>/eliminar', methods=['POST'])
