@@ -85,7 +85,7 @@
             {% if caja.disponible %}
             <input type="hidden" name="caja_id" value="{{ caja.id }}">
             {#- El value va CRUDO (input numérico): fmt_cant metería separador de miles. -#}
-            <input type="number" step="0.001" min="0.001" inputmode="decimal" name="caja_peso"
+            <input type="text" inputmode="decimal" data-decimal name="caja_peso"
                    aria-label="Peso de la caja {{ caja.numero }}" value="{{ caja.peso }}" required>
             {% else %}
             {{ caja.peso|fmt_cant }}
@@ -134,11 +134,19 @@
           <td data-label="Descontado hoy" class="maquila-num">{{ actual|fmt_cant(i.unidad) if actual is not none else '—' }}</td>
           <td data-label="Real corregido" class="maquila-num">
             <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
-            <input type="number" step="{{ '1' if i.unidad == 'ud' else '0.001' }}" min="0"
-                   inputmode="{{ 'numeric' if i.unidad == 'ud' else 'decimal' }}" name="consumo_real"
+            {#- Igual que en el cierre: el campo en kg va en texto para que la
+                coma llegue entera (type="number" la descarta). -#}
+            {% if i.unidad == 'ud' %}
+            <input type="number" step="1" min="0" inputmode="numeric" name="consumo_real"
                    aria-label="Consumo real corregido de {{ i.nombre }} en {{ i.unidad }}"
                    data-actual="{{ actual if actual is not none else '' }}"
                    value="{{ consumos_form.get(i.id|string) if (i.id|string) in consumos_form else (actual if actual is not none else '') }}">
+            {% else %}
+            <input type="text" inputmode="decimal" data-decimal name="consumo_real"
+                   aria-label="Consumo real corregido de {{ i.nombre }} en {{ i.unidad }}"
+                   data-actual="{{ actual if actual is not none else '' }}"
+                   value="{{ consumos_form.get(i.id|string) if (i.id|string) in consumos_form else (actual if actual is not none else '') }}">
+            {% endif %}
           </td>
           <td data-label="De qué recepciones">
             {% if consumo_obj %}{% for o in consumo_obj.origenes %}<a href="{{ url_for('maquila.recepcion_detalle', recepcion_id=o.recepcion_linea.recepcion_id) }}">{{ o.recepcion_linea.recepcion.codigo }}</a> {{ o.cantidad|fmt_cant(i.unidad) }}{{ ' · ' if not loop.last }}{% else %}—{% endfor %}{% else %}—{% endif %}
@@ -220,9 +228,12 @@
   // El aviso del pie explica qué falta ANTES de enviar: cambiar el consumo
   // exige motivo y firma, quitar una caja exige motivo. El servidor lo
   // vuelve a comprobar; esto solo evita un viaje.
+  // Con coma todavía sin normalizar (signed_decimal.js delega en `document`),
+  // parseFloat('12,5') daría 12 y el aviso de «cambiaste el consumo» mentiría.
+  function num(v) { return parseFloat(String(v || '').replace(',', '.')) || 0; }
   function consumoCambiado() {
     return consumos.some(function (i) {
-      var actual = parseFloat(i.dataset.actual || '0'), v = parseFloat(i.value || '0');
+      var actual = parseFloat(i.dataset.actual || '0'), v = num(i.value);
       return Math.abs(actual - v) > 0.0005;
     });
   }

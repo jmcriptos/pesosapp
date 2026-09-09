@@ -57,11 +57,24 @@
           <td data-label="Teórico" class="maquila-num">{{ teo|fmt_cant(i.unidad) if teo is not none else '—' }}</td>
           <td data-label="Real" class="maquila-num">
             <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
-            <input type="number" step="{{ '1' if i.unidad == 'ud' else '0.001' }}" min="0" inputmode="{{ 'numeric' if i.unidad == 'ud' else 'decimal' }}" name="consumo_real"
+            {#- Dos campos completos, no uno con atributos condicionales: lo
+                que se cuenta (ud) va de a uno con teclado de enteros; lo que
+                se pesa va en texto porque un type="number" DESCARTA la coma
+                sin avisar («12,5» queda «125») y signed_decimal.js la pasa a
+                punto mientras se teclea. -#}
+            {% if i.unidad == 'ud' %}
+            <input type="number" step="1" min="0" inputmode="numeric" name="consumo_real"
                    aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
                    placeholder="{{ 'sin declarar' if teo is not none else '—' }}"
                    data-teorico="{{ teo if teo is not none else '' }}" data-unidad="{{ i.unidad }}"
                    value="{{ consumo_actual.get(i.id, '') if reparto_origen == 'declarado' else '' }}">
+            {% else %}
+            <input type="text" inputmode="decimal" data-decimal name="consumo_real"
+                   aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}"
+                   placeholder="{{ 'sin declarar' if teo is not none else '—' }}"
+                   data-teorico="{{ teo if teo is not none else '' }}" data-unidad="{{ i.unidad }}"
+                   value="{{ consumo_actual.get(i.id, '') if reparto_origen == 'declarado' else '' }}">
+            {% endif %}
           </td>
           <td data-label="Diferencia" class="maquila-num"><span class="maquila-dif" data-dif aria-live="polite">—</span></td>
         </tr>
@@ -268,12 +281,17 @@
 
   // --- Diferencia Real − Teórico por fila, con signo y %; color por umbral
   // de desviación (aviso > 5 %, falla > 10 %), no por signo.
+  // El campo de kilos se teclea con coma. signed_decimal.js la pasa a punto,
+  // pero lo hace en un listener delegado en `document`: cuando esta función
+  // corre —listener sobre el propio input— el valor todavía puede traer la
+  // coma, y parseFloat('12,5') es 12. Se normaliza acá también.
+  function num(v) { return parseFloat(String(v || '').replace(',', '.')); }
   function fmt(n, u) { return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + ' ' + u; }
   function diferencias() {
     inputs.forEach(function (i) {
       var celda = i.closest('tr') && i.closest('tr').querySelector('[data-dif]');
       if (!celda) return;
-      var teo = parseFloat(i.dataset.teorico), real = parseFloat(i.value);
+      var teo = parseFloat(i.dataset.teorico), real = num(i.value);
       if (isNaN(teo) || isNaN(real)) { celda.textContent = '—'; celda.className = 'maquila-dif'; return; }
       var d = real - teo, pct = teo > 0 ? Math.round(d / teo * 1000) / 10 : null;
       celda.textContent = (d > 0 ? '+' : '') + fmt(d, i.dataset.unidad) + (pct === null ? '' : ' (' + (d > 0 ? '+' : '') + pct + ' %)');

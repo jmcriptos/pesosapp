@@ -6,6 +6,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/maquila.css') }}">
 {% endblock %}
+{% block scripts %}
+{#- Los campos de peso son type="text": un type="number" descarta la coma sin
+    avisar («12,5» → «125»). Este script convierte la coma en punto mientras se
+    teclea, en toda la maquila, incluidas las líneas que se agregan después. -#}
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
+{% endblock %}
 {% block content %}
 <div class="ops-wrap maquila-wrap">
   <header class="ops-head">

@@ -1,22 +1,29 @@
-/* signed_decimal.js — Entrada de decimales con signo en teclados móviles.
+/* signed_decimal.js — Decimales tecleados en un teclado móvil.
  *
- * Problema: en iOS, inputmode="decimal" muestra un teclado numérico cuyo
- * separador decimal depende del idioma del dispositivo (coma en español) y que
- * NO incluye tecla de signo menos. Eso impide registrar temperaturas bajo cero
- * y obliga a usar coma en lugar de punto.
+ * Dos problemas, el mismo campo:
+ *   1) el teclado numérico de iOS trae el separador decimal del idioma del
+ *      dispositivo (coma en español) y no trae tecla de menos;
+ *   2) un <input type="number"> DESCARTA la coma sin avisar — medido en el
+ *      navegador: teclear «12,5» deja el campo en «125». No es que «no deje
+ *      poner la coma»: es una caja de 12,5 kg registrada como 125 kg.
  *
- * Para cada <input data-signed-decimal> este script:
- *   1) convierte la coma en punto en vivo (el valor siempre usa punto), y
- *   2) agrega un botón "±" para alternar el signo sin depender del teclado.
+ * Por eso los campos decimales de la app son type="text" + inputmode="decimal"
+ * y se normalizan acá, en vivo, para que el operario vea el punto mientras
+ * teclea. Tres marcas, de menos a más:
+ *
+ *   data-decimal          → coma→punto (pesos y cantidades: nunca negativos)
+ *   data-decimal="signo"  → además conserva el menos (temperaturas bajo cero)
+ *   data-signed-decimal   → coma→punto + botón «±» para el signo sin depender
+ *                           del teclado (necesita el CSS de registros.css)
  *
  * El backend ya normaliza coma→punto y acepta negativos; esto es la capa de UI.
  */
 (function () {
   'use strict';
 
-  function normalize(value) {
+  function normalize(value, conSigno) {
     var v = String(value).replace(/,/g, '.');
-    var negative = v.indexOf('-') !== -1;
+    var negative = conSigno && v.indexOf('-') !== -1;
     v = v.replace(/[^0-9.]/g, '');
     var parts = v.split('.');
     if (parts.length > 2) {
@@ -24,6 +31,24 @@
     }
     return (negative ? '-' : '') + v;
   }
+
+  function limpiar(input, conSigno) {
+    var caret = input.selectionStart;
+    var before = input.value;
+    var after = normalize(before, conSigno);
+    if (after === before) return;
+    input.value = after;
+    try { input.setSelectionRange(caret, caret); } catch (e) { /* noop */ }
+  }
+
+  // `data-decimal` se atiende por DELEGACIÓN, no con un listener por campo:
+  // las líneas de una recepción se clonan de un <template> después de que este
+  // script corrió, y un listener por elemento no alcanzaría a las nuevas.
+  document.addEventListener('input', function (e) {
+    var input = e.target;
+    if (!input || !input.matches || !input.matches('input[data-decimal]')) return;
+    limpiar(input, input.getAttribute('data-decimal') === 'signo');
+  });
 
   function reflect(input, btn) {
     btn.classList.toggle('is-negative', input.value.charAt(0) === '-');
@@ -47,13 +72,7 @@
     wrap.appendChild(btn);
 
     input.addEventListener('input', function () {
-      var caret = input.selectionStart;
-      var before = input.value;
-      var after = normalize(before);
-      if (after !== before) {
-        input.value = after;
-        try { input.setSelectionRange(caret, caret); } catch (e) { /* noop */ }
-      }
+      limpiar(input, true);
       reflect(input, btn);
     });
 

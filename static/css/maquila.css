@@ -1011,7 +1011,11 @@ body[data-maquila-screen] .app-content {
    56px: es el número que descuenta inventario ajeno y se teclea con el
    guante puesto, así que va a la altura de «Acción con guante», no al
    mínimo táctil. */
-.maquila-tabla-consumo input[type="number"] {
+/* Dos selectores porque hay dos campos: lo que se cuenta (ud) sigue siendo
+   `number`, y lo que se pesa pasó a `text` para que la coma decimal llegue
+   entera (un `number` la descarta). Los dos se ven igual. */
+.maquila-tabla-consumo input[type="number"],
+.maquila-tabla-consumo input[data-decimal] {
   width: 170px;
   max-width: 100%;
   margin-left: auto;
@@ -1611,7 +1615,8 @@ main.app-content:has(.maquila-wrap) {
     text-transform: uppercase;
   }
   .maquila-wrap .maquila-tabla-consumo td[data-label="Real"] { flex: 1 1 55%; }
-  .maquila-wrap .maquila-tabla-consumo td[data-label="Real"] input[type="number"] {
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Real"] input[type="number"],
+  .maquila-wrap .maquila-tabla-consumo td[data-label="Real"] input[data-decimal] {
     width: 100%;
     margin: 0;
     text-align: left;
@@ -1656,7 +1661,8 @@ main.app-content:has(.maquila-wrap) {
 
 /* El peso de cada caja en «Corregir corrida»: medido en 40×67px, ocho veces
    en la misma pantalla, y es un número de tres decimales. */
-.maquila-wrap .maquila-cajas-editar input[type="number"] {
+.maquila-wrap .maquila-cajas-editar input[type="number"],
+.maquila-wrap .maquila-cajas-editar input[data-decimal] {
   min-height: 56px;
   width: 130px;
   max-width: 100%;

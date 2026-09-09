@@ -40,7 +40,7 @@
     </div>
     <div class="ops-field">
       <label for="temperatura">Temperatura °C</label>
-      <input type="number" step="0.1" id="temperatura" name="temperatura"
+      <input type="text" inputmode="decimal" data-decimal="signo" id="temperatura" name="temperatura"
              value="{{ form.get('temperatura', recepcion.temperatura if recepcion.temperatura is not none else '') }}">
     </div>
     <div class="ops-field">
@@ -109,7 +109,7 @@
           <label for="total-{{ l.id }}">Peso total</label>
           {#- El value va CRUDO: es un input numérico, no texto para leer. fmt_cant
               metería una coma de miles y rompería el parseo. -#}
-          <input type="number" step="0.001" id="total-{{ l.id }}" name="linea_peso_total"
+          <input type="text" inputmode="decimal" data-decimal id="total-{{ l.id }}" name="linea_peso_total"
                  value="{{ l.peso_total }}"{% if consumido[l.id] > 0 %} min="{{ consumido[l.id] }}" aria-describedby="consumido-{{ l.id }}"{% endif %}>
         </div>
 
@@ -238,7 +238,7 @@
     </div>
     <div class="rec-linea-campo">
       <label>Peso total
-        <input type="number" step="0.001" min="0.001" name="linea_peso_total" inputmode="decimal" placeholder="De la balanza" required>
+        <input type="text" inputmode="decimal" data-decimal name="linea_peso_total" placeholder="De la balanza" required>
       </label>
     </div>
     <button type="button" class="btn rec-quitar-btn" data-rec-quitar aria-label="Quitar esta línea nueva">Quitar</button>
