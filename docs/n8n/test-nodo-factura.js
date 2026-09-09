@@ -127,12 +127,27 @@ for (const codigo of [10, 13, 14]) {
     det.TaxCodeRef.value,
     'TAX'
   );
+  // El codigo de la transaccion va SIEMPRE, tambien al 0%: sin el,
+  // la venta queda sin clasificar en el reporte de OB. La 5865
+  // salio asi -- `TxnTaxDetail: { TotalTax: 0 }` y nada mas.
   chequear(
     `codigo de transaccion con ${codigo}`,
-    (f.TxnTaxDetail || {}).TxnTaxCodeRef
-      ? f.TxnTaxDetail.TxnTaxCodeRef.value
-      : '(sin TxnTaxDetail)',
-    codigo === 10 ? '10' : '(sin TxnTaxDetail)'
+    ((f.TxnTaxDetail || {}).TxnTaxCodeRef || {}).value,
+    String(codigo)
+  );
+  const tl = ((f.TxnTaxDetail || {}).TaxLine || [{}])[0].TaxLineDetail;
+  chequear(
+    `tasa de la transaccion con ${codigo}`,
+    (tl || {}).TaxPercent,
+    codigo === 10 ? 6 : 0
+  );
+  // La TaxRateRef que corresponde al codigo. QBO la reescribe si no
+  // coincide (la 5863 se mando con 25 y quedo con 17), pero mandar
+  // la correcta deja el payload igual a lo que QBO va a guardar.
+  chequear(
+    `TaxRateRef con ${codigo}`,
+    ((tl || {}).TaxRateRef || {}).value,
+    { 10: '17', 13: '19', 14: '25' }[codigo]
   );
 }
 

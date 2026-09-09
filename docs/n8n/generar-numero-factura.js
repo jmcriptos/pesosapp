@@ -30,17 +30,20 @@
  *     $input, donde solo llegan las consultas de DocNumber.
  *
  *  CAMBIOS 2026-09-08
- *  1. CURRENCY2: el campo de moneda que se ve en la pantalla de
+ *  1. CODIGO DE IMPUESTO: el TxnTaxDetail se omitia al 0% y la
+ *     factura salia SIN CODIGO (la 5865). Va siempre, con la
+ *     TaxRateRef que corresponde al TaxCode.
+ *  2. CURRENCY2: el campo de moneda que se ve en la pantalla de
  *     QBO no lo escribia nadie y se quedaba en XCG. El que la app
  *     llenaba bien es otro campo, que la pantalla no muestra.
  *     OJO: el nodo HTTP que crea la factura necesita
  *     `?minorversion=75&include=enhancedAllCustomFields` en la
  *     URL o QuickBooks ignora este CustomField.
- *  2. TAXABLE DE LINEA: se mandaba 'NON' en los codigos 13 y
+ *  3. TAXABLE DE LINEA: se mandaba 'NON' en los codigos 13 y
  *     14, y habia que marcar cada linea como taxable a mano o
  *     la venta se caia del reporte de ventas gravadas. Va TAX
  *     siempre; el 0% lo pone el codigo de la transaccion.
- *  3. MONTO DE LINEA: el redondeo en coma flotante bajaba el
+ *  4. MONTO DE LINEA: el redondeo en coma flotante bajaba el
  *     medio centavo en vez de subirlo y QBO rechazaba la
  *     factura con 6070 "Amount is not equal to UnitPrice *
  *     Qty". Ahora la cuenta va en enteros (peso en milesimas,
@@ -203,6 +206,13 @@ const LINEA_GRAVABLE = 'TAX';
 // impuesto solo con TxnTaxCodeRef: la factura 5848 salio con 0%
 // mandando unicamente el codigo. Hay que mandarle TotalTax y
 // TaxLine, como hacia el codigo viejo.
+//
+// Y el bloque va SIEMPRE, tambien al 0%. Omitirlo no deja la
+// factura "exenta y limpia": la deja SIN CODIGO -- la 5865 salio
+// con `TxnTaxDetail: { TotalTax: 0 }` y nada mas, o sea una venta
+// sin clasificar en el reporte de OB. Antes no se notaba porque al
+// marcar las lineas a mano QuickBooks recalculaba y le estampaba
+// el codigo; sin esa edicion, queda como lo mandamos.
 const PCT_POR_CODIGO = {
   '10': 6,   // OB 6%
   '11': 9,   // OB 9%
@@ -210,14 +220,17 @@ const PCT_POR_CODIGO = {
   '14': 0    // OB Non Tax Local Prod
 };
 
-// TaxRate de QBO usado para el calculo. RESUELTO 2026-09-08: el
-// '25' es en realidad la tasa del 0% local, no la del 6% -- pero
-// QuickBooks lo IGNORA y pone la que corresponde al TaxCode. Se
-// midio sobre facturas que nadie corrigio a mano: la 5863 salio
-// con la tasa 17 (OB 6%) mandandole 25. Las tasas reales son
-// 17 = OB 6%, 18 = OB 9%, 19 = Non Tax, 25 = Local Prod.
-// Se deja como esta: cambiarlo no cambia nada en la factura.
-const TAX_RATE_REF = '25';
+// TaxRate que corresponde a cada TaxCode. Son entidades distintas
+// en QBO. Medidas el 2026-09-08 contra la lista real de la empresa.
+// QuickBooks reescribe la que le mandemos si no coincide (la 5863
+// se mando con 25 y quedo guardada con 17), pero mandar la correcta
+// deja el payload igual a lo que QBO va a guardar.
+const TASA_POR_CODIGO = {
+  '10': '17',  // OB 6%
+  '11': '18',  // OB 9%
+  '13': '19',  // Non Tax
+  '14': '25'   // OB Non Tax Local Prod
+};
 
 const taxCodeFactura = taxCodeDe(body.lines?.[0]);
 console.log(`TaxCode de QBO: ${taxCodeFactura || '(ninguno)'}`);
@@ -386,7 +399,7 @@ for (const l of map.values()) {
 // mandar TotalTax y TaxLine o QBO no calcula nada.
 const pct = PCT_POR_CODIGO[taxCodeFactura] ?? 0;
 
-if (pct > 0) {
+if (taxCodeFactura) {
   const impuesto = divMediaArriba(subtotalCent * pct, 100) / CENT;
   const neto = subtotalCent / CENT;
   factura.TxnTaxDetail = {
@@ -399,13 +412,15 @@ if (pct > 0) {
         TaxPercent: pct,
         NetAmountTaxable: neto,
         PercentBased: true,
-        TaxRateRef: { value: TAX_RATE_REF }
+        TaxRateRef: {
+          value: TASA_POR_CODIGO[taxCodeFactura] || '25'
+        }
       }
     }]
   };
-  console.log(`Impuesto ${pct}% = ${impuesto} sobre ${neto}`);
+  console.log(`Codigo ${taxCodeFactura}: ${pct}% = ${impuesto}`);
 } else {
-  console.log(`Sin impuesto (codigo ${taxCodeFactura})`);
+  console.log('Sin codigo de impuesto: no se manda TxnTaxDetail');
 }
 
 console.log('Factura lista:', JSON.stringify(factura));

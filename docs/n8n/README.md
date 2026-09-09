@@ -156,15 +156,23 @@ llevando el código 10. Hay que mandarle `TotalTax` y `TaxLine` calculados,
 como hacía el código viejo — pero con el porcentaje que de verdad corresponde
 al código, no interpretando el código como porcentaje:
 
-| TaxCode | Porcentaje |
-|---|---|
-| `10` | 6% |
-| `11` | 9% |
-| `13` | 0% |
-| `14` | 0% |
+| TaxCode | Porcentaje | `TaxRateRef` |
+|---|---|---|
+| `10` | 6% | `17` |
+| `11` | 9% | `18` |
+| `13` | 0% | `19` |
+| `14` | 0% | `25` |
 
-Con 0% **no se manda `TxnTaxDetail`** en absoluto: comprobado en la 5848, una
-factura sin ese bloque sale exenta.
+**El bloque va SIEMPRE, también al 0%.** Omitirlo no deja la factura «exenta
+y limpia»: la deja **sin código**. La 5865 salió con `TxnTaxDetail:
+{ TotalTax: 0 }` y nada más — una venta sin clasificar en el reporte de OB.
+Hasta el 2026-09-08 no se notaba porque al marcar las líneas como gravables a
+mano, QuickBooks recalculaba y le estampaba el código; sin esa edición, la
+factura queda como la mandamos.
+
+El `TaxRateRef` es otra entidad que el `TaxCode`. QuickBooks reescribe el que
+le mandemos si no corresponde (la 5863 se mandó con `25` y quedó guardada con
+`17`), pero mandar el correcto deja el payload igual a lo que QBO guarda.
 
 > **Resuelto (2026-09-08):** el `TaxRateRef` fijo en `'25'` está mal —el 25 es
 > la tasa del 0% local, no la del 6%— pero **QuickBooks lo ignora** y pone la
