@@ -59,7 +59,31 @@ def _pesos_de_descripcion(desc):
     return pesos
 
 
-def extraer_datos_factura(invoice_json):
+def _entero_si_cabe(n):
+    return int(n) if float(n).is_integer() else round(float(n), 2)
+
+
+def _cajas_de_linea(item_qbo_id, pesos, qty, pesables):
+    """Cuántas cajas físicas salieron en esta línea.
+
+    Mirando SOLO la factura no se puede saber: un DETAILS de un token
+    suelto es ambiguo -- '18.85' puede ser UNA caja de 18,85 kg
+    (producto que se pesa) o 18,85 cajas de atún. Los dos casos traen
+    además el mismo Qty que el token, así que no hay nada en la factura
+    que los distinga.
+
+    `pesables` -- los `qbo_id` que se pesan, que salen del pedido --
+    desempata. Sin ese dato se cuenta un peso por caja, que acierta en
+    todo lo pesado de más de una caja y se equivoca en el resto.
+    """
+    if pesables is None:
+        return len(pesos) if pesos else qty
+    if str(item_qbo_id) in pesables:
+        return len(pesos)
+    return qty
+
+
+def extraer_datos_factura(invoice_json, pesables=None):
     inv = _pick_invoice(invoice_json)
     bill = inv.get('BillAddr') or {}
 
@@ -73,6 +97,7 @@ def extraer_datos_factura(invoice_json):
         producto = nombre.split(':')[1].strip() if ':' in nombre else nombre
         desc = l.get('Description') or ''
         pesos = _pesos_de_descripcion(desc)
+        qty = float(det.get('Qty') or 0)
         lineas.append({
             'producto': producto,
             # Id del ítem en QBO: es lo que se cruza contra Producto.qbo_id para
@@ -80,7 +105,11 @@ def extraer_datos_factura(invoice_json):
             'item_qbo_id': str(item_ref.get('value')) if item_ref.get('value') else None,
             'pesos': pesos,
             'detalle_texto': '' if pesos else desc,
-            'qty': float(det.get('Qty') or 0),
+            'qty': qty,
+            # Cajas físicas: es para contar bultos contra el camión, no
+            # para facturar. Ver `_cajas_de_linea`.
+            'cajas': _entero_si_cabe(_cajas_de_linea(
+                item_ref.get('value'), pesos, qty, pesables)),
             'rate': float(det.get('UnitPrice') or 0),
             'amount': float(l.get('Amount') or 0),
         })
@@ -116,6 +145,8 @@ def extraer_datos_factura(invoice_json):
         'moneda': 'USD' if usd else 'XCG',
         'moneda_label': 'USD - US Dollar' if usd else 'XCG - Caribbean Guilder',
         'lineas': lineas,
+        # Se conserva la fracción: se venden cuartos y medias cajas.
+        'total_cajas': _entero_si_cabe(sum(l['cajas'] for l in lineas)),
         'subtotal': round(subtotal, 2),
         'ob_pct': ob_pct,
         'ob': round(ob, 2),
@@ -217,7 +248,14 @@ def _grid_pesos(pesos, estilo, ancho_col):
     return tabla
 
 
-def render_factura_pdf(invoice_json):
+def _cajas_txt(n):
+    v = float(n or 0)
+    if v.is_integer():
+        return f'{int(v):,}'
+    return f'{v:,.2f}'.rstrip('0').rstrip('.')
+
+
+def render_factura_pdf(invoice_json, pesables=None):
     """Genera el PDF de una factura A4. Los tamaños, colores y espaciados de
     abajo están tomados 1:1 del CSS del generador HTML que produce las
     facturas de referencia (5802-5805); las conversiones px->pt usan el
@@ -225,7 +263,7 @@ def render_factura_pdf(invoice_json):
     tracking/letter-spacing del CSS no tiene equivalente en reportlab
     Paragraph y se omite (no afecta la jerarquía visual: tamaño/peso/color
     sí se respetan)."""
-    d = extraer_datos_factura(invoice_json)
+    d = extraer_datos_factura(invoice_json, pesables=pesables)
 
     ancho_contenido = 186 * mm  # A4 (210mm) - 12mm de margen a cada lado
 
@@ -276,6 +314,9 @@ def render_factura_pdf(invoice_json):
     st_rate = ParagraphStyle('ra', parent=st_normal, fontSize=8.5, leading=8.5 * 1.2,
                              alignment=TA_RIGHT)
     st_amount = ParagraphStyle('am', parent=st_bold, fontSize=9, alignment=TA_RIGHT)
+
+    st_cajas = ParagraphStyle('cj', parent=st_normal, fontName='Helvetica-Bold',
+                              fontSize=9, leading=9 * 1.2, spaceBefore=_px(8))
 
     st_banco_titulo = ParagraphStyle('bkt', parent=st_normal, fontName='Helvetica-Bold',
                                      fontSize=11, leading=11 * 1.2, textColor=GRIS)
@@ -392,6 +433,13 @@ def render_factura_pdf(invoice_json):
         ('RIGHTPADDING', (0, 1), (0, -1), _px(25)),
     ]))
     flow.append(tabla)
+
+    # Control de despacho: cuántos bultos salen con esta factura. Va del
+    # lado izquierdo y debajo de la tabla, lejos de la columna de importes,
+    # para que no se lea como un monto más.
+    flow.append(Paragraph(
+        _xe(f'TOTAL CAJAS: {_cajas_txt(d["total_cajas"])}'), st_cajas))
+
     flow.append(Spacer(1, 6 * mm))
 
     # Datos bancarios + totales

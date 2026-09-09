@@ -9397,9 +9397,19 @@ def factura_pdf(pedido_id):
         )
         abort(502, description='QuickBooks devolvió una factura que no corresponde a este pedido.')
 
+    # Qué ítems de esta factura se pesan. Hace falta para contar las cajas
+    # del despacho: en la factura, un DETAILS de un token suelto es ambiguo
+    # ('18.85' puede ser una caja de 18,85 kg o 18,85 cajas de atún) y los
+    # dos casos traen el mismo Qty. Sale del pedido, sin consultar de nuevo.
+    pesables = {
+        str(detalle.producto.qbo_id)
+        for detalle in pedido.detalles
+        if detalle.producto and detalle.producto.se_pesa and detalle.producto.qbo_id
+    }
+
     try:
-        pdf = render_factura_pdf(factura)
-        datos_factura = extraer_datos_factura(factura)
+        pdf = render_factura_pdf(factura, pesables=pesables)
+        datos_factura = extraer_datos_factura(factura, pesables=pesables)
         numero = datos_factura['numero'] or pedido.doc_number_qbo or pedido.id
     except Exception as e:
         app.logger.error(f'Error al renderizar la factura del pedido {pedido_id}: {e}')

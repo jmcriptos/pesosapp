@@ -468,3 +468,98 @@ def test_render_alinea_totales_detalles_y_amount_a_la_derecha():
     from reportlab.pdfbase.pdfmetrics import stringWidth
     centro_valor_qty = x0 + stringWidth(texto, fuente, tamano) / 2
     assert centro_valor_qty == pytest.approx(centro_header_qty, abs=1.5)
+
+
+# ---------------------------------------------------------------------------
+# Total de cajas: control de despacho
+#
+# Mirando SOLO la factura, un token suelto en DETAILS es ambiguo: '18.85'
+# puede ser una caja de 18,85 kg o 18,85 cajas. Se resuelve con el conjunto
+# de qbo_id que se pesan, que sale del pedido.
+# ---------------------------------------------------------------------------
+
+def _texto_extraido(pdf):
+    """Todo el texto realmente dibujado, concatenado. `_texto_visible`
+    devuelve el stream crudo (con operadores en medio); esto devuelve sólo
+    las cadenas, que es lo que hay que buscar cuando el texto no es una
+    palabra suelta."""
+    return ''.join(t for _, _, t in _runs_de_texto(pdf))
+
+
+def _invoice_lineas(*lineas):
+    """Invoice mínima con las líneas dadas: (item_id, qty, description)."""
+    return {'Invoice': {'Id': '1', 'DocNumber': '9999', 'Line': [
+        {
+            'DetailType': 'SalesItemLineDetail',
+            'Description': desc,
+            'Amount': 100.0,
+            'SalesItemLineDetail': {
+                'ItemRef': {'value': item, 'name': f'Producto {item}'},
+                'Qty': qty,
+                'UnitPrice': 10.0,
+            },
+        }
+        for item, qty, desc in lineas
+    ]}}
+
+
+def test_cuenta_una_caja_por_peso_en_producto_pesable():
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(cargar('xcg_sin_ob'), pesables={'1407', '1352'})
+
+    assert [l['cajas'] for l in datos['lineas']] == [2, 2]
+    assert datos['total_cajas'] == 4
+
+
+def test_una_caja_pesada_sola_cuenta_una_no_su_peso():
+    """El caso que hace falta desambiguar: 18.85 es UNA caja de 18,85 kg."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1366', 18.85, '18.85')), pesables={'1366'})
+
+    assert datos['lineas'][0]['cajas'] == 1
+    assert datos['total_cajas'] == 1
+
+
+def test_producto_que_no_se_pesa_cuenta_la_cantidad_como_cajas():
+    """Mismo DETAILS de un solo token, pero son 10 cajas de atún."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1289', 10, '10.00')), pesables=set())
+
+    assert datos['lineas'][0]['cajas'] == 10
+    assert datos['total_cajas'] == 10
+
+
+def test_total_de_cajas_conserva_la_fraccion():
+    """Se venden cuartos y medias cajas; el total no se redondea."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1289', 2.25, '2.25'), ('1290', 1.5, '1.50')),
+        pesables=set())
+
+    assert datos['total_cajas'] == 3.75
+
+
+def test_render_muestra_el_total_de_cajas():
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(cargar('xcg_sin_ob'), pesables={'1407', '1352'})
+    texto = _texto_extraido(pdf)
+
+    assert 'TOTAL CAJAS' in texto
+    assert '4' in texto
+
+
+def test_render_del_total_de_cajas_con_fraccion():
+    from utils.factura_pdf import render_factura_pdf
+
+    pdf = render_factura_pdf(
+        _invoice_lineas(('1289', 2.25, '2.25'), ('1290', 1.5, '1.50')),
+        pesables=set())
+
+    assert 'TOTAL CAJAS: 3.75' in _texto_extraido(pdf)

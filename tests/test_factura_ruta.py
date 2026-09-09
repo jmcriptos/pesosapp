@@ -306,11 +306,13 @@ def test_ruta_500_si_los_datos_de_la_factura_son_ilegibles(mock_post, app):
     real = fpdf.extraer_datos_factura
     llamadas = {'n': 0}
 
-    def _extraer(payload):
+    # **kwargs: la ruta le pasa `pesables=` (los qbo_id que se pesan, para
+    # contar las cajas del despacho).
+    def _extraer(payload, **kwargs):
         llamadas['n'] += 1
         if llamadas['n'] > 1:  # la de la ruta, después de renderizar
             raise ValueError('payload raro')
-        return real(payload)
+        return real(payload, **kwargs)
 
     with app.app_context():
         pedido_id = _crear_pedido_facturado(invoice_id='47347')
