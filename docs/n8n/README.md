@@ -24,11 +24,12 @@ copiarlo desde un editor.
 
 ```sh
 node --check docs/n8n/generar-numero-factura.js
-node docs/n8n/test-monto-linea.js
+node docs/n8n/test-nodo-factura.js
 ```
 
-El segundo corre el nodo entero contra el pedido 1334 y comprueba
-que los montos de línea son los que QuickBooks vuelve a calcular.
+El segundo corre el nodo entero contra el pedido 1334 y comprueba las
+dos cosas que ya salieron mal: que los montos de línea sean los que
+QuickBooks vuelve a calcular, y que cada línea vaya como gravable.
 
 ## Trampa del workflow
 
@@ -97,16 +98,25 @@ Valid line TaxCodes for US should be TAX or NON. Supplied value: 10
 ```
 
 El código real (10 / 13 / 14) va **únicamente** en
-`TxnTaxDetail.TxnTaxCodeRef`. La línea se marca:
+`TxnTaxDetail.TxnTaxCodeRef`. La línea va **`TAX` siempre**:
 
-| `tax_rate` de la app | Línea | Transacción |
-|---|---|---|
-| `10` — OB 6% | `TAX` | `10` |
-| `13` — Non Tax (exportación) | `NON` | `13` |
-| `14` — OB Non Tax Local Prod | `NON` | `14` |
+| `tax_rate` de la app | Línea | Transacción | Resultado |
+|---|---|---|---|
+| `10` — OB 6% | `TAX` | `10` | 6% |
+| `13` — Non Tax (exportación) | `TAX` | `13` | 0% |
+| `14` — OB Non Tax Local Prod | `TAX` | `14` | 0% |
 
-El código viejo mandaba siempre `TAX` en la línea, así que un producto exento
-no tenía forma de salir al 0% y había que corregir la factura a mano.
+**No confundir «exento» con «no gravable».** Los tres códigos de OB de esta
+empresa están marcados `taxable: true` en QuickBooks; el único no gravable de
+verdad es el `NON` genérico del sistema, que la app nunca manda. El 0% lo
+define el código de la **transacción**, no el `TAX`/`NON` de la línea — la
+factura 5864 salió al 0% con todas sus líneas en `TAX`.
+
+Entre el 2026-08-28 y el 2026-09-08 el nodo mandó `NON` en las líneas de
+código 13 y 14, con el razonamiento —falso— de que si no, «un producto exento
+no tiene forma de salir al 0%». Una línea `NON` se cae del reporte de ventas
+gravadas, así que hubo que marcarlas a mano en **cada** factura de Mr Raucher
+y de exportación.
 
 ### QBO no calcula el impuesto solo
 
@@ -125,8 +135,9 @@ al código, no interpretando el código como porcentaje:
 Con 0% **no se manda `TxnTaxDetail`** en absoluto: comprobado en la 5848, una
 factura sin ese bloque sale exenta.
 
-> **Pendiente de confirmar:** el `TaxRateRef` está fijo en `'25'`, que es el
-> que traía el código viejo y con el que la factura 5842 salió al 6%. No está
-> verificado contra la lista de TaxRate de QuickBooks (que es una entidad
-> distinta de los TaxCode). Si algún día se factura al 9%, casi seguro
-> necesita otro `TaxRateRef`.
+> **Resuelto (2026-09-08):** el `TaxRateRef` fijo en `'25'` está mal —el 25 es
+> la tasa del 0% local, no la del 6%— pero **QuickBooks lo ignora** y pone la
+> que corresponde al `TaxCode`. Medido sobre facturas que nadie tocó a mano:
+> la 5863 se mandó con `25` y quedó guardada con `17`. Las tasas reales son
+> `17` = OB 6%, `18` = OB 9%, `19` = Non Tax, `25` = OB Non Tax Local Prod.
+> Se deja como está: cambiarlo no cambia nada en la factura.

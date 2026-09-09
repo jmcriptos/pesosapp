@@ -1,4 +1,6 @@
-/** Regresion: el monto de linea que QuickBooks acepta.
+/** Regresiones del nodo que arma la factura de QuickBooks.
+ *
+ *  1) EL MEDIO CENTAVO
  *
  *  El 2026-09-08 el pedido 1334 no se pudo facturar:
  *
@@ -13,7 +15,16 @@
  *  1861.07. Number.EPSILON (2.2e-16) es 25 veces mas chico que
  *  el error que ya traia la suma de ocho pesos (5.7e-15).
  *
- *  Correr:  node docs/n8n/test-monto-linea.js
+ *  2) EL TAXABLE DE CADA LINEA
+ *
+ *  El nodo mandaba `NON` en las lineas de codigo 13 y 14, y JM
+ *  las marcaba TAX a mano en CADA factura: una linea NON se cae
+ *  del reporte de ventas gravadas. Los tres codigos de OB
+ *  (10, 13, 14) estan marcados `taxable: true` en QuickBooks; el
+ *  0% lo define el codigo de la TRANSACCION, no el TAX/NON de la
+ *  linea. La linea va TAX siempre.
+ *
+ *  Correr:  node docs/n8n/test-nodo-factura.js
  */
 
 const fs = require('fs');
@@ -53,17 +64,15 @@ const linea = (qty, unit_price, qbo_id) => ({
   tax_rate: 10
 });
 
-const body = {
+const armarBody = (lines, extra = {}) => ({
   order_id: 1334,
   customer_qbo_id: '6',
   currency: 'XCG',
   currency_qbo: 'ANG',
   exchange_rate: 1,
-  lines: [
-    ...CAJAS_9294.map((p) => linea(p, 14.5, '1359')),
-    linea(18.85, 14.3, '1366')
-  ]
-};
+  lines,
+  ...extra
+});
 
 const fallos = [];
 const chequear = (que, real, esperado) => {
@@ -72,7 +81,12 @@ const chequear = (que, real, esperado) => {
   }
 };
 
-const factura = correrNodo(body);
+// ---------- el medio centavo (pedido 1334) ----------
+const factura = correrNodo(armarBody([
+  ...CAJAS_9294.map((p) => linea(p, 14.5, '1359')),
+  linea(18.85, 14.3, '1366')
+]));
+
 const porItem = {};
 for (const l of factura.Line) {
   porItem[l.SalesItemLineDetail.ItemRef.value] = l;
@@ -92,9 +106,32 @@ chequear(
   127.84
 );
 
+// ---------- el taxable de cada linea ----------
+// 10 = OB 6%, 13 = Non Tax (exportacion), 14 = Local Prod. Los
+// tres son `taxable: true` en QuickBooks: la linea va TAX y la
+// tasa la pone el codigo de la transaccion.
+for (const codigo of [10, 13, 14]) {
+  const f = correrNodo(armarBody([linea(10, 14.5, '1359')].map(
+    (l) => ({ ...l, tax_rate: codigo })
+  )));
+  const det = f.Line[0].SalesItemLineDetail;
+  chequear(
+    `linea con codigo ${codigo}`,
+    det.TaxCodeRef.value,
+    'TAX'
+  );
+  chequear(
+    `codigo de transaccion con ${codigo}`,
+    (f.TxnTaxDetail || {}).TxnTaxCodeRef
+      ? f.TxnTaxDetail.TxnTaxCodeRef.value
+      : '(sin TxnTaxDetail)',
+    codigo === 10 ? '10' : '(sin TxnTaxDetail)'
+  );
+}
+
 if (fallos.length) {
   console.error('FALLA:');
   for (const f of fallos) console.error('  - ' + f);
   process.exit(1);
 }
-console.log('OK: los montos coinciden con lo que calcula QuickBooks');
+console.log('OK: montos y taxable de linea como los espera QuickBooks');

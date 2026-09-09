@@ -30,12 +30,16 @@
  *     $input, donde solo llegan las consultas de DocNumber.
  *
  *  CAMBIOS 2026-09-08
- *  1. MONTO DE LINEA: el redondeo en coma flotante bajaba el
+ *  1. TAXABLE DE LINEA: se mandaba 'NON' en los codigos 13 y
+ *     14, y habia que marcar cada linea como taxable a mano o
+ *     la venta se caia del reporte de ventas gravadas. Va TAX
+ *     siempre; el 0% lo pone el codigo de la transaccion.
+ *  2. MONTO DE LINEA: el redondeo en coma flotante bajaba el
  *     medio centavo en vez de subirlo y QBO rechazaba la
  *     factura con 6070 "Amount is not equal to UnitPrice *
  *     Qty". Ahora la cuenta va en enteros (peso en milesimas,
  *     precio en centavos) con redondeo media-arriba, el mismo
- *     de QuickBooks. Ver docs/n8n/test-monto-linea.js.
+ *     de QuickBooks. Ver docs/n8n/test-nodo-factura.js.
  */
 
 // ---------- helpers ----------
@@ -178,13 +182,16 @@ const taxCodeDe = (l) => {
 // "Valid line TaxCodes for US should be TAX or NON" (error 6100,
 // visto el 2026-08-28). El codigo real va SOLO a nivel de
 // transaccion, en TxnTaxDetail.TxnTaxCodeRef.
-const CODIGOS_EXENTOS = new Set([
-  '13',  // Non Tax (exportacion)
-  '14'   // OB Non Tax Local Prod
-]);
-
-const lineaGravable = (codigo) =>
-  CODIGOS_EXENTOS.has(codigo) ? 'NON' : 'TAX';
+//
+// Y va TAX SIEMPRE. Los tres codigos de OB de esta empresa
+// -10 (6%), 13 (Non Tax) y 14 (Local Prod)- estan marcados
+// `taxable: true` en QuickBooks; el unico no gravable de verdad
+// es el 'NON' generico del sistema, que la app nunca manda. El
+// 0% lo define el codigo de la TRANSACCION, no el TAX/NON de la
+// linea: la factura 5864 salio al 0% con todas sus lineas TAX.
+// Mandar NON sacaba esas ventas del reporte de ventas gravadas
+// y habia que marcarlas a mano en CADA factura.
+const LINEA_GRAVABLE = 'TAX';
 
 // Porcentaje que corresponde a cada TaxCode. QBO NO calcula el
 // impuesto solo con TxnTaxCodeRef: la factura 5848 salio con 0%
@@ -197,10 +204,13 @@ const PCT_POR_CODIGO = {
   '14': 0    // OB Non Tax Local Prod
 };
 
-// TaxRate de QBO usado para el calculo. Es el que venia en el
-// codigo viejo y con el que la factura 5842 salio al 6%.
-// PENDIENTE: confirmar la lista de TaxRate de QBO; si el 9%
-// necesita otro TaxRateRef, hay que agregarlo aca.
+// TaxRate de QBO usado para el calculo. RESUELTO 2026-09-08: el
+// '25' es en realidad la tasa del 0% local, no la del 6% -- pero
+// QuickBooks lo IGNORA y pone la que corresponde al TaxCode. Se
+// midio sobre facturas que nadie corrigio a mano: la 5863 salio
+// con la tasa 17 (OB 6%) mandandole 25. Las tasas reales son
+// 17 = OB 6%, 18 = OB 9%, 19 = Non Tax, 25 = Local Prod.
+// Se deja como esta: cambiarlo no cambia nada en la factura.
 const TAX_RATE_REF = '25';
 
 const taxCodeFactura = taxCodeDe(body.lines?.[0]);
@@ -294,8 +304,6 @@ for (const l of map.values()) {
     console.log(`Linea sin nombre: ${l.product_qbo_id}`);
   }
 
-  const codigoLinea = taxCodeDe(l) || taxCodeFactura;
-
   const precioCent = enEnteros(l.unit_price, CENT);
   const montoCent = divMediaArriba(l.qtyMil * precioCent, MIL);
 
@@ -316,7 +324,7 @@ for (const l of map.values()) {
   };
 
   lineItem.SalesItemLineDetail.TaxCodeRef = {
-    value: lineaGravable(codigoLinea)
+    value: LINEA_GRAVABLE
   };
 
   // ---- clase ----
