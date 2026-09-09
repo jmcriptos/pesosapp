@@ -193,3 +193,45 @@ mandó con `25` y quedó guardada con `17`, al 6% correcto.
 > la 5863 se mandó con `25` y quedó guardada con `17`. Las tasas reales son
 > `17` = OB 6%, `18` = OB 9%, `19` = Non Tax, `25` = OB Non Tax Local Prod.
 > Se deja como está: cambiarlo no cambia nada en la factura.
+
+
+# Workflow aparte: tipo de cambio USD diario
+
+`tipo-cambio-diario.json` es un workflow completo, listo para importar
+(**Import from File**, o pegarlo en el canvas). No toca el de facturación.
+
+## Por qué existe
+
+La factura manda `ExchangeRate: 1.78` y **QuickBooks lo descarta**: usa la
+tasa que se descarga sola cada madrugada. El 2026-09-09 tenía `1.802075`
+(actualizada 01:11) y la factura 5868 salió con esa. Las cinco facturas en
+USD que existían hasta ese día estaban las cinco corregidas a mano.
+
+La tasa se fija con otra API: `POST /v3/company/<realm>/exchangerate`.
+
+## Qué hace
+
+| Nodo | Qué hace |
+|---|---|
+| `Todos los dias 05:00` | Dispara una vez por día |
+| `Fechas UTC a fijar` | Emite **dos** fechas: hoy y mañana (UTC) |
+| `Leer tasa actual` | `GET` de la tasa de esa fecha — trae el `SyncToken` |
+| `Fijar USD en 1.78` | `POST` con `Rate: 1.78` y el `SyncToken` si lo hay |
+
+**Hoy y mañana, no sólo hoy.** El `TxnDate` de la factura sale de
+`new Date().toISOString()`, o sea la fecha **UTC**. Facturando de tarde en
+Curaçao (UTC−4) ya es el día siguiente en UTC: la 5865 se emitió a las 21:45
+del 8 de septiembre y salió con `TxnDate 2026-09-09`. Fijando sólo la de hoy,
+las facturas de la tarde saldrían con la tasa de QuickBooks.
+
+**El `SyncToken` sale del GET.** Una fecha nueva no lo trae y el `POST` va sin
+él; una que ya se fijó sí, y entonces hace falta o QBO rechaza la escritura
+por objeto desactualizado. Cada fecha se escribe dos veces (como «mañana» un
+día y como «hoy» al siguiente), así que el caso se da todos los días.
+
+## Por qué va aparte y no dentro de la facturación
+
+El flujo de facturación funciona, y meter un nodo en el medio cambia lo que le
+llega a `HTTP Facturar QBO`. La tasa no depende del pedido: es política de la
+empresa, 1,78 todos los días. Si el job falla, la factura sale con la tasa de
+QuickBooks y se corrige a mano — que es el peor caso de siempre, no uno nuevo.

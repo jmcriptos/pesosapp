@@ -1,0 +1,145 @@
+{
+  "name": "Tipo de cambio USD diario",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 5,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Todos los dias 05:00"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fechas para las que hay que fijar la tasa del USD.\n//\n// El TxnDate de la factura sale de `new Date().toISOString()`, o sea\n// la fecha UTC. Facturando de tarde en Curazao (UTC-4) ya es el dia\n// siguiente en UTC: la 5865 se emitio 21:45 del 8 de septiembre y\n// salio con TxnDate 2026-09-09. Si solo fijaramos la tasa de hoy,\n// esas facturas de la tarde saldrian con la tasa de QuickBooks.\n// Por eso se fijan HOY y MANANA.\nconst dia = (offset) =>\n  new Date(Date.now() + offset * 864e5).toISOString().slice(0, 10);\n\nreturn [\n  { json: { fecha: dia(0) } },\n  { json: { fecha: dia(1) } }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Fechas UTC a fijar"
+    },
+    {
+      "parameters": {
+        "url": "=https://quickbooks.api.intuit.com/v3/company/9130356677750496/exchangerate?sourcecurrencycode=USD&asofdate={{ $json.fecha }}&minorversion=75",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Leer tasa actual",
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "gJIOfrkoo8aTNaBi",
+          "name": "QuickBooks Online Production"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://quickbooks.api.intuit.com/v3/company/9130356677750496/exchangerate?minorversion=75",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "quickBooksOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ SourceCurrencyCode: 'USD', TargetCurrencyCode: 'ANG', Rate: 1.78, AsOfDate: $json.ExchangeRate.AsOfDate }, $json.ExchangeRate.SyncToken ? { SyncToken: $json.ExchangeRate.SyncToken } : {})) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Fijar USD en 1.78",
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "gJIOfrkoo8aTNaBi",
+          "name": "QuickBooks Online Production"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Todos los dias 05:00": {
+      "main": [
+        [
+          {
+            "node": "Fechas UTC a fijar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fechas UTC a fijar": {
+      "main": [
+        [
+          {
+            "node": "Leer tasa actual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer tasa actual": {
+      "main": [
+        [
+          {
+            "node": "Fijar USD en 1.78",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
