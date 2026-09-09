@@ -40,7 +40,7 @@
     </div>
     <div class="ops-field">
       <label for="temperatura">Temperatura °C</label>
-      <input type="text" inputmode="decimal" data-decimal="signo" id="temperatura" name="temperatura"
+      <input type="text" inputmode="decimal" data-signed-decimal id="temperatura" name="temperatura"
              value="{{ form.get('temperatura', recepcion.temperatura if recepcion.temperatura is not none else '') }}">
     </div>
     <div class="ops-field">

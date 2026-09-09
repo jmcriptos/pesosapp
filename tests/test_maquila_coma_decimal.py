@@ -78,6 +78,32 @@ def test_el_normalizador_atiende_campos_sin_signo():
     assert 'data-decimal' in js
 
 
+# --- La temperatura: bajo cero sin tecla de menos --------------------------
+#
+# El teclado decimal del teléfono no trae «−», así que -18 °C no se puede
+# teclear. Para eso signed_decimal.js pone un botón «±» al lado del campo.
+
+_CON_SIGNO = ('recepcion_nueva.html', 'recepcion_editar.html')
+
+
+def test_la_temperatura_lleva_el_boton_de_signo():
+    for archivo in _CON_SIGNO:
+        html = (_ROOT / 'templates' / 'maquila' / archivo).read_text(encoding='utf-8')
+        tag = next(t for t in _INPUT.findall(html) if 'id="temperatura"' in t)
+        assert 'data-signed-decimal' in tag, f'{archivo}: {tag}'
+
+
+def test_el_boton_de_signo_tiene_estilo_donde_la_maquila_lo_carga():
+    """El botón vivía en registros.css, que no lo carga NINGUNA plantilla: salía
+    con el azul del <button> global y 0px de ancho. Tiene que estar en una hoja
+    que la maquila cargue de verdad."""
+    base = (_ROOT / 'templates' / 'maquila' / 'base_maquila.html').read_text(encoding='utf-8')
+    hojas = [h for h in ('operaciones.css', 'maquila.css') if h in base]
+    assert hojas, 'base_maquila.html no carga ninguna hoja conocida'
+    css = '\n'.join((_ROOT / 'static' / 'css' / h).read_text(encoding='utf-8') for h in hojas)
+    assert '.signo-toggle' in css and '.signed-decimal-wrap' in css
+
+
 # --- La otra mitad: que el valor con coma llegue entero a la base -----------
 
 @pytest.fixture

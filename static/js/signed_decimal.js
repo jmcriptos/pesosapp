@@ -9,12 +9,12 @@
  *
  * Por eso los campos decimales de la app son type="text" + inputmode="decimal"
  * y se normalizan acá, en vivo, para que el operario vea el punto mientras
- * teclea. Tres marcas, de menos a más:
+ * teclea. Dos marcas:
  *
  *   data-decimal          → coma→punto (pesos y cantidades: nunca negativos)
- *   data-decimal="signo"  → además conserva el menos (temperaturas bajo cero)
- *   data-signed-decimal   → coma→punto + botón «±» para el signo sin depender
- *                           del teclado (necesita el CSS de registros.css)
+ *   data-signed-decimal   → coma→punto + botón «±» para poner el signo sin
+ *                           depender del teclado, que en el teléfono no trae
+ *                           «−» (el CSS del botón está en operaciones.css)
  *
  * El backend ya normaliza coma→punto y acepta negativos; esto es la capa de UI.
  */
@@ -47,7 +47,7 @@
   document.addEventListener('input', function (e) {
     var input = e.target;
     if (!input || !input.matches || !input.matches('input[data-decimal]')) return;
-    limpiar(input, input.getAttribute('data-decimal') === 'signo');
+    limpiar(input, false);
   });
 
   function reflect(input, btn) {

@@ -1467,3 +1467,42 @@ html body[data-ops-shell="1"] .app-content .ops-admin .ops-chips button.ops-chip
 .ops-ppm-hint { margin-top: 6px; font-size: 12px; color: #94a3b8; }
 .ops-ppm-hint.is-ok { color: #16a34a; }
 .ops-ppm-hint.is-bad { color: #ef4444; }
+
+/* ── Campo decimal con signo: el teclado del teléfono no trae «−» ────────────
+   El botón «±» lo inyecta signed_decimal.js al lado de cada
+   input[data-signed-decimal] (temperaturas: recepción de maquila y cámaras
+   HACCP). Estas reglas vivían en registros.css, que NO carga ninguna
+   plantilla: medido en el navegador, el botón salía con el azul del <button>
+   global y 0px de ancho. Van acá porque operaciones.css es la hoja que sí
+   cargan las dos pantallas que lo usan.
+   Colores fijos, no tokens: en las pantallas .ops-* los tokens claros están
+   scopeados y pedirlos fuera de ese scope devuelve la variante oscura. */
+/* El `margin-bottom: 10px` que styles.css le pone a todo <input> se muda del
+   campo a la caja: dentro del flex ese margen estiraba el botón 10px más que
+   el campo (medido: botón 58px contra campo 48px), y el espacio de abajo era
+   el mismo. */
+.signed-decimal-wrap { display: flex; align-items: stretch; gap: 8px; margin-bottom: 10px; }
+/* `width: auto` porque `.ops-field input` los pone al 100%, y dentro del flex
+   ese 100% se mide contra el contenedor entero y desborda el botón. */
+.signed-decimal-wrap > input { flex: 1 1 auto; min-width: 0; width: auto; margin: 0; }
+.signo-toggle {
+  flex: 0 0 auto;
+  width: 56px;          /* se toca con el guante puesto: mismo 56px que maquila */
+  min-height: 48px;
+  border: 1px solid #e5e9f0;
+  border-radius: 11px;  /* el de los inputs de .ops-field */
+  padding: 0;           /* sin esto hereda los 12px 20px del <button> global y
+                           queda 10px más alto que el campo de al lado */
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 22px; font-weight: 700; line-height: 1; cursor: pointer;
+  box-shadow: none;
+  transition: background .15s ease, transform .1s ease;
+}
+/* El :hover propio no es decoración: `button:hover` de styles.css lo pintaba
+   de azul y lo agrandaba 1.05 (medido en el escritorio, donde sí hay puntero). */
+.signo-toggle:hover { background: #e2e8f0; transform: none; }
+.signo-toggle:active { transform: scale(.96); }
+/* Rojo cuando el valor es negativo: bajo cero se ve sin leer el número. */
+.signo-toggle.is-negative { background: #fee2e2; color: #b91c1c; border-color: transparent; }
+.signo-toggle.is-negative:hover { background: #fecaca; }
