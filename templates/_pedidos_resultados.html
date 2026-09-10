@@ -233,12 +233,17 @@
                   {% else %}
                   <span class="pedido-context-empty" aria-hidden="true">—</span>
                   {% endif %}
-                  {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                  {# `entregado` también tiene `invoice_id_qbo`: se factura ANTES
+                     de entregar, así que un entregado ya salió a QuickBooks
+                     igual que un facturado. Comparar solo contra 'facturado'
+                     le escondía el badge a un entregado que sí lo tiene —
+                     misma clase de bug que 27733b83. #}
+                  {% if pedido.estado in ('facturado', 'entregado') and pedido.invoice_id_qbo %}
                   <span class="invoice-id-badge" title="QuickBooks Invoice ID">{{ pedido.invoice_id_qbo }}</span>
                   {% endif %}
                 </div>
               </td>
-              {% set action_count = (1 if pedido.estado != 'facturado' else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
+              {% set action_count = (1 if pedido.estado not in ('facturado', 'entregado') else 0) + (1 if pedido.estado == 'preparado' else 0) + (1 if pedido.estado == 'pendiente' else 0) %}
               <td class="pedido-actions-cell">
                 <div class="pedido-row-actions{% if action_count == 1 %} pedido-row-actions-single{% endif %}"
                      role="group" aria-label="Acciones del pedido PED-{{ pedido.id }}">
@@ -274,7 +279,13 @@
                     </button>
                   </form>
                   {% endif %}
-                  {% if pedido.estado != 'facturado' %}
+                  {# `entregado` es terminal igual que `facturado`: `editar_pedido`
+                     rechaza cualquier estado en PEDIDO_INMUTABLE porque ya salió a
+                     QuickBooks. Esta fila de escritorio tenía su PROPIA copia de la
+                     condición (la de la tarjeta se arregló en 27733b83) y seguía
+                     dibujando el ícono de Editar sobre un entregado, que la ruta
+                     rechaza igual — solo hace rebotar al vendedor. #}
+                  {% if pedido.estado not in ('facturado', 'entregado') %}
                   <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
                      class="row-action row-action-edit" title="Editar pedido #{{ pedido.id }}" aria-label="Editar pedido #{{ pedido.id }}">
                     <i class="fa-solid fa-pen-to-square"></i>
@@ -292,8 +303,10 @@
                   </form>
                   {% endif %}
                   {# Mismas acciones que en la tarjeta móvil: sin esto, un pedido
-                     facturado no ofrece nada desde el listado. #}
-                  {% if pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+                     facturado no ofrece nada desde el listado. Un entregado también
+                     tiene invoice_id_qbo (se factura ANTES de entregar) y merece las
+                     mismas dos acciones — revisar precios y la factura en PDF. #}
+                  {% if pedido.estado in ('facturado', 'entregado') and pedido.invoice_id_qbo %}
                   <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
                      class="row-action" title="Revisar precios contra la factura"
                      aria-label="Revisar precios del pedido #{{ pedido.id }}">

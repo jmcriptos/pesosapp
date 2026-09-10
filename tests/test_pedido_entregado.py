@@ -105,12 +105,21 @@ def _seed():
     # propio `estado == 'facturado'` si iba atenuada como «hecho» y si
     # llevaba la franja roja — las dos veces con la exclusión equivocada.
     facturado_vencido = mk_pedido('facturado', hoy - timedelta(days=5))
+    # Entregado que YA tiene invoice_id_qbo: se factura ANTES de entregar, así
+    # que esto es lo normal para cualquier entregado real (los `entregado_*`
+    # de arriba se crearon sin ese campo porque no lo necesitaban para lo que
+    # probaban). Ninguno de los otros pedidos de este seed lo tiene, así que
+    # sirve para distinguir el badge/las acciones del invoice de cualquier
+    # otra cosa que dependa del estado.
+    entregado_con_factura = mk_pedido('entregado', hoy)
+    entregado_con_factura.invoice_id_qbo = 'INV-777'
 
     _db.session.commit()
     IDS.update(pendiente=pendiente.id, preparado=preparado.id,
                facturado=facturado.id, entregado_hoy=entregado_hoy.id,
                entregado_viejo=entregado_viejo.id,
-               facturado_vencido=facturado_vencido.id)
+               facturado_vencido=facturado_vencido.id,
+               entregado_con_factura=entregado_con_factura.id)
 
 
 def _login(app, username):
@@ -369,3 +378,39 @@ def test_la_tarjeta_de_un_entregado_no_ofrece_mover_la_entrega(app):
     c = _login(app, 'jefe')
     tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['entregado_hoy'])
     assert f'/pedidos/{IDS["entregado_hoy"]}/entrega"' not in tarjeta
+
+
+# ── Ronda de arreglo: la tabla de ESCRITORIO tenía otras cuatro condiciones
+#    que seguían comparando solo contra 'facturado', donde el significado ya
+#    era «terminal» (= `entregado` también). Misma clase de bug que
+#    27733b83, en `_pedidos_resultados.html`, que esa ronda no tocó. ────────
+
+def test_la_fila_de_escritorio_de_un_entregado_no_ofrece_editar(app):
+    """`_pedidos_resultados.html` tiene su PROPIA copia de `puede_editar`
+    (separada de la de la tarjeta, arreglada en 27733b83): el ícono de Editar
+    de la fila de escritorio seguía comparando `estado != 'facturado'`, así
+    que se dibujaba igual sobre un entregado — que `editar_pedido` rechaza
+    por estar en `PEDIDO_INMUTABLE` — y solo servía para hacer rebotar al
+    vendedor."""
+    c = _login(app, 'jefe')
+    fila = _fila(c.get('/pedidos?estado=todos').get_data(as_text=True), IDS['entregado_hoy'])
+    assert f'/pedidos/{IDS["entregado_hoy"]}/editar' not in fila
+
+
+def test_la_fila_de_escritorio_de_un_entregado_con_factura_muestra_el_invoice_id(app):
+    """Se factura ANTES de entregar, así que un entregado con invoice_id_qbo
+    es el caso normal, no la excepción. El badge comparaba solo contra
+    `estado == 'facturado'` y se lo escondía a un entregado que sí lo tiene."""
+    c = _login(app, 'jefe')
+    fila = _fila(c.get('/pedidos?estado=todos').get_data(as_text=True), IDS['entregado_con_factura'])
+    assert 'invoice-id-badge' in fila
+    assert 'INV-777' in fila
+
+
+def test_la_fila_de_escritorio_de_un_entregado_con_factura_ofrece_revisar_precios(app):
+    """Misma condición que el badge, un poco más abajo: sin esto, un entregado
+    con factura no ofrece «revisar precios» ni la factura en PDF desde la
+    lista — las mismas dos acciones que ya tiene un facturado."""
+    c = _login(app, 'jefe')
+    fila = _fila(c.get('/pedidos?estado=todos').get_data(as_text=True), IDS['entregado_con_factura'])
+    assert f'/pedidos/{IDS["entregado_con_factura"]}/precios-factura' in fila
