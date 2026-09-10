@@ -169,10 +169,19 @@ def test_deshacer_deja_su_propio_rastro(app):
 
 
 def test_deshacer_no_toca_un_facturado(app):
-    from app import Pedido
+    """No alcanza con que el estado final coincida: la ruta fija
+    `estado = 'facturado'` de todas formas, así que sobre un pedido que YA
+    está facturado el estado queda igual con o sin guarda. Lo que distingue
+    el no-op correcto de la guarda rota es que, sin guarda, además se escribe
+    un PedidoEvento `entrega_deshecha` con `meta={'anterior': 'entregado'}`
+    que sería FALSO (el estado anterior real era 'facturado') — un evento de
+    auditoría que miente es peor que no tenerlo."""
+    from app import Pedido, PedidoEvento
     c = _login(app, 'jefe')
     c.post(f'/pedidos/{IDS["facturado"]}/entrega/deshacer')
     assert _db.session.get(Pedido, IDS['facturado']).estado == 'facturado'
+    assert PedidoEvento.query.filter_by(
+        pedido_id=IDS['facturado'], tipo='entrega_deshecha').count() == 0
 
 
 # ── Permisos y next ──────────────────────────────────────────────────────
@@ -183,6 +192,19 @@ def test_vendedor_ajeno_no_marca_entregado(app):
     resp = c.post(f'/pedidos/{IDS["facturado"]}/entregar')
     assert resp.status_code in (302, 403)
     assert _db.session.get(Pedido, IDS['facturado']).estado == 'facturado'
+
+
+def test_vendedor_ajeno_no_deshace_entrega(app):
+    """Equivalente de IDOR para /entrega/deshacer: `entregar_pedido` ya tenía
+    su guarda cubierta por `test_vendedor_ajeno_no_marca_entregado`, pero
+    `deshacer_entrega_pedido` usa la misma guarda de permisos sin ningún test
+    que la ejerza — un solo test_client por test, porque un segundo cliente
+    hereda la sesión del primero y el test pasaría en vacío."""
+    from app import Pedido
+    c = _login(app, 'vend_b')          # vend_b no ve al Cliente A
+    resp = c.post(f'/pedidos/{IDS["entregado_hoy"]}/entrega/deshacer')
+    assert resp.status_code in (302, 403)
+    assert _db.session.get(Pedido, IDS['entregado_hoy']).estado == 'entregado'
 
 
 def test_next_a_otro_host_no_redirige_afuera(app):
