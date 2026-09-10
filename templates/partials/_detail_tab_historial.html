@@ -3,6 +3,8 @@
   'preparado': 'fa-box',
   'pesaje_finalizado': 'fa-weight-hanging',
   'facturado': 'fa-file-invoice',
+  'entregado': 'fa-truck',
+  'entrega_deshecha': 'fa-rotate-left',
   'caja_pesada': 'fa-cube',
   'caja_editada': 'fa-pen',
   'caja_eliminada': 'fa-trash-alt',
@@ -16,6 +18,8 @@
   'preparado': 'success',
   'pesaje_finalizado': 'indigo',
   'facturado': 'success',
+  'entregado': 'success',
+  'entrega_deshecha': 'warning',
   'caja_pesada': 'indigo',
   'caja_editada': 'warning',
   'caja_eliminada': 'danger',
@@ -37,7 +41,13 @@
         <div class="detail-history-meta">
           <span class="detail-history-time">
             <i class="far fa-clock"></i>
-            {{ ev.created_at.strftime('%d/%m/%Y %H:%M') }}
+            {# `PedidoEvento.created_at` se guarda UTC-naive y acá se imprimía
+               crudo: Curaçao es UTC−4, así que una entrega de las 20:30 se leía
+               «00:30» del día siguiente — el historial contradecía al chofer que
+               acababa de tocar el botón. El filtro `hora_local` (app.py) hace la
+               conversión en Python; en la plantilla no se puede, Jinja no tiene
+               builtins ni `timezone`. #}
+            {{ ev.created_at | hora_local('%d/%m/%Y %H:%M') }}
           </span>
           {% if ev.usuario %}
           <span class="detail-history-user">

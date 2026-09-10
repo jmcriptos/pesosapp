@@ -35,7 +35,11 @@
             {% if linea_precio > 0 %} · {{ '{:,.0f}'.format(linea_precio) }}/kg{% endif %}
           </div>
 
-          {% if pedido.estado != 'facturado' %}
+          {# `entregado` es tan terminal como `facturado` (`_pedido_es_inmutable`):
+             `pesar_pedido` y la edición de la línea de preparación lo rechazan
+             igual, así que ofrecer «Pesar»/«Editar prep» acá solo hacía rebotar
+             al vendedor a la pantalla anterior. #}
+          {% if pedido.estado not in ('facturado', 'entregado') %}
           <div class="detail-product-actions">
             {% if es_pesable %}
               <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id, detalle_id=linea.id) }}"

@@ -213,6 +213,10 @@
                   {% if pedido.estado == 'pendiente' %}<i class="fa fa-clock"></i> Pendiente
                   {% elif pedido.estado == 'facturado' %}<i class="fa fa-check-circle"></i> Facturado
                   {% elif pedido.estado == 'preparado' %}<i class="fa fa-box"></i> Preparado
+                  {# Sin esta rama, `entregado` caía al `else` y salía en
+                     minúscula con el ícono genérico de info — en las 960 filas
+                     que el backfill va a mover, o sea en toda la lista. #}
+                  {% elif pedido.estado == 'entregado' %}<i class="fa fa-truck"></i> Entregado
                   {% else %}<i class="fa fa-info-circle"></i> {{ pedido.estado }}
                   {% endif %}
                 </span>

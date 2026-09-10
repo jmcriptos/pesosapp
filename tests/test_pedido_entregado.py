@@ -262,12 +262,77 @@ def test_el_entregado_de_hoy_ofrece_deshacer(app):
     assert f'/pedidos/{IDS["entregado_hoy"]}/entrega/deshacer' in tarjeta
 
 
-def test_el_entregado_del_archivo_no_ofrece_deshacer(app):
-    """En el archivo el botón es solo un toque equivocado esperando."""
+def test_el_facturado_atrasado_marcado_entregado_conserva_el_deshacer(app):
+    """El callejón sin salida que tenía la tarjeta.
+
+    `puede_entregar` se dibuja en cualquier facturado —Atrasados incluido, que
+    es justo el caso que esta rama vino a hacer visible— pero `puede_deshacer`
+    exigía además `fecha_entrega == hoy_local`. Entonces al marcar entregado un
+    facturado ATRASADO, el pedido dejaba de cumplir la condición del deshacer y
+    el botón no volvía a dibujarse nunca: un toque irreversible, en un teléfono,
+    con una mano, en la calle. Las dos condiciones cubren el mismo conjunto.
+    """
     c = _login(app, 'jefe')
-    html = c.get('/pedidos?estado=entregado').get_data(as_text=True)
-    tarjeta = _tarjeta(html, IDS['entregado_viejo'])
-    assert '/entrega/deshacer' not in tarjeta
+    pid = IDS['facturado_vencido']
+    c.post(f'/pedidos/{pid}/entregar', follow_redirects=True)
+    tarjeta = _tarjeta(c.get('/pedidos?estado=entregado').get_data(as_text=True), pid)
+    assert f'/pedidos/{pid}/entrega/deshacer' in tarjeta
+
+
+def test_la_tarjeta_de_un_entregado_con_factura_ofrece_la_factura(app):
+    """En el teléfono la app corre como PWA standalone y el share-sheet de
+    `data-factura-share` es el ÚNICO camino al PDF. `tiene_factura` comparaba
+    solo contra `facturado`, así que entregar el pedido le sacaba al chofer la
+    factura y «revisar precios» — mientras la tabla de escritorio, con su
+    propia condición ya corregida, las seguía mostrando."""
+    c = _login(app, 'jefe')
+    pid = IDS['entregado_con_factura']
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), pid)
+    assert f'/pedidos/{pid}/precios-factura' in tarjeta
+    assert 'data-factura-share' in tarjeta
+
+
+
+# ── El historial ────────────────────────────────────────────────────────────
+
+def test_el_historial_muestra_la_hora_local_y_no_la_utc(app):
+    """`PedidoEvento.created_at` se guarda UTC-naive y la plantilla lo imprimía
+    crudo. Curaçao es UTC−4: una entrega de las 20:30 se leía «00:30» del día
+    siguiente, o sea que el historial contradecía al chofer que acababa de
+    tocar el botón (y encima cambiaba de fecha)."""
+    from datetime import datetime
+    from app import PedidoEvento
+    with app.app_context():
+        ev = PedidoEvento(pedido_id=IDS['entregado_hoy'], tipo='entregado',
+                          descripcion='Pedido entregado al cliente',
+                          created_at=datetime(2026, 9, 9, 23, 30))  # UTC
+        _db.session.add(ev)
+        _db.session.commit()
+
+    c = _login(app, 'jefe')
+    html = c.get(f"/pedidos/{IDS['entregado_hoy']}/detalles").get_data(as_text=True)
+    assert '09/09/2026 19:30' in html
+    assert '10/09/2026 00:30' not in html
+
+
+def test_el_historial_dibuja_los_eventos_de_entrega_con_su_icono(app):
+    """Sin entrada en `tipo_icon`/`tipo_color`, `entregado` y `entrega_deshecha`
+    caían al punto gris genérico: los dos eventos nuevos de la rama eran los
+    únicos del historial sin identidad visual."""
+    from app import PedidoEvento
+    with app.app_context():
+        _db.session.add_all([
+            PedidoEvento(pedido_id=IDS['entregado_hoy'], tipo='entregado',
+                         descripcion='Pedido entregado al cliente'),
+            PedidoEvento(pedido_id=IDS['entregado_hoy'], tipo='entrega_deshecha',
+                         descripcion='Se deshizo la marca de entregado'),
+        ])
+        _db.session.commit()
+
+    c = _login(app, 'jefe')
+    html = c.get(f"/pedidos/{IDS['entregado_hoy']}/detalles").get_data(as_text=True)
+    assert 'fa-truck' in html and 'fa-rotate-left' in html
+    assert 'detail-history-muted' not in html
 
 
 # ── La pintura de la tarjeta (agujero del plan, sumado a esta tarea) ───────
@@ -414,3 +479,46 @@ def test_la_fila_de_escritorio_de_un_entregado_con_factura_ofrece_revisar_precio
     c = _login(app, 'jefe')
     fila = _fila(c.get('/pedidos?estado=todos').get_data(as_text=True), IDS['entregado_con_factura'])
     assert f'/pedidos/{IDS["entregado_con_factura"]}/precios-factura' in fila
+
+
+# ── Ronda de arreglo final: lo que todavía trataba `entregado` como
+#    un estado desconocido, o como si no fuera terminal ────────────────────
+
+def test_la_fila_de_escritorio_de_un_entregado_lleva_su_badge(app):
+    """La cadena if/elif de la tabla no tenía rama `entregado`: caía al `else`
+    y salía «entregado» en minúscula con el ícono genérico de info. Son 960
+    filas después del backfill, o sea toda la lista."""
+    c = _login(app, 'jefe')
+    fila = _fila(c.get('/pedidos?estado=todos').get_data(as_text=True), IDS['entregado_hoy'])
+    assert 'Entregado' in fila
+    assert 'fa-info-circle' not in fila
+
+
+def test_el_detalle_de_un_entregado_no_ofrece_pesar_ni_editar_prep(app):
+    """`pesar_pedido` y la edición de la línea de preparación rechazan
+    `entregado` (`_pedido_es_inmutable`), así que estos botones solo hacían
+    rebotar al vendedor a la pantalla anterior."""
+    c = _login(app, 'jefe')
+    html = c.get(f"/pedidos/{IDS['entregado_hoy']}/detalles").get_data(as_text=True)
+    assert 'detail-product-action' not in html
+    # El id `editModalOverlay` aparece igual en el JS de la pantalla (que lo
+    # busca y no lo encuentra): lo que hay que mirar es el MARKUP del modal.
+    assert 'class="edit-modal-overlay"' not in html
+
+
+def test_el_hero_de_un_entregado_atrasado_no_dice_que_esta_tarde(app):
+    """El hero excluía `facturado` y la lista excluye `entregado`: sobre el
+    MISMO pedido, el detalle decía «· 30 d tarde» y la lista lo daba por
+    cerrado. Dos pantallas no pueden afirmar cosas distintas."""
+    c = _login(app, 'jefe')
+    html = c.get(f"/pedidos/{IDS['entregado_viejo']}/detalles").get_data(as_text=True)
+    assert 'd tarde' not in html
+    assert 'esta-tarde' not in html
+
+
+def test_el_hero_de_un_facturado_atrasado_si_dice_que_esta_tarde(app):
+    """La otra mitad de la misma condición: facturar no es entregar, así que un
+    facturado con la entrega vencida está atrasado en las DOS pantallas."""
+    c = _login(app, 'jefe')
+    html = c.get(f"/pedidos/{IDS['facturado_vencido']}/detalles").get_data(as_text=True)
+    assert 'd tarde' in html

@@ -53,11 +53,17 @@
          abría un pedido con tres días de atraso y no había forma de saberlo.
          Misma redacción que la tarjeta del listado, para que el vendedor lea
          lo mismo en las dos pantallas. #}
+      {# La exclusión es `entregado`, no `facturado`: idéntica a la del listado
+         (`vencido` en `_pedido_card_cuerpo.html`). Con `facturado` las dos
+         pantallas se contradecían sobre el MISMO pedido — un entregado con
+         fecha pasada salía «· 5 d tarde» en el hero mientras la lista lo daba
+         por cerrado, y un facturado sin entregar y atrasado salía puntual acá
+         y vencido allá. Facturar no es entregar. #}
       {% if pedido.fecha_entrega %}
-        <div class="detail-hero-entrega{% if hoy_local and pedido.fecha_entrega < hoy_local and estado != 'facturado' %} esta-tarde{% endif %}">
+        <div class="detail-hero-entrega{% if hoy_local and pedido.fecha_entrega < hoy_local and estado != 'entregado' %} esta-tarde{% endif %}">
           <i class="fas fa-truck" aria-hidden="true"></i>
           entrega {{ 'hoy' if hoy_local and pedido.fecha_entrega == hoy_local else pedido.fecha_entrega.strftime('%d/%m') }}
-          {% if hoy_local and pedido.fecha_entrega < hoy_local and estado != 'facturado' %}
+          {% if hoy_local and pedido.fecha_entrega < hoy_local and estado != 'entregado' %}
             <strong>· {{ (hoy_local - pedido.fecha_entrega).days }} d tarde</strong>
           {% endif %}
         </div>

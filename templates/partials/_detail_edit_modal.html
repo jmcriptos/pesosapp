@@ -1,4 +1,7 @@
-{% if pedido.estado != 'facturado' %}
+{# Mismo corte que `_detail_productos_card.html`: `entregado` también está en
+   `PEDIDO_INMUTABLE` y la ruta de guardado lo rechaza, así que el modal solo
+   podía terminar en un rebote. #}
+{% if pedido.estado not in ('facturado', 'entregado') %}
 <!-- Modal de edición de producto -->
 {# `role="dialog"` + `aria-modal`: sin esto, para un lector de pantalla el
    modal era un div más y el contenido de atrás seguía siendo navegable, así

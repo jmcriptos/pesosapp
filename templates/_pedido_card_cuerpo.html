@@ -74,9 +74,32 @@
       {% set puede_editar   = pedido.estado not in ('facturado', 'entregado') %}
       {% set puede_facturar = pedido.estado == 'preparado' %}
       {% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
-      {% set tiene_factura  = pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
+      {# La factura NO se pierde al entregar. `entregado` es un `facturado` que
+         además ya salió: su factura sigue existiendo en QuickBooks y sigue
+         siendo lo que el cliente reclama en la puerta. Comparar solo contra
+         `facturado` le sacaba «Factura PDF» y «Revisar precios» a la tarjeta
+         —o sea al teléfono, donde el share-sheet del PDF es el ÚNICO camino a
+         la factura dentro de la PWA— mientras la tabla de escritorio
+         (`_pedidos_resultados.html`) sí las mostraba. Dos pantallas del mismo
+         pedido no pueden ofrecer cosas distintas, y la que perdía era la del
+         chofer. #}
+      {% set tiene_factura  = pedido.estado in ('facturado', 'entregado') and pedido.invoice_id_qbo %}
+      {# Entregar y deshacer cubren el MISMO conjunto a propósito: todo pedido
+         al que esta tarjeta le dibuja «Entregado» tiene después su «Deshacer»
+         en la misma tarjeta.
+         Antes `puede_deshacer` exigía además `fecha_entrega == hoy_local`, y
+         eso abría un callejón sin salida justo en el caso que esta rama vino a
+         hacer visible: el facturado ATRASADO. La tarjeta le ofrecía
+         «Entregado» en Atrasados y en Próximos, pero al tocarlo el pedido ya
+         no cumplía la condición del deshacer y el botón no se dibujaba nunca
+         más. Un toque irreversible, en un teléfono, con una mano, en la calle.
+         Se acota el deshacer por el estado y nada más —igual que la ruta, que
+         tampoco tiene ventana horaria— en vez de acotar el entregar, porque
+         acotar el entregar sería devolverle la invisibilidad al atrasado.
+         El costo es un ícono de más en las filas del archivo; deshacer vuelve
+         a `facturado` y es reversible, así que es el lado barato del error. #}
       {% set puede_entregar  = pedido.estado == 'facturado' %}
-      {% set puede_deshacer  = pedido.estado == 'entregado' and pedido.fecha_entrega == hoy_local %}
+      {% set puede_deshacer  = pedido.estado == 'entregado' %}
       {% set tiene_acciones = puede_editar or puede_facturar or puede_eliminar or tiene_factura or puede_entregar or puede_deshacer %}
 
       <div class="pc-foot">
@@ -188,10 +211,9 @@
             </button>
           </form>
           {% endif %}
-          {# Deshacer, SOLO mientras el pedido esté en el día. La ruta lo
-             acepta siempre; lo que acota es la tarjeta, para que el archivo de
-             960 pedidos no se llene de botones que invitan a un toque
-             equivocado. #}
+          {# Deshacer. Se dibuja en todo `entregado`, para que ninguna tarjeta
+             que ofreció «Entregado» se quede sin vuelta atrás (ver el porqué
+             largo arriba, en `puede_deshacer`). #}
           {% if puede_deshacer %}
           <form action="{{ url_for('deshacer_entrega_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form">
