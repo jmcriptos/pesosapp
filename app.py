@@ -1100,8 +1100,14 @@ def _pedido_es_inmutable(pedido):
 
 
 def _pedido_facturado_en_periodo_local(pedido, fecha_inicio, fecha_fin=None):
-    """True si el pedido está facturado y su fecha_facturacion local cae en el rango."""
-    if pedido.estado != 'facturado' or not pedido.fecha_facturacion:
+    """True si el pedido ya se facturó y su fecha_facturacion local cae en el rango.
+
+    `entregado` cuenta: se factura ANTES de entregar, así que un pedido
+    entregado se facturó igual — entregarlo no lo desfactura. Sin esto, el
+    backfill de 960 pedidos haría caer todas las métricas del dashboard sin
+    que nadie hubiera dejado de facturar.
+    """
+    if pedido.estado not in PEDIDO_INMUTABLE or not pedido.fecha_facturacion:
         return False
 
     fecha_local = _to_dashboard_date(pedido.fecha_facturacion)
@@ -2228,7 +2234,7 @@ def dashboard_vendedor():
                 ventas_mes_anterior = metricas_ventas_qb_admin['ventas_mes_anterior']
             else:
                 pedidos_facturados_data = Pedido.query.filter(
-                    Pedido.estado == 'facturado',
+                    Pedido.estado.in_(PEDIDO_INMUTABLE),
                     Pedido.fecha_facturacion.isnot(None)
                 ).all()
 
@@ -2259,7 +2265,8 @@ def dashboard_vendedor():
             
             # 3. MÉTRICAS DE EFICIENCIA
             pedidos_pendientes = Pedido.query.filter_by(estado='pendiente').count()
-            pedidos_facturados = Pedido.query.filter_by(estado='facturado').count()
+            pedidos_facturados = Pedido.query.filter(
+                Pedido.estado.in_(PEDIDO_INMUTABLE)).count()
             pedidos_totales = Pedido.query.count()
             
             # Calcular eficiencia del sistema (% de pedidos completados)
@@ -2352,7 +2359,7 @@ def dashboard_vendedor():
                 # Ventas facturadas del vendedor (fecha de facturación local)
                 pedidos_vend_facturados = Pedido.query.filter(
                     Pedido.cliente_id.in_(clientes_ids),
-                    Pedido.estado == 'facturado',
+                    Pedido.estado.in_(PEDIDO_INMUTABLE),
                     Pedido.fecha_facturacion.isnot(None)
                 ).all()
 
@@ -2439,7 +2446,8 @@ def obtener_metricas_sistema():
             'total_clientes': Cliente.query.count(),
             'total_productos': Producto.query.count(),
             'pedidos_pendientes': Pedido.query.filter_by(estado='pendiente').count(),
-            'pedidos_facturados': Pedido.query.filter_by(estado='facturado').count(),
+            'pedidos_facturados': Pedido.query.filter(
+                Pedido.estado.in_(PEDIDO_INMUTABLE)).count(),
         }
 
         metricas_qb = _obtener_metricas_ventas_quickbooks(
@@ -2456,7 +2464,7 @@ def obtener_metricas_sistema():
         else:
             # Fallback local cuando QuickBooks no está disponible
             pedidos_facturados_data = Pedido.query.filter(
-                Pedido.estado == 'facturado',
+                Pedido.estado.in_(PEDIDO_INMUTABLE),
                 Pedido.fecha_facturacion.isnot(None)
             ).all()
             metricas['ventas_mes'] = sum(
@@ -2517,7 +2525,7 @@ def api_dashboard_metricas():
                 pedidos_hoy = len(pedidos_vendedor_hoy)
                 pedidos_facturados_hoy = Pedido.query.filter(
                     Pedido.cliente_id.in_(clientes_ids),
-                    Pedido.estado == 'facturado',
+                    Pedido.estado.in_(PEDIDO_INMUTABLE),
                     Pedido.fecha_facturacion.isnot(None)
                 ).all()
                 ventas_hoy = sum(
@@ -5170,7 +5178,7 @@ def admin_analytics():
             Vendedor.nombre_completo,
             func.count(Pedido.id).label('pedidos_totales'),
             func.sum(
-                db.case([(Pedido.estado == 'facturado', 1)], else_=0)
+                db.case([(Pedido.estado.in_(PEDIDO_INMUTABLE), 1)], else_=0)
             ).label('pedidos_facturados')
         ).outerjoin(
             ClienteVendedor, Vendedor.id == ClienteVendedor.vendedor_id
@@ -5474,7 +5482,7 @@ def api_admin_stats():
         else:
             # Fallback local cuando QuickBooks no está disponible
             pedidos_facturados_data = Pedido.query.filter(
-                Pedido.estado == 'facturado',
+                Pedido.estado.in_(PEDIDO_INMUTABLE),
                 Pedido.fecha_facturacion.isnot(None)
             ).all()
             stats['ventas_mes'] = sum(
@@ -5883,7 +5891,7 @@ def dashboard():
                     db.or_(
                         Pedido.fecha_pedido >= inicio_carga_pedidos,
                         db.and_(
-                            Pedido.estado == 'facturado',
+                            Pedido.estado.in_(PEDIDO_INMUTABLE),
                             Pedido.fecha_facturacion.isnot(None),
                             Pedido.fecha_facturacion >= fecha_corte_facturados,
                         )
@@ -5913,7 +5921,7 @@ def dashboard():
 
             pedidos_facturados_list = [
                 p for p in pedidos_base_list
-                if (p.estado or '').strip().lower() == 'facturado'
+                if (p.estado or '').strip().lower() in PEDIDO_INMUTABLE
                 and p.fecha_facturacion is not None
                 and _to_dashboard_date(p.fecha_facturacion) is not None
                 and _to_dashboard_date(p.fecha_facturacion) >= fecha_corte_facturados
@@ -5949,7 +5957,7 @@ def dashboard():
             fecha_pedido_local = _to_dashboard_date(pedido.fecha_pedido)
             fecha_fact_local = _to_dashboard_date(pedido.fecha_facturacion) if pedido.fecha_facturacion else None
             estado_normalizado = (pedido.estado or '').strip().lower()
-            es_facturado = estado_normalizado == 'facturado' and bool(fecha_fact_local)
+            es_facturado = estado_normalizado in PEDIDO_INMUTABLE and bool(fecha_fact_local)
 
             venta = _coerce_float(_calcular_venta_pedido(pedido), 0.0)
 
