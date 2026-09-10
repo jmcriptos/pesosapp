@@ -1081,6 +1081,24 @@ def _kilos_y_cajas_pedido(pedido):
     return kg, cajas
 
 
+# Estados en los que el pedido ya salió del taller: su factura está en
+# QuickBooks y cualquier cambio local divergiría de ella. `entregado` entra
+# acá por la misma razón que `facturado` y no por una nueva: se factura ANTES
+# de entregar, así que todo lo entregado está facturado.
+PEDIDO_INMUTABLE = ('facturado', 'entregado')
+
+
+def _pedido_es_inmutable(pedido):
+    """True si el pedido ya no admite cambios locales.
+
+    Esta regla estaba escrita catorce veces como `estado == 'facturado'`. Al
+    aparecer `entregado` las catorce lo dejaban pasar, o sea que marcar un
+    pedido como entregado lo volvía editable, borrable y pesable otra vez —
+    justo después de que su factura salió a QuickBooks. Una regla, un dueño.
+    """
+    return (pedido.estado or '').strip().lower() in PEDIDO_INMUTABLE
+
+
 def _pedido_facturado_en_periodo_local(pedido, fecha_inicio, fecha_fin=None):
     """True si el pedido está facturado y su fecha_facturacion local cae en el rango."""
     if pedido.estado != 'facturado' or not pedido.fecha_facturacion:
@@ -7827,7 +7845,7 @@ def editar_pedido(pedido_id):
 
         # Pedidos facturados son inmutables — un cambio aquí divergiría
         # la DB local del invoice ya enviado a QuickBooks.
-        if pedido.estado == 'facturado':
+        if _pedido_es_inmutable(pedido):
             return _pedido_form_error_json_o_redirect(
                 'No se puede editar un pedido facturado', 409,
                 'detalles_pedido', pedido_id=pedido.id)
@@ -8088,7 +8106,7 @@ def mover_entrega_pedido(pedido_id):
     # Un pedido facturado ya cerró y su factura salió a QuickBooks: correrle el
     # día no cambia nada de lo que pasó, y solo desalinearía el tablero de la
     # realidad. El tablero los muestra en «Hoy» marcados como hechos.
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash(f'PED-{pedido.id} ya está facturado: su entrega no se mueve.', 'warning')
         return _volver_a('lista_pedidos')
 
@@ -8153,7 +8171,7 @@ def eliminar_pedido(pedido_id):
     # Estado guard: facturado pedidos must not be deleted — the QBO
     # invoice on the other side would be orphaned and the audit
     # trail destroyed.
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash('No se puede eliminar un pedido facturado', 'error')
         return _volver_a('lista_pedidos')
 
@@ -8202,7 +8220,7 @@ def detalles_pedido(pedido_id):
             flash('No tienes permisos para editar pedidos', 'error')
             return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
         # ── Inmutabilidad post-facturación ──────────────────────
-        if pedido.estado == 'facturado':
+        if _pedido_es_inmutable(pedido):
             flash('No se puede agregar detalles a un pedido facturado', 'error')
             return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
@@ -8356,7 +8374,7 @@ def pesar_pedido(pedido_id):
         flash('No tienes permisos para pesar este pedido', 'error')
         return redirect(url_for('lista_pedidos'))
 
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash('No se puede pesar un pedido facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
@@ -8377,7 +8395,7 @@ def registrar_caja_pesada(pedido_id):
     if not _user_can_manage_pedido(pedido):
         return _htmx_error_response('No tienes permisos para pesar este pedido', status=403)
 
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         return _htmx_error_response('No se puede registrar cajas en un pedido facturado', status=409)
 
     detalle_id = request.form.get('detalle_pedido_id', type=int)
@@ -8454,7 +8472,7 @@ def editar_caja_pesada_modal(caja_id):
     if not _user_can_manage_pedido(pedido):
         return _htmx_error_response('No tienes permisos para editar esta caja', status=403)
 
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         return _htmx_error_response('No se puede editar una caja de un pedido facturado', status=409)
 
     return render_template(
@@ -8482,7 +8500,7 @@ def actualizar_caja_pesada(caja_id):
     if not _user_can_manage_pedido(pedido):
         return _htmx_error_response('No tienes permisos para editar esta caja', status=403)
 
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         return _htmx_error_response('No se puede editar una caja de un pedido facturado', status=409)
 
     peso, peso_error = _parse_peso_caja(request.form.get('peso'))
@@ -8545,7 +8563,7 @@ def eliminar_caja_pesada(caja_id):
     if not _user_can_manage_pedido(pedido):
         return _htmx_error_response('No tienes permisos para eliminar esta caja', status=403)
 
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         return _htmx_error_response('No se puede eliminar una caja de un pedido facturado', status=409)
 
     detalle = caja.detalle_pedido
@@ -8577,7 +8595,7 @@ def finalizar_pesaje_pedido(pedido_id):
         flash('No tienes permisos para finalizar este pesaje', 'error')
         return redirect(url_for('lista_pedidos'))
 
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash('No se puede finalizar el pesaje de un pedido facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
@@ -8618,7 +8636,7 @@ def eliminar_detalle_pedido(detalle_id):
             return redirect(url_for('lista_pedidos'))
 
     # ── Inmutabilidad post-facturación ─────────────────────────
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash('No se puede eliminar un detalle de un pedido facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
@@ -8661,7 +8679,7 @@ def editar_detalle_pedido(detalle_id):
             return redirect(url_for('lista_pedidos'))
 
     # ── Inmutabilidad post-facturación ─────────────────────────
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash('No se puede editar un pedido facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
@@ -8981,7 +8999,7 @@ def marcar_preparado(pedido_id):
         return redirect(url_for('lista_pedidos'))
 
     # ── Inmutabilidad post-facturación ─────────────────────────
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         flash('No se puede modificar un pedido ya facturado', 'error')
         return redirect(url_for('detalles_pedido', pedido_id=pedido.id))
 
@@ -9291,7 +9309,7 @@ def facturar_pedido(pedido_id):
     # que invoice_id_qbo está NULL incluso en pedidos que sí se facturaron — no se
     # puede usar como prueba de "ya facturado". Sin esta guarda el pedido 1264 se
     # envió dos veces el 2026-08-14. El reintento exige confirmación explícita.
-    if pedido.estado == 'facturado':
+    if _pedido_es_inmutable(pedido):
         if pedido.invoice_id_qbo:
             flash('El pedido ya está facturado.', 'info')
             return _volver_a('lista_pedidos')
