@@ -84,17 +84,25 @@ def _ids_listados(logged_client, query=''):
 # === Qué se ve al abrir ===
 
 def test_al_abrir_muestra_lo_que_necesita_trabajo(app, logged_client):
-    """Sin parámetros: pendientes y preparados, no los ya facturados."""
+    """Sin parámetros: pendientes, preparados y facturados sin entregar
+    (siguen necesitando que salga el camión), no los ya entregados.
+
+    Antes esto decía `facturado` en vez de `entregado`: se factura ANTES de
+    que salga el camión, así que un facturado futuro sigue siendo trabajo
+    pendiente (Tarea 3, `_agrupar_tablero`), no algo terminado.
+    """
     with app.app_context():
         pendiente = _pedido('pendiente', dias_entrega=1)
         preparado = _pedido('preparado', dias_entrega=2)
         facturado = _pedido('facturado', dias_entrega=3)
+        entregado = _pedido('entregado', dias_entrega=4)
 
         ids = _ids_listados(logged_client)
 
         assert pendiente.id in ids
         assert preparado.id in ids
-        assert facturado.id not in ids, 'lo facturado ya no necesita trabajo'
+        assert facturado.id in ids, 'un facturado sin entregar sigue siendo trabajo'
+        assert entregado.id not in ids, 'lo entregado ya no necesita trabajo'
 
 
 def test_el_filtro_explicito_todos_sigue_mostrando_todo(app, logged_client):

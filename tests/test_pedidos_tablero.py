@@ -72,12 +72,49 @@ def test_sin_facturar_y_sin_fecha_nunca_es_invisible():
     assert len(_pedidos_de(grupos, 'sin_fecha')) == 1
 
 
-def test_el_archivo_no_entra_al_tablero():
-    """Facturado que no se entrega hoy: ni atrasados, ni próximos, ni sin fecha."""
+def test_el_facturado_sin_entregar_con_fecha_vencida_NO_desaparece():
+    """El agujero que motivó todo esto: se factura antes de que salga el
+    camión, así que un facturado con la entrega vencida es trabajo que no se
+    hizo. Hoy `_agrupar_tablero` lo saltea y nadie se entera."""
+    grupos = _agrupar_tablero([_p('facturado', dias=-2)], HOY)
+    assert _claves(grupos) == ['atrasados']
+
+
+def test_el_facturado_de_hoy_es_trabajo_no_archivo():
+    grupos = _agrupar_tablero([_p('facturado', dias=0)], HOY)
+    assert _claves(grupos) == ['hoy']
+
+
+def test_el_facturado_futuro_va_a_proximos():
+    grupos = _agrupar_tablero([_p('facturado', dias=3)], HOY)
+    assert _claves(grupos) == ['proximos']
+
+
+def test_el_entregado_de_hoy_se_queda_en_hoy():
+    """Decisión heredada del spec del tablero: lo hecho no desaparece, se
+    marca. Si desapareciera, el tablero se vacía a media tarde y se pierde la
+    otra mitad del trabajo, que es ver si el día cerró completo."""
+    grupos = _agrupar_tablero([_p('entregado', dias=0)], HOY)
+    assert _claves(grupos) == ['hoy']
+
+
+def test_el_entregado_fuera_de_hoy_es_archivo():
     grupos = _agrupar_tablero(
-        [_p('facturado', dias=-30, id=1),
-         _p('facturado', dias=None, id=2),
-         _p('facturado', dias=9, id=3)],
+        [_p('entregado', dias=-30, id=1),
+         _p('entregado', dias=None, id=2),
+         _p('entregado', dias=9, id=3)],
+        HOY,
+    )
+    assert grupos == []
+
+
+def test_el_archivo_no_entra_al_tablero():
+    """El archivo ahora es `entregado`, no `facturado`: un facturado sin
+    entregar es trabajo pendiente, no archivo."""
+    grupos = _agrupar_tablero(
+        [_p('entregado', dias=-30, id=1),
+         _p('entregado', dias=None, id=2),
+         _p('entregado', dias=9, id=3)],
         HOY,
     )
     assert grupos == []
@@ -302,20 +339,26 @@ def test_buscar_desde_el_tablero_busca_en_todo(logged_client):
 # `_agrupar_tablero` (Tarea 1) ya está cubierta a nivel unitario: reparte una
 # lista en memoria. Pero la ruta arma esa lista con SU PROPIA consulta SQL
 # (`base_query_tablero.filter(or_(...))...order_by(...)`), que reimplementa
-# dos reglas de negocio por su cuenta: qué facturados entran (mismo criterio
+# dos reglas de negocio por su cuenta: qué entregados entran (mismo criterio
 # que `_agrupar_tablero`, pero en SQL) y en qué orden. Ninguno de los tests
 # de arriba —todos de selección de modo— toca esa consulta. Estos sí.
 
-def test_facturado_viejo_no_aparece_pero_el_de_hoy_si(logged_client):
-    """El `or_(Pedido.estado != 'facturado', Pedido.fecha_entrega == hoy_local)`
+def test_entregado_viejo_no_aparece_pero_el_facturado_atrasado_si(logged_client):
+    """El `or_(Pedido.estado != 'entregado', Pedido.fecha_entrega == hoy_local)`
     de la consulta es una segunda implementación de la misma regla de
     archivo que `_agrupar_tablero` ya aplica sobre la lista en memoria. Si el
     SQL se desincroniza (por ejemplo, alguien lo cambia a `estado !=
-    'facturado'` a secas y se olvida del `or_`), un facturado viejo dejaría
+    'entregado'` a secas y se olvida del `or_`), un entregado viejo dejaría
     de llegar al tablero directamente y `_agrupar_tablero` nunca tendría la
     oportunidad de descartarlo — el test unitario seguiría en verde.
+
+    Y al revés: un `facturado` viejo (Tarea 3, el agujero que motivó todo
+    esto) tiene que SEGUIR llegando —se factura antes de que salga el
+    camión, así que un facturado atrasado es trabajo pendiente, no archivo—
+    y aparecer en Atrasados.
     """
-    viejo = _crear('facturado', dias=-40)
+    entregado_viejo = _crear('entregado', dias=-40)
+    facturado_atrasado = _crear('facturado', dias=-40)
     de_hoy = _crear('facturado', dias=0)
 
     html = logged_client.get('/pedidos').get_data(as_text=True)
@@ -323,7 +366,13 @@ def test_facturado_viejo_no_aparece_pero_el_de_hoy_si(logged_client):
     assert f'PED-{de_hoy.id}' in html, (
         'un facturado de HOY debe verse: es el cierre del día'
     )
-    assert f'PED-{viejo.id}' not in html, 'un facturado viejo es archivo, no tablero'
+    assert f'PED-{facturado_atrasado.id}' in html, (
+        'un facturado sin entregar es trabajo pendiente, no archivo: debe '
+        'verse en Atrasados'
+    )
+    assert f'PED-{entregado_viejo.id}' not in html, (
+        'un entregado viejo es archivo, no tablero'
+    )
 
 
 def test_el_orden_del_tablero_es_mas_atrasado_primero_y_sin_fecha_al_final(logged_client):

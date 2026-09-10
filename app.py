@@ -3901,9 +3901,10 @@ def _agrupar_tablero(pedidos, hoy_local):
     es ruido, y una pantalla que afirma cosas que no son enseña a
     desconfiar de ella.
 
-    «Hoy» lleva CUALQUIER estado, facturados incluidos: si desaparecieran al
-    facturarse, el tablero se vaciaría a media tarde y se perdería la otra
-    mitad del trabajo, que es ver si el día cerró completo.
+    «Hoy» lleva CUALQUIER estado, entregados incluidos, marcados como
+    hechos: si desaparecieran al entregarse, el tablero se vaciaría a media
+    tarde y se perdería la otra mitad del trabajo, que es ver si el día
+    cerró completo.
 
     «Sin fecha» es una guardia. Hoy estaría siempre vacío —el formulario
     carga `fecha_entrega` en el 100% de los pedidos desde el 16/08— pero un
@@ -3917,8 +3918,15 @@ def _agrupar_tablero(pedidos, hoy_local):
         entrega = pedido.fecha_entrega
         if entrega == hoy_local:
             hoy.append(pedido)
-        elif pedido.estado == 'facturado':
-            # Facturado que no se entrega hoy: es archivo, no tablero.
+        elif pedido.estado == 'entregado':
+            # Entregado y no es de hoy: es archivo, no tablero.
+            #
+            # Antes acá decía `facturado`, y ese era el agujero: se factura
+            # ANTES de que salga el camión, así que un facturado con la entrega
+            # vencida es trabajo que NO se hizo, y este `continue` lo hacía
+            # desaparecer del tablero al día siguiente. Ni Atrasados, ni Hoy,
+            # ni Próximos: trabajo invisible, que es el peor fallo posible en
+            # una herramienta operativa.
             continue
         elif entrega is None:
             sin_fecha.append(pedido)
@@ -6812,7 +6820,7 @@ def lista_pedidos():
     grupos = None
     if modo_tablero:
         pedidos_tablero = base_query_tablero.filter(
-            or_(Pedido.estado != 'facturado', Pedido.fecha_entrega == hoy_local)
+            or_(Pedido.estado != 'entregado', Pedido.fecha_entrega == hoy_local)
         ).order_by(
             Pedido.fecha_entrega.asc().nullslast(),
             Pedido.id.desc(),
