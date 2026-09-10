@@ -182,7 +182,12 @@
                   <a class="pedido-client-name" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}">{{ pedido.cliente.nombre }}</a>
                 </div>
               </td>
-              {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
+              {# La exclusión es `entregado`, no `facturado`: mismo agujero que
+                 se cerró en la tarjeta y en el `data-vencido` de arriba (Tarea
+                 5, 7e0360dc) pero que esta fila de escritorio —con su propia
+                 copia de `vencido`— se quedó afuera. Un facturado atrasado sí
+                 necesita la franja roja: el trabajo no salió todavía. #}
+              {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}
               <td class="pedido-date-cell">
                 {% if pedido.fecha_entrega %}
                   {% if pedido.fecha_entrega == hoy_local %}Hoy

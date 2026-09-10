@@ -62,7 +62,16 @@
       </p>
       {% endif %}
 
-      {% set puede_editar   = pedido.estado != 'facturado' %}
+      {# `entregado` también es terminal: la ruta editar_pedido rechaza
+         cualquier estado en PEDIDO_INMUTABLE (`_pedido_es_inmutable`, ambos
+         `facturado` y `entregado`) porque ya salió a QuickBooks. Comparar
+         solo contra `facturado` dejaba pasar el ícono de Editar sobre un
+         entregado; la ruta lo rechazaba igual, así que solo hacía rebotar
+         al vendedor. Se compara contra los dos estados en línea, como el
+         `vencido` de arriba, en vez de exponer el helper de Python al
+         contexto — no hay otro uso de `_pedido_es_inmutable` en templates
+         y esta plantilla ya decide todo con `pedido.estado` directo. #}
+      {% set puede_editar   = pedido.estado not in ('facturado', 'entregado') %}
       {% set puede_facturar = pedido.estado == 'preparado' %}
       {% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
       {% set tiene_factura  = pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
@@ -260,8 +269,14 @@
          junto con el `fecha` del selector; la ruta le da prioridad al atajo.
 
          Un facturado no la lleva: ese trabajo cerró y la ruta lo rechaza, así
-         que el control solo serviría para hacer rebotar al vendedor. #}
-      {% if pedido.estado != 'facturado' %}
+         que el control solo serviría para hacer rebotar al vendedor.
+
+         Tampoco un entregado: mover_entrega_pedido rechaza con
+         `_pedido_es_inmutable` (PEDIDO_INMUTABLE = facturado + entregado),
+         por la misma razón que un facturado — ya salió a QuickBooks. Sin
+         esto, la tarjeta de un entregado mostraba «entregar [Mañana]
+         [fecha]» y no hacía nada: verificado en el navegador. #}
+      {% if pedido.estado not in ('facturado', 'entregado') %}
       <form class="pc-entrega" method="POST"
             action="{{ url_for('mover_entrega_pedido', pedido_id=pedido.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

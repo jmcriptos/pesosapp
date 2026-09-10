@@ -299,3 +299,73 @@ def test_el_detalle_de_un_entregado_llega_al_ultimo_paso(app):
     assert 'detail-stepper-item is-current' in html
     assert 'detail-stepper-item is-pending' not in html, \
         'con el pedido entregado ningún paso del progreso queda gris'
+
+
+# ── Ronda de arreglo: tres condiciones que seguían preguntando
+#    `estado != 'facturado'` donde el significado ya era «terminal»
+#    (= `entregado`) ──────────────────────────────────────────────────────
+# La misma clase de bug que la pintura de más arriba, en tres lugares que esa
+# tarea no tocó: la fila de la TABLA de escritorio (que tiene su propia copia
+# de `vencido`, separada de la de la tarjeta) y dos controles de la tarjeta
+# (Editar y mover-entrega) que un pedido `entregado` seguía dibujando aunque
+# la ruta los rechace igual que a un `facturado`.
+def _fila(html, pedido_id):
+    """El bloque HTML de UNA fila de la tabla de escritorio.
+
+    Mismo problema que `_tarjeta`: `PED-<id>` aparece más de una vez dentro
+    del documento (la tarjeta del mismo pedido la repite), así que se recorta
+    por `<tr class="pedido-row` y se busca el `data-href` de ESA fila.
+    """
+    # partes[0] es todo lo que va ANTES de la primera fila —incluida la lista
+    # de tarjetas móviles completa, que en esta misma página se dibuja primero
+    # y con el mismo `data-href`—, así que se descarta explícitamente: si no,
+    # cualquier pedido cuya tarjeta caiga antes de la tabla se detecta ahí y
+    # el test pasa comparando contra la tarjeta, no contra la fila.
+    partes = html.split('<tr class="pedido-row')
+    for bloque in partes[1:]:
+        if f'data-href="/pedidos/{pedido_id}/detalles"' in bloque:
+            return bloque
+    raise AssertionError(f'no se dibujó la fila de escritorio de PED-{pedido_id}')
+
+
+def test_la_fila_de_escritorio_del_facturado_atrasado_lleva_vencido(app):
+    """`_pedidos_resultados.html` tiene DOS variables `vencido`: la de la
+    tarjeta (ya corregida en 7e0360dc) y esta otra, propia de la fila de la
+    tabla de escritorio, que se había quedado con `estado != 'facturado'`. Un
+    facturado atrasado no llevaba el badge «Vencido» en escritorio — la misma
+    señal falsa que el resto de la tarea vino a borrar.
+
+    La tabla de escritorio solo se dibuja en «modo lista» (`_pedidos_resultados.html`,
+    vía `pedidos.html`), que se activa con cualquiera de `PARAMS_DE_LISTA`
+    (q/estado/page/orden/per_page/solo_notas); el `/pedidos` sin parámetros
+    de los otros tests es «modo tablero» (`_pedidos_tablero.html`) y no tiene
+    `<tr class="pedido-row">` en absoluto."""
+    c = _login(app, 'jefe')
+    fila = _fila(c.get('/pedidos?estado=todos').get_data(as_text=True), IDS['facturado_vencido'])
+    assert 'estado-badge estado-vencido' in fila
+    assert 'Vencido' in fila
+
+
+def test_la_tarjeta_de_un_entregado_no_ofrece_editar(app):
+    """`editar_pedido` rechaza cualquier estado en `PEDIDO_INMUTABLE`
+    (facturado + entregado) porque ya salió a QuickBooks. `puede_editar`
+    comparaba solo contra `facturado`, así que el ícono de Editar se dibujaba
+    igual sobre un entregado y solo servía para hacerlo rebotar."""
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['entregado_hoy'])
+    assert f'/pedidos/{IDS["entregado_hoy"]}/editar' not in tarjeta
+
+
+def test_la_tarjeta_de_un_entregado_no_ofrece_mover_la_entrega(app):
+    """`mover_entrega_pedido` rechaza con `_pedido_es_inmutable` por la misma
+    razón que un facturado. Verificado en el navegador: la tarjeta de un
+    pedido entregado mostraba «entregar [Mañana] [fecha]» y no hacía nada.
+
+    OJO: `/pedidos/<id>/entrega` es prefijo literal de `/pedidos/<id>/entregar`
+    Y de `/pedidos/<id>/entrega/deshacer` (que esta tarjeta SÍ ofrece, porque
+    es de hoy) — por eso se cierra la comilla al buscar el `action` exacto del
+    formulario de mover fecha, no la sola aparición de la palabra "entrega".
+    """
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['entregado_hoy'])
+    assert f'/pedidos/{IDS["entregado_hoy"]}/entrega"' not in tarjeta
