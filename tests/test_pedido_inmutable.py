@@ -66,7 +66,13 @@ def _seed():
 
     prod = Producto(nombre='Producto X', descripcion='d', temperatura='Seco',
                     se_pesa=False, tax_rate=6.0, qbo_id='QBO-PX')
-    _db.session.add(prod)
+    # `se_pesa=True`: solo lo necesita el pedido `entregado` (ver más abajo),
+    # para que `/pesar` no redirija por «no tiene productos que se pesen»
+    # (mismo 302 que la guarda de inmutabilidad) y el test de pesar quede
+    # probando lo que dice probar.
+    prod_pesable = Producto(nombre='Producto Pesable', descripcion='d', temperatura='Frio',
+                            se_pesa=True, tax_rate=6.0, qbo_id='QBO-PW')
+    _db.session.add_all([prod, prod_pesable])
     _db.session.flush()
 
     _db.session.add(ClienteVendedor(cliente_id=ca.id, vendedor_id=va.id, activo=True))
@@ -84,8 +90,6 @@ def _seed():
             es_linea_pedido=True))
         return p
 
-    pendiente = mk_pedido('pendiente')
-    preparado = mk_pedido('preparado')
     facturado = mk_pedido('facturado')
     entregado = mk_pedido('entregado')
 
@@ -102,9 +106,19 @@ def _seed():
         precio_unitario=Decimal('5.00'), subtotal=Decimal('25.00'),
         es_linea_pedido=False))
 
+    # Línea ORIGINAL con un producto `se_pesa=True`: sin esto,
+    # `_pedido_tiene_productos_pesables(entregado)` da False y `/pesar`
+    # redirige con el MISMO 302 por «este pedido no tiene productos que se
+    # pesen» (app.py ~8381) tenga o no la guarda de inmutabilidad rota — el
+    # test de pesar no distinguiría una causa de la otra. Con esta línea,
+    # el único 302 posible es el de `_pedido_es_inmutable`.
+    _db.session.add(DetallePedido(
+        pedido_id=entregado.id, producto_id=prod_pesable.id, cajas=3,
+        cajas_pedidas=3, peso=0, precio_unitario=Decimal('7.00'),
+        subtotal=Decimal('21.00'), es_linea_pedido=True))
+
     _db.session.commit()
-    IDS.update(pendiente=pendiente.id, preparado=preparado.id,
-               facturado=facturado.id, entregado=entregado.id)
+    IDS.update(facturado=facturado.id, entregado=entregado.id)
 
 
 def _login(app, username):
