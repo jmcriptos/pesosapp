@@ -131,6 +131,56 @@ saldría sin estilo. Hay que agregarla, con el blindaje
 deja el texto claro sobre fondo claro— y lo mismo para `.estado-badge`
 de la tabla de escritorio.
 
+### Las 14 guardas de inmutabilidad (hallazgo del 2026-09-09, al planificar)
+
+**Esto es lo más riesgoso del cambio y no estaba en la primera versión de este
+spec.** Auditando las 26 comparaciones `estado == 'facturado'` de `app.py`,
+catorce de ellas son la misma regla escrita catorce veces: *un pedido facturado
+es inmutable*, porque cualquier cambio local divergiría de la factura que ya
+está en QuickBooks.
+
+| Línea | Qué bloquea |
+|---|---|
+| 7830 | editar el pedido |
+| 8091 | mover la fecha de entrega |
+| 8156 | eliminar el pedido |
+| 8205 | agregar detalles |
+| 8359 | pesar |
+| 8380 | registrar cajas |
+| 8457, 8485 | editar una caja |
+| 8548 | eliminar una caja |
+| 8580 | finalizar el pesaje |
+| 8621 | eliminar un detalle |
+| 8664 | editar el pedido (segundo camino) |
+| 8984 | marcar preparado |
+| 9294 | volver a facturar |
+
+Todas preguntan `== 'facturado'`. Un pedido en `entregado` **no es
+`'facturado'`**, así que las catorce lo dejan pasar: marcar un pedido como
+entregado hoy lo volvería editable, borrable y pesable otra vez, justo después
+de que su factura salió a QuickBooks. Se rompería la inmutabilidad
+post-facturación por la puerta de atrás, y encima el estado que la rompe es el
+que significa «esto terminó bien».
+
+**No se arregla tocando catorce lugares.** La regla es una sola y hay que
+darle un solo dueño:
+
+```python
+# Estados en los que el pedido ya salió del taller: su factura está en
+# QuickBooks y cualquier cambio local divergiría de ella.
+PEDIDO_INMUTABLE = ('facturado', 'entregado')
+
+def _pedido_es_inmutable(pedido):
+    return (pedido.estado or '').strip().lower() in PEDIDO_INMUTABLE
+```
+
+Las catorce guardas pasan a llamar a ese helper. Es la misma lección que
+`_precio_vigente` y `_sincronizar_lineas_prep`: una regla, un dueño.
+
+Los mensajes de cada guarda se conservan como están —dicen «facturado» y el
+pedido entregado también lo está—, salvo el de `9294` («El pedido ya está
+facturado»), que para un entregado sigue siendo verdad.
+
 ### El backfill
 
 Sin esto, el día del deploy los 960 facturados viejos reaparecen como trabajo
