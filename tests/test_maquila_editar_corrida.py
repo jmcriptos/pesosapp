@@ -472,6 +472,51 @@ def test_cerrada_con_caja_en_pedido_facturado_no_cambia_lote_ni_fechas(app):
         assert corrida.notas == 'nota tardía'
 
 
+def test_cerrada_con_caja_en_pedido_entregado_no_cambia_lote_ni_fechas(app):
+    """Espejo del test de `facturado`. Acá se factura ANTES de que salga el
+    camión, así que un pedido `entregado` ya está en QuickBooks: si la guarda
+    solo mira `facturado`, marcar la entrega vuelve a abrir el lote y las
+    fechas y las reescribe sobre las CajaPesada. Eso no se revierte con un
+    `git revert`: es trazabilidad HACCP."""
+    from maquila import servicios
+    with app.app_context():
+        _recepcion(100)
+        corrida = _corrida(cerrar=True, cajas=(10, 12))
+        detalle = _detalle(estado='entregado')
+        caja1 = [c for c in corrida.cajas if c.numero == 1][0]
+        servicios.asignar_cajas(detalle, [caja1], IDS['vendedor'])
+
+        with pytest.raises(servicios.CorridaFacturada):
+            _editar(corrida, cabecera=_cabecera(corrida, lote='L-9'))
+        with pytest.raises(servicios.CorridaFacturada):
+            _editar(corrida, cabecera=_cabecera(corrida, fecha_vencimiento=date(2026, 11, 1)))
+        assert corrida.lote == 'L-1' and caja1.caja_pesada.lote == 'L-1'
+
+        # Lo que la factura no lleva sí se puede corregir.
+        _editar(corrida, cabecera=_cabecera(corrida, notas='nota tardía'))
+        assert corrida.notas == 'nota tardía'
+
+
+def test_anular_con_caja_en_pedido_entregado_no_acredita_ingredientes(app):
+    """`anular_corrida` escribe en el ledger (append-only) y marca las cajas:
+    sobre un pedido ya facturado —y `entregado` lo está— no puede correr."""
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    with app.app_context():
+        _recepcion(100)
+        corrida = _corrida(cerrar=True, cajas=(10, 12))
+        detalle = _detalle(estado='entregado')
+        caja1 = [c for c in corrida.cajas if c.numero == 1][0]
+        servicios.asignar_cajas(detalle, [caja1], IDS['vendedor'])
+        movimientos_antes = MovimientoIngrediente.query.count()
+
+        with pytest.raises(servicios.CorridaFacturada):
+            servicios.anular_corrida(corrida, IDS['vendedor'], 'me equivoqué')
+
+        assert MovimientoIngrediente.query.count() == movimientos_antes
+        assert caja1.anulada_en is None
+
+
 def test_una_caja_que_salio_en_un_pedido_no_se_toca(app):
     from maquila import servicios
     with app.app_context():

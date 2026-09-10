@@ -30,6 +30,10 @@ requiere_rol = app_module.requiere_rol
 _excel_safe = app_module._excel_safe
 DASHBOARD_TIMEZONE = getattr(app_module, 'DASHBOARD_TIMEZONE', None)
 Vendedor = app_module.Vendedor
+# Una sola regla para "el pedido ya salió a QuickBooks": `entregado` también
+# lo es (se factura ANTES de entregar), y preguntar `estado == 'facturado'`
+# a mano lo dejaba pasar.
+_pedido_es_inmutable = app_module._pedido_es_inmutable
 
 bp = Blueprint('maquila', __name__, url_prefix='/maquila')
 
@@ -1024,8 +1028,9 @@ def corrida_editar(corrida_id):
 def _render_corrida_editar(corrida, form=None):
     cerrada = corrida.estado == 'cerrada'
 
-    # Qué cajas ya salieron y si alguna va en un pedido facturado: eso
-    # bloquea lote y fechas (la factura ya los lleva).
+    # Qué cajas ya salieron y si alguna va en un pedido facturado (o
+    # entregado, que ya se facturó): eso bloquea lote y fechas en la pantalla,
+    # igual que `editar_corrida` los bloquea en el servidor.
     pedidos_por_caja = {}
     facturada = False
     for caja in corrida.cajas:
@@ -1033,7 +1038,7 @@ def _render_corrida_editar(corrida, form=None):
             continue
         pedido = getattr(getattr(caja.caja_pesada, 'detalle_pedido', None), 'pedido', None)
         pedidos_por_caja[caja.id] = pedido
-        if pedido is not None and pedido.estado == 'facturado':
+        if pedido is not None and _pedido_es_inmutable(pedido):
             facturada = True
 
     # Recetas del producto para este cliente (o generales), más la actual
@@ -1208,7 +1213,8 @@ def asignar_detalle(detalle_id):
     # Mismo corte que `registrar_caja_pesada` en app.py: la cifra de un
     # pedido facturado ya está en QuickBooks, no se puede seguir metiendo
     # cajas ahí aunque el POST llegue directo (sin pasar por la pantalla).
-    if detalle.pedido.estado == 'facturado':
+    # Un `entregado` es un facturado que además ya salió: con más razón.
+    if _pedido_es_inmutable(detalle.pedido):
         flash('No se puede asignar cajas en un pedido facturado', 'error')
         return redirect(url_for('pesar_pedido', pedido_id=detalle.pedido_id,
                                 detalle_id=detalle.id))

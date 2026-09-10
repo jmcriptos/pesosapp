@@ -178,6 +178,30 @@ def test_asignar_rechaza_pedido_facturado(app):
         assert pesadas == []
 
 
+def test_asignar_rechaza_pedido_entregado(app):
+    """Espejo del test de `facturado`: acá se factura ANTES de que salga el
+    camión, así que `entregado` ya está en QuickBooks. Si la guarda solo mira
+    `facturado`, marcar la entrega vuelve a abrir el pedido para meterle
+    cajas y la factura deja de cuadrar con lo que se despachó."""
+    from app import CajaPesada, Pedido
+    with app.app_context():
+        corrida = _corrida_con_cajas(2)
+        ids = [c.id for c in corrida.cajas]
+        pedido = _db.session.get(Pedido, IDS['pedido_maquila'])
+        pedido.estado = 'entregado'
+        _db.session.commit()
+
+    c = _login(app)
+    r = c.post(f"/maquila/asignar/{IDS['detalle_maquila']}",
+               data={'corrida_caja_id': [str(i) for i in ids]},
+               follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        pesadas = CajaPesada.query.filter_by(
+            detalle_pedido_id=IDS['detalle_maquila']).all()
+        assert pesadas == []
+
+
 def test_pesar_operario_no_ve_el_bloque_de_asignar(app):
     """El módulo sigue siendo solo de super_admin: un operario con permiso
     para pesar no debe ver un botón que su rol no puede usar. Sigue pesando

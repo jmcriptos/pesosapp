@@ -23,6 +23,12 @@ from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
 # maquila/__init__.py para el porqué.
 db = app_module.db
 CajaPesada = app_module.CajaPesada
+# La inmutabilidad post-facturación tiene UN dueño en app.py: acá se reusa en
+# vez de reescribir `estado == 'facturado'`, que deja pasar `entregado` (se
+# factura ANTES de que salga el camión, así que lo entregado ya está en
+# QuickBooks). Este ledger es append-only y trazabilidad HACCP: lo que se
+# escribe mal acá no se revierte.
+_pedido_es_inmutable = app_module._pedido_es_inmutable
 
 TIPOS_NEGATIVOS = {'salida'}
 TIPOS_CON_MOTIVO = {'ajuste', 'devolucion'}
@@ -954,7 +960,7 @@ def anular_corrida(corrida, vendedor_id, motivo):
         if caja.caja_pesada_id is None:
             continue
         pedido = getattr(getattr(caja.caja_pesada, 'detalle_pedido', None), 'pedido', None)
-        if pedido is not None and pedido.estado == 'facturado':
+        if pedido is not None and _pedido_es_inmutable(pedido):
             raise CorridaFacturada(
                 f'La caja {caja.numero} de {corrida.codigo} salió en el pedido '
                 f'{pedido.id}, que ya está facturado')
@@ -1063,7 +1069,7 @@ def editar_corrida(corrida, *, vendedor_id, cabecera, cajas, consumos=None,
         if caja.caja_pesada_id is None:
             continue
         pedido = getattr(getattr(caja.caja_pesada, 'detalle_pedido', None), 'pedido', None)
-        if cambia_etiqueta and pedido is not None and pedido.estado == 'facturado':
+        if cambia_etiqueta and pedido is not None and _pedido_es_inmutable(pedido):
             raise CorridaFacturada(
                 f'La caja {caja.numero} de {corrida.codigo} salió en el pedido '
                 f'{pedido.id}, que ya está facturado: el lote y las fechas '
