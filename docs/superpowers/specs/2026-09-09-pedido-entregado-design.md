@@ -233,6 +233,31 @@ par de minutos, que es molesto pero no asusta, y se corrige solo.
 No es una migración de esquema: `estado` es un `String(30)` y no hay `ALTER`
 que correr. Igual va a mano por `heroku pg:psql`, como todo en este repo.
 
+### El backfill, ejecutado (2026-09-10)
+
+Corrido el 2026-09-10 a las 06:2x de Curaçao, después del deploy de la v957
+(`ff02bb1a`), en este orden: tabla de respaldo → `UPDATE` → verificación.
+
+| | |
+|---|---|
+| Filas respaldadas en `backfill_entregado_20260910` | 960 |
+| Filas afectadas por el `UPDATE` | **960** (coinciden) |
+| Reparto final | `entregado` 960 · `pendiente` 9 · `facturado` 4 |
+
+**Se usó `fecha_entrega < hoy_local - 1`, no `< hoy_local`.** Al llegar al
+checkpoint ya era el 10 en Curaçao, así que la regla original barría también los
+cuatro pedidos del día anterior (PED-1323, 1324, 1333, 1336, facturados el 09/09
+para entregar el 09/09). Marcarlos habría sido afirmar una entrega que nadie
+observó, y la asimetría manda: si los marco y no salieron, desaparecen del
+tablero —el fallo que esta función vino a impedir—; si no los marco y sí
+salieron, aparecen en «Atrasados» y alguien los cierra con cuatro toques. Se
+quedaron en `facturado` a propósito, y son el primer uso real del botón nuevo.
+
+La tabla `backfill_entregado_20260910` **se conserva**: sin ella el rollback no
+es simétrico (`UPDATE ... WHERE estado='entregado'` también des-entregaría lo que
+el chofer marque de acá en adelante). El inverso exacto es
+`UPDATE pedido SET estado='facturado' WHERE id IN (SELECT id FROM backfill_entregado_20260910);`
+
 ### Fuera de alcance
 
 - **No se crea un usuario ni un rol de chofer.** En producción hay 2 usuarios
