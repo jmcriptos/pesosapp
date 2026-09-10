@@ -243,19 +243,23 @@ abierta: **hoy un pedido entregado dejaría de contar como venta facturada en el
 dashboard**, y eso sería una regresión silenciosa en las cifras. Hay que
 decidirlo antes de implementar (ver Pendiente).
 
-## Pendiente de decidir
+## El dashboard (decidido por JM, 2026-09-09)
 
-**El dashboard.** `ventas_mes` sale de QuickBooks y no de estos estados, así que
-la cifra grande no se mueve. Pero los dos contadores de `pedidos_facturados`
-(`app.py:2244` y `app.py:2424`) sí filtran por `estado='facturado'` y, tras el
-backfill, pasarían de 964 a 4. Dos salidas:
+`ventas_mes` sale de QuickBooks y no de estos estados, así que la cifra grande
+no se mueve. Pero los dos contadores de `pedidos_facturados` (`app.py:2244` y
+`app.py:2424`) filtran por `estado='facturado'` y, tras el backfill, pasarían
+de 964 a 4 — una regresión silenciosa en números que JM mira todos los días.
 
-1. Que esos conteos pasen a `estado.in_(['facturado', 'entregado'])` — «cuántos
-   se facturaron» sigue siendo verdad.
-2. Que el dashboard muestre las dos cifras por separado.
+**Decisión: los dos contadores pasan a `estado.in_(['facturado', 'entregado'])`.**
+«Cuántos pedidos se facturaron» sigue siendo verdad: un pedido entregado se
+facturó igual, entregarlo no lo desfactura. Ninguna cifra existente se mueve.
 
-La 1 es la conservadora y la que no cambia ninguna cifra existente. Se propone
-esa, pero conviene que JM la confirme porque toca números que él mira.
+Corolario para la implementación: **cualquier consulta que hoy pregunte
+`estado == 'facturado'` con el sentido de «ya se facturó» tiene que pasar a
+incluir `entregado`.** Las que preguntan con el sentido de «está terminado»
+—el tablero— son las que cambian de dueño y pasan a mirar `entregado`. Los dos
+sentidos vivían en la misma palabra y por eso hay que revisarlos uno por uno,
+no con un reemplazo global.
 
 ## Archivos que toca
 
