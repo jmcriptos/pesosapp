@@ -989,17 +989,43 @@ El push a main dispara el auto-deploy a Heroku. Esperar a que `heroku releases -
 
 - [ ] **Step 4: El backfill**
 
+**Primero la tabla de respaldo, después el `UPDATE`.** Sin ella el backfill no deja rastro de qué filas tocó, y entonces no hay vuelta atrás: para deshacerlo habría que correr `UPDATE ... WHERE estado='entregado'`, que también des-entregaría los pedidos que el chofer marcó legítimamente desde el teléfono después del deploy. Con la lista de ids guardada, el rollback se acota a esas filas y a ninguna más.
+
+```bash
+heroku pg:psql --app pesosapp -c "
+CREATE TABLE backfill_entregado_20260910 AS
+SELECT id FROM pedido WHERE estado='facturado'
+  AND (fecha_entrega IS NULL OR fecha_entrega < (now() AT TIME ZONE 'America/Curacao')::date - 1);"
+```
+
 ```bash
 heroku pg:psql --app pesosapp -c "
 UPDATE pedido SET estado = 'entregado'
 WHERE estado = 'facturado'
   AND (fecha_entrega IS NULL
-       OR fecha_entrega < (now() AT TIME ZONE 'America/Curacao')::date);"
+       OR fecha_entrega < (now() AT TIME ZONE 'America/Curacao')::date - 1);"
 ```
 
 **`CURRENT_DATE` NO sirve.** La base corre en UTC, así que pasadas las 20:00 de Curaçao ya es el día siguiente y el `UPDATE` se llevaría puestos los pedidos que se están entregando hoy, marcándolos entregados sin haber salido. Se comprobó: a las 19:55 locales del 09/09, `CURRENT_DATE` daba 964 afectados en vez de 960.
 
-Expected: `UPDATE 960` (o el número que dio `sin_fecha + entrega_pasada` en el Step 2).
+**El `- 1` es deliberado** (decisión tomada, no un descuido): deja fuera también los pedidos de ayer. Nadie confirmó que hayan salido, y es preferible que el chofer los marque a mano a darlos por entregados desde una consulta.
+
+Expected: el `UPDATE` tiene que afectar exactamente tantas filas como tenga la tabla de respaldo. Verificarlo:
+
+```bash
+heroku pg:psql --app pesosapp -c "SELECT count(*) FROM backfill_entregado_20260910;"
+```
+
+Si los dos números no coinciden, entre las dos consultas alguien facturó o entregó algo: parar y mirar antes del Step 5.
+
+**El rollback,** si hiciera falta, es solo sobre esas filas:
+
+```sql
+UPDATE pedido SET estado='facturado'
+WHERE id IN (SELECT id FROM backfill_entregado_20260910);
+```
+
+La tabla se borra recién cuando el backfill se dé por bueno (una semana, digamos), y ese `DROP TABLE` merece su propia línea en el spec.
 
 - [ ] **Step 5: Verificar el reparto**
 
