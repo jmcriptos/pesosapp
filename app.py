@@ -8156,6 +8156,77 @@ def mover_entrega_pedido(pedido_id):
     return _volver_a('lista_pedidos')
 
 
+@app.route('/pedidos/<int:pedido_id>/entregar', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def entregar_pedido(pedido_id):
+    """Marca el pedido como entregado al cliente.
+
+    Hasta ahora `facturado` hacía de «terminado», pero acá se factura ANTES de
+    que salga el camión —a veces el día anterior—, así que no había forma de
+    contestar «¿qué está facturado pero todavía no llegó?». El chofer marca
+    esto desde el teléfono al dejar la mercadería, y la hora del evento es la
+    hora real de la entrega.
+    """
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para modificar este pedido', 'error')
+        return _volver_a('lista_pedidos')
+
+    if pedido.estado == 'entregado':
+        return _volver_a('lista_pedidos')
+
+    # SOLO desde facturado. Si se pudiera marcar entregado un pedido sin
+    # factura, ese pedido saldría de la cola sin haberla generado y no la
+    # generaría nunca: es plata que se pierde en silencio, que es la peor
+    # forma de perderla. Un preparado que ya salió hay que facturarlo primero.
+    if pedido.estado != 'facturado':
+        flash(f'PED-{pedido.id} todavía no está facturado. '
+              f'Se factura primero y después se marca entregado.', 'warning')
+        return _volver_a('lista_pedidos')
+
+    pedido.estado = 'entregado'
+    _log_pedido_evento(
+        pedido, 'entregado', 'Pedido entregado al cliente',
+        meta={'anterior': 'facturado', 'nueva': 'entregado'},
+    )
+    db.session.commit()
+    flash(f'PED-{pedido.id} entregado.', 'success')
+    return _volver_a('lista_pedidos')
+
+
+@app.route('/pedidos/<int:pedido_id>/entrega/deshacer', methods=['POST'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'editar')
+def deshacer_entrega_pedido(pedido_id):
+    """Vuelve un `entregado` a `facturado`.
+
+    El chofer va a tocar la tarjeta equivocada alguna vez: un toque
+    irreversible en un teléfono que se maneja con una mano, en la calle, es un
+    callejón sin salida. No hay ventana de tiempo —una regla horaria solo
+    agrega un caso raro que falla justo cuando hace falta—; lo que acota es la
+    tarjeta, que solo dibuja el botón dentro del grupo «Hoy».
+    """
+    pedido = Pedido.query.get_or_404(pedido_id)
+
+    if not _user_can_manage_pedido(pedido):
+        flash('No tienes permisos para modificar este pedido', 'error')
+        return _volver_a('lista_pedidos')
+
+    if pedido.estado != 'entregado':
+        return _volver_a('lista_pedidos')
+
+    pedido.estado = 'facturado'
+    _log_pedido_evento(
+        pedido, 'entrega_deshecha', 'Se deshizo la marca de entregado',
+        meta={'anterior': 'entregado', 'nueva': 'facturado'},
+    )
+    db.session.commit()
+    flash(f'PED-{pedido.id} vuelve a «por entregar».', 'info')
+    return _volver_a('lista_pedidos')
+
+
 @app.route('/pedidos/<int:pedido_id>/eliminar', methods=['POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'eliminar')
