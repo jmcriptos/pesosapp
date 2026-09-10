@@ -269,4 +269,8 @@ def test_un_pedido_de_manana_no_ofrece_el_boton_Manana(app):
 def test_la_tarjeta_de_un_facturado_no_ofrece_mover_la_entrega(app):
     c = _login(app, 'jefe')
     html = c.get('/pedidos').get_data(as_text=True)
-    assert f'/pedidos/{IDS["facturado"]}/entrega' not in html
+    # Con comilla de cierre: `/pedidos/<id>/entrega` es *prefijo* de
+    # `/pedidos/<id>/entregar` (Tarea 5, el botón «Entregado»), y ese SÍ debe
+    # verse en un facturado. Sin la comilla, la aserción daba falso rojo
+    # contra su propio compañero de tarjeta.
+    assert f'/pedidos/{IDS["facturado"]}/entrega"' not in html

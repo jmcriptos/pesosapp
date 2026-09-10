@@ -470,10 +470,22 @@ def test_el_tablero_respeta_los_clientes_visibles_del_vendedor(app):
 
 # ── El tablero de verdad (Tarea 3) ──────────────────────────────────────────
 
-def test_el_facturado_de_hoy_se_ve_marcado_como_hecho(logged_client):
+def test_el_entregado_de_hoy_se_ve_marcado_como_hecho(logged_client):
+    _crear('entregado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'tablero-hecho' in html, 'el entregado de hoy no se marca como hecho'
+
+
+def test_el_facturado_de_hoy_no_se_ve_marcado_como_hecho(logged_client):
+    """Test rot legítimo (Tarea 5): este test afirmaba `facturado` marcado
+    hecho, que era justamente el agujero que sobrevivió a la Tarea 3 —
+    `_agrupar_tablero` ya manda el facturado atrasado a «Atrasados», pero la
+    tarjeta seguía decidiendo con su propio `estado == 'facturado'` si iba
+    atenuada como «esto ya está». Ahora `entregado` es el único terminal:
+    facturar no es entregar, el camión puede seguir sin salir."""
     _crear('facturado', dias=0)
     html = logged_client.get('/pedidos').get_data(as_text=True)
-    assert 'tablero-hecho' in html, 'el facturado de hoy no se marca como hecho'
+    assert 'tablero-hecho' not in html, 'un facturado sin entregar no está "hecho"'
 
 
 def test_el_tablero_vacio_no_alarma(logged_client):

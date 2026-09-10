@@ -99,11 +99,18 @@ def _seed():
     facturado = mk_pedido('facturado', hoy)
     entregado_hoy = mk_pedido('entregado', hoy)
     entregado_viejo = mk_pedido('entregado', hoy - timedelta(days=30))
+    # Facturado con la entrega VENCIDA (no `hoy`, no `entregado`): es la
+    # combinación que agujereaba la pintura de la tarjeta. `_agrupar_tablero`
+    # (Task 3) ya lo manda a «Atrasados», pero la tarjeta decidía con su
+    # propio `estado == 'facturado'` si iba atenuada como «hecho» y si
+    # llevaba la franja roja — las dos veces con la exclusión equivocada.
+    facturado_vencido = mk_pedido('facturado', hoy - timedelta(days=5))
 
     _db.session.commit()
     IDS.update(pendiente=pendiente.id, preparado=preparado.id,
                facturado=facturado.id, entregado_hoy=entregado_hoy.id,
-               entregado_viejo=entregado_viejo.id)
+               entregado_viejo=entregado_viejo.id,
+               facturado_vencido=facturado_vencido.id)
 
 
 def _login(app, username):
@@ -212,3 +219,83 @@ def test_next_a_otro_host_no_redirige_afuera(app):
     resp = c.post(f'/pedidos/{IDS["facturado"]}/entregar',
                   data={'next': 'https://evil.com/x'})
     assert 'evil.com' not in resp.headers.get('Location', '')
+
+
+# ── El botón en la tarjeta ───────────────────────────────────────────────
+# Copiado (no importado) de tests/test_pedido_mover_entrega.py: recorta el
+# bloque de UNA tarjeta buscando `data-href="/pedidos/<id>/detalles"`, porque
+# `PED-<id>` aparece varias veces dentro de la misma tarjeta (el id, el
+# `sr-only`, cada `aria-label`) y un recorte por ese texto da falsos rojos.
+def _tarjeta(html, pedido_id):
+    for bloque in html.split('<div class="pedido-card'):
+        if f'data-href="/pedidos/{pedido_id}/detalles"' in bloque:
+            return bloque
+    raise AssertionError(f'no se dibujó la tarjeta de PED-{pedido_id}')
+
+
+def test_la_tarjeta_de_un_facturado_ofrece_entregar(app):
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['facturado'])
+    assert f'/pedidos/{IDS["facturado"]}/entregar' in tarjeta
+
+
+def test_la_tarjeta_de_un_pendiente_no_ofrece_entregar(app):
+    """Todavía no está facturado: la ruta lo rechaza, así que el botón solo
+    serviría para hacer rebotar al chofer."""
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['pendiente'])
+    assert '/entregar' not in tarjeta
+
+
+def test_el_entregado_de_hoy_ofrece_deshacer(app):
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['entregado_hoy'])
+    assert f'/pedidos/{IDS["entregado_hoy"]}/entrega/deshacer' in tarjeta
+
+
+def test_el_entregado_del_archivo_no_ofrece_deshacer(app):
+    """En el archivo el botón es solo un toque equivocado esperando."""
+    c = _login(app, 'jefe')
+    html = c.get('/pedidos?estado=entregado').get_data(as_text=True)
+    tarjeta = _tarjeta(html, IDS['entregado_viejo'])
+    assert '/entrega/deshacer' not in tarjeta
+
+
+# ── La pintura de la tarjeta (agujero del plan, sumado a esta tarea) ───────
+# `_pedidos_tablero.html` y `_pedidos_resultados.html` decidían con su PROPIO
+# `estado == 'facturado'` si la tarjeta iba atenuada como "hecho" y si
+# llevaba la franja roja de vencido. Con `entregado` como el nuevo terminal,
+# un facturado atrasado caía bien en «Atrasados» (Task 3) pero se seguía
+# pintando gris, como terminado, y sin la alerta: exactamente la señal falsa
+# que todo este trabajo vino a borrar.
+def test_el_facturado_atrasado_lleva_la_alerta_de_vencido(app):
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['facturado_vencido'])
+    assert 'data-vencido="1"' in tarjeta
+
+
+def test_el_facturado_atrasado_no_se_pinta_como_hecho(app):
+    """`tablero-hecho` atenúa la tarjeta como "esto ya está". Un facturado sin
+    entregar NO está: solo lo pinta gris `entregado`."""
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['facturado_vencido'])
+    assert 'tablero-hecho' not in tarjeta
+
+
+def test_el_entregado_de_hoy_se_pinta_como_hecho(app):
+    c = _login(app, 'jefe')
+    tarjeta = _tarjeta(c.get('/pedidos').get_data(as_text=True), IDS['entregado_hoy'])
+    assert 'tablero-hecho' in tarjeta
+
+
+# ── El detalle deja de mentir ────────────────────────────────────────────
+def test_el_detalle_de_un_entregado_llega_al_ultimo_paso(app):
+    """Los 973 pedidos se veían como 3 de 4 para siempre porque el 4º paso era
+    inalcanzable. `active_map` ya contemplaba `entregado`; faltaba que algún
+    pedido llegara ahí."""
+    c = _login(app, 'jefe')
+    html = c.get(f'/pedidos/{IDS["entregado_hoy"]}/detalles').get_data(as_text=True)
+    # El 4º paso es el ACTUAL, y por lo tanto ninguno queda pendiente.
+    assert 'detail-stepper-item is-current' in html
+    assert 'detail-stepper-item is-pending' not in html, \
+        'con el pedido entregado ningún paso del progreso queda gris'

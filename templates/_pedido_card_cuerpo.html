@@ -9,8 +9,13 @@
              283 disponibles) y el estado saltaba a una línea propia. #}
           {# "Vencido" no es un estado de la tabla: es fecha_entrega pasada con
              el pedido aún sin facturar. La guía lo muestra como un estado más
-             porque para el vendedor lo es. #}
-          {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
+             porque para el vendedor lo es.
+             La exclusión es `entregado`, no `facturado`: un facturado que
+             todavía no salió y tiene la entrega vencida SIGUE necesitando la
+             alerta — facturar no es entregar. Con la exclusión vieja, la
+             píldora dejaba de marcar «vencido» justo al facturar, que es
+             cuando el pedido puede quedar pendiente más tiempo. #}
+          {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}
           <div class="pc-idrow">
             <span class="pc-id">PED-{{ pedido.id }}</span>
             {# La píldora dice SIEMPRE el estado real, también cuando está
@@ -61,7 +66,9 @@
       {% set puede_facturar = pedido.estado == 'preparado' %}
       {% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
       {% set tiene_factura  = pedido.estado == 'facturado' and pedido.invoice_id_qbo %}
-      {% set tiene_acciones = puede_editar or puede_facturar or puede_eliminar or tiene_factura %}
+      {% set puede_entregar  = pedido.estado == 'facturado' %}
+      {% set puede_deshacer  = pedido.estado == 'entregado' and pedido.fecha_entrega == hoy_local %}
+      {% set tiene_acciones = puede_editar or puede_facturar or puede_eliminar or tiene_factura or puede_entregar or puede_deshacer %}
 
       <div class="pc-foot">
         <div class="pc-meta">
@@ -75,8 +82,12 @@
             entrega {{ 'hoy' if pedido.fecha_entrega == hoy_local else pedido.fecha_entrega.strftime('%d/%m') }}
             {# CUÁNTO se pasó, no solo la fecha: la tabla de escritorio ya lo
                decía y el teléfono —el aparato que el vendedor lleva encima— no.
-               Sin esto, un día de atraso y tres semanas se ven igual. #}
-            {% if pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}
+               Sin esto, un día de atraso y tres semanas se ven igual.
+               Reusa `vencido` (definido arriba) en vez de repetir la condición:
+               tenerla dos veces en el mismo archivo, con exclusiones que
+               podían divergir, fue justo el agujero que esta tarea vino a
+               cerrar. #}
+            {% if vencido %}
             <strong class="pc-tarde">· {{ (hoy_local - pedido.fecha_entrega).days }} d tarde</strong>
             {% endif %}
           </span>
@@ -151,6 +162,35 @@
                     data-submit-label="Facturando…"
                     aria-label="Facturar pedido PED-{{ pedido.id }}">
               <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
+            </button>
+          </form>
+          {% endif %}
+          {# La acción del chofer. Solo sobre un facturado: la ruta rechaza
+             cualquier otro estado, así que el botón en un pendiente solo
+             serviría para hacerlo rebotar. #}
+          {% if puede_entregar %}
+          <form action="{{ url_for('entregar_pedido', pedido_id=pedido.id) }}" method="POST"
+                class="pc-action-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
+            <button type="submit" class="pc-action-main"
+                    aria-label="Marcar PED-{{ pedido.id }} como entregado">
+              <i class="fa-solid fa-truck" aria-hidden="true"></i> Entregado
+            </button>
+          </form>
+          {% endif %}
+          {# Deshacer, SOLO mientras el pedido esté en el día. La ruta lo
+             acepta siempre; lo que acota es la tarjeta, para que el archivo de
+             960 pedidos no se llene de botones que invitan a un toque
+             equivocado. #}
+          {% if puede_deshacer %}
+          <form action="{{ url_for('deshacer_entrega_pedido', pedido_id=pedido.id) }}" method="POST"
+                class="pc-action-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
+            <button type="submit" class="pc-action-btn" title="Deshacer la entrega"
+                    aria-label="Deshacer la entrega de PED-{{ pedido.id }}">
+              <i class="fa-solid fa-rotate-left"></i>
             </button>
           </form>
           {% endif %}

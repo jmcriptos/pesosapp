@@ -10,11 +10,20 @@
     </h2>
 
     {% for pedido in pedidos_grupo[:50] %}
-    {% set hecho = pedido.estado == 'facturado' %}
+    {# `hecho` era `estado == 'facturado'`. Con `entregado` como el nuevo
+       terminal (Task 2), un facturado sin entregar quedaba atenuado como
+       «esto ya está» aunque el camión todavía no hubiera salido — el mismo
+       agujero que Task 3 cerró en `_agrupar_tablero`, movido de la
+       agrupación a la pintura. #}
+    {% set hecho = pedido.estado == 'entregado' %}
     <div class="pedido-card tablero-fila{% if hecho %} tablero-hecho{% endif %}"
          data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
          data-estado="{{ (pedido.estado or '')|lower }}"
-         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}>
+         {# Mismo agujero que `hecho`: con la exclusión en `facturado`, un
+            facturado atrasado caía bien en «Atrasados» pero nunca llevaba la
+            franja roja. La exclusión que corresponde es `entregado`: ya no
+            hay nada pendiente que alertar. #}
+         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}data-vencido="1"{% endif %}>
       {% include '_pedido_card_cuerpo.html' %}
     </div>
     {% endfor %}

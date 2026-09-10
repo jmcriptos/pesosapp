@@ -19,7 +19,12 @@
     <div class="pedido-card"
          data-href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
          data-estado="{{ (pedido.estado or '')|lower }}"
-         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'facturado' %}data-vencido="1"{% endif %}>
+         {# La exclusión es `entregado`, no `facturado`: un facturado sin
+            entregar y con la entrega vencida SÍ necesita la franja roja —
+            el trabajo no salió. Antes la exclusión apagaba la alerta apenas
+            se facturaba, que es justo cuando puede quedar pendiente más
+            tiempo. #}
+         {% if pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}data-vencido="1"{% endif %}>
 
       {% include '_pedido_card_cuerpo.html' %}
     </div>

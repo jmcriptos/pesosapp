@@ -621,6 +621,15 @@ body[data-pedidos-list-screen] .status-pill.facturado {
   color: #065f46 !important;
 }
 
+/* `entregado` es el único estado que faltaba: la píldora salía sin fondo y con
+   el color que le diera `dark-theme.css`. Gris azulado y no verde: el verde ya
+   es `facturado`, y dos verdes contiguos en la misma tarjeta no distinguen
+   nada. */
+body[data-pedidos-list-screen] .status-pill.entregado {
+  background: color-mix(in srgb, var(--color-text-subtle, #64748b) 18%, transparent) !important;
+  color: #334155 !important;
+}
+
 /* Action buttons (view, edit, invoice, delete) */
 /* 48px, no 34: la guía Sistema UI pone el piso de cualquier destino de toque
    en 48px porque la app se usa en ruta y en planta. Encarece la tarjeta (los
@@ -1008,6 +1017,13 @@ body[data-pedidos-list-screen] .estado-badge.estado-preparado {
 body[data-pedidos-list-screen] .estado-badge.estado-facturado {
   background: color-mix(in srgb, var(--color-success, #10b981) 18%, transparent) !important;
   color: #065f46 !important;
+}
+
+/* Misma píldora `entregado` que en la tarjeta móvil (`.status-pill`), acá
+   para la fila de la tabla de escritorio. */
+body[data-pedidos-list-screen] .estado-badge.estado-entregado {
+  background: color-mix(in srgb, var(--color-text-subtle, #64748b) 18%, transparent) !important;
+  color: #334155 !important;
 }
 
 /* También es un <a> real ahora (Cmd+click, pestaña nueva, nombre accesible con
