@@ -102,15 +102,22 @@ def test_pedido_sin_fecha_entrega_no_cuenta_como_vencido(app, logged_client):
     assert cifras['por_preparar'] == 2
 
 
-def test_vencido_es_entrega_pasada_y_sin_facturar(app, logged_client):
+def test_vencido_es_entrega_pasada_y_sin_entregar(app, logged_client):
+    """Tarea 4: `facturado` dejó de ser terminal para "vencido" — se factura
+    ANTES de que salga el camión, así que un facturado con la entrega pasada
+    sigue siendo trabajo sin terminar y SÍ cuenta como vencido. El único
+    estado que de verdad cierra el pedido es `entregado`."""
     _pedido('pendiente', dias_entrega=-3)   # vencido
     _pedido('preparado', dias_entrega=-1)   # vencido
     _pedido('pendiente', dias_entrega=0)    # hoy, no vencido
     _pedido('pendiente', dias_entrega=2)    # futuro
-    _pedido('facturado', dias_entrega=-9)   # ya facturado: no es un pendiente
+    _pedido('facturado', dias_entrega=-9)   # facturado pero sin entregar: SÍ vencido
+    _pedido('entregado', dias_entrega=-9)   # ya entregado: no cuenta
 
     cifras = _counts(logged_client)
-    assert cifras['vencido'] == 2, 'facturado no cuenta aunque su entrega pasó'
+    assert cifras['vencido'] == 3, (
+        'un facturado con la entrega pasada cuenta; un entregado no'
+    )
 
 
 def test_por_preparar_suma_pendientes_y_preparados(app, logged_client):
@@ -150,9 +157,12 @@ def test_filtro_hoy_solo_trae_entregas_de_hoy(app, logged_client):
     assert html.count('class="pedido-card"') == 2
 
 
-def test_filtro_vencido_excluye_facturados(app, logged_client):
+def test_filtro_vencido_excluye_entregados(app, logged_client):
+    """Tarea 4: el único estado que sale de «vencido» es `entregado`; un
+    facturado con la entrega pasada sigue apareciendo (ver
+    test_vencido_es_entrega_pasada_y_sin_entregar)."""
     _pedido('pendiente', dias_entrega=-5)
-    _pedido('facturado', dias_entrega=-5)
+    _pedido('entregado', dias_entrega=-5)
 
     html = logged_client.get('/pedidos?estado=vencido').get_data(as_text=True)
     assert html.count('class="pedido-card"') == 1

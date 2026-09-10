@@ -6565,7 +6565,7 @@ def lista_pedidos():
     # que se estaba buscando.
     estado = (request.args.get('estado', 'todos', type=str) or 'todos').strip().lower()
     estado = estado if estado in {
-        'todos', 'pendiente', 'preparado', 'facturado',
+        'todos', 'pendiente', 'preparado', 'facturado', 'entregado',
         'hoy', 'vencido', 'por_preparar',
     } else 'todos'
     q = (request.args.get('q', '', type=str) or '').strip()
@@ -6631,8 +6631,6 @@ def lista_pedidos():
         # for the listed page.
         selectinload(Pedido.detalles).selectinload(DetallePedido.cajas_pesadas),
         selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
-    ).filter(
-        Pedido.estado != 'entregado'
     )
 
     # Orden: 1) el trabajo terminado al final, 2) urgencia por fecha de entrega,
@@ -6647,17 +6645,22 @@ def lista_pedidos():
     # Los pedidos sin `fecha_entrega` (los históricos, anteriores a la columna)
     # van al final del bloque activo: no son urgentes, pero no desaparecen.
     #
-    # Dentro de los FACTURADOS no hay urgencia que ordenar: el trabajo terminó y
+    # Dentro de los ENTREGADOS no hay urgencia que ordenar: el trabajo terminó y
     # lo que se busca es el último. Ordenarlos por `fecha_entrega` ascendente
-    # como a los activos dejaba el recién facturado ÚLTIMO de su bloque, fuera
+    # como a los activos dejaba el recién entregado ÚLTIMO de su bloque, fuera
     # de la primera página — que es de donde salió "se perdió el pedido después
     # de facturarlo". Por eso las dos claves de fecha se anulan para ellos y el
-    # desempate cae en `id desc`: lo último facturado, primero.
+    # desempate cae en `id desc`: lo último entregado, primero.
+    #
+    # Ya no es `facturado` el que se hunde: se factura ANTES de que salga el
+    # camión, así que un facturado sin entregar sigue siendo trabajo activo —
+    # compite por urgencia igual que un pendiente o un preparado. Lo único que
+    # de verdad terminó es `entregado`.
     orden_optimizado = [
-        db.case((Pedido.estado == 'facturado', 1), else_=0),
-        db.case((Pedido.estado == 'facturado', 0),
+        db.case((Pedido.estado == 'entregado', 1), else_=0),
+        db.case((Pedido.estado == 'entregado', 0),
                 (Pedido.fecha_entrega.is_(None), 1), else_=0),
-        db.case((Pedido.estado == 'facturado', None),
+        db.case((Pedido.estado == 'entregado', None),
                 else_=Pedido.fecha_entrega).asc(),
         Pedido.id.desc(),
     ]
@@ -6677,6 +6680,7 @@ def lista_pedidos():
                     'pendiente': 0,
                     'preparado': 0,
                     'facturado': 0,
+                    'entregado': 0,
                     'por_preparar': 0,
                     'vencido': 0,
                     'hoy': 0,
@@ -6718,6 +6722,7 @@ def lista_pedidos():
         'pendiente': 0,
         'preparado': 0,
         'facturado': 0,
+        'entregado': 0,
     }
     for estado_nombre, cantidad in raw_status_counts:
         if estado_nombre in status_counts:
@@ -6734,10 +6739,14 @@ def lista_pedidos():
     # error: es que el dato no existía antes.
     hoy_local = datetime.now(DASHBOARD_TIMEZONE).date()
     status_counts['por_preparar'] = status_counts['pendiente'] + status_counts['preparado']
+    # Antes excluía `facturado`: pero se factura ANTES de que salga el camión,
+    # así que un facturado con la entrega pasada sigue siendo trabajo sin
+    # terminar y SÍ cuenta como vencido. El único estado que de verdad cierra
+    # el pedido es `entregado`.
     status_counts['vencido'] = base_query.filter(
         Pedido.fecha_entrega.isnot(None),
         Pedido.fecha_entrega < hoy_local,
-        Pedido.estado != 'facturado',
+        Pedido.estado != 'entregado',
     ).count()
     status_counts['hoy'] = base_query.filter(
         Pedido.fecha_entrega == hoy_local,
@@ -6757,10 +6766,13 @@ def lista_pedidos():
     elif estado == 'hoy':
         base_query = base_query.filter(Pedido.fecha_entrega == hoy_local)
     elif estado == 'vencido':
+        # Mismo criterio que el conteo de arriba: solo `entregado` está
+        # realmente cerrado, así que un facturado con la entrega pasada sí
+        # entra acá.
         base_query = base_query.filter(
             Pedido.fecha_entrega.isnot(None),
             Pedido.fecha_entrega < hoy_local,
-            Pedido.estado != 'facturado',
+            Pedido.estado != 'entregado',
         )
     elif estado != 'todos':
         base_query = base_query.filter(Pedido.estado == estado)
@@ -6784,7 +6796,8 @@ def lista_pedidos():
                 (Pedido.estado == 'pendiente', 0),
                 (Pedido.estado == 'preparado', 1),
                 (Pedido.estado == 'facturado', 2),
-                else_=3,
+                (Pedido.estado == 'entregado', 3),
+                else_=4,
             ),
         }[campo]
         if campo == 'cliente':

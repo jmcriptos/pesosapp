@@ -85,10 +85,27 @@ def _ids_en_pantalla(respuesta):
 # ------------------------------------------------------------------- orden
 
 
-def test_el_ultimo_facturado_va_primero(app, logged_client):
-    """Dentro de los facturados no hay urgencia que ordenar: lo que se busca es
-    lo último. Ordenarlos por fecha de entrega ascendente mandaba el recién
-    facturado al fondo (posición 28 de 28 en producción)."""
+def test_el_ultimo_entregado_va_primero(app, logged_client):
+    """Tarea 4: el estado sin urgencia que ordenar pasa a ser `entregado`
+    (antes era `facturado`, que se factura ANTES de que salga el camión y ya
+    no es terminal). Ordenarlos por fecha de entrega ascendente mandaba el
+    recién entregado al fondo (posición 28 de 28 en producción)."""
+    with app.app_context():
+        viejo = _pedido('entregado', date(2026, 8, 10), invoice='1')
+        medio = _pedido('entregado', date(2026, 8, 20), invoice='2')
+        nuevo = _pedido('entregado', date(2026, 8, 29), invoice='3')
+
+    ids = _ids_en_pantalla(logged_client.get('/pedidos?estado=entregado'))
+
+    assert ids[:3] == [nuevo, medio, viejo], (
+        f'Esperaba el más reciente primero; el listado devolvió {ids[:3]}'
+    )
+
+
+def test_el_facturado_ahora_ordena_por_urgencia_como_un_activo(app, logged_client):
+    """Contrapunto: `facturado` dejó de ser terminal, así que dentro de
+    `?estado=facturado` manda la misma urgencia por fecha_entrega que en
+    pendientes/preparados — el más atrasado primero, no el más reciente."""
     with app.app_context():
         viejo = _pedido('facturado', date(2026, 8, 10), invoice='1')
         medio = _pedido('facturado', date(2026, 8, 20), invoice='2')
@@ -96,8 +113,8 @@ def test_el_ultimo_facturado_va_primero(app, logged_client):
 
     ids = _ids_en_pantalla(logged_client.get('/pedidos?estado=facturado'))
 
-    assert ids[:3] == [nuevo, medio, viejo], (
-        f'Esperaba el más reciente primero; el listado devolvió {ids[:3]}'
+    assert ids[:3] == [viejo, medio, nuevo], (
+        f'Esperaba el más atrasado (más urgente) primero; el listado devolvió {ids[:3]}'
     )
 
 
@@ -112,14 +129,29 @@ def test_los_activos_siguen_ordenados_por_urgencia(app, logged_client):
     assert ids[:2] == [urgente, lejano], f'Orden de activos incorrecto: {ids[:2]}'
 
 
-def test_los_facturados_siguen_debajo_de_los_activos(app, logged_client):
+def test_los_entregados_siguen_debajo_de_los_activos(app, logged_client):
+    """Tarea 4: lo que se hunde debajo de los activos pasa a ser `entregado`,
+    no `facturado` — un facturado sin entregar sigue siendo trabajo activo y
+    compite por el tope según su urgencia (ver el test siguiente)."""
     with app.app_context():
         activo = _pedido('pendiente', date(2026, 9, 30))
-        facturado = _pedido('facturado', date(2026, 8, 1), invoice='9')
+        entregado = _pedido('entregado', date(2026, 8, 1), invoice='9')
 
     ids = _ids_en_pantalla(logged_client.get('/pedidos?estado=todos'))
 
-    assert ids.index(activo) < ids.index(facturado)
+    assert ids.index(activo) < ids.index(entregado)
+
+
+def test_el_facturado_atrasado_ahora_compite_por_el_tope(app, logged_client):
+    """El facturado con entrega vencida ya no se hunde: es trabajo sin
+    terminar y debe verse ANTES que un activo con entrega futura."""
+    with app.app_context():
+        facturado_atrasado = _pedido('facturado', date(2026, 8, 1), invoice='9')
+        activo_futuro = _pedido('pendiente', date(2026, 9, 30))
+
+    ids = _ids_en_pantalla(logged_client.get('/pedidos?estado=todos'))
+
+    assert ids.index(facturado_atrasado) < ids.index(activo_futuro)
 
 
 def test_un_facturado_sin_fecha_no_le_gana_a_uno_con_fecha(app, logged_client):

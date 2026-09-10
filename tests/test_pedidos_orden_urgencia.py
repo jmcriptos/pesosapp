@@ -160,15 +160,30 @@ def test_los_pedidos_sin_fecha_de_entrega_van_al_final(app, logged_client):
         assert _ids_listados(logged_client) == [con_fecha.id, sin_fecha.id]
 
 
-def test_lo_facturado_va_al_final_en_la_vista_completa(app, logged_client):
-    """En «Todos», el trabajo terminado no compite por el tope aunque sea viejo."""
+def test_lo_facturado_ya_compite_por_urgencia_como_activo(app, logged_client):
+    """Tarea 4: el que se hunde al fondo de «Todos» pasa a ser `entregado`, no
+    `facturado` — se factura ANTES de que salga el camión, así que un
+    facturado sin entregar sigue siendo trabajo activo y su urgencia
+    (fecha_entrega) manda igual que en un pendiente o un preparado."""
     with app.app_context():
-        facturado_viejo = _pedido('facturado', dias_entrega=-30)
+        facturado_vencido = _pedido('facturado', dias_entrega=-30)
         pendiente_futuro = _pedido('pendiente', dias_entrega=5)
 
         ids = _ids_listados(logged_client, '?estado=todos')
 
-        assert ids == [pendiente_futuro.id, facturado_viejo.id]
+        assert ids == [facturado_vencido.id, pendiente_futuro.id]
+
+
+def test_lo_entregado_va_al_final_en_la_vista_completa(app, logged_client):
+    """El contrapunto: ahora es `entregado` el que se hunde al fondo, aunque
+    su entrega haya sido «vencida» en su momento — ya no hay nada que hacer."""
+    with app.app_context():
+        entregado_viejo = _pedido('entregado', dias_entrega=-30)
+        pendiente_futuro = _pedido('pendiente', dias_entrega=5)
+
+        ids = _ids_listados(logged_client, '?estado=todos')
+
+        assert ids == [pendiente_futuro.id, entregado_viejo.id]
 
 
 # === La pantalla dice qué filtro tiene puesto ===
