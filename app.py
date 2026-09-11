@@ -3334,6 +3334,35 @@ class VentasQbCache(db.Model):
     last_error = db.Column(db.String(255), nullable=True)
 
 
+class QboConexion(db.Model):
+    """Una sola fila (id=1): los tokens OAuth2 de QuickBooks Online.
+
+    Viven en Postgres y no en memoria porque gunicorn corre varios workers y
+    Heroku recicla los dynos a diario: un token en memoria se perdería cada
+    noche y cada worker refrescaría por su cuenta (Intuit invalida el refresh
+    token anterior al rotar). Texto plano a propósito: la base ya es la
+    frontera de confianza de la app, igual que la base de n8n. Nunca se
+    loguean. Ver docs/superpowers/plans/2026-09-11-qbo-api-directa.md, Task 2.
+    """
+    __tablename__ = 'qbo_conexion'
+
+    id = db.Column(db.Integer, primary_key=True)
+    realm_id = db.Column(db.String(30), nullable=True)
+    access_token = db.Column(db.Text, nullable=True)
+    refresh_token = db.Column(db.Text, nullable=True)
+    access_expires_at = db.Column(db.DateTime, nullable=True)
+    refresh_expires_at = db.Column(db.DateTime, nullable=True)
+    conectado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    conectado_en = db.Column(db.DateTime, nullable=True)
+    ultimo_error = db.Column(db.String(255), nullable=True)
+    ultimo_error_en = db.Column(db.DateTime, nullable=True)
+
+    conectado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<QboConexion realm={self.realm_id} conectado={bool(self.refresh_token)}>'
+
+
 class PrecioProducto(db.Model):
     __tablename__ = 'precio_producto'
     id = db.Column(db.Integer, primary_key=True)
@@ -9215,6 +9244,173 @@ try:
     N8N_INVOICE_FETCH_TIMEOUT = int(os.environ.get('N8N_INVOICE_FETCH_TIMEOUT', 20))
 except (ValueError, TypeError):
     N8N_INVOICE_FETCH_TIMEOUT = 20
+
+
+# ── QuickBooks por API directa (sin n8n) ─────────────────────────────────
+# Plan: docs/superpowers/plans/2026-09-11-qbo-api-directa.md. Cada camino
+# que hoy sale a n8n tiene un backend elegible por variable de entorno
+# (`n8n`, el default, o `qbo`), así el corte es reversible con un
+# `heroku config:set` y sin deploy. La configuración se lee en cada llamada,
+# no al importar, para que un cambio de variables no exija reiniciar los
+# tests ni la app.
+
+def _qbo_config():
+    """`QboConfig` desde el entorno, o None si faltan las credenciales."""
+    from utils.qbo_client import QboConfig
+
+    client_id = os.environ.get('QBO_CLIENT_ID', '').strip()
+    client_secret = os.environ.get('QBO_CLIENT_SECRET', '').strip()
+    if not client_id or not client_secret:
+        return None
+    try:
+        minor = int(os.environ.get('QBO_MINOR_VERSION', 75))
+    except (ValueError, TypeError):
+        minor = 75
+    try:
+        timeout = float(os.environ.get('QBO_TIMEOUT', 20))
+    except (ValueError, TypeError):
+        timeout = 20.0
+    return QboConfig(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=os.environ.get('QBO_REDIRECT_URI', '').strip(),
+        environment=os.environ.get('QBO_ENVIRONMENT', 'sandbox').strip().lower() or 'sandbox',
+        minor_version=minor,
+        timeout=timeout,
+    )
+
+
+def _qbo_tasa_usd():
+    """Tasa USD→ANG que se fija en QBO (la misma que usaba n8n)."""
+    try:
+        return Decimal(os.environ.get('QBO_TASA_USD', '1.78').strip() or '1.78')
+    except (InvalidOperation, ValueError):
+        return Decimal('1.78')
+
+
+def _qbo_conexion_fila():
+    return db.session.get(QboConexion, 1)
+
+
+class _QboStoreDb:
+    """`TokenStore` sobre la tabla `qbo_conexion`.
+
+    `guardar` hace commit en el acto: dos workers pueden refrescar a la vez
+    y el que pierde la carrera tiene que ver los tokens nuevos en su
+    reintento (el cliente reintenta una vez ante 401).
+    """
+
+    CAMPOS = ('realm_id', 'access_token', 'refresh_token',
+              'access_expires_at', 'refresh_expires_at')
+
+    def cargar(self):
+        fila = _qbo_conexion_fila()
+        if fila is None or not fila.refresh_token or not fila.realm_id:
+            return None
+        return {campo: getattr(fila, campo) for campo in self.CAMPOS}
+
+    def guardar(self, tokens):
+        fila = _qbo_conexion_fila()
+        if fila is None:
+            fila = QboConexion(id=1)
+            db.session.add(fila)
+        for campo in self.CAMPOS:
+            setattr(fila, campo, tokens.get(campo))
+        fila.ultimo_error = None
+        fila.ultimo_error_en = None
+        db.session.commit()
+
+
+def _qbo_client():
+    """Cliente listo para usar, o None si no hay credenciales en el entorno."""
+    from utils.qbo_client import QboClient
+
+    config = _qbo_config()
+    if config is None:
+        return None
+    return QboClient(config, _QboStoreDb())
+
+
+def _qbo_registrar_error(mensaje):
+    """Deja el último error visible en /admin/quickbooks. Best-effort."""
+    try:
+        fila = _qbo_conexion_fila()
+        if fila is None:
+            fila = QboConexion(id=1)
+            db.session.add(fila)
+        fila.ultimo_error = str(mensaje)[:255]
+        fila.ultimo_error_en = _utcnow_naive()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f'No se pudo registrar el error de QBO: {e}')
+
+
+def _backend(variable):
+    """`'qbo'` solo si la variable lo pide Y hay credenciales; si no, `'n8n'`."""
+    pedido = os.environ.get(variable, 'n8n').strip().lower()
+    if pedido != 'qbo':
+        return 'n8n'
+    if _qbo_config() is None:
+        app.logger.warning(
+            f'{variable}=qbo pero faltan QBO_CLIENT_ID/QBO_CLIENT_SECRET; se usa n8n'
+        )
+        return 'n8n'
+    return 'qbo'
+
+
+def _facturacion_backend():
+    return _backend('FACTURACION_BACKEND')
+
+
+def _qb_sales_backend():
+    return _backend('QB_SALES_BACKEND')
+
+
+def _hoy_local():
+    """Fecha de hoy en Curaçao. n8n usaba la UTC del servidor, que de tarde
+    ya es mañana (la 5865 salió con TxnDate del día siguiente)."""
+    return datetime.now(DASHBOARD_TIMEZONE).date()
+
+
+def _ultimo_doc_number_local():
+    """El mayor número de factura que la app misma emitió, o None.
+
+    Cubre el retraso de unos segundos del índice de consulta de QBO tras
+    crear una factura: dos facturaciones seguidas leerían el mismo máximo.
+    """
+    numeros = []
+    filas = (db.session.query(Pedido.doc_number_qbo)
+             .filter(Pedido.doc_number_qbo.isnot(None))
+             .order_by(Pedido.id.desc()).limit(50).all())
+    for (doc,) in filas:
+        try:
+            numeros.append(int(str(doc).strip()))
+        except (TypeError, ValueError):
+            continue
+    return max(numeros) if numeros else None
+
+
+@app.cli.command('qbo-fijar-tasa')
+def cli_qbo_fijar_tasa():
+    """Fija la tasa USD→ANG de hoy y mañana en QuickBooks.
+
+    Reemplaza al workflow diario de n8n «Fijar USD en 1.78». Pensado para
+    Heroku Scheduler: `flask qbo-fijar-tasa` una vez al día. Cubre las
+    transacciones hechas a mano en QBO; las facturas en USD de la app además
+    aseguran la tasa de su propia fecha antes de crearse.
+    """
+    import click
+    from utils.qbo_tasa import asegurar_tasa_usd
+
+    client = _qbo_client()
+    if client is None:
+        raise click.ClickException('Faltan QBO_CLIENT_ID/QBO_CLIENT_SECRET')
+    tasa = _qbo_tasa_usd()
+    hoy = _hoy_local()
+    for fecha in (hoy, hoy + timedelta(days=1)):
+        cambiada = asegurar_tasa_usd(client, fecha, tasa)
+        click.echo(f"{fecha.isoformat()}: {'fijada en' if cambiada else 'ya estaba en'} {tasa}")
 
 
 def _obtener_factura_qbo(invoice_id):
