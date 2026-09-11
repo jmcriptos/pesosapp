@@ -46,6 +46,7 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
       `http://localhost:5000/admin/quickbooks/callback` (desarrollo).
 - [ ] Crear (o confirmar) una **empresa sandbox** en el portal de Intuit. Ahí
       se prueba la Fase 1 antes de tocar la empresa real.
+- [x] Body real de n8n del 2026-09-11 guardado en `n8n-facturacion-body-2026-09-11.json` (ver Task 4). Sigue faltando el export del workflow para la consulta de DocNumber:
 - [ ] Exportar el JSON del workflow de facturación de n8n (`...` → Download) y
       dejarlo en `docs/superpowers/specs/n8n-facturacion-export.json`. El nodo
       `Generar Numero Factura` es la fuente de verdad de: la consulta de
@@ -287,37 +288,82 @@ payload: la app ya manda `currency_qbo`, `currency_display`, `exchange_rate`,
 `class_ref`, `product_name` y el `tax_rate` como código de QBO). Devuelve el
 body para `POST /invoice`.
 
-Reglas, tomadas del diseño del 2026-08-28 y a **confirmar contra el export de
-n8n** en cada punto marcado con (n8n):
+Reglas, tomadas del **body real que n8n mandó a QBO el 2026-09-11** (factura
+5879, cliente 1497, pegado por JM en el chat; copia en
+`docs/superpowers/specs/n8n-facturacion-body-2026-09-11.json`). Ese body es
+más nuevo que el diseño del 2026-08-28: ya manda `CurrencyRef`,
+`ExchangeRate` y `Currency2`. Donde el body y el diseño difieren, manda el
+body.
 
+**Cabecera:**
 - `CustomerRef.value = payload['customer_qbo_id']`.
 - `DocNumber = doc_number`.
-- `TxnDate = hoy`, `DueDate = hoy + 7` (n8n: hoy usa `today()`; se conserva,
-  está fuera de alcance cambiarlo).
-- `CurrencyRef.value = payload['currency_qbo']`; `ExchangeRate` solo si la
-  moneda no es `ANG` y `exchange_rate` es distinto de 1.
+- `TxnDate = hoy`, `DueDate = hoy + 7`. Confirmado (11 → 18 de septiembre).
+- `SalesTermRef.value = '46'`. **Nuevo, no estaba en el diseño.** Es el
+  término de pago de QBO (presumiblemente Net 7). Constante `QBO_SALES_TERM_ID`
+  en `utils/qbo_factura.py`, con comentario. *Abierto: ¿es fijo para todos los
+  clientes o n8n lo lee del cliente?*
 - `GlobalTaxCalculation = 'TaxExcluded'`.
-- `TxnTaxDetail.TxnTaxCodeRef.value = str(lines[0]['tax_rate'])`. Todas las
-  líneas traen el mismo código (el grupo de facturación lo garantiza); si no,
-  levantar `ValueError` con el detalle. Sin `TotalTax` ni `TaxLine` a mano.
-- **Agrupado de líneas** (n8n): se agrupa por `(product_qbo_id, unit_price)`;
-  `Qty` es la suma de `qty`, `Amount` la suma de `amount`, y `Description`
-  concatena las cantidades individuales de cada caja (`descriptions[]`) con el
-  mismo separador que usa n8n, porque `utils/factura_pdf._pesos_de_descripcion`
-  y la trazabilidad por caja lo leen de ahí. **Copiar el separador y el
-  formato numérico del export, no inventarlos.**
-- Por línea: `DetailType = 'SalesItemLineDetail'`,
-  `SalesItemLineDetail.ItemRef = {value, name: product_name}`, `UnitPrice`,
-  `Qty`, `TaxCodeRef.value = 'TAX'`, `ClassRef.value = class_ref` solo si
-  viene.
-- `CustomField` (n8n): `DefinitionId 1` Currency = `currency_display`,
-  `DefinitionId 2` Sales Rep y `DefinitionId 3` Tax ID con los valores que
-  hoy escribe n8n (están en el export). `Currency2` (`udcf_*`) queda **fuera**:
-  el diseño del 2026-08-28 lo dejó pendiente porque la API v3 no siempre lo
-  escribe; se prueba una vez en sandbox y, si no toma, se documenta.
-- `PrivateNote` / `CustomerMemo` (n8n): `payload['notes']` y el `order_id`,
-  según cómo lo haga n8n hoy. Incluir `order_id` en `PrivateNote` de todas
-  formas: es la única forma de rastrear un duplicado desde QBO.
+- `CurrencyRef.value = payload['currency_qbo']` y `ExchangeRate =
+  payload['exchange_rate']` **siempre**, también en ANG con tipo de cambio 1.
+  Así lo manda n8n hoy; se replica igual.
+
+**`CustomField`** (los cuatro, en este orden, siempre `Type: 'StringType'`):
+
+| DefinitionId | Name | StringValue |
+|---|---|---|
+| `1` | `Currency` | `payload['currency_display']` |
+| `2` | `Sales Rep` | `'OF'` en la factura de ejemplo. *Abierto: ¿fijo, o sale del vendedor del pedido?* |
+| `3` | `Tax ID No.` | `''` |
+| `1000000003` | `Currency2` | `'1'` para XCG. *Abierto: qué valor lleva USD (y ANG si difiere). Es el índice de la lista, no el texto.* |
+
+`Currency2` **sí** se escribe por API con `DefinitionId '1000000003'`: el
+pendiente 1 del diseño del 2026-08-28 queda resuelto por la evidencia.
+
+**Líneas:**
+- Se agrupa por `(product_qbo_id, unit_price)`. `Qty` es la suma de `qty`,
+  `Amount` es `round(sum(amount), 2)` (verificado: 46,55 × 13,20 = 614,46).
+- `Description` = los pesos de cada caja, con **dos decimales y separados por
+  tabulador** (`"23.15\t23.40"`). Es lo que leen
+  `utils/factura_pdf._pesos_de_descripcion` y la trazabilidad por caja; el
+  separador tiene que ser exactamente `\t`. *Abierto: qué pone n8n en
+  `Description` de un producto no pesable (cajas enteras, con o sin lote). La
+  factura de ejemplo solo tiene pesables.*
+- `DetailType = 'SalesItemLineDetail'`.
+- `SalesItemLineDetail.ItemRef = {value: product_qbo_id, name: product_name}`.
+  El `name` va **sin** la categoría (`"Cooked Chicken Ham"`, no
+  `"Smoked and Cooked:Cooked Chicken Ham"`); QBO resuelve por `value`.
+- `UnitPrice`, `Qty`, `TaxCodeRef.value = 'TAX'`, `ClassRef.value = class_ref`
+  solo si viene (sin `name`).
+- Orden de las líneas: el del payload (que ya sale ordenado por clase y
+  producto desde `pedido_a_json`).
+
+**Impuesto (`TxnTaxDetail`):** n8n manda hoy el bloque completo calculado a
+mano: `TotalTax`, `TxnTaxCodeRef` y un `TaxLine` con `TaxRateRef`,
+`TaxPercent`, `NetAmountTaxable` y `PercentBased: true`. Para el código `14`
+usa `TaxRateRef '25'` con 0 %. Dos caminos, se decide en sandbox:
+
+1. **Preferido:** mandar solo `TxnTaxDetail: {TxnTaxCodeRef: {value: código}}`
+   y dejar que QBO calcule `TotalTax` y `TaxLine` a partir de
+   `GlobalTaxCalculation: 'TaxExcluded'`. Es lo que recomendaba el diseño del
+   2026-08-28 y elimina el mapa de tasas. Se prueba en sandbox con `10` (6 %),
+   `14` (0 %) y `13` (Non Tax); si QBO devuelve el impuesto correcto, listo.
+2. **Si QBO no calcula solo:** replicar el bloque de n8n. Hace falta el mapa
+   código → `TaxRateRef` y porcentaje: `14 → 25, 0 %` está confirmado;
+   *abierto: `10 → ?, 6 %` y `13 → ?, 0 %`* (se leen con
+   `SELECT * FROM TaxCode` en la empresa real). `NetAmountTaxable` es la suma
+   de `Amount` de las líneas; `TotalTax = round(net × pct / 100, 2)`.
+
+**Notas:** la factura de ejemplo no trae `PrivateNote` ni `CustomerMemo`, así
+que no se sabe si n8n los manda cuando `notes` tiene valor. El traductor manda
+`CustomerMemo.value = payload['notes']` si hay notas, y **siempre**
+`PrivateNote = 'PesosApp pedido {order_id}'`: es la única forma de rastrear un
+duplicado desde QBO y no se imprime en la factura del cliente.
+
+**Preguntas abiertas para JM antes de cerrar la Task 4** (cuatro, todas
+chicas): `SalesTermRef` fijo o por cliente; `Sales Rep` fijo o por vendedor;
+valor de `Currency2` para USD; `Description` de un producto no pesable. Se
+responden con una factura USD de ejemplo y una con un producto por cajas.
 
 - [ ] **Step 1: Tests** con un payload de cliente XCG (dos productos, uno
       pesable con tres cajas) y otro USD: agrupado y descripciones, `ClassRef`
