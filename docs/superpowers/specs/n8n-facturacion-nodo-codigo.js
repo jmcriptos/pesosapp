@@ -1,6 +1,7 @@
 /** Nodo Code "Generar Numero Factura": arma la factura de QBO.
  *
- *  Copia del nodo desplegado en n8n, exportado por JM el 2026-09-11.
+ *  Copia del nodo desplegado en n8n, segundo export de JM del
+ *  2026-09-11 (el primero era una version anterior).
  *  Fuente de verdad del traductor `utils/qbo_factura.py` (ver
  *  docs/superpowers/plans/2026-09-11-qbo-api-directa.md, Task 4).
  *
@@ -35,8 +36,8 @@
  *
  *  CAMBIOS 2026-09-08
  *  1. CODIGO DE IMPUESTO: el TxnTaxDetail se omitia al 0% y la
- *     factura salia SIN CODIGO (la 5865). Va siempre, con la
- *     TaxRateRef que corresponde al TaxCode.
+ *     factura salia SIN CODIGO (la 5865). Va siempre. La
+ *     TaxRateRef sigue fija en 25 a proposito: ver abajo.
  *  2. CURRENCY2: el campo de moneda que se ve en la pantalla de
  *     QBO no lo escribia nadie y se quedaba en XCG. El que la app
  *     llenaba bien es otro campo, que la pantalla no muestra.
@@ -224,17 +225,19 @@ const PCT_POR_CODIGO = {
   '14': 0    // OB Non Tax Local Prod
 };
 
-// TaxRate que corresponde a cada TaxCode. Son entidades distintas
-// en QBO. Medidas el 2026-09-08 contra la lista real de la empresa.
-// QuickBooks reescribe la que le mandemos si no coincide (la 5863
-// se mando con 25 y quedo guardada con 17), pero mandar la correcta
-// deja el payload igual a lo que QBO va a guardar.
-const TASA_POR_CODIGO = {
-  '10': '17',  // OB 6%
-  '11': '18',  // OB 9%
-  '13': '19',  // Non Tax
-  '14': '25'   // OB Non Tax Local Prod
-};
+// TaxRate: va SIEMPRE '25', para cualquier codigo.
+//
+// NO es la que corresponde. Las reales son 17 = OB 6%, 18 = OB 9%,
+// 19 = Non Tax, 25 = OB Non Tax Local Prod. Y esa es justamente la
+// gracia: QuickBooks no acepta la que le mandamos, recalcula la
+// tasa desde el TxnTaxCodeRef y guarda la correcta -- la 5863 se
+// mando con 25 y quedo guardada con 17, al 6%.
+//
+// Mandarle la 17 "correcta" le rompe el calculo: la factura sale
+// al 0% y hay que ajustarla a mano. Pasó con la 5867 el
+// 2026-09-08, y fue un cambio hecho sobre la teoria de que daba
+// igual. No da igual. No lo vuelvas a "arreglar".
+const TAX_RATE_REF = '25';
 
 const taxCodeFactura = taxCodeDe(body.lines?.[0]);
 console.log(`TaxCode de QBO: ${taxCodeFactura || '(ninguno)'}`);
@@ -416,9 +419,7 @@ if (taxCodeFactura) {
         TaxPercent: pct,
         NetAmountTaxable: neto,
         PercentBased: true,
-        TaxRateRef: {
-          value: TASA_POR_CODIGO[taxCodeFactura] || '25'
-        }
+        TaxRateRef: { value: TAX_RATE_REF }
       }
     }]
   };

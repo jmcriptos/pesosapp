@@ -300,9 +300,6 @@ path del webhook y el realm id tachados en
 | `...-5878-xcg-cajas.json` | 5878, cliente 1497 | XCG, código 10 (6 %), atunes y aceites por cajas |
 | `...-5869-usd-export.json` | 5869, cliente 1737 | USD, código 13 (Non Tax), tipo de cambio 1,78 |
 
-Ojo: los tres bodies son la **salida del nodo de código**, no lo que llegó a
-QBO. Lo que llegó es el subconjunto que reenvía el nodo HTTP (ver
-`n8n-facturacion-export.md`).
 
 El nodo de código de n8n lleva **comentarios con errores medidos en
 producción** (6070, 6100, 6240, facturas 5848, 5856, 5863, 5864, 5865). Son
@@ -315,8 +312,9 @@ la parte más valiosa del export: cada uno es un test del traductor.
   la app usa la fecha local de Curaçao, que es lo correcto.
 - `SalesTermRef.value = '46'`. Constante `QBO_SALES_TERM_ID` (n8n lo tiene
   fijo; no depende del cliente).
-- `CurrencyRef.value = payload['currency_qbo']` siempre. **Sin
-  `ExchangeRate` ni `GlobalTaxCalculation`**: ver «Impuesto» más abajo.
+- `GlobalTaxCalculation = 'TaxExcluded'`.
+- `CurrencyRef.value = payload['currency_qbo']` y `ExchangeRate =
+  payload['exchange_rate']` siempre (también en ANG con 1).
 - `CustomerMemo.value` es un **texto fijo** con los datos bancarios de Jomar,
   puesto en el nodo HTTP (no en el de código):
   `"Jomar Foods, BV\nCrib nr.: 102505329\nK.V.K.: 148768\nRBC Account# 8000009000132576"`.
@@ -369,32 +367,40 @@ exactos; el `double` da 1.861,0749… y salía 1.861,07). En Python:
   reportes por clase. Sin coincidencia, la línea va sin `ClassRef` y la app ya
   avisa («se facturaron sin clase»).
 
-**Impuesto, tipo de cambio y modo de cálculo: NO se mandan.** Confirmado
-por JM el 2026-09-11: el nodo HTTP en producción reenvía solo `Line`,
-`CustomerRef`, `SalesTermRef`, `TxnDate`, `DueDate`, `DocNumber`,
-`CustomField`, `CurrencyRef` y el `CustomerMemo` fijo, **y la facturación
-funciona correctamente así desde los cambios del 2026-09-10**. QuickBooks
-pone el impuesto correcto por sus propios defaults (con toda probabilidad el
-código de impuesto de cada ítem: cárnicos al 14, importados al 10, y el
-cliente USD exento). El traductor replica **exactamente lo que el nodo HTTP
-manda hoy**, que es lo probado, y no el objeto completo del nodo de código.
+**Impuesto (`TxnTaxDetail`) — va siempre, calculado, con `TaxRateRef` fija
+en `25`.** Del segundo export de JM (2026-09-11, el desplegado): el nodo
+HTTP reenvía `GlobalTaxCalculation`, `TxnTaxDetail`, `CurrencyRef` y
+`ExchangeRate`, y **la facturación sale correcta así**. Hechos medidos en
+producción que fijan el diseño:
 
-Lo que el nodo de código arma y el HTTP no reenvía (`GlobalTaxCalculation`,
-`ExchangeRate`, `TxnTaxDetail`, tablas `PCT_POR_CODIGO` y `TASA_POR_CODIGO`)
-**no se porta**. Queda documentado en `n8n-facturacion-nodo-codigo.js` por
-si hiciera falta; los comentarios de ese nodo sobre 5848 y 5865 describen un
-estado anterior que ya no aplica.
+- Con solo `TxnTaxCodeRef`, la factura sale al 0 % (5848). Hay que mandar
+  `TotalTax` y `TaxLine`.
+- Sin `TxnTaxDetail`, la factura sale **sin código** y no entra en el reporte
+  de OB (5865). El bloque va también al 0 %.
+- `TaxRateRef` va **siempre `'25'`**, para cualquier código. No es la tasa
+  que corresponde (las reales son 17 = OB 6 %, 18 = OB 9 %, 19 = Non Tax,
+  25 = Local Prod): QBO la rechaza, recalcula desde `TxnTaxCodeRef` y guarda
+  la correcta (5863: mandada con 25, guardada con 17 al 6 %). Mandar la
+  «correcta» 17 **rompe el cálculo** y la factura sale al 0 % (5867). El
+  traductor lleva este comentario al lado de la constante para que nadie lo
+  «arregle».
 
-Se conserva la validación de que todas las líneas del payload traen el mismo
-`tax_rate` (`ValueError` si no), aunque el valor no viaje: es la garantía de
-que el pedido no mezcla grupos de facturación.
+```python
+PCT_POR_CODIGO = {'10': 6, '11': 9, '13': 0, '14': 0}
+TAX_RATE_REF = '25'   # siempre; ver comentario de la 5867
+```
 
-**Una sola verificación pendiente en sandbox, no bloqueante:** el tipo de
-cambio de una factura USD. Como `ExchangeRate` no viaja, QBO usa su propia
-tasa del día para contabilizar en ANG; la app usa 1,78. Si en la 5869 QBO
-muestra 1,78, no hay nada que hacer; si muestra otra cosa, mandar
-`ExchangeRate` es una línea y se prueba en sandbox. La factura al cliente,
-en dólares, no cambia en ningún caso.
+`NetAmountTaxable` = suma de `Amount` en centavos; `TotalTax = round_half_up(
+neto × pct / 100)` en centavos; `TaxLine[0] = {Amount: TotalTax, DetailType:
+'TaxLineDetail', TaxLineDetail: {TaxPercent, NetAmountTaxable, PercentBased:
+True, TaxRateRef: {value: '25'}}}`. Un código fuera de `PCT_POR_CODIGO`
+levanta `ValueError`; líneas con códigos distintos, `ValueError`.
+
+**Tipo de cambio y modo de cálculo:** `GlobalTaxCalculation = 'TaxExcluded'`
+siempre; `ExchangeRate = exchange_rate` siempre que sea distinto de 0 (n8n lo
+manda si es truthy, así que en ANG viaja `1`). Los tres bodies de ejemplo son
+la salida del nodo de código y, con este template, también lo que llega a
+QBO, salvo el `CustomerMemo` que agrega el nodo HTTP.
 
 **Otro hallazgo, fuera de alcance de este plan:** al leer las facturas en
 QBO, la 5878 tiene 5 de 7 líneas con precio corregido a mano y un ítem
@@ -406,10 +412,11 @@ cada factura corregida, o que se automatice en un plan aparte.
 - [ ] **Step 1: Tests** con los tres bodies reales como fixtures esperados
       (reconstruyendo el payload de la app que los produjo) y además los
       casos medidos en producción: 128,350 × 14,50 = 1.861,08 (6070);
-      0,1 × 3 = 0,30; `TaxCodeRef` de línea siempre `TAX` (6100); el body
-      **no** trae `TxnTaxDetail`, `ExchangeRate` ni `GlobalTaxCalculation`;
-      `Currency2` 1/2; `CustomerMemo` fijo; clase por palabra clave cuando
-      falta `class_ref`; `ValueError` si se mezclan impuestos.
+      0,1 × 3 = 0,30; `TaxCodeRef` de línea siempre `TAX` (6100); bloque de
+      impuesto presente al 0 % (5865) y `TaxRateRef` siempre `25` (5867);
+      2.666,98 × 6 % = 160,02; `Currency2` 1/2; `CustomerMemo` fijo; clase
+      por palabra clave cuando falta `class_ref`; `ValueError` si se mezclan
+      impuestos o el código no está en la tabla.
 - [ ] **Step 2: Implementar** como función pura. Sin Flask, sin DB, sin red.
 - [ ] **Step 3:** en verde. Guardar en `tests/fixtures/qbo/` la primera
       respuesta real del sandbox para la Task 6.

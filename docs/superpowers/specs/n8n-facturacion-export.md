@@ -24,15 +24,18 @@ Production» de n8n y los headers `Content-Type: application/json`,
 
 ## Body del nodo «HTTP Facturar QBO»
 
-Es un template, no un reenvío del objeto completo que arma el nodo de
-código. Campos que reenvía:
+Es un template que reenvía lo que arma el nodo de código, más un
+`CustomerMemo` fijo:
 
 ```
 Line, CustomerRef, SalesTermRef, TxnDate, DueDate, DocNumber, CustomField,
-CurrencyRef (solo si existe)
+GlobalTaxCalculation,
+TxnTaxDetail  (solo si existe),
+CurrencyRef   (solo si existe),
+ExchangeRate  (solo si existe)
 ```
 
-Y agrega un `CustomerMemo` fijo:
+`CustomerMemo.value`:
 
 ```
 Jomar Foods, BV
@@ -41,9 +44,7 @@ K.V.K.: 148768
 RBC Account# 8000009000132576
 ```
 
-**No reenvía** `ExchangeRate`, `GlobalTaxCalculation` ni `TxnTaxDetail`,
-aunque el nodo de código los arma. Ver la discrepancia 2 en la Task 4 del
-plan `2026-09-11-qbo-api-directa.md`.
-
-**Confirmado por JM el 2026-09-11:** este template es el que está en
-producción. Los tres campos que faltan nunca han llegado a QuickBooks.
+Historial: el primer export que entregó JM el 2026-09-11 tenía un template
+anterior que **no** reenviaba `GlobalTaxCalculation`, `TxnTaxDetail` ni
+`ExchangeRate`. El segundo export, del mismo día, es el desplegado y sí los
+reenvía; la facturación funciona correctamente con él.
