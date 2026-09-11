@@ -483,13 +483,12 @@ def siguiente_doc_number(client, ultimo_local: int | None) -> str
 Con las capas 2 y 3 el duplicado solo puede venir de una nota de crédito
 creada a mano en QBO en los mismos segundos, y para eso está la 4.
 
-**Alternativa que queda en manos de JM:** apagar «Custom transaction
-numbers» en QBO y dejar que QuickBooks numere solo. Elimina las consultas y
-la carrera de raíz, y la app lee el `DocNumber` de la respuesta como ya hace.
-Hay que verificar en sandbox que las notas de crédito sigan compartiendo la
-secuencia con las facturas como hoy; si lo hacen, es la opción más simple y
-el plan se reduce a la capa 4. Cambia una decisión tomada
-(`docnumber-carrera-decision`), así que la toma JM, no este plan.
+**Decisión de JM (2026-09-11): numeración manual con las tres capas, tal
+cual está implementada.** Se evaluó y descartó dejar que QuickBooks numere
+solo (apagar «Custom transaction numbers»): habría eliminado las consultas y
+la carrera, pero cambia `docnumber-carrera-decision` y exige verificar que
+las notas de crédito sigan compartiendo la secuencia. No se retoma salvo que
+JM lo pida.
 
 - [ ] **Step 1: Tests:** mayor numérico entre facturas y notas de crédito
       mezcladas; `ultimo_local` mayor que QBO gana; ignora DocNumbers no
