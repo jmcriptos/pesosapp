@@ -1,0 +1,40 @@
+[
+  {
+    "CustomerRef": {"value": "1497"},
+    "DocNumber": "5879",
+    "TxnDate": "2026-09-11",
+    "DueDate": "2026-09-18",
+    "SalesTermRef": {"value": "46"},
+    "GlobalTaxCalculation": "TaxExcluded",
+    "CustomField": [
+      {"DefinitionId": "1", "Name": "Currency", "Type": "StringType", "StringValue": "XCG - Caribbean Guilder"},
+      {"DefinitionId": "2", "Name": "Sales Rep", "Type": "StringType", "StringValue": "OF"},
+      {"DefinitionId": "3", "Name": "Tax ID No.", "Type": "StringType", "StringValue": ""},
+      {"DefinitionId": "1000000003", "Name": "Currency2", "Type": "StringType", "StringValue": "1"}
+    ],
+    "Line": [
+      {"DetailType": "SalesItemLineDetail", "Description": "23.15\t23.40", "Amount": 614.46,
+       "SalesItemLineDetail": {"ItemRef": {"value": "1365", "name": "Cooked Chicken Ham"}, "Qty": 46.55, "UnitPrice": 13.2, "TaxCodeRef": {"value": "TAX"}, "ClassRef": {"value": "600000000005541105"}}},
+      {"DetailType": "SalesItemLineDetail", "Description": "23.30\t23.20\t23.35\t23.45\t23.45", "Amount": 1663.69,
+       "SalesItemLineDetail": {"ItemRef": {"value": "1370", "name": "Cooked Shoulder"}, "Qty": 116.75, "UnitPrice": 14.25, "TaxCodeRef": {"value": "TAX"}, "ClassRef": {"value": "600000000005541105"}}},
+      {"DetailType": "SalesItemLineDetail", "Description": "12.20", "Amount": 243.76,
+       "SalesItemLineDetail": {"ItemRef": {"value": "1354", "name": "Ham di Pasku di Turkey"}, "Qty": 12.2, "UnitPrice": 19.98, "TaxCodeRef": {"value": "TAX"}, "ClassRef": {"value": "600000000005541105"}}},
+      {"DetailType": "SalesItemLineDetail", "Description": "10.40\t13.20\t12.50\t14.60\t12.40\t14.90\t14.25\t13.45\t15.10\t15.30\t13.80\t12.50\t14.50\t12.45\t13.45\t13.90\t13.20\t17.00\t13.15\t12.60", "Amount": 3817.1,
+       "SalesItemLineDetail": {"ItemRef": {"value": "1351", "name": "Porchop Huma Ku Wesu"}, "Qty": 272.65, "UnitPrice": 14, "TaxCodeRef": {"value": "TAX"}, "ClassRef": {"value": "600000000005541105"}}},
+      {"DetailType": "SalesItemLineDetail", "Description": "18.85", "Amount": 269.56,
+       "SalesItemLineDetail": {"ItemRef": {"value": "1366", "name": "Smoked Chicken Ham"}, "Qty": 18.85, "UnitPrice": 14.3, "TaxCodeRef": {"value": "TAX"}, "ClassRef": {"value": "600000000005541105"}}},
+      {"DetailType": "SalesItemLineDetail", "Description": "19.50", "Amount": 363.68,
+       "SalesItemLineDetail": {"ItemRef": {"value": "1352", "name": "Smoked Turkey Ham"}, "Qty": 19.5, "UnitPrice": 18.65, "TaxCodeRef": {"value": "TAX"}, "ClassRef": {"value": "600000000005541105"}}}
+    ],
+    "CurrencyRef": {"value": "ANG"},
+    "ExchangeRate": 1,
+    "TxnTaxDetail": {
+      "TotalTax": 0,
+      "TxnTaxCodeRef": {"value": "14"},
+      "TaxLine": [
+        {"Amount": 0, "DetailType": "TaxLineDetail",
+         "TaxLineDetail": {"TaxPercent": 0, "NetAmountTaxable": 6972.25, "PercentBased": true, "TaxRateRef": {"value": "25"}}}
+      ]
+    }
+  }
+]
