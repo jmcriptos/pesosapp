@@ -302,3 +302,61 @@ def test_sin_lineas_es_error():
 
 def test_codigo_como_string_o_float_se_normaliza():
     assert codigo_impuesto_del_payload({'lines': [{'tax_rate': '10'}, {'tax_rate': 10.0}]}) == '10'
+
+
+# ── número de factura ─────────────────────────────────────────────────────
+
+from unittest.mock import MagicMock
+from utils.qbo_factura import siguiente_doc_number, QUERY_DOCNUMBER
+from utils.qbo_client import QboError
+
+
+def _cliente_docnumber(facturas, notas):
+    cliente = MagicMock()
+
+    def query(sql):
+        if 'FROM Invoice' in sql:
+            return {'Invoice': [{'DocNumber': n} for n in facturas]} if facturas else {}
+        if 'FROM CreditMemo' in sql:
+            return {'CreditMemo': [{'DocNumber': n} for n in notas]} if notas else {}
+        raise AssertionError(sql)
+
+    cliente.query.side_effect = query
+    return cliente
+
+
+def test_siguiente_es_el_mayor_entre_facturas_y_notas_mas_uno():
+    cliente = _cliente_docnumber(['5879', '5878', '5877'], ['5880', '5850'])
+    assert siguiente_doc_number(cliente) == '5881'
+
+
+def test_consulta_las_dos_entidades_con_la_query_de_n8n():
+    cliente = _cliente_docnumber(['5879'], [])
+    siguiente_doc_number(cliente)
+    consultas = [c.args[0] for c in cliente.query.call_args_list]
+    assert consultas == [
+        'SELECT DocNumber FROM Invoice ORDER BY MetaData.CreateTime DESC MAXRESULTS 50',
+        'SELECT DocNumber FROM CreditMemo ORDER BY MetaData.CreateTime DESC MAXRESULTS 50',
+    ]
+
+
+def test_ultimo_local_gana_si_qbo_todavia_no_indexo_la_anterior():
+    """La app acaba de emitir la 5880 pero QBO aún devuelve 5879 como máxima."""
+    cliente = _cliente_docnumber(['5879'], ['5850'])
+    assert siguiente_doc_number(cliente, ultimo_local=5880) == '5881'
+
+
+def test_ultimo_local_menor_no_retrocede():
+    cliente = _cliente_docnumber(['5879'], [])
+    assert siguiente_doc_number(cliente, ultimo_local=5000) == '5880'
+
+
+def test_ignora_docnumbers_no_numericos():
+    cliente = _cliente_docnumber(['5879', 'NC-12', '', None, ' 5900 '], ['abc'])
+    assert siguiente_doc_number(cliente) == '5901'
+
+
+def test_sin_numeros_en_qbo_es_error_no_un_arranque_inventado():
+    cliente = _cliente_docnumber([], [])
+    with pytest.raises(QboError, match='no devolvió ningún número'):
+        siguiente_doc_number(cliente, ultimo_local=5880)

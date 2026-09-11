@@ -287,3 +287,57 @@ def construir_invoice(payload: dict, doc_number: str, hoy: date) -> dict:
     # No se imprime. Es la única forma de rastrear un duplicado desde QBO.
     factura['PrivateNote'] = f"PesosApp pedido {payload.get('order_id')}"
     return factura
+
+
+# ── número de factura ─────────────────────────────────────────────────────
+
+# Consulta de n8n, tal cual: las últimas 50 por fecha de creación. Facturas
+# y notas de crédito COMPARTEN la secuencia (las notas se hacen a mano en
+# QBO y consumen números que la app no ve), por eso van las dos.
+MAX_RESULTADOS_DOCNUMBER = 50
+QUERY_DOCNUMBER = (
+    'SELECT DocNumber FROM {entidad} '
+    'ORDER BY MetaData.CreateTime DESC MAXRESULTS {n}'
+)
+ENTIDADES_DOCNUMBER = ('Invoice', 'CreditMemo')
+
+
+def _numeros(respuesta: dict, entidad: str) -> list:
+    numeros = []
+    for doc in respuesta.get(entidad) or []:
+        try:
+            numeros.append(int(str(doc.get('DocNumber')).strip()))
+        except (TypeError, ValueError):
+            continue
+    return numeros
+
+
+def siguiente_doc_number(client, ultimo_local: Optional[int] = None) -> str:
+    """El próximo número de factura: el mayor conocido más uno.
+
+    «Conocido» junta tres fuentes:
+      1. las últimas 50 facturas de QBO,
+      2. las últimas 50 notas de crédito de QBO,
+      3. `ultimo_local`, el mayor número que la app misma ya emitió
+         (cubre el retraso de unos segundos del índice de consulta de QBO
+         tras crear una factura).
+
+    Sin números en QBO levanta `QboError`: nunca se inventa un arranque
+    (n8n caía a 5320). El bloqueo entre workers y el reintento por 6240
+    viven en `_crear_factura_qbo` (app.py).
+    """
+    from utils.qbo_client import QboError
+
+    candidatos = []
+    for entidad in ENTIDADES_DOCNUMBER:
+        respuesta = client.query(QUERY_DOCNUMBER.format(
+            entidad=entidad, n=MAX_RESULTADOS_DOCNUMBER))
+        candidatos.extend(_numeros(respuesta, entidad))
+    if not candidatos:
+        raise QboError(
+            'QuickBooks no devolvió ningún número de factura ni de nota de '
+            'crédito; no se puede numerar la factura'
+        )
+    if ultimo_local is not None:
+        candidatos.append(int(ultimo_local))
+    return str(max(candidatos) + 1)
