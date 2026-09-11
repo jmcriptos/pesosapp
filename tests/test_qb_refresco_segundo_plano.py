@@ -7,6 +7,7 @@ el timeout completo.
 """
 import time
 import threading
+from datetime import datetime
 
 import app as app_module
 
@@ -157,3 +158,79 @@ def test_kilos_no_cuenta_dos_veces_la_linea_de_preparacion():
     kg, cajas = app_module._kilos_y_cajas_pedido(ped)
     assert abs(kg - 18.4) < 0.001, f'no debía sumar la prep encima, dio {kg}'
     assert abs(cajas - 2) < 0.001, f'dio {cajas} cajas'
+
+
+# ── Ventana de refresco: el plan de n8n se cobra por ejecución ──────────────
+#
+# El 2026-09-11 la instancia de n8n llegó al 100% de su cuota mensual. El bucle
+# periódico corría cada 300 s las 24 h: 288 ejecuciones/día (~8.600/mes) que
+# nadie pidió. Estos tests fijan que el bucle no salga a la red de madrugada ni
+# en domingo, y que el default del intervalo no vuelva a 300 s por descuido.
+
+def _momento(dia, hora):
+    """Un datetime en hora de Curaçao. `dia` es weekday(): lunes=0."""
+    # 2026-09-07 fue lunes, así que sumar `dia` da el weekday buscado.
+    return datetime(2026, 9, 7 + dia, hora, 0, tzinfo=app_module.DASHBOARD_TIMEZONE)
+
+
+def test_ventana_abierta_en_horario_laboral(monkeypatch):
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_INICIO', 6)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_FIN', 19)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_DIAS', frozenset(range(0, 6)))
+
+    assert app_module._dentro_de_ventana_refresco(_momento(0, 6)) is True   # lunes al abrir
+    assert app_module._dentro_de_ventana_refresco(_momento(2, 13)) is True  # miércoles mediodía
+    assert app_module._dentro_de_ventana_refresco(_momento(5, 18)) is True  # sábado, último tramo
+
+
+def test_ventana_cerrada_de_madrugada_y_en_domingo(monkeypatch):
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_INICIO', 6)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_FIN', 19)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_DIAS', frozenset(range(0, 6)))
+
+    assert app_module._dentro_de_ventana_refresco(_momento(1, 3)) is False   # martes 3 a.m.
+    assert app_module._dentro_de_ventana_refresco(_momento(1, 19)) is False  # fin exclusivo
+    assert app_module._dentro_de_ventana_refresco(_momento(6, 12)) is False  # domingo
+
+
+def test_ventana_de_24h_cuando_inicio_y_fin_coinciden(monkeypatch):
+    """Escape hatch: quien quiera el comportamiento viejo lo pide explícito."""
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_INICIO', 0)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_FIN', 0)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_DIAS', frozenset(range(0, 7)))
+
+    assert app_module._dentro_de_ventana_refresco(_momento(1, 3)) is True
+    assert app_module._dentro_de_ventana_refresco(_momento(6, 23)) is True
+
+
+def test_ventana_que_cruza_la_medianoche(monkeypatch):
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_INICIO', 22)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_HORA_FIN', 6)
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_DIAS', frozenset(range(0, 7)))
+
+    assert app_module._dentro_de_ventana_refresco(_momento(1, 23)) is True
+    assert app_module._dentro_de_ventana_refresco(_momento(1, 2)) is True
+    assert app_module._dentro_de_ventana_refresco(_momento(1, 12)) is False
+
+
+def test_intervalo_periodico_no_vuelve_a_cinco_minutos():
+    """300 s × 24 h agotó el plan una vez; que no se cuele de nuevo."""
+    assert app_module.N8N_QB_REFRESH_INTERVAL_SEC >= 900
+
+
+def test_dias_de_refresco_se_parsean_desde_rango_o_lista():
+    parsear = app_module._parsear_dias_refresco
+    assert parsear('0-5') == set(range(0, 6))
+    assert parsear('0,2,4') == {0, 2, 4}
+    assert parsear(' 1 - 3 ') == {1, 2, 3}
+    assert parsear('0-99') == set(range(0, 7)), 'recorta a días válidos'
+
+
+def test_dias_de_refresco_invalidos_caen_al_default():
+    parsear = app_module._parsear_dias_refresco
+    default = frozenset(range(0, 6))
+    assert parsear(None) == default
+    assert parsear('') == default
+    assert parsear('lunes') == default
+    assert parsear('5-1') == default, 'rango invertido no vacía la semana'
+    assert parsear('9') == default, 'solo días fuera de rango no vacía la semana'

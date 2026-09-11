@@ -175,10 +175,56 @@ try:
     N8N_QB_STALE_CACHE_TTL = int(os.environ.get('N8N_QB_STALE_CACHE_TTL', 86400))
 except (TypeError, ValueError):
     N8N_QB_STALE_CACHE_TTL = 86400
+# El bucle periódico es, de lejos, el que más ejecuciones de n8n consume: es
+# el único que llama sin que nadie lo pida. A 300 s son 288 ejecuciones/día
+# (~8.600/mes) y eso solo agota el plan. A 900 s dentro de la ventana laboral
+# quedan ~52/día (~1.350/mes), que es lo que el negocio realmente necesita:
+# las ventas de QuickBooks no cambian de madrugada ni en domingo.
 try:
-    N8N_QB_REFRESH_INTERVAL_SEC = int(os.environ.get('N8N_QB_REFRESH_INTERVAL_SEC', 300))
+    N8N_QB_REFRESH_INTERVAL_SEC = int(os.environ.get('N8N_QB_REFRESH_INTERVAL_SEC', 900))
 except (TypeError, ValueError):
-    N8N_QB_REFRESH_INTERVAL_SEC = 300
+    N8N_QB_REFRESH_INTERVAL_SEC = 900
+# Ventana en la que el bucle periódico tiene permiso de salir a la red, en
+# hora de Curaçao. Fuera de ella la fila se sigue sirviendo (dura 24 h) y un
+# usuario que abra el dashboard igual dispara su refresco bajo demanda.
+try:
+    N8N_QB_REFRESH_HORA_INICIO = int(os.environ.get('N8N_QB_REFRESH_HORA_INICIO', 6))
+except (TypeError, ValueError):
+    N8N_QB_REFRESH_HORA_INICIO = 6
+try:
+    N8N_QB_REFRESH_HORA_FIN = int(os.environ.get('N8N_QB_REFRESH_HORA_FIN', 19))
+except (TypeError, ValueError):
+    N8N_QB_REFRESH_HORA_FIN = 19
+# Días laborables, con lunes=0 como `datetime.weekday()`. Por defecto lunes a
+# sábado: el domingo Jomar no despacha y nadie mira el dashboard.
+def _parsear_dias_refresco(crudo, default=frozenset(range(0, 6))):
+    """'0,1,2' o '0-5' → {0,1,2,...}. Un valor inservible cae al default."""
+    if crudo is None:
+        return default
+    crudo = crudo.strip()
+    if not crudo:
+        return default
+    dias = set()
+    for parte in crudo.split(','):
+        parte = parte.strip()
+        if not parte:
+            continue
+        try:
+            if '-' in parte.lstrip('-'):
+                desde, hasta = parte.split('-', 1)
+                desde, hasta = int(desde), int(hasta)
+                if desde > hasta:
+                    return default
+                dias.update(range(desde, hasta + 1))
+            else:
+                dias.add(int(parte))
+        except (TypeError, ValueError):
+            return default
+    dias = {d for d in dias if 0 <= d <= 6}
+    return dias or default
+
+
+N8N_QB_REFRESH_DIAS = _parsear_dias_refresco(os.environ.get('N8N_QB_REFRESH_DIAS'))
 try:
     N8N_QB_REFRESH_THROTTLE_SEC = int(os.environ.get('N8N_QB_REFRESH_THROTTLE_SEC', 30))
 except (TypeError, ValueError):
@@ -2117,12 +2163,39 @@ def _refrescar_qb_con_contexto(*, respetar_throttle):
             db.session.remove()
 
 
+def _dentro_de_ventana_refresco(ahora=None):
+    """True si el bucle periódico tiene permiso de salir a n8n en este momento.
+
+    El plan de n8n se cobra por ejecución y el bucle periódico es el único que
+    llama sin que nadie lo pida, así que fuera del horario de Jomar no gasta:
+    la fila dura 24 h y sigue sirviéndose igual. Un usuario que abra el
+    dashboard de madrugada dispara su refresco bajo demanda sin pasar por acá.
+
+    Con la ventana abierta las 24 h (`N8N_QB_REFRESH_HORA_INICIO` igual a
+    `N8N_QB_REFRESH_HORA_FIN`) solo filtra por día.
+    """
+    ahora = ahora or datetime.now(DASHBOARD_TIMEZONE)
+    if ahora.weekday() not in N8N_QB_REFRESH_DIAS:
+        return False
+    inicio, fin = N8N_QB_REFRESH_HORA_INICIO, N8N_QB_REFRESH_HORA_FIN
+    if inicio == fin:
+        return True
+    if inicio < fin:
+        return inicio <= ahora.hour < fin
+    # Ventana que cruza la medianoche (ej. 22→6).
+    return ahora.hour >= inicio or ahora.hour < fin
+
+
 def _iniciar_refresco_periodico_qb():
     """Un hilo por worker que refresca la fila cada N8N_QB_REFRESH_INTERVAL_SEC.
 
     Así el dato se mantiene fresco aunque nadie abra el dashboard, y a nadie le
     toca pagar el refresco. Los workers se coordinan por `last_refresh_attempt`:
     el que llega segundo dentro del throttle no sale a la red.
+
+    El bucle solo sale a n8n dentro de la ventana laboral: ver
+    `_dentro_de_ventana_refresco`. Fuera de ella despierta, mira el reloj y se
+    vuelve a dormir sin gastar una ejecución del plan.
     """
     global _qb_periodico_iniciado
     if _qb_periodico_iniciado or N8N_QB_REFRESH_INTERVAL_SEC <= 0:
@@ -2133,6 +2206,8 @@ def _iniciar_refresco_periodico_qb():
         while True:
             time.sleep(N8N_QB_REFRESH_INTERVAL_SEC)
             try:
+                if not _dentro_de_ventana_refresco():
+                    continue
                 _refrescar_qb_con_contexto(respetar_throttle=True)
             except Exception as e:
                 app.logger.warning(f'[qb-cache] pid={os.getpid()} refresco periódico falló: {e}')
