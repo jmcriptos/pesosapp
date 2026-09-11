@@ -13,8 +13,8 @@ Datos fijos:
 | Qué | Valor |
 |---|---|
 | App de Heroku | `pesosapp` |
-| Dominio | `https://pesosapp-caa46963237c.herokuapp.com` (si entrás por otro dominio, usá ese) |
-| Redirect URI de producción | `https://pesosapp-caa46963237c.herokuapp.com/admin/quickbooks/callback` |
+| Dominio | `https://app.jomarfoods.com` (el de `herokuapp.com` no se usa para la Redirect URI) |
+| Redirect URI de producción | `https://app.jomarfoods.com/admin/quickbooks/callback` |
 | Rama con el código | `claude/festive-goldberg-ds8ujn` |
 | Rama que despliega Heroku | `main` |
 
@@ -31,7 +31,7 @@ logueado. **Las claves nunca se pegan en el chat.**
       varias conexiones a la vez, cada una con su propio refresh token, así
       que n8n sigue funcionando.
 - [ ] En esa misma pestaña, **Redirect URIs** → Add URI:
-      `https://pesosapp-caa46963237c.herokuapp.com/admin/quickbooks/callback`.
+      `https://app.jomarfoods.com/admin/quickbooks/callback`.
       Tiene que quedar letra por letra igual; Intuit rechaza cualquier
       diferencia (barra final, http, mayúsculas).
 - [ ] Tener a mano un usuario **super_admin** de PesosApp: es el único rol
@@ -86,7 +86,7 @@ heroku config:set --app pesosapp \
   QBO_CLIENT_ID='<client id de producción>' \
   QBO_CLIENT_SECRET='<client secret de producción>' \
   QBO_ENVIRONMENT=production \
-  QBO_REDIRECT_URI=https://pesosapp-caa46963237c.herokuapp.com/admin/quickbooks/callback \
+  QBO_REDIRECT_URI=https://app.jomarfoods.com/admin/quickbooks/callback \
   QBO_MINOR_VERSION=75 \
   QBO_TIMEOUT=20 \
   QBO_TASA_USD=1.78 \
