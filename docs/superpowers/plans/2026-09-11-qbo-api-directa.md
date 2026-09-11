@@ -46,7 +46,7 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
       `http://localhost:5000/admin/quickbooks/callback` (desarrollo).
 - [ ] Crear (o confirmar) una **empresa sandbox** en el portal de Intuit. Ahí
       se prueba la Fase 1 antes de tocar la empresa real.
-- [x] Body real de n8n del 2026-09-11 guardado en `n8n-facturacion-body-2026-09-11.json` (ver Task 4). Sigue faltando el export del workflow para la consulta de DocNumber:
+- [x] Tres bodies reales de n8n (XCG pesables, XCG cajas al 6 %, USD export) guardados en `docs/superpowers/specs/n8n-facturacion-body-*.json` (ver Task 4). Sigue faltando el export del workflow para la consulta de DocNumber:
 - [ ] Exportar el JSON del workflow de facturación de n8n (`...` → Download) y
       dejarlo en `docs/superpowers/specs/n8n-facturacion-export.json`. El nodo
       `Generar Numero Factura` es la fuente de verdad de: la consulta de
@@ -288,9 +288,16 @@ payload: la app ya manda `currency_qbo`, `currency_display`, `exchange_rate`,
 `class_ref`, `product_name` y el `tax_rate` como código de QBO). Devuelve el
 body para `POST /invoice`.
 
-Reglas, tomadas del **body real que n8n mandó a QBO el 2026-09-11** (factura
-5879, cliente 1497, pegado por JM en el chat; copia en
-`docs/superpowers/specs/n8n-facturacion-body-2026-09-11.json`). Ese body es
+Reglas, tomadas de **tres bodies reales que n8n mandó a QBO** (pegados por JM
+en el chat; copias en `docs/superpowers/specs/n8n-facturacion-body-*.json`):
+
+| Archivo | Factura | Caso |
+|---|---|---|
+| `...-5879-xcg-pesables.json` | 5879, cliente 1497 | XCG, código 14 (0 %), solo pesables |
+| `...-5878-xcg-cajas.json` | 5878, cliente 1497 | XCG, código 10 (6 %), atunes y aceites por cajas |
+| `...-5869-usd-export.json` | 5869, cliente 1737 | USD, código 13 (Non Tax), tipo de cambio 1,78 |
+
+Ese body es
 más nuevo que el diseño del 2026-08-28: ya manda `CurrencyRef`,
 `ExchangeRate` y `Currency2`. Donde el body y el diseño difieren, manda el
 body.
@@ -301,8 +308,9 @@ body.
 - `TxnDate = hoy`, `DueDate = hoy + 7`. Confirmado (11 → 18 de septiembre).
 - `SalesTermRef.value = '46'`. **Nuevo, no estaba en el diseño.** Es el
   término de pago de QBO (presumiblemente Net 7). Constante `QBO_SALES_TERM_ID`
-  en `utils/qbo_factura.py`, con comentario. *Abierto: ¿es fijo para todos los
-  clientes o n8n lo lee del cliente?*
+  en `utils/qbo_factura.py`, con comentario. Sale igual en los tres bodies
+  (dos clientes distintos, XCG y USD), así que se trata como constante.
+  *Confirmar con JM que no depende del cliente.*
 - `GlobalTaxCalculation = 'TaxExcluded'`.
 - `CurrencyRef.value = payload['currency_qbo']` y `ExchangeRate =
   payload['exchange_rate']` **siempre**, también en ANG con tipo de cambio 1.
@@ -313,9 +321,9 @@ body.
 | DefinitionId | Name | StringValue |
 |---|---|---|
 | `1` | `Currency` | `payload['currency_display']` |
-| `2` | `Sales Rep` | `'OF'` en la factura de ejemplo. *Abierto: ¿fijo, o sale del vendedor del pedido?* |
+| `2` | `Sales Rep` | `'OF'` en los tres bodies. Constante `QBO_SALES_REP`. *Confirmar con JM que no sale del vendedor.* |
 | `3` | `Tax ID No.` | `''` |
-| `1000000003` | `Currency2` | `'1'` para XCG. *Abierto: qué valor lleva USD (y ANG si difiere). Es el índice de la lista, no el texto.* |
+| `1000000003` | `Currency2` | `'1'` para XCG/ANG, `'2'` para USD. Es el índice de la lista, no el texto. Mapa `CURRENCY2 = {'ANG': '1', 'USD': '2'}` sobre `currency_qbo`. |
 
 `Currency2` **sí** se escribe por API con `DefinitionId '1000000003'`: el
 pendiente 1 del diseño del 2026-08-28 queda resuelto por la evidencia.
@@ -340,19 +348,30 @@ pendiente 1 del diseño del 2026-08-28 queda resuelto por la evidencia.
 
 **Impuesto (`TxnTaxDetail`):** n8n manda hoy el bloque completo calculado a
 mano: `TotalTax`, `TxnTaxCodeRef` y un `TaxLine` con `TaxRateRef`,
-`TaxPercent`, `NetAmountTaxable` y `PercentBased: true`. Para el código `14`
-usa `TaxRateRef '25'` con 0 %. Dos caminos, se decide en sandbox:
+`TaxPercent`, `NetAmountTaxable` y `PercentBased: true`. Lo que manda hoy,
+según los tres bodies:
+
+| Código (`tax_rate`) | `TaxPercent` | `TaxRateRef` | Ejemplo |
+|---|---|---|---|
+| `10` OB 6 % | 6 | `25` | 5878: neto 2.666,98 → `TotalTax` 160,02 |
+| `14` OB 0 % local | 0 | `25` | 5879: neto 6.972,25 → 0 |
+| `13` Non Tax (export) | 0 | `19` | 5869: neto 771,20 → 0 |
+
+Que `10` y `14` compartan `TaxRateRef 25` con porcentajes distintos indica
+que QBO **recalcula** el impuesto a partir de `TxnTaxCodeRef` e ignora, o
+corrige, el `TaxLine` que se le manda. Es un argumento más para el camino 1.
+Dos caminos, se decide en sandbox:
 
 1. **Preferido:** mandar solo `TxnTaxDetail: {TxnTaxCodeRef: {value: código}}`
    y dejar que QBO calcule `TotalTax` y `TaxLine` a partir de
    `GlobalTaxCalculation: 'TaxExcluded'`. Es lo que recomendaba el diseño del
    2026-08-28 y elimina el mapa de tasas. Se prueba en sandbox con `10` (6 %),
    `14` (0 %) y `13` (Non Tax); si QBO devuelve el impuesto correcto, listo.
-2. **Si QBO no calcula solo:** replicar el bloque de n8n. Hace falta el mapa
-   código → `TaxRateRef` y porcentaje: `14 → 25, 0 %` está confirmado;
-   *abierto: `10 → ?, 6 %` y `13 → ?, 0 %`* (se leen con
-   `SELECT * FROM TaxCode` en la empresa real). `NetAmountTaxable` es la suma
-   de `Amount` de las líneas; `TotalTax = round(net × pct / 100, 2)`.
+2. **Si QBO no calcula solo:** replicar el bloque de n8n con la tabla de
+   arriba como constante `TAX_LINE_POR_CODIGO`. `NetAmountTaxable` es la suma
+   de `Amount` de las líneas; `TotalTax = round(net × pct / 100, 2)`
+   (verificado: 2.666,98 × 6 % = 160,02). Un código fuera de la tabla
+   (`11`, OB 9 %) levanta `ValueError` en vez de adivinar.
 
 **Notas:** la factura de ejemplo no trae `PrivateNote` ni `CustomerMemo`, así
 que no se sabe si n8n los manda cuando `notes` tiene valor. El traductor manda
@@ -360,10 +379,10 @@ que no se sabe si n8n los manda cuando `notes` tiene valor. El traductor manda
 `PrivateNote = 'PesosApp pedido {order_id}'`: es la única forma de rastrear un
 duplicado desde QBO y no se imprime en la factura del cliente.
 
-**Preguntas abiertas para JM antes de cerrar la Task 4** (cuatro, todas
-chicas): `SalesTermRef` fijo o por cliente; `Sales Rep` fijo o por vendedor;
-valor de `Currency2` para USD; `Description` de un producto no pesable. Se
-responden con una factura USD de ejemplo y una con un producto por cajas.
+**Preguntas abiertas para JM antes de cerrar la Task 4** (dos, de
+confirmación): que `SalesTermRef 46` y `Sales Rep 'OF'` sean constantes y no
+dependan del cliente ni del vendedor. Los tres bodies los traen iguales; si
+JM confirma, quedan como constantes con comentario.
 
 - [ ] **Step 1: Tests** con un payload de cliente XCG (dos productos, uno
       pesable con tres cajas) y otro USD: agrupado y descripciones, `ClassRef`
