@@ -49,10 +49,9 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 - [x] Tres bodies reales de n8n (XCG pesables, XCG cajas al 6 %, USD export)
       guardados en `docs/superpowers/specs/n8n-facturacion-body-*.json`. Con
       ellos la Task 4 queda definida salvo dos confirmaciones (ver ahí).
-- [ ] Confirmar la consulta de DocNumber del workflow de n8n: o el export JSON
-      del workflow (`...` → Download, a
-      `docs/superpowers/specs/n8n-facturacion-export.json`), o la confirmación
-      de JM de que es «últimas 50 facturas por fecha de creación y sumar uno».
+- [x] Export del workflow de facturación recibido el 2026-09-11 y guardado
+      (sin el path del webhook ni el realm id) en
+      `docs/superpowers/specs/n8n-facturacion-export.md` y `n8n-facturacion-nodo-codigo.js`.
 - [ ] Exportar también el workflow de ventas (el que responde a
       `N8N_QB_SALES_WEBHOOK_URL`) para la Fase 2: define qué filas y qué claves
       espera hoy el dashboard (`transactions[]`, `home_amount`, `weight`…).
@@ -74,7 +73,9 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 - Toda llamada a QBO respeta el límite del router de Heroku (30 s): timeout
   de 20 s por request, un solo reintento y solo ante 401 por token vencido.
 - Decisión vigente de JM (`docnumber-carrera-decision`): la numeración sigue
-  siendo manual, últimas 50 facturas más uno. No se cambia en este plan.
+  siendo manual y compartida entre facturas y notas de crédito. La Task 5 la
+  conserva y le agrega tres protecciones contra duplicados; pasar a la
+  numeración automática de QBO es una decisión aparte de JM.
 
 ---
 
@@ -275,7 +276,7 @@ botones son `<form method="post">` con el token CSRF de Flask-WTF).
 - Create: `utils/qbo_factura.py`
 - Create: `tests/fixtures/qbo/invoice_creada.json` (respuesta real del sandbox)
 - Test: `tests/test_qbo_factura.py`
-- Fuente: `docs/superpowers/specs/n8n-facturacion-export.json` (prerrequisito)
+- Fuente: `docs/superpowers/specs/n8n-facturacion-export.md` y `n8n-facturacion-nodo-codigo.js` (prerrequisito)
 
 **Interfaz:**
 
@@ -288,8 +289,10 @@ payload: la app ya manda `currency_qbo`, `currency_display`, `exchange_rate`,
 `class_ref`, `product_name` y el `tax_rate` como código de QBO). Devuelve el
 body para `POST /invoice`.
 
-Reglas, tomadas de **tres bodies reales que n8n mandó a QBO** (pegados por JM
-en el chat; copias en `docs/superpowers/specs/n8n-facturacion-body-*.json`):
+Reglas, tomadas del **export del workflow de n8n** (2026-09-11, copia con el
+path del webhook y el realm id tachados en
+`docs/superpowers/specs/n8n-facturacion-export.md` y `n8n-facturacion-nodo-codigo.js`) y de tres bodies reales
+(`docs/superpowers/specs/n8n-facturacion-body-*.json`):
 
 | Archivo | Factura | Caso |
 |---|---|---|
@@ -297,102 +300,116 @@ en el chat; copias en `docs/superpowers/specs/n8n-facturacion-body-*.json`):
 | `...-5878-xcg-cajas.json` | 5878, cliente 1497 | XCG, código 10 (6 %), atunes y aceites por cajas |
 | `...-5869-usd-export.json` | 5869, cliente 1737 | USD, código 13 (Non Tax), tipo de cambio 1,78 |
 
-Ese body es
-más nuevo que el diseño del 2026-08-28: ya manda `CurrencyRef`,
-`ExchangeRate` y `Currency2`. Donde el body y el diseño difieren, manda el
-body.
+El nodo de código de n8n lleva **comentarios con errores medidos en
+producción** (6070, 6100, 6240, facturas 5848, 5856, 5863, 5864, 5865). Son
+la parte más valiosa del export: cada uno es un test del traductor.
 
 **Cabecera:**
 - `CustomerRef.value = payload['customer_qbo_id']`.
-- `DocNumber = doc_number`.
-- `TxnDate = hoy`, `DueDate = hoy + 7`. Confirmado (11 → 18 de septiembre).
-- `SalesTermRef.value = '46'`. **Nuevo, no estaba en el diseño.** Es el
-  término de pago de QBO (presumiblemente Net 7). Constante `QBO_SALES_TERM_ID`
-  en `utils/qbo_factura.py`, con comentario. Sale igual en los tres bodies
-  (dos clientes distintos, XCG y USD), así que se trata como constante.
-  *Confirmar con JM que no depende del cliente.*
+- `DocNumber` — ver Task 5.
+- `TxnDate = hoy`, `DueDate = hoy + 7`. n8n usa la fecha UTC del servidor;
+  la app usa la fecha local de Curaçao, que es lo correcto.
+- `SalesTermRef.value = '46'`. Constante `QBO_SALES_TERM_ID` (n8n lo tiene
+  fijo; no depende del cliente).
 - `GlobalTaxCalculation = 'TaxExcluded'`.
 - `CurrencyRef.value = payload['currency_qbo']` y `ExchangeRate =
-  payload['exchange_rate']` **siempre**, también en ANG con tipo de cambio 1.
-  Así lo manda n8n hoy; se replica igual.
+  float(payload['exchange_rate'])` siempre (el payload siempre los manda).
+- `CustomerMemo.value` es un **texto fijo** con los datos bancarios de Jomar,
+  puesto en el nodo HTTP (no en el de código):
+  `"Jomar Foods, BV\nCrib nr.: 102505329\nK.V.K.: 148768\nRBC Account# 8000009000132576"`.
+  Constante `QBO_CUSTOMER_MEMO`. **Las `notes` del pedido no llegan a QBO
+  hoy**; se replica igual. Si JM las quiere en la factura, es un cambio aparte.
+- `PrivateNote = 'PesosApp pedido {order_id}'` (nuevo, no lo manda n8n): no
+  se imprime y permite rastrear duplicados desde QBO.
+
+**URL del POST:** `invoice?minorversion=75&include=enhancedAllCustomFields`.
+Sin `include=enhancedAllCustomFields` **QBO ignora `Currency2`** (medido por
+JM el 2026-09-08). El cliente de la Task 1 lo agrega en `post()` cuando el
+body trae `CustomField`.
 
 **`CustomField`** (los cuatro, en este orden, siempre `Type: 'StringType'`):
 
 | DefinitionId | Name | StringValue |
 |---|---|---|
 | `1` | `Currency` | `payload['currency_display']` |
-| `2` | `Sales Rep` | `'OF'` en los tres bodies. Constante `QBO_SALES_REP`. *Confirmar con JM que no sale del vendedor.* |
-| `3` | `Tax ID No.` | `''` |
-| `1000000003` | `Currency2` | `'1'` para XCG/ANG, `'2'` para USD. Es el índice de la lista, no el texto. Mapa `CURRENCY2 = {'ANG': '1', 'USD': '2'}` sobre `currency_qbo`. |
+| `2` | `Sales Rep` | `payload.get('sales_rep') or 'OF'`. La app no manda `sales_rep`; queda la constante. |
+| `3` | `Tax ID No.` | `payload.get('tax_id') or ''` |
+| `1000000003` | `Currency2` | `{'XCG': '1', 'ANG': '1', 'USD': '2'}[currency]`, por `payload['currency']`. Es una lista: 1 = XCG, 2 = USD, 3 = ANG (nunca se manda el 3). Es el campo que **se ve** en la pantalla de QBO; el `DefinitionId 1` es otro campo, invisible. |
 
-`Currency2` **sí** se escribe por API con `DefinitionId '1000000003'`: el
-pendiente 1 del diseño del 2026-08-28 queda resuelto por la evidencia.
-
-**Líneas:**
-- Se agrupa por `(product_qbo_id, unit_price)`. `Qty` es la suma de `qty`,
-  `Amount` es `round(sum(amount), 2)` (verificado: 46,55 × 13,20 = 614,46).
-- `Description` = los pesos de cada caja, con **dos decimales y separados por
-  tabulador** (`"23.15\t23.40"`). Es lo que leen
-  `utils/factura_pdf._pesos_de_descripcion` y la trazabilidad por caja; el
-  separador tiene que ser exactamente `\t`. Un producto **no pesable** lleva
-  la cantidad de cajas con el mismo formato (`"3.00"`, `"5.00"`): n8n mete
-  cada `qty` del payload en `descriptions[]` sin distinguir pesable de caja.
-  **El `(Lote X)` que `pedido_a_json` agrega a `descripcion` no llega a QBO**;
-  n8n lo descarta. Se replica igual (primero igualar, después mejorar); si JM
-  quiere el lote en la factura, es un cambio aparte y visible al cliente.
+**Líneas — la aritmética va en enteros.** QBO revalida
+`Amount == UnitPrice × Qty` con redondeo media-arriba y rechaza con **6070**
+si difiere en medio centavo (pedido 1334: 128,350 kg × 14,50 = 1.861,075
+exactos; el `double` da 1.861,0749… y salía 1.861,07). En Python:
+`Decimal` con `ROUND_HALF_UP`, sin `float` en ningún paso intermedio.
+- Agrupar por `(product_qbo_id, unit_price)` en orden de aparición.
+- `qty` de cada línea a **milésimas** (`Decimal(str(qty)).quantize('0.001')`),
+  `unit_price` a **centavos**. `Qty` de la línea agrupada es la suma de
+  milésimas; `Amount = (Qty × UnitPrice)` redondeado media-arriba a
+  centavos; `UnitPrice` con dos decimales.
+- `Description` = las `qty` individuales con **dos decimales**, unidas por
+  tabulador (`"23.15\t23.40"`; un producto por cajas queda `"3.00"`). Es lo
+  que leen `utils/factura_pdf._pesos_de_descripcion` y la trazabilidad.
 - `DetailType = 'SalesItemLineDetail'`.
-- `SalesItemLineDetail.ItemRef = {value: product_qbo_id, name: product_name}`.
-  El `name` va **sin** la categoría (`"Cooked Chicken Ham"`, no
-  `"Smoked and Cooked:Cooked Chicken Ham"`); QBO resuelve por `value`.
-- `UnitPrice`, `Qty`, `TaxCodeRef.value = 'TAX'`, `ClassRef.value = class_ref`
-  solo si viene (sin `name`).
-- Orden de las líneas: el del payload (que ya sale ordenado por clase y
-  producto desde `pedido_a_json`).
+- `ItemRef = {value: product_qbo_id, name: descripcion}`. n8n usa
+  `descripcion` (con `(Lote X)` si lo trae) como `name`; QBO resuelve el
+  ítem por `value` y reescribe `name`, así que es inofensivo. Se replica.
+- `TaxCodeRef.value = 'TAX'` **siempre**. La empresa está en modo US: el
+  código de línea solo acepta `TAX`/`NON` (error **6100** con otro valor), y
+  con `NON` la venta se caía del reporte de ventas gravadas y había que
+  marcar cada línea a mano (factura 5864). El 0 % lo define el código de la
+  transacción.
+- `ClassRef.value`: `class_ref` de la línea si viene; si no, **detección por
+  palabras clave** sobre el nombre, con la misma tabla de n8n (`classKeywords`
+  del export, cinco clases). Se porta tal cual a `utils/qbo_factura.py` como
+  red de seguridad: hoy hay productos sin clase en la app que salen
+  clasificados gracias a esto, y quitarlo sería una regresión visible en los
+  reportes por clase. Sin coincidencia, la línea va sin `ClassRef` y la app ya
+  avisa («se facturaron sin clase»).
 
-**Impuesto (`TxnTaxDetail`):** n8n manda hoy el bloque completo calculado a
-mano: `TotalTax`, `TxnTaxCodeRef` y un `TaxLine` con `TaxRateRef`,
-`TaxPercent`, `NetAmountTaxable` y `PercentBased: true`. Lo que manda hoy,
-según los tres bodies:
+**Impuesto (`TxnTaxDetail`) — va siempre, calculado.** Dos hechos medidos
+por JM que invalidan el camino «que QBO calcule solo» que proponía el diseño
+de agosto:
+- Con solo `TxnTaxCodeRef`, la factura sale al 0 % (5848).
+- Sin `TxnTaxDetail`, la factura sale **sin código** y no entra en el reporte
+  de OB (5865).
 
-| Código (`tax_rate`) | `TaxPercent` | `TaxRateRef` | Ejemplo |
-|---|---|---|---|
-| `10` OB 6 % | 6 | `25` | 5878: neto 2.666,98 → `TotalTax` 160,02 |
-| `14` OB 0 % local | 0 | `25` | 5879: neto 6.972,25 → 0 |
-| `13` Non Tax (export) | 0 | `19` | 5869: neto 771,20 → 0 |
+Así que el bloque se manda completo, también al 0 %:
 
-Que `10` y `14` compartan `TaxRateRef 25` con porcentajes distintos indica
-que QBO **recalcula** el impuesto a partir de `TxnTaxCodeRef` e ignora, o
-corrige, el `TaxLine` que se le manda. Es un argumento más para el camino 1.
-Dos caminos, se decide en sandbox:
+```python
+PCT_POR_CODIGO  = {'10': 6, '11': 9, '13': 0, '14': 0}
+TASA_POR_CODIGO = {'10': '17', '11': '18', '13': '19', '14': '25'}  # TaxRate ids medidos 2026-09-08
+```
 
-1. **Preferido:** mandar solo `TxnTaxDetail: {TxnTaxCodeRef: {value: código}}`
-   y dejar que QBO calcule `TotalTax` y `TaxLine` a partir de
-   `GlobalTaxCalculation: 'TaxExcluded'`. Es lo que recomendaba el diseño del
-   2026-08-28 y elimina el mapa de tasas. Se prueba en sandbox con `10` (6 %),
-   `14` (0 %) y `13` (Non Tax); si QBO devuelve el impuesto correcto, listo.
-2. **Si QBO no calcula solo:** replicar el bloque de n8n con la tabla de
-   arriba como constante `TAX_LINE_POR_CODIGO`. `NetAmountTaxable` es la suma
-   de `Amount` de las líneas; `TotalTax = round(net × pct / 100, 2)`
-   (verificado: 2.666,98 × 6 % = 160,02). Un código fuera de la tabla
-   (`11`, OB 9 %) levanta `ValueError` en vez de adivinar.
+`NetAmountTaxable` = suma de `Amount` en centavos; `TotalTax = round_half_up(
+neto × pct / 100)`; `TaxLine[0] = {Amount, DetailType: 'TaxLineDetail',
+TaxLineDetail: {TaxPercent, NetAmountTaxable, PercentBased: True,
+TaxRateRef}}`. Un código fuera de la tabla levanta `ValueError`. Si las
+líneas traen códigos distintos, `ValueError` (el grupo de facturación lo
+impide, pero el traductor no confía).
 
-**Notas:** la factura de ejemplo no trae `PrivateNote` ni `CustomerMemo`, así
-que no se sabe si n8n los manda cuando `notes` tiene valor. El traductor manda
-`CustomerMemo.value = payload['notes']` si hay notas, y **siempre**
-`PrivateNote = 'PesosApp pedido {order_id}'`: es la única forma de rastrear un
-duplicado desde QBO y no se imprime en la factura del cliente.
+**Dos discrepancias entre el export y los bodies, a verificar con JM antes
+del corte** (no bloquean el código, sí la prueba en sandbox):
+1. El body de la 5878 (código 10) salió con `TaxRateRef 25`, pero la tabla
+   del export dice `17`. O el body es de una ejecución anterior al cambio del
+   2026-09-08, o el nodo desplegado no es el del export. QBO reescribe la
+   tasa si no coincide, así que no rompe nada, pero conviene saber cuál está
+   corriendo.
+2. El nodo HTTP del export reenvía `Line`, `CustomerRef`, `SalesTermRef`,
+   `TxnDate`, `DueDate`, `DocNumber`, `CustomField`, `CurrencyRef` y
+   `CustomerMemo`, **pero no `ExchangeRate`, `GlobalTaxCalculation` ni
+   `TxnTaxDetail`**, que el nodo de código sí arma. Si ese nodo es el que
+   está en producción, el 6 % de la 5878 lo puso QBO por el código de
+   impuesto por defecto del cliente, no el body. El traductor manda el body
+   completo (es lo que el nodo de código pretende) y se comprueba en sandbox
+   que el impuesto y el tipo de cambio salgan bien con y sin esos campos.
 
-**Preguntas abiertas para JM antes de cerrar la Task 4** (dos, de
-confirmación): que `SalesTermRef 46` y `Sales Rep 'OF'` sean constantes y no
-dependan del cliente ni del vendedor. Los tres bodies los traen iguales; si
-JM confirma, quedan como constantes con comentario.
-
-- [ ] **Step 1: Tests** con un payload de cliente XCG (dos productos, uno
-      pesable con tres cajas) y otro USD: agrupado y descripciones, `ClassRef`
-      presente/ausente, `TxnTaxCodeRef` 10/14/13, `CurrencyRef`+`ExchangeRate`
-      solo en USD, `ValueError` si se mezclan impuestos, `CustomField` 1–3,
-      `DocNumber` y fechas. Comparar el body completo contra un fixture
-      escrito a mano a partir del export de n8n.
+- [ ] **Step 1: Tests** con los tres bodies reales como fixtures esperados
+      (reconstruyendo el payload de la app que los produjo) y además los
+      casos medidos en producción: 128,350 × 14,50 = 1.861,08 (6070);
+      0,1 × 3 = 0,30; `TaxCodeRef` de línea siempre `TAX` (6100); bloque de
+      impuesto presente al 0 % (5865); `Currency2` 1/2; `CustomerMemo` fijo;
+      clase por palabra clave cuando falta `class_ref`; `ValueError` si se
+      mezclan impuestos o el código no está en la tabla.
 - [ ] **Step 2: Implementar** como función pura. Sin Flask, sin DB, sin red.
 - [ ] **Step 3:** en verde. Guardar en `tests/fixtures/qbo/` la primera
       respuesta real del sandbox para la Task 6.
@@ -401,24 +418,68 @@ JM confirma, quedan como constantes con comentario.
 
 **Files:**
 - Modify: `utils/qbo_factura.py`
-- Create: `tests/fixtures/qbo/query_docnumber.json`
-- Test: `tests/test_qbo_factura.py`
+- Modify: `app.py` (`_crear_factura_qbo`, Task 6)
+- Create: `tests/fixtures/qbo/query_docnumber_invoice.json`, `..._creditmemo.json`
+- Test: `tests/test_qbo_factura.py`, `tests/test_facturacion.py`
+
+**Cómo lo hace n8n hoy** (export): dos consultas en paralelo,
+`SELECT DocNumber FROM Invoice ORDER BY MetaData.CreateTime DESC MAXRESULTS 50`
+y la misma sobre `CreditMemo`; toma el **mayor numérico de las dos listas**
+y suma uno; si no encuentra ninguno, arranca en 5320. **Facturas y notas de
+crédito comparten la secuencia**: es un dato de negocio que el diseño de
+agosto no tenía y que el correlativo del reporte de OB depende de él.
+
+**Por qué se puede duplicar** (la «carrera» que JM decidió tolerar): dos
+usuarios facturan con segundos de diferencia y los dos leen el mismo máximo.
+Y hay una segunda causa que el `ORDER BY CreateTime` no cubre: **el índice
+de consulta de QBO tarda unos segundos en reflejar una factura recién
+creada**, así que incluso en serie, dos facturas seguidas pueden leer el
+mismo máximo.
+
+**Diseño nuevo: tres capas, cada una cubre lo que la anterior no.**
 
 ```python
-def siguiente_doc_number(client) -> str
+def siguiente_doc_number(client, ultimo_local: int | None) -> str
 ```
 
-Ejecuta `SELECT DocNumber FROM Invoice ORDERBY MetaData.CreateTime DESC
-MAXRESULTS 50`, toma el mayor **numérico** (ignorando DocNumbers no numéricos)
-y suma uno. Es la misma regla del nodo de n8n; la carrera entre dos
-facturaciones simultáneas es la decisión vigente de JM y no se cambia acá.
-Si QBO devuelve `6240` (Duplicate Document Number) al crear, `facturar_pedido`
-reintenta **una sola vez** con el número siguiente: cubre la carrera sin
-cambiar la decisión.
+1. **QBO sigue siendo la fuente de verdad** (las notas de crédito se hacen a
+   mano en QBO y consumen números que la app no ve): las dos consultas de
+   n8n, tal cual, mayor numérico de ambas. Sin resultados → `QboError`;
+   nunca un número inventado como el 5320.
+2. **La app aporta su propio último número:** `ultimo_local` es
+   `max(Pedido.doc_number_qbo)` numérico en la base de la app. Cubre el
+   retraso del índice de QBO: si la app acaba de emitir la 5880 y QBO
+   todavía devuelve 5879 como máxima, el siguiente es 5881 igual.
+   El resultado es `max(qbo_invoice, qbo_creditmemo, ultimo_local) + 1`.
+3. **Serialización entre workers:** `_crear_factura_qbo` toma un
+   `pg_advisory_xact_lock(<constante>)` de Postgres al inicio de la
+   transacción y lo suelta con el commit, así que dos facturaciones
+   simultáneas se ponen en fila (la segunda espera uno o dos segundos y lee
+   el número ya actualizado en la capa 2). En sqlite (tests) el lock es un
+   no-op. A la escala de Jomar, facturar en serie no se nota.
+4. **Red final:** si QBO igual responde **6240** (Duplicate Document
+   Number), se recalcula y se reintenta **una vez**.
 
-- [ ] **Step 1: Tests:** mayor numérico entre mezclados, lista vacía levanta
-      `QboError` claro (no inventar "1"), ignora strings.
-- [ ] **Step 2: Implementar.**
+Con las capas 2 y 3 el duplicado solo puede venir de una nota de crédito
+creada a mano en QBO en los mismos segundos, y para eso está la 4.
+
+**Alternativa que queda en manos de JM:** apagar «Custom transaction
+numbers» en QBO y dejar que QuickBooks numere solo. Elimina las consultas y
+la carrera de raíz, y la app lee el `DocNumber` de la respuesta como ya hace.
+Hay que verificar en sandbox que las notas de crédito sigan compartiendo la
+secuencia con las facturas como hoy; si lo hacen, es la opción más simple y
+el plan se reduce a la capa 4. Cambia una decisión tomada
+(`docnumber-carrera-decision`), así que la toma JM, no este plan.
+
+- [ ] **Step 1: Tests:** mayor numérico entre facturas y notas de crédito
+      mezcladas; `ultimo_local` mayor que QBO gana; ignora DocNumbers no
+      numéricos; sin resultados en ninguna de las dos → `QboError`; el
+      reintento por 6240 pide un número nuevo (Task 6).
+- [ ] **Step 2: Implementar** `siguiente_doc_number` (pura, recibe el
+      cliente) y el helper `_ultimo_doc_number_local()` en `app.py`.
+- [ ] **Step 3:** el advisory lock va en `_crear_factura_qbo` (Task 6), con
+      un test que verifica que en Postgres se emite `pg_advisory_xact_lock` y
+      en sqlite no se emite nada.
 
 ### Task 6: `facturar_pedido` con backend `qbo`
 
@@ -444,10 +505,11 @@ invoice_id, doc_number = _extraer_invoice_id(resp_data)
 1. `client = _qbo_client()`; sin conexión → mensaje «QuickBooks no está
    conectado. Un administrador tiene que conectarlo en Configuración →
    QuickBooks.»
-2. `doc = siguiente_doc_number(client)`.
+2. `doc = siguiente_doc_number(client, _ultimo_doc_number_local())`, dentro
+   del advisory lock (Task 5).
 3. `body = construir_invoice(payload, doc, hoy_curazao)`.
-4. `client.post('invoice', body)`; ante `Fault` con código `6240`, repetir el
-   paso 2 y 3 una vez.
+4. `client.post('invoice', body, params={'include': 'enhancedAllCustomFields'})`;
+   ante `Fault` con código `6240`, repetir los pasos 2 y 3 una vez.
 5. Devuelve el JSON crudo: `{"Invoice": {...}}`, la misma forma que ya
    entiende `_extraer_invoice_id`. **Todo lo que sigue en `facturar_pedido`
    (commit atómico, evento de auditoría, flashes) no cambia.**
@@ -491,7 +553,7 @@ como hoy.
 
 - [ ] **Step 1:** variables nuevas en `.env.example` con comentarios; nota en
       el spec del 2026-08-28: «el nodo de código de n8n queda reemplazado por
-      `utils/qbo_factura.py`; el export vive en `n8n-facturacion-export.json`».
+      `utils/qbo_factura.py`; el export vive en `n8n-facturacion-export.md` y `n8n-facturacion-nodo-codigo.js`».
 - [ ] **Step 2: Sandbox de punta a punta** (local, `QBO_ENVIRONMENT=sandbox`):
       un pedido XCG con pesable y no pesable, uno USD. Verificar en la empresa
       sandbox clase por línea, tasa, moneda, tipo de cambio, DocNumber
