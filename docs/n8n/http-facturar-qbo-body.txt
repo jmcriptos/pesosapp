@@ -1,0 +1,16 @@
+={
+  "Line": {{ JSON.stringify($json.Line) }},
+  "CustomerRef": {{ JSON.stringify($json.CustomerRef) }},
+  "SalesTermRef": {{ JSON.stringify($json.SalesTermRef) }},
+  "TxnDate": "{{ $json.TxnDate }}",
+  "DueDate": "{{ $json.DueDate }}",
+  "DocNumber": "{{ $json.DocNumber }}",
+  "CustomField": {{ JSON.stringify($json.CustomField) }},
+  "GlobalTaxCalculation": "{{ $json.GlobalTaxCalculation }}",
+  {{ $json.TxnTaxDetail ? '"TxnTaxDetail": ' + JSON.stringify($json.TxnTaxDetail) + ',' : '' }}
+  {{ $json.CurrencyRef ? '"CurrencyRef": ' + JSON.stringify($json.CurrencyRef) + ',' : '' }}
+  {{ $json.ExchangeRate ? '"ExchangeRate": ' + $json.ExchangeRate + ',' : '' }}
+  "CustomerMemo": {
+    "value": "Jomar Foods, BV\nCrib nr.: 102505329\nK.V.K.: 148768\nRBC Account# 8000009000132576"
+  }
+}

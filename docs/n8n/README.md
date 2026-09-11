@@ -1,9 +1,13 @@
 # Workflow de n8n — facturación a QuickBooks
 
-`generar-numero-factura.js` es el contenido del nodo **Code** llamado
-`Generar Numero Factura`. Vive acá para que quede versionado junto al payload
-que lo alimenta (`pedido_a_json` en `app.py`) y, sobre todo, para poder
-copiarlo desde un editor.
+Dos nodos del workflow viven acá, versionados junto al payload que los
+alimenta (`pedido_a_json` en `app.py`) y, sobre todo, para poder copiarlos
+desde un editor:
+
+| Archivo | Nodo de n8n |
+|---|---|
+| `generar-numero-factura.js` | **Code** `Generar Numero Factura` |
+| `http-facturar-qbo-body.txt` | body del **HTTP Request** `HTTP Facturar QBO` |
 
 > **No lo copies desde el chat ni desde markdown renderizado.** El 2026-08-28
 > se pegó desde un terminal y **todas las líneas de más de ~78 caracteres
@@ -12,13 +16,21 @@ copiarlo desde un editor.
 > el nodo tiene su salida de error desconectada, el síntoma que llegó a la app
 > fue un genérico «Error temporal en QuickBooks».
 >
-> Por eso el archivo **no pasa de 72 columnas**: aunque se copie mal, sobrevive.
+> Por eso `generar-numero-factura.js` **no pasa de 72 columnas**: aunque se
+> copie mal, sobrevive. El body del HTTP no puede: cuatro de sus líneas son
+> expresiones `{{ }}` que van enteras o no van, y la más larga llega a 98
+> caracteres. Ese archivo **solo** se copia desde un editor.
 
 ## Cómo actualizarlo
 
-1. Abrir `generar-numero-factura.js` en un editor y copiar todo.
-2. En n8n, nodo `Generar Numero Factura`, reemplazar el contenido.
+1. Abrir el archivo en un editor y copiar todo.
+2. En n8n, reemplazar el contenido del nodo que le corresponde —el Code, o
+   el campo **Body** del HTTP Request.
 3. Guardar y activar.
+
+Nada se despliega solo: este repo es la fuente de verdad, pero el que factura
+es lo que esté pegado en n8n. Si los dos archivos no están en n8n tal cual
+están acá, el workflow corre otra cosa.
 
 ## Cómo verificarlo antes de pegar
 
@@ -27,9 +39,11 @@ node --check docs/n8n/generar-numero-factura.js
 node docs/n8n/test-nodo-factura.js
 ```
 
-El segundo corre el nodo entero contra el pedido 1334 y comprueba las
-dos cosas que ya salieron mal: que los montos de línea sean los que
-QuickBooks vuelve a calcular, y que cada línea vaya como gravable.
+El segundo corre el nodo entero contra el pedido 1334 y comprueba las cosas
+que ya salieron mal: que los montos de línea sean los que QuickBooks vuelve a
+calcular, que cada línea vaya como gravable, que el `Currency2` lleve el id de
+la opción, y que el body del HTTP nombre todos los campos que el Code node
+emite.
 
 ## Trampa del workflow
 
@@ -39,6 +53,28 @@ a nada**. Cualquier error intermedio se traga: el workflow termina sin ítems y
 el webhook responde `HTTP 500 — "No item to return was found"`, sin decir qué
 falló. Conviene conectar esas salidas a un nodo que devuelva el error, o
 quitarles el `onError` para que n8n falle con el mensaje real.
+
+## La trampa del body del HTTP
+
+El nodo `HTTP Facturar QBO` **no manda el ítem entero**: su body es un JSON
+escrito campo por campo, y solo viaja lo que esté nombrado ahí. Todo lo que el
+Code node calcule y el body no liste, se pierde en silencio.
+
+Así se rompió el impuesto: el body listaba nueve campos y `TxnTaxDetail` no
+era uno de ellos. Las líneas llegaban marcadas `TAX` y **sin código de
+transacción**, así que la tasa la resolvía QuickBooks por su cuenta — el
+default del cliente— y daba igual qué código mandara la app. Faltaban también
+`GlobalTaxCalculation` y `ExchangeRate`.
+
+> **Ojo con lo que esto implica hacia atrás.** Mientras el body fue ese, las
+> facturas no llevaron `TxnTaxDetail`. Cualquier conclusión sacada comparando
+> facturas de ese período —incluida la de la `5863` contra la `5867` que
+> justificó el `TaxRateRef` fijo— se sacó sobre payloads a los que el bloque
+> de impuesto nunca les llegó.
+
+`node docs/n8n/test-nodo-factura.js` lo comprueba: recorre los campos que el
+Code node emite y falla si el body no nombra alguno. Al agregar un campo
+nuevo al Code node hay que agregarlo también al body, o el test avisa.
 
 ## Contrato con la app
 

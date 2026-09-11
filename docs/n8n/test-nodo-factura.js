@@ -31,6 +31,13 @@
  *  (DefinitionId 1) que si se llenaba es OTRO campo, que la
  *  pantalla no muestra.
  *
+ *  4) EL BODY DEL NODO HTTP
+ *
+ *  El Code node armaba el impuesto bien y el nodo `HTTP Facturar
+ *  QBO` lo descartaba: su body nombra los campos uno por uno y
+ *  `TxnTaxDetail` no estaba. La tasa la terminaba poniendo QBO.
+ *  Se comprueba contra http-facturar-qbo-body.txt.
+ *
  *  Correr:  node docs/n8n/test-nodo-factura.js
  */
 
@@ -185,9 +192,51 @@ for (const [cur, display, opcion] of moneda) {
   );
 }
 
+// ---------- 4) el body del nodo HTTP ----------
+// El Code node armaba el impuesto bien y el nodo `HTTP Facturar
+// QBO` lo tiraba: su body es un JSON escrito campo por campo y
+// `TxnTaxDetail` no estaba en la lista. Todo lo que el nodo
+// calcule y el body no nombre, no llega a QuickBooks -- la
+// factura sale con la tasa que QBO decida.
+//
+// Por eso el body vive versionado en http-facturar-qbo-body.txt
+// y esto comprueba que nombre TODO lo que el nodo emite.
+const bodyHttp = fs.readFileSync(
+  path.join(__dirname, 'http-facturar-qbo-body.txt'),
+  'utf8'
+);
+
+// Los campos de QBO empiezan en mayuscula; el `value` de adentro
+// del CustomerMemo no, asi que no se cuela.
+const camposDelBody = new Set(
+  (bodyHttp.match(/"[A-Z][A-Za-z0-9]*"\s*:/g) || [])
+    .map((m) => m.slice(1, m.indexOf('"', 1)))
+);
+
+const escenarios = [
+  ['XCG sin moneda', armarBody([linea(10, 14.5, '1359')], {
+    currency_qbo: undefined, exchange_rate: undefined
+  })],
+  ['USD con tipo de cambio', armarBody([linea(10, 14.5, '1359')], {
+    currency: 'USD', currency_qbo: 'USD', exchange_rate: 1.78
+  })]
+];
+
+for (const [nombre, cuerpo] of escenarios) {
+  for (const campo of Object.keys(correrNodo(cuerpo))) {
+    chequear(
+      `${nombre}: el body HTTP manda ${campo}`,
+      camposDelBody.has(campo),
+      true
+    );
+  }
+}
+
 if (fallos.length) {
   console.error('FALLA:');
   for (const f of fallos) console.error('  - ' + f);
   process.exit(1);
 }
-console.log('OK: montos, taxable de linea y Currency2');
+console.log(
+  'OK: montos, taxable de linea, Currency2 y body HTTP'
+);
