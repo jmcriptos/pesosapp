@@ -1,0 +1,85 @@
+[
+  {
+    "CustomerRef": {
+      "value": "1737"
+    },
+    "DocNumber": "5869",
+    "TxnDate": "2026-09-09",
+    "DueDate": "2026-09-16",
+    "SalesTermRef": {
+      "value": "46"
+    },
+    "GlobalTaxCalculation": "TaxExcluded",
+    "CustomField": [
+      {
+        "DefinitionId": "1",
+        "Name": "Currency",
+        "Type": "StringType",
+        "StringValue": "USD - US Dollar"
+      },
+      {
+        "DefinitionId": "2",
+        "Name": "Sales Rep",
+        "Type": "StringType",
+        "StringValue": "OF"
+      },
+      {
+        "DefinitionId": "3",
+        "Name": "Tax ID No.",
+        "Type": "StringType",
+        "StringValue": ""
+      },
+      {
+        "DefinitionId": "1000000003",
+        "Name": "Currency2",
+        "Type": "StringType",
+        "StringValue": "2"
+      }
+    ],
+    "Line": [
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "19.95\t18.60\t19.95\t18.20\t19.70",
+        "Amount": 771.2,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1351",
+            "name": "Porchop Huma Ku Wesu"
+          },
+          "Qty": 96.4,
+          "UnitPrice": 8,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "600000000005541105"
+          }
+        }
+      }
+    ],
+    "CurrencyRef": {
+      "value": "USD"
+    },
+    "ExchangeRate": 1.78,
+    "TxnTaxDetail": {
+      "TotalTax": 0,
+      "TxnTaxCodeRef": {
+        "value": "13"
+      },
+      "TaxLine": [
+        {
+          "Amount": 0,
+          "DetailType": "TaxLineDetail",
+          "TaxLineDetail": {
+            "TaxPercent": 0,
+            "NetAmountTaxable": 771.2,
+            "PercentBased": true,
+            "TaxRateRef": {
+              "value": "19"
+            }
+          }
+        }
+      ]
+    }
+  }
+]

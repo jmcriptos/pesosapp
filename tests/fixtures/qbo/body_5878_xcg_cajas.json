@@ -1,0 +1,199 @@
+[
+  {
+    "CustomerRef": {
+      "value": "1497"
+    },
+    "DocNumber": "5878",
+    "TxnDate": "2026-09-11",
+    "DueDate": "2026-09-18",
+    "SalesTermRef": {
+      "value": "46"
+    },
+    "GlobalTaxCalculation": "TaxExcluded",
+    "CustomField": [
+      {
+        "DefinitionId": "1",
+        "Name": "Currency",
+        "Type": "StringType",
+        "StringValue": "XCG - Caribbean Guilder"
+      },
+      {
+        "DefinitionId": "2",
+        "Name": "Sales Rep",
+        "Type": "StringType",
+        "StringValue": "OF"
+      },
+      {
+        "DefinitionId": "3",
+        "Name": "Tax ID No.",
+        "Type": "StringType",
+        "StringValue": ""
+      },
+      {
+        "DefinitionId": "1000000003",
+        "Name": "Currency2",
+        "Type": "StringType",
+        "StringValue": "1"
+      }
+    ],
+    "Line": [
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "3.00",
+        "Amount": 393.24,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1297",
+            "name": "Atun en Agua 160g"
+          },
+          "Qty": 3,
+          "UnitPrice": 131.08,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "600000000005391641"
+          }
+        }
+      },
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "5.00",
+        "Amount": 283,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1402",
+            "name": "Avocado Oil Botella 250ml"
+          },
+          "Qty": 5,
+          "UnitPrice": 56.6,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "529395"
+          }
+        }
+      },
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "3.00",
+        "Amount": 510,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1404",
+            "name": "Avocado Oil Botella 1Lt"
+          },
+          "Qty": 3,
+          "UnitPrice": 170,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "529395"
+          }
+        }
+      },
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "5.00",
+        "Amount": 473.75,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1403",
+            "name": "Avocado Oil Botella 500ml"
+          },
+          "Qty": 5,
+          "UnitPrice": 94.75,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "529395"
+          }
+        }
+      },
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "2.00",
+        "Amount": 553.36,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1398",
+            "name": "EV Olive Oil Botella 1Lt"
+          },
+          "Qty": 2,
+          "UnitPrice": 276.68,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "529395"
+          }
+        }
+      },
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "3.00",
+        "Amount": 211.95,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1395",
+            "name": "EV Olive Oil Botella 250ml"
+          },
+          "Qty": 3,
+          "UnitPrice": 70.65,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "529395"
+          }
+        }
+      },
+      {
+        "DetailType": "SalesItemLineDetail",
+        "Description": "3.00",
+        "Amount": 241.68,
+        "SalesItemLineDetail": {
+          "ItemRef": {
+            "value": "1305",
+            "name": "Atun en Oliva 3x80g"
+          },
+          "Qty": 3,
+          "UnitPrice": 80.56,
+          "TaxCodeRef": {
+            "value": "TAX"
+          },
+          "ClassRef": {
+            "value": "600000000005391641"
+          }
+        }
+      }
+    ],
+    "CurrencyRef": {
+      "value": "ANG"
+    },
+    "ExchangeRate": 1,
+    "TxnTaxDetail": {
+      "TotalTax": 160.02,
+      "TxnTaxCodeRef": {
+        "value": "10"
+      },
+      "TaxLine": [
+        {
+          "Amount": 160.02,
+          "DetailType": "TaxLineDetail",
+          "TaxLineDetail": {
+            "TaxPercent": 6,
+            "NetAmountTaxable": 2666.98,
+            "PercentBased": true,
+            "TaxRateRef": {
+              "value": "25"
+            }
+          }
+        }
+      ]
+    }
+  }
+]

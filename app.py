@@ -3334,6 +3334,35 @@ class VentasQbCache(db.Model):
     last_error = db.Column(db.String(255), nullable=True)
 
 
+class QboConexion(db.Model):
+    """Una sola fila (id=1): los tokens OAuth2 de QuickBooks Online.
+
+    Viven en Postgres y no en memoria porque gunicorn corre varios workers y
+    Heroku recicla los dynos a diario: un token en memoria se perdería cada
+    noche y cada worker refrescaría por su cuenta (Intuit invalida el refresh
+    token anterior al rotar). Texto plano a propósito: la base ya es la
+    frontera de confianza de la app, igual que la base de n8n. Nunca se
+    loguean. Ver docs/superpowers/plans/2026-09-11-qbo-api-directa.md, Task 2.
+    """
+    __tablename__ = 'qbo_conexion'
+
+    id = db.Column(db.Integer, primary_key=True)
+    realm_id = db.Column(db.String(30), nullable=True)
+    access_token = db.Column(db.Text, nullable=True)
+    refresh_token = db.Column(db.Text, nullable=True)
+    access_expires_at = db.Column(db.DateTime, nullable=True)
+    refresh_expires_at = db.Column(db.DateTime, nullable=True)
+    conectado_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+    conectado_en = db.Column(db.DateTime, nullable=True)
+    ultimo_error = db.Column(db.String(255), nullable=True)
+    ultimo_error_en = db.Column(db.DateTime, nullable=True)
+
+    conectado_por_vendedor = db.relationship('Vendedor')
+
+    def __repr__(self):
+        return f'<QboConexion realm={self.realm_id} conectado={bool(self.refresh_token)}>'
+
+
 class PrecioProducto(db.Model):
     __tablename__ = 'precio_producto'
     id = db.Column(db.Integer, primary_key=True)
@@ -5289,6 +5318,129 @@ def admin_analytics():
 def admin_configuracion():
     """Página de configuración del sistema"""
     return render_template('admin/configuracion.html')
+
+@app.route('/admin/quickbooks')
+@login_required
+@requiere_rol(['super_admin'])
+def admin_quickbooks():
+    """Estado de la conexión directa con QuickBooks y botones para
+    conectar, probar y desconectar. Plan 2026-09-11-qbo-api-directa, Task 3."""
+    fila = _qbo_conexion_fila()
+    config = _qbo_config()
+    return render_template(
+        'admin/quickbooks.html',
+        fila=fila,
+        conectado=bool(fila and fila.refresh_token and fila.realm_id),
+        hay_credenciales=config is not None,
+        entorno=config.environment if config else None,
+        redirect_uri=config.redirect_uri if config else None,
+        backend_facturacion=_facturacion_backend(),
+        backend_ventas=_qb_sales_backend(),
+        tasa_usd=_qbo_tasa_usd(),
+    )
+
+
+@app.route('/admin/quickbooks/conectar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def admin_quickbooks_conectar():
+    client = _qbo_client()
+    if client is None:
+        flash('Faltan QBO_CLIENT_ID y QBO_CLIENT_SECRET en el entorno.', 'danger')
+        return redirect(url_for('admin_quickbooks'))
+    state = secrets.token_urlsafe(24)
+    session['qbo_oauth_state'] = state
+    return redirect(client.url_autorizacion(state))
+
+
+@app.route('/admin/quickbooks/callback')
+@login_required
+@requiere_rol(['super_admin'])
+def admin_quickbooks_callback():
+    from utils.qbo_client import QboError
+
+    esperado = session.pop('qbo_oauth_state', None)
+    recibido = request.args.get('state')
+    if not esperado or not recibido or not hmac.compare_digest(esperado, recibido):
+        app.logger.warning('Callback de QuickBooks con state inválido')
+        abort(400)
+
+    if request.args.get('error'):
+        flash(f"Intuit devolvió un error: {request.args.get('error')}", 'danger')
+        return redirect(url_for('admin_quickbooks'))
+
+    code = request.args.get('code')
+    realm_id = request.args.get('realmId')
+    if not code or not realm_id:
+        flash('Intuit no devolvió el código de autorización.', 'danger')
+        return redirect(url_for('admin_quickbooks'))
+
+    client = _qbo_client()
+    if client is None:
+        flash('Faltan QBO_CLIENT_ID y QBO_CLIENT_SECRET en el entorno.', 'danger')
+        return redirect(url_for('admin_quickbooks'))
+    try:
+        client.canjear_codigo(code, realm_id)
+    except QboError as e:
+        _qbo_registrar_error(e)
+        flash(f'No se pudo conectar con QuickBooks: {e}', 'danger')
+        return redirect(url_for('admin_quickbooks'))
+    except Exception as e:
+        app.logger.error(f'Error al canjear el código de QuickBooks: {e}')
+        flash('No se pudo conectar con QuickBooks. Intente de nuevo.', 'danger')
+        return redirect(url_for('admin_quickbooks'))
+
+    fila = _qbo_conexion_fila()
+    vendedor = obtener_vendedor_actual()
+    fila.conectado_por = vendedor.id if vendedor else None
+    fila.conectado_en = _utcnow_naive()
+    db.session.commit()
+    flash(f'QuickBooks conectado (empresa {realm_id}).', 'success')
+    return redirect(url_for('admin_quickbooks'))
+
+
+@app.route('/admin/quickbooks/desconectar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def admin_quickbooks_desconectar():
+    client = _qbo_client()
+    if client is not None:
+        try:
+            client.revocar()
+        except Exception as e:
+            app.logger.warning(f'No se pudo revocar el token de QuickBooks: {e}')
+    fila = _qbo_conexion_fila()
+    if fila is not None:
+        db.session.delete(fila)
+        db.session.commit()
+    flash('QuickBooks desconectado.', 'info')
+    return redirect(url_for('admin_quickbooks'))
+
+
+@app.route('/admin/quickbooks/probar', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def admin_quickbooks_probar():
+    """Prueba de humo: lee CompanyInfo y muestra el nombre de la empresa."""
+    from utils.qbo_client import QboError
+
+    client = _qbo_client()
+    if client is None:
+        flash('Faltan QBO_CLIENT_ID y QBO_CLIENT_SECRET en el entorno.', 'danger')
+        return redirect(url_for('admin_quickbooks'))
+    try:
+        datos = client.get(f'companyinfo/{client.realm_id}')
+        nombre = (datos.get('CompanyInfo') or {}).get('CompanyName') or '(sin nombre)'
+        flash(f'Conexión OK: {nombre}', 'success')
+    except QboError as e:
+        if e.es_auth:
+            _qbo_registrar_error(e)
+        flash(f'QuickBooks respondió con error: {e.detalle[:200]}', 'danger')
+    except Exception as e:
+        app.logger.error(f'Error al probar QuickBooks: {e}')
+        flash('No se pudo hablar con QuickBooks. Ver logs.', 'danger')
+    return redirect(url_for('admin_quickbooks'))
+
 
 @app.route('/admin/clientes-vendedores')
 @login_required
@@ -9217,14 +9369,190 @@ except (ValueError, TypeError):
     N8N_INVOICE_FETCH_TIMEOUT = 20
 
 
+# ── QuickBooks por API directa (sin n8n) ─────────────────────────────────
+# Plan: docs/superpowers/plans/2026-09-11-qbo-api-directa.md. Cada camino
+# que hoy sale a n8n tiene un backend elegible por variable de entorno
+# (`n8n`, el default, o `qbo`), así el corte es reversible con un
+# `heroku config:set` y sin deploy. La configuración se lee en cada llamada,
+# no al importar, para que un cambio de variables no exija reiniciar los
+# tests ni la app.
+
+def _qbo_config():
+    """`QboConfig` desde el entorno, o None si faltan las credenciales."""
+    from utils.qbo_client import QboConfig
+
+    client_id = os.environ.get('QBO_CLIENT_ID', '').strip()
+    client_secret = os.environ.get('QBO_CLIENT_SECRET', '').strip()
+    if not client_id or not client_secret:
+        return None
+    try:
+        minor = int(os.environ.get('QBO_MINOR_VERSION', 75))
+    except (ValueError, TypeError):
+        minor = 75
+    try:
+        timeout = float(os.environ.get('QBO_TIMEOUT', 20))
+    except (ValueError, TypeError):
+        timeout = 20.0
+    return QboConfig(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=os.environ.get('QBO_REDIRECT_URI', '').strip(),
+        environment=os.environ.get('QBO_ENVIRONMENT', 'sandbox').strip().lower() or 'sandbox',
+        minor_version=minor,
+        timeout=timeout,
+    )
+
+
+def _qbo_tasa_usd():
+    """Tasa USD→ANG que se fija en QBO (la misma que usaba n8n)."""
+    try:
+        return Decimal(os.environ.get('QBO_TASA_USD', '1.78').strip() or '1.78')
+    except (InvalidOperation, ValueError):
+        return Decimal('1.78')
+
+
+def _qbo_conexion_fila():
+    return db.session.get(QboConexion, 1)
+
+
+class _QboStoreDb:
+    """`TokenStore` sobre la tabla `qbo_conexion`.
+
+    `guardar` hace commit en el acto: dos workers pueden refrescar a la vez
+    y el que pierde la carrera tiene que ver los tokens nuevos en su
+    reintento (el cliente reintenta una vez ante 401).
+    """
+
+    CAMPOS = ('realm_id', 'access_token', 'refresh_token',
+              'access_expires_at', 'refresh_expires_at')
+
+    def cargar(self):
+        fila = _qbo_conexion_fila()
+        if fila is None or not fila.refresh_token or not fila.realm_id:
+            return None
+        return {campo: getattr(fila, campo) for campo in self.CAMPOS}
+
+    def guardar(self, tokens):
+        fila = _qbo_conexion_fila()
+        if fila is None:
+            fila = QboConexion(id=1)
+            db.session.add(fila)
+        for campo in self.CAMPOS:
+            setattr(fila, campo, tokens.get(campo))
+        fila.ultimo_error = None
+        fila.ultimo_error_en = None
+        db.session.commit()
+
+
+def _qbo_client():
+    """Cliente listo para usar, o None si no hay credenciales en el entorno."""
+    from utils.qbo_client import QboClient
+
+    config = _qbo_config()
+    if config is None:
+        return None
+    return QboClient(config, _QboStoreDb())
+
+
+def _qbo_registrar_error(mensaje):
+    """Deja el último error visible en /admin/quickbooks. Best-effort."""
+    try:
+        fila = _qbo_conexion_fila()
+        if fila is None:
+            fila = QboConexion(id=1)
+            db.session.add(fila)
+        fila.ultimo_error = str(mensaje)[:255]
+        fila.ultimo_error_en = _utcnow_naive()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.warning(f'No se pudo registrar el error de QBO: {e}')
+
+
+def _backend(variable):
+    """`'qbo'` solo si la variable lo pide Y hay credenciales; si no, `'n8n'`."""
+    pedido = os.environ.get(variable, 'n8n').strip().lower()
+    if pedido != 'qbo':
+        return 'n8n'
+    if _qbo_config() is None:
+        app.logger.warning(
+            f'{variable}=qbo pero faltan QBO_CLIENT_ID/QBO_CLIENT_SECRET; se usa n8n'
+        )
+        return 'n8n'
+    return 'qbo'
+
+
+def _facturacion_backend():
+    return _backend('FACTURACION_BACKEND')
+
+
+def _qb_sales_backend():
+    return _backend('QB_SALES_BACKEND')
+
+
+def _hoy_local():
+    """Fecha de hoy en Curaçao. n8n usaba la UTC del servidor, que de tarde
+    ya es mañana (la 5865 salió con TxnDate del día siguiente)."""
+    return datetime.now(DASHBOARD_TIMEZONE).date()
+
+
+def _ultimo_doc_number_local():
+    """El mayor número de factura que la app misma emitió, o None.
+
+    Cubre el retraso de unos segundos del índice de consulta de QBO tras
+    crear una factura: dos facturaciones seguidas leerían el mismo máximo.
+    """
+    numeros = []
+    filas = (db.session.query(Pedido.doc_number_qbo)
+             .filter(Pedido.doc_number_qbo.isnot(None))
+             .order_by(Pedido.id.desc()).limit(50).all())
+    for (doc,) in filas:
+        try:
+            numeros.append(int(str(doc).strip()))
+        except (TypeError, ValueError):
+            continue
+    return max(numeros) if numeros else None
+
+
+@app.cli.command('qbo-fijar-tasa')
+def cli_qbo_fijar_tasa():
+    """Fija la tasa USD→ANG de hoy y mañana en QuickBooks.
+
+    Reemplaza al workflow diario de n8n «Fijar USD en 1.78». Pensado para
+    Heroku Scheduler: `flask qbo-fijar-tasa` una vez al día. Cubre las
+    transacciones hechas a mano en QBO; las facturas en USD de la app además
+    aseguran la tasa de su propia fecha antes de crearse.
+    """
+    import click
+    from utils.qbo_tasa import asegurar_tasa_usd
+
+    client = _qbo_client()
+    if client is None:
+        raise click.ClickException('Faltan QBO_CLIENT_ID/QBO_CLIENT_SECRET')
+    tasa = _qbo_tasa_usd()
+    hoy = _hoy_local()
+    for fecha in (hoy, hoy + timedelta(days=1)):
+        cambiada = asegurar_tasa_usd(client, fecha, tasa)
+        click.echo(f"{fecha.isoformat()}: {'fijada en' if cambiada else 'ya estaba en'} {tasa}")
+
+
 def _obtener_factura_qbo(invoice_id):
-    """Pide a n8n la factura vigente en QuickBooks.
+    """La factura vigente en QuickBooks: directo por API o vía n8n, según
+    `FACTURACION_BACKEND`. Las dos devuelven `{"Invoice": {...}}`.
 
     Se consulta en vivo en lugar de guardar un snapshot al facturar porque las
     facturas se corrigen a mano en QBO cuando la lista de precios de la app
     está desactualizada. Devuelve None ante cualquier fallo; quien llama decide
     qué mostrar.
     """
+    if _facturacion_backend() == 'qbo':
+        client = _qbo_client()
+        try:
+            return client.get(f'invoice/{invoice_id}')
+        except Exception as e:
+            app.logger.error(f'No se pudo obtener la factura {invoice_id} de QBO: {e}')
+            return None
+
     if not N8N_INVOICE_FETCH_WEBHOOK_URL:
         app.logger.warning('N8N_INVOICE_FETCH_WEBHOOK_URL no configurada')
         return None
@@ -9475,6 +9803,137 @@ def _archivar_factura_drive(pdf_bytes, filename):
         return False
 
 
+
+
+# Lock de Postgres para facturar en fila entre workers: dos facturaciones
+# simultáneas leerían el mismo máximo de DocNumber. Es transaccional (se
+# suelta con el commit de `facturar_pedido`); en sqlite no existe y no hace
+# falta. La constante es arbitraria; solo tiene que ser la misma en todos.
+QBO_LOCK_FACTURACION = 7_2026_0911
+
+
+def _qbo_bloquear_facturacion():
+    if db.engine.dialect.name != 'postgresql':
+        return
+    from sqlalchemy import text
+    db.session.execute(text('SELECT pg_advisory_xact_lock(:clave)'),
+                       {'clave': QBO_LOCK_FACTURACION})
+
+
+def _crear_factura_qbo(pedido_id, payload):
+    """Crea la factura directo en QuickBooks. Devuelve `(respuesta, error)`:
+    la respuesta cruda `{"Invoice": {...}}` que ya entiende
+    `_extraer_invoice_id`, o un mensaje para el usuario.
+
+    Orden: token fresco → lock entre workers → tasa USD del día (best-effort)
+    → número (QBO + último local) → body → POST, con un reintento si QBO
+    devuelve 6240 (número duplicado). Ver Task 5 y 6 del plan.
+    """
+    from utils.qbo_client import QboError, QboNoConectado
+    from utils.qbo_factura import construir_invoice, siguiente_doc_number
+    from utils.qbo_tasa import asegurar_tasa_usd
+
+    client = _qbo_client()
+    if client is None:
+        return None, ('QuickBooks no está configurado: faltan QBO_CLIENT_ID y '
+                      'QBO_CLIENT_SECRET. Contacte al administrador.')
+    try:
+        client.asegurar_token()
+        _qbo_bloquear_facturacion()
+        hoy = _hoy_local()
+
+        if str(payload.get('currency') or '').upper() == 'USD':
+            try:
+                asegurar_tasa_usd(client, hoy, _qbo_tasa_usd())
+            except Exception as e:
+                # La factura lleva su propio ExchangeRate; no se frena por esto.
+                app.logger.warning(f'No se pudo fijar la tasa USD para {hoy}: {e}')
+
+        reintentado = False
+        piso = _ultimo_doc_number_local()
+        while True:
+            doc_number = siguiente_doc_number(client, piso)
+            body = construir_invoice(payload, doc_number, hoy)
+            try:
+                respuesta = client.post('invoice', body,
+                                        params={'include': 'enhancedAllCustomFields'})
+            except QboError as e:
+                if e.codigo == '6240' and not reintentado:
+                    # Alguien usó ese número hace segundos y el índice de QBO
+                    # todavía no lo muestra: el rechazado pasa a ser el piso.
+                    reintentado = True
+                    piso = max(piso or 0, int(doc_number))
+                    app.logger.warning(
+                        f'DocNumber {doc_number} duplicado en QBO para pedido '
+                        f'{pedido_id}; se reintenta con el siguiente'
+                    )
+                    continue
+                raise
+            app.logger.info(f'Pedido {pedido_id} facturado en QBO como {doc_number}')
+            return respuesta, None
+
+    except QboNoConectado as e:
+        _qbo_registrar_error(e)
+        return None, ('QuickBooks no está conectado. Un administrador tiene que '
+                      'conectarlo en Configuración → QuickBooks.')
+    except QboError as e:
+        if e.es_auth:
+            _qbo_registrar_error(e)
+        app.logger.error(f'QBO rechazó la factura del pedido {pedido_id}: {e.detalle}')
+        return None, f'QuickBooks rechazó la factura: {e.detalle[:200]}'
+    except ValueError as e:
+        return None, f'No se puede facturar: {e}'
+    except requests.Timeout:
+        app.logger.error(f'Timeout de QuickBooks al facturar pedido {pedido_id}')
+        return None, 'Timeout — QuickBooks no respondió. Reintentar en unos momentos.'
+    except requests.ConnectionError as e:
+        app.logger.error(f'Error de conexión con QuickBooks para pedido {pedido_id}: {e}')
+        return None, 'Error de conexión con QuickBooks. Verificar la red y reintentar.'
+    except Exception as e:
+        app.logger.error(f'Error inesperado al facturar pedido {pedido_id} en QBO: {e}')
+        return None, 'Error inesperado al facturar en QuickBooks. Intente de nuevo.'
+
+
+def _crear_factura_n8n(pedido_id, payload):
+    """Camino anterior, intacto: manda el payload al webhook de n8n.
+    Devuelve `(respuesta_json, error)` como `_crear_factura_qbo`."""
+    if not N8N_WEBHOOK_URL:
+        app.logger.error(f'N8N_WEBHOOK_URL no configurada. No se puede facturar pedido {pedido_id}.')
+        return None, 'Error de configuración: N8N_WEBHOOK_URL no está definida. Contacte al administrador.'
+
+    # ── Llamada al webhook N8N ──
+    try:
+        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_WEBHOOK_TIMEOUT, headers=_webhook_headers())
+        resp.raise_for_status()
+    except requests.Timeout:
+        app.logger.error(f'Timeout al enviar pedido {pedido_id} a n8n ({N8N_WEBHOOK_TIMEOUT}s)')
+        return None, f'Timeout — N8N no respondió en {N8N_WEBHOOK_TIMEOUT}s. Reintentar o verificar conexión.'
+    except requests.ConnectionError as e:
+        app.logger.error(f'Error de conexión con n8n para pedido {pedido_id}: {e}')
+        return None, 'Error de conexión con N8N. Verificar que el servicio está activo.'
+    except requests.HTTPError as e:
+        err_resp = e.response
+        status_code = err_resp.status_code
+        try:
+            error_body = err_resp.json()
+            error_msg = error_body.get('message', error_body.get('error', str(error_body)))
+        except Exception:
+            error_msg = err_resp.text[:200] if err_resp.text else 'Sin detalle'
+        app.logger.error(f'HTTP {status_code} de n8n para pedido {pedido_id}: {error_msg}')
+        if 400 <= status_code < 500:
+            return None, f'Error en facturación (HTTP {status_code}): {error_msg}'
+        return None, 'Error temporal en QuickBooks. Reintentar en unos momentos.'
+    except Exception as e:
+        app.logger.error(f'Error inesperado al enviar pedido {pedido_id} a n8n: {e}')
+        return None, 'Error al enviar a n8n. Intente de nuevo.'
+
+    try:
+        return resp.json(), None
+    except Exception:
+        app.logger.warning(f'No se pudo parsear JSON de respuesta n8n para pedido {pedido_id}')
+        return None, None
+
+
 @app.route('/pedidos/<int:pedido_id>/facturar', methods=['POST'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'editar')
@@ -9532,50 +9991,22 @@ def facturar_pedido(pedido_id):
             'warning',
         )
 
-    # ── Guard: verificar que N8N está configurado ──
-    if not N8N_WEBHOOK_URL:
-        app.logger.error(f'N8N_WEBHOOK_URL no configurada. No se puede facturar pedido {pedido_id}.')
-        flash('Error de configuración: N8N_WEBHOOK_URL no está definida. Contacte al administrador.', 'danger')
+    # ── Crear la factura: directo en QBO o vía n8n ──
+    if _facturacion_backend() == 'qbo':
+        resp_data, error = _crear_factura_qbo(pedido_id, payload)
+    else:
+        resp_data, error = _crear_factura_n8n(pedido_id, payload)
+    if error:
+        flash(error, 'danger')
         return _volver_a('lista_pedidos')
 
-    # ── Llamada al webhook N8N ──
-    try:
-        resp = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=N8N_WEBHOOK_TIMEOUT, headers=_webhook_headers())
-        resp.raise_for_status()
-    except requests.Timeout:
-        app.logger.error(f'Timeout al enviar pedido {pedido_id} a n8n ({N8N_WEBHOOK_TIMEOUT}s)')
-        flash(f'Timeout — N8N no respondió en {N8N_WEBHOOK_TIMEOUT}s. Reintentar o verificar conexión.', 'danger')
-        return _volver_a('lista_pedidos')
-    except requests.ConnectionError as e:
-        app.logger.error(f'Error de conexión con n8n para pedido {pedido_id}: {e}')
-        flash('Error de conexión con N8N. Verificar que el servicio está activo.', 'danger')
-        return _volver_a('lista_pedidos')
-    except requests.HTTPError as e:
-        err_resp = e.response
-        status_code = err_resp.status_code
-        try:
-            error_body = err_resp.json()
-            error_msg = error_body.get('message', error_body.get('error', str(error_body)))
-        except Exception:
-            error_msg = err_resp.text[:200] if err_resp.text else 'Sin detalle'
-        app.logger.error(f'HTTP {status_code} de n8n para pedido {pedido_id}: {error_msg}')
-        if 400 <= status_code < 500:
-            flash(f'Error en facturación (HTTP {status_code}): {error_msg}', 'danger')
-        else:
-            flash('Error temporal en QuickBooks. Reintentar en unos momentos.', 'danger')
-        return _volver_a('lista_pedidos')
-    except Exception as e:
-        app.logger.error(f'Error inesperado al enviar pedido {pedido_id} a n8n: {e}')
-        flash('Error al enviar a n8n. Intente de nuevo.', 'danger')
-        return _volver_a('lista_pedidos')
-
-    # ── Extraer invoice_id de la respuesta N8N ──
+    # ── Extraer invoice_id de la respuesta ──
     invoice_id = None
     doc_number = None
     try:
-        invoice_id, doc_number = _extraer_invoice_id(resp.json())
+        invoice_id, doc_number = _extraer_invoice_id(resp_data)
     except Exception:
-        app.logger.warning(f'No se pudo parsear JSON de respuesta n8n para pedido {pedido_id}')
+        app.logger.warning(f'No se pudo parsear la respuesta de facturación del pedido {pedido_id}')
 
     # ── Transacción atómica: marcar como facturado ──
     pedido.estado = 'facturado'
