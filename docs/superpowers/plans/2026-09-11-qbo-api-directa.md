@@ -387,21 +387,44 @@ TaxRateRef}}`. Un código fuera de la tabla levanta `ValueError`. Si las
 líneas traen códigos distintos, `ValueError` (el grupo de facturación lo
 impide, pero el traductor no confía).
 
-**Dos discrepancias entre el export y los bodies, a verificar con JM antes
-del corte** (no bloquean el código, sí la prueba en sandbox):
-1. El body de la 5878 (código 10) salió con `TaxRateRef 25`, pero la tabla
-   del export dice `17`. O el body es de una ejecución anterior al cambio del
-   2026-09-08, o el nodo desplegado no es el del export. QBO reescribe la
-   tasa si no coincide, así que no rompe nada, pero conviene saber cuál está
-   corriendo.
-2. El nodo HTTP del export reenvía `Line`, `CustomerRef`, `SalesTermRef`,
-   `TxnDate`, `DueDate`, `DocNumber`, `CustomField`, `CurrencyRef` y
-   `CustomerMemo`, **pero no `ExchangeRate`, `GlobalTaxCalculation` ni
-   `TxnTaxDetail`**, que el nodo de código sí arma. Si ese nodo es el que
-   está en producción, el 6 % de la 5878 lo puso QBO por el código de
-   impuesto por defecto del cliente, no el body. El traductor manda el body
-   completo (es lo que el nodo de código pretende) y se comprueba en sandbox
-   que el impuesto y el tipo de cambio salgan bien con y sin esos campos.
+**Hallazgo confirmado por JM (2026-09-11): el nodo HTTP en producción es el
+del export.** Es decir, **`ExchangeRate`, `GlobalTaxCalculation` y
+`TxnTaxDetail` nunca han llegado a QuickBooks** por más que el nodo de
+código los arme. Consecuencias:
+
+- El impuesto de cada factura lo decide QBO por su cuenta (código por defecto
+  del cliente) o se corrige a mano al editarla. Las mediciones «5848 salió al
+  0 % mandando solo el código» y «5865 salió sin código» del nodo de código
+  se explican por esto: no era que QBO ignorara el bloque, era que nunca lo
+  recibió. **Así que la hipótesis de que QBO calcula solo con
+  `TxnTaxCodeRef` sigue sin probarse.** La Task 4 manda el bloque completo
+  (es lo seguro) y en sandbox se prueba además la variante con solo el
+  código; si funciona, se simplifica.
+- Para clientes USD, QBO aplica **su** tipo de cambio del día, no el 1,78 de
+  la app. La factura del cliente no cambia (es en dólares), pero el
+  equivalente en ANG que QBO contabiliza sí. Se verifica en la 5869 antes del
+  corte.
+- La discrepancia `TaxRateRef 25` (body) contra `17` (export) queda sin
+  efecto práctico: ese campo tampoco viaja. Sigue indicando que el nodo de
+  código desplegado y el del export no son idénticos, así que **el export es
+  la referencia y el traductor se valida contra QBO, no contra n8n**.
+
+**Arreglo inmediato en n8n**, mientras siga en uso (JM lo aplica en el nodo
+«HTTP Facturar QBO», tres líneas antes de `CustomerMemo`; probar con una
+factura):
+
+```
+  "GlobalTaxCalculation": "{{ $json.GlobalTaxCalculation }}",
+  {{ $json.ExchangeRate ? '"ExchangeRate": ' + $json.ExchangeRate + ',' : '' }}
+  {{ $json.TxnTaxDetail ? '"TxnTaxDetail": ' + JSON.stringify($json.TxnTaxDetail) + ',' : '' }}
+```
+
+**Otro hallazgo, fuera de alcance de este plan:** al leer las facturas en
+QBO, la 5878 tiene 5 de 7 líneas con precio corregido a mano y un ítem
+reemplazado (1305 → 1430); la 5879, una línea (19,98 → 25,30). Las listas
+de precios de la app van por detrás de lo que se factura. La app ya tiene
+`_comparar_precios_factura` para detectarlo; conviene que JM lo use tras
+cada factura corregida, o que se automatice en un plan aparte.
 
 - [ ] **Step 1: Tests** con los tres bodies reales como fixtures esperados
       (reconstruyendo el payload de la app que los produjo) y además los

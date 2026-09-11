@@ -44,3 +44,6 @@ RBC Account# 8000009000132576
 **No reenvía** `ExchangeRate`, `GlobalTaxCalculation` ni `TxnTaxDetail`,
 aunque el nodo de código los arma. Ver la discrepancia 2 en la Task 4 del
 plan `2026-09-11-qbo-api-directa.md`.
+
+**Confirmado por JM el 2026-09-11:** este template es el que está en
+producción. Los tres campos que faltan nunca han llegado a QuickBooks.
