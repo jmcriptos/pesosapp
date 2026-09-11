@@ -46,13 +46,13 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
       `http://localhost:5000/admin/quickbooks/callback` (desarrollo).
 - [ ] Crear (o confirmar) una **empresa sandbox** en el portal de Intuit. Ahí
       se prueba la Fase 1 antes de tocar la empresa real.
-- [x] Tres bodies reales de n8n (XCG pesables, XCG cajas al 6 %, USD export) guardados en `docs/superpowers/specs/n8n-facturacion-body-*.json` (ver Task 4). Sigue faltando el export del workflow para la consulta de DocNumber:
-- [ ] Exportar el JSON del workflow de facturación de n8n (`...` → Download) y
-      dejarlo en `docs/superpowers/specs/n8n-facturacion-export.json`. El nodo
-      `Generar Numero Factura` es la fuente de verdad de: la consulta de
-      DocNumber, el agrupado de líneas, los `CustomField` 1–3, `TxnDate`,
-      `DueDate`, `PrivateNote`/`CustomerMemo` y cualquier campo que no esté en
-      el diseño del 2026-08-28. **Sin este export la Task 4 se hace a ciegas.**
+- [x] Tres bodies reales de n8n (XCG pesables, XCG cajas al 6 %, USD export)
+      guardados en `docs/superpowers/specs/n8n-facturacion-body-*.json`. Con
+      ellos la Task 4 queda definida salvo dos confirmaciones (ver ahí).
+- [ ] Confirmar la consulta de DocNumber del workflow de n8n: o el export JSON
+      del workflow (`...` → Download, a
+      `docs/superpowers/specs/n8n-facturacion-export.json`), o la confirmación
+      de JM de que es «últimas 50 facturas por fecha de creación y sumar uno».
 - [ ] Exportar también el workflow de ventas (el que responde a
       `N8N_QB_SALES_WEBHOOK_URL`) para la Fase 2: define qué filas y qué claves
       espera hoy el dashboard (`transactions[]`, `home_amount`, `weight`…).
