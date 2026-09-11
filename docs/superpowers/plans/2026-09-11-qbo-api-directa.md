@@ -334,9 +334,12 @@ pendiente 1 del diseño del 2026-08-28 queda resuelto por la evidencia.
 - `Description` = los pesos de cada caja, con **dos decimales y separados por
   tabulador** (`"23.15\t23.40"`). Es lo que leen
   `utils/factura_pdf._pesos_de_descripcion` y la trazabilidad por caja; el
-  separador tiene que ser exactamente `\t`. *Abierto: qué pone n8n en
-  `Description` de un producto no pesable (cajas enteras, con o sin lote). La
-  factura de ejemplo solo tiene pesables.*
+  separador tiene que ser exactamente `\t`. Un producto **no pesable** lleva
+  la cantidad de cajas con el mismo formato (`"3.00"`, `"5.00"`): n8n mete
+  cada `qty` del payload en `descriptions[]` sin distinguir pesable de caja.
+  **El `(Lote X)` que `pedido_a_json` agrega a `descripcion` no llega a QBO**;
+  n8n lo descarta. Se replica igual (primero igualar, después mejorar); si JM
+  quiere el lote en la factura, es un cambio aparte y visible al cliente.
 - `DetailType = 'SalesItemLineDetail'`.
 - `SalesItemLineDetail.ItemRef = {value: product_qbo_id, name: product_name}`.
   El `name` va **sin** la categoría (`"Cooked Chicken Ham"`, no
