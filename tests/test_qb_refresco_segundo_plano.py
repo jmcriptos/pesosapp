@@ -53,9 +53,10 @@ def test_precalentamiento_no_corre_sin_webhook(monkeypatch):
 
 
 def test_precalentamiento_llena_la_cache_en_segundo_plano(monkeypatch):
-    """Con QuickBooks habilitado, el arranque calienta la caché sin bloquear."""
+    """Con QuickBooks habilitado y el warmup pedido, calienta sin bloquear."""
     monkeypatch.delenv('FLASK_ENV', raising=False)
     monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
+    monkeypatch.setenv('QB_WARMUP_ON_BOOT', 'true')
     monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
     monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/warmup')
     llamado = {'n': 0}
@@ -213,9 +214,37 @@ def test_ventana_que_cruza_la_medianoche(monkeypatch):
     assert app_module._dentro_de_ventana_refresco(_momento(1, 12)) is False
 
 
-def test_intervalo_periodico_no_vuelve_a_cinco_minutos():
-    """300 s × 24 h agotó el plan una vez; que no se cuele de nuevo."""
-    assert app_module.N8N_QB_REFRESH_INTERVAL_SEC >= 900
+def test_refresco_periodico_viene_apagado_de_fabrica():
+    """JM lo pidió apagado: las ejecuciones son para la facturación."""
+    assert app_module.N8N_QB_REFRESH_INTERVAL_SEC == 0
+
+
+def test_precalentamiento_de_arranque_viene_apagado_de_fabrica(monkeypatch):
+    """Heroku recicla dynos a diario; cada arranque gastaba una ejecución."""
+    monkeypatch.delenv('QB_WARMUP_ON_BOOT', raising=False)
+    monkeypatch.delenv('FLASK_ENV', raising=False)
+    monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
+    monkeypatch.setattr(app_module, 'QB_SALES_SOURCE', 'quickbooks')
+    monkeypatch.setattr(app_module, 'N8N_QB_SALES_WEBHOOK_URL', 'https://n8n.test/no-tocar')
+    llamado = {'n': 0}
+    monkeypatch.setattr(app_module, '_obtener_metricas_ventas_quickbooks',
+                        lambda **_kw: llamado.__setitem__('n', llamado['n'] + 1))
+
+    app_module._precalentar_cache_qb()
+
+    _esperar_hilo_nombre('qb-sales-warmup', limite=0.5)
+    assert llamado['n'] == 0, 'el arranque no debe salir a n8n sin que se lo pidan'
+
+
+def test_intervalo_en_cero_no_levanta_el_hilo_periodico(monkeypatch):
+    """Con 0 no hay bucle: ni un solo hilo tocando n8n por su cuenta."""
+    monkeypatch.setattr(app_module, 'N8N_QB_REFRESH_INTERVAL_SEC', 0)
+    monkeypatch.setattr(app_module, '_qb_periodico_iniciado', False)
+
+    app_module._iniciar_refresco_periodico_qb()
+
+    assert not any(t.name == 'qb-sales-periodico' for t in threading.enumerate())
+    assert app_module._qb_periodico_iniciado is False, 'no debe marcarse iniciado'
 
 
 def test_dias_de_refresco_se_parsean_desde_rango_o_lista():

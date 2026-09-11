@@ -176,14 +176,18 @@ try:
 except (TypeError, ValueError):
     N8N_QB_STALE_CACHE_TTL = 86400
 # El bucle periódico es, de lejos, el que más ejecuciones de n8n consume: es
-# el único que llama sin que nadie lo pida. A 300 s son 288 ejecuciones/día
-# (~8.600/mes) y eso solo agota el plan. A 900 s dentro de la ventana laboral
-# quedan ~52/día (~1.350/mes), que es lo que el negocio realmente necesita:
-# las ventas de QuickBooks no cambian de madrugada ni en domingo.
+# el único que llama sin que nadie lo pida. A 300 s eran 288 ejecuciones/día
+# (~8.600/mes) y eso solo agotó la cuota mensual del plan el 2026-09-11.
+#
+# Va APAGADO por defecto (0). Las ejecuciones que quedan se reservan para la
+# facturación, que es la que no puede fallar; las ventas del dashboard se
+# refrescan cuando alguien lo abre y encuentra la fila vencida, que es cuando
+# el dato hace falta de verdad. Poner un valor > 0 lo vuelve a encender, y
+# entonces manda la ventana laboral de más abajo.
 try:
-    N8N_QB_REFRESH_INTERVAL_SEC = int(os.environ.get('N8N_QB_REFRESH_INTERVAL_SEC', 900))
+    N8N_QB_REFRESH_INTERVAL_SEC = int(os.environ.get('N8N_QB_REFRESH_INTERVAL_SEC', 0))
 except (TypeError, ValueError):
-    N8N_QB_REFRESH_INTERVAL_SEC = 900
+    N8N_QB_REFRESH_INTERVAL_SEC = 0
 # Ventana en la que el bucle periódico tiene permiso de salir a la red, en
 # hora de Curaçao. Fuera de ella la fila se sigue sirviendo (dura 24 h) y un
 # usuario que abra el dashboard igual dispara su refresco bajo demanda.
@@ -2222,7 +2226,9 @@ def _precalentar_cache_qb():
     lento retrasaría el boot y Heroku puede matar el dyno por timeout de
     arranque.
     """
-    if not _env_flag('QB_WARMUP_ON_BOOT', default=True):
+    # Apagado por defecto: cada arranque de worker gastaba una ejecución de
+    # n8n, y Heroku recicla los dynos a diario. Ponerlo en true lo reactiva.
+    if not _env_flag('QB_WARMUP_ON_BOOT', default=False):
         return
     if os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ:
         return
