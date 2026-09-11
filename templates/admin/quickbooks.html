@@ -1,0 +1,129 @@
+<!-- templates/admin/quickbooks.html -->
+{% extends "base.html" %}
+
+{% block title %}QuickBooks{% endblock %}
+
+{% block header_title %}QuickBooks{% endblock %}
+
+{% block content %}
+<div class="admin-page-container">
+    <p class="page-subtitle">Conexión directa con QuickBooks Online por API (sin n8n)</p>
+
+    <div class="report-section">
+        <h2><i class="fas fa-plug"></i> Estado de la conexión</h2>
+        <div class="table-responsive">
+            <table class="report-table">
+                <tbody>
+                    <tr>
+                        <td><strong>Credenciales en el entorno</strong></td>
+                        <td>
+                            {% if hay_credenciales %}
+                                <span class="badge badge-success">Configuradas</span> ({{ entorno }})
+                            {% else %}
+                                <span class="badge badge-danger">Faltan QBO_CLIENT_ID / QBO_CLIENT_SECRET</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Conexión</strong></td>
+                        <td>
+                            {% if conectado %}
+                                <span class="badge badge-success">Conectado</span>
+                                a la empresa <code>{{ fila.realm_id }}</code>
+                                {% if fila.conectado_en %}
+                                    desde {{ fila.conectado_en.strftime('%d/%m/%Y %H:%M') }} UTC
+                                {% endif %}
+                                {% if fila.conectado_por_vendedor %}
+                                    por {{ fila.conectado_por_vendedor.nombre_completo }}
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-warning">No conectado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if conectado %}
+                    <tr>
+                        <td><strong>Vence el refresh token</strong></td>
+                        <td>
+                            {% if fila.refresh_expires_at %}
+                                {{ fila.refresh_expires_at.strftime('%d/%m/%Y') }}
+                                <small>(se renueva solo con cada uso; caduca a los 100 días sin facturar)</small>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if fila and fila.ultimo_error %}
+                    <tr>
+                        <td><strong>Último error</strong></td>
+                        <td class="text-danger">
+                            {{ fila.ultimo_error }}
+                            {% if fila.ultimo_error_en %}
+                                <small>({{ fila.ultimo_error_en.strftime('%d/%m/%Y %H:%M') }} UTC)</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td><strong>Backend de facturación</strong></td>
+                        <td><code>{{ backend_facturacion }}</code> <small>(variable <code>FACTURACION_BACKEND</code>)</small></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Backend de ventas del dashboard</strong></td>
+                        <td><code>{{ backend_ventas }}</code> <small>(variable <code>QB_SALES_BACKEND</code>)</small></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tasa USD → ANG que se fija</strong></td>
+                        <td>{{ tasa_usd }}</td>
+                    </tr>
+                    {% if redirect_uri %}
+                    <tr>
+                        <td><strong>Redirect URI</strong></td>
+                        <td><code>{{ redirect_uri }}</code> <small>(tiene que estar registrada igual en la app de Intuit)</small></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h2><i class="fas fa-sliders-h"></i> Acciones</h2>
+        <div class="qbo-acciones">
+            {% if not conectado %}
+            <form method="POST" action="{{ url_for('admin_quickbooks_conectar') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary" {% if not hay_credenciales %}disabled{% endif %}>
+                    <i class="fas fa-link"></i> Conectar QuickBooks
+                </button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('admin_quickbooks_probar') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fas fa-vial"></i> Probar conexión
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_quickbooks_conectar') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary">
+                    <i class="fas fa-sync"></i> Volver a conectar
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_quickbooks_desconectar') }}" data-confirm="¿Desconectar QuickBooks? La app no podrá facturar por API hasta reconectar.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-unlink"></i> Desconectar
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        <p class="backup-status-note">
+            <i class="fas fa-info-circle"></i>
+            Conectar abre la pantalla de autorización de Intuit con la cuenta que administra la empresa en QuickBooks.
+            Al volver, los tokens quedan guardados en la base y se renuevan solos.
+        </p>
+    </div>
+</div>
+{% endblock %}

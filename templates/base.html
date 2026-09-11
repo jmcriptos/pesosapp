@@ -305,6 +305,9 @@
                 <a href="{{ url_for('gestionar_vendedores') }}" class="drawer-item {{ 'active' if request.path.startswith('/admin/vendedores') or request.path.startswith('/admin/roles') }}">
                     <i class="fas fa-user-shield"></i><span>Usuarios</span>
                 </a>
+                <a href="{{ url_for('admin_quickbooks') }}" class="drawer-item {{ 'active' if request.path.startswith('/admin/quickbooks') }}">
+                    <i class="fas fa-file-invoice-dollar"></i><span>QuickBooks</span>
+                </a>
                 {% endif %}
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
@@ -445,6 +448,13 @@
                                 <span class="desktop-ops-item-copy">
                                     <span class="desktop-ops-item-title">Usuarios</span>
                                     <span class="desktop-ops-item-meta">Usuarios, roles y permisos</span>
+                                </span>
+                            </a>
+                            <a href="{{ url_for('admin_quickbooks') }}" class="desktop-ops-item {{ 'active' if request.path.startswith('/admin/quickbooks') }}">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span class="desktop-ops-item-copy">
+                                    <span class="desktop-ops-item-title">QuickBooks</span>
+                                    <span class="desktop-ops-item-meta">Conexión directa por API</span>
                                 </span>
                             </a>
                             {% endif %}

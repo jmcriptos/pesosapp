@@ -33,6 +33,14 @@ FASE 2  app ──▶ utils/qbo_ventas (query Invoice por rango) ──▶ utils
 QuickBooks Online con `minorversion=75`. OAuth 2.0 de Intuit, scope
 `com.intuit.quickbooks.accounting`.
 
+**Estado (2026-09-11):** Fase 1 codificada y con tests en la rama
+`claude/festive-goldberg-ds8ujn`: Tasks 1, 2, 3, 4, 5, 6, 7 y 7b hechas
+(`utils/qbo_client.py`, `utils/qbo_factura.py`, `utils/qbo_tasa.py`,
+modelo `QboConexion`, rutas `/admin/quickbooks/*`, backend `qbo` en
+`facturar_pedido` y en `_obtener_factura_qbo`, comando `flask qbo-fijar-tasa`).
+Pendiente: Task 8 (sandbox de punta a punta y corte a producción, necesita
+las credenciales en una sesión nueva) y toda la Fase 2.
+
 **Esfuerzo estimado:** Fase 1, dos a tres días. Fase 2, uno a dos días. Más el
 trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 

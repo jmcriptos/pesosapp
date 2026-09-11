@@ -242,6 +242,11 @@ class QboClient:
             tokens = self.refrescar()
         return tokens['access_token'], tokens['realm_id']
 
+    def asegurar_token(self) -> None:
+        """Refresca de antemano si hace falta. Se llama ANTES de tomar el
+        lock de facturación para que el commit del refresco no lo suelte."""
+        self._access_token()
+
     @property
     def realm_id(self) -> Optional[str]:
         tokens = self.store.cargar() or {}
