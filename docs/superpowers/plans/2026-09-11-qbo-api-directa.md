@@ -5,7 +5,8 @@
 **Goal:** Que la app facture y consulte facturas en QuickBooks Online hablando
 directo con la API v3 de Intuit, sin pasar por n8n. Fase 1 saca de n8n la
 facturación y la consulta de factura (lo que hoy bloquea el negocio). Fase 2
-saca las ventas del dashboard. Drive y las alertas HACCP quedan en n8n.
+saca las ventas del dashboard y la fijación diaria de la tasa USD. Drive y
+las alertas HACCP quedan en n8n.
 
 **Por qué:** el plan de n8n Cloud se cobra por ejecución y en septiembre de
 2026 se llegó al tope a mitad de mes, con la facturación parada. La API de
@@ -52,6 +53,8 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 - [x] Export del workflow de facturación recibido el 2026-09-11 y guardado
       (sin el path del webhook ni el realm id) en
       `docs/superpowers/specs/n8n-facturacion-export.md` y `n8n-facturacion-nodo-codigo.js`.
+- [x] Export del workflow «Fijar USD en 1.78» recibido el 2026-09-11 y
+      resumido en `docs/superpowers/specs/n8n-tasa-usd-export.md`.
 - [ ] Exportar también el workflow de ventas (el que responde a
       `N8N_QB_SALES_WEBHOOK_URL`) para la Fase 2: define qué filas y qué claves
       espera hoy el dashboard (`transactions[]`, `home_amount`, `weight`…).
@@ -85,6 +88,7 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 |---|---|
 | `utils/qbo_client.py` (crear) | OAuth2 de Intuit y wrapper HTTP de la API v3. Sin Flask, sin DB: recibe config y un *token store* con `cargar()`/`guardar()`. |
 | `utils/qbo_factura.py` (crear) | Función pura `construir_invoice(payload, doc_number, hoy)` que arma el body del `Invoice`. Reemplaza al nodo de código de n8n. |
+| `utils/qbo_tasa.py` (crear) | `asegurar_tasa_usd(client, fecha, tasa)`: lee la tasa USD→ANG de QBO para esa fecha y la fija si difiere. Reemplaza al workflow diario de n8n. |
 | `utils/qbo_ventas.py` (crear, Fase 2) | Query paginada de `Invoice` por rango de fechas y aplanado a las filas que ya entiende `_normalizar_metricas_ventas_quickbooks`. |
 | `app.py` (modificar) | Modelo `QboConexion`, token store sobre SQLAlchemy, rutas `/admin/quickbooks/*`, selector de backend en `facturar_pedido`, `_obtener_factura_qbo` y `_qb_refrescar_desde_red`. |
 | `templates/admin/quickbooks.html` (crear) | Estado de la conexión y botones Conectar/Desconectar. |
@@ -102,6 +106,7 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 | `QBO_ENVIRONMENT` | `sandbox` \| `production` | Elige el host: `sandbox-quickbooks.api.intuit.com` o `quickbooks.api.intuit.com`. |
 | `QBO_MINOR_VERSION` | `75` | Intuit exige mínimo 75 desde 2025. |
 | `QBO_TIMEOUT` | `20` | Segundos por request. |
+| `QBO_TASA_USD` | `1.78` | Tasa USD→ANG que se fija en QBO (mismo valor que hoy usa n8n y `DASHBOARD_USD_TO_XCG_FALLBACK_RATE`). |
 | `FACTURACION_BACKEND` | `n8n` (default) \| `qbo` | Fase 1. Selecciona quién crea y consulta facturas. |
 | `QB_SALES_BACKEND` | `n8n` (default) \| `qbo` | Fase 2. Selecciona de dónde salen las ventas del dashboard. |
 
@@ -553,6 +558,49 @@ como hoy.
       directa (fixture); con `n8n` sigue usando el webhook.
 - [ ] **Step 2: Implementar.**
 
+### Task 7b: Tasa USD→ANG fija en QBO (`utils/qbo_tasa.py`)
+
+**Files:**
+- Create: `utils/qbo_tasa.py`
+- Modify: `app.py` (`_crear_factura_qbo`, comando CLI)
+- Create: `tests/fixtures/qbo/exchangerate.json`
+- Test: `tests/test_qbo_tasa.py`
+
+**Qué hace n8n hoy** (`n8n-tasa-usd-export.md`): todos los días a las 05:00
+lee la tasa USD→ANG de QBO para hoy y mañana (UTC) y la fija en 1,78 con el
+`SyncToken` leído. Existe para que las facturas en USD, y cualquier
+transacción hecha a mano en QBO ese día, se contabilicen a 1,78 y no a la
+tasa del día de Intuit.
+
+**Diseño:**
+
+```python
+def asegurar_tasa_usd(client, fecha: date, tasa: Decimal) -> bool
+```
+
+`GET exchangerate?sourcecurrencycode=USD&asofdate={fecha}`; si `Rate` ya es
+`tasa`, no hace nada y devuelve `False`; si no, `POST exchangerate` con
+`{SourceCurrencyCode: 'USD', TargetCurrencyCode: 'ANG', Rate, AsOfDate}` y el
+`SyncToken` si vino, y devuelve `True`. Idempotente: se puede llamar mil
+veces.
+
+Se usa en dos lugares:
+1. **Antes de crear una factura USD** en `_crear_factura_qbo`, con el
+   `TxnDate` de la factura (fecha local de Curaçao, así que la doble fecha
+   «hoy y mañana» de n8n ya no hace falta). Best-effort: si falla, se loguea
+   y se factura igual, porque la factura lleva su propio `ExchangeRate`.
+2. **Comando `flask qbo-fijar-tasa`** que fija hoy y mañana, para correrlo a
+   diario desde el add-on **Heroku Scheduler** (gratis, un dyno de un
+   minuto). Cubre las transacciones hechas a mano en QBO, que es lo que la
+   llamada 1 no cubre. Se activa en la Task 8 y ahí se apaga el workflow de
+   n8n.
+
+- [ ] **Step 1: Tests:** tasa ya correcta → no hace POST; tasa distinta →
+      POST con `SyncToken`; sin tasa previa → POST sin `SyncToken`; en la
+      factura USD se llama con el `TxnDate` y un fallo no impide facturar;
+      en una factura ANG no se llama.
+- [ ] **Step 2: Implementar** módulo, llamada y comando.
+
 ### Task 8: Config, documentación y corte a producción
 
 **Files:**
@@ -579,6 +627,9 @@ como hoy.
       7. Tras tres facturas limpias, se da por cerrada la Fase 1.
 - [ ] **Step 4:** vaciar `N8N_INVOICE_FETCH_WEBHOOK_URL`. Desactivar el
       workflow de facturación en n8n (no borrarlo hasta cerrar la Fase 2).
+- [ ] **Step 5:** instalar Heroku Scheduler, programar `flask qbo-fijar-tasa`
+      a diario a las 05:00 y, tras verificar un día que la tasa quedó en
+      1,78, desactivar el workflow «Fijar USD en 1.78» en n8n.
 
 **Criterio de salida de la Fase 1:** una semana de facturas sin corrección
 manual y sin tocar n8n para facturar ni para ver PDFs.
