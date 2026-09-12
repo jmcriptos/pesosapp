@@ -38,8 +38,15 @@ QuickBooks Online con `minorversion=75`. OAuth 2.0 de Intuit, scope
 (`utils/qbo_client.py`, `utils/qbo_factura.py`, `utils/qbo_tasa.py`,
 modelo `QboConexion`, rutas `/admin/quickbooks/*`, backend `qbo` en
 `facturar_pedido` y en `_obtener_factura_qbo`, comando `flask qbo-fijar-tasa`).
-Pendiente: Task 8 (sandbox de punta a punta y corte a producción, necesita
-las credenciales en una sesión nueva) y toda la Fase 2.
+Fase 1 en producción desde el 2026-09-12 (factura 5882 correcta; ver el
+runbook `2026-09-11-qbo-corte-heroku.md`); pendiente el paso 8 (una factura
+USD y una por cajas) y el paso 10 (apagar n8n).
+
+Fase 2 codificada el 2026-09-12 detrás de `QB_SALES_BACKEND` (default
+`n8n`, sin efecto en producción): Tasks 9 y 10 hechas
+(`utils/qbo_ventas.py`, `_qb_refrescar_desde_red`), Task 11 lista para
+correr (`scripts/comparar_ventas_qbo.py`). Pendiente: correr la comparación,
+cortar y la Task 12 (limpieza). Se hace después de cerrar la Fase 1.
 
 **Esfuerzo estimado:** Fase 1, dos a tres días. Fase 2, uno a dos días. Más el
 trámite de JM en Intuit (una hora) y la ventana de corte en producción.
@@ -713,9 +720,16 @@ Script de una sola vez: trae el rango del dashboard por n8n y por API,
 normaliza ambos con `_normalizar_metricas_ventas_quickbooks` y lista las
 diferencias en ventas del mes, de la semana, por cliente y por producto.
 
-- [ ] **Step 1:** correr el script en local contra producción (solo lectura)
-      hasta que las diferencias sean cero o estén explicadas (por ejemplo,
-      notas de crédito).
+- [ ] **Step 1:** correr el script contra producción (solo lectura; consume
+      una ejecución de n8n por corrida):
+
+      ```bash
+      heroku run --app pesosapp -- python scripts/comparar_ventas_qbo.py
+      ```
+
+      Termina con «Sin diferencias» o lista cada diferencia por cliente,
+      producto, fecha y línea. La única diferencia esperable es a favor de
+      la API si el rango supera las 1000 facturas (n8n truncaba).
 - [ ] **Step 2:** `heroku config:set QB_SALES_BACKEND=qbo`. Vigilar el
       dashboard dos días.
 - [ ] **Step 3:** vaciar `N8N_QB_SALES_WEBHOOK_URL`; desactivar el workflow de

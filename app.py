@@ -1784,11 +1784,11 @@ def _enlazar_top_clientes(top_clientes, mapa=None):
 
 
 def _quickbooks_sales_enabled():
+    """Hay de dónde leer ventas: directo de QBO (`QB_SALES_BACKEND=qbo`, Fase
+    2) o por el webhook de n8n."""
     if QB_SALES_SOURCE == 'local':
         return False
-    if QB_SALES_SOURCE == 'quickbooks':
-        return bool(N8N_QB_SALES_WEBHOOK_URL)
-    return bool(N8N_QB_SALES_WEBHOOK_URL)
+    return _qb_sales_backend() == 'qbo' or bool(N8N_QB_SALES_WEBHOOK_URL)
 
 
 def _build_rankings_periodos_from_rows(client_rows, product_rows, hoy, period_starts):
@@ -2384,14 +2384,27 @@ def _qb_refrescar_desde_red(payload):
 
     inicio = perf_counter()
     try:
-        resp = requests.post(
-            N8N_QB_SALES_WEBHOOK_URL,
-            json=payload,
-            timeout=float(N8N_QB_SALES_TIMEOUT),
-            headers=_webhook_headers(),
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        if _qb_sales_backend() == 'qbo':
+            # Fase 2: directo de QuickBooks, misma forma que devolvía n8n.
+            from utils.qbo_ventas import consultar_ventas
+            client = _qbo_client()
+            if client is None:
+                raise ValueError('faltan las credenciales de QuickBooks')
+            data = consultar_ventas(
+                client,
+                _date_like_to_date(payload.get('from_date')),
+                _date_like_to_date(payload.get('to_date')),
+                _qbo_tasa_usd(),
+            )
+        else:
+            resp = requests.post(
+                N8N_QB_SALES_WEBHOOK_URL,
+                json=payload,
+                timeout=float(N8N_QB_SALES_TIMEOUT),
+                headers=_webhook_headers(),
+            )
+            resp.raise_for_status()
+            data = resp.json()
         if not isinstance(data, dict):
             raise ValueError('se esperaba un JSON objeto')
     except Exception as e:
@@ -2440,7 +2453,7 @@ def _obtener_metricas_ventas_quickbooks(
     if not _quickbooks_sales_enabled():
         return None
 
-    if not N8N_QB_SALES_WEBHOOK_URL:
+    if _qb_sales_backend() != 'qbo' and not N8N_QB_SALES_WEBHOOK_URL:
         if QB_SALES_SOURCE == 'quickbooks':
             app.logger.warning('QB_SALES_SOURCE=quickbooks pero N8N_QB_SALES_WEBHOOK_URL no está configurada')
         return None
@@ -2584,7 +2597,7 @@ def _precalentar_cache_qb():
         return
     if os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ:
         return
-    if not _quickbooks_sales_enabled() or not N8N_QB_SALES_WEBHOOK_URL:
+    if not _quickbooks_sales_enabled():
         return
 
     def _correr():
