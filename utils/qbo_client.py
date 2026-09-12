@@ -176,7 +176,13 @@ class QboClient:
 
     def _guardar_respuesta_tokens(self, cuerpo: dict, realm_id: Optional[str]) -> dict:
         ahora = self._ahora()
-        previos = self.store.cargar() or {}
+        # Los tokens previos solo aportan realm_id/refresh_token cuando la
+        # respuesta no los trae. Si no se pueden leer (clave de cifrado
+        # cambiada), reconectar tiene que funcionar igual: se parte de cero.
+        try:
+            previos = self.store.cargar() or {}
+        except QboNoConectado:
+            previos = {}
         tokens = {
             'realm_id': realm_id or previos.get('realm_id'),
             'access_token': cuerpo['access_token'],
