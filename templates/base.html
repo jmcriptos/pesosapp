@@ -312,6 +312,9 @@
                 <a href="{{ url_for('cambiar_password') }}" class="drawer-item">
                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                 </a>
+                <a href="{{ url_for('cuenta_2fa') }}" class="drawer-item {{ 'active' if request.path.startswith('/mi-cuenta/2fa') }}">
+                    <i class="fas fa-shield-alt"></i><span>Segundo factor</span>
+                </a>
                 <form method="POST" action="/logout" style="display:contents">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="drawer-item drawer-item-logout" style="border:none;background:none;width:100%;text-align:left;cursor:pointer;font:inherit">
@@ -494,6 +497,7 @@
                                 <a href="{{ url_for('cambiar_password') }}" class="dropdown-item">
                                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                                 </a>
+                                <a href="{{ url_for('cuenta_2fa') }}" class="dropdown-item"><i class="fas fa-shield-alt"></i> Segundo factor</a>
                                 <form method="POST" action="/logout" style="display:contents">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="dropdown-item logout-item" style="border:none;background:none;width:100%;text-align:left;cursor:pointer;font:inherit">

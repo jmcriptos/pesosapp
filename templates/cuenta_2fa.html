@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Segundo factor{% endblock %}
+
+{% block header_title %}
+    <span class="fw-700 color-white">Segundo factor</span>
+{% endblock %}
+
+{% block content %}
+<div class="mobile-form-container">
+
+  {% if codigos_nuevos %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-life-ring"></i> Códigos de respaldo</div>
+    <div class="mobile-card-body">
+      <p>Guardalos en tu gestor de contraseñas. <strong>Se muestran una sola vez.</strong> Cada uno sirve para entrar una vez si no tenés el teléfono.</p>
+      <pre class="qbo-codigos-respaldo" style="font-size:1.05rem;line-height:1.8;background:var(--color-surface-2,#f1f5f9);padding:12px;border-radius:8px">{% for c in codigos_nuevos %}{{ c }}
+{% endfor %}</pre>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if activo %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-shield-alt"></i> Segundo factor activo</div>
+    <div class="mobile-card-body">
+      <p>Al iniciar sesión se pide, además de la contraseña, el código de tu app de autenticación.</p>
+      <p>Códigos de respaldo disponibles: <strong>{{ respaldo_restantes }}</strong>.</p>
+      {% if obligatorio %}
+      <p class="text-muted">Tu rol lo requiere; no se puede desactivar. Si cambiás de teléfono, otro administrador puede restablecerlo desde Usuarios.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-sync"></i> Nuevos códigos de respaldo</div>
+    <div class="mobile-card-body">
+      <form method="POST" action="{{ url_for('cuenta_2fa_codigos') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="codigo_regen">Código actual de la app</label>
+          <input type="text" id="codigo_regen" name="codigo" class="mobile-form-control" inputmode="numeric" autocomplete="one-time-code" required>
+        </div>
+        <button type="submit" class="mobile-btn mobile-btn-secondary"><i class="fas fa-sync"></i> Regenerar códigos</button>
+      </form>
+    </div>
+  </div>
+
+  {% if not obligatorio %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-times-circle"></i> Desactivar</div>
+    <div class="mobile-card-body">
+      <form method="POST" action="{{ url_for('cuenta_2fa_desactivar') }}" data-confirm="¿Desactivar el segundo factor? Tu cuenta quedará protegida solo por la contraseña.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="codigo_off">Código actual de la app</label>
+          <input type="text" id="codigo_off" name="codigo" class="mobile-form-control" inputmode="numeric" autocomplete="one-time-code" required>
+        </div>
+        <button type="submit" class="mobile-btn mobile-btn-danger"><i class="fas fa-times"></i> Desactivar segundo factor</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-mobile-alt"></i> Activar el segundo factor</div>
+    <div class="mobile-card-body">
+      {% if obligatorio %}
+      <p><strong>Tu rol lo requiere.</strong> Hasta activarlo no vas a poder usar el resto de la app.</p>
+      {% endif %}
+      <ol>
+        <li>Instalá una app de autenticación: Google Authenticator, 1Password, Authy o similar.</li>
+        <li>Escaneá este código con la app, o cargá la clave a mano.</li>
+        <li>Escribí abajo el código de seis dígitos que muestre la app.</li>
+      </ol>
+      <div style="display:flex;justify-content:center;margin:12px 0">{{ qr|safe }}</div>
+      <p class="text-muted" style="text-align:center">Clave manual: <code style="letter-spacing:.08em">{{ secreto_legible }}</code></p>
+      <form method="POST" action="{{ url_for('cuenta_2fa_activar') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mobile-form-group">
+          <label class="mobile-form-label" for="codigo">Código de la app</label>
+          <input type="text" id="codigo" name="codigo" class="mobile-form-control" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required autofocus>
+        </div>
+        <button type="submit" class="mobile-btn mobile-btn-primary"><i class="fas fa-check"></i> Activar</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

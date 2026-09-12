@@ -46,7 +46,7 @@ en subproceso con el limitador activo.
       `rediss://`, y una URI inválida ya no impide arrancar (cae a memoria
       con error en el log). Alcanza con:
       `heroku config:set RATELIMIT_STORAGE_URI="$(heroku config:get REDIS_URL --app pesosapp)" --app pesosapp`.
-- [ ] **`TRUST_CF_CONNECTING_IP=1`.** JM confirmó (2026-09-12) que
+- [x] **`TRUST_CF_CONNECTING_IP=1`.** (hecho 2026-09-12, login verificado) JM confirmó (2026-09-12) que
       `app.jomarfoods.com` pasa por Cloudflare y que el dominio de
       `herokuapp.com` sigue accesible en directo. Desde `_client_ip` con
       rangos, la cabecera de Cloudflare se acepta solo si quien se conectó a
@@ -68,19 +68,51 @@ en subproceso con el limitador activo.
 - Heroku Redis mini no persiste datos: si se reinicia, el contador de
   intentos vuelve a cero. Aceptable para un límite de login.
 
-## Fuera de este arreglo: segundo factor (2FA)
+## Segundo factor (2FA) — hecho el 2026-09-12
 
-Con una sola contraseña de super_admin se llega a QuickBooks, exportaciones
-y usuarios. Propuesta, para decidir aparte porque cambia el login de todos
-los super_admin y necesita una app de autenticación en el teléfono:
+TOTP con app de autenticación (Google Authenticator, 1Password, Authy…).
+Código: `utils/totp.py` (puro), rutas `/login/2fa`, `/mi-cuenta/2fa*`,
+`/admin/vendedores/<id>/2fa/reset`, comando `flask 2fa-reset USUARIO`,
+hook `forzar_segundo_factor`. Tests: `tests/test_2fa.py` (20).
 
-- TOTP (Google Authenticator, 1Password, Authy) obligatorio para
-  `super_admin`, opcional para el resto.
-- Columna `totp_secret` en `vendedor` (cifrada con la misma `QBO_TOKEN_KEY`
-  o una clave propia), pantalla de alta con código QR, segundo paso en el
-  login, y códigos de respaldo de un solo uso.
-- Dependencias: `pyotp` y `qrcode`.
-- Esfuerzo: uno a dos días con tests.
+Cómo funciona:
+- **Activar:** Mi cuenta → Segundo factor muestra un QR y la clave manual;
+  se confirma con un código de la app. Al activarlo se muestran **una sola
+  vez** ocho códigos de respaldo de un solo uso (guardados como hash).
+- **Login:** contraseña correcta → si el usuario tiene 2FA, pantalla de
+  código (TOTP con ±30 s, o un código de respaldo). Lo pendiente vive en la
+  cookie de sesión firmada y caduca a los 5 minutos. Límite: 5 intentos por
+  minuto por usuario, solo se cuentan fallos.
+- **Secreto en reposo:** cifrado con `QBO_TOKEN_KEY` (la clave de la app),
+  prefijo `enc:`, igual que los tokens de QuickBooks.
+- **Obligatorio por rol:** `TOTP_OBLIGATORIO_ROLES=super_admin`. Un
+  super_admin sin 2FA solo puede activarlo, cambiar contraseña o salir. Un
+  rol obligado no puede desactivarlo. **Vacío por defecto** para que el
+  deploy no deje a nadie afuera.
+- **Recuperación:** códigos de respaldo; otro super_admin lo restablece
+  desde Usuarios → panel del usuario → «Restablecer segundo factor»; o por
+  terminal: `heroku run --app pesosapp -- flask --app app 2fa-reset USUARIO`.
+
+### Despliegue (JM), en este orden
+
+- [ ] Migración, **antes** del deploy:
+
+      ```bash
+      heroku pg:psql --app pesosapp
+      ```
+      ```sql
+      ALTER TABLE vendedor ADD COLUMN IF NOT EXISTS totp_secret TEXT;
+      ALTER TABLE vendedor ADD COLUMN IF NOT EXISTS totp_confirmado_en TIMESTAMP;
+      ALTER TABLE vendedor ADD COLUMN IF NOT EXISTS codigos_respaldo TEXT;
+      ```
+- [ ] Deploy: `git pull origin main && git push heroku main`.
+- [ ] Con tu usuario: menú → **Segundo factor** → escanear el QR con la app
+      del teléfono → confirmar con el código → **guardar los ocho códigos de
+      respaldo** en el gestor de contraseñas.
+- [ ] Cerrar sesión y volver a entrar: contraseña y luego el código.
+- [ ] Recién entonces, hacerlo obligatorio para los administradores:
+      `heroku config:set TOTP_OBLIGATORIO_ROLES=super_admin --app pesosapp`.
+      Cualquier otro super_admin verá la pantalla de activación al entrar.
 
 ## Nota
 
