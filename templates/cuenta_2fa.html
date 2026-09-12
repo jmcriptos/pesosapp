@@ -74,7 +74,9 @@
         <li>Escaneá este código con la app, o cargá la clave a mano.</li>
         <li>Escribí abajo el código de seis dígitos que muestre la app.</li>
       </ol>
-      <div style="display:flex;justify-content:center;margin:12px 0">{{ qr|safe }}</div>
+      <div style="display:flex;justify-content:center;margin:12px 0">
+        <div style="background:#fff;padding:12px;border-radius:12px;line-height:0">{{ qr|safe }}</div>
+      </div>
       <p class="text-muted" style="text-align:center">Clave manual: <code style="letter-spacing:.08em">{{ secreto_legible }}</code></p>
       <form method="POST" action="{{ url_for('cuenta_2fa_activar') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

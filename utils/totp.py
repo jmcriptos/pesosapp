@@ -62,7 +62,22 @@ def consumir_codigo_respaldo(hashes: list[str], codigo) -> tuple[bool, list[str]
     return (len(restantes) != len(hashes or [])), restantes
 
 
+TAMANO_QR_PX = 240
+
+
 def qr_svg(uri: str) -> str:
-    """El QR como SVG inline (sin dependencias de imagen ni archivos)."""
+    """El QR como SVG inline, listo para escanear en cualquier tema.
+
+    `qrcode` emite el trazado sin color ni fondo y en milímetros (2,5 cm):
+    sobre el tema oscuro de la app quedaba negro sobre negro y chico. Se
+    fija fondo blanco, trazado negro y 240 px, que es lo que la cámara
+    necesita.
+    """
+    import re
     imagen = qrcode.make(uri, image_factory=qrcode.image.svg.SvgPathImage, box_size=6, border=2)
-    return imagen.to_string(encoding='unicode')
+    svg = imagen.to_string(encoding='unicode')
+    svg = re.sub(r'width="[^"]+" height="[^"]+"',
+                 f'width="{TAMANO_QR_PX}" height="{TAMANO_QR_PX}"', svg, count=1)
+    svg = svg.replace('<path ', '<path fill="#000" ', 1)
+    svg = re.sub(r'(<svg[^>]*>)', r'\1<rect width="100%" height="100%" fill="#fff"/>', svg, count=1)
+    return svg
