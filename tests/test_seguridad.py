@@ -45,15 +45,34 @@ def test_ip_es_la_ultima_de_x_forwarded_for(app, monkeypatch):
 def test_cf_connecting_ip_se_ignora_sin_la_bandera(app, monkeypatch):
     monkeypatch.delenv('TRUST_CF_CONNECTING_IP', raising=False)
     with app.test_request_context(headers={'CF-Connecting-IP': '1.1.1.1',
-                                           'X-Forwarded-For': '9.9.9.9'}):
+                                           'X-Forwarded-For': '1.1.1.1, 104.16.5.5'}):
+        assert app_module._client_ip() == '104.16.5.5'
+
+
+def test_cf_connecting_ip_con_bandera_y_peer_de_cloudflare(app, monkeypatch):
+    """Cloudflare conectó a Heroku (104.16.x.x está en sus rangos): vale la
+    cabecera con el cliente real."""
+    monkeypatch.setenv('TRUST_CF_CONNECTING_IP', '1')
+    with app.test_request_context(headers={'CF-Connecting-IP': '190.88.1.2',
+                                           'X-Forwarded-For': '190.88.1.2, 104.16.5.5'}):
+        assert app_module._client_ip() == '190.88.1.2'
+
+
+def test_cf_connecting_ip_falsificada_en_acceso_directo_se_ignora(app, monkeypatch):
+    """Alguien pega directo al dominio de herokuapp.com con la cabecera
+    inventada: el peer no es Cloudflare, así que queda con su IP real."""
+    monkeypatch.setenv('TRUST_CF_CONNECTING_IP', '1')
+    with app.test_request_context(headers={'CF-Connecting-IP': '1.1.1.1',
+                                           'X-Forwarded-For': '1.1.1.1, 9.9.9.9'}):
         assert app_module._client_ip() == '9.9.9.9'
 
 
-def test_cf_connecting_ip_con_la_bandera(app, monkeypatch):
+def test_rangos_de_cloudflare_por_variable(app, monkeypatch):
     monkeypatch.setenv('TRUST_CF_CONNECTING_IP', '1')
-    with app.test_request_context(headers={'CF-Connecting-IP': '1.1.1.1',
-                                           'X-Forwarded-For': '9.9.9.9'}):
-        assert app_module._client_ip() == '1.1.1.1'
+    monkeypatch.setenv('CLOUDFLARE_IP_RANGES', '9.9.9.0/24, basura')
+    assert app_module._es_ip_de_cloudflare('9.9.9.9')
+    assert not app_module._es_ip_de_cloudflare('104.16.5.5')
+    assert not app_module._es_ip_de_cloudflare('no-es-ip')
 
 
 def test_sin_cabeceras_usa_remote_addr(app):

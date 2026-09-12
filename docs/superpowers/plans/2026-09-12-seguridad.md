@@ -22,7 +22,7 @@ en subproceso con el limitador activo.
 
 ## Pendiente de JM (configuración, no código)
 
-- [ ] **Clave de cifrado.** Generar en la Mac y cargar en Heroku (nunca en
+- [x] **Clave de cifrado.** (hecho 2026-09-12: tokens cifrados, verificado en /admin/quickbooks) Generar en la Mac y cargar en Heroku (nunca en
       el chat ni en el repo):
 
       ```bash
@@ -34,7 +34,7 @@ en subproceso con el limitador activo.
       tardar una hora después del siguiente uso). `/admin/quickbooks` pasa
       de «Texto plano» a «Sí». **Guardar la clave en el gestor de
       contraseñas**: si se pierde, Desconectar y Conectar de nuevo.
-- [ ] **Redis para el límite de login.**
+- [x] **Redis para el límite de login.** (hecho 2026-09-12: add-on heroku-redis:mini, login verificado)
 
       ```bash
       heroku addons:create heroku-redis:mini --app pesosapp
@@ -42,15 +42,31 @@ en subproceso con el limitador activo.
       heroku config:set RATELIMIT_STORAGE_URI='<REDIS_URL>?ssl_cert_reqs=none' --app pesosapp
       ```
 
-      Si `REDIS_URL` empieza con `redis://` (sin TLS), va sin el
-      `?ssl_cert_reqs=none`.
-- [ ] **`TRUST_CF_CONNECTING_IP`:** dejar sin definir salvo que todo el
-      tráfico entre por Cloudflare y el dominio `herokuapp.com` no sea
-      accesible en directo.
+      Desde `b3ea36e` la app agrega sola el `?ssl_cert_reqs=none` a un
+      `rediss://`, y una URI inválida ya no impide arrancar (cae a memoria
+      con error en el log). Alcanza con:
+      `heroku config:set RATELIMIT_STORAGE_URI="$(heroku config:get REDIS_URL --app pesosapp)" --app pesosapp`.
+- [ ] **`TRUST_CF_CONNECTING_IP=1`.** JM confirmó (2026-09-12) que
+      `app.jomarfoods.com` pasa por Cloudflare y que el dominio de
+      `herokuapp.com` sigue accesible en directo. Desde `_client_ip` con
+      rangos, la cabecera de Cloudflare se acepta solo si quien se conectó a
+      Heroku es Cloudflare; un acceso directo con la cabecera falsificada
+      queda con su IP real. Sin la bandera, todo el tráfico por Cloudflare
+      comparte la IP del borde y el límite por IP (10/min) se vuelve
+      colectivo. Cargar:
+      `heroku config:set TRUST_CF_CONNECTING_IP=1 --app pesosapp`.
 - [ ] **Desactivar en n8n** los workflows de facturación, consulta de
       factura y tasa (paso 10 del runbook del corte) apenas cierre el paso 8.
 - [ ] **Revisar quién tiene acceso** a Heroku (`heroku access --app pesosapp`)
       y a n8n; dejar solo los imprescindibles.
+
+## Mantenimiento anotado
+
+- Heroku avisa que el stack Heroku-24 tiene sucesor (Heroku-26). No es
+  urgente; se hace en un deploy tranquilo siguiendo
+  https://devcenter.heroku.com/articles/upgrading-to-the-latest-stack.
+- Heroku Redis mini no persiste datos: si se reinicia, el contador de
+  intentos vuelve a cero. Aceptable para un límite de login.
 
 ## Fuera de este arreglo: segundo factor (2FA)
 
