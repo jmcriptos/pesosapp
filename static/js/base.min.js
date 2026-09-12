@@ -487,7 +487,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const blob = await resp.blob();
             const file = new File([blob], nombre, { type: 'application/pdf' });
 
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // La hoja de compartir es para el celular (WhatsApp, AirDrop).
+            // Safari de Mac también la ofrece, y ahí es un estorbo: el
+            // usuario quiere ver o guardar el PDF, no mandarlo. Sin pantalla
+            // táctil se descarga directo.
+            const esTactil = (navigator.maxTouchPoints || 0) > 0
+                || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+            if (esTactil && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({ files: [file], title: nombre });
                 } catch (shareErr) {

@@ -459,7 +459,7 @@ def _bloque_factura(js):
     segunda llamada a `descargar(blob)` fuera de los 3000 caracteres de antes.
     """
     inicio = js.index("data-factura-share")
-    return js[inicio:inicio + 4500]
+    return js[inicio:inicio + 5000]
 
 
 def test_share_fallido_cae_en_la_descarga():
@@ -545,4 +545,19 @@ def test_nombre_de_descarga_quita_separadores_de_ruta():
 
 def test_base_min_js_esta_regenerado():
     """base.html carga el .min: si queda viejo, el fix no llega a producción."""
+    assert _leer_js('static/js/base.js') == _leer_js('static/js/base.min.js')
+
+
+def test_en_computadora_se_descarga_sin_hoja_de_compartir():
+    """Safari de Mac ofrece Web Share y abría la hoja de compartir en vez de
+    mostrar el PDF (2026-09-12). La hoja queda solo para pantallas táctiles;
+    sin táctil, descarga directa."""
+    bloque = _bloque_factura(_leer_js('static/js/base.js'))
+    assert 'navigator.maxTouchPoints' in bloque
+    assert "matchMedia('(pointer: coarse)')" in bloque
+    assert 'if (esTactil && navigator.canShare' in bloque
+
+
+def test_base_min_es_copia_de_base():
+    """base.html carga base.min.js; se regenera con cp desde base.js."""
     assert _leer_js('static/js/base.js') == _leer_js('static/js/base.min.js')
