@@ -8,6 +8,16 @@ verdad importa es la primera factura real, revisada campo por campo.
 Todo es reversible en cada paso con `heroku config:set FACTURACION_BACKEND=n8n`.
 n8n no se toca hasta el paso 10.
 
+**Estado (2026-09-12):** pasos 0 a 7 hechos. Conexión OK con Jomar Foods
+BV, `FACTURACION_BACKEND=qbo` en producción desde la release v966, primera
+factura real 5882 (pedido 1343) correcta en QuickBooks campo por campo, PDF
+por API verificado en Mac. Pendiente: paso 8 (una factura USD y una por
+cajas al 6 %) y paso 10 (Scheduler y apagar n8n).
+
+Dos arreglos surgidos en el corte, ya en `main`: el botón Conectar pasó a
+enlace porque la CSP (`form-action 'self'`) bloqueaba el POST que redirige a
+Intuit; y `heroku run` necesita `--` antes del `--app` de Flask.
+
 Datos fijos:
 
 | Qué | Valor |
