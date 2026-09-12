@@ -498,15 +498,39 @@ def _client_ip():
 # Rate limiting (defensa contra fuerza bruta). Degrada con aviso si la librería falta.
 # Se desactiva en testing para no interferir con los logins repetidos de la suite.
 app.config['RATELIMIT_ENABLED'] = (os.environ.get('FLASK_ENV') != 'testing')
-try:
+def _ratelimit_storage_uri():
+    """Almacén del limitador. Heroku Redis entrega `rediss://` con
+    certificado propio, que redis-py rechaza sin `ssl_cert_reqs=none`; se
+    agrega solo. Un `redis://` sin TLS va tal cual."""
+    uri = os.environ.get('RATELIMIT_STORAGE_URI', '').strip() or 'memory://'
+    if uri.startswith('rediss://') and 'ssl_cert_reqs' not in uri:
+        uri += ('&' if '?' in uri else '?') + 'ssl_cert_reqs=none'
+    return uri
+
+
+def _crear_limiter(storage_uri):
     from flask_limiter import Limiter
-    limiter = Limiter(
+    return Limiter(
         key_func=_client_ip,
         app=app,
-        storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
+        storage_uri=storage_uri,
         default_limits=[],
         enabled=app.config['RATELIMIT_ENABLED'],
     )
+
+
+try:
+    try:
+        limiter = _crear_limiter(_ratelimit_storage_uri())
+    except ImportError:
+        raise
+    except Exception as e:
+        # Un RATELIMIT_STORAGE_URI mal escrito dejó la app sin arrancar el
+        # 2026-09-12. Mejor sin Redis que sin app: se cae a memoria y se avisa.
+        app.logger.error(
+            f'RATELIMIT_STORAGE_URI inválida ({e}); el límite de login usa memoria'
+        )
+        limiter = _crear_limiter('memory://')
 except ImportError:
     limiter = None
     app.logger.warning("flask_limiter no instalado: /login sin rate limiting")
