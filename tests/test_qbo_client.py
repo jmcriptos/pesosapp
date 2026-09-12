@@ -304,3 +304,20 @@ def test_fechas_guardadas_como_texto_iso_se_entienden():
         respuestas=[_resp(200, {'CompanyInfo': {}})])
     cliente.get('companyinfo/123')
     assert session.request.call_count == 1
+
+
+def test_canjear_codigo_funciona_aunque_los_tokens_previos_no_se_puedan_leer():
+    """Clave de cifrado cambiada: el store no puede descifrar la fila vieja.
+    Reconectar tiene que guardar los tokens nuevos igual (2026-09-12)."""
+    class StoreRoto(MemoriaStore):
+        def cargar(self):
+            raise QboNoConectado('QBO_TOKEN_KEY no corresponde')
+
+    session = MagicMock()
+    session.request.side_effect = [_resp(200, {
+        'access_token': 'acc-nuevo', 'refresh_token': 'ref-nuevo', 'expires_in': 3600})]
+    store = StoreRoto()
+    cliente = QboClient(CONFIG, store, session=session, ahora=lambda: AHORA)
+    tokens = cliente.canjear_codigo('code', realm_id='999')
+    assert store.tokens['realm_id'] == '999'
+    assert store.tokens['refresh_token'] == 'ref-nuevo'
