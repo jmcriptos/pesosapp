@@ -98,7 +98,7 @@ Cómo funciona:
 ### Despliegue (JM), en este orden
 
 Estado 2026-09-12: migración, deploy y enrolamiento de JM hechos; login en
-dos pasos verificado. Falta cargar `TOTP_OBLIGATORIO_ROLES=super_admin`.
+dos pasos verificado; `TOTP_OBLIGATORIO_ROLES=super_admin` cargada. Cerrado.
 
 - [ ] Migración, **antes** del deploy:
 
