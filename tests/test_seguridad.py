@@ -209,3 +209,35 @@ def test_clave_equivocada_es_no_conectado(app, monkeypatch):
     monkeypatch.setenv('QBO_TOKEN_KEY', Fernet.generate_key().decode())
     with pytest.raises(QboNoConectado, match='no corresponde'):
         _QboStoreDb().cargar()
+
+
+# ── almacén del limitador ─────────────────────────────────────────────────
+
+def test_rediss_agrega_ssl_cert_reqs_solo(monkeypatch):
+    monkeypatch.setenv('RATELIMIT_STORAGE_URI', 'rediss://:pw@host:6380')
+    assert app_module._ratelimit_storage_uri() == 'rediss://:pw@host:6380?ssl_cert_reqs=none'
+    monkeypatch.setenv('RATELIMIT_STORAGE_URI', 'rediss://:pw@host:6380?ssl_cert_reqs=none')
+    assert app_module._ratelimit_storage_uri() == 'rediss://:pw@host:6380?ssl_cert_reqs=none'
+
+
+def test_redis_sin_tls_y_memoria_van_tal_cual(monkeypatch):
+    monkeypatch.setenv('RATELIMIT_STORAGE_URI', 'redis://:pw@host:6379')
+    assert app_module._ratelimit_storage_uri() == 'redis://:pw@host:6379'
+    monkeypatch.delenv('RATELIMIT_STORAGE_URI')
+    assert app_module._ratelimit_storage_uri() == 'memory://'
+
+
+def test_uri_invalida_no_tira_la_app():
+    """Reproduce el `<REDIS_URL>?ssl_cert_reqs=none` literal del 2026-09-12:
+    la app tiene que arrancar igual, con el límite en memoria."""
+    import subprocess, sys, os
+    codigo = (
+        "import os; os.environ.update(FLASK_ENV='development', SECRET_KEY='x', "
+        "DATABASE_URL='sqlite:///:memory:', RATELIMIT_STORAGE_URI='<REDIS_URL>?ssl_cert_reqs=none'); "
+        "import app; print('ARRANCO', app.limiter is not None)"
+    )
+    res = subprocess.run([sys.executable, '-c', codigo], capture_output=True, text=True,
+                         cwd=os.path.join(os.path.dirname(__file__), '..'), timeout=120)
+    assert res.returncode == 0, res.stderr[-1500:]
+    assert 'ARRANCO True' in res.stdout
+    assert 'RATELIMIT_STORAGE_URI inválida' in res.stderr
