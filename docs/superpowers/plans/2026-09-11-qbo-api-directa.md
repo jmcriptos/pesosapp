@@ -48,6 +48,8 @@ muestra las mismas cifras. Pendiente: dos días de vigilancia y la Task 12
 (limpieza), que se hace junto con el paso 10 del runbook al cerrar la
 Fase 1.
 
+**Infraestructura:** ver `docs/superpowers/specs/infraestructura.md` (dónde corre cada pieza, variables, cuentas, comandos de operación).
+
 **Esfuerzo estimado:** Fase 1, dos a tres días. Fase 2, uno a dos días. Más el
 trámite de JM en Intuit (una hora) y la ventana de corte en producción.
 
