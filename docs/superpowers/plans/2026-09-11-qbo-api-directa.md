@@ -734,6 +734,13 @@ diferencias en ventas del mes, de la semana, por cliente y por producto.
       la API si el rango supera las 1000 facturas (n8n truncaba).
 - [x] **Step 2:** `heroku config:set QB_SALES_BACKEND=qbo` (2026-09-12,
       mismas cifras). Vigilar el dashboard dos días.
+      2026-09-13: dashboard contra «Sales by Product Summary» (devengado)
+      del mes, cuadra al centavo tras corregir en QBO la factura 5869
+      (USD, estaba con tipo de cambio 1,00; el cuerpo enviado por n8n
+      llevaba 1,78). Diferencia de diseño a tener presente: el dashboard
+      convierte todo USD a la tasa fija `QBO_TASA_USD`; los reportes de
+      QBO usan el `ExchangeRate` guardado en cada factura. Si vuelven a
+      discrepar, buscar primero una factura USD con tasa distinta de 1,78.
 - [ ] **Step 3:** vaciar `N8N_QB_SALES_WEBHOOK_URL`; desactivar el workflow de
       ventas en n8n.
 
