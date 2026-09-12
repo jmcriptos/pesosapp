@@ -642,7 +642,7 @@ Se usa en dos lugares:
       7. Tras tres facturas limpias, se da por cerrada la Fase 1.
 - [ ] **Step 4:** vaciar `N8N_INVOICE_FETCH_WEBHOOK_URL`. Desactivar el
       workflow de facturación en n8n (no borrarlo hasta cerrar la Fase 2).
-- [ ] **Step 5:** instalar Heroku Scheduler, programar `flask qbo-fijar-tasa`
+- [x] **Step 5 (2026-09-13):** instalar Heroku Scheduler, programar `flask qbo-fijar-tasa`
       a diario a las 05:00 y, tras verificar un día que la tasa quedó en
       1,78, desactivar el workflow «Fijar USD en 1.78» en n8n.
 
