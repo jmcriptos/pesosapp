@@ -66,6 +66,17 @@
                     </tr>
                     {% endif %}
                     <tr>
+                        <td><strong>Tokens cifrados en la base</strong></td>
+                        <td>
+                            {% if tokens_cifrados %}
+                                <span class="badge badge-success">Sí</span> <small>(QBO_TOKEN_KEY configurada)</small>
+                            {% else %}
+                                <span class="badge badge-warning">No</span>
+                                <small>Texto plano. Para cifrarlos, generá una clave y cargala como <code>QBO_TOKEN_KEY</code>; se recifran solos en el próximo uso.</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <td><strong>Backend de facturación</strong></td>
                         <td><code>{{ backend_facturacion }}</code> <small>(variable <code>FACTURACION_BACKEND</code>)</small></td>
                     </tr>
