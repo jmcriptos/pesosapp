@@ -42,11 +42,11 @@ Fase 1 en producción desde el 2026-09-12 (factura 5882 correcta; ver el
 runbook `2026-09-11-qbo-corte-heroku.md`); pendiente el paso 8 (una factura
 USD y una por cajas) y el paso 10 (apagar n8n).
 
-Fase 2 codificada el 2026-09-12 detrás de `QB_SALES_BACKEND` (default
-`n8n`, sin efecto en producción): Tasks 9 y 10 hechas
-(`utils/qbo_ventas.py`, `_qb_refrescar_desde_red`), Task 11 lista para
-correr (`scripts/comparar_ventas_qbo.py`). Pendiente: correr la comparación,
-cortar y la Task 12 (limpieza). Se hace después de cerrar la Fase 1.
+Fase 2 en producción desde el 2026-09-12: `scripts/comparar_ventas_qbo.py`
+dio «Sin diferencias» y `QB_SALES_BACKEND=qbo` quedó cargada; el dashboard
+muestra las mismas cifras. Pendiente: dos días de vigilancia y la Task 12
+(limpieza), que se hace junto con el paso 10 del runbook al cerrar la
+Fase 1.
 
 **Esfuerzo estimado:** Fase 1, dos a tres días. Fase 2, uno a dos días. Más el
 trámite de JM en Intuit (una hora) y la ventana de corte en producción.
@@ -720,7 +720,7 @@ Script de una sola vez: trae el rango del dashboard por n8n y por API,
 normaliza ambos con `_normalizar_metricas_ventas_quickbooks` y lista las
 diferencias en ventas del mes, de la semana, por cliente y por producto.
 
-- [ ] **Step 1:** correr el script contra producción (solo lectura; consume
+- [x] **Step 1:** correr el script contra producción (2026-09-12: «Sin diferencias») (solo lectura; consume
       una ejecución de n8n por corrida):
 
       ```bash
@@ -730,8 +730,8 @@ diferencias en ventas del mes, de la semana, por cliente y por producto.
       Termina con «Sin diferencias» o lista cada diferencia por cliente,
       producto, fecha y línea. La única diferencia esperable es a favor de
       la API si el rango supera las 1000 facturas (n8n truncaba).
-- [ ] **Step 2:** `heroku config:set QB_SALES_BACKEND=qbo`. Vigilar el
-      dashboard dos días.
+- [x] **Step 2:** `heroku config:set QB_SALES_BACKEND=qbo` (2026-09-12,
+      mismas cifras). Vigilar el dashboard dos días.
 - [ ] **Step 3:** vaciar `N8N_QB_SALES_WEBHOOK_URL`; desactivar el workflow de
       ventas en n8n.
 
