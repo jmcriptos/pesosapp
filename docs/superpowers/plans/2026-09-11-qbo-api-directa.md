@@ -63,9 +63,8 @@ trámite de JM en Intuit (una hora) y la ventana de corte en producción.
       `docs/superpowers/specs/n8n-facturacion-export.md` y `n8n-facturacion-nodo-codigo.js`.
 - [x] Export del workflow «Fijar USD en 1.78» recibido el 2026-09-11 y
       resumido en `docs/superpowers/specs/n8n-tasa-usd-export.md`.
-- [ ] Exportar también el workflow de ventas (el que responde a
-      `N8N_QB_SALES_WEBHOOK_URL`) para la Fase 2: define qué filas y qué claves
-      espera hoy el dashboard (`transactions[]`, `home_amount`, `weight`…).
+- [x] Export del workflow de ventas recibido el 2026-09-12 y guardado en
+      `docs/superpowers/specs/n8n-ventas-export.md`.
 
 ## Global Constraints
 
@@ -651,37 +650,40 @@ manual y sin tocar n8n para facturar ni para ver PDFs.
 - Create: `utils/qbo_ventas.py`
 - Create: `tests/fixtures/qbo/query_ventas.json`
 - Test: `tests/test_qbo_ventas.py`
-- Fuente: export del workflow de ventas de n8n (prerrequisito)
+- Fuente: `docs/superpowers/specs/n8n-ventas-export.md` (recibido 2026-09-12)
 
 ```python
 def consultar_ventas(client, desde: date, hasta: date) -> dict
 ```
 
-Devuelve **la misma forma que hoy devuelve n8n**, para que
-`_normalizar_metricas_ventas_quickbooks` (`app.py` ~línea 1620) no cambie:
-`{'transactions': [fila, ...]}` con una fila por **línea** de factura y las
-claves que el normalizador ya lee: `date`, `invoice_number`, `customer`,
-`product`, `quantity`, `weight`, `amount`, `currency`, `exchange_rate`,
-`home_amount`.
+Devuelve **exactamente la forma del workflow de n8n** (`transactions[]` +
+`summary`), así `_normalizar_metricas_ventas_quickbooks` no cambia:
 
-Cómo se arma:
-- `SELECT * FROM Invoice WHERE TxnDate >= '{desde}' AND TxnDate <= '{hasta}'
-  ORDERBY TxnDate STARTPOSITION {n} MAXRESULTS 1000`, paginando hasta que
-  vuelvan menos de 1000. Con el volumen de Jomar (decenas de facturas por
-  mes) son una o dos páginas para el rango del dashboard.
-- Notas de crédito: si el workflow de n8n las restaba (ver export), agregar la
-  misma query sobre `CreditMemo` con `amount` negativo. Si no las restaba, no
-  agregarlas ahora: primero igualar, después mejorar.
-- `home_amount = Line.Amount * ExchangeRate` cuando `CurrencyRef != 'ANG'`;
-  `_monto_qb_a_xcg` ya prioriza `home_amount` y cae al fallback si falta.
-- `weight`: suma de los pesos de `Line.Description` con
-  `utils.factura_pdf._pesos_de_descripcion` (misma regla que el PDF). Confirmar
-  contra el export cómo lo calculaba n8n.
-- Se omiten líneas sin `SalesItemLineDetail` (subtotales, descuentos).
+- Query: `SELECT * FROM Invoice WHERE TxnDate >= 'desde' AND TxnDate <=
+  'hasta' ORDERBY TxnDate STARTPOSITION n MAXRESULTS 1000`, **paginando**
+  hasta que vuelvan menos de 1000. n8n corta en 1000 sin avisar; la única
+  mejora que se permite en la Fase 2, porque es corregir una pérdida de
+  datos, no cambiar cifras.
+- Una fila por línea `SalesItemLineDetail`; se omiten montos ≤ 0.
+- `amount` y `unit_price` en florines: × **1,78 fijo** si `CurrencyRef` es
+  `USD` (n8n no usa el `ExchangeRate` de la factura; se replica igual para
+  que las cifras coincidan en la comparación). La constante sale de
+  `QBO_TASA_USD`.
+- Factura sin líneas de detalle: fila `(sin detalle)` con `quantity 0` y
+  `amount = (TotalAmt − TotalTax) × fx`.
+- Claves de cada fila: `date`, `invoice_number`, `customer`, `product`,
+  `quantity`, `unit_price`, `amount`, `currency_origin`, `fx_applied`,
+  `transaction_type`. **Sin `weight` y sin notas de crédito**: n8n no los
+  manda y el dashboard no los espera.
+- `summary`: `total_amount`, `total_invoices` (DocNumbers distintos),
+  `total_lines`.
+- Redondeo a dos decimales con `Decimal` `ROUND_HALF_UP` (n8n usa
+  `Math.round(x + EPSILON)`; sobre montos ya de dos decimales dan lo mismo).
 
-- [ ] **Step 1: Tests:** una factura ANG y una USD del fixture producen las
-      filas esperadas; paginación con dos páginas; líneas de subtotal
-      ignoradas; `home_amount` correcto.
+- [ ] **Step 1: Tests:** fixture con una factura ANG de dos líneas, una USD
+      de una línea y una sin detalle: filas y `summary` esperados calculados
+      a mano; línea con monto 0 omitida; paginación con dos páginas
+      (1000 + 3); `fx_applied` 1,78 en USD.
 - [ ] **Step 2: Implementar.**
 
 ### Task 10: `_qb_refrescar_desde_red` con backend `qbo`
