@@ -23,11 +23,11 @@ algo de la tabla.
 |---|---|---|
 | QuickBooks Online: crear factura, leer factura para el PDF | API v3 directa desde la app (`utils/qbo_client.py`, `utils/qbo_factura.py`), OAuth2 con tokens cifrados en `qbo_conexion` | `FACTURACION_BACKEND=qbo` desde 2026-09-12 |
 | QuickBooks Online: ventas del dashboard | API v3 directa (`utils/qbo_ventas.py`), caché en `ventas_qb_cache` | `QB_SALES_BACKEND=qbo` desde 2026-09-12 |
-| QuickBooks Online: tasa USD→ANG diaria | Antes de cada factura USD desde la app, y job diario en Heroku Scheduler (`flask --app app qbo-fijar-tasa`) | Desde 2026-09-12; el workflow de n8n se apaga tras verificar la tasa del 13 |
+| QuickBooks Online: tasa USD→ANG diaria | Antes de cada factura USD desde la app, y job diario en Heroku Scheduler (`flask --app app qbo-fijar-tasa`) | Desde 2026-09-12; Scheduler verificado y workflow «Fijar USD en 1.78» desactivado en n8n el 2026-09-13 |
 | Google Drive: archivo de PDF de facturas | n8n Cloud, webhook `N8N_DRIVE_WEBHOOK_URL`; app OAuth de Google publicada (sin caducidad de 7 días) | Queda en n8n |
 | Alertas HACCP | n8n Cloud, webhook `N8N_HACCP_ALERT_WEBHOOK_URL` | Queda en n8n |
 | Webhook de entrada de precios | Ruta de la app autenticada con `WEBHOOK_SECRET` | Activo |
-| n8n Cloud: facturación, consulta de factura, tasa, ventas | Workflows activos como red de seguridad | Se apagan en el paso 10 del runbook `2026-09-11-qbo-corte-heroku.md` |
+| n8n Cloud: facturación, consulta de factura, ventas | Workflows activos como red de seguridad (el de tasa ya está desactivado) | Se apagan en el paso 10 del runbook `2026-09-11-qbo-corte-heroku.md` |
 
 ## Variables de entorno en Heroku (nombres; los valores no van en el repo)
 

@@ -11,8 +11,11 @@ n8n no se toca hasta el paso 10.
 **Estado (2026-09-12):** pasos 0 a 7 hechos. Conexión OK con Jomar Foods
 BV, `FACTURACION_BACKEND=qbo` en producción desde la release v966, primera
 factura real 5882 (pedido 1343) correcta en QuickBooks campo por campo, PDF
-por API verificado en Mac. Pendiente: paso 8 (una factura USD y una por
-cajas al 6 %) y paso 10 (Scheduler y apagar n8n).
+por API verificado en Mac. Paso 10.1 hecho el 2026-09-13: Heroku Scheduler
+`scheduler-convex-94702` con el job diario 09:00 UTC verificado (tasa del 12
+y del 13 en 1,78) y el workflow «Fijar USD en 1.78» desactivado en n8n.
+Pendiente: paso 8 (una factura USD y una por cajas al 6 %) y el resto del
+paso 10 (apagar en n8n facturación, consulta de factura y ventas).
 
 Dos arreglos surgidos en el corte, ya en `main`: el botón Conectar pasó a
 enlace porque la CSP (`form-action 'self'`) bloqueaba el POST que redirige a
@@ -205,7 +208,9 @@ hoy: verificar en QBO antes de reenviar (la guarda de duplicados sigue).
 
 ## 10. Cerrar n8n para facturación (solo tras el paso 8)
 
-1. Heroku Scheduler para la tasa diaria:
+1. ~~Heroku Scheduler para la tasa diaria~~ **Hecho el 2026-09-13**
+   (add-on `scheduler-convex-94702`, job «Daily at 9:00 AM UTC», tasa
+   verificada en 1,78 y workflow «Fijar USD en 1.78» desactivado en n8n):
 
    ```bash
    heroku addons:create scheduler:standard --app pesosapp
@@ -217,19 +222,19 @@ hoy: verificar en QBO antes de reenviar (la guarda de duplicados sigue).
    QuickBooks (Configuración → Monedas) que la tasa USD del día es 1,78.
 
 2. En n8n, **desactivar** (no borrar) los workflows de facturación, de
-   consulta de factura y «Fijar USD en 1.78». Quedan activos Drive, HACCP y
-   ventas del dashboard hasta la Fase 2.
+   consulta de factura y ventas del dashboard («Fijar USD en 1.78» ya está
+   desactivado desde el 2026-09-13). Quedan activos Drive y HACCP.
 
 3. En Heroku, vaciar las variables que ya no se usan:
 
    ```bash
-   heroku config:unset N8N_WEBHOOK_URL N8N_INVOICE_FETCH_WEBHOOK_URL --app pesosapp
+   heroku config:unset N8N_WEBHOOK_URL N8N_INVOICE_FETCH_WEBHOOK_URL N8N_QB_SALES_WEBHOOK_URL --app pesosapp
    ```
 
-   (`_facturacion_backend()` ya no las lee con `qbo`, pero así nadie las
-   confunde con algo vigente.)
+   (`_facturacion_backend()` y `_qb_sales_backend()` ya no las leen con
+   `qbo`, pero así nadie las confunde con algo vigente.)
 
-4. Bajar el plan de n8n al mínimo cuando cierre la Fase 2.
+4. Bajar el plan de n8n al mínimo.
 
 ---
 
