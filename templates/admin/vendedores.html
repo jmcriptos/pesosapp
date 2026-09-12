@@ -105,7 +105,8 @@
                data-email-full="{{ v.email or '' }}"
                data-edit-url="{{ url_for('editar_vendedor', v_id=v.id) }}"
                data-toggle-url="{{ url_for('toggle_vendedor', v_id=v.id) }}"
-               data-reset-url="{{ url_for('reset_password_vendedor', v_id=v.id) }}">
+               data-reset-url="{{ url_for('reset_password_vendedor', v_id=v.id) }}"
+               data-reset-2fa-url="{{ url_for('reset_2fa_vendedor', v_id=v.id) }}">
             <div class="ops-user-cell js-open-user" role="button" tabindex="0">
               <span class="ops-avatar" style="--rol-c:{{ rc }};background:color-mix(in oklab,{{ rc }} 18%,transparent);color:{{ rc }}">{{ (v.nombre_completo or v.username)[:2]|upper }}</span>
               <div style="min-width:0">
@@ -307,6 +308,10 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="ops-btn ops-btn-ghost" id="panelToggleBtn" style="width:100%;justify-content:flex-start;height:42px"><i class="fas fa-ban"></i> Activar / desactivar cuenta</button>
       </form>
+      <form method="POST" id="panelReset2faForm" data-confirm="¿Restablecer el segundo factor de este usuario? Tendrá que configurarlo de nuevo al entrar.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="ops-btn ops-btn-ghost" style="width:100%;justify-content:flex-start;height:42px"><i class="fas fa-shield-alt"></i> Restablecer segundo factor</button>
+      </form>
     </div>
   </div>
 </div>
@@ -391,6 +396,8 @@
     document.getElementById('panelTerr').value = row.dataset.terrId;
     editForm.action = row.dataset.editUrl;
     resetForm.action = row.dataset.resetUrl;
+    var reset2faForm = document.getElementById('panelReset2faForm');
+    if (reset2faForm) reset2faForm.action = row.dataset.reset2faUrl;
     toggleForm.action = row.dataset.toggleUrl;
     var activo = row.dataset.activo === '1';
     document.getElementById('panelToggleBtn').innerHTML = activo

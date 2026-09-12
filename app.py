@@ -3,6 +3,7 @@ import re
 import math
 import calendar
 import secrets
+import click
 import hmac
 import base64
 import json
@@ -793,6 +794,16 @@ class Vendedor(db.Model, UserMixin):
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     debe_cambiar_password = db.Column(db.Boolean, nullable=False, default=False,
                                       server_default=db.false())
+    # Segundo factor (TOTP). `totp_secret` va cifrado con la clave de la app
+    # (QBO_TOKEN_KEY) cuando existe; `codigos_respaldo` guarda los hashes de
+    # los códigos de un solo uso. Ver docs/superpowers/plans/2026-09-12-seguridad.md.
+    totp_secret = db.Column(db.Text, nullable=True)
+    totp_confirmado_en = db.Column(db.DateTime, nullable=True)
+    codigos_respaldo = db.Column(db.Text, nullable=True)
+
+    @property
+    def totp_activo(self):
+        return bool(self.totp_secret and self.totp_confirmado_en)
 
     # Relaciones
     supervisor = db.relationship('Vendedor', remote_side=[id], backref='subordinados')
@@ -966,27 +977,16 @@ def login():
             db.session.rollback()
             app.logger.warning(f"[login] No se pudo consultar tabla vendedor: {e}")
         if vendedor and vendedor.check_password(password):
-            vendedor.ultimo_login = datetime.utcnow()
-            db.session.commit()
-            # La app se usa como PWA standalone en iPhone. Sin marcar la sesión
-            # como permanente, Flask emite la cookie SIN Expires ni Max-Age —
-            # una cookie de sesión de navegador— y iOS la descarta cuando
-            # descarta el WebView, que es lo que pasa de rutina al cambiar de
-            # app. El vendedor volvía deslogueado.
-            #
-            # Con esto entra en juego PERMANENT_SESSION_LIFETIME, que ya estaba
-            # declarado en 8 h y hasta ahora no hacía nada. No es un plazo
-            # nuevo: es el que la config decía tener.
-            session.permanent = True
-            login_user(vendedor, remember=remember_me)
-            try:
-                _audit('auth', 'Inició sesión')
-            except Exception:
-                pass
-            flash(f"¡Bienvenido, {vendedor.nombre_completo}!", "success")
             if not _is_safe_next(next_url):
                 next_url = url_for('index')
-            return redirect(next_url)
+            if vendedor.totp_activo:
+                # Contraseña correcta pero falta el segundo factor: todavía NO
+                # se inicia sesión. Lo pendiente vive en la cookie de sesión,
+                # firmada, y caduca en 5 minutos.
+                session['2fa'] = {'id': vendedor.id, 'remember': remember_me,
+                                  'next': next_url, 'ts': time.time()}
+                return redirect(url_for('login_2fa'))
+            return _completar_login(vendedor, remember_me, next_url)
 
         # Credenciales inválidas
         flash("Credenciales inválidas", "danger")
@@ -996,12 +996,267 @@ def login():
     return render_template('login.html')
 
 
+def _completar_login(vendedor, remember_me, next_url):
+    """Segunda mitad del login: la que corre tras contraseña y, si aplica,
+    segundo factor."""
+    vendedor.ultimo_login = datetime.utcnow()
+    db.session.commit()
+    # La app se usa como PWA standalone en iPhone. Sin marcar la sesión
+    # como permanente, Flask emite la cookie SIN Expires ni Max-Age —
+    # una cookie de sesión de navegador— y iOS la descarta cuando
+    # descarta el WebView, que es lo que pasa de rutina al cambiar de
+    # app. El vendedor volvía deslogueado.
+    #
+    # Con esto entra en juego PERMANENT_SESSION_LIFETIME, que ya estaba
+    # declarado en 8 h y hasta ahora no hacía nada. No es un plazo
+    # nuevo: es el que la config decía tener.
+    session.permanent = True
+    login_user(vendedor, remember=remember_me)
+    try:
+        _audit('auth', 'Inició sesión')
+    except Exception:
+        pass
+    flash(f"¡Bienvenido, {vendedor.nombre_completo}!", "success")
+    return redirect(next_url)
+
+
 @app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
     flash("Sesión cerrada", "success")
     return redirect(url_for('login'))
+
+
+# ── Segundo factor (TOTP) ────────────────────────────────────────────────
+# Plan: docs/superpowers/plans/2026-09-12-seguridad.md. Obligatorio para los
+# roles de TOTP_OBLIGATORIO_ROLES (p. ej. `super_admin`): tras iniciar sesión
+# sin tenerlo activo, la app no deja hacer otra cosa que activarlo. Vacío por
+# defecto a propósito: primero se despliega y cada admin se enrola; recién
+# después se enciende la obligación, para que nadie quede afuera.
+
+SEGUNDOS_2FA_PENDIENTE = 300
+
+
+def _roles_2fa_obligatorio():
+    crudo = os.environ.get('TOTP_OBLIGATORIO_ROLES', '')
+    return {r.strip() for r in crudo.split(',') if r.strip()}
+
+
+def _2fa_obligatorio_para(vendedor):
+    rol = getattr(getattr(vendedor, 'rol', None), 'nombre', None)
+    return rol in _roles_2fa_obligatorio()
+
+
+def _secreto_totp(vendedor):
+    """El secreto en claro, o None si no hay o no se puede leer."""
+    try:
+        return _descifrar(vendedor.totp_secret)
+    except SecretoIlegible as e:
+        app.logger.error(f'No se puede leer el secreto TOTP de {vendedor.username}: {e}')
+        return None
+
+
+def _codigos_respaldo(vendedor):
+    try:
+        return json.loads(vendedor.codigos_respaldo or '[]')
+    except (TypeError, ValueError):
+        return []
+
+
+def _verificar_segundo_factor(vendedor, codigo):
+    """True si `codigo` es el TOTP vigente o un código de respaldo válido (que
+    se consume)."""
+    from utils.totp import verificar_codigo, consumir_codigo_respaldo
+
+    secreto = _secreto_totp(vendedor)
+    if secreto and verificar_codigo(secreto, codigo):
+        return True
+    ok, restantes = consumir_codigo_respaldo(_codigos_respaldo(vendedor), codigo)
+    if ok:
+        vendedor.codigos_respaldo = json.dumps(restantes)
+        db.session.commit()
+        _audit('auth', 'Usó un código de respaldo del segundo factor',
+               f'{vendedor.username}: quedan {len(restantes)}')
+        return True
+    return False
+
+
+def _2fa_pendiente():
+    datos = session.get('2fa')
+    if not isinstance(datos, dict):
+        return None
+    if time.time() - float(datos.get('ts') or 0) > SEGUNDOS_2FA_PENDIENTE:
+        session.pop('2fa', None)
+        return None
+    return datos
+
+
+def _login_2fa_key():
+    datos = session.get('2fa') or {}
+    return f"2fa:{datos.get('id') or _client_ip()}"
+
+
+def _login_2fa_rate_limit(view):
+    if limiter is None:
+        return view
+    return limiter.limit('5 per minute; 20 per hour', methods=['POST'],
+                         key_func=_login_2fa_key, deduct_when=_login_fallido)(view)
+
+
+@app.route('/login/2fa', methods=['GET', 'POST'])
+@_login_2fa_rate_limit
+def login_2fa():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    pendiente = _2fa_pendiente()
+    if pendiente is None:
+        flash('La verificación caducó. Iniciá sesión de nuevo.', 'warning')
+        return redirect(url_for('login'))
+    vendedor = db.session.get(Vendedor, pendiente['id'])
+    if vendedor is None or not vendedor.activo or not vendedor.totp_activo:
+        session.pop('2fa', None)
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        if _verificar_segundo_factor(vendedor, request.form.get('codigo')):
+            session.pop('2fa', None)
+            next_url = pendiente.get('next') or url_for('index')
+            if not _is_safe_next(next_url):
+                next_url = url_for('index')
+            return _completar_login(vendedor, bool(pendiente.get('remember')), next_url)
+        _audit('auth', 'Código de segundo factor incorrecto', vendedor.username)
+        flash('Código incorrecto. Probá con el siguiente que muestre la app, o un código de respaldo.', 'danger')
+    return render_template('login_2fa.html', vendedor=vendedor)
+
+
+@app.before_request
+def forzar_segundo_factor():
+    """Un rol con 2FA obligatorio que no lo tiene activo solo puede activarlo
+    o salir. Misma mecánica que `forzar_cambio_password`."""
+    if not current_user.is_authenticated or not isinstance(current_user, Vendedor):
+        return
+    if current_user.totp_activo or not _2fa_obligatorio_para(current_user):
+        return
+    ep = request.endpoint or ''
+    if ep in ('cuenta_2fa', 'cuenta_2fa_activar', 'logout', 'login', 'csrf_ping',
+              'cambiar_password') or ep.startswith('static'):
+        return
+    flash('Tu rol requiere segundo factor. Activalo para continuar.', 'warning')
+    return redirect(url_for('cuenta_2fa'))
+
+
+@app.route('/mi-cuenta/2fa')
+@login_required
+def cuenta_2fa():
+    from utils.totp import nuevo_secreto, uri_provision, qr_svg
+
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    if current_user.totp_activo:
+        return render_template(
+            'cuenta_2fa.html', activo=True,
+            obligatorio=_2fa_obligatorio_para(current_user),
+            respaldo_restantes=len(_codigos_respaldo(current_user)),
+            codigos_nuevos=session.pop('2fa_codigos_nuevos', None),
+        )
+    secreto = session.get('2fa_setup_secret')
+    if not secreto:
+        secreto = nuevo_secreto()
+        session['2fa_setup_secret'] = secreto
+    uri = uri_provision(secreto, current_user.username)
+    return render_template(
+        'cuenta_2fa.html', activo=False,
+        obligatorio=_2fa_obligatorio_para(current_user),
+        qr=qr_svg(uri), secreto=secreto,
+        secreto_legible=' '.join(secreto[i:i + 4] for i in range(0, len(secreto), 4)),
+    )
+
+
+@app.route('/mi-cuenta/2fa/activar', methods=['POST'])
+@login_required
+def cuenta_2fa_activar():
+    from utils.totp import verificar_codigo, generar_codigos_respaldo, hash_codigo_respaldo
+
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    secreto = session.get('2fa_setup_secret')
+    if not secreto:
+        flash('Volvé a abrir la pantalla para generar un código nuevo.', 'warning')
+        return redirect(url_for('cuenta_2fa'))
+    if not verificar_codigo(secreto, request.form.get('codigo')):
+        flash('El código no coincide. Verificá que el teléfono tenga la hora en automático y probá con el siguiente.', 'danger')
+        return redirect(url_for('cuenta_2fa'))
+
+    codigos = generar_codigos_respaldo()
+    current_user.totp_secret = _cifrar(secreto)
+    current_user.totp_confirmado_en = _utcnow_naive()
+    current_user.codigos_respaldo = json.dumps([hash_codigo_respaldo(c) for c in codigos])
+    db.session.commit()
+    session.pop('2fa_setup_secret', None)
+    session['2fa_codigos_nuevos'] = codigos
+    _audit('auth', 'Activó el segundo factor')
+    flash('Segundo factor activado. Guardá los códigos de respaldo: se muestran una sola vez.', 'success')
+    return redirect(url_for('cuenta_2fa'))
+
+
+@app.route('/mi-cuenta/2fa/codigos', methods=['POST'])
+@login_required
+def cuenta_2fa_codigos():
+    """Regenera los códigos de respaldo. Exige un código TOTP vigente."""
+    from utils.totp import verificar_codigo, generar_codigos_respaldo, hash_codigo_respaldo
+
+    if not isinstance(current_user, Vendedor) or not current_user.totp_activo:
+        abort(403)
+    if not verificar_codigo(_secreto_totp(current_user), request.form.get('codigo')):
+        flash('Código incorrecto.', 'danger')
+        return redirect(url_for('cuenta_2fa'))
+    codigos = generar_codigos_respaldo()
+    current_user.codigos_respaldo = json.dumps([hash_codigo_respaldo(c) for c in codigos])
+    db.session.commit()
+    session['2fa_codigos_nuevos'] = codigos
+    _audit('auth', 'Regeneró los códigos de respaldo')
+    flash('Códigos de respaldo nuevos. Los anteriores ya no sirven.', 'success')
+    return redirect(url_for('cuenta_2fa'))
+
+
+@app.route('/mi-cuenta/2fa/desactivar', methods=['POST'])
+@login_required
+def cuenta_2fa_desactivar():
+    from utils.totp import verificar_codigo
+
+    if not isinstance(current_user, Vendedor) or not current_user.totp_activo:
+        abort(403)
+    if _2fa_obligatorio_para(current_user):
+        flash('Tu rol requiere segundo factor; no se puede desactivar.', 'danger')
+        return redirect(url_for('cuenta_2fa'))
+    if not verificar_codigo(_secreto_totp(current_user), request.form.get('codigo')):
+        flash('Código incorrecto.', 'danger')
+        return redirect(url_for('cuenta_2fa'))
+    _limpiar_2fa(current_user)
+    db.session.commit()
+    _audit('auth', 'Desactivó el segundo factor')
+    flash('Segundo factor desactivado.', 'info')
+    return redirect(url_for('cuenta_2fa'))
+
+
+def _limpiar_2fa(vendedor):
+    vendedor.totp_secret = None
+    vendedor.totp_confirmado_en = None
+    vendedor.codigos_respaldo = None
+
+
+@app.cli.command('2fa-reset')
+@click.argument('username')
+def cli_2fa_reset(username):
+    """Quita el segundo factor de un usuario (emergencia: teléfono perdido y
+    sin códigos de respaldo). `heroku run --app pesosapp -- flask --app app 2fa-reset USUARIO`."""
+    v = Vendedor.query.filter_by(username=username).first()
+    if v is None:
+        raise click.ClickException(f'No existe el usuario {username}')
+    _limpiar_2fa(v)
+    db.session.commit()
+    click.echo(f'Segundo factor de {username} restablecido; lo configura de nuevo al entrar.')
 
 @app.route('/mi-cuenta/cambiar-contrasena', methods=['GET', 'POST'])
 @login_required
@@ -6056,6 +6311,20 @@ def reset_password_vendedor(v_id):
         flash('Error al restablecer la contraseña. Intente de nuevo.', 'danger')
     return redirect(url_for('gestionar_vendedores'))
 
+@app.route('/admin/vendedores/<int:v_id>/2fa/reset', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def reset_2fa_vendedor(v_id):
+    """Un super_admin quita el segundo factor de otro usuario (cambió de
+    teléfono, perdió los códigos). Ese usuario lo vuelve a configurar al entrar."""
+    v = Vendedor.query.get_or_404(v_id)
+    _limpiar_2fa(v)
+    db.session.commit()
+    _audit('user', 'Restableció el segundo factor', v.nombre_completo or v.username)
+    flash(f'Segundo factor de {v.nombre_completo or v.username} restablecido.', 'success')
+    return redirect(url_for('gestionar_vendedores'))
+
+
 # ===== WEBHOOKS Y INTEGRACIONES =====
 
 @app.route('/webhook/actualizacion-precios', methods=['POST'])
@@ -9543,7 +9812,12 @@ def _qbo_tokens_cifrados():
     return _qbo_fernet() is not None
 
 
-def _qbo_cifrar(valor):
+class SecretoIlegible(Exception):
+    """Un valor cifrado que no se puede leer: falta la clave o es otra."""
+
+
+def _cifrar(valor):
+    """Cifra con la clave de la app (QBO_TOKEN_KEY). Sin clave, texto plano."""
     if valor is None:
         return None
     fernet = _qbo_fernet()
@@ -9552,19 +9826,32 @@ def _qbo_cifrar(valor):
     return QBO_ENC_PREFIX + fernet.encrypt(str(valor).encode()).decode('ascii')
 
 
-def _qbo_descifrar(valor):
+def _descifrar(valor):
     if valor is None or not str(valor).startswith(QBO_ENC_PREFIX):
         return valor
-    from utils.qbo_client import QboNoConectado
     fernet = _qbo_fernet()
     if fernet is None:
-        raise QboNoConectado(
-            'Los tokens de QuickBooks están cifrados y falta QBO_TOKEN_KEY en el entorno'
-        )
+        raise SecretoIlegible('falta QBO_TOKEN_KEY en el entorno')
     from cryptography.fernet import InvalidToken
     try:
         return fernet.decrypt(str(valor)[len(QBO_ENC_PREFIX):].encode()).decode()
     except InvalidToken:
+        raise SecretoIlegible('QBO_TOKEN_KEY no corresponde al valor guardado')
+
+
+def _qbo_cifrar(valor):
+    return _cifrar(valor)
+
+
+def _qbo_descifrar(valor):
+    from utils.qbo_client import QboNoConectado
+    try:
+        return _descifrar(valor)
+    except SecretoIlegible as e:
+        if 'falta' in str(e):
+            raise QboNoConectado(
+                'Los tokens de QuickBooks están cifrados y falta QBO_TOKEN_KEY en el entorno'
+            )
         raise QboNoConectado(
             'QBO_TOKEN_KEY no corresponde a los tokens guardados; hay que volver a conectar'
         )

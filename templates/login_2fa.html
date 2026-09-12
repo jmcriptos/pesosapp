@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>Verificación en dos pasos</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  {% if csrf_token is defined %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% endif %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+
+<div class="container d-flex justify-content-center align-items-center vh-100">
+  <div class="card p-4 shadow login-card" style="max-width:420px;width:100%">
+    <h2 class="text-center mb-2">Verificación en dos pasos</h2>
+    <p class="text-center text-muted mb-4">Hola, {{ vendedor.nombre_completo or vendedor.username }}. Ingresá el código de tu app de autenticación.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-3">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category=='error' else category }}" role="alert">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('login_2fa') }}" novalidate>
+      {% if csrf_token is defined %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% endif %}
+      <div class="mb-3">
+        <label for="codigo" class="form-label">Código</label>
+        <input type="text" id="codigo" name="codigo" class="form-control form-control-lg text-center"
+               inputmode="numeric" autocomplete="one-time-code" autofocus required
+               placeholder="123 456">
+        <div class="form-text">Seis dígitos de la app, o un código de respaldo (xxxx-xxxx).</div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Verificar</button>
+    </form>
+
+    <div class="text-center mt-3">
+      <a href="{{ url_for('login') }}" class="small">Volver al inicio de sesión</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>
