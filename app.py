@@ -5340,10 +5340,16 @@ def admin_quickbooks():
     )
 
 
-@app.route('/admin/quickbooks/conectar', methods=['POST'])
+@app.route('/admin/quickbooks/conectar', methods=['GET', 'POST'])
 @login_required
 @requiere_rol(['super_admin'])
 def admin_quickbooks_conectar():
+    """Arranca el OAuth2. Se llega por un ENLACE (GET) a propósito: la CSP de
+    la app tiene `form-action 'self'` y el navegador bloquea un formulario
+    cuya respuesta redirige a appcenter.intuit.com (2026-09-12: el botón no
+    hacía nada). Una navegación por enlace no pasa por esa regla. No hay
+    riesgo CSRF: solo genera un `state` y manda a Intuit; el callback lo
+    valida."""
     client = _qbo_client()
     if client is None:
         flash('Faltan QBO_CLIENT_ID y QBO_CLIENT_SECRET en el entorno.', 'danger')
