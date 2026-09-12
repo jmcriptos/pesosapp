@@ -130,7 +130,7 @@ Si algo falla acá:
 ## 6. Prueba de humo por línea de comando (opcional, 1 minuto)
 
 ```bash
-heroku run --app pesosapp flask --app app qbo-fijar-tasa
+heroku run --app pesosapp -- flask --app app qbo-fijar-tasa
 ```
 
 Tiene que imprimir dos líneas como `2026-09-12: ya estaba en 1.78` (n8n ya
@@ -203,7 +203,7 @@ hoy: verificar en QBO antes de reenviar (la guarda de duplicados sigue).
    ```
 
    Agregar un job **Every day at 09:00 UTC** (05:00 en Curaçao) con el
-   comando `flask --app app qbo-fijar-tasa`. Al día siguiente, comprobar en
+   comando `flask --app app qbo-fijar-tasa` (en el Scheduler no hace falta el `--`; solo el CLI `heroku run` confunde los dos `--app`). Al día siguiente, comprobar en
    QuickBooks (Configuración → Monedas) que la tasa USD del día es 1,78.
 
 2. En n8n, **desactivar** (no borrar) los workflows de facturación, de
