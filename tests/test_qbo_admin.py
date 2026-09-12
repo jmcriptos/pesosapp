@@ -103,6 +103,20 @@ def test_estado_muestra_el_ultimo_error(admin, credenciales):
 
 # ── conectar ──────────────────────────────────────────────────────────────
 
+def test_conectar_es_un_enlace_no_un_formulario(admin, credenciales):
+    """La CSP tiene form-action 'self': un POST que redirige a Intuit queda
+    bloqueado por el navegador. El botón tiene que ser un <a href>."""
+    html = admin.get('/admin/quickbooks').data.decode()
+    assert 'href="/admin/quickbooks/conectar"' in html
+    assert 'action="/admin/quickbooks/conectar"' not in html
+
+
+def test_conectar_por_get_redirige_a_intuit(admin, credenciales):
+    resp = admin.get('/admin/quickbooks/conectar')
+    assert resp.status_code == 302
+    assert resp.headers['Location'].startswith('https://appcenter.intuit.com/connect/oauth2?')
+
+
 def test_conectar_redirige_a_intuit_con_state_en_sesion(admin, credenciales):
     resp = admin.post('/admin/quickbooks/conectar')
     assert resp.status_code == 302
