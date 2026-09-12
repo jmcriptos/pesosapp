@@ -57,10 +57,9 @@ en subproceso con el limitador activo.
       `heroku config:set TRUST_CF_CONNECTING_IP=1 --app pesosapp`.
 - [ ] **Desactivar en n8n** los workflows de facturación, consulta de
       factura y tasa (paso 10 del runbook del corte) apenas cierre el paso 8.
-- [x] **Revisar quién tiene acceso** a Heroku: un solo usuario, el dueño
-      (2026-09-12). Recomendado: segundo factor en la cuenta de Heroku y en
-      el Gmail que la respalda; es la llave maestra de la app. Falta la
-      misma revisión en n8n.
+- [x] **Revisar quién tiene acceso** (2026-09-12): Heroku, un solo usuario,
+      el dueño; n8n, solo JM. Segundo factor activado en la cuenta de Heroku
+      y en el Gmail que la respalda, la llave maestra de la app.
 
 ## Mantenimiento anotado
 
