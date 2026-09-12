@@ -472,27 +472,62 @@ login_manager.login_view = 'login'
 login_manager.session_protection = 'strong'
 
 
+# Rangos publicados por Cloudflare (https://www.cloudflare.com/ips-v4 y
+# /ips-v6). Cambian muy poco; si cambian, CLOUDFLARE_IP_RANGES (CIDRs
+# separados por coma) los reemplaza sin deploy.
+_CLOUDFLARE_RANGES_DEFAULT = (
+    '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
+    '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
+    '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13',
+    '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+    '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32',
+    '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
+)
+
+
+def _cloudflare_ranges():
+    import ipaddress
+    crudo = os.environ.get('CLOUDFLARE_IP_RANGES', '').strip()
+    cidrs = [c.strip() for c in crudo.split(',') if c.strip()] if crudo else _CLOUDFLARE_RANGES_DEFAULT
+    redes = []
+    for cidr in cidrs:
+        try:
+            redes.append(ipaddress.ip_network(cidr, strict=False))
+        except ValueError:
+            app.logger.warning(f'CLOUDFLARE_IP_RANGES: rango inválido {cidr!r}')
+    return redes
+
+
+def _es_ip_de_cloudflare(ip):
+    import ipaddress
+    try:
+        direccion = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(direccion in red for red in _cloudflare_ranges())
+
+
 def _client_ip():
     """IP real del cliente para el rate limiting.
 
-    Heroku AGREGA la IP del cliente al FINAL de X-Forwarded-For; todo lo
-    anterior lo escribe quien manda la petición. Hasta el 2026-09-12 se
-    tomaba el primer valor, que es falsificable con una cabecera y permitía
-    esquivar el límite de intentos de login. Se toma el último.
+    Heroku AGREGA al FINAL de X-Forwarded-For la IP de quien se conectó a su
+    router; todo lo anterior lo escribe quien manda la petición. Hasta el
+    2026-09-12 se tomaba el primer valor, falsificable con una cabecera.
 
-    CF-Connecting-IP solo se acepta con TRUST_CF_CONNECTING_IP=1, y solo
-    tiene sentido si TODO el tráfico entra por Cloudflare (si el dominio de
-    herokuapp.com sigue accesible en directo, esa cabecera también se
-    falsifica).
+    Con Cloudflare delante, ese último valor es la IP de un borde de
+    Cloudflare y el cliente real viene en CF-Connecting-IP. Esa cabecera se
+    acepta SOLO si quien se conectó a Heroku es de verdad Cloudflare (por
+    sus rangos publicados) y TRUST_CF_CONNECTING_IP=1: una petición directa
+    al dominio de herokuapp.com que la falsifique no viene de esos rangos y
+    queda con su IP real.
     """
-    if os.environ.get('TRUST_CF_CONNECTING_IP', '').strip() == '1':
-        cf = request.headers.get('CF-Connecting-IP')
-        if cf:
-            return cf.strip()
     xff = request.headers.get('X-Forwarded-For')
-    if xff:
-        return xff.split(',')[-1].strip()
-    return request.remote_addr or '127.0.0.1'
+    peer = xff.split(',')[-1].strip() if xff else (request.remote_addr or '127.0.0.1')
+    if os.environ.get('TRUST_CF_CONNECTING_IP', '').strip() == '1':
+        cf = (request.headers.get('CF-Connecting-IP') or '').strip()
+        if cf and _es_ip_de_cloudflare(peer):
+            return cf
+    return peer
 
 
 # Rate limiting (defensa contra fuerza bruta). Degrada con aviso si la librería falta.

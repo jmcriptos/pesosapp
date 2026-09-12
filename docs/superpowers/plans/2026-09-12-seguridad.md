@@ -46,9 +46,15 @@ en subproceso con el limitador activo.
       `rediss://`, y una URI inválida ya no impide arrancar (cae a memoria
       con error en el log). Alcanza con:
       `heroku config:set RATELIMIT_STORAGE_URI="$(heroku config:get REDIS_URL --app pesosapp)" --app pesosapp`.
-- [ ] **`TRUST_CF_CONNECTING_IP`:** dejar sin definir salvo que todo el
-      tráfico entre por Cloudflare y el dominio `herokuapp.com` no sea
-      accesible en directo.
+- [ ] **`TRUST_CF_CONNECTING_IP=1`.** JM confirmó (2026-09-12) que
+      `app.jomarfoods.com` pasa por Cloudflare y que el dominio de
+      `herokuapp.com` sigue accesible en directo. Desde `_client_ip` con
+      rangos, la cabecera de Cloudflare se acepta solo si quien se conectó a
+      Heroku es Cloudflare; un acceso directo con la cabecera falsificada
+      queda con su IP real. Sin la bandera, todo el tráfico por Cloudflare
+      comparte la IP del borde y el límite por IP (10/min) se vuelve
+      colectivo. Cargar:
+      `heroku config:set TRUST_CF_CONNECTING_IP=1 --app pesosapp`.
 - [ ] **Desactivar en n8n** los workflows de facturación, consulta de
       factura y tasa (paso 10 del runbook del corte) apenas cierre el paso 8.
 - [ ] **Revisar quién tiene acceso** a Heroku (`heroku access --app pesosapp`)
