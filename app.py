@@ -839,6 +839,15 @@ def _is_safe_next(target: str) -> bool:
     test_url = urlparse(urljoin(request.host_url, target))
     return (test_url.scheme in ("http", "https")) and (ref_url.netloc == test_url.netloc)
 
+@app.route('/privacidad')
+def privacidad():
+    """Política de privacidad pública. Google exige una URL de política de
+    privacidad y una página principal para publicar la app OAuth que n8n usa
+    con Google Drive (sin publicarla, el refresh token caduca a los 7 días).
+    Sin login a propósito: Google la tiene que poder abrir."""
+    return render_template('privacidad.html')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 @_login_rate_limit
 def login():
@@ -942,7 +951,7 @@ def cambiar_password():
 
 @app.before_request
 def require_login():
-    allowed_endpoints = ['login', 'logout', 'static']
+    allowed_endpoints = ['login', 'logout', 'static', 'privacidad']
     # Endpoints que se autentican por su cuenta (CSRF ping, webhook con token propio)
     if request.endpoint in ('csrf_ping', 'webhook_actualizacion_precios'):
         return
