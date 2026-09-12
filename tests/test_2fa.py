@@ -287,3 +287,13 @@ def test_clave_del_limite_2fa_usa_el_usuario_pendiente(app):
         from flask import session
         session['2fa'] = {'id': 7}
         assert app_module._login_2fa_key() == '2fa:7'
+
+
+def test_el_qr_tiene_fondo_blanco_trazado_negro_y_tamano_legible():
+    """Sobre el tema oscuro el QR salía negro sobre negro y de 2,5 cm."""
+    from utils.totp import qr_svg, nuevo_secreto, uri_provision, TAMANO_QR_PX
+    svg = qr_svg(uri_provision(nuevo_secreto(), 'admin'))
+    assert f'width="{TAMANO_QR_PX}" height="{TAMANO_QR_PX}"' in svg
+    assert '<rect width="100%" height="100%" fill="#fff"/>' in svg
+    assert '<path fill="#000"' in svg
+    assert 'mm' not in svg.split('viewBox')[0]
