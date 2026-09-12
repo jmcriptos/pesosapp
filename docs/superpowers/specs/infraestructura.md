@@ -12,6 +12,7 @@ algo de la tabla.
 | Aplicación web | Heroku, app `pesosapp`, dyno `web` con gunicorn (`Procfile`), stack Heroku-24 | Heroku-26 disponible; migrar en un deploy tranquilo |
 | Base de datos | Heroku Postgres `postgresql-dimensional-16123` (PostgreSQL 16) | Backups automáticos diarios (retención del plan); contienen los tokens cifrados |
 | Redis | Heroku Redis mini `redis-defined-07562` | Solo el contador de intentos de login; no persiste datos, y no hace falta |
+| Tareas programadas | Heroku Scheduler `scheduler-convex-94702` | Job diario 09:00 UTC (05:00 Curaçao): `flask --app app qbo-fijar-tasa`. Se administra con `heroku addons:open scheduler --app pesosapp` |
 | Dominio | `https://app.jomarfoods.com` por Cloudflare | `pesosapp-caa46963237c.herokuapp.com` sigue accesible en directo; por eso la IP de Cloudflare solo se acepta si la petición llegó desde sus rangos |
 | Código | GitHub `jmcriptos/pesosapp`, rama `main` | Deploy manual: `git push heroku main` |
 | Sesiones de desarrollo | Claude Code en la nube, rama `claude/*`, merge directo a `main` (decisión de JM 2026-09-12) | No tiene acceso a Heroku ni a cuentas; los `config:set` y deploys los corre JM |
@@ -22,7 +23,7 @@ algo de la tabla.
 |---|---|---|
 | QuickBooks Online: crear factura, leer factura para el PDF | API v3 directa desde la app (`utils/qbo_client.py`, `utils/qbo_factura.py`), OAuth2 con tokens cifrados en `qbo_conexion` | `FACTURACION_BACKEND=qbo` desde 2026-09-12 |
 | QuickBooks Online: ventas del dashboard | API v3 directa (`utils/qbo_ventas.py`), caché en `ventas_qb_cache` | `QB_SALES_BACKEND=qbo` desde 2026-09-12 |
-| QuickBooks Online: tasa USD→ANG diaria | Antes de cada factura USD desde la app; el job diario sigue en n8n hasta el paso 10, luego Heroku Scheduler (`flask --app app qbo-fijar-tasa`) | Transición |
+| QuickBooks Online: tasa USD→ANG diaria | Antes de cada factura USD desde la app, y job diario en Heroku Scheduler (`flask --app app qbo-fijar-tasa`) | Desde 2026-09-12; el workflow de n8n se apaga tras verificar la tasa del 13 |
 | Google Drive: archivo de PDF de facturas | n8n Cloud, webhook `N8N_DRIVE_WEBHOOK_URL`; app OAuth de Google publicada (sin caducidad de 7 días) | Queda en n8n |
 | Alertas HACCP | n8n Cloud, webhook `N8N_HACCP_ALERT_WEBHOOK_URL` | Queda en n8n |
 | Webhook de entrada de precios | Ruta de la app autenticada con `WEBHOOK_SECRET` | Activo |
