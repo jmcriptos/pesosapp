@@ -46,7 +46,7 @@ en subproceso con el limitador activo.
       `rediss://`, y una URI inválida ya no impide arrancar (cae a memoria
       con error en el log). Alcanza con:
       `heroku config:set RATELIMIT_STORAGE_URI="$(heroku config:get REDIS_URL --app pesosapp)" --app pesosapp`.
-- [ ] **`TRUST_CF_CONNECTING_IP=1`.** JM confirmó (2026-09-12) que
+- [x] **`TRUST_CF_CONNECTING_IP=1`.** (hecho 2026-09-12, login verificado) JM confirmó (2026-09-12) que
       `app.jomarfoods.com` pasa por Cloudflare y que el dominio de
       `herokuapp.com` sigue accesible en directo. Desde `_client_ip` con
       rangos, la cabecera de Cloudflare se acepta solo si quien se conectó a
