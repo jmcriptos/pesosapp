@@ -473,13 +473,25 @@ login_manager.session_protection = 'strong'
 
 
 def _client_ip():
-    """IP real del cliente detrás de Cloudflare/Heroku para rate limiting."""
-    cf = request.headers.get('CF-Connecting-IP')
-    if cf:
-        return cf.strip()
+    """IP real del cliente para el rate limiting.
+
+    Heroku AGREGA la IP del cliente al FINAL de X-Forwarded-For; todo lo
+    anterior lo escribe quien manda la petición. Hasta el 2026-09-12 se
+    tomaba el primer valor, que es falsificable con una cabecera y permitía
+    esquivar el límite de intentos de login. Se toma el último.
+
+    CF-Connecting-IP solo se acepta con TRUST_CF_CONNECTING_IP=1, y solo
+    tiene sentido si TODO el tráfico entra por Cloudflare (si el dominio de
+    herokuapp.com sigue accesible en directo, esa cabecera también se
+    falsifica).
+    """
+    if os.environ.get('TRUST_CF_CONNECTING_IP', '').strip() == '1':
+        cf = request.headers.get('CF-Connecting-IP')
+        if cf:
+            return cf.strip()
     xff = request.headers.get('X-Forwarded-For')
     if xff:
-        return xff.split(',')[0].strip()
+        return xff.split(',')[-1].strip()
     return request.remote_addr or '127.0.0.1'
 
 
@@ -500,11 +512,32 @@ except ImportError:
     app.logger.warning("flask_limiter no instalado: /login sin rate limiting")
 
 
+def _login_username_key():
+    """Clave del límite por cuenta: el usuario que se intenta, no la IP."""
+    usuario = (request.form.get('username') or '').strip().lower()
+    return f'user:{usuario}' if usuario else f'ip:{_client_ip()}'
+
+
+def _login_fallido(response):
+    """Solo descuenta intentos FALLIDOS: el login correcto redirige (302)."""
+    return response.status_code != 302
+
+
 def _login_rate_limit(view):
-    """Aplica el límite de intentos a /login solo si limiter está disponible."""
+    """Dos límites en /login, ambos solo en POST:
+
+    - por IP, como siempre;
+    - por cuenta, contando solo intentos fallidos. Es el que frena la fuerza
+      bruta aunque el atacante cambie de IP o falsifique cabeceras: la
+      cuenta atacada se cierra un rato, venga de donde venga.
+    """
     if limiter is None:
         return view
-    return limiter.limit('10 per minute; 60 per hour', methods=['POST'])(view)
+    view = limiter.limit('10 per minute; 60 per hour', methods=['POST'])(view)
+    view = limiter.limit('5 per minute; 30 per hour', methods=['POST'],
+                         key_func=_login_username_key,
+                         deduct_when=_login_fallido)(view)
+    return view
 
 
 @app.errorhandler(429)
@@ -986,26 +1019,22 @@ def log_vendedor_action():
 @app.context_processor
 def inject_permissions():
     """Inyecta funciones de verificación de permisos en los templates"""
+    # Fail-closed: solo un Vendedor tiene permisos. El «usuario legacy» que
+    # aquí recibía todo ya no puede iniciar sesión (ver user_loader), y este
+    # camino era una trampa latente si alguien lo reactivaba (2026-09-12).
+    def _permiso(recurso, accion):
+        if not current_user.is_authenticated or not isinstance(current_user, Vendedor):
+            return False
+        return current_user.tiene_permiso(recurso, accion)
+
     def puede_crear(recurso):
-        if not current_user.is_authenticated:
-            return False
-        if not isinstance(current_user, Vendedor):
-            return True  # Usuario legacy tiene todos los permisos
-        return current_user.tiene_permiso(recurso, 'crear')
-    
+        return _permiso(recurso, 'crear')
+
     def puede_editar(recurso):
-        if not current_user.is_authenticated:
-            return False
-        if not isinstance(current_user, Vendedor):
-            return True
-        return current_user.tiene_permiso(recurso, 'editar')
-    
+        return _permiso(recurso, 'editar')
+
     def puede_eliminar(recurso):
-        if not current_user.is_authenticated:
-            return False
-        if not isinstance(current_user, Vendedor):
-            return True
-        return current_user.tiene_permiso(recurso, 'eliminar')
+        return _permiso(recurso, 'eliminar')
     
     return dict(
         puede_crear=puede_crear,
@@ -4767,7 +4796,9 @@ def index():
     # Página de inicio tras login: listado de pedidos.
     # Si el usuario no tiene permiso para ver pedidos, cae al dashboard
     # (evita un bucle de redirección con el decorador de lista_pedidos).
-    if isinstance(current_user, Vendedor) and not current_user.tiene_permiso('pedidos', 'leer'):
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    if not current_user.tiene_permiso('pedidos', 'leer'):
         return redirect(url_for('dashboard'))
     return redirect(url_for('lista_pedidos'))
 
@@ -5346,6 +5377,7 @@ def admin_quickbooks():
         backend_facturacion=_facturacion_backend(),
         backend_ventas=_qb_sales_backend(),
         tasa_usd=_qbo_tasa_usd(),
+        tokens_cifrados=_qbo_tokens_cifrados(),
     )
 
 
@@ -6922,8 +6954,9 @@ def lista_pedidos():
     ]
 
     # Filtrar por permisos del usuario
-    if isinstance(current_user, Vendedor) and current_user.rol.nombre != 'super_admin':
-        clientes_ids = [c.id for c in current_user.obtener_clientes_visibles()]
+    if not isinstance(current_user, Vendedor) or current_user.rol.nombre != 'super_admin':
+        clientes_ids = ([c.id for c in current_user.obtener_clientes_visibles()]
+                        if isinstance(current_user, Vendedor) else [])
         if not clientes_ids:
             # Sin clientes asignados - retornar vacío con paginación mock
             return render_template(
@@ -9430,6 +9463,54 @@ def _qbo_conexion_fila():
     return db.session.get(QboConexion, 1)
 
 
+# Cifrado de los tokens en reposo. Con QBO_TOKEN_KEY (una clave Fernet) los
+# tokens se guardan cifrados y la base y sus backups dejan de servir para
+# operar en QuickBooks. Sin la clave se guardan en texto plano, como n8n;
+# /admin/quickbooks lo avisa. Los valores cifrados llevan el prefijo `enc:`
+# para convivir con una fila anterior en texto plano: se recifra en el
+# siguiente refresco de token.
+QBO_ENC_PREFIX = 'enc:'
+
+
+def _qbo_fernet():
+    clave = os.environ.get('QBO_TOKEN_KEY', '').strip()
+    if not clave:
+        return None
+    from cryptography.fernet import Fernet
+    return Fernet(clave.encode())
+
+
+def _qbo_tokens_cifrados():
+    return _qbo_fernet() is not None
+
+
+def _qbo_cifrar(valor):
+    if valor is None:
+        return None
+    fernet = _qbo_fernet()
+    if fernet is None:
+        return valor
+    return QBO_ENC_PREFIX + fernet.encrypt(str(valor).encode()).decode('ascii')
+
+
+def _qbo_descifrar(valor):
+    if valor is None or not str(valor).startswith(QBO_ENC_PREFIX):
+        return valor
+    from utils.qbo_client import QboNoConectado
+    fernet = _qbo_fernet()
+    if fernet is None:
+        raise QboNoConectado(
+            'Los tokens de QuickBooks están cifrados y falta QBO_TOKEN_KEY en el entorno'
+        )
+    from cryptography.fernet import InvalidToken
+    try:
+        return fernet.decrypt(str(valor)[len(QBO_ENC_PREFIX):].encode()).decode()
+    except InvalidToken:
+        raise QboNoConectado(
+            'QBO_TOKEN_KEY no corresponde a los tokens guardados; hay que volver a conectar'
+        )
+
+
 class _QboStoreDb:
     """`TokenStore` sobre la tabla `qbo_conexion`.
 
@@ -9440,12 +9521,16 @@ class _QboStoreDb:
 
     CAMPOS = ('realm_id', 'access_token', 'refresh_token',
               'access_expires_at', 'refresh_expires_at')
+    SECRETOS = ('access_token', 'refresh_token')
 
     def cargar(self):
         fila = _qbo_conexion_fila()
         if fila is None or not fila.refresh_token or not fila.realm_id:
             return None
-        return {campo: getattr(fila, campo) for campo in self.CAMPOS}
+        tokens = {campo: getattr(fila, campo) for campo in self.CAMPOS}
+        for campo in self.SECRETOS:
+            tokens[campo] = _qbo_descifrar(tokens[campo])
+        return tokens
 
     def guardar(self, tokens):
         fila = _qbo_conexion_fila()
@@ -9453,7 +9538,10 @@ class _QboStoreDb:
             fila = QboConexion(id=1)
             db.session.add(fila)
         for campo in self.CAMPOS:
-            setattr(fila, campo, tokens.get(campo))
+            valor = tokens.get(campo)
+            if campo in self.SECRETOS:
+                valor = _qbo_cifrar(valor)
+            setattr(fila, campo, valor)
         fila.ultimo_error = None
         fila.ultimo_error_en = None
         db.session.commit()
