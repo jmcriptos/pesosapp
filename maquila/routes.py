@@ -163,6 +163,25 @@ def _contexto_corrida(corrida, consumo_actual, reparto_origen, falta_ingrediente
             cerrada_por_nombre = vendedor.nombre_completo if vendedor else None
         cerrada_en_local = reportes._local(corrida.cerrada_en)
 
+    # Cajas que ya se pesaron a mano en un pedido de este cliente y producto
+    # sin pasar por «Asignar de producción»: se ofrecen para vincularlas a
+    # las cajas disponibles de esta corrida. Solo si hay algo que vincular
+    # en los dos lados; si no, la pantalla queda como siempre.
+    cajas_disponibles = [c for c in corrida.cajas if c.disponible]
+    cajas_sin_vincular = []
+    if cajas_disponibles and corrida.estado != 'anulada':
+        for pesada in servicios.cajas_pesadas_sin_vincular(
+                corrida.cliente_id, corrida.producto_id):
+            detalle = pesada.detalle_pedido
+            cajas_sin_vincular.append({
+                'id': pesada.id,
+                'pedido_id': detalle.pedido_id if detalle else None,
+                'numero': pesada.numero,
+                'peso': pesada.peso,
+                'lote': pesada.lote,
+                'pesado_en': reportes._local(pesada.pesado_en) if pesada.pesado_en else None,
+            })
+
     return dict(
         corrida=corrida, consumo_actual=consumo_actual, teoricos=teoricos,
         reparto=reparto, reparto_origen=reparto_origen,
@@ -170,6 +189,7 @@ def _contexto_corrida(corrida, consumo_actual, reparto_origen, falta_ingrediente
         merma=merma, merma_pct=merma_pct, consumido_kg=consumido_kg,
         cerrada_por_nombre=cerrada_por_nombre, cerrada_en_local=cerrada_en_local,
         falta_ingrediente_id=falta_ingrediente_id,
+        cajas_disponibles=cajas_disponibles, cajas_sin_vincular=cajas_sin_vincular,
         ingredientes=_ingredientes_activos(),
         clientes=[], productos=[], hoy=None, cliente_sugerido=None)
 
@@ -828,6 +848,53 @@ def corrida_detalle(corrida_id):
     return render_template(
         'maquila/corrida_detalle.html',
         **_contexto_corrida(corrida, {}, 'teorico'))
+
+
+@bp.route('/corridas/<int:corrida_id>/vincular', methods=['POST'])
+@login_required
+@requiere_rol(['super_admin'])
+def corrida_vincular(corrida_id):
+    """Ata cajas disponibles de la corrida a cajas ya pesadas a mano en un
+    pedido. Funciona aunque el pedido esté facturado: no toca la caja del
+    pedido, solo escribe el vínculo (ver `servicios.vincular_cajas`).
+
+    El form manda `vinculo_<corrida_caja_id>=<caja_pesada_id>`; las filas
+    vacías se ignoran. Un id inventado o ajeno se rechaza entero, nada se
+    escribe: mismo criterio que `asignar_detalle`.
+    """
+    corrida = db.session.get(CorridaProduccion, corrida_id) or abort(404)
+    pares = []
+    for clave, valor in request.form.items():
+        if not clave.startswith('vinculo_'):
+            continue
+        caja_id = _entero(clave[len('vinculo_'):])
+        pesada_id = _entero(valor)
+        if caja_id is None or pesada_id is None:
+            continue
+        caja = db.session.get(CorridaCaja, caja_id)
+        pesada = db.session.get(app_module.CajaPesada, pesada_id)
+        if caja is None or pesada is None:
+            flash('Alguna caja elegida ya no existe: no se vinculó ninguna', 'error')
+            return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                                    _anchor='vincular'))
+        pares.append((caja, pesada))
+
+    if not pares:
+        flash('Elegí al menos una caja del pedido para vincular', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                                _anchor='vincular'))
+
+    try:
+        vinculadas = servicios.vincular_cajas(corrida, pares, current_user.id)
+    except (servicios.VinculoInvalido, servicios.CajaNoDisponible) as exc:
+        flash(f'{exc}: no se vinculó ninguna', 'error')
+        return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                                _anchor='vincular'))
+
+    flash(f'{len(vinculadas)} caja(s) de {corrida.codigo} vinculadas a cajas ya '
+          f'pesadas en pedidos', 'success')
+    return redirect(url_for('maquila.corrida_detalle', corrida_id=corrida_id,
+                            _anchor='cajas'))
 
 
 def _consumos_de_query():

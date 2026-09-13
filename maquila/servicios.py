@@ -23,6 +23,8 @@ from .models import (Ingrediente, MovimientoIngrediente, RecepcionIngrediente,
 # maquila/__init__.py para el porqué.
 db = app_module.db
 CajaPesada = app_module.CajaPesada
+DetallePedido = app_module.DetallePedido
+Pedido = app_module.Pedido
 # La inmutabilidad post-facturación tiene UN dueño en app.py: acá se reusa en
 # vez de reescribir `estado == 'facturado'`, que deja pasar `entregado` (se
 # factura ANTES de que salga el camión, así que lo entregado ya está en
@@ -1357,6 +1359,98 @@ def cajas_disponibles(cliente_id, producto_id):
                       CorridaProduccion.fecha_produccion.asc(),
                       CorridaCaja.numero.asc())
             .all())
+
+
+class VinculoInvalido(ValueError):
+    """La caja del pedido no puede atarse a esa caja producida."""
+
+
+def cajas_pesadas_sin_vincular(cliente_id, producto_id):
+    """Cajas ya pesadas en pedidos de ese cliente y producto que no vienen de
+    ninguna corrida: las que se teclearon a mano en la pantalla de pesar en
+    vez de asignarse desde producción. Son las candidatas a `vincular_cajas`.
+    Más reciente primero, para que la que se acaba de pesar quede arriba."""
+    return (CajaPesada.query
+            .join(DetallePedido, DetallePedido.id == CajaPesada.detalle_pedido_id)
+            .join(Pedido, Pedido.id == DetallePedido.pedido_id)
+            .outerjoin(CorridaCaja, CorridaCaja.caja_pesada_id == CajaPesada.id)
+            .filter(Pedido.cliente_id == cliente_id,
+                    DetallePedido.producto_id == producto_id,
+                    CorridaCaja.id.is_(None))
+            .order_by(Pedido.id.desc(), CajaPesada.numero.asc())
+            .all())
+
+
+def vincular_cajas(corrida, pares, vendedor_id):
+    """Ata cajas producidas a cajas que YA se pesaron a mano en un pedido.
+
+    Es el camino inverso de `asignar_cajas`: allá la caja del pedido nace
+    desde la corrida; acá ya existe (alguien la tecleó en pesar sin pasar
+    por «Asignar de producción») y solo falta el vínculo. La caja del pedido
+    NO se toca: su peso, lote y fechas pueden estar ya en una factura, y lo
+    que hace falta es la trazabilidad y que la caja producida deje de
+    ofrecerse como disponible, no reescribir el pedido.
+
+    `pares` es [(CorridaCaja, CajaPesada)]. Todo o nada, con commit, mismo
+    contrato que `asignar_cajas`. Deja un `caja_vinculada` en el historial
+    del pedido, nombrando la diferencia de peso si la hay.
+    """
+    if not pares:
+        return []
+    if corrida.estado == 'anulada':
+        raise VinculoInvalido(f'{corrida.codigo} está anulada')
+
+    try:
+        vistas = set()
+        for caja, pesada in pares:
+            if caja.corrida_id != corrida.id:
+                raise VinculoInvalido(
+                    f'La caja {caja.numero} no es de {corrida.codigo}')
+            if not caja.disponible:
+                raise CajaNoDisponible(
+                    f'La caja {caja.numero} de {corrida.codigo} ya salió en un '
+                    f'pedido o está anulada')
+            if pesada.id in vistas:
+                raise VinculoInvalido(
+                    f'La caja #{pesada.numero:02d} del pedido aparece dos veces')
+            vistas.add(pesada.id)
+            detalle = pesada.detalle_pedido
+            pedido = detalle.pedido if detalle else None
+            if pedido is None:
+                raise VinculoInvalido('La caja del pedido ya no existe')
+            if (pedido.cliente_id != corrida.cliente_id
+                    or detalle.producto_id != corrida.producto_id):
+                raise VinculoInvalido(
+                    f'La caja #{pesada.numero:02d} del pedido {pedido.id} no es de '
+                    f'este cliente y producto')
+            ya = CorridaCaja.query.filter_by(caja_pesada_id=pesada.id).first()
+            if ya is not None:
+                raise VinculoInvalido(
+                    f'La caja #{pesada.numero:02d} del pedido {pedido.id} ya viene '
+                    f'de {ya.corrida.codigo}')
+
+            caja.caja_pesada_id = pesada.id
+            diferencia = _dec(pesada.peso) - _dec(caja.peso)
+            nota = ''
+            if diferencia != CERO:
+                nota = (f'; en el pedido se pesó {pesada.peso} kg '
+                        f'({"+" if diferencia > 0 else ""}{diferencia} kg)')
+            app_module._log_pedido_evento(
+                pedido,
+                'caja_vinculada',
+                f'Caja #{pesada.numero:02d} de {detalle.producto.nombre} vinculada a '
+                f'la caja {caja.numero} de {corrida.codigo} ({caja.peso} kg, '
+                f'lote {corrida.lote}){nota}',
+                meta={'detalle_id': detalle.id, 'numero': pesada.numero,
+                      'caja_pesada_id': pesada.id, 'corrida_id': corrida.id,
+                      'corrida_caja_id': caja.id, 'peso_corrida': float(caja.peso),
+                      'peso_pedido': float(pesada.peso)},
+            )
+        db.session.commit()
+        return [caja for caja, _ in pares]
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def proponer_fefo(detalle):

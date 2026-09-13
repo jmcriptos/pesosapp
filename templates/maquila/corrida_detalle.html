@@ -127,6 +127,46 @@
     </tfoot>
   </table>
   {% endif %}
+
+  {#- Cajas que ya salieron en un pedido pesadas a mano, sin pasar por
+      «Asignar de producción»: se vinculan acá para que dejen de ofrecerse
+      como disponibles y la trazabilidad llegue hasta la factura. -#}
+  {% if cajas_sin_vincular %}
+  <div class="maquila-vincular" id="vincular">
+    <h3>Vincular con cajas ya pesadas en un pedido</h3>
+    <p class="maquila-nota">
+      Este cliente tiene cajas de {{ corrida.producto.nombre }} pesadas a mano en un
+      pedido que no vienen de ninguna corrida. Si son estas, elegí a cuál corresponde
+      cada caja disponible. La caja del pedido no se modifica (puede estar ya
+      facturada); solo queda atada a esta corrida.
+    </p>
+    <form method="POST" action="{{ url_for('maquila.corrida_vincular', corrida_id=corrida.id) }}"
+          class="ops-sheet-form" data-confirm="¿Vincular estas cajas? La caja del pedido no cambia.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <table class="maquila-tabla-mini">
+        <thead><tr><th>Caja producida</th><th>Caja del pedido</th></tr></thead>
+        <tbody>
+          {% for caja in cajas_disponibles %}
+          <tr>
+            <td>Caja {{ caja.numero }} · {{ caja.peso|fmt_cant }}</td>
+            <td>
+              <select name="vinculo_{{ caja.id }}" aria-label="Caja del pedido para la caja {{ caja.numero }}">
+                <option value="">— No vincular —</option>
+                {% for p in cajas_sin_vincular %}
+                <option value="{{ p.id }}">Pedido #{{ p.pedido_id }} · caja #{{ '%02d'|format(p.numero) }} · {{ p.peso|fmt_cant }} · lote {{ p.lote }}{% if p.pesado_en %} · {{ p.pesado_en.strftime('%d/%m') }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="maquila-acciones">
+        <button type="submit" class="btn">Vincular</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
 </section>
 
 {% if corrida.estado == 'abierta' %}
