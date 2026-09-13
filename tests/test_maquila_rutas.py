@@ -484,6 +484,12 @@ def test_el_link_a_maquila_se_ve_para_super_admin(app):
 def test_ajuste_con_motivo_sube_el_saldo_y_queda_en_el_kardex(app):
     from maquila import servicios
     cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        rec = servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('100')}])
+        linea_id = rec.lineas[0].id
     c = _login(app, 'admin')
     r = c.post('/maquila/ajustes', data={
         'cliente_id': str(cli_id),
@@ -495,13 +501,35 @@ def test_ajuste_con_motivo_sube_el_saldo_y_queda_en_el_kardex(app):
     assert r.status_code == 200
     assert 'registrado'.encode() in r.data.lower() or b'Ajuste registrado' in r.data
     with app.app_context():
-        assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('25')
+        assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('125')
         ajustes = servicios.ajustes_manuales_de_cliente(cli_id)
         assert len(ajustes) == 1
         assert ajustes[0].origen_tipo == 'manual'
         assert ajustes[0].tipo == 'ajuste'
         assert ajustes[0].cantidad == Decimal('25.000')
         assert ajustes[0].motivo == 'Conteo físico: sobraban 25 kg'
+        # Anclado a la línea: el FIFO del cierre ve los 25 kg de más.
+        assert ajustes[0].recepcion_linea_id == linea_id
+        assert servicios.saldo_de_linea(linea_id) == Decimal('125')
+
+
+def test_ajuste_de_entrada_sin_recepcion_se_rechaza_y_no_escribe_nada(app):
+    """Kilos que aparecen de la nada necesitan una recepción: un ajuste sin
+    línea a la que anclarse no lo vería el FIFO del cierre de corrida."""
+    from maquila.models import MovimientoIngrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'entrada',
+        'cantidad': '25',
+        'motivo': 'Conteo físico',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'necesitan una recepci'.encode() in r.data
+    with app.app_context():
+        assert MovimientoIngrediente.query.count() == 0
 
 
 def test_ajuste_de_salida_resta_del_saldo(app):
@@ -523,6 +551,102 @@ def test_ajuste_de_salida_resta_del_saldo(app):
     assert r.status_code == 200
     with app.app_context():
         assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('85')
+        # La línea de recepción también bajó: el FIFO ya no ve esos 15 kg.
+        ajuste = servicios.ajustes_manuales_de_cliente(cli_id)[0]
+        assert ajuste.recepcion_linea_id is not None
+        assert servicios.saldo_de_linea(ajuste.recepcion_linea_id) == Decimal('85')
+
+
+def test_ajuste_de_salida_mayor_al_saldo_se_rechaza_y_no_escribe_nada(app):
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('20')}])
+        antes = MovimientoIngrediente.query.count()
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'salida',
+        'cantidad': '35',
+        'motivo': 'Merma por descongelación',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert b'No hay saldo para esa salida' in r.data
+    assert b'solo cubren 20' in r.data
+    with app.app_context():
+        assert MovimientoIngrediente.query.count() == antes
+        assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('20')
+
+
+def test_ajuste_contra_una_recepcion_elegida_se_ancla_a_esa_linea(app):
+    from maquila import servicios
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        vieja = servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('100')}])
+        nueva = servicios.crear_recepcion(
+            cliente_id=cli_id, recibido_en=date(2026, 9, 5),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('100')}])
+        vieja_id, nueva_id = vieja.lineas[0].id, nueva.lineas[0].id
+    c = _login(app, 'admin')
+    # El GET ofrece las líneas del cliente en el selector.
+    r = c.get(f'/maquila/ajustes?cliente_id={cli_id}')
+    assert r.status_code == 200
+    assert b'recepcion_linea_id' in r.data
+    assert vieja.codigo.encode() in r.data and nueva.codigo.encode() in r.data
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'salida',
+        'cantidad': '8',
+        'recepcion_linea_id': str(nueva_id),
+        'motivo': 'Merma por descongelación del lote nuevo',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    with app.app_context():
+        assert servicios.saldo_de_linea(vieja_id) == Decimal('100')
+        assert servicios.saldo_de_linea(nueva_id) == Decimal('92')
+        assert servicios.saldo_cliente_ingrediente(cli_id, ing_id) == Decimal('192')
+
+
+def test_ajuste_contra_una_linea_ajena_se_rechaza(app):
+    """Un id de línea de otro cliente (tecleado o de un enlace viejo) no puede
+    mover inventario ajeno."""
+    from maquila import servicios
+    from maquila.models import MovimientoIngrediente
+    cli_id, _prod_id, ing_id = _cliente_producto_ingrediente(app)
+    with app.app_context():
+        from app import Cliente
+        otro = Cliente(nombre='Otro cliente')
+        _db.session.add(otro)
+        _db.session.commit()
+        rec = servicios.crear_recepcion(
+            cliente_id=otro.id, recibido_en=date(2026, 9, 1),
+            vendedor_id=IDS['admin'],
+            lineas=[{'ingrediente_id': ing_id, 'peso_total': Decimal('100')}])
+        ajena_id = rec.lineas[0].id
+        antes = MovimientoIngrediente.query.count()
+    c = _login(app, 'admin')
+    r = c.post('/maquila/ajustes', data={
+        'cliente_id': str(cli_id),
+        'ingrediente_id': str(ing_id),
+        'sentido': 'entrada',
+        'cantidad': '5',
+        'recepcion_linea_id': str(ajena_id),
+        'motivo': 'Prueba',
+    }, follow_redirects=True)
+    assert r.status_code == 200
+    assert 'no es una l'.encode() in r.data
+    with app.app_context():
+        assert MovimientoIngrediente.query.count() == antes
 
 
 def test_ajuste_sin_motivo_se_rechaza_y_no_escribe_nada(app):
