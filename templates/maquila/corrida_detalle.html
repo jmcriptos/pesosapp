@@ -166,6 +166,31 @@
       </div>
     </form>
   </div>
+  <script nonce="{{ csp_nonce() }}">
+  (function () {
+    // Una caja del pedido corresponde a UNA caja producida: apenas se elige
+    // en una fila, deja de ofrecerse en las demás. Sin esto el operario la
+    // ve repetida en cada desplegable y el servidor la rechaza al enviar
+    // («aparece dos veces») después de haber elegido todo.
+    var selects = Array.prototype.slice.call(
+      document.querySelectorAll('#vincular select[name^="vinculo_"]'));
+    if (!selects.length) return;
+    function refrescar() {
+      var elegidas = {};
+      selects.forEach(function (s) { if (s.value) elegidas[s.value] = s; });
+      selects.forEach(function (s) {
+        Array.prototype.forEach.call(s.options, function (o) {
+          if (!o.value) return;
+          var ocupada = elegidas[o.value] && elegidas[o.value] !== s;
+          o.disabled = !!ocupada;
+          o.hidden = !!ocupada;
+        });
+      });
+    }
+    selects.forEach(function (s) { s.addEventListener('change', refrescar); });
+    refrescar();
+  })();
+  </script>
   {% endif %}
 </section>
 

@@ -266,6 +266,9 @@ def test_vincular_ata_la_caja_producida_a_la_pesada_sin_tocar_el_pedido(app):
     assert r.status_code == 200
     assert b'Vincular con cajas ya pesadas' in r.data
     assert f'vinculo_{caja_id}'.encode() in r.data
+    # El script que saca de los otros desplegables la caja ya elegida viaja
+    # con la sección (y solo con ella).
+    assert b'vinculo_"]' in r.data
     r = c.post(f'/maquila/corridas/{corrida_id}/vincular',
                data={f'vinculo_{caja_id}': str(pesada_id)}, follow_redirects=True)
     assert r.status_code == 200
@@ -350,6 +353,27 @@ def test_sin_cajas_pesadas_a_mano_el_detalle_no_ofrece_vincular(app):
     r = c.get(f'/maquila/corridas/{corrida_id}')
     assert r.status_code == 200
     assert b'Vincular con cajas ya pesadas' not in r.data
+    assert b'vinculo_"]' not in r.data
+
+
+def test_tras_vincular_la_caja_deja_de_ofrecerse_en_la_tabla_de_vinculo(app):
+    """Con dos cajas producidas y dos pesadas a mano, vincular una saca de la
+    tabla tanto la caja producida como la caja del pedido; la otra pareja
+    sigue ofreciéndose."""
+    with app.app_context():
+        corrida = _corrida_con_cajas(2)
+        corrida_id = corrida.id
+        c0, c1 = [x.id for x in corrida.cajas]
+        p1 = _pesada_a_mano(IDS['detalle_maquila'], 1, '10')
+        p2 = _pesada_a_mano(IDS['detalle_maquila'], 2, '10')
+    c = _login(app)
+    c.post(f'/maquila/corridas/{corrida_id}/vincular',
+           data={f'vinculo_{c0}': str(p1)}, follow_redirects=True)
+    html = c.get(f'/maquila/corridas/{corrida_id}').get_data(as_text=True)
+    assert f'vinculo_{c0}' not in html
+    assert f'vinculo_{c1}' in html
+    assert f'value="{p1}"' not in html
+    assert f'value="{p2}"' in html
 
 
 def test_vincular_es_solo_de_super_admin(app):
