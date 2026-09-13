@@ -31,6 +31,10 @@
     Usá esto cuando el consumo real de una corrida supere lo recibido y no
     quede saldo para cerrarla, o cuando la cámara no coincida con el kardex.
     El motivo es obligatorio y queda registrado como cualquier otro movimiento.
+    Todo ajuste se anota contra una recepción concreta, para que el reparto
+    de las corridas vea el mismo saldo que Saldos: una salida se descuenta de
+    las recepciones más antiguas primero y una entrada se suma a la más
+    reciente, salvo que elijas la recepción.
   </p>
   <form method="POST" action="{{ url_for('maquila.ajustes') }}" class="ops-sheet-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -53,6 +57,13 @@
       </select>
     </div>
     <div class="ops-field">
+      <label for="recepcion_linea_id">Recepción <small>(opcional)</small></label>
+      <select id="recepcion_linea_id" name="recepcion_linea_id">
+        <option value="">Automático</option>
+      </select>
+      <p class="maquila-meta" id="recepcion-ayuda" aria-live="polite"></p>
+    </div>
+    <div class="ops-field">
       <label for="cantidad">Cantidad <small id="cantidad-unidad"></small></label>
       <input type="text" inputmode="decimal" data-decimal id="cantidad" name="cantidad" required autocomplete="off">
     </div>
@@ -66,6 +77,7 @@
   </form>
 </section>
 
+<script type="application/json" id="lineas-cliente">{{ lineas_cliente|tojson }}</script>
 <script nonce="{{ csp_nonce() }}">
 (function () {
   // El saldo actual y la unidad del ingrediente elegido se ven junto al
@@ -75,14 +87,51 @@
   var saldo = document.getElementById('saldo-actual');
   var unidad = document.getElementById('cantidad-unidad');
   var sentido = document.getElementById('sentido');
+  var selLinea = document.getElementById('recepcion_linea_id');
+  var ayuda = document.getElementById('recepcion-ayuda');
   if (!sel) return;
+  var lineas = [];
+  try { lineas = JSON.parse(document.getElementById('lineas-cliente').textContent) || []; } catch (e) {}
+
+  // El selector de recepción se rearma con las líneas del ingrediente
+  // elegido: para una salida solo las que tienen saldo; para una entrada
+  // todas las vivas. «Automático» explica qué va a hacer el servicio.
+  function armarLineas() {
+    var ingId = parseInt(sel.value, 10);
+    var esSalida = sentido.value === 'salida';
+    var previa = selLinea.value;
+    while (selLinea.options.length > 1) selLinea.remove(1);
+    var visibles = lineas.filter(function (l) {
+      return l.ingrediente_id === ingId && (!esSalida || parseFloat(l.saldo) > 0);
+    });
+    visibles.forEach(function (l) {
+      var o = document.createElement('option');
+      o.value = l.id;
+      o.textContent = l.codigo + ' · ' + l.fecha + (l.lote ? ' · lote ' + l.lote : '') +
+                      ' · quedan ' + l.saldo + ' ' + l.unidad;
+      selLinea.appendChild(o);
+    });
+    selLinea.value = previa;
+    if (selLinea.selectedIndex < 0) selLinea.value = '';
+    if (!visibles.length) {
+      ayuda.textContent = esSalida
+        ? 'Este cliente no tiene recepciones con saldo de este ingrediente: no hay de dónde restar.'
+        : 'Este cliente no tiene recepciones de este ingrediente: registrá una recepción, no un ajuste.';
+    } else {
+      ayuda.textContent = esSalida
+        ? 'Automático: se descuenta de las recepciones más antiguas primero (FIFO).'
+        : 'Automático: se suma a la recepción más reciente (' + visibles[visibles.length - 1].codigo + ').';
+    }
+  }
   function pintar() {
     var o = sel.options[sel.selectedIndex];
     if (!o) return;
     saldo.textContent = 'Saldo actual: ' + o.dataset.saldo;
     unidad.textContent = 'en ' + o.dataset.unidad;
+    armarLineas();
   }
   sel.addEventListener('change', pintar);
+  sentido.addEventListener('change', armarLineas);
   pintar();
   sel.closest('form').addEventListener('submit', function (e) {
     if (sentido.value === 'salida') {

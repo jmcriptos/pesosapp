@@ -194,22 +194,30 @@ class SaldoInsuficiente(Exception):
             f'se piden {pedido} y hay {disponible}')
 
 
-def lineas_con_saldo(cliente_id, ingrediente_id):
-    """Líneas de recepción del cliente con saldo > 0, más antigua primero.
+def lineas_vivas(cliente_id, ingrediente_id):
+    """Líneas de recepción no anuladas del cliente para ese ingrediente,
+    más antigua primero.
 
-    Ordena por fecha de recepción y desempata por id, para que el reparto sea
-    determinista aunque dos recepciones lleguen el mismo día.
+    Ordena por fecha de recepción y desempata por id, para que cualquier
+    reparto sobre ellas sea determinista aunque dos recepciones lleguen el
+    mismo día. Es la base del FIFO (`lineas_con_saldo`) y del anclaje de los
+    ajustes manuales (`registrar_ajuste_manual`).
     """
-    lineas = (RecepcionLinea.query
-              .join(RecepcionIngrediente,
-                    RecepcionIngrediente.id == RecepcionLinea.recepcion_id)
-              .filter(RecepcionIngrediente.cliente_id == cliente_id,
-                      RecepcionIngrediente.anulada_en.is_(None),
-                      RecepcionLinea.anulada_en.is_(None),
-                      RecepcionLinea.ingrediente_id == ingrediente_id)
-              .order_by(RecepcionIngrediente.recibido_en.asc(),
-                        RecepcionLinea.id.asc())
-              .all())
+    return (RecepcionLinea.query
+            .join(RecepcionIngrediente,
+                  RecepcionIngrediente.id == RecepcionLinea.recepcion_id)
+            .filter(RecepcionIngrediente.cliente_id == cliente_id,
+                    RecepcionIngrediente.anulada_en.is_(None),
+                    RecepcionLinea.anulada_en.is_(None),
+                    RecepcionLinea.ingrediente_id == ingrediente_id)
+            .order_by(RecepcionIngrediente.recibido_en.asc(),
+                      RecepcionLinea.id.asc())
+            .all())
+
+
+def lineas_con_saldo(cliente_id, ingrediente_id):
+    """Líneas de recepción del cliente con saldo > 0, más antigua primero."""
+    lineas = lineas_vivas(cliente_id, ingrediente_id)
     saldos = saldos_por_linea(l.id for l in lineas)
     return [(linea, saldos[linea.id]) for linea in lineas
             if saldos[linea.id] > CERO]
@@ -243,6 +251,77 @@ def repartir_fifo(cliente_id, ingrediente_id, cantidad):
 
 class RecepcionInvalida(ValueError):
     """Faltan datos mínimos para dar de alta la recepción."""
+
+
+class SinRecepcion(Exception):
+    """Un ajuste de entrada no tiene ninguna línea de recepción a la que anclarse."""
+
+
+SENTIDOS_AJUSTE = ('entrada', 'salida')
+
+
+def registrar_ajuste_manual(*, cliente_id, ingrediente_id, sentido, cantidad,
+                            vendedor_id, motivo, recepcion_linea_id=None):
+    """Ajuste manual del saldo, SIEMPRE anclado a líneas de recepción. No hace commit.
+
+    El FIFO del cierre de corrida (`repartir_fifo` → `lineas_con_saldo`) suma
+    solo los movimientos que llevan `recepcion_linea_id`. Un ajuste «flotante»
+    (sin línea) cambiaba el saldo del cliente pero no el de ninguna línea:
+    una salida por merma dejaba esos kilos disponibles para la siguiente
+    corrida, y una entrada por conteo no destrababa el cierre que la pedía.
+    Por eso acá cada ajuste va contra una línea concreta:
+
+    - `salida` sin línea: se reparte FIFO contra las líneas con saldo, un
+      movimiento por tramo, igual que el consumo de una corrida. Si no
+      alcanza, `SaldoInsuficiente` y no se escribe nada.
+    - `entrada` sin línea: se ancla a la línea viva más reciente del
+      cliente/ingrediente (los kilos «de más» casi siempre son de la última
+      recepción). Sin ninguna línea viva, `SinRecepcion`: kilos que aparecen
+      de la nada necesitan una recepción, no un ajuste.
+    - Con `recepcion_linea_id`: se ancla a esa línea, que tiene que ser viva,
+      del cliente y del ingrediente; una salida no puede superar su saldo.
+
+    `cantidad` llega positiva; el signo lo pone `sentido`. Devuelve los
+    movimientos escritos.
+    """
+    if sentido not in SENTIDOS_AJUSTE:
+        raise ValueError(f'Sentido de ajuste desconocido: {sentido!r}')
+    cantidad = _dec(cantidad)
+    if cantidad <= CERO:
+        raise ValueError('La cantidad del ajuste tiene que ser positiva')
+    if not (motivo or '').strip():
+        raise MotivoRequerido('Un ajuste manual exige un motivo')
+
+    def _escribir(linea_id, tramo):
+        return registrar_movimiento(
+            cliente_id=cliente_id, ingrediente_id=ingrediente_id,
+            tipo='ajuste', cantidad=(tramo if sentido == 'entrada' else -tramo),
+            origen_tipo='manual', vendedor_id=vendedor_id,
+            recepcion_linea_id=linea_id, motivo=motivo)
+
+    if recepcion_linea_id is not None:
+        linea = db.session.get(RecepcionLinea, recepcion_linea_id)
+        if (linea is None or linea.anulada or linea.recepcion.anulada
+                or linea.recepcion.cliente_id != cliente_id
+                or linea.ingrediente_id != ingrediente_id):
+            raise RecepcionInvalida(
+                'La recepción elegida no es una línea viva de ese cliente y ese ingrediente')
+        if sentido == 'salida':
+            saldo = saldo_de_linea(linea.id)
+            if cantidad > saldo:
+                raise SaldoInsuficiente(ingrediente_id, cantidad, saldo)
+        return [_escribir(linea.id, cantidad)]
+
+    if sentido == 'salida':
+        return [_escribir(linea_id, tramo)
+                for linea_id, tramo in repartir_fifo(cliente_id, ingrediente_id, cantidad)]
+
+    vivas = lineas_vivas(cliente_id, ingrediente_id)
+    if not vivas:
+        raise SinRecepcion(
+            'Este cliente no tiene ninguna recepción de ese ingrediente: los kilos '
+            'que entran necesitan una recepción, no un ajuste')
+    return [_escribir(vivas[-1].id, cantidad)]
 
 
 class RecepcionConsumida(Exception):
@@ -377,8 +456,8 @@ def anular_recepcion(recepcion, vendedor_id, motivo):
     for linea in vivas:
         if saldos[linea.id] != _dec(linea.peso_total):
             raise RecepcionConsumida(
-                f'La línea {linea.id} de {recepcion.codigo} ya se consumió; '
-                f'la corrección a esta altura es un ajuste, no una anulación')
+                f'La línea {linea.id} de {recepcion.codigo} ya se consumió o se '
+                f'ajustó; la corrección a esta altura es un ajuste, no una anulación')
 
     for linea in vivas:
         registrar_movimiento(

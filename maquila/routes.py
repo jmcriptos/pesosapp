@@ -1109,9 +1109,12 @@ def ajustes():
 
     Es la escotilla que le falta a `corrida_cerrar`: cuando el consumo real
     supera lo recibido —que es lo normal, no un caso borde—, la corrida no
-    cierra hasta que alguien registre acá la diferencia. `registrar_movimiento`
-    ya exige motivo para `tipo='ajuste'` (MotivoRequerido); acá solo se
-    traduce esa excepción a un flash.
+    cierra hasta que alguien registre acá la diferencia. El ajuste va SIEMPRE
+    anclado a líneas de recepción (`servicios.registrar_ajuste_manual`): una
+    salida se reparte FIFO y una entrada se suma a la recepción más reciente,
+    salvo que el operario elija una recepción concreta. Sin ese anclaje el
+    FIFO del cierre no veía el ajuste. Acá solo se traducen las excepciones
+    del servicio a flashes.
     """
     if request.method == 'POST':
         cliente_id = _entero(request.form.get('cliente_id'))
@@ -1119,6 +1122,7 @@ def ajustes():
         cantidad = _decimal(request.form.get('cantidad'))
         sentido = request.form.get('sentido')
         motivo = request.form.get('motivo', '')
+        recepcion_linea_id = _entero(request.form.get('recepcion_linea_id'))
 
         if cliente_id is None or ingrediente_id is None:
             flash('Elegí un cliente y un ingrediente válidos', 'error')
@@ -1143,26 +1147,34 @@ def ajustes():
             flash('Ese ingrediente no existe', 'error')
             return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
 
-        # El signo lo pone esta pantalla, no `registrar_movimiento`: para
-        # `tipo='ajuste'` esa función guarda la cantidad tal cual llega (el
-        # signo automático solo existe para `tipo='salida'`).
-        cantidad_con_signo = cantidad if sentido == 'entrada' else -cantidad
-
         try:
-            servicios.registrar_movimiento(
+            servicios.registrar_ajuste_manual(
                 cliente_id=cliente_id,
                 ingrediente_id=ingrediente_id,
-                tipo='ajuste',
-                cantidad=cantidad_con_signo,
-                origen_tipo='manual',
+                sentido=sentido,
+                cantidad=cantidad,
                 vendedor_id=current_user.id,
                 motivo=motivo,
+                recepcion_linea_id=recepcion_linea_id,
             )
             db.session.commit()
-        except servicios.MotivoRequerido as exc:
+        except (servicios.MotivoRequerido, servicios.SinRecepcion,
+                servicios.RecepcionInvalida) as exc:
             db.session.rollback()
             flash(str(exc), 'error')
-            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id))
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id,
+                                    ingrediente_id=ingrediente_id))
+        except servicios.SaldoInsuficiente as exc:
+            # Una salida por encima de lo que cubren las recepciones dejaría
+            # una línea en negativo: se bloquea con el mismo criterio que el
+            # cierre de corrida, nombrando cuánto hay de verdad.
+            db.session.rollback()
+            ing = db.session.get(Ingrediente, ingrediente_id)
+            flash(f'No hay saldo para esa salida: se piden {exc.pedido} de '
+                  f'{ing.nombre if ing else ingrediente_id} y las recepciones de '
+                  f'este cliente solo cubren {exc.disponible}', 'error')
+            return redirect(url_for('maquila.ajustes', cliente_id=cliente_id,
+                                    ingrediente_id=ingrediente_id))
         except Exception:
             # Resguardo genérico, mismo patrón que `recepcion_nueva` y
             # `recepcion_anular`: la validación de arriba cubre el caso
@@ -1194,11 +1206,42 @@ def ajustes():
     saldos_actuales = {f['ingrediente_id']: f['saldo']
                        for f in servicios.saldos_de_cliente(cliente_id)} if cliente_id else {}
 
+    # Las líneas vivas del cliente, para el selector opcional de recepción:
+    # el ajuste se ancla a una línea concreta, y quien está frente al bulto
+    # elige contra cuál (código, fecha, lote y lo que queda), o deja el
+    # automático (FIFO para salidas, la más reciente para entradas).
+    lineas_cliente = []
+    if cliente_id:
+        lineas = (RecepcionLinea.query
+                  .join(RecepcionIngrediente,
+                        RecepcionIngrediente.id == RecepcionLinea.recepcion_id)
+                  .filter(RecepcionIngrediente.cliente_id == cliente_id,
+                          RecepcionIngrediente.anulada_en.is_(None),
+                          RecepcionLinea.anulada_en.is_(None))
+                  .options(selectinload(RecepcionLinea.recepcion),
+                           selectinload(RecepcionLinea.ingrediente))
+                  .order_by(RecepcionIngrediente.recibido_en.asc(),
+                            RecepcionLinea.id.asc())
+                  .all())
+        saldos_lineas = servicios.saldos_por_linea(l.id for l in lineas)
+        for l in lineas:
+            lineas_cliente.append({
+                'id': l.id,
+                'ingrediente_id': l.ingrediente_id,
+                'codigo': l.recepcion.codigo,
+                'fecha': l.recepcion.recibido_en.strftime('%d/%m/%Y')
+                         if l.recepcion.recibido_en else '',
+                'lote': l.lote_cliente or '',
+                'saldo': str(saldos_lineas[l.id]),
+                'unidad': l.ingrediente.unidad if l.ingrediente else '',
+            })
+
     return render_template(
         'maquila/ajustes.html',
         clientes=_clientes_con_maquila(),
         ingredientes=_ingredientes_activos(),
         saldos_actuales=saldos_actuales,
+        lineas_cliente=lineas_cliente,
         cliente_id=cliente_id,
         ingrediente_id_sugerido=request.args.get('ingrediente_id', type=int),
         ajustes=ajustes_de_cliente)
