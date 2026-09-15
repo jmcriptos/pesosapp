@@ -9,6 +9,15 @@
 {% block content %}
 <div class="mobile-form-container">
 
+  {% if pausado %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-pause-circle"></i> Segundo factor en pausa</div>
+    <div class="mobile-card-body">
+      <p>Un administrador pausó el segundo factor para toda la app (variable <code>TOTP_PAUSADO</code>): por ahora se entra solo con la contraseña. Tu configuración y tus códigos de respaldo se conservan y vuelven a pedirse cuando se quite la pausa.</p>
+    </div>
+  </div>
+  {% endif %}
+
   {% if codigos_nuevos %}
   <div class="mobile-card">
     <div class="mobile-card-header"><i class="fas fa-life-ring"></i> Códigos de respaldo</div>

@@ -979,7 +979,9 @@ def login():
         if vendedor and vendedor.check_password(password):
             if not _is_safe_next(next_url):
                 next_url = url_for('index')
-            if vendedor.totp_activo:
+            if vendedor.totp_activo and _2fa_pausado():
+                app.logger.warning(f'[2fa] TOTP_PAUSADO: {vendedor.username} entró sin segundo factor')
+            elif vendedor.totp_activo:
                 # Contraseña correcta pero falta el segundo factor: todavía NO
                 # se inicia sesión. Lo pendiente vive en la cookie de sesión,
                 # firmada, y caduca en 5 minutos.
@@ -1046,6 +1048,16 @@ def _roles_2fa_obligatorio():
 def _2fa_obligatorio_para(vendedor):
     rol = getattr(getattr(vendedor, 'rol', None), 'nombre', None)
     return rol in _roles_2fa_obligatorio()
+
+
+def _2fa_pausado():
+    """Pausa global del segundo factor: con `TOTP_PAUSADO=1` el login es de un
+    paso para todos y nadie queda bloqueado por la obligación de rol, pero
+    los secretos y códigos de respaldo NO se tocan. Al quitar la variable
+    todo vuelve a pedirse tal cual estaba. Es la salida para «desactivarlo
+    un rato» sin que cada usuario tenga que enrolarse de nuevo (el reset sí
+    borra el secreto)."""
+    return os.environ.get('TOTP_PAUSADO', '').strip().lower() in ('1', 'true', 'si', 'sí', 'yes', 'on')
 
 
 def _secreto_totp(vendedor):
@@ -1117,6 +1129,14 @@ def login_2fa():
     if vendedor is None or not vendedor.activo or not vendedor.totp_activo:
         session.pop('2fa', None)
         return redirect(url_for('login'))
+    if _2fa_pausado():
+        # La contraseña ya se verificó; con la pausa no hay más que pedir.
+        session.pop('2fa', None)
+        app.logger.warning(f'[2fa] TOTP_PAUSADO: {vendedor.username} entró sin segundo factor')
+        next_url = pendiente.get('next') or url_for('index')
+        if not _is_safe_next(next_url):
+            next_url = url_for('index')
+        return _completar_login(vendedor, bool(pendiente.get('remember')), next_url)
 
     if request.method == 'POST':
         if _verificar_segundo_factor(vendedor, request.form.get('codigo')):
@@ -1136,7 +1156,7 @@ def forzar_segundo_factor():
     o salir. Misma mecánica que `forzar_cambio_password`."""
     if not current_user.is_authenticated or not isinstance(current_user, Vendedor):
         return
-    if current_user.totp_activo or not _2fa_obligatorio_para(current_user):
+    if current_user.totp_activo or not _2fa_obligatorio_para(current_user) or _2fa_pausado():
         return
     ep = request.endpoint or ''
     if ep in ('cuenta_2fa', 'cuenta_2fa_activar', 'logout', 'login', 'csrf_ping',
@@ -1155,7 +1175,7 @@ def cuenta_2fa():
         abort(403)
     if current_user.totp_activo:
         return render_template(
-            'cuenta_2fa.html', activo=True,
+            'cuenta_2fa.html', activo=True, pausado=_2fa_pausado(),
             obligatorio=_2fa_obligatorio_para(current_user),
             respaldo_restantes=len(_codigos_respaldo(current_user)),
             codigos_nuevos=session.pop('2fa_codigos_nuevos', None),
@@ -1166,7 +1186,7 @@ def cuenta_2fa():
         session['2fa_setup_secret'] = secreto
     uri = uri_provision(secreto, current_user.username)
     return render_template(
-        'cuenta_2fa.html', activo=False,
+        'cuenta_2fa.html', activo=False, pausado=_2fa_pausado(),
         obligatorio=_2fa_obligatorio_para(current_user),
         qr=qr_svg(uri), secreto=secreto,
         secreto_legible=' '.join(secreto[i:i + 4] for i in range(0, len(secreto), 4)),

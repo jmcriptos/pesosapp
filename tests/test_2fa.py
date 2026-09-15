@@ -204,6 +204,68 @@ def test_por_defecto_nadie_esta_obligado(app):
     assert c.get('/pedidos').status_code == 200
 
 
+# ── pausa global (TOTP_PAUSADO) ───────────────────────────────────────────
+
+def test_con_totp_pausado_el_login_es_de_un_paso_y_el_secreto_queda(app, monkeypatch):
+    c = app.test_client()
+    _login(c)
+    _activar(c)
+    c.post('/logout')
+
+    monkeypatch.setenv('TOTP_PAUSADO', '1')
+    resp = _login(c, next='/productos')
+    assert resp.status_code == 302 and resp.headers['Location'].endswith('/productos')
+    assert c.get('/pedidos').status_code == 200
+    with app.app_context():
+        v = Vendedor.query.filter_by(username='admin').first()
+        assert v.totp_activo                      # no se borró nada
+
+    # Al quitar la pausa, vuelve a pedir el código con el mismo secreto.
+    c.post('/logout')
+    monkeypatch.delenv('TOTP_PAUSADO')
+    resp = _login(c)
+    assert resp.status_code == 302 and resp.headers['Location'].endswith('/login/2fa')
+
+
+@pytest.mark.parametrize('valor', ['', '0', 'no', 'false'])
+def test_totp_pausado_solo_con_valor_afirmativo(app, monkeypatch, valor):
+    c = app.test_client()
+    _login(c)
+    _activar(c)
+    c.post('/logout')
+    monkeypatch.setenv('TOTP_PAUSADO', valor)
+    resp = _login(c)
+    assert resp.status_code == 302 and resp.headers['Location'].endswith('/login/2fa')
+
+
+def test_con_totp_pausado_el_rol_obligado_no_se_bloquea(app, monkeypatch):
+    monkeypatch.setenv('TOTP_OBLIGATORIO_ROLES', 'super_admin')
+    monkeypatch.setenv('TOTP_PAUSADO', '1')
+    c = app.test_client()
+    _login(c)
+    assert c.get('/pedidos').status_code == 200
+
+
+def test_con_totp_pausado_una_verificacion_pendiente_completa_el_login(app, monkeypatch):
+    c = app.test_client()
+    _login(c)
+    _activar(c)
+    c.post('/logout')
+    _login(c)                                   # queda pendiente el código
+    monkeypatch.setenv('TOTP_PAUSADO', '1')     # se pausa a mitad del flujo
+    resp = c.get('/login/2fa')
+    assert resp.status_code == 302 and '/login/2fa' not in resp.headers['Location']
+    assert c.get('/pedidos').status_code == 200
+
+
+def test_con_totp_pausado_la_pantalla_avisa(app, monkeypatch):
+    monkeypatch.setenv('TOTP_PAUSADO', '1')
+    c = app.test_client()
+    _login(c)
+    html = c.get('/mi-cuenta/2fa').data.decode()
+    assert 'en pausa' in html and 'TOTP_PAUSADO' in html
+
+
 # ── desactivar y regenerar ────────────────────────────────────────────────
 
 def test_rol_obligado_no_puede_desactivar(app, monkeypatch):

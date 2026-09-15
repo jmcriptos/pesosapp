@@ -90,6 +90,14 @@ Cómo funciona:
   super_admin sin 2FA solo puede activarlo, cambiar contraseña o salir. Un
   rol obligado no puede desactivarlo. **Vacío por defecto** para que el
   deploy no deje a nadie afuera.
+- **Pausa global (temporal):** `TOTP_PAUSADO=1` (2026-09-15). El login pasa
+  a ser de un paso para todos y la obligación por rol no bloquea, pero los
+  secretos y códigos de respaldo **no se tocan**: al quitar la variable todo
+  vuelve a pedirse tal cual. Cada entrada sin código queda en el log con
+  `[2fa] TOTP_PAUSADO`, y Mi cuenta → Segundo factor muestra el aviso.
+  Poner: `heroku config:set TOTP_PAUSADO=1 --app pesosapp`; quitar:
+  `heroku config:unset TOTP_PAUSADO --app pesosapp`. No usar el reset para
+  esto: el reset borra el secreto y obliga a enrolarse de nuevo.
 - **Recuperación:** códigos de respaldo; otro super_admin lo restablece
   desde Usuarios → panel del usuario → «Restablecer segundo factor»; o por
   terminal: `heroku run --app pesosapp -- flask --app app 2fa-reset USUARIO`.
