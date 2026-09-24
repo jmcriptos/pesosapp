@@ -403,6 +403,8 @@
   background: var(--color-bg-elevated); border: 1px solid var(--color-border-subtle);
 }
 .ops-key:active { background: var(--color-surface-muted); }
+/* Sin zoom por doble toque al teclear dígitos repetidos (p. ej. "3.3"). */
+.ops-keypad, .ops-keypad-row, .ops-key, .ops-step { touch-action: manipulation; }
 /* La fila de acción (atrás + guardar) queda fija abajo del sheet para que
    el botón Guardar siempre sea visible aunque el teclado/acción correctiva
    empujen el contenido. */

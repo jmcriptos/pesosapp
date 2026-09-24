@@ -387,6 +387,19 @@ body[data-pesar-screen] .pesar-modal-overlay input {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* Teclear rápido el mismo dígito (p. ej. "11") el móvil lo leía como doble
+   toque y hacía zoom. `manipulation` deja el toque y el scroll pero quita el
+   zoom por doble toque; va en la tarjeta entera (lectura + huecos entre
+   teclas) y en cada tecla. */
+.pesar-keypad-card,
+.pesar-key-grid,
+.pesar-edit-keypad,
+.pesar-key,
+.pesar-edit-key {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .pesar-key,
 .pesar-edit-key {
   min-height: 58px;
