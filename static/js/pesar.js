@@ -190,7 +190,6 @@
     const weightDisplay = document.getElementById('pesar-weight-display');
     const readoutLabel = document.getElementById('pesar-readout-box-label');
     const readoutProduct = document.getElementById('pesar-readout-product');
-    const feedback = document.getElementById('pesar-feedback');
     const undoButton = document.getElementById('pesar-undo');
 
     const state = {
@@ -233,6 +232,56 @@
       undoButton.disabled = !lastChip;
     }
 
+    // Pedido 1357 (2026-09): pesos de Pork Chorizo y Andouille Pork Chorizo
+    // quedaron cruzados. Safari recarga la pestaña cuando el teléfono se
+    // bloquea entre caja y caja, y la recarga volvía al producto de la URL
+    // (o al primero incompleto), no al que se estaba pesando. Guardar el
+    // chip activo en la URL hace que la recarga vuelva al mismo producto.
+    function rememberActiveInUrl() {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('detalle_id', String(state.activeId));
+        window.history.replaceState(window.history.state, '', url.toString());
+      } catch (err) {
+        // Sin History API la pantalla sigue funcionando igual que antes.
+      }
+    }
+
+    // Cada producto trae su propio lote: al cambiar de chip se toma el de su
+    // última caja. Un producto sin cajas conserva lo que está escrito.
+    function loadLoteFromPanel() {
+      const panelState = activePanelState();
+      if (!panelState) return;
+      const lote = panelState.dataset.ultimoLote || '';
+      if (!lote) return;
+      loteInput.value = lote;
+      if (panelState.dataset.ultimaElab) state.fechaElaboracion = panelState.dataset.ultimaElab;
+      if (panelState.dataset.ultimoVenc) {
+        state.fechaVencimiento = panelState.dataset.ultimoVenc;
+        state.vencManual = state.fechaVencimiento !== addYearsISO(state.fechaElaboracion, 1);
+      }
+      syncDates();
+    }
+
+    function flashProduct() {
+      readoutProduct.classList.remove('is-flash');
+      // Forzar reflow para reiniciar la animación en cambios seguidos.
+      void readoutProduct.offsetWidth;
+      readoutProduct.classList.add('is-flash');
+    }
+
+    function setBusy(busy) {
+      screen.classList.toggle('is-busy', busy);
+      screen.querySelectorAll('.pesar-key').forEach((key) => {
+        if (busy) {
+          key.disabled = true;
+        } else if (!key.classList.contains('is-submit')) {
+          key.disabled = false;
+        }
+      });
+      if (!busy) renderWeight();
+    }
+
     function refreshActivePanel() {
       screen.querySelectorAll('.pesar-panel').forEach((panel) => {
         panel.classList.toggle('is-hidden', Number.parseInt(panel.dataset.detalleId, 10) !== state.activeId);
@@ -240,6 +289,12 @@
 
       screen.querySelectorAll('.pesar-chip').forEach((chip) => {
         chip.classList.toggle('is-active', Number.parseInt(chip.dataset.detalleId, 10) === state.activeId);
+      });
+
+      // La propuesta de maquila se dibuja para el producto con que abrió la
+      // pantalla; con otro chip activo confundiría de qué producto es.
+      screen.querySelectorAll('.maquila-asignar[data-detalle-id]').forEach((block) => {
+        block.hidden = Number.parseInt(block.dataset.detalleId, 10) !== state.activeId;
       });
 
       const panelState = activePanelState();
@@ -344,15 +399,28 @@
     }
 
     function showFeedbackMessage(message) {
+      // Se busca cada vez: la respuesta de «+ Caja» reemplaza el nodo entero
+      // (outerHTML) para poder traer la confirmación en verde.
+      const feedback = document.getElementById('pesar-feedback');
       if (!feedback) return;
+      feedback.classList.remove('is-ok');
       feedback.textContent = message || '';
     }
 
     chipRow?.addEventListener('click', (event) => {
       const chip = event.target.closest('.pesar-chip');
       if (!chip) return;
-      state.activeId = Number.parseInt(chip.dataset.detalleId, 10);
+      const nextId = Number.parseInt(chip.dataset.detalleId, 10);
+      if (nextId === state.activeId) return;
+      if (screen.classList.contains('is-busy')) return;
+      state.activeId = nextId;
+      // Un peso tecleado para un producto no viaja al otro.
+      resetWeight();
+      showFeedbackMessage('');
       refreshActivePanel();
+      loadLoteFromPanel();
+      rememberActiveInUrl();
+      flashProduct();
     });
 
     screen.addEventListener('click', (event) => {
@@ -395,11 +463,17 @@
       document.body.addEventListener('htmx:beforeRequest', (event) => {
         const formEl = event.target.closest('#pesar-add-form');
         if (formEl) {
-          detalleInput.value = String(state.activeId);
-          pesoHidden.value = state.weight;
-          fechaElabHidden.value = state.fechaElaboracion;
-          fechaVencHidden.value = state.fechaVencimiento;
           showFeedbackMessage('');
+          // Teclado y chips quietos hasta que el servidor confirme la caja:
+          // sin esto, un peso tecleado durante el envío se borraba al llegar
+          // la respuesta, y un doble toque encolaba una segunda caja.
+          setBusy(true);
+        }
+      });
+
+      document.body.addEventListener('htmx:afterRequest', (event) => {
+        if (event.target.closest && event.target.closest('#pesar-add-form')) {
+          setBusy(false);
         }
       });
 
@@ -413,6 +487,14 @@
           resetWeight();
           refreshActivePanel();
         }
+      });
+
+      // Los chips llegan por OOB y pueden aplicarse después de `afterSwap`:
+      // se vuelve a marcar el activo cuando todo quedó asentado.
+      document.body.addEventListener('htmx:afterSettle', () => {
+        screen.querySelectorAll('.pesar-chip').forEach((chip) => {
+          chip.classList.toggle('is-active', Number.parseInt(chip.dataset.detalleId, 10) === state.activeId);
+        });
       });
 
       document.body.addEventListener('htmx:responseError', (event) => {
@@ -522,5 +604,7 @@
     syncDates();
     renderWeight();
     refreshActivePanel();
+    loadLoteFromPanel();
+    rememberActiveInUrl();
   });
 })();

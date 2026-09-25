@@ -4817,11 +4817,20 @@ def _build_pesar_context(pedido, active_detalle_id=None):
     }
 
 
-def _render_pesar_cajas_partial(pedido, detalle):
+def _render_pesar_cajas_partial(pedido, detalle, caja_registrada=None):
+    # `caja_registrada` alimenta la confirmación «Caja #03 · 4.85 kg →
+    # producto». Sin ella, una caja tecleada con el chip equivocado entraba
+    # en silencio: pasó en el pedido 1357 (2026-09), donde pesos de Pork
+    # Chorizo y Andouille Pork Chorizo quedaron cruzados y solo se vio en
+    # las etiquetas, con el pedido ya facturado.
     return render_template(
         'partials/pesar_cajas_lista.html',
         pedido=pedido,
         detalle=detalle,
+        caja_registrada=caja_registrada,
+        # El chip vuelve por OOB: sin `active_detalle` se redibujaba sin
+        # `is-active` y, tras cada caja, ningún producto quedaba resaltado.
+        active_detalle=detalle,
         active_detalle_id=detalle.id,
         grupos=_detalle_cajas_por_lote(detalle),
         peso_total_pedido=_pedido_peso_total(pedido),
@@ -9192,9 +9201,11 @@ def registrar_caja_pesada(pedido_id):
     )
     db.session.commit()
 
+    caja_id = caja.id
     pedido = _load_pedido_for_pesar(pedido_id)
     detalle = next(item for item in pedido.detalles if item.id == detalle_id)
-    return _render_pesar_cajas_partial(pedido, detalle)
+    caja = next(item for item in detalle.cajas_pesadas if item.id == caja_id)
+    return _render_pesar_cajas_partial(pedido, detalle, caja_registrada=caja)
 
 
 @app.route('/cajas/<int:caja_id>/edit', methods=['GET'])

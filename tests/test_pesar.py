@@ -173,3 +173,49 @@ def test_finalizar_pesaje_marca_pedido_preparado(logged_client, app):
 
         pedido = Pedido.query.first()
         assert pedido.estado == 'preparado'
+
+
+def test_registrar_caja_confirma_producto_y_peso(logged_client, app):
+    """Pedido 1357: la caja registrada se confirma nombrando el producto, para
+    que un chip equivocado se note al momento y no en la etiqueta."""
+    with app.app_context():
+        from app import Pedido, DetallePedido
+
+        pedido = Pedido.query.first()
+        detalle = DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).join(DetallePedido.producto).filter_by(se_pesa=True).first()
+
+        resp = logged_client.post(
+            f'/pedidos/{pedido.id}/pesar/caja',
+            data={
+                'detalle_pedido_id': detalle.id,
+                'peso': '16.9',
+                'lote': 'L-2309202601',
+                'fecha_elaboracion': '2026-09-23',
+                'fecha_vencimiento': '2027-09-23',
+            },
+            headers={'HX-Request': 'true'},
+        )
+        html = resp.data.decode('utf-8')
+
+        assert resp.status_code == 200
+        assert 'pesar-feedback is-ok' in html
+        assert 'Caja #01 · 16.90 kg' in html
+        assert '<strong>Chuleta de Cerdo</strong>' in html
+        # El panel lleva el lote de su última caja para no arrastrar el de
+        # otro producto al cambiar de chip.
+        assert 'data-ultimo-lote="L-2309202601"' in html
+        assert 'data-ultima-elab="2026-09-23"' in html
+        # El chip que vuelve por OOB sigue marcado como activo.
+        assert f'id="pesar-chip-{detalle.id}"' in html
+        chip = html.split(f'id="pesar-chip-{detalle.id}"', 1)[1].split('>', 1)[0]
+        assert 'is-active' in chip
+
+
+def test_pantalla_pesar_panel_sin_cajas_no_trae_lote(logged_client, app):
+    with app.app_context():
+        from app import Pedido
+
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+        assert 'data-ultimo-lote=""' in html
+        assert 'pesar-feedback is-ok' not in html
