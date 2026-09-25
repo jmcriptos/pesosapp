@@ -1,6 +1,12 @@
+{# Último lote y fechas de ESTE producto: al cambiar de chip el formulario
+   los toma de acá, en vez de arrastrar el lote del producto anterior. #}
+{% set ultima_caja = detalle.cajas_pesadas|last if detalle.cajas_pesadas else None %}
 <div
   class="pesar-panel-state"
   data-detalle-id="{{ detalle.id }}"
+  data-ultimo-lote="{{ ultima_caja.lote if ultima_caja else '' }}"
+  data-ultima-elab="{{ ultima_caja.fecha_elaboracion.isoformat() if ultima_caja else '' }}"
+  data-ultimo-venc="{{ ultima_caja.fecha_vencimiento.isoformat() if ultima_caja else '' }}"
   data-count="{{ detalle.cajas_pesadas_count }}"
   data-target="{{ detalle.cajas_objetivo }}"
   data-total-weight="{{ '{:.2f}'.format(detalle.peso_real|float) }}"
@@ -64,5 +70,9 @@
     {% include 'partials/pesar_summary.html' %}
   {% endwith %}
   <div id="modal-root" hx-swap-oob="innerHTML"></div>
-  <div id="pesar-feedback" class="pesar-feedback" hx-swap-oob="innerHTML"></div>
+  {% if caja_registrada %}
+    <div id="pesar-feedback" class="pesar-feedback is-ok" hx-swap-oob="outerHTML" aria-live="polite"><i class="fas fa-check"></i> Caja #{{ '%02d'|format(caja_registrada.numero) }} · {{ '{:.2f}'.format(caja_registrada.peso|float) }} kg → <strong>{{ detalle.producto.nombre }}</strong></div>
+  {% else %}
+    <div id="pesar-feedback" class="pesar-feedback" hx-swap-oob="outerHTML" aria-live="polite"></div>
+  {% endif %}
 {% endif %}

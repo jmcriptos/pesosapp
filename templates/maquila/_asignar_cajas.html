@@ -1,6 +1,6 @@
 {% set propuesta = maquila_propuesta.get(active_detalle.id) %}
 {% if propuesta %}
-<section class="pesar-lote-card maquila-asignar">
+<section class="pesar-lote-card maquila-asignar" data-detalle-id="{{ active_detalle.id }}">
   <div class="pesar-lote-head"><span>Asignar de producción</span></div>
   <form method="POST"
         action="{{ url_for('maquila.asignar_detalle', detalle_id=active_detalle.id) }}"

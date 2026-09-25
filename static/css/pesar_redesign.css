@@ -894,3 +894,30 @@ body[data-pesar-screen] .pesar-date-sheet-dow {
   color: #64748b !important;
   font-weight: 800 !important;
 }
+
+/* Producto activo bien visible: con dos nombres casi iguales (Pork Chorizo /
+   Andouille Pork Chorizo, pedido 1357) el nombre gris y truncado no bastaba
+   para saber a qué producto iba la caja. */
+body[data-pesar-screen] .pesar-readout-product {
+  color: #0f172a !important;
+  font-size: 1.2rem !important;
+  font-weight: 800 !important;
+  white-space: normal;
+  line-height: 1.2;
+}
+body[data-pesar-screen] .pesar-readout-product.is-flash {
+  animation: pesar-product-flash 0.9s ease-out;
+}
+@keyframes pesar-product-flash {
+  0% { background: var(--cat, #6366f1); color: #ffffff; }
+  100% { background: transparent; }
+}
+body[data-pesar-screen] .pesar-feedback.is-ok {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+body[data-pesar-screen] .pesar-screen.is-busy .pesar-chip {
+  opacity: 0.6;
+  pointer-events: none;
+}
