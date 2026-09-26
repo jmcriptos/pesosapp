@@ -51,8 +51,12 @@ Bluetooth.
    app de Browser Print (o como notificación), no en Chrome: al tocar
    «Conectar», cambiar a la app, aceptar el sitio y volver a Chrome. La
    página espera hasta 20 segundos por esa autorización.
-4. Tocar «Conectar». Debe aparecer «Impresora: <nombre de la ZQ520>». Tocar
-   «Prueba».
+4. Tocar «Conectar». Chrome puede preguntar si permite al sitio acceder a
+   dispositivos de la red local (es la petición a `localhost`): permitir.
+   Debe aparecer «Impresora: <nombre de la ZQ520>». Tocar «Prueba».
+   En Android «Conectar» usa solo Browser Print; el botón «Bluetooth
+   directo» abre el selector de baja energía de Chrome y no sirve con la
+   ZQ520 (además corta la conexión clásica de Browser Print).
 5. Con «Imprimir al pesar» activo, registrar la caja: la etiqueta sale sola.
 
 Si «Conectar» dice que Browser Print no responde: la app no está abierta,

@@ -471,7 +471,7 @@
         : 'Impresora no conectada';
       printer.root.classList.toggle('is-on', on);
       printer.connect.hidden = on;
-      // «Buscar todos» solo tiene sentido para el selector de Web Bluetooth.
+      // «Bluetooth directo» abre el selector de Web Bluetooth (baja energía).
       printer.all.hidden = on || !(window.ZebraBLE && window.ZebraBLE.disponible());
       printer.autoWrap.hidden = !on;
       printer.test.hidden = !on;
@@ -493,10 +493,15 @@
           errores.push(err && err.message ? err.message : String(err));
         }
       }
-      if (!transporte && window.ZebraBLE && window.ZebraBLE.disponible()) {
-        printerMsg(errores.length
-          ? `${errores[0]} Probando Bluetooth de baja energía: elige la impresora en la ventana de Chrome…`
-          : 'Elige la impresora en la ventana de Chrome…');
+      // Web Bluetooth solo cuando se pide con «Bluetooth directo» o cuando no
+      // hay Browser Print (iPhone con Bluefy). En Android, el escaneo de
+      // baja energía tumba la conexión clásica que Browser Print tiene con
+      // la ZQ520: el ícono de Bluetooth de la impresora se apagaba al tocar
+      // «Conectar» y la app quedaba sin impresora.
+      const usarBle = window.ZebraBLE && window.ZebraBLE.disponible()
+        && (mostrarTodos || !(window.ZebraBrowserPrint && window.ZebraBrowserPrint.disponible()));
+      if (!transporte && usarBle) {
+        printerMsg('Elige la impresora en la ventana de Chrome…');
         try {
           await window.ZebraBLE.conectar(mostrarTodos);
           transporte = window.ZebraBLE;
@@ -509,7 +514,8 @@
       if (transporte) {
         printerMsg('Conectada. La etiqueta sale al registrar cada caja.');
       } else if (errores.length) {
-        printerMsg(`No se pudo conectar: ${errores.join(' · ')}`, true);
+        printerMsg(`No se pudo conectar: ${errores.join(' · ')}`
+          + ' Si Chrome preguntó por acceso a la red local, permítelo y vuelve a tocar Conectar.', true);
       } else {
         printerMsg('Este navegador no puede llegar a la impresora. En Android, instala Zebra Browser Print y empareja la Zebra.', true);
       }
