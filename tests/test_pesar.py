@@ -321,3 +321,48 @@ def test_pesar_incluye_helper_de_compartir_ios(logged_client, app):
         pedido = Pedido.query.first()
         html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
         assert 'etiquetas_ios_share.js' in html
+
+
+def test_etiqueta_zpl_de_una_caja(logged_client, app):
+    """La pantalla de pesar manda esta etiqueta por Bluetooth a la Zebra."""
+    with app.app_context():
+        pedido, detalle, caja, _ = _registrar_caja(logged_client, app, peso='16.9')
+        resp = logged_client.get(f'/cajas/{caja.id}/etiqueta.zpl')
+        assert resp.status_code == 200
+        datos = resp.get_json()
+        assert datos['caja_id'] == caja.id
+        assert datos['numero'] == 1
+        assert datos['producto'] == 'Chuleta de Cerdo'
+        assert datos['zpl'].startswith('^XA') and datos['zpl'].endswith('^XZ')
+        assert 'Chuleta de Cerdo' in datos['zpl']
+        assert '16.90 kg' in datos['zpl']
+        assert 'L-2309202601' in datos['zpl']
+        assert 'Cliente Test' in datos['zpl']        # sin logo propio: fila Client
+        # Logo de Jomar cargado aparte, invocado por nombre en la etiqueta.
+        assert datos['logo']['zpl'].startswith('~DG')
+        assert f"^XG{datos['logo']['nombre']},1,1^FS" in datos['zpl']
+
+
+def test_etiqueta_zpl_caja_inexistente_da_404(logged_client, app):
+    with app.app_context():
+        assert logged_client.get('/cajas/999999/etiqueta.zpl').status_code == 404
+
+
+def test_pesar_trae_barra_de_impresora_bluetooth(logged_client, app):
+    with app.app_context():
+        from app import Pedido
+
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+        assert 'zebra_ble.js' in html
+        assert 'id="pesar-printer"' in html
+        assert 'id="pesar-printer-connect"' in html
+        assert 'Imprimir al pesar' in html
+
+
+def test_confirmacion_y_modal_llevan_el_id_de_la_caja(logged_client, app):
+    with app.app_context():
+        pedido, detalle, caja, html = _registrar_caja(logged_client, app)
+        assert f'data-caja-id="{caja.id}"' in html
+        modal = logged_client.get(f'/cajas/{caja.id}/edit').data.decode('utf-8')
+        assert f'data-caja-id="{caja.id}"' in modal

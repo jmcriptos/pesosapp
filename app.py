@@ -9298,6 +9298,60 @@ def etiqueta_caja_pesada(caja_id):
     return response
 
 
+@app.route('/cajas/<int:caja_id>/etiqueta.zpl', methods=['GET'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'leer')
+def etiqueta_caja_zpl(caja_id):
+    """La misma etiqueta que `etiqueta_caja_pesada`, en ZPL y como JSON, para
+    que la pantalla de pesar la mande por Web Bluetooth a la Zebra sin salir
+    de la página (ver static/js/zebra_ble.js).
+
+    Devuelve {"zpl": ..., "logo": {"nombre", "zpl"} | null}. El logo va
+    aparte porque el navegador lo carga UNA vez por conexión en la memoria
+    de la impresora y las etiquetas solo lo invocan por nombre.
+    """
+    from utils.zpl import etiqueta_pedido_zpl, logo_a_grf
+
+    caja = (
+        CajaPesada.query.options(
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.pedido).joinedload(Pedido.cliente),
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.producto),
+        )
+        .filter_by(id=caja_id)
+        .first_or_404()
+    )
+    pedido = caja.detalle_pedido.pedido
+    if not _user_can_manage_pedido(pedido):
+        abort(403)
+
+    item = _caja_pesada_to_label_item(caja)
+    cliente = getattr(pedido, 'cliente', None)
+    logo_cliente = getattr(cliente, 'logo_etiqueta', None)
+    try:
+        logo_nombre, logo_zpl = logo_a_grf(
+            logo_bytes=logo_cliente,
+            logo_path=None if logo_cliente else get_logo_path(basedir),
+        )
+    except Exception:
+        # Imprimir es operativo: un logo ilegible no frena la etiqueta.
+        app.logger.exception('etiqueta ZPL: no se pudo convertir el logo de la caja %s', caja.id)
+        logo_nombre, logo_zpl = None, None
+
+    zpl = etiqueta_pedido_zpl(
+        item,
+        cliente=cliente.nombre if cliente else '',
+        mostrar_cliente=not bool(logo_cliente),
+        logo_nombre=logo_nombre,
+    )
+    return jsonify({
+        'caja_id': caja.id,
+        'numero': caja.numero,
+        'producto': item['producto_nombre'],
+        'zpl': zpl,
+        'logo': {'nombre': logo_nombre, 'zpl': logo_zpl} if logo_nombre else None,
+    })
+
+
 def _nombre_archivo_etiqueta_caja(caja):
     """etiqueta_<pedido>_<producto>_<numero>.pdf, sin espacios ni barras."""
     detalle = caja.detalle_pedido

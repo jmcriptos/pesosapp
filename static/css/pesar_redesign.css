@@ -963,3 +963,75 @@ body[data-pesar-screen] .pesar-label-btn.is-loading {
   opacity: 0.6;
   pointer-events: none;
 }
+
+/* Barra de la impresora Zebra por Bluetooth (solo aparece en Chrome Android). */
+body[data-pesar-screen] .pesar-printer {
+  width: min(100%, 430px);
+  margin: 0 auto 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+body[data-pesar-screen] .pesar-printer.is-on {
+  border-color: rgba(5, 150, 105, 0.45);
+  background: #f0fdf4;
+}
+body[data-pesar-screen] .pesar-printer-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+body[data-pesar-screen] .pesar-printer.is-on .pesar-printer-status i {
+  color: #047857;
+}
+body[data-pesar-screen] .pesar-printer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+body[data-pesar-screen] .pesar-printer-btn {
+  min-height: 40px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.9rem;
+  -webkit-tap-highlight-color: transparent;
+}
+body[data-pesar-screen] .pesar-printer-btn.is-ghost {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.18);
+}
+body[data-pesar-screen] .pesar-printer-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-height: 40px;
+}
+body[data-pesar-screen] .pesar-printer-auto input {
+  width: 20px;
+  height: 20px;
+  accent-color: #047857;
+}
+body[data-pesar-screen] .pesar-printer-msg {
+  font-size: 0.85rem;
+  color: #475569;
+  min-height: 1em;
+}
+body[data-pesar-screen] .pesar-printer-msg.is-error {
+  color: #b91c1c;
+  font-weight: 700;
+}

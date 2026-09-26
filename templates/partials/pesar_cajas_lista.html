@@ -73,7 +73,7 @@
   {% if caja_registrada %}
     {# El botón imprime la etiqueta de ESTA caja, para rotularla al pie de la
        báscula (pedido 1357: etiquetas impresas al final y pegadas por peso). #}
-    <div id="pesar-feedback" class="pesar-feedback is-ok" hx-swap-oob="outerHTML" aria-live="polite"><span class="pesar-feedback-text"><i class="fas fa-check"></i> Caja #{{ '%02d'|format(caja_registrada.numero) }} · {{ '{:.2f}'.format(caja_registrada.peso|float) }} kg → <strong>{{ detalle.producto.nombre }}</strong></span><a class="pesar-feedback-print" href="{{ url_for('etiqueta_caja_pesada', caja_id=caja_registrada.id) }}" target="_blank" rel="noopener" data-etiqueta-caja data-filename="etiqueta_{{ pedido.id }}_{{ '%02d'|format(caja_registrada.numero) }}.pdf"><i class="fas fa-print"></i> Imprimir etiqueta</a></div>
+    <div id="pesar-feedback" class="pesar-feedback is-ok" hx-swap-oob="outerHTML" aria-live="polite"><span class="pesar-feedback-text"><i class="fas fa-check"></i> Caja #{{ '%02d'|format(caja_registrada.numero) }} · {{ '{:.2f}'.format(caja_registrada.peso|float) }} kg → <strong>{{ detalle.producto.nombre }}</strong></span><a class="pesar-feedback-print" href="{{ url_for('etiqueta_caja_pesada', caja_id=caja_registrada.id) }}" target="_blank" rel="noopener" data-etiqueta-caja data-caja-id="{{ caja_registrada.id }}" data-filename="etiqueta_{{ pedido.id }}_{{ '%02d'|format(caja_registrada.numero) }}.pdf"><i class="fas fa-print"></i> Imprimir etiqueta</a></div>
   {% else %}
     <div id="pesar-feedback" class="pesar-feedback" hx-swap-oob="outerHTML" aria-live="polite"></div>
   {% endif %}
