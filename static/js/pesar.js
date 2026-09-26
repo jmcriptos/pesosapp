@@ -485,6 +485,7 @@
       // Browser Print primero: si la app está abierta con la Zebra
       // emparejada, no hace falta ningún selector.
       if (!mostrarTodos && window.ZebraBrowserPrint && window.ZebraBrowserPrint.disponible()) {
+        printerMsg('Buscando Zebra Browser Print en este dispositivo…');
         try {
           await window.ZebraBrowserPrint.conectar();
           transporte = window.ZebraBrowserPrint;
@@ -493,6 +494,9 @@
         }
       }
       if (!transporte && window.ZebraBLE && window.ZebraBLE.disponible()) {
+        printerMsg(errores.length
+          ? `${errores[0]} Probando Bluetooth de baja energía: elige la impresora en la ventana de Chrome…`
+          : 'Elige la impresora en la ventana de Chrome…');
         try {
           await window.ZebraBLE.conectar(mostrarTodos);
           transporte = window.ZebraBLE;
