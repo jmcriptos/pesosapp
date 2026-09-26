@@ -47,15 +47,33 @@ PRODUCTO_ANCHO = ANCHO - 2 * MARGEN
 
 
 def escapar(texto):
-    """Texto seguro dentro de ^FD: sin los caracteres de control de ZPL."""
+    """Texto seguro dentro de ^FH^FD: sin caracteres de control de ZPL y en
+    ASCII puro.
+
+    Todo lo que no sea ASCII va como bytes UTF-8 en hexadecimal (`_C2_B0`
+    para «°»), que el printer decodifica con ^CI28. Así el símbolo no
+    depende de cómo codifique el texto quien lo transporta: Browser Print
+    para Android manda los caracteres como bytes de un solo byte y con
+    ^CI28 el «°» salía en blanco en la primera etiqueta real (2026-09-26).
+    El «_» propio del escape se escapa también.
+    """
     if texto is None:
         return ''
-    return (str(texto)
-            .replace('^', ' ')
-            .replace('~', '-')
-            .replace('\\', '/')
-            .replace('\r', ' ')
-            .replace('\n', ' '))
+    limpio = (str(texto)
+              .replace('^', ' ')
+              .replace('~', '-')
+              .replace('\\', '/')
+              .replace('\r', ' ')
+              .replace('\n', ' '))
+    partes = []
+    for caracter in limpio:
+        if caracter == '_':
+            partes.append('_5F')
+        elif ord(caracter) < 128:
+            partes.append(caracter)
+        else:
+            partes.extend(f'_{byte:02X}' for byte in caracter.encode('utf-8'))
+    return ''.join(partes)
 
 
 def _fuente_producto(nombre):
@@ -101,16 +119,16 @@ def etiqueta_pedido_zpl(item, cliente, mostrar_cliente=True, logo_nombre=None):
     for (rotulo, valor), y in zip(filas, FILA_Y):
         partes.append(
             f'^FO{MARGEN},{y}^A0N,{FILA_FUENTE},{FILA_FUENTE}'
-            f'^FB{ROTULO_DERECHA - MARGEN},1,0,R^FD{escapar(rotulo)}^FS')
+            f'^FB{ROTULO_DERECHA - MARGEN},1,0,R^FH^FD{escapar(rotulo)}^FS')
         partes.append(
-            f'^FO{VALOR_X},{y}^A0N,{FILA_FUENTE},{FILA_FUENTE}^FD{escapar(valor)}^FS')
+            f'^FO{VALOR_X},{y}^A0N,{FILA_FUENTE},{FILA_FUENTE}^FH^FD{escapar(valor)}^FS')
 
     partes.append(
         f'^FO{MARGEN},{MEDIDA_Y}^A0N,{MEDIDA_FUENTE_ROTULO},{MEDIDA_FUENTE_ROTULO}'
-        f'^FB{ROTULO_DERECHA - MARGEN},1,0,R^FD{escapar(item.get("medida_rotulo") or "")}^FS')
+        f'^FB{ROTULO_DERECHA - MARGEN},1,0,R^FH^FD{escapar(item.get("medida_rotulo") or "")}^FS')
     partes.append(
         f'^FO{VALOR_X},{MEDIDA_Y}^A0N,{MEDIDA_FUENTE_VALOR},{MEDIDA_FUENTE_VALOR}'
-        f'^FD{escapar(item.get("medida_valor") or "")}^FS')
+        f'^FH^FD{escapar(item.get("medida_valor") or "")}^FS')
 
     partes.append(f'^FO{MARGEN},{SEPARADOR_Y}^GB{PRODUCTO_ANCHO},2,2^FS')
 
@@ -118,7 +136,7 @@ def etiqueta_pedido_zpl(item, cliente, mostrar_cliente=True, logo_nombre=None):
     fuente, lineas = _fuente_producto(producto)
     partes.append(
         f'^FO{MARGEN},{PRODUCTO_Y}^A0N,{fuente},{fuente}'
-        f'^FB{PRODUCTO_ANCHO},{lineas},0,C^FD{producto}^FS')
+        f'^FB{PRODUCTO_ANCHO},{lineas},0,C^FH^FD{producto}^FS')
 
     partes.append('^PQ1')
     partes.append('^XZ')
