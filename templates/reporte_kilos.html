@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Kilos por lote — PesosApp{% endblock %}
+{% block header_title %}Kilos por lote{% endblock %}
+{% block body_attrs %}{{ super() }} data-ops-shell="1"{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporte_kilos.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ops-admin kilos-wrap">
+  <div class="ops-admin-main">
+    <header class="ops-admin-header">
+      <div>
+        <h1>Kilos por lote</h1>
+        <div class="ops-admin-header-sub">Lo que pasó por la báscula, totalizado por producto y lote. Filtrá por lote, producto, cliente o fechas.</div>
+      </div>
+      <a class="ops-btn ops-btn-ghost" href="{{ url_for('reporte_kilos_export') }}?{{ request.query_string.decode() }}" id="kilos-export">
+        <i class="fas fa-file-excel"></i> Excel
+      </a>
+    </header>
+
+    <div class="ops-admin-body">
+      {# Los filtros viajan en la URL: una consulta se comparte pegando el
+         enlace, y «Excel» exporta exactamente lo que se ve. #}
+      <form method="GET" action="{{ url_for('reporte_kilos') }}" class="hist-bar kilos-filtros" id="kilos-form">
+        <label class="hist-pill kilos-pill-lote">
+          <i class="fas fa-barcode" aria-hidden="true"></i><span class="pill-label">Lote</span>
+          <input type="search" name="lote" value="{{ filtros.lote }}" placeholder="Ej. L-0912" maxlength="50" autocomplete="off">
+        </label>
+        <label class="hist-pill">
+          <span class="pill-label">Producto</span>
+          <select name="producto_id" data-autosubmit>
+            <option value="">Todos</option>
+            {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if filtros.producto_id == p.id }}>{{ p.nombre }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="hist-pill">
+          <span class="pill-label">Cliente</span>
+          <select name="cliente_id" data-autosubmit>
+            <option value="">Todos</option>
+            {% for c in clientes %}<option value="{{ c.id }}" {{ 'selected' if filtros.cliente_id == c.id }}>{{ c.nombre }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="hist-pill">
+          <span class="pill-label">Pedidos</span>
+          <select name="estado" data-autosubmit>
+            <option value="todos" {{ 'selected' if filtros.estado == 'todos' }}>Todos</option>
+            <option value="facturados" {{ 'selected' if filtros.estado == 'facturados' }}>Facturados y entregados</option>
+            <option value="activos" {{ 'selected' if filtros.estado == 'activos' }}>Pendientes y preparados</option>
+          </select>
+        </label>
+        <label class="hist-pill"><i class="far fa-calendar" aria-hidden="true"></i><span class="pill-label">Desde</span>
+          <input type="date" name="desde" value="{{ filtros.desde.isoformat() if filtros.desde else '' }}" data-autosubmit></label>
+        <label class="hist-pill"><i class="far fa-calendar" aria-hidden="true"></i><span class="pill-label">Hasta</span>
+          <input type="date" name="hasta" value="{{ filtros.hasta.isoformat() if filtros.hasta else '' }}" data-autosubmit></label>
+        <button type="submit" class="ops-btn"><i class="fas fa-search"></i> Consultar</button>
+      </form>
+
+      {# Atajos de rango. Conservan lote/producto/cliente/estado y cambian
+         solo las fechas. «Todo» manda desde vacío A PROPÓSITO: es la señal
+         de «sin límite inferior», distinta de entrar sin parámetros. #}
+      {% set base_args = {'lote': filtros.lote, 'producto_id': filtros.producto_id or '', 'cliente_id': filtros.cliente_id or '', 'estado': filtros.estado} %}
+      <div class="kilos-rangos">
+        <span class="kilos-rangos-label">Rango rápido</span>
+        <a href="{{ url_for('reporte_kilos', desde=fecha_7d, hasta='', **base_args) }}" class="ops-chip {{ 'is-active' if filtros.desde and filtros.desde.isoformat() == fecha_7d and not filtros.hasta }}">7 días</a>
+        <a href="{{ url_for('reporte_kilos', desde=fecha_30d, hasta='', **base_args) }}" class="ops-chip {{ 'is-active' if filtros.desde and filtros.desde.isoformat() == fecha_30d and not filtros.hasta }}">30 días</a>
+        <a href="{{ url_for('reporte_kilos', desde=fecha_mes, hasta='', **base_args) }}" class="ops-chip {{ 'is-active' if filtros.desde and filtros.desde.isoformat() == fecha_mes and not filtros.hasta }}">Este mes</a>
+        <a href="{{ url_for('reporte_kilos', desde='', hasta='', estado=filtros.estado, lote=filtros.lote, producto_id=filtros.producto_id or '', cliente_id=filtros.cliente_id or '') }}" class="ops-chip {{ 'is-active' if not filtros.desde and not filtros.hasta }}">Todo el histórico</a>
+      </div>
+
+      <div class="haccp-stats kilos-stats">
+        <div class="haccp-stat"><span class="haccp-stat-icon"><i class="fas fa-weight-scale"></i></span><div><div class="haccp-stat-num">{{ totales.kg|fmt_cant('') }}</div><div class="haccp-stat-label">Kg totales</div></div></div>
+        <div class="haccp-stat"><span class="haccp-stat-icon"><i class="fas fa-box"></i></span><div><div class="haccp-stat-num">{{ totales.cajas|fmt_cant('') }}</div><div class="haccp-stat-label">Cajas</div></div></div>
+        <div class="haccp-stat"><span class="haccp-stat-icon"><i class="fas fa-barcode"></i></span><div><div class="haccp-stat-num">{{ totales.lotes }}</div><div class="haccp-stat-label">Lote{{ 's' if totales.lotes != 1 }} · {{ totales.productos }} producto{{ 's' if totales.productos != 1 }}</div></div></div>
+        <div class="haccp-stat"><span class="haccp-stat-icon"><i class="fas fa-clipboard-list"></i></span><div><div class="haccp-stat-num">{{ totales.pedidos }}</div><div class="haccp-stat-label">Pedido{{ 's' if totales.pedidos != 1 }}</div></div></div>
+      </div>
+
+      {% if not grupos %}
+      <div class="ops-empty"><div class="ops-empty-icon"><i class="fas fa-weight-scale"></i></div>
+        <p>No hay kilos registrados para esta consulta.{% if filtros.desde %} Probá ampliar el rango de fechas o mirar «Todo el histórico».{% endif %}</p></div>
+      {% else %}
+      <p class="kilos-nota">Cada lote se abre para ver caja por caja de qué pedido salió. Un lote de la báscula manda sobre la línea de preparación; «Sin lote» agrupa lo que almacén capturó sin lote.</p>
+
+      {% for g in grupos %}
+      <section class="kilos-producto" id="producto-{{ g.producto_id }}">
+        <header class="kilos-producto-head">
+          <h2>{{ g.producto }}</h2>
+          <div class="kilos-producto-tot">
+            <span class="kilos-kg">{{ g.kg|fmt_cant }}</span>
+            <span class="kilos-meta">{{ g.cajas|fmt_cant('') }} caja{{ 's' if g.cajas != 1 }} · {{ g.lotes|length }} lote{{ 's' if g.lotes|length != 1 }} · {{ g.n_pedidos }} pedido{{ 's' if g.n_pedidos != 1 }}</span>
+          </div>
+        </header>
+        <table class="kilos-tabla">
+          <thead>
+            <tr><th>Lote</th><th>Elaboración</th><th>Vencimiento</th><th class="kilos-num">Cajas</th><th class="kilos-num">Kg</th><th class="kilos-num">Pedidos</th><th>Clientes</th></tr>
+          </thead>
+          <tbody>
+            {% for l in g.lotes %}
+            {% set lid = 'lote-' ~ g.producto_id ~ '-' ~ loop.index %}
+            <tr class="kilos-lote {{ 'is-sin-lote' if l.sin_lote }}" data-detalle="{{ lid }}">
+              <td data-label="Lote" class="kilos-lote-nombre"><button type="button" class="kilos-toggle" aria-expanded="false" aria-controls="{{ lid }}"><i class="fas fa-chevron-right" aria-hidden="true"></i> {{ l.lote }}</button></td>
+              <td data-label="Elaboración">{{ l.fecha_elaboracion.strftime('%d/%m/%Y') if l.fecha_elaboracion else '—' }}</td>
+              <td data-label="Vencimiento">{{ l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else '—' }}</td>
+              <td data-label="Cajas" class="kilos-num">{{ l.cajas|fmt_cant('') }}</td>
+              <td data-label="Kg" class="kilos-num kilos-kg-celda">{{ l.kg|fmt_cant }}</td>
+              <td data-label="Pedidos" class="kilos-num">{{ l.n_pedidos }}</td>
+              <td data-label="Clientes" class="kilos-clientes">{{ l.clientes|join(', ') }}</td>
+            </tr>
+            <tr class="kilos-detalle" id="{{ lid }}" hidden>
+              <td colspan="7">
+                <table class="kilos-tabla-mini">
+                  <thead><tr><th>Fecha</th><th>Pedido</th><th>Cliente</th><th>Estado</th><th>Caja</th><th class="kilos-num">Kg</th></tr></thead>
+                  <tbody>
+                    {% for f in l.detalle %}
+                    <tr>
+                      <td>{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
+                      <td><a href="{{ url_for('detalles_pedido', pedido_id=f.pedido_id) }}">PED-{{ f.pedido_id }}</a></td>
+                      <td>{{ f.cliente }}</td>
+                      <td><span class="estado-chip {{ 'ok' if f.estado in ('facturado', 'entregado') else 'warn' }}">{{ f.estado|capitalize }}</span></td>
+                      <td>{% if f.origen == 'bascula' %}#{{ '%02d'|format(f.caja_numero or 0) }}{% elif f.origen == 'preparacion' %}{{ f.cajas|fmt_cant('') }} (preparación){% else %}{{ f.cajas|fmt_cant('') }} (pedido){% endif %}</td>
+                      <td class="kilos-num">{{ f.kg|fmt_cant }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="kilos-subtotal"><td colspan="3">Total {{ g.producto }}</td><td class="kilos-num">{{ g.cajas|fmt_cant('') }}</td><td class="kilos-num">{{ g.kg|fmt_cant }}</td><td class="kilos-num">{{ g.n_pedidos }}</td><td></td></tr>
+          </tfoot>
+        </table>
+      </section>
+      {% endfor %}
+
+      <div class="kilos-total-general">
+        <span>Total general</span>
+        <span class="kilos-kg">{{ totales.kg|fmt_cant }}</span>
+        <span class="kilos-meta">{{ totales.cajas|fmt_cant('') }} caja{{ 's' if totales.cajas != 1 }} en {{ totales.pedidos }} pedido{{ 's' if totales.pedidos != 1 }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  // Abrir/cerrar el detalle de un lote. Sin JS la fila queda oculta, pero el
+  // Excel trae el mismo detalle, así que nada se pierde.
+  document.querySelectorAll('.kilos-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('aria-controls');
+      var fila = document.getElementById(id);
+      if (!fila) return;
+      var abierto = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', abierto ? 'false' : 'true');
+      fila.hidden = abierto;
+      btn.closest('tr').classList.toggle('is-open', !abierto);
+    });
+  });
+})();
+</script>
+{% endblock %}

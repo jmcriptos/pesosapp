@@ -13036,6 +13036,340 @@ def generar_reporte_pesos():
     nombre_archivo = f"reporte_pesos_{nombre_archivo_cliente}_{fecha_inicio}_a_{fecha_fin}.xlsx"
     return send_file(output, as_attachment=True, download_name=nombre_archivo, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Kilos por producto y lote
+#
+# «¿Cuántos kilos del lote L-0912 de chuleta salieron, a quién y cuándo?» era
+# una pregunta que la app no podía contestar sin abrir pedido por pedido: el
+# peso vive en `caja_pesada` (una fila por caja de báscula) y, para los pedidos
+# anteriores a la báscula, en la línea de preparación. Esta consulta junta las
+# dos fuentes con la MISMA precedencia que `_kilos_y_cajas_pedido` (báscula
+# manda; si no hay báscula, la línea de preparación; la línea original solo
+# si trae lote, porque un peso sin lote de un pedido sin preparar es una
+# promesa del vendedor, no un kilo que salió), y totaliza por producto y lote.
+# ─────────────────────────────────────────────────────────────────────────────
+
+KILOS_SIN_LOTE = 'Sin lote'
+KILOS_ESTADOS = ('todos', 'facturados', 'activos')
+
+
+def _ventana_local_a_utc(desde, hasta):
+    """Rango de fechas LOCALES (America/Curacao) → ventana UTC naive para
+    filtrar `Pedido.fecha_pedido`, que se guarda en UTC. `hasta` es inclusivo:
+    cubre el día local completo. Sin esto, un pedido cargado a las 21:00 de
+    Curazao (01:00 UTC del día siguiente) se caía del día en que se cargó."""
+    desde_utc = hasta_utc = None
+    if desde:
+        desde_utc = (datetime.combine(desde, datetime.min.time(), tzinfo=DASHBOARD_TIMEZONE)
+                     .astimezone(timezone.utc).replace(tzinfo=None))
+    if hasta:
+        siguiente = datetime.combine(hasta, datetime.min.time(), tzinfo=DASHBOARD_TIMEZONE) + timedelta(days=1)
+        hasta_utc = siguiente.astimezone(timezone.utc).replace(tzinfo=None) - timedelta(microseconds=1)
+    return desde_utc, hasta_utc
+
+
+def _fila_kilos(pedido, detalle, lote, fecha_elaboracion, fecha_vencimiento, kg, cajas, origen, caja_numero=None):
+    producto = detalle.producto
+    return {
+        'pedido_id': pedido.id,
+        'fecha': _to_dashboard_date(pedido.fecha_pedido),
+        'estado': pedido.estado or '',
+        'cliente_id': pedido.cliente_id,
+        'cliente': pedido.cliente.nombre if pedido.cliente else '—',
+        'producto_id': detalle.producto_id,
+        'producto': producto.nombre if producto else f'Producto #{detalle.producto_id}',
+        'lote': (lote or '').strip(),
+        'fecha_elaboracion': _date_like_to_date(fecha_elaboracion),
+        'fecha_vencimiento': _date_like_to_date(fecha_vencimiento),
+        'kg': kg,
+        'cajas': cajas,
+        # 'bascula' = caja pesada; 'preparacion' = línea capturada por almacén
+        # sin báscula; 'pedido' = línea original con lote (datos históricos).
+        'origen': origen,
+        'caja_numero': caja_numero,
+    }
+
+
+def _filas_kilos_por_lote(pedidos):
+    """Una fila por caja pesada (o por línea sin cajas) de cada pedido."""
+    filas = []
+    for pedido in pedidos:
+        productos_con_cajas = set()
+        prep_products = set()
+
+        for d in pedido.detalles:
+            if not d.es_linea_pedido or not d.producto or not d.producto.se_pesa:
+                continue
+            if not d.cajas_pesadas_count:
+                continue
+            productos_con_cajas.add(d.producto_id)
+            prep_products.add(d.producto_id)
+            for caja in d.cajas_pesadas:
+                filas.append(_fila_kilos(
+                    pedido, d, caja.lote, caja.fecha_elaboracion, caja.fecha_vencimiento,
+                    Decimal(str(caja.peso or 0)), Decimal('1'), 'bascula', caja_numero=caja.numero))
+
+        for d in pedido.detalles:
+            if d.es_linea_pedido:
+                continue
+            if d.producto and d.producto.se_pesa and d.producto_id in productos_con_cajas:
+                continue
+            prep_products.add(d.producto_id)
+            filas.append(_fila_kilos(
+                pedido, d, d.lote, d.fecha_fabricacion, d.fecha_expiracion,
+                Decimal(str(d.peso or 0)), Decimal(str(d.cajas or 0)), 'preparacion'))
+
+        for d in pedido.detalles:
+            if d.es_linea_pedido and d.producto_id not in prep_products and (d.lote or '').strip():
+                filas.append(_fila_kilos(
+                    pedido, d, d.lote, d.fecha_fabricacion, d.fecha_expiracion,
+                    Decimal(str(d.peso or 0)), Decimal(str(d.cajas or 0)), 'pedido'))
+
+    return [f for f in filas if f['kg'] > 0 or f['cajas'] > 0]
+
+
+def _agrupar_kilos_por_lote(filas):
+    """[{producto, kg, cajas, lotes: [{lote, kg, cajas, pedidos, clientes,
+    fecha_elaboracion, fecha_vencimiento, detalle: [filas]}]}] + totales."""
+    productos = {}
+    for f in filas:
+        prod = productos.setdefault(f['producto_id'], {
+            'producto_id': f['producto_id'], 'producto': f['producto'],
+            'kg': Decimal('0'), 'cajas': Decimal('0'), 'pedidos': set(), '_lotes': {},
+        })
+        prod['kg'] += f['kg']
+        prod['cajas'] += f['cajas']
+        prod['pedidos'].add(f['pedido_id'])
+        clave = f['lote'].lower()
+        lote = prod['_lotes'].setdefault(clave, {
+            'lote': f['lote'] or KILOS_SIN_LOTE, 'sin_lote': not f['lote'],
+            'kg': Decimal('0'), 'cajas': Decimal('0'), 'pedidos': set(), 'clientes': set(),
+            'fecha_elaboracion': None, 'fecha_vencimiento': None, 'detalle': [],
+        })
+        lote['kg'] += f['kg']
+        lote['cajas'] += f['cajas']
+        lote['pedidos'].add(f['pedido_id'])
+        lote['clientes'].add(f['cliente'])
+        for campo in ('fecha_elaboracion', 'fecha_vencimiento'):
+            if f[campo] and (lote[campo] is None or f[campo] < lote[campo]):
+                lote[campo] = f[campo]
+        lote['detalle'].append(f)
+
+    grupos = []
+    for prod in sorted(productos.values(), key=lambda p: p['producto'].lower()):
+        lotes = []
+        for lote in prod.pop('_lotes').values():
+            lote['detalle'].sort(key=lambda f: (f['fecha'] or date.min, f['pedido_id'], f['caja_numero'] or 0))
+            lote['n_pedidos'] = len(lote.pop('pedidos'))
+            lote['clientes'] = sorted(lote['clientes'])
+            lotes.append(lote)
+        # Sin lote al final; el resto del más reciente al más viejo por fecha de
+        # elaboración, y por nombre de lote cuando no hay fecha.
+        lotes.sort(key=lambda l: (l['sin_lote'], -(l['fecha_elaboracion'] or date.min).toordinal(), l['lote'].lower()))
+        prod['lotes'] = lotes
+        prod['n_pedidos'] = len(prod.pop('pedidos'))
+        grupos.append(prod)
+
+    totales = {
+        'kg': sum((f['kg'] for f in filas), Decimal('0')),
+        'cajas': sum((f['cajas'] for f in filas), Decimal('0')),
+        'pedidos': len({f['pedido_id'] for f in filas}),
+        'productos': len(grupos),
+        'lotes': sum(len(g['lotes']) for g in grupos),
+    }
+    return grupos, totales
+
+
+def _leer_filtros_kilos(args):
+    """Normaliza la query string de la consulta. Sin parámetros, abre en los
+    últimos 30 días: el archivo completo tiene 900+ pedidos y nadie quiere
+    verlos todos por defecto — pero un `desde` vacío mandado a propósito sí
+    significa «desde el principio»."""
+    hoy = datetime.now(DASHBOARD_TIMEZONE).date()
+    if not any(k in args for k in ('desde', 'hasta', 'producto_id', 'cliente_id', 'lote', 'estado')):
+        desde, hasta = hoy - timedelta(days=29), None
+    else:
+        desde = _date_like_to_date((args.get('desde') or '').strip() or None)
+        hasta = _date_like_to_date((args.get('hasta') or '').strip() or None)
+    estado = (args.get('estado') or 'todos').strip().lower()
+    return {
+        'desde': desde,
+        'hasta': hasta,
+        'producto_id': args.get('producto_id', type=int),
+        'cliente_id': args.get('cliente_id', type=int),
+        'lote': (args.get('lote') or '').strip()[:50],
+        'estado': estado if estado in KILOS_ESTADOS else 'todos',
+    }
+
+
+def _clientes_visibles_ids():
+    """None = sin restricción (super_admin / usuario legacy); [] = nada."""
+    if not isinstance(current_user, Vendedor) or current_user.rol.nombre == 'super_admin':
+        return None
+    return [c.id for c in current_user.obtener_clientes_visibles()]
+
+
+def _consulta_kilos_por_lote(filtros):
+    """Corre la consulta con los filtros ya normalizados. Devuelve (grupos, totales)."""
+    query = Pedido.query.options(
+        joinedload(Pedido.cliente),
+        selectinload(Pedido.detalles).selectinload(DetallePedido.producto),
+        selectinload(Pedido.detalles).selectinload(DetallePedido.cajas_pesadas),
+    )
+
+    visibles = _clientes_visibles_ids()
+    if visibles is not None:
+        if not visibles:
+            return [], _agrupar_kilos_por_lote([])[1]
+        query = query.filter(Pedido.cliente_id.in_(visibles))
+
+    desde_utc, hasta_utc = _ventana_local_a_utc(filtros['desde'], filtros['hasta'])
+    if desde_utc:
+        query = query.filter(Pedido.fecha_pedido >= desde_utc)
+    if hasta_utc:
+        query = query.filter(Pedido.fecha_pedido <= hasta_utc)
+    if filtros['cliente_id']:
+        query = query.filter(Pedido.cliente_id == filtros['cliente_id'])
+    if filtros['producto_id']:
+        query = query.filter(Pedido.detalles.any(DetallePedido.producto_id == filtros['producto_id']))
+    if filtros['lote']:
+        patron = f"%{filtros['lote']}%"
+        query = query.filter(Pedido.detalles.any(or_(
+            DetallePedido.lote.ilike(patron),
+            DetallePedido.cajas_pesadas.any(CajaPesada.lote.ilike(patron)),
+        )))
+    if filtros['estado'] == 'facturados':
+        query = query.filter(Pedido.estado.in_(PEDIDO_INMUTABLE))
+    elif filtros['estado'] == 'activos':
+        query = query.filter(Pedido.estado.notin_(PEDIDO_INMUTABLE))
+
+    filas = _filas_kilos_por_lote(query.order_by(Pedido.fecha_pedido.asc(), Pedido.id.asc()).all())
+
+    # Los `any()` de arriba acotan PEDIDOS; las filas de otros productos o de
+    # otros lotes del mismo pedido se sacan acá.
+    if filtros['producto_id']:
+        filas = [f for f in filas if f['producto_id'] == filtros['producto_id']]
+    if filtros['lote']:
+        aguja = filtros['lote'].lower()
+        filas = [f for f in filas if aguja in f['lote'].lower()]
+
+    return _agrupar_kilos_por_lote(filas)
+
+
+def _kilos_export_xlsx(grupos, totales, filtros):
+    """Dos hojas: Resumen (producto × lote) y Detalle (una fila por caja/línea)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = Workbook()
+    negrita = Font(bold=True)
+    cab_fill = PatternFill('solid', fgColor='1F2937')
+    cab_font = Font(bold=True, color='FFFFFF')
+    num = '#,##0.000'
+
+    def _cabecera(ws, fila, titulos):
+        ws.append(titulos)
+        for c in range(1, len(titulos) + 1):
+            celda = ws.cell(fila, c)
+            celda.fill = cab_fill
+            celda.font = cab_font
+            celda.alignment = Alignment(horizontal='left')
+
+    def _fmt_fecha(v):
+        return v.strftime('%Y-%m-%d') if v else ''
+
+    ws = wb.active
+    ws.title = 'Resumen'
+    ws.append(['Kilos por producto y lote'])
+    ws.cell(1, 1).font = Font(bold=True, size=14)
+    rango = f"{_fmt_fecha(filtros['desde']) or 'inicio'} a {_fmt_fecha(filtros['hasta']) or 'hoy'}"
+    ws.append([f'Pedidos del {rango} · estado: {filtros["estado"]}'
+               + (f' · lote contiene «{filtros["lote"]}»' if filtros['lote'] else '')])
+    ws.append([])
+    cab = ['Producto', 'Lote', 'F. elaboración', 'F. vencimiento', 'Cajas', 'Kg', 'Pedidos', 'Clientes']
+    _cabecera(ws, 4, cab)
+    for g in grupos:
+        for l in g['lotes']:
+            ws.append([_excel_safe(g['producto']), _excel_safe(l['lote']),
+                       _fmt_fecha(l['fecha_elaboracion']), _fmt_fecha(l['fecha_vencimiento']),
+                       float(l['cajas']), float(l['kg']), l['n_pedidos'],
+                       _excel_safe(', '.join(l['clientes']))])
+        ws.append([_excel_safe(f"Total {g['producto']}"), '', '', '', float(g['cajas']), float(g['kg']), g['n_pedidos'], ''])
+        for c in (1, 5, 6, 7):
+            ws.cell(ws.max_row, c).font = negrita
+    ws.append(['TOTAL GENERAL', '', '', '', float(totales['cajas']), float(totales['kg']), totales['pedidos'], ''])
+    for c in (1, 5, 6, 7):
+        ws.cell(ws.max_row, c).font = negrita
+    for fila in ws.iter_rows(min_row=5, min_col=5, max_col=6):
+        for celda in fila:
+            celda.number_format = num
+    for col, ancho in zip('ABCDEFGH', (32, 18, 14, 14, 10, 12, 10, 48)):
+        ws.column_dimensions[col].width = ancho
+
+    wd = wb.create_sheet('Detalle')
+    cab = ['Fecha', 'Pedido', 'Estado', 'Cliente', 'Producto', 'Lote', 'F. elaboración', 'F. vencimiento', 'Caja', 'Cajas', 'Kg', 'Origen']
+    _cabecera(wd, 1, cab)
+    origen_txt = {'bascula': 'Báscula', 'preparacion': 'Preparación', 'pedido': 'Pedido'}
+    for g in grupos:
+        for l in g['lotes']:
+            for f in l['detalle']:
+                wd.append([_fmt_fecha(f['fecha']), f'PED-{f["pedido_id"]}', f['estado'],
+                           _excel_safe(f['cliente']), _excel_safe(f['producto']), _excel_safe(f['lote'] or KILOS_SIN_LOTE),
+                           _fmt_fecha(f['fecha_elaboracion']), _fmt_fecha(f['fecha_vencimiento']),
+                           f['caja_numero'] or '', float(f['cajas']), float(f['kg']), origen_txt.get(f['origen'], f['origen'])])
+    for fila in wd.iter_rows(min_row=2, min_col=10, max_col=11):
+        for celda in fila:
+            celda.number_format = num
+    for col, ancho in zip('ABCDEFGHIJKL', (12, 10, 11, 28, 30, 18, 14, 14, 6, 8, 11, 12)):
+        wd.column_dimensions[col].width = ancho
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def _contexto_kilos(filtros):
+    visibles = _clientes_visibles_ids()
+    clientes = Cliente.query.order_by(Cliente.nombre)
+    if visibles is not None:
+        clientes = clientes.filter(Cliente.id.in_(visibles)) if visibles else clientes.filter(False)
+    hoy = datetime.now(DASHBOARD_TIMEZONE).date()
+    return {
+        'filtros': filtros,
+        'productos': Producto.query.order_by(Producto.nombre).all(),
+        'clientes': clientes.all(),
+        'hoy_iso': hoy.isoformat(),
+        'fecha_7d': (hoy - timedelta(days=6)).isoformat(),
+        'fecha_30d': (hoy - timedelta(days=29)).isoformat(),
+        'fecha_mes': hoy.replace(day=1).isoformat(),
+    }
+
+
+@app.route('/reportes/kilos')
+@login_required
+@requiere_permiso_recurso('pedidos', 'leer')
+def reporte_kilos():
+    filtros = _leer_filtros_kilos(request.args)
+    grupos, totales = _consulta_kilos_por_lote(filtros)
+    return render_template('reporte_kilos.html', grupos=grupos, totales=totales,
+                           **_contexto_kilos(filtros))
+
+
+@app.route('/reportes/kilos/export')
+@login_required
+@requiere_permiso_recurso('pedidos', 'leer')
+def reporte_kilos_export():
+    filtros = _leer_filtros_kilos(request.args)
+    grupos, totales = _consulta_kilos_por_lote(filtros)
+    buf = _kilos_export_xlsx(grupos, totales, filtros)
+    nombre = 'kilos_por_lote_{}_{}.xlsx'.format(
+        filtros['desde'].isoformat() if filtros['desde'] else 'inicio',
+        filtros['hasta'].isoformat() if filtros['hasta'] else 'hoy')
+    return send_file(buf, as_attachment=True, download_name=nombre,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
 @app.route('/generar_etiqueta', methods=['POST'])
 @login_required
 def generar_etiqueta():
