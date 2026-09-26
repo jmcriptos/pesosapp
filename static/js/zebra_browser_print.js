@@ -15,7 +15,11 @@
    En iPhone no existe Browser Print: `disponible()` es false y no se intenta. */
 (function () {
   const BASES = ['http://localhost:9100/', 'https://localhost:9101/'];
-  const ESPERA_MS = 2500;
+  // La primera vez que un sitio le habla, Browser Print pide autorizarlo
+  // DENTRO de su app y retiene la respuesta hasta que el operario acepta.
+  // La espera tiene que dar tiempo a ir a la app y volver. Un puerto donde
+  // nadie escucha falla al instante, así que sin la app no se espera nada.
+  const ESPERA_MS = 20000;
 
   let base = null;
   let dispositivo = null;
@@ -78,7 +82,7 @@
         base = candidata;
         return impresoras;
       } catch (err) {
-        const motivo = err && err.name === 'AbortError' ? 'sin respuesta en 2,5 s' : (err && err.message ? err.message : String(err));
+        const motivo = err && err.name === 'AbortError' ? 'sin respuesta en 20 s' : (err && err.message ? err.message : String(err));
         fallos.push(`${candidata} ${motivo}`);
       }
     }

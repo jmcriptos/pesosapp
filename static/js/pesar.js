@@ -485,7 +485,7 @@
       // Browser Print primero: si la app está abierta con la Zebra
       // emparejada, no hace falta ningún selector.
       if (!mostrarTodos && window.ZebraBrowserPrint && window.ZebraBrowserPrint.disponible()) {
-        printerMsg('Buscando Zebra Browser Print en este dispositivo…');
+        printerMsg('Buscando Zebra Browser Print… Si la app de Browser Print pide autorizar este sitio, acéptalo y vuelve aquí.');
         try {
           await window.ZebraBrowserPrint.conectar();
           transporte = window.ZebraBrowserPrint;
