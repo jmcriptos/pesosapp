@@ -514,8 +514,7 @@
       if (transporte) {
         printerMsg('Conectada. La etiqueta sale al registrar cada caja.');
       } else if (errores.length) {
-        printerMsg(`No se pudo conectar: ${errores.join(' · ')}`
-          + ' Si Chrome preguntó por acceso a la red local, permítelo y vuelve a tocar Conectar.', true);
+        printerMsg(`No se pudo conectar: ${errores.join(' · ')}`, true);
       } else {
         printerMsg('Este navegador no puede llegar a la impresora. En Android, instala Zebra Browser Print y empareja la Zebra.', true);
       }

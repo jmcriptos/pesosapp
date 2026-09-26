@@ -64,12 +64,25 @@
     }
   }
 
+  // Un «Failed to fetch» no dice si Browser Print rechazó el sitio (CORS)
+  // o si Chrome ni siquiera dejó salir la petición (permiso de red local,
+  // certificado). Una segunda petición en modo no-cors lo distingue: si esa
+  // llega, el servicio está y solo falta autorizar el sitio en la app.
+  async function servicioAlcanzable(candidata) {
+    try {
+      await pedir(candidata + 'available', { mode: 'no-cors' });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   // Busca el servicio local en los dos puertos y devuelve las impresoras.
-  // El error nombra qué contestó cada puerto: es lo único que permite saber
-  // desde el almacén si la app no corre, si falta aceptar el sitio o si el
-  // navegador bloqueó la petición.
+  // El error dice qué pasó en cada puerto y qué hacer: es lo único que
+  // permite resolverlo desde el almacén sin una consola de desarrollador.
   async function buscar() {
     const fallos = [];
+    const origen = window.location.origin;
     for (const candidata of BASES) {
       try {
         const resp = await pedir(candidata + 'available');
@@ -82,12 +95,17 @@
         base = candidata;
         return impresoras;
       } catch (err) {
-        const motivo = err && err.name === 'AbortError' ? 'sin respuesta en 20 s' : (err && err.message ? err.message : String(err));
-        fallos.push(`${candidata} ${motivo}`);
+        if (err && err.name === 'AbortError') {
+          fallos.push(`${candidata} sin respuesta en 20 s`);
+        } else if (await servicioAlcanzable(candidata)) {
+          fallos.push(`${candidata} responde pero no autoriza este sitio: en la app Browser Print agrega ${origen} a los sitios permitidos`);
+        } else {
+          fallos.push(`${candidata} bloqueado por Chrome antes de salir (${err && err.message ? err.message : err}): permite a ${origen} el acceso a la red local en los permisos del sitio`);
+        }
       }
     }
     base = null;
-    throw new Error(`Zebra Browser Print no responde (${fallos.join('; ')}). ¿La app está abierta y la Zebra emparejada?`);
+    throw new Error(`Zebra Browser Print: ${fallos.join(' · ')}`);
   }
 
   function elegir(impresoras) {
