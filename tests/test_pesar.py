@@ -397,3 +397,32 @@ def test_csp_permite_los_puertos_locales_de_browser_print():
     bases = re.search(r"const BASES = \[(.*?)\];", js).group(1)
     for base in re.findall(r"'([^']+)'", bases):
         assert base.rstrip('/') in BROWSER_PRINT_ORIGENES, base
+
+
+def test_deshacer_apunta_a_la_caja_de_numero_mas_alto(logged_client, app):
+    """Con dos lotes en un producto, «Deshacer» borraba la última caja del
+    primer grupo de lote. Cada chip lleva su número y el JS elige el mayor."""
+    with app.app_context():
+        from app import Pedido, DetallePedido
+
+        pedido = Pedido.query.first()
+        detalle = DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).join(DetallePedido.producto).filter_by(se_pesa=True).first()
+        for peso, lote in (('16.9', 'L-0001'), ('17.1', 'L-0001'), ('5.2', 'L-0002')):
+            resp = logged_client.post(
+                f'/pedidos/{pedido.id}/pesar/caja',
+                data={'detalle_pedido_id': detalle.id, 'peso': peso, 'lote': lote,
+                      'fecha_elaboracion': '2026-09-23', 'fecha_vencimiento': '2027-09-23'},
+                headers={'HX-Request': 'true'},
+            )
+            assert resp.status_code == 200
+        html = resp.data.decode('utf-8')
+        # Dos grupos de lote, y el chip de cada caja lleva su número.
+        assert html.count('pesar-group-card') == 2
+        for numero in (1, 2, 3):
+            assert f'data-numero="{numero}"' in html
+
+    with open(os.path.join(os.path.dirname(__file__), '..', 'static', 'js', 'pesar.js'), encoding='utf-8') as fh:
+        js = fh.read()
+    assert ':last-of-type' not in js
+    assert 'function ultimaCajaChip' in js
+    assert 'dataset.numero' in js
