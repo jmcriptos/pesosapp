@@ -16,18 +16,20 @@
   }
   window.esDispositivoIOS = esDispositivoIOS;
 
-  /* Descarga el PDF (POST con FormData — incluye csrf_token) y lo comparte.
+  /* Descarga el PDF (POST con FormData — incluye csrf_token — o GET si
+     formData es null, como la etiqueta de una sola caja) y lo comparte.
      Devuelve una promesa que siempre resuelve (los errores se notifican con
      alert para no romper el .finally() de la UI). */
   window.compartirEtiquetaIOS = async function (url, formData, filename) {
     let resp;
     try {
-      resp = await fetch(url, {
-        method: 'POST',
-        body: formData,
+      const opciones = {
+        method: formData ? 'POST' : 'GET',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'
-      });
+      };
+      if (formData) opciones.body = formData;
+      resp = await fetch(url, opciones);
     } catch (e) {
       alert('No se pudo conectar para generar las etiquetas. Revisa tu conexión.');
       return;

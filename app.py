@@ -9236,6 +9236,76 @@ def editar_caja_pesada_modal(caja_id):
     )
 
 
+@app.route('/cajas/<int:caja_id>/etiqueta', methods=['GET'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'leer')
+def etiqueta_caja_pesada(caja_id):
+    """Etiqueta 4x2 de UNA caja, para imprimirla en el momento de pesarla.
+
+    Nació del pedido 1357 (2026-09-25): las 31 etiquetas se imprimieron juntas
+    al final, con el mismo lote y las mismas fechas, y se pegaron buscando la
+    caja por peso. Entre dos chorizos de 16,8 a 17,2 kg eso no alcanza. Con
+    la etiqueta impresa al pie de la báscula, la caja se rotula antes de
+    bajarla y no hay emparejamiento posterior.
+
+    Es solo lectura: una etiqueta se puede reimprimir aunque el pedido ya
+    esté facturado (misma regla que las etiquetas del pedido completo).
+    """
+    caja = (
+        CajaPesada.query.options(
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.pedido).joinedload(Pedido.cliente),
+            joinedload(CajaPesada.detalle_pedido).joinedload(DetallePedido.producto),
+        )
+        .filter_by(id=caja_id)
+        .first_or_404()
+    )
+    pedido = caja.detalle_pedido.pedido
+    if not _user_can_manage_pedido(pedido):
+        abort(403)
+
+    item = _caja_pesada_to_label_item(caja)
+    cliente = getattr(pedido, 'cliente', None)
+    cliente_nombre = cliente.nombre if cliente else ''
+    logo_path = resolve_label_logo(basedir, getattr(cliente, 'logo_etiqueta', None))
+
+    output, c = create_single_label_pdf()
+    draw_order_label(
+        c, logo_path,
+        mostrar_cliente=not bool(getattr(cliente, 'logo_etiqueta', None)),
+        client=cliente_nombre,
+        product=item['producto_nombre'],
+        temperature=item['temperatura'],
+        lot=item['lote'],
+        mfg_date=item['fecha_fabricacion'],
+        exp_date=item['fecha_expiracion'],
+        medida_rotulo=item['medida_rotulo'],
+        medida_valor=item['medida_valor'],
+    )
+    c.showPage()
+    c.save()
+    output.seek(0)
+
+    filename = _nombre_archivo_etiqueta_caja(caja)
+    response = make_response(send_file(
+        output,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename,
+    ))
+    response.headers['Content-Disposition'] = f'{"inline" if _is_ios_request() else "attachment"}; filename="{filename}"'
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+
+def _nombre_archivo_etiqueta_caja(caja):
+    """etiqueta_<pedido>_<producto>_<numero>.pdf, sin espacios ni barras."""
+    detalle = caja.detalle_pedido
+    producto = detalle.producto.nombre if detalle and detalle.producto else 'producto'
+    slug = re.sub(r'[^A-Za-z0-9]+', '_', producto).strip('_') or 'producto'
+    return f'etiqueta_{detalle.pedido_id}_{slug}_{caja.numero:02d}.pdf'
+
+
 @app.route('/cajas/<int:caja_id>', methods=['PATCH'])
 @login_required
 @requiere_permiso_recurso('pedidos', 'editar')

@@ -80,6 +80,18 @@
         </div>
       </div>
 
+      <a
+        class="pesar-label-btn"
+        href="{{ url_for('etiqueta_caja_pesada', caja_id=caja.id) }}"
+        target="_blank"
+        rel="noopener"
+        data-etiqueta-caja
+        data-filename="etiqueta_{{ pedido.id }}_{{ '%02d'|format(caja.numero) }}.pdf"
+      >
+        <i class="fas fa-print"></i>
+        Imprimir etiqueta de esta caja
+      </a>
+
       <div class="pesar-modal-actions">
         <button
           type="button"

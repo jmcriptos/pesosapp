@@ -159,5 +159,9 @@
 
 {% block scripts %}
   <script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.10/dist/htmx.min.js"></script>
+  {# iOS (incluida la PWA instalada) no abre PDFs en pestaña nueva: la
+     etiqueta de cada caja sale por la hoja de compartir nativa, igual que
+     las etiquetas del pedido completo en detalles_pedido.html. #}
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
   <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/pesar.js') }}"></script>
 {% endblock %}

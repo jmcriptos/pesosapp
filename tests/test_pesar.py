@@ -219,3 +219,105 @@ def test_pantalla_pesar_panel_sin_cajas_no_trae_lote(logged_client, app):
         html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
         assert 'data-ultimo-lote=""' in html
         assert 'pesar-feedback is-ok' not in html
+
+
+def _registrar_caja(logged_client, app, peso='16.9'):
+    from app import Pedido, DetallePedido, CajaPesada
+
+    pedido = Pedido.query.first()
+    detalle = DetallePedido.query.filter_by(pedido_id=pedido.id, es_linea_pedido=True).join(DetallePedido.producto).filter_by(se_pesa=True).first()
+    resp = logged_client.post(
+        f'/pedidos/{pedido.id}/pesar/caja',
+        data={
+            'detalle_pedido_id': detalle.id,
+            'peso': peso,
+            'lote': 'L-2309202601',
+            'fecha_elaboracion': '2026-09-23',
+            'fecha_vencimiento': '2027-09-23',
+        },
+        headers={'HX-Request': 'true'},
+    )
+    assert resp.status_code == 200
+    caja = CajaPesada.query.filter_by(detalle_pedido_id=detalle.id).order_by(CajaPesada.numero.desc()).first()
+    return pedido, detalle, caja, resp.data.decode('utf-8')
+
+
+def test_confirmacion_de_caja_trae_boton_imprimir_etiqueta(logged_client, app):
+    """Pedido 1357: la etiqueta se imprime al pie de la báscula, caja por caja,
+    en vez de las 31 juntas al final para pegarlas buscando la caja por peso."""
+    with app.app_context():
+        pedido, detalle, caja, html = _registrar_caja(logged_client, app)
+        assert f'/cajas/{caja.id}/etiqueta' in html
+        assert 'data-etiqueta-caja' in html
+        assert 'Imprimir etiqueta' in html
+        assert f'data-filename="etiqueta_{pedido.id}_01.pdf"' in html
+
+
+def test_modal_de_caja_trae_boton_imprimir_etiqueta(logged_client, app):
+    with app.app_context():
+        pedido, detalle, caja, _ = _registrar_caja(logged_client, app)
+        html = logged_client.get(f'/cajas/{caja.id}/edit').data.decode('utf-8')
+        assert f'/cajas/{caja.id}/etiqueta' in html
+        assert 'Imprimir etiqueta de esta caja' in html
+
+
+def test_etiqueta_de_una_caja_devuelve_pdf_con_producto_y_peso(logged_client, app):
+    with app.app_context():
+        pedido, detalle, caja, _ = _registrar_caja(logged_client, app, peso='16.9')
+        resp = logged_client.get(f'/cajas/{caja.id}/etiqueta')
+
+        assert resp.status_code == 200
+        assert resp.mimetype == 'application/pdf'
+        assert resp.data.startswith(b'%PDF')
+        assert 'attachment' in resp.headers['Content-Disposition']
+        assert f'etiqueta_{pedido.id}_Chuleta_de_Cerdo_01.pdf' in resp.headers['Content-Disposition']
+
+        # pypdf no es dependencia de la app: sin él se verifica solo el sobre.
+        pypdf = pytest.importorskip('pypdf')
+        from io import BytesIO
+        reader = pypdf.PdfReader(BytesIO(resp.data))
+        assert len(reader.pages) == 1
+        texto = reader.pages[0].extract_text()
+        assert 'Chuleta de Cerdo' in texto
+        assert '16.90 kg' in texto
+        assert 'L-2309202601' in texto
+
+
+def test_etiqueta_de_una_caja_en_ios_va_inline(logged_client, app):
+    ua = ('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+          'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1')
+    with app.app_context():
+        pedido, detalle, caja, _ = _registrar_caja(logged_client, app)
+        resp = logged_client.get(f'/cajas/{caja.id}/etiqueta', headers={'User-Agent': ua})
+        assert resp.status_code == 200
+        assert resp.headers['Content-Disposition'].startswith('inline;')
+
+
+def test_etiqueta_de_una_caja_se_reimprime_con_pedido_facturado(logged_client, app):
+    """Reimprimir es solo lectura: no lo bloquea la inmutabilidad del facturado."""
+    with app.app_context():
+        from app import db, Pedido
+
+        pedido, detalle, caja, _ = _registrar_caja(logged_client, app)
+        pedido = db.session.get(Pedido, pedido.id)
+        pedido.estado = 'facturado'
+        db.session.commit()
+
+        resp = logged_client.get(f'/cajas/{caja.id}/etiqueta')
+        assert resp.status_code == 200
+        assert resp.mimetype == 'application/pdf'
+
+
+def test_etiqueta_de_caja_inexistente_da_404(logged_client, app):
+    with app.app_context():
+        resp = logged_client.get('/cajas/999999/etiqueta')
+        assert resp.status_code == 404
+
+
+def test_pesar_incluye_helper_de_compartir_ios(logged_client, app):
+    with app.app_context():
+        from app import Pedido
+
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+        assert 'etiquetas_ios_share.js' in html

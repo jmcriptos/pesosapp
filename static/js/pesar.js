@@ -423,6 +423,22 @@
       flashProduct();
     });
 
+    // «Imprimir etiqueta» de una caja. En Android/escritorio el enlace abre
+    // el PDF en pestaña nueva y el navegador lo descarga o lo muestra. En iOS
+    // (sobre todo la PWA instalada, sin pestañas) va por la hoja de compartir
+    // nativa, que trae «Imprimir» y AirPrint: mismo camino que las etiquetas
+    // del pedido completo.
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest('[data-etiqueta-caja]');
+      if (!link) return;
+      if (!(window.esDispositivoIOS && window.esDispositivoIOS())) return;
+      if (typeof window.compartirEtiquetaIOS !== 'function') return;
+      event.preventDefault();
+      link.classList.add('is-loading');
+      window.compartirEtiquetaIOS(link.href, null, link.dataset.filename || 'etiqueta.pdf')
+        .finally(() => link.classList.remove('is-loading'));
+    });
+
     screen.addEventListener('click', (event) => {
       const keyButton = event.target.closest('[data-key]');
       if (keyButton) {
