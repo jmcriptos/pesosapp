@@ -59,12 +59,28 @@ Bluetooth.
    ZQ520 (además corta la conexión clásica de Browser Print).
 5. Con «Imprimir al pesar» activo, registrar la caja: la etiqueta sale sola.
 
-Si «Conectar» dice que Browser Print no responde: la app no está abierta,
-no tiene la impresora emparejada, o Chrome no pudo llegar a
-`localhost:9100`. Abrir `http://localhost:9100/available` en Chrome del
-mismo Android: debe mostrar un JSON con la impresora. Si la página está
-en HTTPS y Chrome bloquea el puerto 9100, abrir una vez
-`https://localhost:9101/` y aceptar el certificado de Browser Print.
+Verificado en el almacén el 2026-09-26 con la ZQ520 y un Android: prueba y
+etiquetas reales impresas desde la pantalla de pesar.
+
+Si «Conectar» falla, la barra dice en qué paso:
+- «responde pero no autoriza este sitio»: agregar el dominio de PesosApp en
+  los sitios permitidos de la app Browser Print, tal como lo escribe el
+  mensaje.
+- «bloqueado por Chrome antes de salir»: en producción esto lo causaba la
+  CSP de la app (`connect-src`); `BROWSER_PRINT_ORIGENES` en `app.py` ya
+  permite los puertos locales. Si vuelve a pasar, revisar que esa lista
+  siga en la CSP y, en Chrome, el permiso de acceso a la red local del
+  sitio.
+- «Browser Print no responde»: la app no está abierta o no tiene la
+  impresora. Abrir `http://localhost:9100/available` en Chrome del mismo
+  Android: debe mostrar un JSON con la impresora. La versión Android de
+  Browser Print solo escucha en el puerto 9100 (el 9101 seguro da error de
+  conexión, es normal).
+
+«Etiqueta enviada (sin confirmación de la app)» es el funcionamiento normal
+con la versión Android: la respuesta del envío no trae los encabezados que
+Chrome exige para leerla, así que la página la manda en modo no-cors y no
+puede confirmar. La etiqueta sale igual.
 
 Browser Print no existe para iPhone. En iPhone la etiqueta sigue saliendo
 por «Imprimir etiqueta» y la app de Zebra, o se pesa con el Android.
