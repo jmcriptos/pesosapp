@@ -54,6 +54,27 @@
           {% include 'maquila/_asignar_cajas.html' %}
         {% endif %}
 
+        {# Impresora Zebra por Bluetooth (Chrome en Android). pesar.js la
+           muestra solo cuando el navegador tiene Web Bluetooth; en iPhone
+           queda oculta y la etiqueta sigue saliendo por el botón de PDF. #}
+        <div class="pesar-printer" id="pesar-printer" hidden>
+          <div class="pesar-printer-status">
+            <i class="fas fa-print"></i>
+            <span id="pesar-printer-name">Impresora no conectada</span>
+          </div>
+          <div class="pesar-printer-actions">
+            <button type="button" class="pesar-printer-btn" id="pesar-printer-connect">Conectar</button>
+            <button type="button" class="pesar-printer-btn is-ghost" id="pesar-printer-all" title="Mostrar todos los dispositivos Bluetooth">Buscar todos</button>
+            <label class="pesar-printer-auto" id="pesar-printer-auto-wrap" hidden>
+              <input type="checkbox" id="pesar-printer-auto" checked>
+              Imprimir al pesar
+            </label>
+            <button type="button" class="pesar-printer-btn is-ghost" id="pesar-printer-test" hidden>Prueba</button>
+            <button type="button" class="pesar-printer-btn is-ghost" id="pesar-printer-disconnect" hidden>Desconectar</button>
+          </div>
+          <div class="pesar-printer-msg" id="pesar-printer-msg" aria-live="polite"></div>
+        </div>
+
         <div class="pesar-lote-card">
           <div class="pesar-lote-head">
             <span>Lote activo</span>
@@ -159,5 +180,10 @@
 
 {% block scripts %}
   <script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.10/dist/htmx.min.js"></script>
+  {# iOS (incluida la PWA instalada) no abre PDFs en pestaña nueva: la
+     etiqueta de cada caja sale por la hoja de compartir nativa, igual que
+     las etiquetas del pedido completo en detalles_pedido.html. #}
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/zebra_ble.js') }}"></script>
   <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/pesar.js') }}"></script>
 {% endblock %}

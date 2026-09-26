@@ -423,6 +423,122 @@
       flashProduct();
     });
 
+    // «Imprimir etiqueta» de una caja. En Android/escritorio el enlace abre
+    // el PDF en pestaña nueva y el navegador lo descarga o lo muestra. En iOS
+    // (sobre todo la PWA instalada, sin pestañas) va por la hoja de compartir
+    // nativa, que trae «Imprimir» y AirPrint: mismo camino que las etiquetas
+    // del pedido completo.
+    // ---- Impresora Zebra por Bluetooth (Chrome en Android) ----
+    const printer = {
+      root: document.getElementById('pesar-printer'),
+      name: document.getElementById('pesar-printer-name'),
+      msg: document.getElementById('pesar-printer-msg'),
+      connect: document.getElementById('pesar-printer-connect'),
+      all: document.getElementById('pesar-printer-all'),
+      autoWrap: document.getElementById('pesar-printer-auto-wrap'),
+      auto: document.getElementById('pesar-printer-auto'),
+      test: document.getElementById('pesar-printer-test'),
+      disconnect: document.getElementById('pesar-printer-disconnect'),
+      ultimaImpresa: null,
+    };
+    const AUTO_KEY = 'pesar.imprimirAlPesar';
+
+    function printerReady() {
+      return !!(window.ZebraBLE && window.ZebraBLE.conectada());
+    }
+
+    function printerMsg(text, isError) {
+      if (!printer.msg) return;
+      printer.msg.textContent = text || '';
+      printer.msg.classList.toggle('is-error', !!isError);
+    }
+
+    function printerRender() {
+      if (!printer.root) return;
+      const on = printerReady();
+      printer.name.textContent = on
+        ? `Impresora: ${window.ZebraBLE.nombre()}`
+        : 'Impresora no conectada';
+      printer.root.classList.toggle('is-on', on);
+      printer.connect.hidden = on;
+      printer.all.hidden = on;
+      printer.autoWrap.hidden = !on;
+      printer.test.hidden = !on;
+      printer.disconnect.hidden = !on;
+    }
+
+    async function printerConnect(mostrarTodos) {
+      printerMsg('Buscando impresora…');
+      try {
+        await window.ZebraBLE.conectar(mostrarTodos);
+        printerMsg('Conectada. La etiqueta sale al registrar cada caja.');
+      } catch (err) {
+        // Cancelar el selector de Chrome no es un error que haya que gritar.
+        const cancelado = err && (err.name === 'NotFoundError' || err.name === 'AbortError');
+        printerMsg(cancelado ? 'No se eligió ninguna impresora.' : `No se pudo conectar: ${err.message || err}`, !cancelado);
+      }
+      printerRender();
+    }
+
+    async function printerPrintCaja(cajaId, etiqueta) {
+      if (!printerReady()) return false;
+      printerMsg(`Imprimiendo ${etiqueta || 'etiqueta'}…`);
+      try {
+        const datos = await window.ZebraBLE.imprimirCaja(cajaId);
+        printerMsg(`Etiqueta impresa: caja #${String(datos.numero).padStart(2, '0')} · ${datos.producto}`);
+        return true;
+      } catch (err) {
+        printerMsg(`No se imprimió: ${err.message || err}`, true);
+        return false;
+      }
+    }
+
+    if (printer.root && window.ZebraBLE && window.ZebraBLE.disponible()) {
+      printer.root.hidden = false;
+      try {
+        printer.auto.checked = localStorage.getItem(AUTO_KEY) !== '0';
+      } catch (err) { /* sin localStorage queda el valor por defecto */ }
+      printer.auto.addEventListener('change', () => {
+        try { localStorage.setItem(AUTO_KEY, printer.auto.checked ? '1' : '0'); } catch (err) { /* idem */ }
+      });
+      printer.connect.addEventListener('click', () => printerConnect(false));
+      printer.all.addEventListener('click', () => printerConnect(true));
+      printer.disconnect.addEventListener('click', () => { window.ZebraBLE.desconectar(); printerRender(); });
+      printer.test.addEventListener('click', async () => {
+        printerMsg('Imprimiendo prueba…');
+        try {
+          await window.ZebraBLE.imprimirPrueba();
+          printerMsg('Prueba enviada.');
+        } catch (err) {
+          printerMsg(`No se imprimió: ${err.message || err}`, true);
+        }
+      });
+      window.ZebraBLE.alCambiar((evento, detalle) => {
+        if (evento === 'desconectada') printerMsg('La impresora se desconectó.', true);
+        if (evento === 'progreso' && detalle) printerMsg(detalle.mensaje);
+        printerRender();
+      });
+      printerRender();
+    }
+
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest('[data-etiqueta-caja]');
+      if (!link) return;
+      // Con la Zebra conectada, el botón imprime por Bluetooth en vez de
+      // abrir el PDF (que exigiría salir a la app del fabricante).
+      if (printerReady() && link.dataset.cajaId) {
+        event.preventDefault();
+        printerPrintCaja(Number.parseInt(link.dataset.cajaId, 10));
+        return;
+      }
+      if (!(window.esDispositivoIOS && window.esDispositivoIOS())) return;
+      if (typeof window.compartirEtiquetaIOS !== 'function') return;
+      event.preventDefault();
+      link.classList.add('is-loading');
+      window.compartirEtiquetaIOS(link.href, null, link.dataset.filename || 'etiqueta.pdf')
+        .finally(() => link.classList.remove('is-loading'));
+    });
+
     screen.addEventListener('click', (event) => {
       const keyButton = event.target.closest('[data-key]');
       if (keyButton) {
@@ -495,6 +611,16 @@
         screen.querySelectorAll('.pesar-chip').forEach((chip) => {
           chip.classList.toggle('is-active', Number.parseInt(chip.dataset.detalleId, 10) === state.activeId);
         });
+
+        // «Imprimir al pesar»: la confirmación verde trae el id de la caja
+        // recién registrada; con la Zebra conectada se imprime sola. Se
+        // recuerda la última para no repetirla en el siguiente settle.
+        const nueva = document.querySelector('#pesar-feedback.is-ok [data-etiqueta-caja][data-caja-id]');
+        if (!nueva || !printerReady() || !printer.auto || !printer.auto.checked) return;
+        const cajaId = Number.parseInt(nueva.dataset.cajaId, 10);
+        if (!cajaId || cajaId === printer.ultimaImpresa) return;
+        printer.ultimaImpresa = cajaId;
+        printerPrintCaja(cajaId);
       });
 
       document.body.addEventListener('htmx:responseError', (event) => {
