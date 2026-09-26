@@ -428,7 +428,7 @@
     // (sobre todo la PWA instalada, sin pestañas) va por la hoja de compartir
     // nativa, que trae «Imprimir» y AirPrint: mismo camino que las etiquetas
     // del pedido completo.
-    // ---- Impresora Zebra por Bluetooth (Chrome en Android) ----
+    // ---- Impresora Zebra (Browser Print o Bluetooth de baja energía) ----
     const printer = {
       root: document.getElementById('pesar-printer'),
       name: document.getElementById('pesar-printer-name'),
@@ -443,8 +443,18 @@
     };
     const AUTO_KEY = 'pesar.imprimirAlPesar';
 
+    // Dos formas de llegar a la Zebra, en este orden:
+    //  1. Zebra Browser Print: app de Zebra en el mismo Android (o PC),
+    //     emparejada con la impresora por Bluetooth clásico. Es lo que Zebra
+    //     soporta oficialmente y lo único que sirve con la ZQ520, cuya radio
+    //     no expone baja energía.
+    //  2. Web Bluetooth directo (baja energía), para impresoras que sí lo
+    //     tengan, o para Bluefy en iPhone.
+    const transportes = [window.ZebraBrowserPrint, window.ZebraBLE].filter(Boolean);
+    let transporte = null;
+
     function printerReady() {
-      return !!(window.ZebraBLE && window.ZebraBLE.conectada());
+      return !!(transporte && transporte.conectada());
     }
 
     function printerMsg(text, isError) {
@@ -457,11 +467,12 @@
       if (!printer.root) return;
       const on = printerReady();
       printer.name.textContent = on
-        ? `Impresora: ${window.ZebraBLE.nombre()}`
+        ? `Impresora: ${transporte.nombre()}`
         : 'Impresora no conectada';
       printer.root.classList.toggle('is-on', on);
       printer.connect.hidden = on;
-      printer.all.hidden = on;
+      // «Buscar todos» solo tiene sentido para el selector de Web Bluetooth.
+      printer.all.hidden = on || !(window.ZebraBLE && window.ZebraBLE.disponible());
       printer.autoWrap.hidden = !on;
       printer.test.hidden = !on;
       printer.disconnect.hidden = !on;
@@ -469,13 +480,34 @@
 
     async function printerConnect(mostrarTodos) {
       printerMsg('Buscando impresora…');
-      try {
-        await window.ZebraBLE.conectar(mostrarTodos);
+      const errores = [];
+      transporte = null;
+      // Browser Print primero: si la app está abierta con la Zebra
+      // emparejada, no hace falta ningún selector.
+      if (!mostrarTodos && window.ZebraBrowserPrint && window.ZebraBrowserPrint.disponible()) {
+        try {
+          await window.ZebraBrowserPrint.conectar();
+          transporte = window.ZebraBrowserPrint;
+        } catch (err) {
+          errores.push(err && err.message ? err.message : String(err));
+        }
+      }
+      if (!transporte && window.ZebraBLE && window.ZebraBLE.disponible()) {
+        try {
+          await window.ZebraBLE.conectar(mostrarTodos);
+          transporte = window.ZebraBLE;
+        } catch (err) {
+          // Cancelar el selector de Chrome no es un error que haya que gritar.
+          const cancelado = err && (err.name === 'NotFoundError' || err.name === 'AbortError');
+          errores.push(cancelado ? 'No se eligió ninguna impresora.' : (err && err.message ? err.message : String(err)));
+        }
+      }
+      if (transporte) {
         printerMsg('Conectada. La etiqueta sale al registrar cada caja.');
-      } catch (err) {
-        // Cancelar el selector de Chrome no es un error que haya que gritar.
-        const cancelado = err && (err.name === 'NotFoundError' || err.name === 'AbortError');
-        printerMsg(cancelado ? 'No se eligió ninguna impresora.' : `No se pudo conectar: ${err.message || err}`, !cancelado);
+      } else if (errores.length) {
+        printerMsg(`No se pudo conectar: ${errores.join(' · ')}`, true);
+      } else {
+        printerMsg('Este navegador no puede llegar a la impresora. En Android, instala Zebra Browser Print y empareja la Zebra.', true);
       }
       printerRender();
     }
@@ -484,7 +516,7 @@
       if (!printerReady()) return false;
       printerMsg(`Imprimiendo ${etiqueta || 'etiqueta'}…`);
       try {
-        const datos = await window.ZebraBLE.imprimirCaja(cajaId);
+        const datos = await transporte.imprimirCaja(cajaId);
         printerMsg(`Etiqueta impresa: caja #${String(datos.numero).padStart(2, '0')} · ${datos.producto}`);
         return true;
       } catch (err) {
@@ -493,7 +525,7 @@
       }
     }
 
-    if (printer.root && window.ZebraBLE && window.ZebraBLE.disponible()) {
+    if (printer.root && transportes.some((t) => t.disponible())) {
       printer.root.hidden = false;
       try {
         printer.auto.checked = localStorage.getItem(AUTO_KEY) !== '0';
@@ -503,21 +535,30 @@
       });
       printer.connect.addEventListener('click', () => printerConnect(false));
       printer.all.addEventListener('click', () => printerConnect(true));
-      printer.disconnect.addEventListener('click', () => { window.ZebraBLE.desconectar(); printerRender(); });
+      printer.disconnect.addEventListener('click', () => {
+        if (transporte) transporte.desconectar();
+        transporte = null;
+        printerRender();
+      });
       printer.test.addEventListener('click', async () => {
+        if (!printerReady()) return;
         printerMsg('Imprimiendo prueba…');
         try {
-          await window.ZebraBLE.imprimirPrueba();
+          await transporte.imprimirPrueba();
           printerMsg('Prueba enviada.');
         } catch (err) {
           printerMsg(`No se imprimió: ${err.message || err}`, true);
         }
       });
-      window.ZebraBLE.alCambiar((evento, detalle) => {
-        if (evento === 'desconectada') printerMsg('La impresora se desconectó.', true);
+      transportes.forEach((t) => t.alCambiar((evento, detalle) => {
+        if (t !== transporte) return;
+        if (evento === 'desconectada') {
+          printerMsg('La impresora se desconectó.', true);
+          transporte = null;
+        }
         if (evento === 'progreso' && detalle) printerMsg(detalle.mensaje);
         printerRender();
-      });
+      }));
       printerRender();
     }
 

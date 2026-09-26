@@ -25,7 +25,50 @@ báscula, caja por caja, sin salir de la pantalla de pesar y sin la app de Zebra
   solo lo invocan por nombre. Si el logo del cliente cambia, cambia el nombre
   y se vuelve a cargar solo.
 
-## Puesta en marcha en el almacén
+## Camino recomendado: Zebra Browser Print en el Android (Bluetooth clásico)
+
+Zebra documenta (artículo 000015127) que el Bluetooth de baja energía de sus
+impresoras es para configurarlas, no para imprimir, y en la ZQ520 del
+almacén (radio 6.0.1, firmware V76.20.22Z, el más reciente) el modo de baja
+energía ni siquiera se puede activar: `bluetooth.le.controller_mode` queda
+en `classic` haga lo que se haga. Lo que Zebra sí soporta oficialmente para
+imprimir desde una página web es **Zebra Browser Print**, una app que corre
+en el mismo Android, se empareja con la impresora por Bluetooth clásico y
+expone un servicio local (`http://localhost:9100`, `https://localhost:9101`)
+al que la página le manda el ZPL. La lista oficial de impresoras soportadas
+incluye la ZQ520. `static/js/zebra_browser_print.js` habla con ese servicio;
+la pantalla de pesar lo intenta primero y solo si no responde pasa a Web
+Bluetooth.
+
+1. En el Android, emparejar la ZQ520 en Ajustes > Bluetooth (Bluetooth
+   clásico, como con cualquier auricular).
+2. Instalar **Zebra Browser Print** para Android (Google Play, gratis).
+   Abrirla, dar los permisos de Bluetooth y ubicación, y comprobar que lista
+   la ZQ520 como impresora. Marcarla como predeterminada si lo ofrece.
+3. Dejar la app abierta o en segundo plano. Abrir PesosApp en Chrome y entrar
+   a la pantalla de pesar. La primera vez que la página habla con Browser
+   Print, la app pregunta si se acepta ese sitio: aceptar.
+4. Tocar «Conectar». Debe aparecer «Impresora: <nombre de la ZQ520>». Tocar
+   «Prueba».
+5. Con «Imprimir al pesar» activo, registrar la caja: la etiqueta sale sola.
+
+Si «Conectar» dice que Browser Print no responde: la app no está abierta,
+no tiene la impresora emparejada, o Chrome no pudo llegar a
+`localhost:9100`. Abrir `http://localhost:9100/available` en Chrome del
+mismo Android: debe mostrar un JSON con la impresora. Si la página está
+en HTTPS y Chrome bloquea el puerto 9100, abrir una vez
+`https://localhost:9101/` y aceptar el certificado de Browser Print.
+
+Browser Print no existe para iPhone. En iPhone la etiqueta sigue saliendo
+por «Imprimir etiqueta» y la app de Zebra, o se pesa con el Android.
+
+## Camino alternativo: Web Bluetooth (baja energía)
+
+Solo para impresoras cuyo modo de baja energía sí esté disponible (Zebra lo
+expone en modelos de escritorio e industriales ZD/ZT recientes) y con la
+salvedad de que Zebra no lo considera un canal de impresión soportado.
+
+## Puesta en marcha en el almacén (Web Bluetooth)
 
 1. **Impresora.** ZQ520 encendida, con rollo de etiquetas 4x2 troqueladas. En
    Zebra Setup Utilities (o Printer Setup Utility en el teléfono) confirmar

@@ -54,9 +54,10 @@
           {% include 'maquila/_asignar_cajas.html' %}
         {% endif %}
 
-        {# Impresora Zebra por Bluetooth (Chrome en Android). pesar.js la
-           muestra solo cuando el navegador tiene Web Bluetooth; en iPhone
-           queda oculta y la etiqueta sigue saliendo por el botón de PDF. #}
+        {# Impresora Zebra: por Zebra Browser Print (app de Zebra en el
+           Android, Bluetooth clásico) o por Web Bluetooth. pesar.js muestra
+           la barra solo donde alguno de los dos puede funcionar; en iPhone
+           con Safari queda oculta y la etiqueta sale por el botón de PDF. #}
         <div class="pesar-printer" id="pesar-printer" hidden>
           <div class="pesar-printer-status">
             <i class="fas fa-print"></i>
@@ -184,6 +185,7 @@
      etiqueta de cada caja sale por la hoja de compartir nativa, igual que
      las etiquetas del pedido completo en detalles_pedido.html. #}
   <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/etiquetas_ios_share.js') }}"></script>
+  <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/zebra_browser_print.js') }}"></script>
   <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/zebra_ble.js') }}"></script>
   <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/pesar.js') }}"></script>
 {% endblock %}

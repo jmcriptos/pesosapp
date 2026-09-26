@@ -366,3 +366,16 @@ def test_confirmacion_y_modal_llevan_el_id_de_la_caja(logged_client, app):
         assert f'data-caja-id="{caja.id}"' in html
         modal = logged_client.get(f'/cajas/{caja.id}/edit').data.decode('utf-8')
         assert f'data-caja-id="{caja.id}"' in modal
+
+
+def test_pesar_incluye_zebra_browser_print(logged_client, app):
+    """La ZQ520 del almacén no expone Bluetooth de baja energía: el camino
+    soportado por Zebra es Browser Print, y la pantalla lo intenta primero."""
+    with app.app_context():
+        from app import Pedido
+
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+        assert 'zebra_browser_print.js' in html
+        # Orden de carga: Browser Print antes que pesar.js, que los consume.
+        assert html.index('zebra_browser_print.js') < html.index('js/pesar.js')
