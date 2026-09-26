@@ -14,7 +14,8 @@
 
    En iPhone no existe Browser Print: `disponible()` es false y no se intenta. */
 (function () {
-  const BASES = ['http://localhost:9100/', 'https://localhost:9101/'];
+  // Mismas direcciones que BROWSER_PRINT_ORIGENES en app.py (connect-src).
+  const BASES = ['http://localhost:9100/', 'http://127.0.0.1:9100/', 'https://localhost:9101/'];
   // La primera vez que un sitio le habla, Browser Print pide autorizarlo
   // DENTRO de su app y retiene la respuesta hasta que el operario acepta.
   // La espera tiene que dar tiempo a ir a la app y volver. Un puerto donde

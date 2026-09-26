@@ -379,3 +379,21 @@ def test_pesar_incluye_zebra_browser_print(logged_client, app):
         assert 'zebra_browser_print.js' in html
         # Orden de carga: Browser Print antes que pesar.js, que los consume.
         assert html.index('zebra_browser_print.js') < html.index('js/pesar.js')
+
+
+def test_csp_permite_los_puertos_locales_de_browser_print():
+    """En producción la CSP (connect-src) bloqueaba la petición de la página a
+    Zebra Browser Print en localhost:9100 antes de que saliera del navegador."""
+    import re
+    from app import BROWSER_PRINT_ORIGENES
+
+    assert 'http://localhost:9100' in BROWSER_PRINT_ORIGENES
+    assert 'https://localhost:9101' in BROWSER_PRINT_ORIGENES
+    assert 'http://127.0.0.1:9100' in BROWSER_PRINT_ORIGENES
+
+    # El JS prueba las mismas direcciones que la CSP permite.
+    with open(os.path.join(os.path.dirname(__file__), '..', 'static', 'js', 'zebra_browser_print.js'), encoding='utf-8') as fh:
+        js = fh.read()
+    bases = re.search(r"const BASES = \[(.*?)\];", js).group(1)
+    for base in re.findall(r"'([^']+)'", bases):
+        assert base.rstrip('/') in BROWSER_PRINT_ORIGENES, base

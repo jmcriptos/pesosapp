@@ -409,6 +409,20 @@ def _csrf_error_handler(e):
     # frente a una auditoría — acá no se puede distinguir uno del otro.
     return e.get_response()
 
+# Zebra Browser Print: la app de Zebra corre en el mismo Android que pesa y
+# expone un servicio local al que la pantalla de pesar le manda las
+# etiquetas (static/js/zebra_browser_print.js). Sin estas entradas en
+# connect-src, Chrome bloquea la petición antes de que salga: en el almacén
+# (2026-09-26) localhost:9100/available respondía abierto a mano y la página
+# fallaba con «Failed to fetch». Son direcciones del propio dispositivo,
+# nunca de internet: no abren la página a ningún tercero.
+BROWSER_PRINT_ORIGENES = [
+    'http://localhost:9100',
+    'https://localhost:9101',
+    'http://127.0.0.1:9100',
+    'https://127.0.0.1:9101',
+]
+
 # Configuración de seguridad con Talisman (HSTS, CSP, etc.)
 # Solo activa Talisman en producción (cuando uses HTTPS real)
 if Talisman and os.environ.get("FLASK_ENV") == "production":
@@ -437,7 +451,8 @@ if Talisman and os.environ.get("FLASK_ENV") == "production":
             "'self'",
             'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com',
-            'https://code.jquery.com'
+            'https://code.jquery.com',
+            *BROWSER_PRINT_ORIGENES,
         ],
         'style-src-attr': ["'unsafe-inline'"],  # Necesario para estilos inline en atributos
         'frame-ancestors': ["'none'"],  # Prevenir clickjacking
