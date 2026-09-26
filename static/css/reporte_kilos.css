@@ -1,0 +1,100 @@
+/* Consulta «Kilos por lote»: totales por producto y lote sobre el shell claro
+   de operaciones (operaciones.css). dark-theme.css pisa `table`, `th`, `td`,
+   `input` y `select` sin scope y con !important, así que acá va el mismo
+   contra-blindaje que usa maquila.css. */
+
+.kilos-wrap { grid-template-columns: 1fr; }
+
+.kilos-filtros { align-items: stretch; }
+.kilos-pill-lote input[type="search"] {
+  border: none !important; background: transparent !important; outline: none;
+  font-family: inherit; font-size: 14px; font-weight: 700; color: var(--color-text) !important;
+  min-height: 0 !important; margin: 0 !important; padding: 0 !important; width: 130px;
+  box-shadow: none !important;
+}
+.kilos-filtros .hist-pill { min-height: 44px; height: auto; }
+.kilos-filtros .ops-btn { height: 44px; }
+
+.kilos-rangos { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -6px 0 16px; }
+.kilos-rangos-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-subtle); }
+.kilos-rangos .ops-chip {
+  display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 99px;
+  font-size: 12.5px; font-weight: 700; text-decoration: none;
+  color: var(--color-text-muted); background: var(--color-surface-muted); border: 1px solid transparent;
+}
+.kilos-rangos .ops-chip.is-active { color: var(--color-text); background: var(--color-bg-elevated); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
+
+.kilos-stats { grid-template-columns: repeat(4, 1fr); }
+.kilos-nota { font-size: 12.5px; color: var(--color-text-muted); margin: 0 0 14px; }
+
+.kilos-producto {
+  background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 16px;
+  overflow: hidden; margin-bottom: 14px; box-shadow: var(--shadow-sm);
+}
+.kilos-producto-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid var(--color-border-subtle);
+}
+.kilos-producto-head h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-text); }
+.kilos-producto-tot { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.kilos-kg { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kilos-meta { font-size: 12px; color: var(--color-text-subtle); }
+
+.kilos-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; background: transparent !important; color: var(--color-text) !important; box-shadow: none !important; }
+.kilos-wrap th, .kilos-wrap td { text-align: left; padding: 9px 12px; border: 0 !important; border-bottom: 1px solid var(--color-border-subtle) !important; color: var(--color-text) !important; }
+.kilos-wrap th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; background: var(--color-surface-muted) !important; color: var(--color-text-muted) !important; }
+.kilos-wrap tr:nth-child(even) td, .kilos-wrap tr:hover td { background: transparent !important; }
+.kilos-wrap tr.kilos-lote:hover td { background: var(--color-surface-muted) !important; }
+.kilos-num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kilos-kg-celda { font-weight: 800; }
+.kilos-clientes { color: var(--color-text-muted) !important; font-size: 12.5px; }
+.kilos-lote.is-sin-lote .kilos-toggle { color: var(--color-text-subtle); font-style: italic; }
+
+.kilos-wrap .kilos-toggle {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px; margin: 0;
+  border: 0 !important; background: transparent !important; box-shadow: none !important; cursor: pointer;
+  font: inherit; font-weight: 700; color: var(--color-text) !important; border-radius: 8px;
+}
+.kilos-wrap .kilos-toggle i { font-size: 11px; color: var(--color-text-subtle); transition: transform .15s; }
+.kilos-lote.is-open .kilos-toggle i { transform: rotate(90deg); }
+
+.kilos-detalle[hidden] { display: none !important; }
+.kilos-detalle > td { padding: 0 12px 12px !important; background: var(--color-surface-muted) !important; }
+.kilos-tabla-mini { font-size: 12.5px; }
+.kilos-wrap .kilos-tabla-mini th { background: transparent !important; }
+.kilos-wrap .kilos-tabla-mini td { background: transparent !important; }
+.kilos-tabla-mini a { color: var(--color-primary, #4f46e5); font-weight: 700; text-decoration: none; }
+.kilos-tabla-mini a:hover { text-decoration: underline; }
+
+.kilos-subtotal td { font-weight: 800; background: var(--color-surface-muted) !important; border-bottom: 0 !important; }
+
+.kilos-total-general {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 16px 18px; border-radius: 16px; background: var(--color-bg-elevated); border: 1px solid var(--color-border);
+  font-weight: 800; color: var(--color-text); box-shadow: var(--shadow-sm);
+}
+.kilos-total-general .kilos-kg { font-size: 24px; }
+
+@media (max-width: 900px) {
+  .kilos-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Teléfono: cada lote es una tarjeta; el detalle expandido sigue siendo tabla,
+   porque seis columnas cortas caben en 360px con scroll horizontal. */
+@media (max-width: 720px) {
+  .kilos-pill-lote input[type="search"] { width: 100%; font-size: 16px; }
+  .kilos-filtros .hist-pill, .kilos-filtros .ops-btn { width: 100%; }
+  .kilos-tabla thead { display: none; }
+  .kilos-tabla, .kilos-tabla tbody, .kilos-tabla tfoot, .kilos-tabla tr.kilos-lote, .kilos-tabla tr.kilos-subtotal { display: block; }
+  .kilos-tabla tr.kilos-lote { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; padding: 10px 14px; border-bottom: 1px solid var(--color-border-subtle); }
+  .kilos-tabla tr.kilos-lote td { display: block; padding: 2px 0; border: 0 !important; }
+  .kilos-tabla tr.kilos-lote td::before { content: attr(data-label); display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-subtle); }
+  .kilos-tabla tr.kilos-lote td.kilos-lote-nombre, .kilos-tabla tr.kilos-lote td.kilos-clientes { grid-column: 1 / -1; }
+  .kilos-tabla tr.kilos-lote td.kilos-lote-nombre::before { display: none; }
+  .kilos-tabla tr.kilos-lote td.kilos-num { text-align: left !important; }
+  .kilos-tabla tr.kilos-subtotal { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; }
+  .kilos-tabla tr.kilos-subtotal td { border: 0 !important; padding: 0; background: transparent !important; }
+  .kilos-tabla tr.kilos-subtotal td:empty { display: none; }
+  .kilos-detalle { display: block; }
+  .kilos-detalle > td { display: block; overflow-x: auto; }
+}

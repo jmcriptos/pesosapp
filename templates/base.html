@@ -237,7 +237,8 @@
     {% set is_recepciones = current_path.startswith('/recepciones') %}
     {% set is_importacion = current_path.startswith('/formulario_importacion') or current_path.startswith('/registrar_importacion') %}
     {% set is_maquila = current_path.startswith('/maquila') %}
-    {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion or is_maquila %}
+    {% set is_kilos = current_path.startswith('/reportes/kilos') %}
+    {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion or is_maquila or is_kilos %}
     {% set user_name = current_user.username if current_user and current_user.is_authenticated and current_user.username else 'Usuario' %}
     {% set user_initials = user_name[:2].upper() %}
     {% set is_super_admin = current_user and current_user.is_authenticated and current_user.__class__.__name__ == 'Vendedor' and current_user.rol and current_user.rol.nombre == 'super_admin' %}
@@ -281,6 +282,9 @@
                 </a>
                 <a href="/facturacion" class="drawer-item {{ 'active' if is_facturacion }}">
                     <i class="fas fa-file-invoice-dollar"></i><span>Facturación</span>
+                </a>
+                <a href="{{ url_for('reporte_kilos') }}" class="drawer-item {{ 'active' if is_kilos }}">
+                    <i class="fas fa-weight-scale"></i><span>Kilos por lote</span>
                 </a>
                 <a href="/recepciones" class="drawer-item {{ 'active' if is_recepciones }}">
                     <i class="fas fa-truck"></i><span>Recepciones</span>
@@ -413,6 +417,13 @@
                                 <span class="desktop-ops-item-copy">
                                     <span class="desktop-ops-item-title">Facturación</span>
                                     <span class="desktop-ops-item-meta">Registro y seguimiento</span>
+                                </span>
+                            </a>
+                            <a href="{{ url_for('reporte_kilos') }}" class="desktop-ops-item {{ 'active' if is_kilos }}">
+                                <i class="fas fa-weight-scale"></i>
+                                <span class="desktop-ops-item-copy">
+                                    <span class="desktop-ops-item-title">Kilos por lote</span>
+                                    <span class="desktop-ops-item-meta">Totales por producto y lote</span>
                                 </span>
                             </a>
                             <a href="/recepciones" class="desktop-ops-item {{ 'active' if is_recepciones }}">
