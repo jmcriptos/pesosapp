@@ -27,7 +27,7 @@ def test_etiqueta_zpl_lleva_todos_los_campos():
     assert '^MNY' in zpl                       # rollo de etiquetas troqueladas
     assert '^XGE:JABC123.GRF,1,1^FS' in zpl    # logo ya cargado en la impresora
     for texto in ('Client:', 'DeliNova', 'Lot:', 'L-2309202601', 'Manufactured:', '2026-09-23',
-                  'Expiration:', '2027-09-23', 'When Kept at:', '-18 °C',
+                  'Expiration:', '2027-09-23', 'When Kept at:', '-18 _C2_B0C',
                   'Net Weight:', '16.90 kg', 'Andouiline Pork Chorizo'):
         assert texto in zpl, texto
     assert '^PQ1' in zpl
@@ -45,11 +45,22 @@ def test_escapar_quita_caracteres_de_control_de_zpl():
     assert escapar(None) == ''
 
 
+def test_escapar_deja_la_etiqueta_en_ascii_puro():
+    """Browser Print (Android) manda el texto byte a byte: con «°» o acentos
+    crudos y ^CI28 salían en blanco. Van como bytes UTF-8 en hexadecimal."""
+    assert escapar('-18 °C') == '-18 _C2_B0C'
+    assert escapar('Jamón') == 'Jam_C3_B3n'
+    assert escapar('L_0001') == 'L_5F0001'
+    zpl = etiqueta_pedido_zpl(dict(ITEM, producto_nombre='Jamón Ahumado'), cliente='Café Ñ')
+    assert zpl.isascii()
+    assert '^FH^FD' in zpl and '^FD' not in zpl.replace('^FH^FD', '')
+
+
 def test_nombre_largo_baja_la_fuente_y_permite_dos_lineas():
     corto = etiqueta_pedido_zpl(dict(ITEM, producto_nombre='Pork Chorizo'), cliente='X')
     largo = etiqueta_pedido_zpl(dict(ITEM, producto_nombre='Chuleta de Cerdo Ahumada Sin Hueso Premium'), cliente='X')
     assert '^A0N,54,54' in corto
-    assert '^A0N,34,34' in largo and ',2,0,C^FD' in largo
+    assert '^A0N,34,34' in largo and ',2,0,C^FH^FD' in largo
 
 
 def _png(ancho, alto, negro=True):
