@@ -137,16 +137,38 @@
     avisar('desconectada');
   }
 
+  // Envía al servicio. Primero como petición normal, que permite leer la
+  // respuesta. Si Chrome la rechaza («Failed to fetch»: en el almacén pasó
+  // con la consulta ya funcionando, señal de que la respuesta del POST
+  // /write viene sin los encabezados CORS que Chrome exige), se reintenta
+  // en modo no-cors: la petición llega igual y Browser Print imprime, solo
+  // que la respuesta queda opaca y no se puede confirmar.
+  let sinConfirmacion = false;
+
   async function escribir(texto) {
     if (!conectada()) throw new Error('La impresora no está conectada.');
-    const resp = await pedir(base + 'write', {
-      method: 'POST',
-      // Texto plano a propósito: con application/json el navegador manda un
-      // OPTIONS previo que el servicio de Zebra no contesta.
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ device: dispositivo, data: texto }),
-    });
-    if (!resp.ok) throw new Error(`Browser Print devolvió ${resp.status}.`);
+    const cuerpo = JSON.stringify({ device: dispositivo, data: texto });
+    // Texto plano a propósito: con application/json el navegador manda un
+    // OPTIONS previo que el servicio de Zebra puede no contestar.
+    const cabeceras = { 'Content-Type': 'text/plain' };
+    try {
+      const resp = await pedir(base + 'write', { method: 'POST', headers: cabeceras, body: cuerpo });
+      if (!resp.ok) throw new Error(`Browser Print devolvió ${resp.status} al escribir.`);
+      sinConfirmacion = false;
+      return;
+    } catch (err) {
+      if (!(err instanceof TypeError)) throw err;
+    }
+    try {
+      await pedir(base + 'write', { method: 'POST', mode: 'no-cors', headers: cabeceras, body: cuerpo });
+      sinConfirmacion = true;
+    } catch (err) {
+      throw new Error(`Browser Print no aceptó el envío a ${base}write (${err && err.message ? err.message : err}).`);
+    }
+  }
+
+  function ultimoEnvioSinConfirmar() {
+    return sinConfirmacion;
   }
 
   function encolar(trabajo) {
@@ -167,11 +189,16 @@
   }
 
   async function imprimirCaja(cajaId) {
-    const resp = await fetch(`/cajas/${cajaId}/etiqueta.zpl`, {
-      credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    });
-    if (!resp.ok) throw new Error('No se pudo generar la etiqueta.');
+    let resp;
+    try {
+      resp = await fetch(`/cajas/${cajaId}/etiqueta.zpl`, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+    } catch (err) {
+      throw new Error(`PesosApp no devolvió la etiqueta (${err && err.message ? err.message : err}).`);
+    }
+    if (!resp.ok) throw new Error(`PesosApp no devolvió la etiqueta (${resp.status}).`);
     const datos = await resp.json();
     await imprimirZpl(datos.zpl, datos.logo);
     return datos;
@@ -186,6 +213,6 @@
 
   window.ZebraBrowserPrint = {
     disponible, conectada, nombre, conectar, desconectar,
-    imprimirZpl, imprimirCaja, imprimirPrueba, alCambiar,
+    imprimirZpl, imprimirCaja, imprimirPrueba, alCambiar, ultimoEnvioSinConfirmar,
   };
 })();

@@ -526,7 +526,8 @@
       printerMsg(`Imprimiendo ${etiqueta || 'etiqueta'}…`);
       try {
         const datos = await transporte.imprimirCaja(cajaId);
-        printerMsg(`Etiqueta impresa: caja #${String(datos.numero).padStart(2, '0')} · ${datos.producto}`);
+        const sinConfirmar = transporte.ultimoEnvioSinConfirmar && transporte.ultimoEnvioSinConfirmar();
+        printerMsg(`${sinConfirmar ? 'Etiqueta enviada (sin confirmación de la app)' : 'Etiqueta impresa'}: caja #${String(datos.numero).padStart(2, '0')} · ${datos.producto}`);
         return true;
       } catch (err) {
         printerMsg(`No se imprimió: ${err.message || err}`, true);
@@ -554,7 +555,8 @@
         printerMsg('Imprimiendo prueba…');
         try {
           await transporte.imprimirPrueba();
-          printerMsg('Prueba enviada.');
+          const sinConfirmar = transporte.ultimoEnvioSinConfirmar && transporte.ultimoEnvioSinConfirmar();
+          printerMsg(sinConfirmar ? 'Prueba enviada (sin confirmación de la app): mira si salió la etiqueta.' : 'Prueba enviada.');
         } catch (err) {
           printerMsg(`No se imprimió: ${err.message || err}`, true);
         }
