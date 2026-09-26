@@ -227,9 +227,22 @@
       }
     }
 
+    // La última caja registrada del producto activo: la de número más alto.
+    // Antes se buscaba con un selector «último de su tipo» que, con dos o
+    // más lotes, devolvía la última caja del PRIMER grupo de lote, y
+    // «Deshacer» borraba una caja equivocada (visto al investigar el 1357).
+    function ultimaCajaChip() {
+      const chips = Array.from(activePanel()?.querySelectorAll('.pesar-box-chip') || []);
+      if (!chips.length) return null;
+      return chips.reduce((mejor, chip) => {
+        const numero = Number.parseInt(chip.dataset.numero || '0', 10);
+        const mejorNumero = Number.parseInt(mejor.dataset.numero || '0', 10);
+        return numero > mejorNumero ? chip : mejor;
+      });
+    }
+
     function updateUndoButton() {
-      const lastChip = activePanel()?.querySelector('.pesar-box-chip:last-of-type');
-      undoButton.disabled = !lastChip;
+      undoButton.disabled = !ultimaCajaChip();
     }
 
     // Pedido 1357 (2026-09): pesos de Pork Chorizo y Andouille Pork Chorizo
@@ -613,7 +626,7 @@
     loteInput?.addEventListener('input', renderWeight);
 
     undoButton?.addEventListener('click', () => {
-      const lastChip = activePanel()?.querySelector('.pesar-box-chip:last-of-type');
+      const lastChip = ultimaCajaChip();
       const deleteUrl = lastChip?.dataset.deleteUrl;
       if (!deleteUrl || !window.htmx) return;
       window.htmx.ajax('DELETE', deleteUrl, {

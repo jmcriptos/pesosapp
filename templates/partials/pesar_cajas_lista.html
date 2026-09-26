@@ -41,6 +41,7 @@
             <button
               type="button"
               class="pesar-box-chip"
+              data-numero="{{ caja.numero }}"
               hx-get="{{ url_for('editar_caja_pesada_modal', caja_id=caja.id) }}"
               hx-target="#modal-root"
               hx-swap="innerHTML"
