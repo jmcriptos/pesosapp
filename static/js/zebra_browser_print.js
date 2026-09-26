@@ -15,7 +15,11 @@
    En iPhone no existe Browser Print: `disponible()` es false y no se intenta. */
 (function () {
   const BASES = ['http://localhost:9100/', 'https://localhost:9101/'];
-  const ESPERA_MS = 2500;
+  // La primera vez que un sitio le habla, Browser Print pide autorizarlo
+  // DENTRO de su app y retiene la respuesta hasta que el operario acepta.
+  // La espera tiene que dar tiempo a ir a la app y volver. Un puerto donde
+  // nadie escucha falla al instante, así que sin la app no se espera nada.
+  const ESPERA_MS = 20000;
 
   let base = null;
   let dispositivo = null;
@@ -61,23 +65,29 @@
   }
 
   // Busca el servicio local en los dos puertos y devuelve las impresoras.
+  // El error nombra qué contestó cada puerto: es lo único que permite saber
+  // desde el almacén si la app no corre, si falta aceptar el sitio o si el
+  // navegador bloqueó la petición.
   async function buscar() {
-    let ultimoError = null;
+    const fallos = [];
     for (const candidata of BASES) {
       try {
         const resp = await pedir(candidata + 'available');
-        if (!resp.ok) continue;
+        if (!resp.ok) {
+          fallos.push(`${candidata} respondió ${resp.status}`);
+          continue;
+        }
         const datos = await resp.json();
         const impresoras = (datos && datos.printer) || [];
         base = candidata;
         return impresoras;
       } catch (err) {
-        ultimoError = err;
+        const motivo = err && err.name === 'AbortError' ? 'sin respuesta en 20 s' : (err && err.message ? err.message : String(err));
+        fallos.push(`${candidata} ${motivo}`);
       }
     }
     base = null;
-    throw new Error('Zebra Browser Print no responde en este dispositivo.'
-      + (ultimoError ? '' : ''));
+    throw new Error(`Zebra Browser Print no responde (${fallos.join('; ')}). ¿La app está abierta y la Zebra emparejada?`);
   }
 
   function elegir(impresoras) {

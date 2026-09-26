@@ -47,7 +47,10 @@ Bluetooth.
    la ZQ520 como impresora. Marcarla como predeterminada si lo ofrece.
 3. Dejar la app abierta o en segundo plano. Abrir PesosApp en Chrome y entrar
    a la pantalla de pesar. La primera vez que la página habla con Browser
-   Print, la app pregunta si se acepta ese sitio: aceptar.
+   Print, la app pregunta si se acepta ese sitio. Ese aviso sale DENTRO de la
+   app de Browser Print (o como notificación), no en Chrome: al tocar
+   «Conectar», cambiar a la app, aceptar el sitio y volver a Chrome. La
+   página espera hasta 20 segundos por esa autorización.
 4. Tocar «Conectar». Debe aparecer «Impresora: <nombre de la ZQ520>». Tocar
    «Prueba».
 5. Con «Imprimir al pesar» activo, registrar la caja: la etiqueta sale sola.
