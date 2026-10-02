@@ -475,7 +475,9 @@ def test_render_alinea_totales_detalles_y_amount_a_la_derecha():
 #
 # Mirando SOLO la factura, un token suelto en DETAILS es ambiguo: '18.85'
 # puede ser una caja de 18,85 kg o 18,85 cajas. Se resuelve con el conjunto
-# de qbo_id que se pesan, que sale del pedido.
+# de qbo_id que se pesan, que sale del catálogo; y si el ítem no está ahí, con
+# que las cajas se venden en cuartos: un Qty que no es múltiplo de 0,25 son
+# kilos.
 # ---------------------------------------------------------------------------
 
 def _texto_extraido(pdf):
@@ -543,6 +545,56 @@ def test_total_de_cajas_conserva_la_fraccion():
         pesables=set())
 
     assert datos['total_cajas'] == 3.75
+
+
+def test_factura_5905_pechuga_fuera_de_pesables_cuenta_una_caja():
+    """Factura 5905 (Carrefour Market, 2026-10-01): un lomo en dos cajas
+    (17,35 + 15,40) y una pechuga de 11,10 kg. El ítem de la pechuga no
+    estaba en `pesables`, así que sus kilos se contaron como cajas y salió
+    «TOTAL CAJAS: 13.1». Son 3 bultos: 11,10 no es múltiplo de 0,25, no
+    puede ser cajas."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1351', 32.75, '17.35\t15.40'), ('1377', 11.10, '11.10')),
+        pesables={'1351'})
+
+    assert [l['cajas'] for l in datos['lineas']] == [2, 1]
+    assert datos['total_cajas'] == 3
+
+
+def test_un_peso_suelto_fuera_de_pesables_cuenta_una_caja_si_no_es_cuarto():
+    """Sin estar en `pesables`, 18.85 no puede ser 18,85 cajas: se venden en
+    cuartos. Es UNA caja de 18,85 kg."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1366', 18.85, '18.85')), pesables=set())
+
+    assert datos['lineas'][0]['cajas'] == 1
+
+
+def test_cuartos_y_medias_fuera_de_pesables_siguen_siendo_cajas():
+    """La regla de los cuartos no toca lo que sí puede ser cajas: 2,25 y 1,5
+    cajas de un importado se siguen contando como cantidad."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1289', 2.25, '2.25'), ('1290', 1.5, '1.50'), ('1291', 10, '10.00')),
+        pesables=set())
+
+    assert [l['cajas'] for l in datos['lineas']] == [2.25, 1.5, 10]
+
+
+def test_sin_pesos_en_details_la_regla_de_cuartos_no_aplica():
+    """Un Qty con decimales raros pero sin pesos en DETAILS (descripción
+    borrada a mano) sigue contando la cantidad: no hay pesos que contar."""
+    from utils.factura_pdf import extraer_datos_factura
+
+    datos = extraer_datos_factura(
+        _invoice_lineas(('1375', 11.10, 'Smoked Chicken Breast')), pesables=set())
+
+    assert datos['lineas'][0]['cajas'] == 11.1
 
 
 def test_render_muestra_el_total_de_cajas():
