@@ -63,22 +63,37 @@ def _entero_si_cabe(n):
     return int(n) if float(n).is_integer() else round(float(n), 2)
 
 
+def _es_cantidad_de_cajas(qty):
+    """Las cajas se venden enteras, en medias y en cuartos: un Qty que no
+    sea múltiplo de 0,25 no puede ser cajas. Son kilos."""
+    cuartos = float(qty) * 4
+    return abs(cuartos - round(cuartos)) < 1e-6
+
+
 def _cajas_de_linea(item_qbo_id, pesos, qty, pesables):
     """Cuántas cajas físicas salieron en esta línea.
 
-    Mirando SOLO la factura no se puede saber: un DETAILS de un token
-    suelto es ambiguo -- '18.85' puede ser UNA caja de 18,85 kg
+    Mirando SOLO la factura no siempre se puede saber: un DETAILS de un
+    token suelto es ambiguo -- '18.85' puede ser UNA caja de 18,85 kg
     (producto que se pesa) o 18,85 cajas de atún. Los dos casos traen
     además el mismo Qty que el token, así que no hay nada en la factura
     que los distinga.
 
-    `pesables` -- los `qbo_id` que se pesan, que salen del pedido --
+    `pesables` -- los `qbo_id` que se pesan, que salen del catálogo --
     desempata. Sin ese dato se cuenta un peso por caja, que acierta en
     todo lo pesado de más de una caja y se equivoca en el resto.
+
+    Cuando el ítem no está en `pesables` queda un último desempate: las
+    cajas se venden en cuartos, así que un Qty como 11,10 no puede ser
+    cajas y los tokens de DETAILS son pesos (factura 5905, Carrefour:
+    una pechuga de 11,10 kg salía como «11,1 cajas» porque su ítem de
+    QBO no estaba marcado como pesable).
     """
     if pesables is None:
         return len(pesos) if pesos else qty
     if str(item_qbo_id) in pesables:
+        return len(pesos)
+    if pesos and not _es_cantidad_de_cajas(qty):
         return len(pesos)
     return qty
 

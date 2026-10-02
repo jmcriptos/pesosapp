@@ -10758,11 +10758,16 @@ def factura_pdf(pedido_id):
     # Qué ítems de esta factura se pesan. Hace falta para contar las cajas
     # del despacho: en la factura, un DETAILS de un token suelto es ambiguo
     # ('18.85' puede ser una caja de 18,85 kg o 18,85 cajas de atún) y los
-    # dos casos traen el mismo Qty. Sale del pedido, sin consultar de nuevo.
+    # dos casos traen el mismo Qty. Sale del CATÁLOGO completo, no sólo de
+    # las líneas del pedido: una línea agregada a mano en QuickBooks después
+    # de facturar (factura 5905, Carrefour: una pechuga que no estaba en el
+    # pedido) no tiene detalle del que sacar el dato, y contaba sus kilos
+    # como cajas.
     pesables = {
-        str(detalle.producto.qbo_id)
-        for detalle in pedido.detalles
-        if detalle.producto and detalle.producto.se_pesa and detalle.producto.qbo_id
+        str(qbo_id)
+        for (qbo_id,) in db.session.query(Producto.qbo_id)
+        .filter(Producto.se_pesa.is_(True), Producto.qbo_id.isnot(None))
+        .distinct()
     }
 
     try:

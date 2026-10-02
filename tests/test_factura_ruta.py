@@ -561,3 +561,46 @@ def test_en_computadora_se_descarga_sin_hoja_de_compartir():
 def test_base_min_es_copia_de_base():
     """base.html carga base.min.js; se regenera con cp desde base.js."""
     assert _leer_js('static/js/base.js') == _leer_js('static/js/base.min.js')
+
+
+# ---- Total de cajas: los pesables salen del catálogo, no sólo del pedido ----
+
+@patch('app.N8N_INVOICE_FETCH_WEBHOOK_URL', 'http://n8n.local/fetch')
+@patch('app.N8N_DRIVE_WEBHOOK_URL', '')
+@patch('app.requests.post')
+def test_ruta_cuenta_cajas_de_un_pesable_que_no_esta_en_el_pedido(mock_post, app):
+    """Factura 5905 (Carrefour Market): la pechuga se agregó a mano en
+    QuickBooks después de facturar, así que el pedido no tenía detalle de
+    ella. Los `pesables` salían de las líneas del pedido, el ítem no estaba
+    y sus kilos (11,10) se contaron como cajas. El dato está en el catálogo:
+    el producto se pesa, tenga o no detalle en este pedido."""
+    import utils.factura_pdf as fpdf
+    from app import Producto
+
+    factura = _factura_fixture()
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = factura
+    mock_post.return_value = mock_resp
+
+    capturado = {}
+    real = fpdf.render_factura_pdf
+
+    def _render(payload, **kwargs):
+        capturado.update(kwargs)
+        return real(payload, **kwargs)
+
+    with app.app_context():
+        pedido_id = _crear_pedido_facturado(invoice_id='47347')
+        # En el catálogo, sin detalle en el pedido.
+        _db.session.add(Producto(nombre='Smoked Turkey Breast', qbo_id='1407', se_pesa=True))
+        _db.session.add(Producto(nombre='Atún en agua', qbo_id='1297', se_pesa=False))
+        _db.session.add(Producto(nombre='Sin ítem en QBO', qbo_id=None, se_pesa=True))
+        _db.session.commit()
+        client = _login(app)
+
+        with patch('utils.factura_pdf.render_factura_pdf', side_effect=_render):
+            resp = client.get(f'/pedidos/{pedido_id}/factura.pdf')
+
+    assert resp.status_code == 200
+    assert capturado['pesables'] == {'1407'}
