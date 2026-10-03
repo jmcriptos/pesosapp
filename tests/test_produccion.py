@@ -245,8 +245,6 @@ def test_validaciones_de_alta(app):
     with app.app_context():
         from produccion import servicios
         with pytest.raises(servicios.LoteInvalido):
-            _lote(lote='   ')
-        with pytest.raises(servicios.LoteInvalido):
             _lote(fecha_produccion=None)
         with pytest.raises(servicios.LoteInvalido):
             _lote(producto_id=9999)
@@ -498,17 +496,17 @@ def test_alta_por_formulario_con_consumos_y_mermas(app):
 def test_alta_rechazada_conserva_lo_tecleado(app):
     c = _login(app, 'admin')
     r = c.post('/produccion/lotes/nuevo', data={
-        'producto_id': str(IDS['chorizo']), 'lote': '',
+        'producto_id': str(IDS['chorizo']), 'lote': 'R-1',
         'fecha_produccion': '2026-10-02', 'peso_adicional': '84',
         'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['77'],
-        'merma_tipo': ['recorte'], 'merma_cantidad': ['3'], 'merma_motivo': ['borde'],
+        'merma_tipo': ['otro'], 'merma_cantidad': ['3'], 'merma_motivo': [''],   # «Otra» sin detalle
     })
     assert r.status_code == 200
     html = r.get_data(as_text=True)
-    assert 'necesita un número' in html
+    assert 'necesita decir qué fue' in html
     assert 'value="77"' in html
     assert 'value="84"' in html
-    assert 'value="borde"' in html
+    assert 'value="R-1"' in html
     with app.app_context():
         from produccion.models import LoteProduccion
         assert LoteProduccion.query.count() == 0
@@ -988,3 +986,52 @@ def test_la_columna_peso_producido_se_renombra_al_arrancar(app):
         assert 'produccion_lote_caja' in set(_db.inspect(_db.engine).get_table_names())
         lote = _db.session.get(LoteProduccion, 1)
         assert lote.peso_adicional == Decimal('42.500') and lote.peso_producido == Decimal('42.500')
+
+
+# ------------------------------------------ número de lote y vencimiento
+
+def test_numero_de_lote_y_vencimiento_automaticos(app):
+    with app.app_context():
+        from produccion import servicios
+        assert servicios.sugerir_lote(date(2026, 10, 2)) == 'L-0210202601'
+        assert servicios.vencimiento_por_defecto(date(2026, 10, 2)) == date(2027, 10, 2)
+        assert servicios.vencimiento_por_defecto(date(2028, 2, 29)) == date(2029, 2, 28)
+        a = _lote(lote='', fecha_produccion=date(2026, 10, 2), fecha_vencimiento=None)
+        assert a.lote == 'L-0210202601' and a.fecha_vencimiento == date(2027, 10, 2)
+        b = _lote(lote='   ', fecha_produccion=date(2026, 10, 2))
+        assert b.lote == 'L-0210202602'
+        # Otro producto el mismo día sigue el mismo correlativo del día.
+        j = _lote(lote='', producto_id=IDS['jamon'], fecha_produccion=date(2026, 10, 2), mermas=[])
+        assert j.lote == 'L-0210202603'
+        # Un anulado no libera su número.
+        servicios.anular_lote(b, IDS['admin'], 'prueba')
+        assert servicios.sugerir_lote(date(2026, 10, 2)) == 'L-0210202604'
+        # Otro día empieza en 01, y un lote tecleado a mano se respeta.
+        c = _lote(lote='', fecha_produccion=date(2026, 10, 3))
+        assert c.lote == 'L-0310202601'
+        m = _lote(lote='MANUAL-7', fecha_produccion=date(2026, 10, 3), fecha_vencimiento=date(2026, 12, 1))
+        assert m.lote == 'MANUAL-7' and m.fecha_vencimiento == date(2026, 12, 1)
+        # Al editar, el lote en blanco también se completa, sin contarse a sí
+        # mismo: vuelve a recibir su propio número.
+        servicios.editar_lote(c, cabecera=dict(producto_id=IDS['chorizo'], lote='',
+                                               fecha_produccion=date(2026, 10, 3), peso_adicional=1),
+                              consumos={IDS['carne']: 1})
+        assert c.lote == 'L-0310202601'
+
+
+def test_el_alta_propone_lote_y_vencimiento_y_el_api_responde(app):
+    c = _login(app, 'admin')
+    html = c.get('/produccion/lotes/nuevo').get_data(as_text=True)
+    import re
+    assert re.search(r'value="L-\d{8}01"', html)      # el día local de Curazao
+    assert 'data-sugerir-url="/produccion/api/sugerir-lote"' in html
+    r = c.get('/produccion/api/sugerir-lote?fecha=2026-10-02')
+    assert r.status_code == 200
+    assert r.get_json() == {'lote': 'L-0210202601', 'fecha_vencimiento': '2027-10-02'}
+    assert c.get('/produccion/api/sugerir-lote?fecha=basura').status_code == 400
+    # Por formulario, lote y vencimiento vacíos se completan solos.
+    r = c.post('/produccion/lotes/nuevo', data={
+        'producto_id': str(IDS['chorizo']), 'lote': '', 'fecha_produccion': '2026-10-02',
+        'fecha_vencimiento': '', 'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['10'],
+    }, follow_redirects=True)
+    assert 'L-0210202601' in r.get_data(as_text=True) and '02/10/2027' in r.get_data(as_text=True)

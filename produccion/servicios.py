@@ -232,6 +232,35 @@ def consumo_teorico(formula, kg_producidos):
 # --------------------------------------------------------------- lotes
 
 
+def vencimiento_por_defecto(fecha_produccion):
+    """Un año después de la producción. El 29 de febrero cae al 28."""
+    try:
+        return fecha_produccion.replace(year=fecha_produccion.year + 1)
+    except ValueError:
+        return fecha_produccion.replace(year=fecha_produccion.year + 1, day=28)
+
+
+PREFIJO_LOTE = 'L-'
+
+
+def sugerir_lote(fecha_produccion, excluir_id=None):
+    """El número de lote como va en la etiqueta: `L-DDMMAAAA` más dos dígitos
+    de correlativo del día (L-0210202601, L-0210202602…). El correlativo
+    cuenta TODOS los lotes del día, anulados incluidos: un número de
+    etiqueta no se reutiliza aunque el lote que lo llevó se haya anulado."""
+    base = f'{PREFIJO_LOTE}{fecha_produccion.strftime("%d%m%Y")}'
+    query = LoteProduccion.query.filter(LoteProduccion.lote.like(f'{base}%'))
+    if excluir_id is not None:
+        query = query.filter(LoteProduccion.id != excluir_id)
+    usados = []
+    for (numero,) in query.with_entities(LoteProduccion.lote).all():
+        sufijo = numero[len(base):]
+        if sufijo.isdigit():
+            usados.append(int(sufijo))
+    siguiente = (max(usados) + 1) if usados else 1
+    return f'{base}{siguiente:02d}'
+
+
 def lote_repetido(producto_id, lote, excluir_id=None):
     """Otro lote VIVO (no anulado) del mismo producto con ese número."""
     query = LoteProduccion.query.filter(
@@ -332,10 +361,16 @@ def crear_lote(*, producto_id, lote, fecha_produccion, vendedor_id,
                consumos=None, mermas=None, notas=None):
     """Registra un lote con todo lo que se sabe de él. Comitea.
 
+    Sin número de lote, se asigna el siguiente del día (`sugerir_lote`); sin
+    vencimiento, un año después de la producción.
     No pide consumo ni peso para guardar: en planta se abre el lote al
     empezar y el peso producido va llegando desde la balanza de pedidos
     (`vincular_caja`). Lo que sí exige `cerrar_lote`.
     """
+    if not (lote or '').strip() and fecha_produccion is not None:
+        lote = sugerir_lote(fecha_produccion)
+    if fecha_vencimiento is None and fecha_produccion is not None:
+        fecha_vencimiento = vencimiento_por_defecto(fecha_produccion)
     lote, peso = _validar_cabecera(producto_id, lote, fecha_produccion,
                                    peso_adicional, unidades_producidas,
                                    cajas_producidas)
@@ -377,6 +412,10 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
     if lote.estado != 'abierta':
         raise LoteNoEditable(
             f'{lote.codigo} está {lote.estado}: reabrilo para corregirlo')
+    if not (cabecera.get('lote') or '').strip() and cabecera.get('fecha_produccion'):
+        cabecera['lote'] = sugerir_lote(cabecera['fecha_produccion'], excluir_id=lote.id)
+    if cabecera.get('fecha_vencimiento') is None and cabecera.get('fecha_produccion'):
+        cabecera['fecha_vencimiento'] = vencimiento_por_defecto(cabecera['fecha_produccion'])
     numero, peso = _validar_cabecera(
         cabecera.get('producto_id'), cabecera.get('lote'),
         cabecera.get('fecha_produccion'), cabecera.get('peso_adicional'),
