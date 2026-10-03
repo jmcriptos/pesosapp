@@ -25,11 +25,6 @@
       </select>
       <p class="maquila-nota" id="formula-nota" aria-live="polite"></p>
     </div>
-    <div class="ops-field">
-      <label for="lote">Número de lote</label>
-      <input type="text" id="lote" name="lote" required autocomplete="off" autocapitalize="characters"
-             placeholder="Como va en la etiqueta" value="{{ form.get('lote', '') }}">
-    </div>
     <div class="ops-grid-2">
       <div class="ops-field">
         <label for="fecha_produccion">Fecha de producción</label>
@@ -37,9 +32,18 @@
                value="{{ form.get('fecha_produccion') or hoy.strftime('%Y-%m-%d') }}">
       </div>
       <div class="ops-field">
-        <label for="fecha_vencimiento">Fecha de vencimiento <small>(opcional)</small></label>
+        <label for="fecha_vencimiento">Fecha de vencimiento <small id="venc-nota">(un año después, automático)</small></label>
         <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" value="{{ form.get('fecha_vencimiento', '') }}">
       </div>
+    </div>
+    {#- L-DDMMAAAA + correlativo del día: lo propone el servidor para la
+        fecha elegida y se puede corregir a mano. Vacío al guardar, el
+        servidor asigna el siguiente del día. -#}
+    <div class="ops-field">
+      <label for="lote">Número de lote <small id="lote-nota">(L-DDMMAAAA + correlativo del día, automático)</small></label>
+      <input type="text" id="lote" name="lote" autocomplete="off" autocapitalize="characters"
+             placeholder="Se asigna solo al guardar" value="{{ form.get('lote', '') }}"
+             data-sugerir-url="{{ url_for('produccion.api_sugerir_lote') }}"{% if lote %} data-excluir="{{ lote.id }}"{% endif %}>
     </div>
   </section>
 
@@ -267,6 +271,47 @@
       if (sinWrap) sinWrap.classList.remove('is-falla');
     }
   }
+
+  // --- Lote y vencimiento que siguen a la fecha de producción. El número
+  // de lote y el vencimiento se reescriben solo mientras sigan siendo los
+  // automáticos: si alguien los tocó a mano, se respetan.
+  var fechaProd = document.getElementById('fecha_produccion');
+  var fechaVenc = document.getElementById('fecha_vencimiento');
+  var loteInput = document.getElementById('lote');
+  var auto = { lote: loteInput.value, venc: fechaVenc.value };
+  function masUnAnio(iso) {
+    var p = iso.split('-'); if (p.length !== 3) return '';
+    var y = parseInt(p[0], 10) + 1, m = p[1], d = p[2];
+    if (m === '02' && d === '29') d = '28';
+    return y + '-' + m + '-' + d;
+  }
+  function loteLocal(iso) {
+    var p = iso.split('-'); if (p.length !== 3) return '';
+    return 'L-' + p[2] + p[1] + p[0] + '01';
+  }
+  function seguirFecha() {
+    var iso = fechaProd.value;
+    if (!iso) return;
+    var loteEraAuto = !loteInput.value || loteInput.value === auto.lote;
+    var vencEraAuto = !fechaVenc.value || fechaVenc.value === auto.venc;
+    if (vencEraAuto) { auto.venc = masUnAnio(iso); fechaVenc.value = auto.venc; }
+    if (!loteEraAuto) return;
+    var url = loteInput.dataset.sugerirUrl + '?fecha=' + encodeURIComponent(iso)
+            + (loteInput.dataset.excluir ? '&excluir=' + loteInput.dataset.excluir : '');
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var sugerido = (d && d.lote) ? d.lote : loteLocal(iso);
+        // Solo si nadie lo tocó mientras llegaba la respuesta.
+        if (!loteInput.value || loteInput.value === auto.lote) { auto.lote = sugerido; loteInput.value = sugerido; }
+      })
+      .catch(function () {
+        var sugerido = loteLocal(iso);
+        if (!loteInput.value || loteInput.value === auto.lote) { auto.lote = sugerido; loteInput.value = sugerido; }
+      });
+  }
+  fechaProd.addEventListener('change', seguirFecha);
+  if (!fechaVenc.value && fechaProd.value) { auto.venc = masUnAnio(fechaProd.value); fechaVenc.value = auto.venc; }
 
   function todo() { teoricos(); diferencias(); previa(); }
   producto.addEventListener('change', todo);

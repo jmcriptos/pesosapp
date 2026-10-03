@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 import xlsxwriter
-from flask import (Blueprint, Response, abort, flash, redirect,
+from flask import (Blueprint, Response, abort, flash, jsonify, redirect,
                    render_template, request, url_for)
 from flask_login import current_user, login_required
 from sqlalchemy.orm import selectinload
@@ -304,11 +304,35 @@ def lote_nuevo():
         flash(f'Lote {lote.codigo} registrado', 'success')
         return _tras_guardar(lote)
 
-    form = {}
+    # El alta llega con el lote del día y el vencimiento a un año ya
+    # propuestos; la plantilla los recalcula si se cambia la fecha.
+    hoy = _hoy_local()
+    form = {
+        'lote': servicios.sugerir_lote(hoy),
+        'fecha_produccion': hoy.strftime('%Y-%m-%d'),
+        'fecha_vencimiento': servicios.vencimiento_por_defecto(hoy).strftime('%Y-%m-%d'),
+    }
     producto_id = request.args.get('producto_id', type=int)
     if producto_id:
         form['producto_id'] = str(producto_id)
-    return _render_form(None, form or None)
+    return _render_form(None, form)
+
+
+@bp.route('/api/sugerir-lote')
+@login_required
+@requiere_permiso_recurso(RECURSO, 'leer')
+def api_sugerir_lote():
+    """Para el formulario: el número de lote y el vencimiento que tocan
+    para una fecha de producción. `excluir` es el id del lote que se está
+    editando, para no contarse a sí mismo."""
+    fecha = _fecha(request.args.get('fecha'))
+    if fecha is None:
+        return jsonify({'error': 'fecha inválida'}), 400
+    excluir = request.args.get('excluir', type=int)
+    return jsonify({
+        'lote': servicios.sugerir_lote(fecha, excluir_id=excluir),
+        'fecha_vencimiento': servicios.vencimiento_por_defecto(fecha).strftime('%Y-%m-%d'),
+    })
 
 
 def _pedidos_del_lote(lote):
