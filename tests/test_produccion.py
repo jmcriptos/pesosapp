@@ -82,6 +82,24 @@ def test_las_tablas_existen(app):
     assert {'lote_produccion', 'lote_consumo', 'lote_merma'} <= nombres
 
 
+def test_las_tablas_se_crean_solas_si_faltan(app):
+    """Heroku sin el script SQL: /produccion daba 500 por «no such table».
+    Al arrancar, el módulo crea lo que falte, sin tocar lo que ya existe."""
+    from produccion import asegurar_tablas
+    from produccion.models import LoteProduccion, LoteConsumo, LoteMerma
+    with app.app_context():
+        for t in (LoteMerma.__table__, LoteConsumo.__table__, LoteProduccion.__table__):
+            t.drop(_db.engine)
+        assert 'lote_produccion' not in set(_db.inspect(_db.engine).get_table_names())
+        asegurar_tablas(app)
+        asegurar_tablas(app)   # segunda vez: no revienta por «ya existe»
+        assert {'lote_produccion', 'lote_consumo', 'lote_merma'} <= set(
+            _db.inspect(_db.engine).get_table_names())
+    c = _login(app, 'admin')
+    assert c.get('/produccion').status_code == 200
+    assert c.get('/produccion/lotes').status_code == 200
+
+
 def test_el_recurso_produccion_esta_en_los_permisos_configurables(app):
     from app import PERMISOS_RECURSOS, _permiso_default
     assert 'produccion' in PERMISOS_RECURSOS
