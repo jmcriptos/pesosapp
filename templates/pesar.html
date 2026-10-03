@@ -97,6 +97,25 @@
             <input type="hidden" name="fecha_elaboracion" id="pesar-fecha-elab-hidden" value="">
             <input type="hidden" name="fecha_vencimiento" id="pesar-fecha-venc-hidden" value="">
 
+            {#- Lote de producción: elegirlo atribuye la caja al lote (su peso
+                pasa a ser producto terminado del lote) y pone el número de
+                lote y las fechas de la etiqueta. Un solo <select> con los
+                lotes abiertos de TODOS los productos pesables; pesar.js deja
+                a la vista solo los del producto activo. Sin lotes abiertos,
+                no se muestra y la pantalla queda como siempre. -#}
+            {% if lotes_produccion %}
+            <label class="pesar-field" id="pesar-lote-prod-wrap">
+              <span>Lote de producción</span>
+              <select name="lote_produccion_id" id="pesar-lote-prod">
+                <option value="">— Sin lote de producción —</option>
+                {% for producto_id, lotes in lotes_produccion.items() %}{% for l in lotes %}
+                <option value="{{ l.id }}" data-producto-id="{{ producto_id }}" data-lote="{{ l.lote }}"
+                        data-elab="{{ l.fecha_produccion }}" data-venc="{{ l.fecha_vencimiento }}">{{ l.rotulo }}</option>
+                {% endfor %}{% endfor %}
+              </select>
+            </label>
+            {% endif %}
+
             <label class="pesar-field">
               <span>N° Lote</span>
               <input type="text" name="lote" id="pesar-lote-input" maxlength="50" autocomplete="off" required>

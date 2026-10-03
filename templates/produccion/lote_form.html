@@ -43,12 +43,19 @@
     </div>
   </section>
 
-  <section class="ops-card" id="salida">
+  <section class="ops-card" id="salida" data-peso-pesado="{{ lote.peso_pesado if lote else 0 }}">
     <h2>Producto terminado</h2>
+    {% if lote %}
+    <dl class="maquila-cabecera">
+      <dt>Pesado en pedidos</dt>
+      <dd>{{ lote.peso_pesado|fmt_cant }} en {{ lote.cajas_pesadas_count }} caja{{ 's' if lote.cajas_pesadas_count != 1 else '' }}</dd>
+    </dl>
+    {% endif %}
+    <p class="maquila-nota">El peso producido sale de la balanza: al pesar cajas para un pedido se elige este lote y cada caja suma acá. Lo que no pase por un pedido (muestras, stock que se congela, un remanente) se declara abajo.</p>
     <div class="ops-field">
-      <label for="peso_producido">Peso producido (kg)</label>
-      <input type="text" inputmode="decimal" data-decimal id="peso_producido" name="peso_producido"
-             autocomplete="off" placeholder="Lo que marcó la balanza" value="{{ form.get('peso_producido', '') }}">
+      <label for="peso_adicional">Peso adicional no pesado en pedidos (kg) <small>(opcional)</small></label>
+      <input type="text" inputmode="decimal" data-decimal id="peso_adicional" name="peso_adicional"
+             autocomplete="off" placeholder="0" value="{{ form.get('peso_adicional', '') }}">
     </div>
     <div class="ops-grid-2">
       <div class="ops-field">
@@ -171,7 +178,11 @@
   var formulas = {};
   try { formulas = JSON.parse(form.dataset.formulas || '{}'); } catch (e) { formulas = {}; }
   var producto = document.getElementById('producto_id');
-  var peso = document.getElementById('peso_producido');
+  var adicional = document.getElementById('peso_adicional');
+  var pesado = parseFloat((document.getElementById('salida') || {}).dataset ? document.getElementById('salida').dataset.pesoPesado : '0') || 0;
+  // Peso producido = cajas pesadas en pedidos (fijo en esta pantalla) + lo
+  // declarado a mano. Es lo mismo que calcula el servidor.
+  function kgProducidos() { return pesado + (num(adicional.value) || 0); }
   var nota = document.getElementById('formula-nota');
   var usar = document.getElementById('btn-usar-teorico');
   var filas = Array.prototype.slice.call(form.querySelectorAll('tr[data-insumo-id]'));
@@ -186,7 +197,7 @@
   // --- Teórico por insumo: fórmula del producto × peso producido.
   function teoricos() {
     var r = formulas[producto.value];
-    var kg = num(peso.value);
+    var kg = kgProducidos();
     var hay = false;
     filas.forEach(function (tr) {
       var celda = tr.querySelector('[data-teorico]');
@@ -202,7 +213,7 @@
     if (nota) {
       if (!producto.value) nota.textContent = '';
       else if (!r) nota.textContent = 'Este producto no tiene fórmula: se registra solo el consumo real, sin teórico.';
-      else if (kg === null || kg <= 0) nota.textContent = 'Fórmula: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + '). El teórico aparece al escribir el peso producido.';
+      else if (kg === null || kg <= 0) nota.textContent = 'Fórmula: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + '). El teórico aparece cuando el lote tenga peso producido (cajas pesadas o peso adicional).';
       else nota.textContent = 'Fórmula: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + ').';
     }
     if (usar) usar.hidden = !hay;
@@ -231,7 +242,7 @@
       var v = num(tr.querySelector('input[name="consumo_real"]').value);
       if (v && v > 0) consumido += v;
     });
-    var producido = num(peso.value) || 0;
+    var producido = kgProducidos();
     var identificada = 0;
     Array.prototype.forEach.call(form.querySelectorAll('input[name="merma_cantidad"]'), function (i) {
       var v = num(i.value); if (v && v > 0) identificada += v;
@@ -259,7 +270,7 @@
 
   function todo() { teoricos(); diferencias(); previa(); }
   producto.addEventListener('change', todo);
-  peso.addEventListener('input', todo);
+  adicional.addEventListener('input', todo);
   form.addEventListener('input', function (e) {
     if (e.target.name === 'consumo_real' || e.target.name === 'merma_cantidad') { diferencias(); previa(); }
   });

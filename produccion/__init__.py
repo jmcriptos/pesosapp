@@ -36,8 +36,10 @@ def asegurar_tablas(app):
     """
     from sqlalchemy import inspect as _inspect
 
-    from .models import (Formula, FormulaInsumo, Insumo, LoteConsumo, LoteMerma,
-                         LoteProduccion)
+    from sqlalchemy import text as _text
+
+    from .models import (Formula, FormulaInsumo, Insumo, LoteCaja, LoteConsumo,
+                         LoteMerma, LoteProduccion)
 
     db = app_module.db
     try:
@@ -52,9 +54,25 @@ def asegurar_tablas(app):
                                        'tablas de lotes con el catálogo propio')
                     for modelo in (LoteMerma, LoteConsumo, LoteProduccion):
                         modelo.__table__.drop(bind=db.engine, checkfirst=True)
+                    # El inspector cachea lo que ya miró: se vuelve a leer
+                    # para que el paso siguiente no vea tablas recién tiradas.
+                    insp = _inspect(db.engine)
+                    existentes = set(insp.get_table_names())
+            # 2026-10-03: el peso producido pasó a salir de las cajas pesadas
+            # en pedidos, y la columna tecleada a mano cambió de sentido y de
+            # nombre (peso_producido → peso_adicional). Se renombra, no se
+            # recrea: lo ya declarado sigue contando como peso adicional.
+            if 'lote_produccion' in existentes:
+                columnas = {c['name'] for c in insp.get_columns('lote_produccion')}
+                if 'peso_adicional' not in columnas and 'peso_producido' in columnas:
+                    with db.engine.begin() as conn:
+                        conn.execute(_text('ALTER TABLE lote_produccion '
+                                           'RENAME COLUMN peso_producido TO peso_adicional'))
+                    app.logger.info('[produccion] lote_produccion.peso_producido '
+                                    'renombrada a peso_adicional')
             # En orden de dependencia: las FK apuntan a tablas ya creadas.
             for modelo in (Insumo, Formula, FormulaInsumo, LoteProduccion,
-                           LoteConsumo, LoteMerma):
+                           LoteConsumo, LoteMerma, LoteCaja):
                 modelo.__table__.create(bind=db.engine, checkfirst=True)
     except Exception as exc:  # pragma: no cover - depende del motor real
         app.logger.warning(f'[produccion] no se pudieron asegurar las tablas: {exc}')

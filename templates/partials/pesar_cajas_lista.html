@@ -7,6 +7,8 @@
   data-ultimo-lote="{{ ultima_caja.lote if ultima_caja else '' }}"
   data-ultima-elab="{{ ultima_caja.fecha_elaboracion.isoformat() if ultima_caja else '' }}"
   data-ultimo-venc="{{ ultima_caja.fecha_vencimiento.isoformat() if ultima_caja else '' }}"
+  data-producto-id="{{ detalle.producto_id }}"
+  data-ultimo-lote-prod="{{ (lotes_por_caja|default({})).get(ultima_caja.id, '') if ultima_caja else '' }}"
   data-count="{{ detalle.cajas_pesadas_count }}"
   data-target="{{ detalle.cajas_objetivo }}"
   data-total-weight="{{ '{:.2f}'.format(detalle.peso_real|float) }}"

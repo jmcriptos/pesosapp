@@ -67,7 +67,7 @@ def _lote(**kw):
     from produccion import servicios
     base = dict(producto_id=IDS['chorizo'], lote='L-1001',
                 fecha_produccion=date(2026, 10, 1), vendedor_id=IDS['admin'],
-                peso_producido=Decimal('85'),
+                peso_adicional=Decimal('85'),
                 consumos={IDS['carne']: Decimal('100'), IDS['tripa']: Decimal('60')},
                 mermas=[{'tipo': 'coccion', 'cantidad': Decimal('10'), 'motivo': ''}])
     base.update(kw)
@@ -188,17 +188,30 @@ def test_el_teorico_sale_de_la_formula_y_queda_como_snapshot(app):
     with app.app_context():
         from produccion import servicios
         from produccion.models import FormulaInsumo
-        lote = _lote(peso_producido=Decimal('50'))
+        lote = _lote(peso_adicional=Decimal('50'))
         assert lote.formula_id == IDS['formula']
         teoricos = {c.insumo_id: c.cantidad_teorica for c in lote.consumos}
         assert teoricos[IDS['carne']] == Decimal('40.000')
         assert teoricos[IDS['tripa']] == Decimal('25.000')
-        # Cambiar la fórmula después no reescribe el lote.
+        # Abierto, el teórico sigue al peso producido (que cambia con cada
+        # caja pesada): cambiar la fórmula se ve en vivo.
         FormulaInsumo.query.filter_by(formula_id=IDS['formula'],
                                       insumo_id=IDS['carne']).update({'cantidad': 90})
         _db.session.commit()
         b = servicios.balance(_db.session.get(type(lote), lote.id))
         carne = next(v for v in b['varianzas'] if v['insumo_id'] == IDS['carne'])
+        assert carne['teorica'] == Decimal('45.000')
+        # Cerrado, queda la foto: cambiar la fórmula después no reescribe el lote.
+        servicios.cerrar_lote(lote, IDS['admin'])
+        FormulaInsumo.query.filter_by(formula_id=IDS['formula'],
+                                      insumo_id=IDS['carne']).update({'cantidad': 80})
+        _db.session.commit()
+        b = servicios.balance(_db.session.get(type(lote), lote.id))
+        carne = next(v for v in b['varianzas'] if v['insumo_id'] == IDS['carne'])
+        assert carne['teorica'] == Decimal('45.000')
+        assert carne['diferencia'] == Decimal('55.000')
+        assert carne['pct'] == Decimal('122.2')
+        return
         assert carne['teorica'] == Decimal('40.000')
         assert carne['diferencia'] == Decimal('60.000')
         assert carne['pct'] == Decimal('150.0')
@@ -208,7 +221,7 @@ def test_producto_sin_formula_registra_solo_el_real(app):
     with app.app_context():
         from produccion import servicios
         lote = _lote(producto_id=IDS['jamon'], consumos={IDS['carne']: Decimal('20')},
-                     peso_producido=Decimal('22'), mermas=[])
+                     peso_adicional=Decimal('22'), mermas=[])
         assert lote.formula_id is None
         b = servicios.balance(lote)
         assert b['varianzas'][0]['teorica'] == Decimal('0')
@@ -261,7 +274,7 @@ def test_consumo_cero_y_merma_vacia_se_omiten(app):
 def test_cerrar_exige_peso_y_consumo_en_kg(app):
     with app.app_context():
         from produccion import servicios
-        sin_peso = _lote(lote='A', peso_producido=None)
+        sin_peso = _lote(lote='A', peso_adicional=None)
         with pytest.raises(servicios.LoteInvalido):
             servicios.cerrar_lote(sin_peso, IDS['admin'])
         solo_tripa = _lote(lote='B', consumos={IDS['tripa']: Decimal('10')}, mermas=[])
@@ -282,7 +295,7 @@ def test_editar_solo_abierto_y_reabrir_con_motivo(app):
         lote = _lote()
         servicios.cerrar_lote(lote, IDS['admin'])
         cab = dict(producto_id=IDS['chorizo'], lote='L-1001', fecha_produccion=date(2026, 10, 1),
-                   peso_producido=Decimal('90'))
+                   peso_adicional=Decimal('90'))
         with pytest.raises(servicios.LoteNoEditable):
             servicios.editar_lote(lote, cabecera=cab, consumos={IDS['carne']: Decimal('100')})
         with pytest.raises(servicios.MotivoRequerido):
@@ -309,7 +322,7 @@ def test_editar_cambia_de_producto_y_resuelve_la_formula(app):
         from produccion import servicios
         lote = _lote()
         cab = dict(producto_id=IDS['jamon'], lote='L-1001', fecha_produccion=date(2026, 10, 1),
-                   peso_producido=Decimal('85'))
+                   peso_adicional=Decimal('85'))
         servicios.editar_lote(lote, cabecera=cab, consumos={IDS['carne']: Decimal('100')})
         assert lote.producto_id == IDS['jamon']
         assert lote.formula_id is None
@@ -336,16 +349,16 @@ def test_anular_exige_motivo_y_saca_de_los_reportes(app):
 
 def _cerrados():
     from produccion import servicios
-    a = _lote(lote='A', peso_producido=Decimal('85'),
+    a = _lote(lote='A', peso_adicional=Decimal('85'),
               consumos={IDS['carne']: Decimal('100')},
               mermas=[{'tipo': 'coccion', 'cantidad': Decimal('10'), 'motivo': ''}])
-    b = _lote(lote='B', fecha_produccion=date(2026, 10, 5), peso_producido=Decimal('190'),
+    b = _lote(lote='B', fecha_produccion=date(2026, 10, 5), peso_adicional=Decimal('190'),
               consumos={IDS['carne']: Decimal('200')},
               mermas=[{'tipo': 'coccion', 'cantidad': Decimal('6'), 'motivo': ''},
                       {'tipo': 'recorte', 'cantidad': Decimal('2'), 'motivo': ''}])
     j = _lote(lote='J', producto_id=IDS['jamon'], fecha_produccion=date(2026, 9, 20),
-              peso_producido=Decimal('45'), consumos={IDS['carne']: Decimal('50')}, mermas=[])
-    abierto = _lote(lote='X', peso_producido=Decimal('1'), consumos={IDS['carne']: Decimal('99')})
+              peso_adicional=Decimal('45'), consumos={IDS['carne']: Decimal('50')}, mermas=[])
+    abierto = _lote(lote='X', peso_adicional=Decimal('1'), consumos={IDS['carne']: Decimal('99')})
     for l in (a, b, j):
         servicios.cerrar_lote(l, IDS['admin'])
     return a, b, j, abierto
@@ -444,7 +457,7 @@ def test_vendedor_lee_y_crea_pero_no_cierra(app):
     # Sin permiso de editar, «Guardar y cerrar» guarda y avisa; no cierra.
     r = v.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'V-1',
-        'fecha_produccion': '2026-10-02', 'peso_producido': '80',
+        'fecha_produccion': '2026-10-02', 'peso_adicional': '80',
         'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
         'accion': 'cerrar',
     }, follow_redirects=True)
@@ -459,7 +472,7 @@ def test_alta_por_formulario_con_consumos_y_mermas(app):
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'W-42',
         'fecha_produccion': '2026-10-02', 'fecha_vencimiento': '',
-        'peso_producido': '84,5', 'unidades_producidas': '120', 'cajas_producidas': '',
+        'peso_adicional': '84,5', 'unidades_producidas': '120', 'cajas_producidas': '',
         'consumo_insumo_id': [str(IDS['carne']), str(IDS['sal']), str(IDS['tripa'])],
         'consumo_real': ['100', '', '60'],
         'merma_tipo': ['coccion', 'otro'],
@@ -472,7 +485,7 @@ def test_alta_por_formulario_con_consumos_y_mermas(app):
         from produccion.models import LoteProduccion
         from produccion import servicios
         lote = LoteProduccion.query.filter_by(lote='W-42').one()
-        assert lote.peso_producido == Decimal('84.500')
+        assert lote.peso_adicional == Decimal('84.500') and lote.peso_producido == Decimal('84.500')
         assert lote.unidades_producidas == 120 and lote.cajas_producidas is None
         assert {c.insumo_id for c in lote.consumos} == {IDS['carne'], IDS['tripa']}
         assert [(m.tipo, m.cantidad, m.motivo) for m in lote.mermas] == [
@@ -486,7 +499,7 @@ def test_alta_rechazada_conserva_lo_tecleado(app):
     c = _login(app, 'admin')
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': '',
-        'fecha_produccion': '2026-10-02', 'peso_producido': '84',
+        'fecha_produccion': '2026-10-02', 'peso_adicional': '84',
         'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['77'],
         'merma_tipo': ['recorte'], 'merma_cantidad': ['3'], 'merma_motivo': ['borde'],
     })
@@ -505,7 +518,7 @@ def test_guardar_y_cerrar_en_un_paso(app):
     c = _login(app, 'admin')
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'Z-1',
-        'fecha_produccion': '2026-10-02', 'peso_producido': '80',
+        'fecha_produccion': '2026-10-02', 'peso_adicional': '80',
         'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
         'accion': 'cerrar',
     }, follow_redirects=True)
@@ -520,7 +533,7 @@ def test_guardar_y_cerrar_sin_peso_queda_abierto(app):
     c = _login(app, 'admin')
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'Z-2',
-        'fecha_produccion': '2026-10-02', 'peso_producido': '',
+        'fecha_produccion': '2026-10-02', 'peso_adicional': '',
         'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
         'accion': 'cerrar',
     }, follow_redirects=True)
@@ -537,7 +550,7 @@ def test_editar_cerrar_reabrir_y_anular_por_rutas(app):
     assert c.get(f'/produccion/lotes/{lote_id}/editar').status_code == 200
     r = c.post(f'/produccion/lotes/{lote_id}/editar', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'L-1001',
-        'fecha_produccion': '2026-10-01', 'peso_producido': '88',
+        'fecha_produccion': '2026-10-01', 'peso_adicional': '88',
         'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
     }, follow_redirects=False)
     assert r.status_code == 302
@@ -649,7 +662,7 @@ def test_insumos_y_formulas_por_servicio(app):
                                   base_kg=100, activa=True, items={IDS['carne']: 90})
         assert [(i.insumo_id, i.cantidad) for i in jamon.insumos] == [(IDS['carne'], Decimal('90.000'))]
         assert Formula.query.count() == 3
-        lote = _lote(producto_id=IDS['jamon'], consumos={IDS['carne']: 45}, peso_producido=50, mermas=[])
+        lote = _lote(producto_id=IDS['jamon'], consumos={IDS['carne']: 45}, peso_adicional=50, mermas=[])
         assert lote.formula_id == jamon.id
         assert lote.consumos[0].cantidad_teorica == Decimal('45.000')
 
@@ -777,3 +790,201 @@ def test_metros_y_litros_quedan_fuera_del_balance_de_kilos(app):
     c = _login(app, 'admin')
     html = c.get('/produccion/lotes/nuevo').get_data(as_text=True)
     assert 'data-unidad="m"' in html and 'placeholder="m"' in html
+
+
+# ------------------------------------------- cajas pesadas en pedidos
+
+def _pedido_con_detalle(producto_id, cliente_nombre='Cliente'):
+    from app import Cliente, Pedido, DetallePedido
+    cli = Cliente(nombre=cliente_nombre)
+    _db.session.add(cli); _db.session.flush()
+    pedido = Pedido(cliente_id=cli.id, estado='pendiente')
+    _db.session.add(pedido); _db.session.flush()
+    det = DetallePedido(pedido_id=pedido.id, producto_id=producto_id, cajas=3, cajas_pedidas=3,
+                        peso=0, precio_unitario=Decimal('10'), subtotal=Decimal('30'),
+                        es_linea_pedido=True)
+    _db.session.add(det); _db.session.commit()
+    return pedido, det
+
+
+def _caja(detalle, numero, peso, lote='X'):
+    from app import CajaPesada
+    caja = CajaPesada(detalle_pedido_id=detalle.id, numero=numero, peso=Decimal(str(peso)), lote=lote,
+                      fecha_elaboracion=date(2026, 10, 1), fecha_vencimiento=date(2027, 10, 1))
+    _db.session.add(caja); _db.session.flush()
+    return caja
+
+
+def test_el_peso_producido_sale_de_las_cajas_pesadas(app):
+    with app.app_context():
+        from produccion import servicios
+        from produccion.models import LoteCaja
+        lote = _lote(peso_adicional=None, consumos={IDS['carne']: Decimal('100')}, mermas=[])
+        assert lote.peso_producido == Decimal('0')
+        with pytest.raises(servicios.LoteInvalido):
+            servicios.cerrar_lote(lote, IDS['admin'])      # sin cajas ni adicional
+        pedido, det = _pedido_con_detalle(IDS['chorizo'])
+        c1 = _caja(det, 1, '10.5'); c2 = _caja(det, 2, '9.5')
+        servicios.vincular_caja(lote, c1); servicios.vincular_caja(lote, c2)
+        _db.session.commit()
+        _db.session.expire_all()
+        lote = _db.session.get(type(lote), lote.id)
+        assert lote.peso_pesado == Decimal('20.000')
+        assert lote.cajas_pesadas_count == 2
+        # El teórico sigue al peso mientras está abierto.
+        b = servicios.balance(lote)
+        assert b['producido'] == Decimal('20.000') and b['rendimiento_pct'] == Decimal('20.0')
+        carne = next(v for v in b['varianzas'] if v['insumo_id'] == IDS['carne'])
+        assert carne['teorica'] == Decimal('16.000')
+        # Peso adicional se suma.
+        servicios.editar_lote(lote, cabecera=dict(producto_id=IDS['chorizo'], lote='L-1001',
+                                                   fecha_produccion=date(2026, 10, 1),
+                                                   peso_adicional=Decimal('5')),
+                              consumos={IDS['carne']: Decimal('100')})
+        assert lote.peso_producido == Decimal('25.000')
+        # «Deshacer» una caja en el pedido: el vínculo cae solo y el lote deja de contarla.
+        _db.session.delete(c2); _db.session.commit()
+        _db.session.expire_all()
+        lote = _db.session.get(type(lote), lote.id)
+        assert LoteCaja.query.count() == 1
+        assert lote.peso_producido == Decimal('15.500')
+        servicios.cerrar_lote(lote, IDS['admin'])
+        assert lote.estado == 'cerrada'
+        assert lote.consumos[0].cantidad_teorica == Decimal('12.400')   # foto al cerrar: 15.5 × 0.8
+
+
+def test_vincular_caja_rechaza_otro_producto_lote_cerrado_y_repetida(app):
+    with app.app_context():
+        from produccion import servicios
+        lote = _lote(consumos={IDS['carne']: Decimal('100')}, mermas=[])
+        pedido_j, det_j = _pedido_con_detalle(IDS['jamon'], 'J')
+        caja_j = _caja(det_j, 1, '8')
+        with pytest.raises(servicios.VinculoInvalido):
+            servicios.vincular_caja(lote, caja_j)
+        pedido, det = _pedido_con_detalle(IDS['chorizo'], 'C')
+        caja = _caja(det, 1, '8')
+        servicios.vincular_caja(lote, caja); _db.session.commit()
+        otro = _lote(lote='OTRO', consumos={IDS['carne']: Decimal('10')}, mermas=[])
+        with pytest.raises(servicios.VinculoInvalido):
+            servicios.vincular_caja(otro, caja)             # ya atribuida
+        _db.session.rollback()
+        servicios.cerrar_lote(lote, IDS['admin'])
+        with pytest.raises(servicios.VinculoInvalido):
+            servicios.vincular_caja(lote, _caja(det, 2, '8'))  # cerrado
+
+
+def test_lotes_disponibles_solo_abiertos_del_producto(app):
+    with app.app_context():
+        from produccion import servicios
+        a = _lote(lote='A', peso_adicional=Decimal('1'), consumos={IDS['carne']: Decimal('1')}, mermas=[])
+        b = _lote(lote='B', fecha_produccion=date(2026, 10, 5), consumos={}, mermas=[])
+        j = _lote(lote='J', producto_id=IDS['jamon'], consumos={}, mermas=[])
+        servicios.cerrar_lote(a, IDS['admin'])
+        disp = servicios.lotes_disponibles([IDS['chorizo'], IDS['jamon'], None])
+        assert [l.lote for l in disp[IDS['chorizo']]] == ['B']
+        assert [l.lote for l in disp[IDS['jamon']]] == ['J']
+        assert servicios.lotes_disponibles([]) == {}
+
+
+def test_pesar_vincula_la_caja_al_lote_y_toma_su_numero(app):
+    c = _login(app, 'admin')
+    with app.app_context():
+        from produccion import servicios
+        lote = _lote(lote='CH-77', fecha_vencimiento=date(2027, 1, 15),
+                     consumos={IDS['carne']: Decimal('100')}, mermas=[])
+        lote_id = lote.id
+        pedido, det = _pedido_con_detalle(IDS['chorizo'])
+        pedido_id, det_id = pedido.id, det.id
+        cerrado = _lote(lote='CERRADO', peso_adicional=Decimal('1'),
+                        consumos={IDS['carne']: Decimal('1')}, mermas=[])
+        servicios.cerrar_lote(cerrado, IDS['admin'])
+        cerrado_id = cerrado.id
+        jamon_id = _lote(lote='J-1', producto_id=IDS['jamon'], consumos={}, mermas=[]).id
+
+    # La pantalla ofrece el lote abierto del producto, no el cerrado.
+    html = c.get(f'/pedidos/{pedido_id}/pesar').get_data(as_text=True)
+    assert 'id="pesar-lote-prod"' in html
+    assert f'<option value="{lote_id}"' in html and 'CH-77' in html
+    assert f'<option value="{cerrado_id}"' not in html
+
+    def pesar(peso, **extra):
+        data = {'detalle_pedido_id': det_id, 'peso': peso, 'lote': 'tecleado-a-mano',
+                'fecha_elaboracion': '2026-10-01', 'fecha_vencimiento': '2027-10-01'}
+        data.update(extra)
+        return c.post(f'/pedidos/{pedido_id}/pesar/caja', data=data, headers={'HX-Request': 'true'})
+
+    assert pesar('12,5', lote_produccion_id=lote_id).status_code == 200
+    assert pesar('7.5', lote_produccion_id=lote_id).status_code == 200
+    r = pesar('3', lote_produccion_id=jamon_id)
+    assert r.status_code == 422 and 'otro producto' in r.get_data(as_text=True)
+    r = pesar('3', lote_produccion_id=cerrado_id)
+    assert r.status_code == 422 and 'cerrada' in r.get_data(as_text=True)
+    assert pesar('3', lote_produccion_id=9999).status_code == 404
+    assert pesar('2').status_code == 200                       # sin lote: como siempre
+    with app.app_context():
+        from app import CajaPesada
+        from produccion.models import LoteProduccion
+        lote = _db.session.get(LoteProduccion, lote_id)
+        assert lote.peso_pesado == Decimal('20.000') and lote.cajas_pesadas_count == 2
+        cajas = CajaPesada.query.filter_by(detalle_pedido_id=det_id).order_by(CajaPesada.numero).all()
+        assert [c.lote for c in cajas] == ['CH-77', 'CH-77', 'tecleado-a-mano']
+        assert [c.numero for c in cajas] == [1, 2, 3]       # los rechazos no consumieron número
+        ultima_id = cajas[1].id
+    # Al cambiar de chip, el panel sabe con qué lote se venía pesando.
+    html = c.get(f'/pedidos/{pedido_id}/pesar').get_data(as_text=True)
+    assert f'data-ultimo-lote-prod=""' in html or 'data-ultimo-lote-prod=' in html
+    # El detalle del lote lista el pedido.
+    html = c.get(f'/produccion/lotes/{lote_id}').get_data(as_text=True)
+    assert f'PED-{pedido_id}' in html and '20 kg' in html
+
+
+def test_deshacer_caja_en_el_pedido_descuenta_del_lote(app):
+    c = _login(app, 'admin')
+    with app.app_context():
+        from produccion import servicios
+        lote_id = _lote(peso_adicional=None, consumos={IDS['carne']: Decimal('100')}, mermas=[]).id
+        pedido, det = _pedido_con_detalle(IDS['chorizo'])
+        pedido_id, det_id = pedido.id, det.id
+    c.post(f'/pedidos/{pedido_id}/pesar/caja', headers={'HX-Request': 'true'},
+           data={'detalle_pedido_id': det_id, 'peso': '10', 'lote': 'x', 'fecha_elaboracion': '2026-10-01',
+                 'fecha_vencimiento': '2027-10-01', 'lote_produccion_id': lote_id})
+    with app.app_context():
+        from app import CajaPesada
+        caja_id = CajaPesada.query.filter_by(detalle_pedido_id=det_id).one().id
+    assert c.delete(f'/cajas/{caja_id}', headers={'HX-Request': 'true'}).status_code == 200
+    with app.app_context():
+        from produccion.models import LoteProduccion, LoteCaja
+        assert LoteCaja.query.count() == 0
+        assert _db.session.get(LoteProduccion, lote_id).peso_producido == Decimal('0')
+
+
+def test_la_columna_peso_producido_se_renombra_al_arrancar(app):
+    """Base con la versión anterior (peso_producido tecleado): se renombra a
+    peso_adicional conservando el valor, y aparece produccion_lote_caja."""
+    from sqlalchemy import text
+    from produccion import asegurar_tablas
+    from produccion.models import LoteProduccion, LoteConsumo, LoteMerma, LoteCaja
+    with app.app_context():
+        for t in (LoteCaja.__table__, LoteMerma.__table__, LoteConsumo.__table__, LoteProduccion.__table__):
+            t.drop(_db.engine)
+        with _db.engine.begin() as conn:
+            conn.execute(text('CREATE TABLE lote_produccion (id INTEGER PRIMARY KEY, codigo VARCHAR(20), '
+                              'producto_id INTEGER, formula_id INTEGER, lote VARCHAR(50), fecha_produccion DATE, '
+                              'fecha_vencimiento DATE, peso_producido NUMERIC(10,3) NOT NULL, unidades_producidas INTEGER, '
+                              'cajas_producidas INTEGER, estado VARCHAR(20) NOT NULL, notas TEXT, registrado_por INTEGER NOT NULL, '
+                              'registrado_en TIMESTAMP NOT NULL, cerrado_por INTEGER, cerrado_en TIMESTAMP, anulado_por INTEGER, '
+                              'anulado_en TIMESTAMP, motivo_anulacion TEXT)'))
+            conn.execute(text('CREATE TABLE lote_consumo (id INTEGER PRIMARY KEY, lote_id INTEGER, insumo_id INTEGER, '
+                              'cantidad_teorica NUMERIC(10,3), cantidad_real NUMERIC(10,3))'))
+            conn.execute(text('CREATE TABLE lote_merma (id INTEGER PRIMARY KEY, lote_id INTEGER, tipo VARCHAR(20), '
+                              'cantidad NUMERIC(10,3), motivo TEXT)'))
+            conn.execute(text("INSERT INTO lote_produccion (id, codigo, producto_id, lote, fecha_produccion, peso_producido, "
+                              "estado, registrado_por, registrado_en) VALUES (1, 'PR-2026-0001', :p, 'V1', '2026-10-01', 42.5, "
+                              "'abierta', :v, '2026-10-01 10:00:00')"), {'p': IDS['chorizo'], 'v': IDS['admin']})
+        asegurar_tablas(app)
+        asegurar_tablas(app)
+        columnas = {c['name'] for c in _db.inspect(_db.engine).get_columns('lote_produccion')}
+        assert 'peso_adicional' in columnas and 'peso_producido' not in columnas
+        assert 'produccion_lote_caja' in set(_db.inspect(_db.engine).get_table_names())
+        lote = _db.session.get(LoteProduccion, 1)
+        assert lote.peso_adicional == Decimal('42.500') and lote.peso_producido == Decimal('42.500')

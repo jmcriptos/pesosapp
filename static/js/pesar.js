@@ -180,6 +180,8 @@
     const form = document.getElementById('pesar-add-form');
     const chipRow = document.getElementById('pesar-chip-row');
     const loteInput = document.getElementById('pesar-lote-input');
+    const loteProdSelect = document.getElementById('pesar-lote-prod');
+    const loteProdWrap = document.getElementById('pesar-lote-prod-wrap');
     const detalleInput = document.getElementById('pesar-detalle-id');
     const pesoHidden = document.getElementById('pesar-peso-hidden');
     const fechaElabHidden = document.getElementById('pesar-fecha-elab-hidden');
@@ -260,11 +262,70 @@
       }
     }
 
+    // ---- Lote de producción. El desplegable trae los lotes abiertos de
+    // todos los productos pesables; acá quedan a la vista solo los del
+    // producto activo, y se vuelve al lote con que se venía pesando ese
+    // producto (su última caja). Elegir uno escribe el número de lote y las
+    // fechas; tocar el número a mano lo desvincula.
+    function selectedLoteOption() {
+      if (!loteProdSelect || !loteProdSelect.value) return null;
+      return loteProdSelect.options[loteProdSelect.selectedIndex] || null;
+    }
+
+    function filterLoteProdOptions() {
+      if (!loteProdSelect) return;
+      const panelState = activePanelState();
+      const productoId = panelState?.dataset.productoId || '';
+      let visibles = 0;
+      Array.from(loteProdSelect.options).forEach((opt) => {
+        if (!opt.value) return;
+        const ok = opt.dataset.productoId === productoId;
+        opt.hidden = !ok;
+        opt.disabled = !ok;
+        if (ok) visibles += 1;
+      });
+      const ultimo = panelState?.dataset.ultimoLoteProd || '';
+      const candidata = ultimo && Array.from(loteProdSelect.options).find((o) => o.value === ultimo && !o.disabled);
+      loteProdSelect.value = candidata ? ultimo : '';
+      if (loteProdWrap) loteProdWrap.hidden = visibles === 0;
+    }
+
+    function applyLoteProd() {
+      const opt = selectedLoteOption();
+      if (!opt) return;
+      loteInput.value = opt.dataset.lote || '';
+      if (opt.dataset.elab) state.fechaElaboracion = opt.dataset.elab;
+      if (opt.dataset.venc) {
+        state.fechaVencimiento = opt.dataset.venc;
+      } else {
+        state.fechaVencimiento = addYearsISO(state.fechaElaboracion, 1);
+      }
+      state.vencManual = state.fechaVencimiento !== addYearsISO(state.fechaElaboracion, 1);
+      syncDates();
+      renderWeight();
+    }
+
+    // Si el número tecleado ya no es el del lote elegido, la caja no puede
+    // seguir atribuida a ese lote: se desvincula en silencio visible (el
+    // desplegable vuelve a «Sin lote»).
+    function unlinkLoteProdIfEdited() {
+      const opt = selectedLoteOption();
+      if (!opt) return;
+      if (String(loteInput.value || '').trim() !== String(opt.dataset.lote || '')) {
+        loteProdSelect.value = '';
+      }
+    }
+
     // Cada producto trae su propio lote: al cambiar de chip se toma el de su
     // última caja. Un producto sin cajas conserva lo que está escrito.
     function loadLoteFromPanel() {
       const panelState = activePanelState();
       if (!panelState) return;
+      filterLoteProdOptions();
+      if (selectedLoteOption()) {
+        applyLoteProd();
+        return;
+      }
       const lote = panelState.dataset.ultimoLote || '';
       if (!lote) return;
       loteInput.value = lote;
@@ -620,10 +681,18 @@
 
     document.getElementById('pesar-nuevo-lote')?.addEventListener('click', () => {
       incrementLote();
+      unlinkLoteProdIfEdited();
       renderWeight();
     });
 
-    loteInput?.addEventListener('input', renderWeight);
+    loteInput?.addEventListener('input', () => {
+      unlinkLoteProdIfEdited();
+      renderWeight();
+    });
+
+    loteProdSelect?.addEventListener('change', () => {
+      applyLoteProd();
+    });
 
     undoButton?.addEventListener('click', () => {
       const lastChip = ultimaCajaChip();

@@ -10,6 +10,7 @@ No hay ledger: un lote anota lo que se usó y lo que salió, y el balance
 guarda; lo único guardado es lo que alguien tecleó.
 """
 from datetime import datetime
+from decimal import Decimal
 
 from . import app_module
 
@@ -96,10 +97,12 @@ class LoteProduccion(db.Model):
     lote = db.Column(db.String(50), nullable=False, index=True)
     fecha_produccion = db.Column(db.Date, nullable=False, index=True)
     fecha_vencimiento = db.Column(db.Date, nullable=True)
-    # Lo que salió. Se guarda porque es un DATO (lo que marcó la balanza),
-    # no un total derivado. Unidades y cajas son informativas: el balance
-    # se hace en kilos.
-    peso_producido = db.Column(db.Numeric(10, 3), nullable=False, default=0)
+    # Lo que salió se toma de las cajas pesadas en los pedidos (ver
+    # `LoteCaja` y `peso_pesado`). `peso_adicional` es lo que NO pasó por
+    # la balanza de pedidos (muestras, stock que se congela, un remanente)
+    # y se declara a mano; es un dato, no un total derivado. Unidades y
+    # cajas declaradas son informativas: el balance se hace en kilos.
+    peso_adicional = db.Column(db.Numeric(10, 3), nullable=False, default=0)
     unidades_producidas = db.Column(db.Integer, nullable=True)
     cajas_producidas = db.Column(db.Integer, nullable=True)
     estado = db.Column(db.String(20), nullable=False, default='abierta', index=True)
@@ -120,6 +123,9 @@ class LoteProduccion(db.Model):
     mermas = db.relationship('LoteMerma', back_populates='lote',
                              cascade='all, delete-orphan',
                              order_by='LoteMerma.id')
+    cajas = db.relationship('LoteCaja', back_populates='lote',
+                            cascade='all, delete-orphan',
+                            order_by='LoteCaja.id')
 
     # Sin UNIQUE en base: un lote anulado por error de tecleo tiene que
     # poder volver a registrarse con el mismo número. La unicidad entre los
@@ -127,6 +133,26 @@ class LoteProduccion(db.Model):
     __table_args__ = (
         db.Index('ix_lote_produccion_producto_lote', 'producto_id', 'lote'),
     )
+
+    @property
+    def peso_pesado(self):
+        """Suma de las cajas pesadas en pedidos y vinculadas a este lote.
+        NO se guarda: un número guardado puede mentir cuando una caja se
+        borra o se corrige en el pedido."""
+        total = Decimal('0')
+        for vinculo in self.cajas:
+            if vinculo.caja_pesada is not None:
+                total += Decimal(str(vinculo.caja_pesada.peso))
+        return total
+
+    @property
+    def peso_producido(self):
+        """Lo pesado en pedidos más lo declarado a mano."""
+        return self.peso_pesado + Decimal(str(self.peso_adicional or 0))
+
+    @property
+    def cajas_pesadas_count(self):
+        return sum(1 for v in self.cajas if v.caja_pesada is not None)
 
     @property
     def abierto(self):
@@ -181,3 +207,21 @@ class LoteMerma(db.Model):
     @property
     def etiqueta(self):
         return TIPOS_MERMA_ETIQUETA.get(self.tipo, self.tipo)
+
+
+class LoteCaja(db.Model):
+    """Una caja pesada en un pedido, atribuida a este lote. El peso del
+    producto terminado sale de acá: al pesar para un pedido se elige el
+    lote y la caja queda vinculada. `ON DELETE CASCADE` en los dos lados:
+    si la caja se borra del pedido («Deshacer»), el vínculo cae solo y el
+    lote deja de contarla sin que ningún código lo recuerde."""
+    __tablename__ = 'produccion_lote_caja'
+    id = db.Column(db.Integer, primary_key=True)
+    lote_id = db.Column(db.Integer, db.ForeignKey('lote_produccion.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    caja_pesada_id = db.Column(db.Integer, db.ForeignKey('caja_pesada.id', ondelete='CASCADE'),
+                               nullable=False, unique=True, index=True)
+    registrado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    lote = db.relationship('LoteProduccion', back_populates='cajas')
+    caja_pesada = db.relationship('CajaPesada')

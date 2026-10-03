@@ -130,7 +130,7 @@ def _leer_cabecera(form):
         'lote': (form.get('lote') or '').strip(),
         'fecha_produccion': _fecha(form.get('fecha_produccion')),
         'fecha_vencimiento': _fecha(form.get('fecha_vencimiento')),
-        'peso_producido': _decimal(form.get('peso_producido')),
+        'peso_adicional': _decimal(form.get('peso_adicional')),
         'unidades_producidas': _entero(form.get('unidades_producidas')),
         'cajas_producidas': _entero(form.get('cajas_producidas')),
         'notas': form.get('notas'),
@@ -178,7 +178,7 @@ def _form_de_lote(lote):
         'fecha_produccion': lote.fecha_produccion.strftime('%Y-%m-%d'),
         'fecha_vencimiento': (lote.fecha_vencimiento.strftime('%Y-%m-%d')
                               if lote.fecha_vencimiento else ''),
-        'peso_producido': str(lote.peso_producido or ''),
+        'peso_adicional': str(lote.peso_adicional or ''),
         'unidades_producidas': ('' if lote.unidades_producidas is None
                                 else str(lote.unidades_producidas)),
         'cajas_producidas': ('' if lote.cajas_producidas is None
@@ -311,6 +311,28 @@ def lote_nuevo():
     return _render_form(None, form or None)
 
 
+def _pedidos_del_lote(lote):
+    """Las cajas atribuidas al lote agrupadas por pedido: [{pedido_id,
+    cliente, cajas, kg}], más reciente primero. Es la trazabilidad hacia
+    adelante del lote: a qué pedidos salió."""
+    grupos = {}
+    for vinculo in lote.cajas:
+        caja = vinculo.caja_pesada
+        detalle = caja.detalle_pedido if caja is not None else None
+        pedido = detalle.pedido if detalle is not None else None
+        if pedido is None:
+            continue
+        g = grupos.setdefault(pedido.id, {
+            'pedido_id': pedido.id,
+            'cliente': pedido.cliente.nombre if pedido.cliente else '—',
+            'estado': pedido.estado,
+            'cajas': 0, 'kg': Decimal('0'),
+        })
+        g['cajas'] += 1
+        g['kg'] += Decimal(str(caja.peso))
+    return sorted(grupos.values(), key=lambda g: -g['pedido_id'])
+
+
 @bp.route('/lotes/<int:lote_id>')
 @login_required
 @requiere_permiso_recurso(RECURSO, 'leer')
@@ -320,6 +342,7 @@ def lote_detalle(lote_id):
         'produccion/lote_detalle.html',
         lote=lote,
         balance=servicios.balance(lote),
+        pedidos_del_lote=_pedidos_del_lote(lote),
         registrado_por=reportes.nombre_vendedor(lote.registrado_por),
         cerrado_por=reportes.nombre_vendedor(lote.cerrado_por),
         anulado_por=reportes.nombre_vendedor(lote.anulado_por),

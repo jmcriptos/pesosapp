@@ -28,11 +28,21 @@ dónde se fue la diferencia.
   confundirse.
 - **Seis tablas nuevas**: las tres del catálogo más `lote_produccion`,
   `lote_consumo`, `lote_merma`. Nada de maquila se modifica.
-- **Ningún total se guarda.** `peso_producido` es un dato (lo que marcó la
-  balanza); merma, rendimiento y «sin identificar» se derivan en cada
-  lectura (`servicios.balance`). El teórico por ingrediente sí es un
-  snapshot al guardar, para que cambiar la receta mañana no reescriba el
-  rendimiento de ayer.
+- **El peso producido sale de la balanza de pedidos.** Al pesar cajas
+  para un pedido, la pantalla de pesar ofrece un desplegable «Lote de
+  producción» con los lotes **abiertos** del producto activo; elegir uno
+  atribuye la caja al lote (`produccion_lote_caja`), escribe el número de
+  lote y las fechas de la etiqueta y su peso cuenta como producto
+  terminado del lote. `peso_producido` es una propiedad derivada: cajas
+  atribuidas + `peso_adicional` (lo que no pasó por un pedido: muestras,
+  stock que se congela, un remanente; se declara a mano). Si una caja se
+  borra del pedido («Deshacer»), el vínculo cae por `ON DELETE CASCADE` y
+  el lote deja de contarla. Un lote cerrado no admite más cajas.
+- **Ningún total se guarda.** Merma, rendimiento y «sin identificar» se
+  derivan en cada lectura (`servicios.balance`). El teórico por insumo
+  sigue en vivo al peso producido mientras el lote está abierto (cada
+  caja pesada lo mueve) y queda congelado al **cerrar**: desde ahí
+  cambiar la fórmula no reescribe el rendimiento de ese lote.
 - **Balance en kilos.** Solo los insumos con unidad `kg` entran en el
   consumido. La tripa (`ud`) se registra y se compara contra su teórico,
   pero no suma kilos.
@@ -66,7 +76,8 @@ dónde se fue la diferencia.
 | `/produccion` | Resumen: KPI de 30 días (producido, rendimiento, merma, sin identificar, lotes con merma alta), lotes abiertos, últimos cerrados |
 | `/produccion/lotes` | Listado con filtros (producto, estado, fechas) |
 | `/produccion/lotes/nuevo` · `/<id>/editar` | Un formulario: cabecera, producto terminado, insumos usados (teórico en vivo desde la fórmula), mermas por causa, vista previa del balance en el pie. «Guardar» o «Guardar y cerrar» |
-| `/produccion/lotes/<id>` | Detalle: balance (rendimiento en grande), consumo con varianzas, mermas con «sin identificar», acciones (cerrar, reabrir, anular) |
+| `/produccion/lotes/<id>` | Detalle: balance (rendimiento en grande), cajas pesadas por pedido, consumo con varianzas, mermas con «sin identificar», acciones (cerrar, reabrir, anular) |
+| `/pedidos/<id>/pesar` | (pantalla existente) desplegable «Lote de producción» por producto; `registrar_caja_pesada` acepta `lote_produccion_id` y vincula la caja |
 | `/produccion/reportes/rendimiento` (+ `/export`) | Por producto (ponderado por kilos, mín–máx) y por lote, con Excel de tres hojas |
 | `/produccion/reportes/mermas` | Por causa (todas, también las que suman 0) y por producto |
 | `/produccion/insumos` | Catálogo de insumos propios (alta y activar/desactivar) |
@@ -76,7 +87,9 @@ dónde se fue la diferencia.
 
 Las tablas se crean solas al arrancar si faltan (`produccion.asegurar_tablas`,
 mismo criterio que `_ensure_haccp_columns`). El script
-Si encuentra las tablas de lotes de la primera versión (atadas a
+Si encuentra `lote_produccion.peso_producido` (versión 2026-10-03 AM), la
+renombra a `peso_adicional` conservando el valor. Si encuentra las tablas
+de lotes de la primera versión (atadas a
 `ingrediente`/`receta` de maquila, reconocibles porque `lote_consumo` no
 tiene `insumo_id`), las **tira y recrea** con el catálogo propio; los lotes
 de prueba de esa versión se pierden. `scripts/produccion_migracion.sql` hace
