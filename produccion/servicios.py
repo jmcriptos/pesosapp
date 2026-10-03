@@ -16,8 +16,9 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func
 
 from . import app_module
-from .models import (Formula, FormulaInsumo, Insumo, LoteConsumo, LoteMerma,
-                     LoteProduccion, TIPOS_MERMA_ETIQUETA, UNIDAD_PESO, UNIDADES)
+from .models import (Formula, FormulaInsumo, Insumo, LoteCaja, LoteConsumo,
+                     LoteMerma, LoteProduccion, TIPOS_MERMA_ETIQUETA, UNIDAD_PESO,
+                     UNIDADES)
 
 # NO reemplazar por `from app import db, Producto`: ver produccion/__init__.py.
 db = app_module.db
@@ -42,6 +43,11 @@ class LoteNoEditable(Exception):
 
 class MotivoRequerido(ValueError):
     """Reabrir o anular sin motivo no es auditable."""
+
+
+class VinculoInvalido(ValueError):
+    """La caja no puede atribuirse a ese lote (otro producto, lote cerrado,
+    caja ya atribuida)."""
 
 
 class InsumoInvalido(ValueError):
@@ -237,7 +243,7 @@ def lote_repetido(producto_id, lote, excluir_id=None):
     return query.first()
 
 
-def _validar_cabecera(producto_id, lote, fecha_produccion, peso_producido,
+def _validar_cabecera(producto_id, lote, fecha_produccion, peso_adicional,
                       unidades, cajas, excluir_id=None):
     lote = (lote or '').strip()
     if not lote:
@@ -250,9 +256,9 @@ def _validar_cabecera(producto_id, lote, fecha_produccion, peso_producido,
     if repetido:
         raise LoteInvalido(
             f'Ya existe {repetido.codigo} con el lote {lote} para ese producto')
-    peso = _dec(peso_producido)
+    peso = _dec(peso_adicional)
     if peso < CERO:
-        raise LoteInvalido('El peso producido no puede ser negativo')
+        raise LoteInvalido('El peso adicional no puede ser negativo')
     for nombre, valor in (('unidades', unidades), ('cajas', cajas)):
         if valor is not None and valor < 0:
             raise LoteInvalido(f'La cantidad de {nombre} no puede ser negativa')
@@ -294,12 +300,19 @@ def _validar_mermas(mermas):
     return limpias
 
 
+def teoricos_de(lote):
+    """{insumo_id: teórico} para el peso producido ACTUAL del lote."""
+    if lote.formula and lote.peso_producido > CERO:
+        return consumo_teorico(lote.formula, lote.peso_producido)
+    return {}
+
+
 def _escribir_lineas(lote, consumos, mermas):
-    """Reemplaza consumos y mermas del lote por lo validado y recalcula el
-    teórico contra la fórmula y el peso producido actuales."""
-    teoricos = {}
-    if lote.formula and _dec(lote.peso_producido) > CERO:
-        teoricos = consumo_teorico(lote.formula, lote.peso_producido)
+    """Reemplaza consumos y mermas del lote por lo validado y guarda el
+    teórico del momento. Mientras el lote está abierto el peso producido
+    sigue cambiando con cada caja pesada, así que `balance` lo recalcula en
+    vivo; `cerrar_lote` deja la foto definitiva."""
+    teoricos = teoricos_de(lote)
 
     lote.consumos.clear()
     lote.mermas.clear()
@@ -314,17 +327,17 @@ def _escribir_lineas(lote, consumos, mermas):
 
 
 def crear_lote(*, producto_id, lote, fecha_produccion, vendedor_id,
-               fecha_vencimiento=None, peso_producido=None,
+               fecha_vencimiento=None, peso_adicional=None,
                unidades_producidas=None, cajas_producidas=None,
                consumos=None, mermas=None, notas=None):
     """Registra un lote con todo lo que se sabe de él. Comitea.
 
     No pide consumo ni peso para guardar: en planta se abre el lote al
-    empezar y se completa cuando sale de la balanza. Lo que sí exige
-    `cerrar_lote`.
+    empezar y el peso producido va llegando desde la balanza de pedidos
+    (`vincular_caja`). Lo que sí exige `cerrar_lote`.
     """
     lote, peso = _validar_cabecera(producto_id, lote, fecha_produccion,
-                                   peso_producido, unidades_producidas,
+                                   peso_adicional, unidades_producidas,
                                    cajas_producidas)
     consumos = _validar_consumos(consumos)
     mermas = _validar_mermas(mermas)
@@ -337,7 +350,7 @@ def crear_lote(*, producto_id, lote, fecha_produccion, vendedor_id,
             lote=lote,
             fecha_produccion=fecha_produccion,
             fecha_vencimiento=fecha_vencimiento,
-            peso_producido=peso,
+            peso_adicional=peso,
             unidades_producidas=unidades_producidas,
             cajas_producidas=cajas_producidas,
             estado='abierta',
@@ -358,7 +371,7 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
     """Reescribe cabecera, consumos y mermas de un lote ABIERTO. Comitea.
 
     `cabecera` trae producto_id, lote, fecha_produccion, fecha_vencimiento,
-    peso_producido, unidades_producidas, cajas_producidas y notas. Si cambia
+    peso_adicional, unidades_producidas, cajas_producidas y notas. Si cambia
     el producto, la fórmula se vuelve a resolver: la del nuevo producto.
     """
     if lote.estado != 'abierta':
@@ -366,7 +379,7 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
             f'{lote.codigo} está {lote.estado}: reabrilo para corregirlo')
     numero, peso = _validar_cabecera(
         cabecera.get('producto_id'), cabecera.get('lote'),
-        cabecera.get('fecha_produccion'), cabecera.get('peso_producido'),
+        cabecera.get('fecha_produccion'), cabecera.get('peso_adicional'),
         cabecera.get('unidades_producidas'), cabecera.get('cajas_producidas'),
         excluir_id=lote.id)
     consumos = _validar_consumos(consumos)
@@ -384,7 +397,7 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
         lote.lote = numero
         lote.fecha_produccion = cabecera['fecha_produccion']
         lote.fecha_vencimiento = cabecera.get('fecha_vencimiento')
-        lote.peso_producido = peso
+        lote.peso_adicional = peso
         lote.unidades_producidas = cabecera.get('unidades_producidas')
         lote.cajas_producidas = cabecera.get('cajas_producidas')
         lote.notas = (cabecera.get('notas') or '').strip() or None
@@ -409,12 +422,18 @@ def cerrar_lote(lote, vendedor_id):
     """
     if lote.estado != 'abierta':
         raise LoteInvalido(f'{lote.codigo} no está abierto')
-    if _dec(lote.peso_producido) <= CERO:
-        raise LoteInvalido('Para cerrar hace falta el peso producido')
+    if lote.peso_producido <= CERO:
+        raise LoteInvalido('Para cerrar hace falta peso producido: cajas pesadas en '
+                           'pedidos con este lote, o un peso adicional declarado')
     if consumo_en_peso(lote) <= CERO:
         raise LoteInvalido('Para cerrar hace falta declarar el consumo de al '
                            'menos un insumo en kg')
     try:
+        # Foto del teórico con el peso producido final: desde acá, cambiar
+        # la fórmula o el peso no reescribe el rendimiento de este lote.
+        teoricos = teoricos_de(lote)
+        for consumo in lote.consumos:
+            consumo.cantidad_teorica = teoricos.get(consumo.insumo_id, CERO)
         lote.estado = 'cerrada'
         lote.cerrado_por = vendedor_id
         lote.cerrado_en = datetime.utcnow()
@@ -490,7 +509,10 @@ def balance(lote):
     - varianzas: por insumo, teórico de la fórmula contra lo real.
     """
     consumido = consumo_en_peso(lote)
-    producido = _dec(lote.peso_producido)
+    producido = lote.peso_producido
+    # Abierto: el teórico sigue al peso que va llegando de la balanza.
+    # Cerrado: vale la foto guardada al cerrar.
+    teoricos_vivos = teoricos_de(lote) if lote.estado == 'abierta' else None
     otras_unidades = sorted({c.insumo.unidad for c in lote.consumos
                              if c.insumo and c.insumo.unidad != UNIDAD_PESO})
     identificada = sum((_dec(m.cantidad) for m in lote.mermas), CERO)
@@ -502,7 +524,8 @@ def balance(lote):
 
     varianzas = []
     for consumo in lote.consumos:
-        teorica = _dec(consumo.cantidad_teorica)
+        teorica = (teoricos_vivos.get(consumo.insumo_id, CERO) if teoricos_vivos is not None
+                   else _dec(consumo.cantidad_teorica))
         real = _dec(consumo.cantidad_real)
         varianzas.append({
             'insumo_id': consumo.insumo_id,
@@ -526,6 +549,9 @@ def balance(lote):
     return {
         'consumido': consumido,
         'producido': producido,
+        'peso_pesado': lote.peso_pesado,
+        'peso_adicional': _dec(lote.peso_adicional),
+        'cajas_pesadas': lote.cajas_pesadas_count,
         'otras_unidades': otras_unidades,
         'merma_total': merma_total,
         'merma_identificada': identificada,
@@ -536,3 +562,53 @@ def balance(lote):
         'varianzas': varianzas,
         'mermas_por_tipo': mermas_por_tipo,
     }
+
+
+# ------------------------------------------------- cajas pesadas en pedidos
+
+def lotes_disponibles(producto_ids):
+    """{producto_id: [lotes abiertos]} para el desplegable de la pantalla de
+    pesar, más reciente primero. Solo abiertos: un lote cerrado ya tiene
+    su rendimiento y no admite más cajas."""
+    ids = {i for i in producto_ids if i is not None}
+    if not ids:
+        return {}
+    lotes = (LoteProduccion.query
+             .filter(LoteProduccion.producto_id.in_(ids),
+                     LoteProduccion.estado == 'abierta')
+             .order_by(LoteProduccion.fecha_produccion.desc(), LoteProduccion.id.desc())
+             .all())
+    salida = {}
+    for lote in lotes:
+        salida.setdefault(lote.producto_id, []).append(lote)
+    return salida
+
+
+def lotes_por_caja(caja_ids):
+    """{caja_pesada_id: lote_id} de las cajas ya atribuidas, en una consulta."""
+    ids = {i for i in caja_ids if i is not None}
+    if not ids:
+        return {}
+    filas = (db.session.query(LoteCaja.caja_pesada_id, LoteCaja.lote_id)
+             .filter(LoteCaja.caja_pesada_id.in_(ids)).all())
+    return dict(filas)
+
+
+def vincular_caja(lote, caja):
+    """Atribuye una caja pesada en un pedido a este lote. No comitea: va
+    dentro de la transacción que registra la caja.
+
+    Se rechaza entera si el producto no coincide (una caja de chorizo no
+    puede pesar en un lote de jamón), si el lote no está abierto o si la
+    caja ya está atribuida a otro lote.
+    """
+    if lote.estado != 'abierta':
+        raise VinculoInvalido(f'El lote {lote.codigo} está {lote.estado}: no admite más cajas')
+    detalle = caja.detalle_pedido
+    if detalle is None or detalle.producto_id != lote.producto_id:
+        raise VinculoInvalido(f'La caja es de otro producto que el lote {lote.codigo}')
+    if caja.id is not None and LoteCaja.query.filter_by(caja_pesada_id=caja.id).first():
+        raise VinculoInvalido('Esa caja ya está atribuida a un lote')
+    vinculo = LoteCaja(lote_id=lote.id, caja_pesada=caja)
+    db.session.add(vinculo)
+    return vinculo

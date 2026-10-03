@@ -4813,6 +4813,38 @@ def _maquila_propuesta(detalles):
     return propuesta
 
 
+def _lotes_produccion_para(detalles):
+    """Lotes de producción ABIERTOS por producto, para el desplegable de la
+    pantalla de pesar: elegir uno atribuye la caja al lote y así el peso
+    producido sale de la balanza. {} si el módulo no responde: la pantalla
+    de pesar sigue funcionando como siempre."""
+    try:
+        from produccion import servicios as produccion_servicios
+        lotes = produccion_servicios.lotes_disponibles(
+            d.producto_id for d in detalles)
+    except Exception:
+        app.logger.exception('produccion: no se pudieron listar los lotes para pesar')
+        return {}
+    return {producto_id: [{
+        'id': l.id, 'codigo': l.codigo, 'lote': l.lote,
+        'fecha_produccion': l.fecha_produccion.isoformat() if l.fecha_produccion else '',
+        'fecha_vencimiento': l.fecha_vencimiento.isoformat() if l.fecha_vencimiento else '',
+        'rotulo': f'{l.codigo} · lote {l.lote} · {l.fecha_produccion.strftime("%d/%m")}',
+    } for l in lista] for producto_id, lista in lotes.items()}
+
+
+def _lotes_produccion_por_caja(detalles):
+    """{caja_pesada_id: lote_id} de las cajas ya atribuidas, para que al
+    cambiar de chip el desplegable vuelva al lote con que se venía pesando."""
+    try:
+        from produccion import servicios as produccion_servicios
+        return produccion_servicios.lotes_por_caja(
+            caja.id for d in detalles for caja in d.cajas_pesadas)
+    except Exception:
+        app.logger.exception('produccion: no se pudieron leer los lotes de las cajas')
+        return {}
+
+
 def _build_pesar_context(pedido, active_detalle_id=None):
     detalles = _pedido_detalles_pesables(pedido)
     active_detalle = _get_active_pesable_detail(pedido, active_detalle_id=active_detalle_id)
@@ -4833,6 +4865,8 @@ def _build_pesar_context(pedido, active_detalle_id=None):
         'cajas_objetivo_total': _pedido_cajas_objetivo_total(pedido),
         'puede_finalizar_pesar': _pedido_can_finalize_pesar(pedido),
         'maquila_propuesta': maquila_propuesta,
+        'lotes_produccion': _lotes_produccion_para(detalles),
+        'lotes_por_caja': _lotes_produccion_por_caja(detalles),
     }
 
 
@@ -4856,6 +4890,7 @@ def _render_pesar_cajas_partial(pedido, detalle, caja_registrada=None):
         cajas_pesadas_total=_pedido_cajas_pesadas_total(pedido),
         cajas_objetivo_total=_pedido_cajas_objetivo_total(pedido),
         puede_finalizar_pesar=_pedido_can_finalize_pesar(pedido),
+        lotes_por_caja=_lotes_produccion_por_caja([detalle]),
         oob_echoes=True,
     )
 
@@ -9201,6 +9236,26 @@ def registrar_caja_pesada(pedido_id):
     if fecha_vencimiento < fecha_elaboracion:
         return _htmx_error_response('La fecha de vencimiento no puede ser anterior a la elaboración')
 
+    # Lote de producción (opcional): la caja queda atribuida al lote y su
+    # peso cuenta como producto terminado de ese lote. El número de lote de
+    # la etiqueta es el del lote de producción: una sola verdad.
+    lote_produccion = None
+    lote_produccion_id = request.form.get('lote_produccion_id', type=int)
+    if lote_produccion_id:
+        from produccion import servicios as produccion_servicios
+        from produccion.models import LoteProduccion
+        lote_produccion = db.session.get(LoteProduccion, lote_produccion_id)
+        if lote_produccion is None:
+            return _htmx_error_response('Ese lote de producción ya no existe', status=404)
+        if lote_produccion.producto_id != detalle.producto_id:
+            return _htmx_error_response(
+                f'El lote {lote_produccion.codigo} es de otro producto')
+        if lote_produccion.estado != 'abierta':
+            return _htmx_error_response(
+                f'El lote {lote_produccion.codigo} está {lote_produccion.estado}: '
+                'no admite más cajas')
+        lote = lote_produccion.lote
+
     siguiente_numero = max((caja.numero for caja in detalle.cajas_pesadas), default=0) + 1
     caja = CajaPesada(
         detalle_pedido_id=detalle.id,
@@ -9212,11 +9267,20 @@ def registrar_caja_pesada(pedido_id):
         pesado_por=current_user.id if isinstance(current_user, Vendedor) else None,
     )
     db.session.add(caja)
+    if lote_produccion is not None:
+        db.session.flush()
+        try:
+            produccion_servicios.vincular_caja(lote_produccion, caja)
+        except produccion_servicios.VinculoInvalido as exc:
+            db.session.rollback()
+            return _htmx_error_response(str(exc))
     _log_pedido_evento(
         pedido,
         'caja_pesada',
-        f'Caja #{siguiente_numero:02d} de {detalle.producto.nombre}: {peso} kg (lote {lote})',
-        meta={'detalle_id': detalle.id, 'numero': siguiente_numero, 'peso': float(peso), 'lote': lote},
+        f'Caja #{siguiente_numero:02d} de {detalle.producto.nombre}: {peso} kg (lote {lote})'
+        + (f' → {lote_produccion.codigo}' if lote_produccion is not None else ''),
+        meta={'detalle_id': detalle.id, 'numero': siguiente_numero, 'peso': float(peso), 'lote': lote,
+              'lote_produccion_id': lote_produccion.id if lote_produccion is not None else None},
     )
     db.session.commit()
 

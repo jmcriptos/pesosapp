@@ -277,6 +277,7 @@ body[data-pesar-screen] .pesar-modal-overlay input {
 }
 
 .pesar-field input,
+.pesar-field select,
 .pesar-modal-fields input {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -862,6 +863,7 @@ body[data-pesar-screen] .pesar-key.is-submit:disabled {
 }
 
 body[data-pesar-screen] .pesar-field input,
+body[data-pesar-screen] .pesar-field select,
 body[data-pesar-screen] .pesar-modal-fields input,
 body[data-pesar-screen] .pesar-screen input[type="text"] {
   background: #ffffff !important;

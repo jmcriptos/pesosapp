@@ -17,7 +17,7 @@
     <dt>Fecha de vencimiento</dt><dd>{{ lote.fecha_vencimiento.strftime('%d/%m/%Y') if lote.fecha_vencimiento else '—' }}</dd>
     <dt>Fórmula</dt><dd>{% if lote.formula %}{{ lote.formula.nombre }} (base {{ lote.formula.base_kg|fmt_cant }}){% else %}Sin fórmula: solo consumo real{% endif %}</dd>
     <dt>Producto terminado</dt>
-    <dd>{{ lote.peso_producido|fmt_cant if lote.peso_producido else '—' }}{% if lote.unidades_producidas is not none %} · {{ lote.unidades_producidas }} unidad{{ 'es' if lote.unidades_producidas != 1 else '' }}{% endif %}{% if lote.cajas_producidas is not none %} · {{ lote.cajas_producidas }} caja{{ 's' if lote.cajas_producidas != 1 else '' }}{% endif %}</dd>
+    <dd>{{ lote.peso_producido|fmt_cant if lote.peso_producido else '—' }}{% if lote.cajas_pesadas_count %} · {{ lote.peso_pesado|fmt_cant }} en {{ lote.cajas_pesadas_count }} caja{{ 's' if lote.cajas_pesadas_count != 1 else '' }} pesada{{ 's' if lote.cajas_pesadas_count != 1 else '' }} en pedidos{% endif %}{% if lote.peso_adicional %} · {{ lote.peso_adicional|fmt_cant }} adicional{% endif %}{% if lote.unidades_producidas is not none %} · {{ lote.unidades_producidas }} unidad{{ 'es' if lote.unidades_producidas != 1 else '' }}{% endif %}{% if lote.cajas_producidas is not none %} · {{ lote.cajas_producidas }} caja{{ 's' if lote.cajas_producidas != 1 else '' }} declaradas{% endif %}</dd>
     <dt>Registrado por</dt><dd>{{ registrado_por or '—' }}</dd>
     {% if lote.estado == 'cerrada' %}
     <dt>Cerrado por</dt><dd>{{ cerrado_por or '—' }}{% if cerrado_en %} · {{ cerrado_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</dd>
@@ -36,6 +36,31 @@
 </section>
 
 {{ franja_balance(balance, umbral) }}
+
+<section class="ops-card" id="cajas">
+  <h2>Cajas pesadas en pedidos</h2>
+  {% if not pedidos_del_lote %}
+    <p class="ops-empty">Todavía ninguna. Al pesar un pedido de {{ lote.producto.nombre }}, elegí este lote en «Lote de producción» y cada caja suma acá.{% if lote.estado != 'abierta' %} (El lote está {{ lote.estado }}: solo los abiertos aparecen en la balanza.){% endif %}</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead><tr><th>Pedido</th><th>Cliente</th><th>Estado</th><th class="maquila-num">Cajas</th><th class="maquila-num">Kilos</th></tr></thead>
+    <tbody>
+      {% for g in pedidos_del_lote %}
+      <tr>
+        <td data-label="Pedido"><a href="{{ url_for('detalles_pedido', pedido_id=g.pedido_id) }}">PED-{{ g.pedido_id }}</a></td>
+        <td data-label="Cliente">{{ g.cliente }}</td>
+        <td data-label="Estado">{{ chip_estado(g.estado) }}</td>
+        <td data-label="Cajas" class="maquila-num">{{ g.cajas }}</td>
+        <td data-label="Kilos" class="maquila-num">{{ g.kg|fmt_cant }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td><strong>Total</strong></td><td></td><td></td><td class="maquila-num"><strong>{{ lote.cajas_pesadas_count }}</strong></td><td class="maquila-num"><strong>{{ lote.peso_pesado|fmt_cant }}</strong></td></tr>
+    </tfoot>
+  </table>
+  {% endif %}
+</section>
 
 <section class="ops-card" id="consumo">
   <h2>Insumos usados</h2>

@@ -1,4 +1,4 @@
--- Módulo de producción propia (insumos, fórmulas, lotes, mermas y rendimiento).
+-- Módulo de producción propia (insumos, fórmulas, lotes, cajas pesadas, mermas y rendimiento).
 --
 -- Normalmente NO hace falta correrlo: al arrancar, la app crea estas tablas
 -- si faltan y, si encuentra las de la primera versión del módulo (lotes
@@ -10,6 +10,7 @@
 --   heroku restart --app pesosapp
 -- No toca ninguna tabla de maquila ni del resto de la app.
 BEGIN;
+DROP TABLE IF EXISTS produccion_lote_caja;
 DROP TABLE IF EXISTS lote_merma;
 DROP TABLE IF EXISTS lote_consumo;
 DROP TABLE IF EXISTS lote_produccion;
@@ -54,7 +55,7 @@ CREATE TABLE lote_produccion (
 	lote VARCHAR(50) NOT NULL,
 	fecha_produccion DATE NOT NULL,
 	fecha_vencimiento DATE,
-	peso_producido NUMERIC(10, 3) NOT NULL,
+	peso_adicional NUMERIC(10, 3) NOT NULL,
 	unidades_producidas INTEGER,
 	cajas_producidas INTEGER,
 	estado VARCHAR(20) NOT NULL,
@@ -102,4 +103,15 @@ CREATE TABLE lote_merma (
 	FOREIGN KEY(lote_id) REFERENCES lote_produccion (id) ON DELETE CASCADE
 );
 CREATE INDEX ix_lote_merma_lote_id ON lote_merma (lote_id);
+CREATE TABLE produccion_lote_caja (
+	id SERIAL NOT NULL,
+	lote_id INTEGER NOT NULL,
+	caja_pesada_id INTEGER NOT NULL,
+	registrado_en TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(lote_id) REFERENCES lote_produccion (id) ON DELETE CASCADE,
+	FOREIGN KEY(caja_pesada_id) REFERENCES caja_pesada (id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX ix_produccion_lote_caja_caja_pesada_id ON produccion_lote_caja (caja_pesada_id);
+CREATE INDEX ix_produccion_lote_caja_lote_id ON produccion_lote_caja (lote_id);
 COMMIT;
