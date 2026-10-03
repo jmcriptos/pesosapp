@@ -10,7 +10,7 @@ ingredientes. Lo declarado se anota tal cual. El control es a posteriori
 —merma y rendimiento por lote— no un bloqueo a la hora de registrar.
 """
 import re
-from datetime import date as _date, datetime
+from datetime import date as _date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import func
@@ -621,6 +621,19 @@ def lotes_disponibles(producto_ids):
     for lote in lotes:
         salida.setdefault(lote.producto_id, []).append(lote)
     return salida
+
+
+def lotes_para_etiquetas(dias=90, limite=100):
+    """Lotes recientes no anulados, más reciente primero, para el formulario
+    de etiquetas de vencimiento. Abiertos y cerrados: la etiqueta se imprime
+    mientras haya producto de ese lote, aunque el rendimiento ya esté
+    cerrado."""
+    desde = _date.today() - timedelta(days=dias)
+    return (LoteProduccion.query
+            .filter(LoteProduccion.estado != 'anulada',
+                    LoteProduccion.fecha_produccion >= desde)
+            .order_by(LoteProduccion.fecha_produccion.desc(), LoteProduccion.id.desc())
+            .limit(limite).all())
 
 
 def lotes_por_caja(caja_ids):
