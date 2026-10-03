@@ -87,14 +87,14 @@
       <tr class="maquila-fila-sub">
         <td colspan="9">
           <details class="maquila-sub">
-            <summary>Consumo por ingrediente — {{ f.codigo }}</summary>
+            <summary>Consumo por insumo — {{ f.codigo }}</summary>
             <table class="maquila-tabla-mini">
-              <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th><th class="maquila-num">%</th></tr></thead>
+              <thead><tr><th>Insumo</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th><th class="maquila-num">%</th></tr></thead>
               <tbody>
                 {% for v in f.varianzas %}
                 {% set v_alta = v.pct is not none and v.pct|abs > umbral %}
                 <tr class="{{ 'maquila-merma-alta' if v_alta else '' }}">
-                  <td>{{ v.ingrediente }}</td>
+                  <td>{{ v.insumo }}</td>
                   <td class="maquila-num">{{ v.teorica|fmt_cant(v.unidad) if v.teorica else '—' }}</td>
                   <td class="maquila-num">{{ v.real|fmt_cant(v.unidad) }}</td>
                   <td class="maquila-num">{{ v.diferencia|fmt_cant(v.unidad) if v.teorica else '—' }}</td>

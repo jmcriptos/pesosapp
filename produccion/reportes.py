@@ -6,10 +6,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import selectinload
 
-from maquila.models import Receta
-
 from . import app_module, servicios
-from .models import LoteConsumo, LoteMerma, LoteProduccion, TIPOS_MERMA
+from .models import Formula, LoteConsumo, LoteProduccion, TIPOS_MERMA
 from .servicios import CERO, _dec, _pct
 
 db = app_module.db
@@ -29,10 +27,10 @@ def _lotes(producto_id=None, desde=None, hasta=None, estados=('cerrada',)):
     sin esto cada fila costaba cuatro consultas."""
     query = (LoteProduccion.query
              .options(selectinload(LoteProduccion.producto),
-                      selectinload(LoteProduccion.receta),
+                      selectinload(LoteProduccion.formula),
                       selectinload(LoteProduccion.mermas),
                       selectinload(LoteProduccion.consumos)
-                      .selectinload(LoteConsumo.ingrediente)))
+                      .selectinload(LoteConsumo.insumo)))
     if estados:
         query = query.filter(LoteProduccion.estado.in_(estados))
     if producto_id:
@@ -194,21 +192,21 @@ def nombre_vendedor(vendedor_id):
     return v.nombre_completo if v else None
 
 
-def recetas_genericas_json():
-    """{producto_id: {...}} con la receta genérica activa de cada producto,
-    para que el formulario calcule el teórico mientras se teclea el peso.
-    Si hay más de una activa (no debería: `validar_receta_unica` lo
-    impide), gana la más nueva, igual que `servicios.receta_para`."""
+def formulas_json():
+    """{producto_id: {...}} con la fórmula activa de cada producto, para que
+    el formulario calcule el teórico mientras se teclea el peso. Si hubiera
+    más de una activa (no debería: `guardar_formula` lo impide), gana la
+    más nueva, igual que `servicios.formula_para`."""
     salida = {}
-    recetas = (Receta.query
-               .filter(Receta.cliente_id.is_(None), Receta.activa.is_(True))
-               .options(selectinload(Receta.ingredientes))
-               .order_by(Receta.id.asc()).all())
-    for r in recetas:
-        salida[str(r.producto_id)] = {
-            'id': r.id,
-            'nombre': r.nombre,
-            'base_kg': str(_dec(r.base_kg)),
-            'items': {str(i.ingrediente_id): str(_dec(i.cantidad)) for i in r.ingredientes},
+    formulas = (Formula.query
+                .filter(Formula.activa.is_(True))
+                .options(selectinload(Formula.insumos))
+                .order_by(Formula.id.asc()).all())
+    for f in formulas:
+        salida[str(f.producto_id)] = {
+            'id': f.id,
+            'nombre': f.nombre,
+            'base_kg': str(_dec(f.base_kg)),
+            'items': {str(i.insumo_id): str(_dec(i.cantidad)) for i in f.insumos},
         }
     return salida

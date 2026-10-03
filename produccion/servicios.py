@@ -14,11 +14,9 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import func
 
-from maquila.models import Ingrediente, Receta
-from maquila.servicios import consumo_teorico, UNIDAD_PESO
-
 from . import app_module
-from .models import LoteConsumo, LoteMerma, LoteProduccion, TIPOS_MERMA_ETIQUETA
+from .models import (Formula, FormulaInsumo, Insumo, LoteConsumo, LoteMerma,
+                     LoteProduccion, TIPOS_MERMA_ETIQUETA, UNIDAD_PESO, UNIDADES)
 
 # NO reemplazar por `from app import db, Producto`: ver produccion/__init__.py.
 db = app_module.db
@@ -45,6 +43,14 @@ class MotivoRequerido(ValueError):
     """Reabrir o anular sin motivo no es auditable."""
 
 
+class InsumoInvalido(ValueError):
+    """El insumo no se puede guardar así (sin nombre, repetido, unidad rara)."""
+
+
+class FormulaInvalida(ValueError):
+    """La fórmula no se puede guardar así."""
+
+
 def _dec(valor):
     if isinstance(valor, Decimal):
         return valor
@@ -61,8 +67,8 @@ def _pct(parte, total):
 def siguiente_codigo(anio=None):
     """Siguiente correlativo del año: PR-2026-0042.
 
-    Mismo criterio que maquila: se cuenta lo que hay en vez de llevar una
-    tabla de secuencias. A decenas de lotes por mes es exacto.
+    Se cuenta lo que hay en vez de llevar una tabla de secuencias: a
+    decenas de lotes por mes es exacto.
     """
     anio = anio or _date.today().year
     patron = f'PR-{anio}-%'
@@ -73,18 +79,104 @@ def siguiente_codigo(anio=None):
     return f'PR-{anio}-{siguiente:04d}'
 
 
-def receta_para(producto_id):
-    """La receta genérica activa del producto (sin cliente), o None.
+# ------------------------------------------------------------ catálogo
 
-    Las recetas con cliente son de maquila: fórmulas que un cliente pidió
-    para SU producto. Para producción propia aplica la de la casa.
-    """
-    return (Receta.query
-            .filter(Receta.producto_id == producto_id,
-                    Receta.cliente_id.is_(None),
-                    Receta.activa.is_(True))
-            .order_by(Receta.id.desc())
+UNIDADES_VALIDAS = {clave for clave, _ in UNIDADES}
+
+
+def crear_insumo(*, nombre, unidad='kg', notas=None):
+    """Da de alta un insumo. Comitea."""
+    nombre = (nombre or '').strip()
+    if not nombre:
+        raise InsumoInvalido('El insumo necesita un nombre')
+    if unidad not in UNIDADES_VALIDAS:
+        raise InsumoInvalido('La unidad tiene que ser kg o ud')
+    if Insumo.query.filter(func.lower(Insumo.nombre) == nombre.lower()).first():
+        raise InsumoInvalido(f'Ya existe un insumo llamado {nombre}')
+    try:
+        insumo = Insumo(nombre=nombre, unidad=unidad, notas=(notas or '').strip() or None)
+        db.session.add(insumo)
+        db.session.commit()
+        return insumo
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def formula_para(producto_id):
+    """La fórmula activa del producto, o None. Si hubiera más de una (no
+    debería: `guardar_formula` lo impide), gana la más nueva."""
+    return (Formula.query
+            .filter(Formula.producto_id == producto_id, Formula.activa.is_(True))
+            .order_by(Formula.id.desc())
             .first())
+
+
+def guardar_formula(formula, *, producto_id, nombre, base_kg, activa, items,
+                    vendedor_id=None):
+    """Crea o reescribe una fórmula con sus insumos. Comitea.
+
+    `items` es {insumo_id: cantidad}. Una sola fórmula activa por producto:
+    se rechaza al guardar, no al usarla, que es descubrirlo tarde.
+    """
+    nombre = (nombre or '').strip()
+    if not nombre:
+        raise FormulaInvalida('La fórmula necesita un nombre')
+    if producto_id is None or db.session.get(Producto, producto_id) is None:
+        raise FormulaInvalida('Elegí un producto válido')
+    base = _dec(base_kg)
+    if base <= CERO:
+        raise FormulaInvalida('La base en kg tiene que ser positiva')
+    limpios = {}
+    for insumo_id, cantidad in (items or {}).items():
+        cantidad = _dec(cantidad)
+        if cantidad <= CERO:
+            continue
+        if db.session.get(Insumo, insumo_id) is None:
+            raise FormulaInvalida(f'El insumo {insumo_id} no existe')
+        limpios[insumo_id] = cantidad
+    if not limpios:
+        raise FormulaInvalida('La fórmula necesita al menos un insumo con cantidad')
+    if activa:
+        otra = (Formula.query
+                .filter(Formula.producto_id == producto_id, Formula.activa.is_(True)))
+        if formula is not None:
+            otra = otra.filter(Formula.id != formula.id)
+        if otra.first():
+            raise FormulaInvalida('Ese producto ya tiene una fórmula activa: '
+                                  'desactivá la otra o editala')
+    try:
+        if formula is None:
+            formula = Formula(creada_por=vendedor_id)
+            db.session.add(formula)
+        formula.producto_id = producto_id
+        formula.nombre = nombre
+        formula.base_kg = base
+        formula.activa = bool(activa)
+        db.session.flush()
+        formula.insumos.clear()
+        db.session.flush()
+        for insumo_id, cantidad in limpios.items():
+            formula.insumos.append(FormulaInsumo(insumo_id=insumo_id, cantidad=cantidad))
+        db.session.commit()
+        return formula
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def consumo_teorico(formula, kg_producidos):
+    """Cuánto debería consumirse de cada insumo para producir esos kilos."""
+    kg_producidos = _dec(kg_producidos)
+    base = _dec(formula.base_kg)
+    if base <= CERO:
+        raise ValueError('La base de la fórmula debe ser positiva')
+    factor = kg_producidos / base
+    return {item.insumo_id: (_dec(item.cantidad) * factor).quantize(MILESIMA)
+            for item in formula.insumos}
+
+
+# --------------------------------------------------------------- lotes
 
 
 def lote_repetido(producto_id, lote, excluir_id=None):
@@ -121,18 +213,18 @@ def _validar_cabecera(producto_id, lote, fecha_produccion, peso_producido,
 
 
 def _validar_consumos(consumos):
-    """{ingrediente_id: Decimal} con solo lo positivo. Un ingrediente
-    inexistente es error; cero o vacío es «no se usó» y se omite."""
+    """{insumo_id: Decimal} con solo lo positivo. Un insumo inexistente es
+    error; cero o vacío es «no se usó» y se omite."""
     limpios = {}
-    for ingrediente_id, cantidad in (consumos or {}).items():
+    for insumo_id, cantidad in (consumos or {}).items():
         cantidad = _dec(cantidad)
         if cantidad < CERO:
-            raise LoteInvalido('El consumo de un ingrediente no puede ser negativo')
+            raise LoteInvalido('El consumo de un insumo no puede ser negativo')
         if cantidad == CERO:
             continue
-        if db.session.get(Ingrediente, ingrediente_id) is None:
-            raise LoteInvalido(f'El ingrediente {ingrediente_id} no existe')
-        limpios[ingrediente_id] = cantidad
+        if db.session.get(Insumo, insumo_id) is None:
+            raise LoteInvalido(f'El insumo {insumo_id} no existe')
+        limpios[insumo_id] = cantidad
     return limpios
 
 
@@ -157,18 +249,18 @@ def _validar_mermas(mermas):
 
 def _escribir_lineas(lote, consumos, mermas):
     """Reemplaza consumos y mermas del lote por lo validado y recalcula el
-    teórico contra la receta y el peso producido actuales."""
+    teórico contra la fórmula y el peso producido actuales."""
     teoricos = {}
-    if lote.receta and _dec(lote.peso_producido) > CERO:
-        teoricos = consumo_teorico(lote.receta, lote.peso_producido)
+    if lote.formula and _dec(lote.peso_producido) > CERO:
+        teoricos = consumo_teorico(lote.formula, lote.peso_producido)
 
     lote.consumos.clear()
     lote.mermas.clear()
     db.session.flush()
-    for ingrediente_id, cantidad in consumos.items():
+    for insumo_id, cantidad in consumos.items():
         lote.consumos.append(LoteConsumo(
-            ingrediente_id=ingrediente_id,
-            cantidad_teorica=teoricos.get(ingrediente_id, CERO),
+            insumo_id=insumo_id,
+            cantidad_teorica=teoricos.get(insumo_id, CERO),
             cantidad_real=cantidad))
     for fila in mermas:
         lote.mermas.append(LoteMerma(**fila))
@@ -189,12 +281,12 @@ def crear_lote(*, producto_id, lote, fecha_produccion, vendedor_id,
                                    cajas_producidas)
     consumos = _validar_consumos(consumos)
     mermas = _validar_mermas(mermas)
-    receta = receta_para(producto_id)
+    formula = formula_para(producto_id)
     try:
         nuevo = LoteProduccion(
             codigo=siguiente_codigo(fecha_produccion.year),
             producto_id=producto_id,
-            receta_id=receta.id if receta else None,
+            formula_id=formula.id if formula else None,
             lote=lote,
             fecha_produccion=fecha_produccion,
             fecha_vencimiento=fecha_vencimiento,
@@ -220,7 +312,7 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
 
     `cabecera` trae producto_id, lote, fecha_produccion, fecha_vencimiento,
     peso_producido, unidades_producidas, cajas_producidas y notas. Si cambia
-    el producto, la receta se vuelve a resolver: la del nuevo producto.
+    el producto, la fórmula se vuelve a resolver: la del nuevo producto.
     """
     if lote.estado != 'abierta':
         raise LoteNoEditable(
@@ -235,13 +327,13 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
     try:
         if cabecera.get('producto_id') != lote.producto_id:
             lote.producto_id = cabecera['producto_id']
-            receta = receta_para(lote.producto_id)
-            lote.receta_id = receta.id if receta else None
-        elif lote.receta_id is None:
-            # Un producto que recibió receta después de abrir el lote: se
+            formula = formula_para(lote.producto_id)
+            lote.formula_id = formula.id if formula else None
+        elif lote.formula_id is None:
+            # Un producto que recibió fórmula después de abrir el lote: se
             # engancha ahora, para que el teórico exista al cerrar.
-            receta = receta_para(lote.producto_id)
-            lote.receta_id = receta.id if receta else None
+            formula = formula_para(lote.producto_id)
+            lote.formula_id = formula.id if formula else None
         lote.lote = numero
         lote.fecha_produccion = cabecera['fecha_produccion']
         lote.fecha_vencimiento = cabecera.get('fecha_vencimiento')
@@ -250,9 +342,9 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
         lote.cajas_producidas = cabecera.get('cajas_producidas')
         lote.notas = (cabecera.get('notas') or '').strip() or None
         db.session.flush()
-        # `lote.receta` puede estar cacheada con el id viejo: se expira
-        # para que el teórico salga de la receta que acaba de quedar.
-        db.session.expire(lote, ['receta'])
+        # `lote.formula` puede estar cacheada con el id viejo: se expira
+        # para que el teórico salga de la fórmula que acaba de quedar.
+        db.session.expire(lote, ['formula'])
         _escribir_lineas(lote, consumos, mermas)
         db.session.commit()
         return lote
@@ -274,7 +366,7 @@ def cerrar_lote(lote, vendedor_id):
         raise LoteInvalido('Para cerrar hace falta el peso producido')
     if consumo_en_peso(lote) <= CERO:
         raise LoteInvalido('Para cerrar hace falta declarar el consumo de al '
-                           'menos un ingrediente en kg')
+                           'menos un insumo en kg')
     try:
         lote.estado = 'cerrada'
         lote.cerrado_por = vendedor_id
@@ -332,9 +424,9 @@ def anular_lote(lote, vendedor_id, motivo):
 
 def consumo_en_peso(lote):
     """Suma SOLO los consumos en kg. Tripa (ud) no entra en un balance de
-    kilos: sumarla daría un número que no es nada (ver maquila)."""
+    kilos: sumarla daría un número que no es nada."""
     return sum((_dec(c.cantidad_real) for c in lote.consumos
-                if c.ingrediente and c.ingrediente.unidad == UNIDAD_PESO), CERO)
+                if c.insumo and c.insumo.unidad == UNIDAD_PESO), CERO)
 
 
 def balance(lote):
@@ -343,16 +435,17 @@ def balance(lote):
 
     - merma_total: consumido en kg − producido. Negativa si el producto
       pesa más que lo que entró (inyección de salmuera que no se declaró
-      como ingrediente, por ejemplo): se muestra tal cual, no se esconde.
+      como insumo, por ejemplo): se muestra tal cual, no se esconde.
     - merma_identificada: la suma de las mermas declaradas.
     - merma_sin_identificar: total − identificada. Es la cifra que vale
       la pena mirar: lo que nadie supo explicar.
     - rendimiento_pct: producido / consumido × 100.
+    - varianzas: por insumo, teórico de la fórmula contra lo real.
     """
     consumido = consumo_en_peso(lote)
     producido = _dec(lote.peso_producido)
-    otras_unidades = sorted({c.ingrediente.unidad for c in lote.consumos
-                             if c.ingrediente and c.ingrediente.unidad != UNIDAD_PESO})
+    otras_unidades = sorted({c.insumo.unidad for c in lote.consumos
+                             if c.insumo and c.insumo.unidad != UNIDAD_PESO})
     identificada = sum((_dec(m.cantidad) for m in lote.mermas), CERO)
 
     merma_total = (consumido - producido) if consumido > CERO else None
@@ -365,9 +458,9 @@ def balance(lote):
         teorica = _dec(consumo.cantidad_teorica)
         real = _dec(consumo.cantidad_real)
         varianzas.append({
-            'ingrediente_id': consumo.ingrediente_id,
-            'ingrediente': consumo.ingrediente.nombre if consumo.ingrediente else '—',
-            'unidad': consumo.ingrediente.unidad if consumo.ingrediente else 'kg',
+            'insumo_id': consumo.insumo_id,
+            'insumo': consumo.insumo.nombre if consumo.insumo else '—',
+            'unidad': consumo.insumo.unidad if consumo.insumo else 'kg',
             'teorica': teorica,
             'real': real,
             'diferencia': real - teorica,

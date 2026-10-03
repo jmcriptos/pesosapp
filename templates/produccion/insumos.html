@@ -1,0 +1,62 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip %}
+{% block title %}Insumos de producción{% endblock %}
+{% block produccion_title %}Insumos{% endblock %}
+{% block produccion_body %}
+{% if permiso_produccion('editar') %}
+<section class="ops-card">
+  <h2>Nuevo insumo</h2>
+  <p class="maquila-nota">El catálogo propio de producción: carne, grasa, sal, tripa, hielo. No tiene relación con los ingredientes de maquila.</p>
+  <form method="POST" class="ops-sheet-form maquila-filtro-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ops-field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" required autocomplete="off" placeholder="Carne de cerdo 80/20">
+    </div>
+    <div class="ops-field">
+      <label for="unidad">Unidad</label>
+      <select id="unidad" name="unidad">
+        {% for clave, etiqueta in unidades %}<option value="{{ clave }}">{{ etiqueta }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="notas">Notas <small>(opcional)</small></label>
+      <input type="text" id="notas" name="notas">
+    </div>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn btn-primary">Agregar insumo</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="ops-card">
+  <h2>Insumos</h2>
+  {% if not insumos %}
+    <p class="ops-empty">Todavía no hay insumos dados de alta.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Nombre</th><th>Unidad</th><th>Estado</th>{% if permiso_produccion('editar') %}<th>Acción</th>{% endif %}</tr>
+    </thead>
+    <tbody>
+      {% for i in insumos %}
+      <tr>
+        <td data-label="Nombre">{{ i.nombre }}{% if i.notas %} <span class="maquila-meta">{{ i.notas }}</span>{% endif %}</td>
+        <td data-label="Unidad">{{ i.unidad }}</td>
+        <td data-label="Estado">{{ chip('Activo', 'conforme') if i.activo else chip('Inactivo', 'neutro') }}</td>
+        {% if permiso_produccion('editar') %}
+        <td>
+          <form method="POST" action="{{ url_for('produccion.insumo_toggle', insumo_id=i.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn">{{ 'Desactivar' if i.activo else 'Activar' }}</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}
