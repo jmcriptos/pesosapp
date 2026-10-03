@@ -1,16 +1,15 @@
 """Modelos del módulo de producción propia.
 
-Tres tablas nuevas. Los ingredientes y las recetas se REUSAN del módulo de
-maquila (`ingrediente`, `receta`): son el mismo catálogo físico (carne,
-tripa, sal) y la misma fórmula, con o sin cliente dueño. Para producción
-propia aplica la receta genérica del producto (la que no tiene cliente).
+Seis tablas, todas propias: nada se comparte con maquila. Allá el catálogo
+es el de los clientes de maquila (ingredientes que ellos entregan, recetas
+que ellos piden); acá son los insumos y las fórmulas de la casa. Son
+mundos distintos y mezclarlos confundía a quien registra.
 
 No hay ledger: un lote anota lo que se usó y lo que salió, y el balance
 (merma, rendimiento) se deriva en cada lectura. Ningún total calculado se
 guarda; lo único guardado es lo que alguien tecleó.
 """
 from datetime import datetime
-from decimal import Decimal
 
 from . import app_module
 
@@ -32,15 +31,66 @@ TIPOS_MERMA_ETIQUETA = dict(TIPOS_MERMA)
 
 ESTADOS = ('abierta', 'cerrada', 'anulada')
 
+# Las unidades que admite un insumo. Lo que se pesa entra en el balance de
+# kilos; lo que se cuenta (tripa) se registra, pero no suma kilos.
+UNIDADES = (('kg', 'kg — se pesa'), ('ud', 'ud — se cuenta'))
+UNIDAD_PESO = 'kg'
+
+
+class Insumo(db.Model):
+    """Un ingrediente de la casa: carne, grasa, sal, tripa, hielo."""
+    __tablename__ = 'produccion_insumo'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False, unique=True)
+    unidad = db.Column(db.String(10), nullable=False, default='kg')
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    notas = db.Column(db.Text, nullable=True)
+
+    def __repr__(self):
+        return f'<Insumo {self.id} {self.nombre}>'
+
+
+class Formula(db.Model):
+    """La fórmula de un producto: cuánto de cada insumo por `base_kg` de
+    producto terminado. Una sola activa por producto."""
+    __tablename__ = 'produccion_formula'
+    id = db.Column(db.Integer, primary_key=True)
+    producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False, index=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    base_kg = db.Column(db.Numeric(10, 3), nullable=False, default=100)
+    activa = db.Column(db.Boolean, nullable=False, default=True)
+    creada_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    creada_por = db.Column(db.Integer, db.ForeignKey('vendedor.id'), nullable=True)
+
+    producto = db.relationship('Producto')
+    insumos = db.relationship('FormulaInsumo', back_populates='formula',
+                              cascade='all, delete-orphan', order_by='FormulaInsumo.id')
+
+
+class FormulaInsumo(db.Model):
+    __tablename__ = 'produccion_formula_insumo'
+    id = db.Column(db.Integer, primary_key=True)
+    formula_id = db.Column(db.Integer, db.ForeignKey('produccion_formula.id', ondelete='CASCADE'),
+                           nullable=False, index=True)
+    insumo_id = db.Column(db.Integer, db.ForeignKey('produccion_insumo.id'), nullable=False)
+    cantidad = db.Column(db.Numeric(10, 3), nullable=False)
+
+    formula = db.relationship('Formula', back_populates='insumos')
+    insumo = db.relationship('Insumo')
+
+    __table_args__ = (
+        db.UniqueConstraint('formula_id', 'insumo_id', name='uq_produccion_formula_insumo'),
+    )
+
 
 class LoteProduccion(db.Model):
     __tablename__ = 'lote_produccion'
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(20), nullable=False, unique=True, index=True)
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id'), nullable=False, index=True)
-    # La receta genérica del producto al momento de registrar. Puede ser
-    # NULL (producto sin receta): entonces no hay teórico, solo el real.
-    receta_id = db.Column(db.Integer, db.ForeignKey('receta.id'), nullable=True)
+    # La fórmula activa del producto al momento de registrar. Puede ser
+    # NULL (producto sin fórmula): entonces no hay teórico, solo el real.
+    formula_id = db.Column(db.Integer, db.ForeignKey('produccion_formula.id'), nullable=True)
     lote = db.Column(db.String(50), nullable=False, index=True)
     fecha_produccion = db.Column(db.Date, nullable=False, index=True)
     fecha_vencimiento = db.Column(db.Date, nullable=True)
@@ -61,7 +111,7 @@ class LoteProduccion(db.Model):
     motivo_anulacion = db.Column(db.Text, nullable=True)
 
     producto = db.relationship('Producto')
-    receta = db.relationship('Receta')
+    formula = db.relationship('Formula')
     consumos = db.relationship('LoteConsumo', back_populates='lote',
                                cascade='all, delete-orphan',
                                order_by='LoteConsumo.id')
@@ -93,22 +143,22 @@ class LoteProduccion(db.Model):
 
 
 class LoteConsumo(db.Model):
-    """Un ingrediente usado en el lote: lo que decía la receta y lo que se
-    pesó de verdad. El teórico es un snapshot al guardar, para que cambiar
-    la receta mañana no reescriba el rendimiento de ayer."""
+    """Un insumo usado en el lote: lo que decía la fórmula y lo que se pesó
+    de verdad. El teórico es un snapshot al guardar, para que cambiar la
+    fórmula mañana no reescriba el rendimiento de ayer."""
     __tablename__ = 'lote_consumo'
     id = db.Column(db.Integer, primary_key=True)
     lote_id = db.Column(db.Integer, db.ForeignKey('lote_produccion.id', ondelete='CASCADE'),
                         nullable=False, index=True)
-    ingrediente_id = db.Column(db.Integer, db.ForeignKey('ingrediente.id'), nullable=False, index=True)
+    insumo_id = db.Column(db.Integer, db.ForeignKey('produccion_insumo.id'), nullable=False, index=True)
     cantidad_teorica = db.Column(db.Numeric(10, 3), nullable=False, default=0)
     cantidad_real = db.Column(db.Numeric(10, 3), nullable=False)
 
     lote = db.relationship('LoteProduccion', back_populates='consumos')
-    ingrediente = db.relationship('Ingrediente')
+    insumo = db.relationship('Insumo')
 
     __table_args__ = (
-        db.UniqueConstraint('lote_id', 'ingrediente_id', name='uq_lote_consumo'),
+        db.UniqueConstraint('lote_id', 'insumo_id', name='uq_lote_consumo'),
     )
 
 

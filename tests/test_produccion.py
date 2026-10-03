@@ -1,5 +1,5 @@
 """Producción propia: lotes, mermas y rendimiento SIN verificación de
-disponibilidad de ingredientes."""
+disponibilidad de insumos, y sin compartir nada con maquila."""
 import os
 from datetime import date
 from decimal import Decimal
@@ -22,7 +22,7 @@ def app():
     with flask_app.app_context():
         _db.create_all()
         from app import Rol, Territorio, Vendedor, Producto
-        from maquila.models import Ingrediente, Receta, RecetaIngrediente
+        from produccion.models import Insumo, Formula, FormulaInsumo
         ra = Rol(nombre='super_admin', descripcion='Admin')
         rv = Rol(nombre='vendedor', descripcion='Vendedor')
         terr = Territorio(nombre='t1', descripcion='T1')
@@ -36,23 +36,23 @@ def app():
         vend.set_password('pw')
         chorizo = Producto(nombre='Chorizo', se_pesa=True, tax_rate=10)
         jamon = Producto(nombre='Jamón', se_pesa=True, tax_rate=10)
-        carne = Ingrediente(nombre='Carne de cerdo', unidad='kg')
-        sal = Ingrediente(nombre='Sal', unidad='kg')
-        tripa = Ingrediente(nombre='Tripa', unidad='ud')
+        carne = Insumo(nombre='Carne de cerdo', unidad='kg')
+        sal = Insumo(nombre='Sal', unidad='kg')
+        tripa = Insumo(nombre='Tripa', unidad='ud')
         _db.session.add_all([admin, vend, chorizo, jamon, carne, sal, tripa])
         _db.session.flush()
-        receta = Receta(producto_id=chorizo.id, cliente_id=None, nombre='Chorizo casa',
-                        base_kg=Decimal('100'), activa=True)
-        _db.session.add(receta)
+        formula = Formula(producto_id=chorizo.id, nombre='Chorizo casa',
+                          base_kg=Decimal('100'), activa=True)
+        _db.session.add(formula)
         _db.session.flush()
         _db.session.add_all([
-            RecetaIngrediente(receta_id=receta.id, ingrediente_id=carne.id, cantidad=Decimal('80')),
-            RecetaIngrediente(receta_id=receta.id, ingrediente_id=sal.id, cantidad=Decimal('2')),
-            RecetaIngrediente(receta_id=receta.id, ingrediente_id=tripa.id, cantidad=Decimal('50')),
+            FormulaInsumo(formula_id=formula.id, insumo_id=carne.id, cantidad=Decimal('80')),
+            FormulaInsumo(formula_id=formula.id, insumo_id=sal.id, cantidad=Decimal('2')),
+            FormulaInsumo(formula_id=formula.id, insumo_id=tripa.id, cantidad=Decimal('50')),
         ])
         _db.session.commit()
         IDS.update(admin=admin.id, vend=vend.id, chorizo=chorizo.id, jamon=jamon.id,
-                   carne=carne.id, sal=sal.id, tripa=tripa.id, receta=receta.id)
+                   carne=carne.id, sal=sal.id, tripa=tripa.id, formula=formula.id)
         yield flask_app
         _db.drop_all()
 
@@ -79,7 +79,64 @@ def _lote(**kw):
 def test_las_tablas_existen(app):
     with app.app_context():
         nombres = set(_db.inspect(_db.engine).get_table_names())
-    assert {'lote_produccion', 'lote_consumo', 'lote_merma'} <= nombres
+    assert {'lote_produccion', 'lote_consumo', 'lote_merma', 'produccion_insumo',
+            'produccion_formula', 'produccion_formula_insumo'} <= nombres
+
+
+def test_no_depende_de_maquila(app):
+    """Separación total: ningún modelo de maquila entra en el módulo y las
+    FK de los lotes apuntan solo a tablas propias (y producto/vendedor)."""
+    import produccion.models, produccion.servicios, produccion.reportes, produccion.routes
+    for mod in (produccion.models, produccion.servicios, produccion.reportes, produccion.routes):
+        modulos = {(getattr(v, '__module__', '') or '').split('.')[0] for v in vars(mod).values()}
+        assert 'maquila' not in modulos, mod.__name__
+    with app.app_context():
+        from produccion.models import LoteConsumo, LoteProduccion
+        tablas = {fk.column.table.name for t in (LoteProduccion.__table__, LoteConsumo.__table__)
+                  for fk in t.foreign_keys}
+        assert tablas <= {'producto', 'vendedor', 'produccion_formula',
+                          'produccion_insumo', 'lote_produccion'}
+
+
+def test_las_tablas_se_crean_solas_si_faltan(app):
+    """Heroku sin el script SQL: /produccion daba 500 por «no such table».
+    Al arrancar, el módulo crea lo que falte, sin tocar lo que ya existe."""
+    from produccion import asegurar_tablas
+    from produccion.models import (LoteProduccion, LoteConsumo, LoteMerma, Insumo,
+                                   Formula, FormulaInsumo)
+    with app.app_context():
+        for t in (LoteMerma.__table__, LoteConsumo.__table__, LoteProduccion.__table__,
+                  FormulaInsumo.__table__, Formula.__table__, Insumo.__table__):
+            t.drop(_db.engine)
+        assert 'lote_produccion' not in set(_db.inspect(_db.engine).get_table_names())
+        asegurar_tablas(app)
+        asegurar_tablas(app)   # segunda vez: no revienta por «ya existe»
+        assert {'lote_produccion', 'lote_consumo', 'lote_merma'} <= set(
+            _db.inspect(_db.engine).get_table_names())
+    c = _login(app, 'admin')
+    assert c.get('/produccion').status_code == 200
+    assert c.get('/produccion/lotes').status_code == 200
+
+
+def test_las_tablas_de_la_primera_version_se_recrean(app):
+    """La primera versión ató los lotes a maquila: `lote_consumo` tenía
+    `ingrediente_id` y no `insumo_id`. Al arrancar se reconoce y se recrea."""
+    from sqlalchemy import text
+    from produccion import asegurar_tablas
+    from produccion.models import LoteProduccion, LoteConsumo, LoteMerma
+    with app.app_context():
+        for t in (LoteMerma.__table__, LoteConsumo.__table__, LoteProduccion.__table__):
+            t.drop(_db.engine)
+        with _db.engine.begin() as conn:
+            conn.execute(text('CREATE TABLE lote_produccion (id INTEGER PRIMARY KEY, receta_id INTEGER)'))
+            conn.execute(text('CREATE TABLE lote_consumo (id INTEGER PRIMARY KEY, lote_id INTEGER, ingrediente_id INTEGER)'))
+            conn.execute(text('CREATE TABLE lote_merma (id INTEGER PRIMARY KEY, lote_id INTEGER)'))
+        asegurar_tablas(app)
+        columnas = {c['name'] for c in _db.inspect(_db.engine).get_columns('lote_consumo')}
+        assert 'insumo_id' in columnas and 'ingrediente_id' not in columnas
+        assert 'formula_id' in {c['name'] for c in _db.inspect(_db.engine).get_columns('lote_produccion')}
+        lote = _lote()
+        assert lote.codigo == 'PR-2026-0001'
 
 
 def test_el_recurso_produccion_esta_en_los_permisos_configurables(app):
@@ -96,13 +153,11 @@ def test_registrar_sin_recepciones_ni_saldo_no_bloquea(app):
     """La regla que da nombre al módulo: no hay ledger ni recepciones, y el
     consumo se anota tal cual."""
     with app.app_context():
-        from maquila.models import MovimientoIngrediente
         lote = _lote()
         assert lote.estado == 'abierta'
         assert lote.codigo == 'PR-2026-0001'
-        assert {c.ingrediente_id: c.cantidad_real for c in lote.consumos} == {
+        assert {c.insumo_id: c.cantidad_real for c in lote.consumos} == {
             IDS['carne']: Decimal('100.000'), IDS['tripa']: Decimal('60.000')}
-        assert MovimientoIngrediente.query.count() == 0
 
 
 def test_el_codigo_es_correlativo_por_anio(app):
@@ -129,32 +184,32 @@ def test_balance_merma_identificada_y_sin_identificar(app):
         assert b['mermas_por_tipo'][0]['etiqueta'] == 'Cocción y ahumado'
 
 
-def test_el_teorico_sale_de_la_receta_generica_y_queda_como_snapshot(app):
+def test_el_teorico_sale_de_la_formula_y_queda_como_snapshot(app):
     with app.app_context():
         from produccion import servicios
-        from maquila.models import RecetaIngrediente
+        from produccion.models import FormulaInsumo
         lote = _lote(peso_producido=Decimal('50'))
-        assert lote.receta_id == IDS['receta']
-        teoricos = {c.ingrediente_id: c.cantidad_teorica for c in lote.consumos}
+        assert lote.formula_id == IDS['formula']
+        teoricos = {c.insumo_id: c.cantidad_teorica for c in lote.consumos}
         assert teoricos[IDS['carne']] == Decimal('40.000')
         assert teoricos[IDS['tripa']] == Decimal('25.000')
-        # Cambiar la receta después no reescribe el lote.
-        RecetaIngrediente.query.filter_by(receta_id=IDS['receta'],
-                                          ingrediente_id=IDS['carne']).update({'cantidad': 90})
+        # Cambiar la fórmula después no reescribe el lote.
+        FormulaInsumo.query.filter_by(formula_id=IDS['formula'],
+                                      insumo_id=IDS['carne']).update({'cantidad': 90})
         _db.session.commit()
         b = servicios.balance(_db.session.get(type(lote), lote.id))
-        carne = next(v for v in b['varianzas'] if v['ingrediente_id'] == IDS['carne'])
+        carne = next(v for v in b['varianzas'] if v['insumo_id'] == IDS['carne'])
         assert carne['teorica'] == Decimal('40.000')
         assert carne['diferencia'] == Decimal('60.000')
         assert carne['pct'] == Decimal('150.0')
 
 
-def test_producto_sin_receta_registra_solo_el_real(app):
+def test_producto_sin_formula_registra_solo_el_real(app):
     with app.app_context():
         from produccion import servicios
         lote = _lote(producto_id=IDS['jamon'], consumos={IDS['carne']: Decimal('20')},
                      peso_producido=Decimal('22'), mermas=[])
-        assert lote.receta_id is None
+        assert lote.formula_id is None
         b = servicios.balance(lote)
         assert b['varianzas'][0]['teorica'] == Decimal('0')
         assert b['varianzas'][0]['pct'] is None
@@ -199,7 +254,7 @@ def test_consumo_cero_y_merma_vacia_se_omiten(app):
     with app.app_context():
         lote = _lote(consumos={IDS['carne']: Decimal('100'), IDS['sal']: Decimal('0')},
                      mermas=[{'tipo': 'coccion', 'cantidad': None, 'motivo': ''}])
-        assert [c.ingrediente_id for c in lote.consumos] == [IDS['carne']]
+        assert [c.insumo_id for c in lote.consumos] == [IDS['carne']]
         assert lote.mermas == []
 
 
@@ -240,16 +295,16 @@ def test_editar_solo_abierto_y_reabrir_con_motivo(app):
                               consumos={IDS['carne']: Decimal('100'), IDS['sal']: Decimal('2')},
                               mermas=[{'tipo': 'recorte', 'cantidad': Decimal('4'), 'motivo': ''}])
         assert lote.peso_producido == Decimal('90.000')
-        assert {c.ingrediente_id for c in lote.consumos} == {IDS['carne'], IDS['sal']}
+        assert {c.insumo_id for c in lote.consumos} == {IDS['carne'], IDS['sal']}
         # El teórico se recalcula con el peso nuevo.
-        assert {c.ingrediente_id: c.cantidad_teorica for c in lote.consumos}[IDS['sal']] == Decimal('1.800')
+        assert {c.insumo_id: c.cantidad_teorica for c in lote.consumos}[IDS['sal']] == Decimal('1.800')
         assert [m.tipo for m in lote.mermas] == ['recorte']
         b = servicios.balance(lote)
         assert b['consumido'] == Decimal('102')
         assert b['merma_sin_identificar'] == Decimal('8.000')
 
 
-def test_editar_cambia_de_producto_y_resuelve_la_receta(app):
+def test_editar_cambia_de_producto_y_resuelve_la_formula(app):
     with app.app_context():
         from produccion import servicios
         lote = _lote()
@@ -257,7 +312,7 @@ def test_editar_cambia_de_producto_y_resuelve_la_receta(app):
                    peso_producido=Decimal('85'))
         servicios.editar_lote(lote, cabecera=cab, consumos={IDS['carne']: Decimal('100')})
         assert lote.producto_id == IDS['jamon']
-        assert lote.receta_id is None
+        assert lote.formula_id is None
         assert lote.consumos[0].cantidad_teorica == Decimal('0')
 
 
@@ -390,7 +445,7 @@ def test_vendedor_lee_y_crea_pero_no_cierra(app):
     r = v.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'V-1',
         'fecha_produccion': '2026-10-02', 'peso_producido': '80',
-        'consumo_ingrediente_id': [str(IDS['carne'])], 'consumo_real': ['100'],
+        'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
         'accion': 'cerrar',
     }, follow_redirects=True)
     assert 'requiere permiso de editar' in r.get_data(as_text=True)
@@ -405,7 +460,7 @@ def test_alta_por_formulario_con_consumos_y_mermas(app):
         'producto_id': str(IDS['chorizo']), 'lote': 'W-42',
         'fecha_produccion': '2026-10-02', 'fecha_vencimiento': '',
         'peso_producido': '84,5', 'unidades_producidas': '120', 'cajas_producidas': '',
-        'consumo_ingrediente_id': [str(IDS['carne']), str(IDS['sal']), str(IDS['tripa'])],
+        'consumo_insumo_id': [str(IDS['carne']), str(IDS['sal']), str(IDS['tripa'])],
         'consumo_real': ['100', '', '60'],
         'merma_tipo': ['coccion', 'otro'],
         'merma_cantidad': ['9', '1,5'],
@@ -419,7 +474,7 @@ def test_alta_por_formulario_con_consumos_y_mermas(app):
         lote = LoteProduccion.query.filter_by(lote='W-42').one()
         assert lote.peso_producido == Decimal('84.500')
         assert lote.unidades_producidas == 120 and lote.cajas_producidas is None
-        assert {c.ingrediente_id for c in lote.consumos} == {IDS['carne'], IDS['tripa']}
+        assert {c.insumo_id for c in lote.consumos} == {IDS['carne'], IDS['tripa']}
         assert [(m.tipo, m.cantidad, m.motivo) for m in lote.mermas] == [
             ('coccion', Decimal('9.000'), None), ('otro', Decimal('1.500'), 'se cayó una bandeja')]
         assert servicios.balance(lote)['merma_sin_identificar'] == Decimal('5.000')
@@ -432,7 +487,7 @@ def test_alta_rechazada_conserva_lo_tecleado(app):
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': '',
         'fecha_produccion': '2026-10-02', 'peso_producido': '84',
-        'consumo_ingrediente_id': [str(IDS['carne'])], 'consumo_real': ['77'],
+        'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['77'],
         'merma_tipo': ['recorte'], 'merma_cantidad': ['3'], 'merma_motivo': ['borde'],
     })
     assert r.status_code == 200
@@ -451,7 +506,7 @@ def test_guardar_y_cerrar_en_un_paso(app):
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'Z-1',
         'fecha_produccion': '2026-10-02', 'peso_producido': '80',
-        'consumo_ingrediente_id': [str(IDS['carne'])], 'consumo_real': ['100'],
+        'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
         'accion': 'cerrar',
     }, follow_redirects=True)
     assert r.status_code == 200
@@ -466,7 +521,7 @@ def test_guardar_y_cerrar_sin_peso_queda_abierto(app):
     r = c.post('/produccion/lotes/nuevo', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'Z-2',
         'fecha_produccion': '2026-10-02', 'peso_producido': '',
-        'consumo_ingrediente_id': [str(IDS['carne'])], 'consumo_real': ['100'],
+        'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
         'accion': 'cerrar',
     }, follow_redirects=True)
     assert 'Quedó guardado pero abierto' in r.get_data(as_text=True)
@@ -483,7 +538,7 @@ def test_editar_cerrar_reabrir_y_anular_por_rutas(app):
     r = c.post(f'/produccion/lotes/{lote_id}/editar', data={
         'producto_id': str(IDS['chorizo']), 'lote': 'L-1001',
         'fecha_produccion': '2026-10-01', 'peso_producido': '88',
-        'consumo_ingrediente_id': [str(IDS['carne'])], 'consumo_real': ['100'],
+        'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['100'],
     }, follow_redirects=False)
     assert r.status_code == 302
     assert c.post(f'/produccion/lotes/{lote_id}/cerrar', follow_redirects=False).status_code == 302
@@ -534,7 +589,7 @@ def test_export_excel_del_rendimiento(app):
     import io
     import openpyxl
     libro = openpyxl.load_workbook(io.BytesIO(r.data))
-    assert libro.sheetnames == ['Lotes', 'Por producto', 'Consumo por ingrediente']
+    assert libro.sheetnames == ['Lotes', 'Por producto', 'Consumo por insumo']
     filas = list(libro['Lotes'].iter_rows(values_only=True))
     assert filas[0][0] == 'Código'
     assert {f[1] for f in filas[1:]} == {'A', 'B'}
@@ -551,3 +606,108 @@ def test_el_menu_muestra_produccion_a_quien_puede_leer(app):
     c = _login(app, 'vend')
     html = c.get('/produccion').get_data(as_text=True)
     assert 'href="/produccion"' in html
+
+
+# ------------------------------------------------------- catálogo propio
+
+def test_insumos_y_formulas_por_servicio(app):
+    with app.app_context():
+        from produccion import servicios
+        from produccion.models import Formula
+        hielo = servicios.crear_insumo(nombre='  Hielo ', unidad='kg')
+        assert hielo.nombre == 'Hielo' and hielo.activo
+        with pytest.raises(servicios.InsumoInvalido):
+            servicios.crear_insumo(nombre='hielo')          # repetido, sin distinguir mayúsculas
+        with pytest.raises(servicios.InsumoInvalido):
+            servicios.crear_insumo(nombre='Agua', unidad='litros')
+        with pytest.raises(servicios.InsumoInvalido):
+            servicios.crear_insumo(nombre='')
+
+        # Una sola fórmula activa por producto.
+        with pytest.raises(servicios.FormulaInvalida):
+            servicios.guardar_formula(None, producto_id=IDS['chorizo'], nombre='Otra',
+                                      base_kg=100, activa=True, items={IDS['carne']: 50})
+        inactiva = servicios.guardar_formula(None, producto_id=IDS['chorizo'], nombre='Prueba',
+                                             base_kg=50, activa=False,
+                                             items={IDS['carne']: 40, hielo.id: 0})
+        assert [i.insumo_id for i in inactiva.insumos] == [IDS['carne']]
+        with pytest.raises(servicios.FormulaInvalida):
+            servicios.guardar_formula(None, producto_id=IDS['jamon'], nombre='Vacía',
+                                      base_kg=100, activa=True, items={})
+        with pytest.raises(servicios.FormulaInvalida):
+            servicios.guardar_formula(None, producto_id=IDS['jamon'], nombre='Base 0',
+                                      base_kg=0, activa=True, items={IDS['carne']: 1})
+        jamon = servicios.guardar_formula(None, producto_id=IDS['jamon'], nombre='Jamón',
+                                          base_kg=100, activa=True,
+                                          items={IDS['carne']: 95, IDS['sal']: 2.5})
+        assert servicios.formula_para(IDS['jamon']).id == jamon.id
+        # Editar reemplaza los insumos.
+        servicios.guardar_formula(jamon, producto_id=IDS['jamon'], nombre='Jamón v2',
+                                  base_kg=100, activa=True, items={IDS['carne']: 90})
+        assert [(i.insumo_id, i.cantidad) for i in jamon.insumos] == [(IDS['carne'], Decimal('90.000'))]
+        assert Formula.query.count() == 3
+        lote = _lote(producto_id=IDS['jamon'], consumos={IDS['carne']: 45}, peso_producido=50, mermas=[])
+        assert lote.formula_id == jamon.id
+        assert lote.consumos[0].cantidad_teorica == Decimal('45.000')
+
+
+def test_catalogo_por_rutas(app):
+    c = _login(app, 'admin')
+    assert c.get('/produccion/insumos').status_code == 200
+    r = c.post('/produccion/insumos', data={'nombre': 'Grasa de cerdo', 'unidad': 'kg', 'notas': ''},
+               follow_redirects=True)
+    assert 'Grasa de cerdo' in r.get_data(as_text=True)
+    with app.app_context():
+        from produccion.models import Insumo
+        grasa_id = Insumo.query.filter_by(nombre='Grasa de cerdo').one().id
+    c.post(f'/produccion/insumos/{grasa_id}/toggle')
+    with app.app_context():
+        from produccion.models import Insumo
+        assert _db.session.get(Insumo, grasa_id).activo is False
+
+    assert c.get('/produccion/formulas').status_code == 200
+    assert c.get('/produccion/formulas/nueva').status_code == 200
+    # Insumo repetido: se rechaza y se conserva lo tecleado.
+    r = c.post('/produccion/formulas/nueva', data={
+        'producto_id': str(IDS['jamon']), 'nombre': 'Jamón', 'base_kg': '100', 'activa': '1',
+        'item_insumo_id': [str(IDS['carne']), str(IDS['carne'])], 'item_cantidad': ['90', '5'],
+    })
+    assert r.status_code == 200 and 'repetido' in r.get_data(as_text=True)
+    r = c.post('/produccion/formulas/nueva', data={
+        'producto_id': str(IDS['jamon']), 'nombre': 'Jamón', 'base_kg': '100', 'activa': '1',
+        'item_insumo_id': [str(IDS['carne']), str(IDS['sal'])], 'item_cantidad': ['90', '2,5'],
+    }, follow_redirects=False)
+    assert r.status_code == 302
+    with app.app_context():
+        from produccion.models import Formula
+        f = Formula.query.filter_by(producto_id=IDS['jamon']).one()
+        assert {i.insumo_id: i.cantidad for i in f.insumos} == {
+            IDS['carne']: Decimal('90.000'), IDS['sal']: Decimal('2.500')}
+        f_id = f.id
+    assert c.get(f'/produccion/formulas/{f_id}').status_code == 200
+    assert c.get('/produccion/formulas/9999').status_code == 404
+    # El formulario de lote ya lleva la fórmula nueva del jamón.
+    html = c.get('/produccion/lotes/nuevo').get_data(as_text=True)
+    assert 'data-formulas=' in html and 'Jam' in html
+
+
+def test_vendedor_ve_el_catalogo_pero_no_lo_edita(app):
+    v = _login(app, 'vend')
+    assert v.get('/produccion/insumos').status_code == 200
+    assert v.get('/produccion/formulas').status_code == 200
+    r = v.post('/produccion/insumos', data={'nombre': 'Pimentón', 'unidad': 'kg'}, follow_redirects=True)
+    assert 'requiere permiso de editar' in r.get_data(as_text=True)
+    r = v.get('/produccion/formulas/nueva', follow_redirects=False)
+    assert r.status_code == 302 and r.headers['Location'].endswith('/')
+    with app.app_context():
+        from produccion.models import Insumo
+        assert Insumo.query.filter_by(nombre='Pimentón').first() is None
+
+
+def test_la_navegacion_de_produccion_no_enlaza_a_maquila(app):
+    c = _login(app, 'admin')
+    html = c.get('/produccion').get_data(as_text=True)
+    inicio = html.index('Secciones de producción')
+    nav = html[inicio:html.index('</nav>', inicio)]
+    assert '/maquila' not in nav
+    assert '/produccion/formulas' in nav and '/produccion/insumos' in nav

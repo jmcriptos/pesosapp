@@ -1,0 +1,35 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip %}
+{% block title %}Fórmulas de producción{% endblock %}
+{% block produccion_title %}Fórmulas{% endblock %}
+{% block produccion_body %}
+<section class="ops-card maquila-barra">
+  <p class="maquila-nota">La fórmula de un producto fija cuánto de cada insumo lleva por cada base de kilos producidos. Es lo que da el teórico de cada lote. Una sola activa por producto.</p>
+  {% if permiso_produccion('editar') %}
+  <a class="btn btn-primary" href="{{ url_for('produccion.formula_form') }}">Nueva fórmula</a>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  {% if not formulas %}
+    <p class="ops-empty">Todavía no hay fórmulas. Sin fórmula, los lotes se registran igual, solo que sin teórico.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Nombre</th><th>Producto</th><th class="maquila-num">Base</th><th class="maquila-num">Insumos</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+      {% for f in formulas %}
+      <tr>
+        <td data-label="Nombre">{% if permiso_produccion('editar') %}<a href="{{ url_for('produccion.formula_form', formula_id=f.id) }}">{{ f.nombre }}</a>{% else %}{{ f.nombre }}{% endif %}</td>
+        <td data-label="Producto">{{ f.producto.nombre }}</td>
+        <td data-label="Base" class="maquila-num">{{ f.base_kg|fmt_cant }}</td>
+        <td data-label="Insumos" class="maquila-num">{{ f.insumos|length }}</td>
+        <td data-label="Estado">{{ chip('Activa', 'conforme') if f.activa else chip('Inactiva', 'neutro') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

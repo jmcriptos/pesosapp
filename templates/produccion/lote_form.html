@@ -4,12 +4,12 @@
 {% block produccion_body %}
 {#- Un solo formulario para alta y corrección. `form` trae los valores en el
     mismo formato que el POST (lo guardado o lo que se acaba de rechazar);
-    `consumos` es {ingrediente_id: cantidad} con claves str; `mermas` una
+    `consumos` es {insumo_id: cantidad} con claves str; `mermas` una
     lista de filas. Nada se pierde en un rechazo del servidor. -#}
 <form method="POST"
       action="{{ url_for('produccion.lote_editar', lote_id=lote.id) if lote else url_for('produccion.lote_nuevo') }}"
       class="ops-sheet-form" id="lote-form"
-      data-recetas='{{ recetas_json|tojson }}'>
+      data-formulas='{{ formulas_json|tojson }}'>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <section class="ops-card">
@@ -23,7 +23,7 @@
         <option value="" disabled {{ 'selected' if not form.get('producto_id') else '' }}>Elegí un producto</option>
         {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if form.get('producto_id') == p.id|string else '' }}>{{ p.nombre }}</option>{% endfor %}
       </select>
-      <p class="maquila-nota" id="receta-nota" aria-live="polite"></p>
+      <p class="maquila-nota" id="formula-nota" aria-live="polite"></p>
     </div>
     <div class="ops-field">
       <label for="lote">Número de lote</label>
@@ -63,20 +63,20 @@
   </section>
 
   <section class="ops-card" id="consumo">
-    <h2>Ingredientes usados</h2>
-    {% if not ingredientes %}
-      <p class="ops-empty">No hay ingredientes activos. Dalos de alta en Ingredientes (maquila) y volvé.</p>
+    <h2>Insumos usados</h2>
+    {% if not insumos %}
+      <p class="ops-empty">No hay insumos activos. <a href="{{ url_for('produccion.insumos') }}">Dalos de alta en Insumos</a> y volvé.</p>
     {% else %}
-    <p class="maquila-nota">Lo que se pesó de verdad. Dejá vacío lo que no se usó. El teórico sale de la receta genérica del producto y del peso producido; es una referencia, no se guarda como consumo.</p>
+    <p class="maquila-nota">Lo que se pesó de verdad. Dejá vacío lo que no se usó. El teórico sale de la fórmula del producto y del peso producido; es una referencia, no se guarda como consumo.</p>
     <table class="maquila-tabla maquila-tabla-consumo prod-tabla-consumo">
-      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
+      <thead><tr><th>Insumo</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
       <tbody>
-        {% for i in ingredientes %}
-        <tr data-ingrediente-id="{{ i.id }}" data-unidad="{{ i.unidad }}">
+        {% for i in insumos %}
+        <tr data-insumo-id="{{ i.id }}" data-unidad="{{ i.unidad }}">
           <td data-label="Ingrediente">{{ i.nombre }}{% if not i.activo %} <small class="maquila-meta">(desactivado)</small>{% endif %}</td>
           <td data-label="Teórico" class="maquila-num"><span data-teorico>—</span></td>
           <td data-label="Real" class="maquila-num">
-            <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
+            <input type="hidden" name="consumo_insumo_id" value="{{ i.id }}">
             {% if i.unidad == 'ud' %}
             <input type="number" step="1" min="0" inputmode="numeric" name="consumo_real"
                    aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}" placeholder="{{ i.unidad }}"
@@ -168,13 +168,13 @@
 (function () {
   var form = document.getElementById('lote-form');
   if (!form) return;
-  var recetas = {};
-  try { recetas = JSON.parse(form.dataset.recetas || '{}'); } catch (e) { recetas = {}; }
+  var formulas = {};
+  try { formulas = JSON.parse(form.dataset.formulas || '{}'); } catch (e) { formulas = {}; }
   var producto = document.getElementById('producto_id');
   var peso = document.getElementById('peso_producido');
-  var nota = document.getElementById('receta-nota');
+  var nota = document.getElementById('formula-nota');
   var usar = document.getElementById('btn-usar-teorico');
-  var filas = Array.prototype.slice.call(form.querySelectorAll('tr[data-ingrediente-id]'));
+  var filas = Array.prototype.slice.call(form.querySelectorAll('tr[data-insumo-id]'));
 
   // El campo de kilos se teclea con coma; signed_decimal.js la pasa a punto
   // en un listener delegado que puede correr después de este. Se normaliza.
@@ -183,14 +183,14 @@
     return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + (u ? ' ' + u : '');
   }
 
-  // --- Teórico por ingrediente: receta genérica del producto × peso producido.
+  // --- Teórico por insumo: fórmula del producto × peso producido.
   function teoricos() {
-    var r = recetas[producto.value];
+    var r = formulas[producto.value];
     var kg = num(peso.value);
     var hay = false;
     filas.forEach(function (tr) {
       var celda = tr.querySelector('[data-teorico]');
-      var item = r && r.items[tr.dataset.ingredienteId];
+      var item = r && r.items[tr.dataset.insumoId];
       tr.classList.toggle('is-receta', !!item);
       if (!item || kg === null || kg <= 0) { celda.textContent = '—'; delete tr.dataset.teorico; return; }
       var teo = parseFloat(item) * kg / parseFloat(r.base_kg);
@@ -201,9 +201,9 @@
     });
     if (nota) {
       if (!producto.value) nota.textContent = '';
-      else if (!r) nota.textContent = 'Este producto no tiene receta genérica: se registra solo el consumo real, sin teórico.';
-      else if (kg === null || kg <= 0) nota.textContent = 'Receta: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + '). El teórico aparece al escribir el peso producido.';
-      else nota.textContent = 'Receta: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + ').';
+      else if (!r) nota.textContent = 'Este producto no tiene fórmula: se registra solo el consumo real, sin teórico.';
+      else if (kg === null || kg <= 0) nota.textContent = 'Fórmula: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + '). El teórico aparece al escribir el peso producido.';
+      else nota.textContent = 'Fórmula: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + ').';
     }
     if (usar) usar.hidden = !hay;
   }

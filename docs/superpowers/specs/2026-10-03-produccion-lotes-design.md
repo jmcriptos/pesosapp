@@ -19,28 +19,30 @@ dónde se fue la diferencia.
 - **Sin ledger ni saldo.** Lo declarado se guarda tal cual. No existe
   «saldo insuficiente». El control es a posteriori: merma y rendimiento por
   lote, y sus reportes.
-- **Se reusan `Ingrediente` y `Receta` de maquila.** Es el mismo catálogo
-  físico y la misma fórmula. Para producción propia aplica la receta
-  **genérica** del producto (la que no tiene cliente). Las recetas y los
-  ingredientes se administran en `/maquila/recetas` y `/maquila/ingredientes`
-  (solo super_admin); el nav de producción enlaza allá.
-- **Tres tablas nuevas**: `lote_produccion`, `lote_consumo`, `lote_merma`.
-  Nada de maquila se modifica.
+- **Separación total de maquila.** Producción tiene su propio catálogo:
+  **insumos** (`produccion_insumo`) y **fórmulas** (`produccion_formula`,
+  `produccion_formula_insumo`), administrados en `/produccion/insumos` y
+  `/produccion/formulas` por quien tiene permiso de editar. Ningún modelo
+  ni tabla de maquila entra en el módulo (hay un test que lo garantiza).
+  La pestaña «Producción» de maquila pasó a llamarse «Corridas» para no
+  confundirse.
+- **Seis tablas nuevas**: las tres del catálogo más `lote_produccion`,
+  `lote_consumo`, `lote_merma`. Nada de maquila se modifica.
 - **Ningún total se guarda.** `peso_producido` es un dato (lo que marcó la
   balanza); merma, rendimiento y «sin identificar» se derivan en cada
   lectura (`servicios.balance`). El teórico por ingrediente sí es un
   snapshot al guardar, para que cambiar la receta mañana no reescriba el
   rendimiento de ayer.
-- **Balance en kilos.** Solo los ingredientes con unidad `kg` entran en el
+- **Balance en kilos.** Solo los insumos con unidad `kg` entran en el
   consumido. La tripa (`ud`) se registra y se compara contra su teórico,
-  pero no suma kilos (misma regla que maquila).
+  pero no suma kilos.
 - **Merma identificada vs. sin identificar.** Las mermas se anotan por
   causa (cocción y ahumado, recorte, descarte, pérdida en proceso,
   muestras, otra). `merma_total = consumido − producido`;
   `sin_identificar = merma_total − identificada`. La cifra sin identificar
   es un dato, no un error: cerrar no la exige.
 - **Merma negativa se muestra.** Si el producto pesa más que lo que entró
-  (salmuera o agua no declarada como ingrediente), el rendimiento sale
+  (salmuera o agua no declarada como insumo), el rendimiento sale
   > 100 % y la pantalla lo dice en vez de esconderlo.
 - **Umbral de merma alta: 10 %** (`servicios.UMBRAL_MERMA_ALTA_PCT`), igual
   que el reporte de rendimiento de maquila.
@@ -63,20 +65,31 @@ dónde se fue la diferencia.
 |------|----------|
 | `/produccion` | Resumen: KPI de 30 días (producido, rendimiento, merma, sin identificar, lotes con merma alta), lotes abiertos, últimos cerrados |
 | `/produccion/lotes` | Listado con filtros (producto, estado, fechas) |
-| `/produccion/lotes/nuevo` · `/<id>/editar` | Un formulario: cabecera, producto terminado, ingredientes usados (teórico en vivo desde la receta), mermas por causa, vista previa del balance. «Guardar» o «Guardar y cerrar» |
+| `/produccion/lotes/nuevo` · `/<id>/editar` | Un formulario: cabecera, producto terminado, insumos usados (teórico en vivo desde la fórmula), mermas por causa, vista previa del balance en el pie. «Guardar» o «Guardar y cerrar» |
 | `/produccion/lotes/<id>` | Detalle: balance (rendimiento en grande), consumo con varianzas, mermas con «sin identificar», acciones (cerrar, reabrir, anular) |
 | `/produccion/reportes/rendimiento` (+ `/export`) | Por producto (ponderado por kilos, mín–máx) y por lote, con Excel de tres hojas |
 | `/produccion/reportes/mermas` | Por causa (todas, también las que suman 0) y por producto |
+| `/produccion/insumos` | Catálogo de insumos propios (alta y activar/desactivar) |
+| `/produccion/formulas` · `/nueva` · `/<id>` | Fórmulas por producto: base en kg e insumos con cantidad |
 
 ## Despliegue
 
-1. `heroku pg:psql --app pesosapp -f scripts/produccion_migracion.sql`
-2. push y `heroku restart --app pesosapp`
-3. En admin → roles, revisar la columna «Producción» para supervisor y vendedor.
+Las tablas se crean solas al arrancar si faltan (`produccion.asegurar_tablas`,
+mismo criterio que `_ensure_haccp_columns`). El script
+Si encuentra las tablas de lotes de la primera versión (atadas a
+`ingrediente`/`receta` de maquila, reconocibles porque `lote_consumo` no
+tiene `insumo_id`), las **tira y recrea** con el catálogo propio; los lotes
+de prueba de esa versión se pierden. `scripts/produccion_migracion.sql` hace
+lo mismo a mano. Después del deploy:
+
+1. En admin → roles, revisar la columna «Producción» para supervisor y vendedor.
+2. Cargar insumos y fórmulas en `/produccion/insumos` y `/produccion/formulas`.
 
 ## Tests
 
-`tests/test_produccion.py`: tablas, permisos, servicios (alta sin recepciones,
+`tests/test_produccion.py`: tablas (y que se crean solas), independencia de
+maquila, permisos, catálogo (insumos y fórmulas por servicio y por ruta),
+servicios (alta sin recepciones,
 códigos, balance, teórico como snapshot, unicidad, validaciones, cerrar,
 reabrir, anular), reportes (ponderación, filtros, mermas por causa) y rutas
 (alta por formulario con coma decimal, rechazo que conserva lo tecleado,

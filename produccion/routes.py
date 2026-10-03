@@ -10,10 +10,9 @@ from flask import (Blueprint, Response, abort, flash, redirect,
 from flask_login import current_user, login_required
 from sqlalchemy.orm import selectinload
 
-from maquila.models import Ingrediente
-
 from . import app_module, reportes, servicios
-from .models import LoteConsumo, LoteProduccion, TIPOS_MERMA
+from .models import (Formula, Insumo, LoteConsumo, LoteProduccion, TIPOS_MERMA,
+                     UNIDADES)
 
 # NO reemplazar por `from app import ...`: ver produccion/__init__.py.
 Producto = app_module.Producto
@@ -93,20 +92,33 @@ def _productos():
     return Producto.query.order_by(Producto.nombre).all()
 
 
-def _ingredientes_activos():
-    return (Ingrediente.query.filter_by(activo=True)
-            .order_by(Ingrediente.nombre).all())
+def _insumos_activos():
+    return Insumo.query.filter_by(activo=True).order_by(Insumo.nombre).all()
 
 
-def _ingredientes_para(lote=None):
+def _insumos_para(lote=None):
     """Los activos, más los que el lote ya usa aunque se hayan desactivado:
     si faltara su fila, guardar sin tocarla lo borraría en silencio."""
-    activos = _ingredientes_activos()
+    activos = _insumos_activos()
     if lote is None:
         return activos
     ids_activos = {i.id for i in activos}
-    faltantes = [c.ingrediente for c in lote.consumos
-                 if c.ingrediente and c.ingrediente_id not in ids_activos]
+    faltantes = [c.insumo for c in lote.consumos
+                 if c.insumo and c.insumo_id not in ids_activos]
+    if not faltantes:
+        return activos
+    return sorted(activos + faltantes, key=lambda i: i.nombre.lower())
+
+
+def _insumos_para_formula(formula=None):
+    """Igual que `_insumos_para`, para la fórmula: un insumo desactivado
+    que la fórmula ya lleva tiene que seguir en su fila."""
+    activos = _insumos_activos()
+    if formula is None:
+        return activos
+    ids_activos = {i.id for i in activos}
+    faltantes = [f.insumo for f in formula.insumos
+                 if f.insumo and f.insumo_id not in ids_activos]
     if not faltantes:
         return activos
     return sorted(activos + faltantes, key=lambda i: i.nombre.lower())
@@ -126,17 +138,17 @@ def _leer_cabecera(form):
 
 
 def _leer_consumos(form):
-    """{ingrediente_id: Decimal} con lo tecleado. Un campo vacío no viaja
-    como consumo; un negativo viaja tal cual para que el servicio lo
-    rechace con su mensaje, en vez de desaparecer en silencio."""
+    """{insumo_id: Decimal} con lo tecleado. Un campo vacío no viaja como
+    consumo; un negativo viaja tal cual para que el servicio lo rechace
+    con su mensaje, en vez de desaparecer en silencio."""
     consumos = {}
-    for ingrediente_id_raw, cantidad in zip(form.getlist('consumo_ingrediente_id'),
-                                            form.getlist('consumo_real')):
-        ingrediente_id = _entero(ingrediente_id_raw)
+    for insumo_id_raw, cantidad in zip(form.getlist('consumo_insumo_id'),
+                                       form.getlist('consumo_real')):
+        insumo_id = _entero(insumo_id_raw)
         valor = _decimal(cantidad)
-        if ingrediente_id is None or valor is None:
+        if insumo_id is None or valor is None:
             continue
-        consumos[ingrediente_id] = valor
+        consumos[insumo_id] = valor
     return consumos
 
 
@@ -182,7 +194,7 @@ def _render_form(lote=None, form=None, consumos=None, mermas=None):
     trabajo con guantes."""
     if form is None and lote is not None:
         form = _form_de_lote(lote)
-        consumos = {c.ingrediente_id: c.cantidad_real for c in lote.consumos}
+        consumos = {c.insumo_id: c.cantidad_real for c in lote.consumos}
         mermas = [{'tipo': m.tipo, 'cantidad': m.cantidad, 'motivo': m.motivo or ''}
                   for m in lote.mermas]
     form = form or {}
@@ -195,8 +207,8 @@ def _render_form(lote=None, form=None, consumos=None, mermas=None):
         'produccion/lote_form.html',
         lote=lote, form=form, consumos=consumos_str, mermas=mermas,
         productos=_productos(),
-        ingredientes=_ingredientes_para(lote),
-        recetas_json=reportes.recetas_genericas_json(),
+        insumos=_insumos_para(lote),
+        formulas_json=reportes.formulas_json(),
         tipos_merma=TIPOS_MERMA,
         hoy=_hoy_local())
 
@@ -240,7 +252,7 @@ def index():
                  .options(selectinload(LoteProduccion.producto),
                           selectinload(LoteProduccion.mermas),
                           selectinload(LoteProduccion.consumos)
-                          .selectinload(LoteConsumo.ingrediente))
+                          .selectinload(LoteConsumo.insumo))
                  .order_by(LoteProduccion.fecha_produccion.desc(),
                            LoteProduccion.id.desc())
                  .limit(8).all())
@@ -467,8 +479,8 @@ def reporte_rendimiento_export():
         _num_o_vacio(hoja2, n, 10, r['rend_max'], pct)
         hoja2.write_number(n, 11, r['lotes_merma_alta'])
 
-    hoja3 = libro.add_worksheet('Consumo por ingrediente')
-    encabezados3 = ['Código', 'Lote', 'Producto', 'Ingrediente', 'Unidad',
+    hoja3 = libro.add_worksheet('Consumo por insumo')
+    encabezados3 = ['Código', 'Lote', 'Producto', 'Insumo', 'Unidad',
                     'Teórico', 'Real', 'Diferencia', 'Diferencia %']
     for col, titulo in enumerate(encabezados3):
         hoja3.write(0, col, titulo, negrita)
@@ -478,7 +490,7 @@ def reporte_rendimiento_export():
             hoja3.write(n, 0, _excel_safe(f['codigo']))
             hoja3.write(n, 1, _excel_safe(f['lote']))
             hoja3.write(n, 2, _excel_safe(f['producto']))
-            hoja3.write(n, 3, _excel_safe(v['ingrediente']))
+            hoja3.write(n, 3, _excel_safe(v['insumo']))
             hoja3.write(n, 4, _excel_safe(v['unidad']))
             hoja3.write_number(n, 5, float(v['teorica']), kg)
             hoja3.write_number(n, 6, float(v['real']), kg)
@@ -515,3 +527,130 @@ def reporte_mermas():
         datos=reportes.mermas(producto_id, desde, hasta),
         productos=_productos(), producto_id=producto_id, args=request.args,
         umbral=servicios.UMBRAL_MERMA_ALTA_PCT)
+
+
+# ------------------------------------------------------------- catálogo
+
+@bp.route('/insumos', methods=['GET', 'POST'])
+@login_required
+@requiere_permiso_recurso(RECURSO, 'leer')
+def insumos():
+    if request.method == 'POST':
+        if not current_user.tiene_permiso(RECURSO, 'editar'):
+            flash('Dar de alta insumos requiere permiso de editar producción', 'error')
+            return redirect(url_for('produccion.insumos'))
+        try:
+            insumo = servicios.crear_insumo(
+                nombre=request.form.get('nombre'),
+                unidad=request.form.get('unidad') or 'kg',
+                notas=request.form.get('notas'))
+            flash(f'Insumo {insumo.nombre} agregado', 'success')
+        except servicios.InsumoInvalido as exc:
+            flash(str(exc), 'error')
+        return redirect(url_for('produccion.insumos'))
+    return render_template('produccion/insumos.html',
+                           insumos=Insumo.query.order_by(Insumo.nombre).all(),
+                           unidades=UNIDADES)
+
+
+@bp.route('/insumos/<int:insumo_id>/toggle', methods=['POST'])
+@login_required
+@requiere_permiso_recurso(RECURSO, 'editar')
+def insumo_toggle(insumo_id):
+    insumo = db.session.get(Insumo, insumo_id) or abort(404)
+    insumo.activo = not insumo.activo
+    db.session.commit()
+    return redirect(url_for('produccion.insumos'))
+
+
+@bp.route('/formulas')
+@login_required
+@requiere_permiso_recurso(RECURSO, 'leer')
+def formulas():
+    return render_template(
+        'produccion/formulas.html',
+        formulas=(Formula.query
+                  .options(selectinload(Formula.producto),
+                           selectinload(Formula.insumos))
+                  .order_by(Formula.activa.desc(), Formula.id.desc()).all()))
+
+
+def _leer_items_formula(form):
+    """{insumo_id: Decimal} de las listas paralelas del form. Un insumo
+    repetido se rechaza: adivinar cuál de las dos filas vale es adivinar
+    la fórmula."""
+    items = {}
+    for insumo_id_raw, cantidad in zip(form.getlist('item_insumo_id'),
+                                       form.getlist('item_cantidad')):
+        insumo_id = _entero(insumo_id_raw)
+        valor = _decimal(cantidad)
+        if insumo_id is None or valor is None or valor <= 0:
+            continue
+        if insumo_id in items:
+            raise servicios.FormulaInvalida(
+                'Hay un insumo repetido en la fórmula: dejá una sola fila por insumo')
+        items[insumo_id] = valor
+    return items
+
+
+@bp.route('/formulas/nueva', methods=['GET', 'POST'])
+@bp.route('/formulas/<int:formula_id>', methods=['GET', 'POST'])
+@login_required
+@requiere_permiso_recurso(RECURSO, 'editar')
+def formula_form(formula_id=None):
+    formula = db.session.get(Formula, formula_id) if formula_id else None
+    if formula_id and formula is None:
+        abort(404)
+
+    if request.method == 'POST':
+        try:
+            items = _leer_items_formula(request.form)
+            formula = servicios.guardar_formula(
+                formula,
+                producto_id=_entero(request.form.get('producto_id')),
+                nombre=request.form.get('nombre'),
+                base_kg=_decimal(request.form.get('base_kg')),
+                activa=bool(request.form.get('activa')),
+                items=items,
+                vendedor_id=current_user.id)
+        except servicios.FormulaInvalida as exc:
+            flash(f'{exc}. Lo tecleado se conserva.', 'error')
+            return _render_formula(formula, request.form)
+        except Exception:
+            db.session.rollback()
+            flash('No se pudo guardar la fórmula: ocurrió un error inesperado. '
+                  'Lo tecleado se conserva.', 'error')
+            return _render_formula(formula, request.form)
+        flash(f'Fórmula «{formula.nombre}» guardada', 'success')
+        return redirect(url_for('produccion.formulas'))
+
+    return _render_formula(formula)
+
+
+def _render_formula(formula=None, form=None):
+    """La fórmula vacía, con lo guardado o con lo rechazado. Las filas de
+    insumos viajan como lista de (insumo_id str, cantidad str) para que la
+    plantilla tenga una sola forma de pintarlas."""
+    if form is not None and hasattr(form, 'getlist'):
+        filas = list(zip(form.getlist('item_insumo_id'), form.getlist('item_cantidad')))
+        datos = {
+            'producto_id': form.get('producto_id', ''),
+            'nombre': form.get('nombre', ''),
+            'base_kg': form.get('base_kg', ''),
+            'activa': bool(form.get('activa')),
+        }
+    elif formula is not None:
+        filas = [(str(i.insumo_id), str(i.cantidad)) for i in formula.insumos]
+        datos = {
+            'producto_id': str(formula.producto_id),
+            'nombre': formula.nombre,
+            'base_kg': str(formula.base_kg),
+            'activa': formula.activa,
+        }
+    else:
+        filas = []
+        datos = {'producto_id': '', 'nombre': '', 'base_kg': '100', 'activa': True}
+    return render_template(
+        'produccion/formula_form.html',
+        formula=formula, datos=datos, filas=filas,
+        productos=_productos(), insumos=_insumos_para_formula(formula))

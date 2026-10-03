@@ -1,0 +1,104 @@
+{% extends "produccion/base_produccion.html" %}
+{% block title %}{{ 'Editar fórmula' if formula else 'Nueva fórmula' }}{% endblock %}
+{% block produccion_title %}{{ 'Editar fórmula' if formula else 'Nueva fórmula' }}{% endblock %}
+{% block produccion_body %}
+<form method="POST" class="ops-sheet-form" id="formula-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card">
+    <h2>Cabecera</h2>
+    <div class="ops-field">
+      <label for="nombre">Nombre</label>
+      <input type="text" id="nombre" name="nombre" required autocomplete="off" value="{{ datos.nombre }}" placeholder="Chorizo casa">
+    </div>
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" required>
+        <option value="" disabled {{ 'selected' if not datos.producto_id else '' }}>Elegí un producto</option>
+        {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if datos.producto_id == p.id|string else '' }}>{{ p.nombre }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="ops-grid-2">
+      <div class="ops-field">
+        <label for="base_kg">Base (kg de producto terminado)</label>
+        <input type="text" inputmode="decimal" data-decimal id="base_kg" name="base_kg" value="{{ datos.base_kg }}">
+      </div>
+      <div class="ops-field">
+        <label for="activa">
+          <input type="checkbox" id="activa" name="activa" value="1" {{ 'checked' if datos.activa else '' }}>
+          Activa
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="ops-card">
+    <h2>Insumos por cada {{ datos.base_kg or '100' }} kg</h2>
+    {% if not insumos %}
+      <p class="ops-empty">No hay insumos activos. <a href="{{ url_for('produccion.insumos') }}">Dalos de alta en Insumos</a> y volvé.</p>
+    {% else %}
+    <div id="formula-items">
+      {% for insumo_id, cantidad in filas %}
+      <div class="prod-merma-linea prod-formula-linea">
+        <div>
+          <label>Insumo</label>
+          <select name="item_insumo_id" required>
+            {% for i in insumos %}<option value="{{ i.id }}" {{ 'selected' if insumo_id == i.id|string else '' }}>{{ i.nombre }} ({{ i.unidad }}){{ '' if i.activo else ' — desactivado' }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Cantidad</label>
+          <input type="text" inputmode="decimal" data-decimal name="item_cantidad" value="{{ cantidad }}">
+        </div>
+        <button type="button" class="btn" data-quitar-item aria-label="Quitar este insumo">Quitar</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn" id="btn-agregar-item">Agregar insumo</button>
+    {% endif %}
+  </section>
+
+  <footer class="ops-sticky-footer">
+    <a class="btn" href="{{ url_for('produccion.formulas') }}">Volver</a>
+    <button type="submit" class="btn btn-primary">Guardar fórmula</button>
+  </footer>
+</form>
+
+<template id="formula-item-tpl">
+  <div class="prod-merma-linea prod-formula-linea">
+    <div>
+      <label>Insumo</label>
+      <select name="item_insumo_id" required>
+        {% for i in insumos if i.activo %}<option value="{{ i.id }}">{{ i.nombre }} ({{ i.unidad }})</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Cantidad</label>
+      <input type="text" inputmode="decimal" data-decimal name="item_cantidad">
+    </div>
+    <button type="button" class="btn" data-quitar-item aria-label="Quitar este insumo">Quitar</button>
+  </div>
+</template>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var cont = document.getElementById('formula-items');
+  var tpl = document.getElementById('formula-item-tpl');
+  var add = document.getElementById('btn-agregar-item');
+  if (!cont || !tpl || !add) return;
+  function agregar() {
+    cont.appendChild(tpl.content.cloneNode(true));
+    var ultimo = cont.lastElementChild.querySelector('input');
+    if (ultimo) ultimo.focus();
+  }
+  add.addEventListener('click', agregar);
+  cont.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-quitar-item]');
+    if (!btn) return;
+    var fila = btn.closest('.prod-formula-linea');
+    if (fila) fila.remove();
+  });
+  if (!cont.children.length) agregar();
+})();
+</script>
+{% endblock %}

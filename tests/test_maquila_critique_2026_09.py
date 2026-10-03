@@ -249,7 +249,7 @@ def test_el_riel_lleva_cuatro_destinos_y_el_resto_va_tras_mas(app):
     riel = nav[:nav.index('<details')]
 
     assert riel.count('<a ') == 4, 'el riel lleva solo los destinos de operación'
-    for rotulo in ('Resumen', 'Recepciones', 'Producción', 'Ajustes'):
+    for rotulo in ('Resumen', 'Recepciones', 'Corridas', 'Ajustes'):
         assert f'>{rotulo}</a>' in riel
     for rotulo in ('Ingredientes', 'Recetas', 'Saldos', 'Kardex',
                    'Rendimiento', 'Trazabilidad'):

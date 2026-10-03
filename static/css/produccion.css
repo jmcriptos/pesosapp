@@ -126,3 +126,11 @@
 /* Consumo: el campo «Real» no necesita ocupar toda la celda. */
 .produccion-wrap .prod-tabla-consumo input { max-width: 140px; min-height: 44px; }
 .produccion-wrap .prod-tabla-consumo tr.is-receta td:first-child { font-weight: 600; }
+
+/* Filas de la fórmula: insumo, cantidad y quitar (misma ficha que la merma). */
+.produccion-wrap .prod-formula-linea { grid-template-columns: 2fr 1fr auto; }
+@media (max-width: 640px) {
+  .produccion-wrap .prod-formula-linea { grid-template-columns: 1fr 1fr; }
+  .produccion-wrap .prod-formula-linea > div:first-child,
+  .produccion-wrap .prod-formula-linea > .btn { grid-column: 1 / -1; }
+}
