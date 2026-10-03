@@ -134,3 +134,17 @@
   .produccion-wrap .prod-formula-linea > div:first-child,
   .produccion-wrap .prod-formula-linea > .btn { grid-column: 1 / -1; }
 }
+
+/* Carga masiva de insumos: el textarea con la misma piel que los inputs. */
+.produccion-wrap .prod-textarea {
+  width: 100%;
+  min-height: 160px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-subtle, rgba(15, 23, 42, .12));
+  background: var(--color-surface-muted, #f8fafc);
+  color: var(--color-text, #0f172a);
+}

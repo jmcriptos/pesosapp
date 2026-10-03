@@ -711,3 +711,48 @@ def test_la_navegacion_de_produccion_no_enlaza_a_maquila(app):
     nav = html[inicio:html.index('</nav>', inicio)]
     assert '/maquila' not in nav
     assert '/produccion/formulas' in nav and '/produccion/insumos' in nav
+
+
+def test_carga_masiva_de_insumos(app):
+    with app.app_context():
+        from produccion import servicios
+        from produccion.models import Insumo
+        creados, omitidos = servicios.cargar_insumos(
+            "Recortes de pollo (Kippetrimmings)\n"
+            "- Sal fina, kg\n"
+            "Palatinata;kg\n"
+            "\n"
+            "Tripa natural de cerdo 28-30, ud\n"
+            "carne de cerdo\n"          # ya existe (sin distinguir mayúsculas)
+            "Palatinata\n")             # repetida en el mismo texto
+        assert [(i.nombre, i.unidad) for i in creados] == [
+            ('Recortes de pollo (Kippetrimmings)', 'kg'), ('Sal fina', 'kg'),
+            ('Palatinata', 'kg'), ('Tripa natural de cerdo 28-30', 'ud')]
+        assert omitidos == ['carne de cerdo', 'Palatinata']
+        antes = Insumo.query.count()
+        with pytest.raises(servicios.InsumoInvalido) as exc:
+            servicios.cargar_insumos("Hielo\nAgua, litros\n")
+        assert 'Línea 2' in str(exc.value)
+        assert Insumo.query.count() == antes      # nada a medias
+
+
+def test_carga_masiva_por_ruta(app):
+    c = _login(app, 'admin')
+    r = c.post('/produccion/insumos/carga', data={'lineas': 'Raprall\nSuper Stim\nTripa natural, ud'},
+               follow_redirects=True)
+    html = r.get_data(as_text=True)
+    assert '3 insumos cargados' in html and 'Super Stim' in html
+    r = c.post('/produccion/insumos/carga', data={'lineas': 'Raprall\nAgua, litros'})
+    assert r.status_code == 200
+    html = r.get_data(as_text=True)
+    assert 'Línea 2' in html and 'Agua, litros' in html      # el texto vuelve al textarea
+
+
+def test_carga_masiva_requiere_editar(app):
+    # Un solo cliente por test: ver test_vendedor_lee_y_crea_pero_no_cierra.
+    v = _login(app, 'vend')
+    r = v.post('/produccion/insumos/carga', data={'lineas': 'Pimentón'}, follow_redirects=False)
+    assert r.status_code == 302 and r.headers['Location'].endswith('/')
+    with app.app_context():
+        from produccion.models import Insumo
+        assert Insumo.query.filter_by(nombre='Pimentón').first() is None

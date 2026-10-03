@@ -553,6 +553,28 @@ def insumos():
                            unidades=UNIDADES)
 
 
+@bp.route('/insumos/carga', methods=['POST'])
+@login_required
+@requiere_permiso_recurso(RECURSO, 'editar')
+def insumos_carga():
+    """Carga masiva: el textarea viaja en `lineas`. Si se rechaza, vuelve
+    la pantalla con el texto puesto, para corregir la línea y reenviar."""
+    texto = request.form.get('lineas') or ''
+    try:
+        creados, omitidos = servicios.cargar_insumos(texto)
+    except servicios.InsumoInvalido as exc:
+        flash(f'{exc}. No se cargó ninguno; el texto se conserva.', 'error')
+        return render_template('produccion/insumos.html',
+                               insumos=Insumo.query.order_by(Insumo.nombre).all(),
+                               unidades=UNIDADES, lineas=texto)
+    partes = [f'{len(creados)} insumo{"s" if len(creados) != 1 else ""} cargado{"s" if len(creados) != 1 else ""}']
+    if omitidos:
+        partes.append(f'{len(omitidos)} ya existía{"n" if len(omitidos) != 1 else ""} '
+                      f'({", ".join(omitidos[:6])}{"…" if len(omitidos) > 6 else ""})')
+    flash('; '.join(partes), 'success' if creados else 'error')
+    return redirect(url_for('produccion.insumos'))
+
+
 @bp.route('/insumos/<int:insumo_id>/toggle', methods=['POST'])
 @login_required
 @requiere_permiso_recurso(RECURSO, 'editar')
