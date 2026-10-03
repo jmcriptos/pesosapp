@@ -1,0 +1,137 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip, chip_estado %}
+{% from "produccion/_macros.html" import franja_balance %}
+{% block title %}Lote {{ lote.codigo }}{% endblock %}
+{% block produccion_title %}Lote {{ lote.codigo }}{% endblock %}
+{% block produccion_body %}
+<section class="ops-card">
+  <div class="maquila-titulo-fila">
+    <h2>{{ lote.codigo }}</h2>
+    {{ chip_estado(lote.estado) }}
+    <a class="maquila-salida" href="{{ url_for('produccion.lotes') }}">Todos los lotes</a>
+  </div>
+  <dl class="maquila-cabecera">
+    <dt>Producto</dt><dd>{{ lote.producto.nombre }}</dd>
+    <dt>Lote</dt><dd>{{ lote.lote }}</dd>
+    <dt>Fecha de producción</dt><dd>{{ lote.fecha_produccion.strftime('%d/%m/%Y') }}</dd>
+    <dt>Fecha de vencimiento</dt><dd>{{ lote.fecha_vencimiento.strftime('%d/%m/%Y') if lote.fecha_vencimiento else '—' }}</dd>
+    <dt>Receta</dt><dd>{{ lote.receta.nombre ~ ' (base ' ~ (lote.receta.base_kg|fmt_cant) ~ ')' if lote.receta else 'Sin receta genérica: solo consumo real' }}</dd>
+    <dt>Producto terminado</dt>
+    <dd>{{ lote.peso_producido|fmt_cant if lote.peso_producido else '—' }}{% if lote.unidades_producidas is not none %} · {{ lote.unidades_producidas }} unidad{{ 'es' if lote.unidades_producidas != 1 else '' }}{% endif %}{% if lote.cajas_producidas is not none %} · {{ lote.cajas_producidas }} caja{{ 's' if lote.cajas_producidas != 1 else '' }}{% endif %}</dd>
+    <dt>Registrado por</dt><dd>{{ registrado_por or '—' }}</dd>
+    {% if lote.estado == 'cerrada' %}
+    <dt>Cerrado por</dt><dd>{{ cerrado_por or '—' }}{% if cerrado_en %} · {{ cerrado_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</dd>
+    {% endif %}
+    {% if lote.estado == 'anulada' %}
+    <dt>Anulado por</dt><dd>{{ anulado_por or '—' }}{% if anulado_en %} · {{ anulado_en.strftime('%d/%m/%Y %H:%M') }}{% endif %}</dd>
+    <dt>Motivo</dt><dd>{{ lote.motivo_anulacion }}</dd>
+    {% endif %}
+    {% if lote.notas %}<dt>Notas</dt><dd class="prod-notas">{{ lote.notas }}</dd>{% endif %}
+  </dl>
+  {% if lote.estado == 'abierta' and permiso_produccion('editar') %}
+  <div class="maquila-acciones">
+    <a class="btn btn-primary" href="{{ url_for('produccion.lote_editar', lote_id=lote.id) }}">Completar o corregir</a>
+  </div>
+  {% endif %}
+</section>
+
+{{ franja_balance(balance, umbral) }}
+
+<section class="ops-card" id="consumo">
+  <h2>Ingredientes usados</h2>
+  {% if not balance.varianzas %}
+    <p class="ops-empty">Sin consumo declarado todavía.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th><th class="maquila-num">%</th></tr></thead>
+    <tbody>
+      {% for v in balance.varianzas %}
+      {% set alta = v.pct is not none and v.pct|abs > umbral %}
+      <tr class="{{ 'maquila-merma-alta' if alta else '' }}">
+        <td data-label="Ingrediente">{{ v.ingrediente }}</td>
+        <td data-label="Teórico" class="maquila-num">{{ v.teorica|fmt_cant(v.unidad) if v.teorica else '—' }}</td>
+        <td data-label="Real" class="maquila-num">{{ v.real|fmt_cant(v.unidad) }}</td>
+        <td data-label="Diferencia" class="maquila-num">{{ v.diferencia|fmt_cant(v.unidad) if v.teorica else '—' }}</td>
+        <td data-label="%" class="maquila-num">{{ v.pct ~ ' %' if v.pct is not none else '—' }}{% if alta %} {{ chip('Alta', 'falla') }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td><strong>Total en kg</strong></td><td></td><td class="maquila-num"><strong>{{ balance.consumido|fmt_cant }}</strong></td><td colspan="2">{% if balance.otras_unidades %}<small class="maquila-nota-unidad">+ consumo en {{ balance.otras_unidades|join(', ') }}</small>{% endif %}</td></tr>
+    </tfoot>
+  </table>
+  {% endif %}
+</section>
+
+<section class="ops-card" id="mermas">
+  <h2>Mermas</h2>
+  {% if not lote.mermas %}
+    <p class="ops-empty">Ninguna merma identificada.{% if balance.merma_total is not none and balance.merma_total > 0 %} Los {{ balance.merma_total|fmt_cant }} de diferencia quedan sin identificar.{% endif %}</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead><tr><th>Tipo</th><th class="maquila-num">Kilos</th><th class="maquila-num">% del consumido</th><th>Detalle</th></tr></thead>
+    <tbody>
+      {% for m in lote.mermas %}
+      <tr>
+        <td data-label="Tipo">{{ m.etiqueta }}</td>
+        <td data-label="Kilos" class="maquila-num">{{ m.cantidad|fmt_cant }}</td>
+        <td data-label="% del consumido" class="maquila-num">{% if balance.consumido > 0 %}{{ ((m.cantidad / balance.consumido) * 100)|round(1) }} %{% else %}—{% endif %}</td>
+        <td data-label="Detalle">{{ m.motivo or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td><strong>Identificada</strong></td><td class="maquila-num"><strong>{{ balance.merma_identificada|fmt_cant }}</strong></td><td colspan="2"></td></tr>
+      {% if balance.merma_total is not none %}
+      <tr><td>Sin identificar</td><td class="maquila-num {{ 'maquila-merma-alta' if balance.merma_sin_identificar > 0 and balance.merma_alta else '' }}">{{ balance.merma_sin_identificar|fmt_cant }}</td><td colspan="2"></td></tr>
+      <tr><td>Merma total</td><td class="maquila-num">{{ balance.merma_total|fmt_cant }}</td><td class="maquila-num">{{ balance.merma_pct }} %</td><td></td></tr>
+      {% endif %}
+    </tfoot>
+  </table>
+  {% endif %}
+</section>
+
+{% if lote.estado != 'anulada' and (permiso_produccion('editar') or permiso_produccion('eliminar')) %}
+<section class="ops-card" id="acciones">
+  <h2>Acciones</h2>
+  {% if lote.estado == 'abierta' and permiso_produccion('editar') %}
+  <p class="maquila-nota">Cerrar el lote lo deja fijo y lo hace contar en los reportes. Hace falta el peso producido y al menos un ingrediente en kg; la merma sin identificar no bloquea.</p>
+  <form method="POST" action="{{ url_for('produccion.lote_cerrar', lote_id=lote.id) }}"
+        class="ops-sheet-form" data-confirm="¿Cerrar el lote {{ lote.codigo }}? Después solo se corrige reabriéndolo con motivo.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary">Cerrar lote</button>
+  </form>
+  {% endif %}
+
+  {% if lote.estado == 'cerrada' and permiso_produccion('editar') %}
+  <details class="prod-accion">
+    <summary>Reabrir para corregir</summary>
+    <form method="POST" action="{{ url_for('produccion.lote_reabrir', lote_id=lote.id) }}" class="ops-sheet-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ops-field">
+        <label for="motivo-reabrir">Motivo</label>
+        <input type="text" id="motivo-reabrir" name="motivo" required placeholder="Qué hay que corregir">
+      </div>
+      <button type="submit" class="btn">Reabrir lote</button>
+    </form>
+  </details>
+  {% endif %}
+
+  {% if permiso_produccion('eliminar') %}
+  <details class="prod-accion">
+    <summary>Anular lote</summary>
+    <p class="maquila-nota">Un lote anulado no se borra: deja de contar en los reportes y queda con su motivo.</p>
+    <form method="POST" action="{{ url_for('produccion.lote_anular', lote_id=lote.id) }}"
+          class="ops-sheet-form" data-confirm="¿Anular el lote {{ lote.codigo }}?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ops-field">
+        <label for="motivo-anular">Motivo</label>
+        <input type="text" id="motivo-anular" name="motivo" required placeholder="Por qué se anula">
+      </div>
+      <button type="submit" class="btn btn-danger">Anular lote</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

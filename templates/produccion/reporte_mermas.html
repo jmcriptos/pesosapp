@@ -1,0 +1,108 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip %}
+{% block title %}Mermas por causa{% endblock %}
+{% block produccion_title %}Mermas{% endblock %}
+{% block produccion_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid">
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" data-autosubmit>
+        <option value="">Todos los productos</option>
+        {% for p in productos %}
+        <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="desde">Desde</label>
+      <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
+    </div>
+    <div class="ops-field">
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
+    </div>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+    </div>
+  </form>
+</section>
+
+{% if not datos.lotes %}
+<section class="ops-card"><p class="ops-empty">No hay lotes cerrados para este filtro.</p></section>
+{% else %}
+<section class="ops-card maquila-total-franja">
+  <div class="maquila-titulo-fila">
+    <div class="maquila-dueno-label">Merma del periodo · {{ datos.lotes }} lote{{ 's' if datos.lotes != 1 else '' }}</div>
+    {% if datos.merma_pct is not none and datos.merma_pct|abs > umbral %}{{ chip('Alta', 'falla') }}{% endif %}
+  </div>
+  <div class="maquila-figure">{{ datos.merma_total|fmt_cant }}</div>
+  <div class="maquila-total-detalle">{{ datos.merma_pct if datos.merma_pct is not none else '—' }} % de {{ datos.consumido|fmt_cant }} consumidos · {{ datos.producido|fmt_cant }} producidos</div>
+  <dl class="prod-kpis prod-kpis-inline">
+    <div class="prod-kpi">
+      <dt>Identificada</dt>
+      <dd>{{ datos.identificada|fmt_cant }} <small>{% if datos.pct_identificada is not none %}({{ datos.pct_identificada }} % de la merma){% endif %}</small></dd>
+    </div>
+    <div class="prod-kpi{{ ' is-aviso' if datos.sin_identificar > 0 else '' }}">
+      <dt>Sin identificar</dt>
+      <dd>{{ datos.sin_identificar|fmt_cant }}</dd>
+    </div>
+  </dl>
+  {% if datos.merma_total < 0 %}
+  <p class="maquila-nota">Merma negativa: el producto pesa más que los ingredientes en kg declarados. Suele ser salmuera o agua sin registrar como ingrediente.</p>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  <h2>Por causa</h2>
+  <p class="maquila-nota">Las causas sin kilos también se listan: una causa que nunca aparece puede ser que no exista o que nadie la esté anotando.</p>
+  <table class="maquila-tabla">
+    <thead><tr><th>Causa</th><th class="maquila-num">Kilos</th><th class="maquila-num">% del consumido</th><th class="maquila-num">% de la merma</th><th class="maquila-num">Lotes</th><th></th></tr></thead>
+    <tbody>
+      {% for t in datos.por_tipo %}
+      <tr>
+        <td data-label="Causa">{{ t.etiqueta }}</td>
+        <td data-label="Kilos" class="maquila-num">{{ t.cantidad|fmt_cant if t.cantidad else '—' }}</td>
+        <td data-label="% del consumido" class="maquila-num">{{ t.pct_consumido ~ ' %' if t.pct_consumido is not none and t.cantidad else '—' }}</td>
+        <td data-label="% de la merma" class="maquila-num">{{ t.pct_merma ~ ' %' if t.pct_merma is not none and t.cantidad else '—' }}</td>
+        <td data-label="Lotes" class="maquila-num">{{ t.lotes }}</td>
+        <td data-label=""><div class="prod-bar" aria-hidden="true"><span style="width: {{ [t.pct_merma, 100]|min if t.pct_merma is not none and t.pct_merma > 0 else 0 }}%"></span></div></td>
+      </tr>
+      {% endfor %}
+      {% if datos.merma_total > 0 %}
+      <tr class="{{ 'maquila-merma-alta' if datos.sin_identificar > 0 else '' }}">
+        <td data-label="Causa"><strong>Sin identificar</strong></td>
+        <td data-label="Kilos" class="maquila-num"><strong>{{ datos.sin_identificar|fmt_cant }}</strong></td>
+        <td data-label="% del consumido" class="maquila-num">{% if datos.consumido > 0 %}{{ ((datos.sin_identificar / datos.consumido) * 100)|round(1) }} %{% else %}—{% endif %}</td>
+        <td data-label="% de la merma" class="maquila-num">{{ ((datos.sin_identificar / datos.merma_total) * 100)|round(1) }} %</td>
+        <td></td>
+        <td data-label=""><div class="prod-bar" aria-hidden="true"><span style="width: {{ [((datos.sin_identificar / datos.merma_total) * 100)|round(1), 100]|min if datos.sin_identificar > 0 else 0 }}%"></span></div></td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+
+<section class="ops-card">
+  <h2>Por producto</h2>
+  <table class="maquila-tabla">
+    <thead><tr><th>Producto</th><th class="maquila-num">Lotes</th><th class="maquila-num">Consumido</th><th class="maquila-num">Producido</th><th class="maquila-num">Merma</th><th class="maquila-num">Identificada</th><th class="maquila-num">Sin identificar</th><th>Causas</th></tr></thead>
+    <tbody>
+      {% for p in datos.por_producto %}
+      {% set alta = p.merma_pct is not none and p.merma_pct|abs > umbral %}
+      <tr>
+        <td data-label="Producto"><a href="{{ url_for('produccion.reporte_mermas', producto_id=p.producto_id, desde=args.get('desde') or None, hasta=args.get('hasta') or None) }}">{{ p.producto }}</a></td>
+        <td data-label="Lotes" class="maquila-num">{{ p.lotes }}</td>
+        <td data-label="Consumido" class="maquila-num">{{ p.consumido|fmt_cant }}</td>
+        <td data-label="Producido" class="maquila-num">{{ p.producido|fmt_cant }}</td>
+        <td data-label="Merma" class="maquila-num {{ 'maquila-merma-alta' if alta else '' }}">{{ p.merma_total|fmt_cant }} ({{ p.merma_pct if p.merma_pct is not none else '—' }} %){% if alta %} {{ chip('Alta', 'falla') }}{% endif %}</td>
+        <td data-label="Identificada" class="maquila-num">{{ p.identificada|fmt_cant }}</td>
+        <td data-label="Sin identificar" class="maquila-num">{{ p.sin_identificar|fmt_cant }}</td>
+        <td data-label="Causas">{% for t in p.tipos %}{{ t.etiqueta }} {{ t.cantidad|fmt_cant }}{{ ' · ' if not loop.last else '' }}{% else %}—{% endfor %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,43 @@
+{#- Piezas propias de producción. `chip` y `chip_estado` se importan de
+    maquila/_macros.html: mismo sistema de tonos (conforme, aviso, falla,
+    neutro, marca). -#}
+{% from "maquila/_macros.html" import chip %}
+
+{#- Rendimiento y merma en una franja. `b` es el dict de servicios.balance. -#}
+{% macro franja_balance(b, umbral) -%}
+<section class="ops-card maquila-total-franja prod-balance" id="balance">
+  {% if b.consumido <= 0 %}
+    <div class="maquila-dueno-label">Balance del lote</div>
+    <p class="ops-empty">Sin consumo en kg declarado: no hay balance que calcular.</p>
+  {% else %}
+    <div class="maquila-titulo-fila">
+      <div class="maquila-dueno-label">Rendimiento del lote</div>
+      {% if b.merma_alta %}{{ chip('Merma alta', 'falla') }}{% endif %}
+    </div>
+    <div class="maquila-figure">{{ b.rendimiento_pct }} %</div>
+    <div class="maquila-total-detalle">{{ b.producido|fmt_cant }} producidos de {{ b.consumido|fmt_cant }} consumidos{% if b.otras_unidades %} <small class="maquila-nota-unidad">+ consumo en {{ b.otras_unidades|join(', ') }}, fuera del balance de peso</small>{% endif %}</div>
+    <dl class="prod-kpis prod-kpis-inline">
+      <div class="prod-kpi{{ ' is-falla' if b.merma_alta else '' }}">
+        <dt>Merma total</dt>
+        <dd>{{ b.merma_total|fmt_cant }} <small>({{ b.merma_pct }} %)</small></dd>
+      </div>
+      <div class="prod-kpi">
+        <dt>Identificada</dt>
+        <dd>{{ b.merma_identificada|fmt_cant }}</dd>
+      </div>
+      <div class="prod-kpi{{ ' is-aviso' if b.merma_sin_identificar and b.merma_sin_identificar|abs > 0 else '' }}">
+        <dt>Sin identificar</dt>
+        <dd>{{ b.merma_sin_identificar|fmt_cant }}</dd>
+      </div>
+    </dl>
+    {% if b.merma_total < 0 %}
+    <p class="maquila-nota">El producto pesa más que los ingredientes en kg declarados. Suele ser salmuera o agua que no se registró como ingrediente: agregala a la receta para que el rendimiento sea comparable.</p>
+    {% endif %}
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{#- Celda de rendimiento con el chip de merma alta, para tablas. -#}
+{% macro celda_rendimiento(f) -%}
+{% if f.rendimiento_pct is none %}—{% else %}{{ f.rendimiento_pct }} %{% if f.merma_alta %} {{ chip('Alta', 'falla') }}{% endif %}{% endif %}
+{%- endmacro %}

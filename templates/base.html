@@ -237,11 +237,15 @@
     {% set is_recepciones = current_path.startswith('/recepciones') %}
     {% set is_importacion = current_path.startswith('/formulario_importacion') or current_path.startswith('/registrar_importacion') %}
     {% set is_maquila = current_path.startswith('/maquila') %}
+    {% set is_produccion = current_path.startswith('/produccion') %}
     {% set is_kilos = current_path.startswith('/reportes/kilos') %}
-    {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion or is_maquila or is_kilos %}
+    {% set is_management = is_productos or is_clientes or is_facturacion or is_recepciones or is_importacion or is_maquila or is_produccion or is_kilos %}
     {% set user_name = current_user.username if current_user and current_user.is_authenticated and current_user.username else 'Usuario' %}
     {% set user_initials = user_name[:2].upper() %}
     {% set is_super_admin = current_user and current_user.is_authenticated and current_user.__class__.__name__ == 'Vendedor' and current_user.rol and current_user.rol.nombre == 'super_admin' %}
+    {#- Producción se rige por el recurso configurable `produccion` (admin →
+        roles), no por el rol fijo: en planta registra quien produce. -#}
+    {% set puede_produccion = current_user and current_user.is_authenticated and current_user.__class__.__name__ == 'Vendedor' and current_user.tiene_permiso('produccion', 'leer') %}
     
     <div class="app-container{% if is_dashboard %} dashboard-shell{% endif %}">
         <!-- Drawer Overlay -->
@@ -292,6 +296,11 @@
                 {% if is_super_admin %}
                 <a href="{{ url_for('maquila.index') }}" class="drawer-item {{ 'active' if is_maquila }}">
                     <i class="fas fa-industry"></i><span>Maquila</span>
+                </a>
+                {% endif %}
+                {% if puede_produccion %}
+                <a href="{{ url_for('produccion.index') }}" class="drawer-item {{ 'active' if is_produccion }}">
+                    <i class="fas fa-drumstick-bite"></i><span>Producción</span>
                 </a>
                 {% endif %}
                 <a href="/formulario_importacion" class="drawer-item {{ 'active' if is_importacion }}">
@@ -439,6 +448,15 @@
                                 <span class="desktop-ops-item-copy">
                                     <span class="desktop-ops-item-title">Maquila</span>
                                     <span class="desktop-ops-item-meta">Ingredientes y producción</span>
+                                </span>
+                            </a>
+                            {% endif %}
+                            {% if puede_produccion %}
+                            <a href="{{ url_for('produccion.index') }}" class="desktop-ops-item {{ 'active' if is_produccion }}">
+                                <i class="fas fa-drumstick-bite"></i>
+                                <span class="desktop-ops-item-copy">
+                                    <span class="desktop-ops-item-title">Producción</span>
+                                    <span class="desktop-ops-item-meta">Lotes, mermas y rendimiento</span>
                                 </span>
                             </a>
                             {% endif %}

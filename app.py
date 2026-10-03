@@ -717,6 +717,7 @@ _PERMISOS_DEFAULT = {
         'importaciones': ['leer', 'crear', 'editar', 'eliminar'],
         'facturacion': ['leer', 'crear', 'editar', 'eliminar'],
         'registros': ['leer', 'crear', 'editar', 'eliminar'],
+        'produccion': ['leer', 'crear', 'editar', 'eliminar'],
     },
     'supervisor': {
         'productos': ['leer'],
@@ -728,6 +729,7 @@ _PERMISOS_DEFAULT = {
         'importaciones': [],
         'facturacion': ['leer'],
         'registros': ['leer', 'crear', 'editar'],
+        'produccion': ['leer', 'crear', 'editar'],
     },
     'vendedor': {
         'productos': ['leer'],
@@ -739,6 +741,7 @@ _PERMISOS_DEFAULT = {
         'importaciones': [],
         'facturacion': [],
         'registros': ['leer', 'crear'],
+        'produccion': ['leer', 'crear'],
     },
 }
 
@@ -748,15 +751,16 @@ def _permiso_default(rol_nombre, recurso, accion):
     return accion in _PERMISOS_DEFAULT.get(rol_nombre, {}).get(recurso, [])
 
 
-PERMISOS_RECURSOS = ['productos', 'clientes', 'pedidos', 'precios', 'registros']
+PERMISOS_RECURSOS = ['productos', 'clientes', 'pedidos', 'precios', 'registros', 'produccion']
 
 PERMISOS_DEFAULTS = {
     'vendedor':    {'productos': ['leer'], 'clientes': ['leer', 'editar'],
                     'pedidos': ['leer', 'crear', 'editar'], 'precios': ['leer'],
-                    'registros': ['leer', 'crear']},
+                    'registros': ['leer', 'crear'], 'produccion': ['leer', 'crear']},
     'supervisor':  {'productos': ['leer'], 'clientes': ['leer', 'editar'],
                     'pedidos': ['leer', 'crear', 'editar'], 'precios': ['leer'],
-                    'registros': ['leer', 'crear', 'editar']},
+                    'registros': ['leer', 'crear', 'editar'],
+                    'produccion': ['leer', 'crear', 'editar']},
     'super_admin': {r: ['leer', 'crear', 'editar', 'eliminar'] for r in PERMISOS_RECURSOS},
 }
 
@@ -15711,6 +15715,11 @@ def registros_index():
 # los modelos base y `requiere_rol` de este archivo, y a esta altura ya existen.
 from maquila import registrar_maquila  # noqa: E402
 registrar_maquila(app)
+
+# Producción propia: lotes, mermas y rendimiento sin inventario. Va DESPUÉS
+# de maquila porque reusa sus modelos (`Ingrediente`, `Receta`).
+from produccion import registrar_produccion  # noqa: E402
+registrar_produccion(app)
 
 
 if __name__ == '__main__':

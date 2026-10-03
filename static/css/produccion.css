@@ -1,0 +1,128 @@
+/* Producción propia. Lo que no existe en maquila.css: los KPI del resumen,
+   la franja de balance y las filas de merma del formulario. Todo scopeado a
+   .produccion-wrap para no tocar maquila. */
+
+.produccion-wrap .prod-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.produccion-wrap .prod-kpis-inline {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin-top: 14px;
+}
+.produccion-wrap .prod-kpi {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-subtle, rgba(15, 23, 42, .08));
+  border-radius: 12px;
+  background: var(--color-surface-muted, #f8fafc);
+  margin: 0;
+}
+.produccion-wrap .prod-kpi dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #64748b);
+  margin: 0 0 4px;
+}
+.produccion-wrap .prod-kpi dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--color-text, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+.produccion-wrap .prod-kpi dd small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-subtle, #64748b);
+}
+/* El estado va en la palabra (chip o rótulo) y el tono lo refuerza. */
+.produccion-wrap .prod-kpi.is-falla { border-color: #fecdd3; background: #fff1f2; }
+.produccion-wrap .prod-kpi.is-falla dd { color: #9f1239; }
+.produccion-wrap .prod-kpi.is-aviso { border-color: #fde68a; background: #fffbeb; }
+.produccion-wrap .prod-kpi.is-aviso dd { color: #92400e; }
+
+/* Balance en el detalle: la figura grande ya la pinta .maquila-figure. */
+.produccion-wrap .prod-balance .maquila-figure { margin-bottom: 2px; }
+
+/* Vista previa del balance en el pie fijo del formulario: una línea que se
+   actualiza mientras se teclea, para ver el rendimiento antes de guardar. */
+.produccion-wrap .ops-sticky-footer .prod-previa {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--color-text-muted, #475569);
+  margin-bottom: 4px;
+}
+.produccion-wrap .prod-previa strong {
+  color: var(--color-text, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+.produccion-wrap .prod-previa .is-falla strong { color: #9f1239; }
+
+/* Filas de merma del formulario: tipo, kilos, motivo y quitar. */
+.produccion-wrap .prod-merma-linea {
+  display: grid;
+  grid-template-columns: 1.3fr .8fr 2fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--color-border-subtle, rgba(15, 23, 42, .08));
+  border-radius: 12px;
+  background: var(--color-surface-muted, #f8fafc);
+}
+.produccion-wrap .prod-merma-linea label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #64748b);
+  margin-bottom: 4px;
+}
+.produccion-wrap .prod-merma-linea select,
+.produccion-wrap .prod-merma-linea input { min-height: 48px; width: 100%; }
+.produccion-wrap .prod-merma-linea .btn { min-height: 48px; }
+@media (max-width: 640px) {
+  .produccion-wrap .prod-merma-linea { grid-template-columns: 1fr 1fr; }
+  .produccion-wrap .prod-merma-linea > .prod-merma-motivo,
+  .produccion-wrap .prod-merma-linea > .btn { grid-column: 1 / -1; }
+}
+
+/* Barra proporcional en el reporte de mermas: el largo acompaña al número,
+   no lo reemplaza. */
+.produccion-wrap .prod-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border-subtle, rgba(15, 23, 42, .08));
+  min-width: 80px;
+  overflow: hidden;
+}
+.produccion-wrap .prod-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--color-primary, #4f46e5);
+  border-radius: 4px;
+}
+
+/* Notas del lote: respetan los saltos de línea (los sellos de reabrir y
+   anular van uno por línea). */
+.produccion-wrap .prod-notas { white-space: pre-wrap; }
+
+/* Acciones de consecuencia (cerrar, reabrir, anular) en su propio bloque. */
+.produccion-wrap .prod-accion { margin-top: 12px; }
+.produccion-wrap .prod-accion summary { cursor: pointer; font-weight: 600; }
+.produccion-wrap .prod-accion .ops-field { margin-top: 8px; }
+
+/* Consumo: el campo «Real» no necesita ocupar toda la celda. */
+.produccion-wrap .prod-tabla-consumo input { max-width: 140px; min-height: 44px; }
+.produccion-wrap .prod-tabla-consumo tr.is-receta td:first-child { font-weight: 600; }
