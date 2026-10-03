@@ -31,9 +31,11 @@ TIPOS_MERMA_ETIQUETA = dict(TIPOS_MERMA)
 
 ESTADOS = ('abierta', 'cerrada', 'anulada')
 
-# Las unidades que admite un insumo. Lo que se pesa entra en el balance de
-# kilos; lo que se cuenta (tripa) se registra, pero no suma kilos.
-UNIDADES = (('kg', 'kg — se pesa'), ('ud', 'ud — se cuenta'))
+# Las unidades que admite un insumo. Solo lo que va en kg entra en el
+# balance de kilos; lo demás (tripa por metro o por pieza, líquidos por
+# litro) se registra y se compara contra su teórico, pero no suma kilos.
+UNIDADES = (('kg', 'kg — se pesa'), ('m', 'm — se mide (tripa)'),
+            ('ud', 'ud — se cuenta'), ('l', 'l — líquidos'))
 UNIDAD_PESO = 'kg'
 
 

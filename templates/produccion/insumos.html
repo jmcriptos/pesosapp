@@ -31,12 +31,12 @@
 
 <section class="ops-card">
   <h2>Carga masiva</h2>
-  <p class="maquila-nota">Pegá la lista, un insumo por línea. La unidad va al final, separada por coma: <code>Tripa natural, ud</code>. Sin unidad se toma kg. Los que ya existen se omiten.</p>
+  <p class="maquila-nota">Pegá la lista, un insumo por línea. La unidad va al final, separada por coma: <code>Tripa natural, m</code>. Vale kg, m, ud o l; sin unidad se toma kg. Los que ya existen se omiten.</p>
   <form method="POST" action="{{ url_for('produccion.insumos_carga') }}" class="ops-sheet-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="ops-field">
       <label for="lineas">Lista</label>
-      <textarea id="lineas" name="lineas" rows="8" class="prod-textarea" placeholder="Recortes de pollo (Kippetrimmings)&#10;Sal fina&#10;Palatinata&#10;Tripa natural de cerdo 28-30, ud">{{ lineas or '' }}</textarea>
+      <textarea id="lineas" name="lineas" rows="8" class="prod-textarea" placeholder="Recortes de pollo (Kippetrimmings)&#10;Sal fina&#10;Palatinata&#10;Tripa natural de cerdo 28-30, m">{{ lineas or '' }}</textarea>
     </div>
     <div class="maquila-acciones">
       <button type="submit" class="btn btn-primary">Cargar lista</button>

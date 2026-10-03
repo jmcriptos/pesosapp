@@ -620,6 +620,9 @@ def test_insumos_y_formulas_por_servicio(app):
             servicios.crear_insumo(nombre='hielo')          # repetido, sin distinguir mayúsculas
         with pytest.raises(servicios.InsumoInvalido):
             servicios.crear_insumo(nombre='Agua', unidad='litros')
+        tripa_m = servicios.crear_insumo(nombre='Tripa de cerdo 28-30', unidad='m')
+        agua = servicios.crear_insumo(nombre='Agua', unidad='l')
+        assert (tripa_m.unidad, agua.unidad) == ('m', 'l')
         with pytest.raises(servicios.InsumoInvalido):
             servicios.crear_insumo(nombre='')
 
@@ -756,3 +759,21 @@ def test_carga_masiva_requiere_editar(app):
     with app.app_context():
         from produccion.models import Insumo
         assert Insumo.query.filter_by(nombre='Pimentón').first() is None
+
+
+def test_metros_y_litros_quedan_fuera_del_balance_de_kilos(app):
+    """La tripa por metro y el agua por litro se registran y comparan
+    contra su teórico, pero no suman al consumido en kg."""
+    with app.app_context():
+        from produccion import servicios
+        tripa_m = servicios.crear_insumo(nombre='Tripa 28-30', unidad='m')
+        agua = servicios.crear_insumo(nombre='Agua', unidad='l')
+        lote = _lote(consumos={IDS['carne']: Decimal('100'), tripa_m.id: Decimal('42.5'),
+                               agua.id: Decimal('8')}, mermas=[])
+        b = servicios.balance(lote)
+        assert b['consumido'] == Decimal('100')
+        assert b['otras_unidades'] == ['l', 'm']
+        assert b['rendimiento_pct'] == Decimal('85.0')
+    c = _login(app, 'admin')
+    html = c.get('/produccion/lotes/nuevo').get_data(as_text=True)
+    assert 'data-unidad="m"' in html and 'placeholder="m"' in html
