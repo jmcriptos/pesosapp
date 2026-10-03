@@ -13502,18 +13502,55 @@ def generar_etiqueta():
         return jsonify({"error": "Error interno del servidor"}), 500
 
 def _build_datos_etiqueta_vencimiento(form):
-    """Normaliza el form de etiquetas de vencimiento a (datos, cantidad)."""
-    fecha_fabricacion_date = datetime.strptime(form['fecha_fabricacion'], '%Y-%m-%d')
-    fecha_expiracion = fecha_fabricacion_date + timedelta(days=365)
-    producto = db.session.get(Producto, form['producto_id'])
+    """Normaliza el form de etiquetas de vencimiento a (datos, cantidad).
+
+    Con `lote_produccion_id`, la etiqueta sale del lote de producción
+    (producto, número de lote y fechas): una sola verdad, la del lote. Sin
+    él, se usa lo tecleado, como siempre.
+    """
+    lote_produccion = None
+    lote_produccion_id = form.get('lote_produccion_id')
+    if lote_produccion_id:
+        from produccion.models import LoteProduccion
+        lote_produccion = db.session.get(LoteProduccion, int(lote_produccion_id))
+    if lote_produccion is not None:
+        producto = lote_produccion.producto
+        fecha_fabricacion_date = datetime.combine(lote_produccion.fecha_produccion, datetime.min.time())
+        fecha_expiracion = (datetime.combine(lote_produccion.fecha_vencimiento, datetime.min.time())
+                            if lote_produccion.fecha_vencimiento
+                            else fecha_fabricacion_date + timedelta(days=365))
+        numero_lote = lote_produccion.lote
+    else:
+        fecha_fabricacion_date = datetime.strptime(form['fecha_fabricacion'], '%Y-%m-%d')
+        fecha_expiracion = fecha_fabricacion_date + timedelta(days=365)
+        producto = db.session.get(Producto, form['producto_id'])
+        numero_lote = form['lote']
     datos = {
         "nombre_producto": producto.nombre,
-        "lote": form['lote'],
+        "lote": numero_lote,
         "fecha_fabricacion": fecha_fabricacion_date.strftime('%d/%m/%Y'),
         "fecha_expiracion": fecha_expiracion.strftime('%d/%m/%Y'),
         "temperatura": producto.temperatura,
     }
     return datos, int(form['cantidad_etiquetas'])
+
+
+def _lotes_produccion_para_etiquetas():
+    """Lotes recientes para elegir en el formulario de etiquetas; [] si el
+    módulo no responde, y la pantalla queda como siempre."""
+    try:
+        from produccion import servicios as produccion_servicios
+        lotes = produccion_servicios.lotes_para_etiquetas()
+    except Exception:
+        app.logger.exception('produccion: no se pudieron listar los lotes para etiquetas')
+        return []
+    return [{
+        'id': l.id, 'codigo': l.codigo, 'lote': l.lote, 'producto_id': l.producto_id,
+        'producto': l.producto.nombre if l.producto else '',
+        'fecha_produccion': l.fecha_produccion.isoformat(),
+        'rotulo': f'{l.lote} · {l.producto.nombre if l.producto else ""} · '
+                  f'{l.fecha_produccion.strftime("%d/%m/%Y")} · {l.codigo}',
+    } for l in lotes]
 
 
 @app.route('/etiquetas_vencimiento', methods=['GET', 'POST'])
@@ -13525,7 +13562,8 @@ def etiquetas_vencimiento():
         return generar_pdf_etiquetas(datos, cantidad)
 
     productos = Producto.query.all()
-    return render_template('form_generar_etiquetas.html', productos=productos)
+    return render_template('form_generar_etiquetas.html', productos=productos,
+                           lotes_produccion=_lotes_produccion_para_etiquetas())
 
 
 @app.route('/etiquetas_vencimiento_4x2', methods=['POST'])

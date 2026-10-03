@@ -28,6 +28,20 @@
 
       <div class="etiq-card-body">
         <div class="etiq-form-grid">
+          {#- Lote de producción: elegirlo pone producto, fecha y número de
+              lote, y la etiqueta sale con las fechas del lote. Sin lotes
+              recientes, no se muestra y el formulario queda como siempre. -#}
+          {% if lotes_produccion %}
+          <div class="etiq-row etiq-row-full">
+            <label class="etiq-label" for="lote_produccion_id">Lote de producción</label>
+            <select name="lote_produccion_id" id="lote_produccion_id" class="etiq-input">
+              <option value="">— Elegir un lote registrado (opcional) —</option>
+              {% for l in lotes_produccion %}
+              <option value="{{ l.id }}" data-producto-id="{{ l.producto_id }}" data-lote="{{ l.lote }}" data-fecha="{{ l.fecha_produccion }}">{{ l.rotulo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
           <div class="etiq-row etiq-row-full">
             <label class="etiq-label" for="producto_id">Producto</label>
             <select name="producto_id" id="producto_id"
@@ -115,6 +129,51 @@ document.addEventListener('DOMContentLoaded', function () {
     if (v > 100) this.value = 100;
     else if (v < 1) this.value = 1;
   });
+
+  // ---- Lote de producción: rellena producto, fecha y número de lote. Al
+  // elegir un producto, el desplegable deja a la vista solo sus lotes; tocar
+  // el número de lote o la fecha a mano desvincula (la etiqueta sale con lo
+  // tecleado, no con el lote).
+  const loteProd = document.getElementById('lote_produccion_id');
+  const productoSel = document.getElementById('producto_id');
+  const loteInput = document.getElementById('lote');
+  const fechaInput = document.getElementById('fecha_fabricacion');
+  if (loteProd) {
+    function opcionElegida() {
+      return loteProd.value ? loteProd.options[loteProd.selectedIndex] : null;
+    }
+    function setProducto(id) {
+      if (productoSel.tomselect) productoSel.tomselect.setValue(String(id), true);
+      else productoSel.value = String(id);
+    }
+    function filtrar() {
+      const pid = productoSel.value || '';
+      Array.from(loteProd.options).forEach(function (o) {
+        if (!o.value) return;
+        const ok = !pid || o.dataset.productoId === pid;
+        o.hidden = !ok; o.disabled = !ok;
+      });
+      const actual = opcionElegida();
+      if (actual && actual.disabled) loteProd.value = '';
+    }
+    loteProd.addEventListener('change', function () {
+      const o = opcionElegida();
+      if (!o) return;
+      setProducto(o.dataset.productoId);
+      fechaInput.value = o.dataset.fecha || '';
+      loteInput.value = o.dataset.lote || '';
+    });
+    productoSel.addEventListener('change', filtrar);
+    function desvincularSiCambio() {
+      const o = opcionElegida();
+      if (!o) return;
+      if (loteInput.value !== (o.dataset.lote || '') || fechaInput.value !== (o.dataset.fecha || '')) loteProd.value = '';
+    }
+    loteInput.addEventListener('input', desvincularSiCambio);
+    fechaInput.addEventListener('input', desvincularSiCambio);
+    fechaInput.addEventListener('change', desvincularSiCambio);
+    filtrar();
+  }
 });
 </script>
 {% endblock %}

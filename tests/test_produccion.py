@@ -1035,3 +1035,48 @@ def test_el_alta_propone_lote_y_vencimiento_y_el_api_responde(app):
         'fecha_vencimiento': '', 'consumo_insumo_id': [str(IDS['carne'])], 'consumo_real': ['10'],
     }, follow_redirects=True)
     assert 'L-0210202601' in r.get_data(as_text=True) and '02/10/2027' in r.get_data(as_text=True)
+
+
+# ------------------------------------------ etiquetas de vencimiento
+
+def test_etiquetas_de_vencimiento_listan_los_lotes_y_usan_sus_datos(app):
+    c = _login(app, 'admin')
+    with app.app_context():
+        from produccion import servicios
+        from datetime import timedelta
+        hoy = date.today()
+        abierto = _lote(lote='L-0210202601', fecha_produccion=hoy, fecha_vencimiento=hoy + timedelta(days=366),
+                        consumos={IDS['carne']: Decimal('1')}, mermas=[])
+        cerrado = _lote(lote='L-0210202602', fecha_produccion=hoy - timedelta(days=3), peso_adicional=Decimal('1'),
+                        consumos={IDS['carne']: Decimal('1')}, mermas=[])
+        servicios.cerrar_lote(cerrado, IDS['admin'])
+        anulado = _lote(lote='L-0210202603', fecha_produccion=hoy, consumos={}, mermas=[])
+        servicios.anular_lote(anulado, IDS['admin'], 'prueba')
+        viejo = _lote(lote='VIEJO', fecha_produccion=hoy - timedelta(days=200), consumos={}, mermas=[])
+        ids = (abierto.id, cerrado.id, anulado.id, viejo.id)
+        assert [l.id for l in servicios.lotes_para_etiquetas()] == [abierto.id, cerrado.id]
+    html = c.get('/etiquetas_vencimiento').get_data(as_text=True)
+    assert 'id="lote_produccion_id"' in html
+    assert f'<option value="{ids[0]}"' in html and f'<option value="{ids[1]}"' in html
+    assert f'<option value="{ids[2]}"' not in html and f'<option value="{ids[3]}"' not in html
+    assert 'data-lote="L-0210202601"' in html and 'Chorizo' in html
+    # Con lote elegido, la etiqueta sale con los datos del lote aunque el
+    # form traiga otra cosa tecleada.
+    with app.app_context():
+        from app import _build_datos_etiqueta_vencimiento
+        datos, n = _build_datos_etiqueta_vencimiento({
+            'lote_produccion_id': str(ids[0]), 'producto_id': str(IDS['jamon']),
+            'fecha_fabricacion': '2020-01-01', 'lote': 'OTRO', 'cantidad_etiquetas': '3'})
+        assert datos['nombre_producto'] == 'Chorizo' and datos['lote'] == 'L-0210202601'
+        assert datos['fecha_fabricacion'] == date.today().strftime('%d/%m/%Y')
+        assert datos['fecha_expiracion'] == (date.today() + timedelta(days=366)).strftime('%d/%m/%Y')
+        assert n == 3
+        # Sin lote: lo tecleado, como siempre.
+        datos, _ = _build_datos_etiqueta_vencimiento({
+            'lote_produccion_id': '', 'producto_id': str(IDS['jamon']),
+            'fecha_fabricacion': '2026-01-01', 'lote': 'OTRO', 'cantidad_etiquetas': '1'})
+        assert datos['nombre_producto'] == 'Jamón' and datos['lote'] == 'OTRO'
+        assert datos['fecha_expiracion'] == '01/01/2027'
+    r = c.post('/etiquetas_vencimiento_4x2', data={'lote_produccion_id': str(ids[0]), 'producto_id': '',
+                                                   'fecha_fabricacion': '', 'lote': '', 'cantidad_etiquetas': '1'})
+    assert r.status_code == 200 and r.mimetype == 'application/pdf'
