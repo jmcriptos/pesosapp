@@ -80,11 +80,13 @@ def test_lee_de_rolpermiso(app):
 
 
 def test_sembrar_crea_filas_y_es_idempotente(app):
-    from app import Vendedor, Permiso, RolPermiso, _sembrar_permisos
+    from app import Vendedor, Permiso, RolPermiso, PERMISOS_RECURSOS, _sembrar_permisos
     with app.app_context():
         _sembrar_permisos()
         assert Permiso.query.filter_by(recurso='registros').first() is not None
-        assert Permiso.query.count() == 5
+        # Una fila por recurso configurable, los que haya: contar «5» a mano
+        # se rompía con cada recurso nuevo (produccion fue el sexto).
+        assert Permiso.query.count() == len(PERMISOS_RECURSOS)
         v = _db.session.get(Vendedor, IDS['vend'])
         assert v.tiene_permiso('registros', 'crear') is True
         assert v.tiene_permiso('registros', 'editar') is False

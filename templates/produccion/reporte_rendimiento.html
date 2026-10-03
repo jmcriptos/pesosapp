@@ -1,0 +1,115 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip %}
+{% from "produccion/_macros.html" import celda_rendimiento %}
+{% block title %}Rendimiento por lote{% endblock %}
+{% block produccion_title %}Rendimiento{% endblock %}
+{% block produccion_body %}
+<section class="ops-card">
+  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid">
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" data-autosubmit>
+        <option value="">Todos los productos</option>
+        {% for p in productos %}
+        <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="desde">Desde</label>
+      <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
+    </div>
+    <div class="ops-field">
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
+    </div>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+      {% if filas %}
+      <a class="btn" href="{{ url_for('produccion.reporte_rendimiento_export', producto_id=producto_id or None, desde=args.get('desde') or None, hasta=args.get('hasta') or None) }}">Exportar Excel</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+{% if resumen %}
+<section class="ops-card">
+  <h2>Por producto</h2>
+  <p class="maquila-nota">Rendimiento = producido ÷ consumido en kg, ponderado por kilos (no un promedio de porcentajes). Merma por encima del {{ umbral }} % se marca.</p>
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Producto</th><th class="maquila-num">Lotes</th><th class="maquila-num">Consumido</th><th class="maquila-num">Producido</th>
+        <th class="maquila-num">Rendimiento</th><th class="maquila-num">Mín – máx</th><th class="maquila-num">Merma</th><th class="maquila-num">Sin identificar</th></tr>
+    </thead>
+    <tbody>
+      {% for r in resumen %}
+      {% set alta = r.merma_pct is not none and r.merma_pct|abs > umbral %}
+      <tr>
+        <td data-label="Producto"><a href="{{ url_for('produccion.reporte_rendimiento', producto_id=r.producto_id, desde=args.get('desde') or None, hasta=args.get('hasta') or None) }}">{{ r.producto }}</a></td>
+        <td data-label="Lotes" class="maquila-num">{{ r.lotes }}{% if r.lotes_merma_alta %} <small class="maquila-meta">({{ r.lotes_merma_alta }} con merma alta)</small>{% endif %}</td>
+        <td data-label="Consumido" class="maquila-num">{{ r.consumido|fmt_cant }}</td>
+        <td data-label="Producido" class="maquila-num">{{ r.producido|fmt_cant }}</td>
+        <td data-label="Rendimiento" class="maquila-num"><strong>{{ r.rendimiento_pct ~ ' %' if r.rendimiento_pct is not none else '—' }}</strong></td>
+        <td data-label="Mín – máx" class="maquila-num">{% if r.rend_min is not none %}{{ r.rend_min }} – {{ r.rend_max }} %{% else %}—{% endif %}</td>
+        <td data-label="Merma" class="maquila-num {{ 'maquila-merma-alta' if alta else '' }}">{{ r.merma_total|fmt_cant }} ({{ r.merma_pct if r.merma_pct is not none else '—' }} %){% if alta %} {{ chip('Alta', 'falla') }}{% endif %}</td>
+        <td data-label="Sin identificar" class="maquila-num">{{ r.merma_sin_identificar|fmt_cant }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="ops-card">
+  <h2>Por lote</h2>
+  {% if not filas %}
+    <p class="ops-empty">No hay lotes cerrados para este filtro.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr><th>Código</th><th>Lote</th><th>Producto</th><th>Fecha</th>
+        <th class="maquila-num">Consumido</th><th class="maquila-num">Producido</th><th class="maquila-num">Rendimiento</th><th class="maquila-num">Merma</th><th class="maquila-num">Sin identificar</th></tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td data-label="Código"><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.codigo }}</a></td>
+        <td data-label="Lote">{{ f.lote }}</td>
+        <td data-label="Producto">{{ f.producto }}</td>
+        <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') if f.fecha else '—' }}</td>
+        <td data-label="Consumido" class="maquila-num">{{ f.consumido|fmt_cant }}{% if f.otras_unidades %} <small class="maquila-nota-unidad">+ {{ f.otras_unidades|join(', ') }}</small>{% endif %}</td>
+        <td data-label="Producido" class="maquila-num">{{ f.producido|fmt_cant }}</td>
+        <td data-label="Rendimiento" class="maquila-num">{{ celda_rendimiento(f) }}</td>
+        <td data-label="Merma" class="maquila-num {{ 'maquila-merma-alta' if f.merma_alta else '' }}">{{ f.merma_total|fmt_cant if f.merma_total is not none else '—' }}{% if f.merma_pct is not none %} ({{ f.merma_pct }} %){% endif %}</td>
+        <td data-label="Sin identificar" class="maquila-num">{{ f.merma_sin_identificar|fmt_cant if f.merma_sin_identificar is not none else '—' }}</td>
+      </tr>
+      {% if f.varianzas %}
+      <tr class="maquila-fila-sub">
+        <td colspan="9">
+          <details class="maquila-sub">
+            <summary>Consumo por ingrediente — {{ f.codigo }}</summary>
+            <table class="maquila-tabla-mini">
+              <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th><th class="maquila-num">%</th></tr></thead>
+              <tbody>
+                {% for v in f.varianzas %}
+                {% set v_alta = v.pct is not none and v.pct|abs > umbral %}
+                <tr class="{{ 'maquila-merma-alta' if v_alta else '' }}">
+                  <td>{{ v.ingrediente }}</td>
+                  <td class="maquila-num">{{ v.teorica|fmt_cant(v.unidad) if v.teorica else '—' }}</td>
+                  <td class="maquila-num">{{ v.real|fmt_cant(v.unidad) }}</td>
+                  <td class="maquila-num">{{ v.diferencia|fmt_cant(v.unidad) if v.teorica else '—' }}</td>
+                  <td class="maquila-num">{{ v.pct ~ ' %' if v.pct is not none else '—' }}{% if v_alta %} {{ chip('Alta', 'falla') }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip_estado %}
+{% from "produccion/_macros.html" import celda_rendimiento %}
+{% block title %}Lotes de producción{% endblock %}
+{% block produccion_title %}Lotes{% endblock %}
+{% block produccion_body %}
+<section class="ops-card maquila-barra">
+  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid">
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" data-autosubmit>
+        <option value="">Todos los productos</option>
+        {% for p in productos %}
+        <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="estado">Estado</label>
+      <select id="estado" name="estado" data-autosubmit>
+        <option value="" {{ 'selected' if not estado else '' }}>Todos</option>
+        <option value="abierta" {{ 'selected' if estado == 'abierta' else '' }}>Abiertos</option>
+        <option value="cerrada" {{ 'selected' if estado == 'cerrada' else '' }}>Cerrados</option>
+        <option value="anulada" {{ 'selected' if estado == 'anulada' else '' }}>Anulados</option>
+      </select>
+    </div>
+    <div class="ops-field">
+      <label for="desde">Desde</label>
+      <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
+    </div>
+    <div class="ops-field">
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
+    </div>
+    <div class="maquila-acciones">
+      <button type="submit" class="btn">Filtrar</button>
+    </div>
+  </form>
+  {% if permiso_produccion('crear') %}
+  <a class="btn btn-primary" href="{{ url_for('produccion.lote_nuevo', producto_id=producto_id) if producto_id else url_for('produccion.lote_nuevo') }}">Nuevo lote</a>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  {% if not filas %}
+    <p class="ops-empty">No hay lotes para este filtro.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead>
+      <tr>
+        <th>Código</th><th>Lote</th><th>Producto</th><th>Fecha</th>
+        <th class="maquila-num">Consumido</th><th class="maquila-num">Producido</th>
+        <th class="maquila-num">Rendimiento</th><th class="maquila-num">Merma %</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr class="{{ 'maquila-anulada' if f.estado == 'anulada' else '' }}">
+        <td data-label="Código"><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.codigo }}</a></td>
+        <td data-label="Lote">{{ f.lote }}</td>
+        <td data-label="Producto">{{ f.producto }}</td>
+        <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') }}</td>
+        <td data-label="Consumido" class="maquila-num">{{ f.consumido|fmt_cant if f.consumido else '—' }}</td>
+        <td data-label="Producido" class="maquila-num">{{ f.producido|fmt_cant if f.producido else '—' }}</td>
+        <td data-label="Rendimiento" class="maquila-num">{{ celda_rendimiento(f) }}</td>
+        <td data-label="Merma %" class="maquila-num {{ 'maquila-merma-alta' if f.merma_alta else '' }}">{{ f.merma_pct ~ ' %' if f.merma_pct is not none else '—' }}</td>
+        <td data-label="Estado">{{ chip_estado(f.estado) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

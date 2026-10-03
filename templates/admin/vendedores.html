@@ -16,8 +16,8 @@
 {% set acc_letras = {'leer': 'L', 'crear': 'C', 'editar': 'E', 'eliminar': 'D'} %}
 {% set acc_labels = {'leer': 'Ver', 'crear': 'Crear', 'editar': 'Editar', 'eliminar': 'Eliminar'} %}
 {% set acc_icons = {'leer': 'fa-eye', 'crear': 'fa-plus', 'editar': 'fa-pen', 'eliminar': 'fa-trash-can'} %}
-{% set rec_labels = {'productos': 'Productos', 'clientes': 'Clientes', 'pedidos': 'Pedidos', 'precios': 'Precios', 'registros': 'Registros HACCP'} %}
-{% set rec_icons = {'productos': 'fa-boxes-stacked', 'clientes': 'fa-users', 'pedidos': 'fa-clipboard-list', 'precios': 'fa-tags', 'registros': 'fa-clipboard-check'} %}
+{% set rec_labels = {'productos': 'Productos', 'clientes': 'Clientes', 'pedidos': 'Pedidos', 'precios': 'Precios', 'registros': 'Registros HACCP', 'produccion': 'Producción'} %}
+{% set rec_icons = {'productos': 'fa-boxes-stacked', 'clientes': 'fa-users', 'pedidos': 'fa-clipboard-list', 'precios': 'fa-tags', 'registros': 'fa-clipboard-check', 'produccion': 'fa-drumstick-bite'} %}
 {% set activos = vendedores|selectattr('activo')|list|length %}
 
 {% block content %}

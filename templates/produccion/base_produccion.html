@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{#- Producción propia comparte la cáscara clara de maquila (operaciones.css +
+    maquila.css, con la marca en el body que pinta el fondo hasta el borde).
+    Las clases `maquila-*` se reusan a propósito: son el mismo lenguaje
+    visual de planta y duplicar 1.800 líneas de CSS para renombrarlas sería
+    tener dos copias que divergen. Lo propio de este módulo va en
+    produccion.css. -#}
+{% block body_attrs %}{{ super() }} data-maquila-screen="1"{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/maquila.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/produccion.css') }}">
+{% endblock %}
+{% block scripts %}
+{#- Los campos de kilos son type="text": un type="number" descarta la coma
+    sin avisar («12,5» → «125»). Este script la pasa a punto al teclear. -#}
+<script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/signed_decimal.js') }}"></script>
+{% endblock %}
+{% block content %}
+{%- set es_admin = current_user.is_authenticated and current_user.__class__.__name__ == 'Vendedor' and current_user.rol and current_user.rol.nombre == 'super_admin' -%}
+<div class="ops-wrap maquila-wrap produccion-wrap">
+  <header class="ops-head">
+    <h1 class="ops-title">{% block produccion_title %}Producción{% endblock %}</h1>
+    {%- set ruta = request.path -%}
+    {%- set operar = [
+         ('produccion.index',               'Resumen',     '/produccion'),
+         ('produccion.lotes',               'Lotes',       '/produccion/lotes'),
+         ('produccion.reporte_rendimiento', 'Rendimiento', '/produccion/reportes/rendimiento'),
+         ('produccion.reporte_mermas',      'Mermas',      '/produccion/reportes/mermas'),
+       ] -%}
+    {#- Recetas e ingredientes viven en maquila (son el mismo catálogo) y
+        allá solo entra el super_admin: a los demás no se les ofrece un
+        enlace que termina en «sin autorización». -#}
+    <nav class="maquila-nav-fila" aria-label="Secciones de producción">
+      <div class="maquila-nav">
+        {%- for endpoint, rotulo, base in operar %}
+        {%- set activo = (ruta == base) if base == '/produccion' else ruta.startswith(base) %}
+        <a href="{{ url_for(endpoint) }}"{% if activo %} class="is-active" aria-current="page"{% endif %}>{{ rotulo }}</a>
+        {%- endfor %}
+      </div>
+      {% if es_admin %}
+      <details class="maquila-nav-mas">
+        <summary aria-label="Más secciones de producción">Más</summary>
+        <div class="maquila-nav-panel">
+          <a href="{{ url_for('maquila.recetas') }}">Recetas</a>
+          <a href="{{ url_for('maquila.ingredientes') }}">Ingredientes</a>
+        </div>
+      </details>
+      {% endif %}
+    </nav>
+  </header>
+  {% block produccion_body %}{% endblock %}
+</div>
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var fila = document.querySelector('.maquila-nav-fila');
+  var nav = document.querySelector('.maquila-nav');
+  if (!fila || !nav) return;
+  function medirDesborde() {
+    var desborda = nav.scrollWidth > nav.clientWidth + 1;
+    nav.classList.toggle('is-desbordado', desborda);
+    return desborda;
+  }
+  var activo = nav.querySelector('.is-active');
+  function acomodar() {
+    if (medirDesborde() && activo) {
+      nav.scrollLeft = activo.offsetLeft - (nav.clientWidth - activo.offsetWidth) / 2;
+    }
+  }
+  acomodar();
+  if (window.ResizeObserver) { new ResizeObserver(medirDesborde).observe(nav); }
+  else { window.addEventListener('resize', medirDesborde); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(acomodar);
+  var mas = fila.querySelector('.maquila-nav-mas');
+  if (!mas) return;
+  document.addEventListener('click', function (e) {
+    if (mas.open && !mas.contains(e.target)) mas.open = false;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && mas.open) { mas.open = false; mas.querySelector('summary').focus(); }
+  });
+})();
+</script>
+{% endblock %}

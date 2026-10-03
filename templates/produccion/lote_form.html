@@ -1,0 +1,293 @@
+{% extends "produccion/base_produccion.html" %}
+{% block title %}{{ 'Corregir ' ~ lote.codigo if lote else 'Nuevo lote' }}{% endblock %}
+{% block produccion_title %}{{ 'Corregir ' ~ lote.codigo if lote else 'Nuevo lote' }}{% endblock %}
+{% block produccion_body %}
+{#- Un solo formulario para alta y corrección. `form` trae los valores en el
+    mismo formato que el POST (lo guardado o lo que se acaba de rechazar);
+    `consumos` es {ingrediente_id: cantidad} con claves str; `mermas` una
+    lista de filas. Nada se pierde en un rechazo del servidor. -#}
+<form method="POST"
+      action="{{ url_for('produccion.lote_editar', lote_id=lote.id) if lote else url_for('produccion.lote_nuevo') }}"
+      class="ops-sheet-form" id="lote-form"
+      data-recetas='{{ recetas_json|tojson }}'>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="ops-card">
+    <h2>Lote</h2>
+    {% if not lote %}
+    <p class="maquila-nota">Registrá el lote con lo que ya se sabe. No descuenta nada de ningún inventario: lo que importa es lo que entró, lo que salió y la diferencia.</p>
+    {% endif %}
+    <div class="ops-field">
+      <label for="producto_id">Producto</label>
+      <select id="producto_id" name="producto_id" required>
+        <option value="" disabled {{ 'selected' if not form.get('producto_id') else '' }}>Elegí un producto</option>
+        {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if form.get('producto_id') == p.id|string else '' }}>{{ p.nombre }}</option>{% endfor %}
+      </select>
+      <p class="maquila-nota" id="receta-nota" aria-live="polite"></p>
+    </div>
+    <div class="ops-field">
+      <label for="lote">Número de lote</label>
+      <input type="text" id="lote" name="lote" required autocomplete="off" autocapitalize="characters"
+             placeholder="Como va en la etiqueta" value="{{ form.get('lote', '') }}">
+    </div>
+    <div class="ops-grid-2">
+      <div class="ops-field">
+        <label for="fecha_produccion">Fecha de producción</label>
+        <input type="date" id="fecha_produccion" name="fecha_produccion" required
+               value="{{ form.get('fecha_produccion') or hoy.strftime('%Y-%m-%d') }}">
+      </div>
+      <div class="ops-field">
+        <label for="fecha_vencimiento">Fecha de vencimiento <small>(opcional)</small></label>
+        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" value="{{ form.get('fecha_vencimiento', '') }}">
+      </div>
+    </div>
+  </section>
+
+  <section class="ops-card" id="salida">
+    <h2>Producto terminado</h2>
+    <div class="ops-field">
+      <label for="peso_producido">Peso producido (kg)</label>
+      <input type="text" inputmode="decimal" data-decimal id="peso_producido" name="peso_producido"
+             autocomplete="off" placeholder="Lo que marcó la balanza" value="{{ form.get('peso_producido', '') }}">
+    </div>
+    <div class="ops-grid-2">
+      <div class="ops-field">
+        <label for="unidades_producidas">Unidades / piezas <small>(opcional)</small></label>
+        <input type="number" step="1" min="0" inputmode="numeric" id="unidades_producidas" name="unidades_producidas" value="{{ form.get('unidades_producidas', '') }}">
+      </div>
+      <div class="ops-field">
+        <label for="cajas_producidas">Cajas <small>(opcional)</small></label>
+        <input type="number" step="1" min="0" inputmode="numeric" id="cajas_producidas" name="cajas_producidas" value="{{ form.get('cajas_producidas', '') }}">
+      </div>
+    </div>
+  </section>
+
+  <section class="ops-card" id="consumo">
+    <h2>Ingredientes usados</h2>
+    {% if not ingredientes %}
+      <p class="ops-empty">No hay ingredientes activos. Dalos de alta en Ingredientes (maquila) y volvé.</p>
+    {% else %}
+    <p class="maquila-nota">Lo que se pesó de verdad. Dejá vacío lo que no se usó. El teórico sale de la receta genérica del producto y del peso producido; es una referencia, no se guarda como consumo.</p>
+    <table class="maquila-tabla maquila-tabla-consumo prod-tabla-consumo">
+      <thead><tr><th>Ingrediente</th><th class="maquila-num">Teórico</th><th class="maquila-num">Real</th><th class="maquila-num">Diferencia</th></tr></thead>
+      <tbody>
+        {% for i in ingredientes %}
+        <tr data-ingrediente-id="{{ i.id }}" data-unidad="{{ i.unidad }}">
+          <td data-label="Ingrediente">{{ i.nombre }}{% if not i.activo %} <small class="maquila-meta">(desactivado)</small>{% endif %}</td>
+          <td data-label="Teórico" class="maquila-num"><span data-teorico>—</span></td>
+          <td data-label="Real" class="maquila-num">
+            <input type="hidden" name="consumo_ingrediente_id" value="{{ i.id }}">
+            {% if i.unidad == 'ud' %}
+            <input type="number" step="1" min="0" inputmode="numeric" name="consumo_real"
+                   aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}" placeholder="{{ i.unidad }}"
+                   value="{{ consumos.get(i.id|string, '') }}">
+            {% else %}
+            <input type="text" inputmode="decimal" data-decimal name="consumo_real"
+                   aria-label="Consumo real de {{ i.nombre }} en {{ i.unidad }}" placeholder="{{ i.unidad }}"
+                   value="{{ consumos.get(i.id|string, '') }}">
+            {% endif %}
+          </td>
+          <td data-label="Diferencia" class="maquila-num"><span class="maquila-dif" data-dif aria-live="polite">—</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="maquila-acciones">
+      <button type="button" class="btn" id="btn-usar-teorico" hidden>Copiar el teórico en lo vacío</button>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="ops-card" id="mermas">
+    <h2>Mermas identificadas</h2>
+    <p class="maquila-nota">Dónde se fueron los kilos que no salieron como producto: cocción, recorte, descarte. Lo que no se anote acá queda como «sin identificar» en el balance, que también es un dato.</p>
+    <div id="merma-filas">
+      {% for m in mermas %}
+      <div class="prod-merma-linea">
+        <div>
+          <label>Tipo</label>
+          <select name="merma_tipo">
+            {% for clave, etiqueta in tipos_merma %}<option value="{{ clave }}" {{ 'selected' if m.tipo == clave else '' }}>{{ etiqueta }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Kilos</label>
+          <input type="text" inputmode="decimal" data-decimal name="merma_cantidad" value="{{ m.cantidad if m.cantidad is not none else '' }}">
+        </div>
+        <div class="prod-merma-motivo">
+          <label>Detalle <small>(opcional, salvo en «Otra»)</small></label>
+          <input type="text" name="merma_motivo" value="{{ m.motivo or '' }}">
+        </div>
+        <button type="button" class="btn" data-quitar-merma aria-label="Quitar esta merma">Quitar</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn" id="btn-agregar-merma">Agregar merma</button>
+  </section>
+
+  {#- La vista previa del balance vive DENTRO del pie fijo, no en una tarjeta
+      antes de él: medido en 390px, una tarjeta al final quedaba tapada por
+      el pie y nadie la veía. En el pie se lee mientras se teclea. -#}
+  <footer class="ops-sticky-footer">
+    <div class="prod-previa" id="previa" aria-live="polite">
+      <span>Rendimiento <strong data-previa="rendimiento">—</strong></span>
+      <span data-previa-merma>Merma <strong data-previa="merma">—</strong></span>
+      <span data-previa-sin>Sin identificar <strong data-previa="sin">—</strong></span>
+      <span>Consumido <strong data-previa="consumido">—</strong></span>
+      <span>Producido <strong data-previa="producido">—</strong></span>
+      <span>Identificada <strong data-previa="identificada">—</strong></span>
+    </div>
+    <button type="submit" class="btn btn-primary" name="accion" value="guardar">{{ 'Guardar corrección' if lote else 'Guardar lote' }}</button>
+    {% if permiso_produccion('editar') %}
+    <button type="submit" class="btn" name="accion" value="cerrar">Guardar y cerrar</button>
+    {% endif %}
+  </footer>
+</form>
+
+<template id="merma-tpl">
+  <div class="prod-merma-linea">
+    <div>
+      <label>Tipo</label>
+      <select name="merma_tipo">
+        {% for clave, etiqueta in tipos_merma %}<option value="{{ clave }}">{{ etiqueta }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Kilos</label>
+      <input type="text" inputmode="decimal" data-decimal name="merma_cantidad">
+    </div>
+    <div class="prod-merma-motivo">
+      <label>Detalle <small>(opcional, salvo en «Otra»)</small></label>
+      <input type="text" name="merma_motivo">
+    </div>
+    <button type="button" class="btn" data-quitar-merma aria-label="Quitar esta merma">Quitar</button>
+  </div>
+</template>
+
+<script nonce="{{ csp_nonce() }}">
+(function () {
+  var form = document.getElementById('lote-form');
+  if (!form) return;
+  var recetas = {};
+  try { recetas = JSON.parse(form.dataset.recetas || '{}'); } catch (e) { recetas = {}; }
+  var producto = document.getElementById('producto_id');
+  var peso = document.getElementById('peso_producido');
+  var nota = document.getElementById('receta-nota');
+  var usar = document.getElementById('btn-usar-teorico');
+  var filas = Array.prototype.slice.call(form.querySelectorAll('tr[data-ingrediente-id]'));
+
+  // El campo de kilos se teclea con coma; signed_decimal.js la pasa a punto
+  // en un listener delegado que puede correr después de este. Se normaliza.
+  function num(v) { var n = parseFloat(String(v || '').replace(',', '.')); return isNaN(n) ? null : n; }
+  function fmt(n, u) {
+    return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 }) + (u ? ' ' + u : '');
+  }
+
+  // --- Teórico por ingrediente: receta genérica del producto × peso producido.
+  function teoricos() {
+    var r = recetas[producto.value];
+    var kg = num(peso.value);
+    var hay = false;
+    filas.forEach(function (tr) {
+      var celda = tr.querySelector('[data-teorico]');
+      var item = r && r.items[tr.dataset.ingredienteId];
+      tr.classList.toggle('is-receta', !!item);
+      if (!item || kg === null || kg <= 0) { celda.textContent = '—'; delete tr.dataset.teorico; return; }
+      var teo = parseFloat(item) * kg / parseFloat(r.base_kg);
+      if (tr.dataset.unidad === 'ud') teo = Math.ceil(teo);
+      tr.dataset.teorico = String(teo);
+      celda.textContent = fmt(teo, tr.dataset.unidad);
+      hay = true;
+    });
+    if (nota) {
+      if (!producto.value) nota.textContent = '';
+      else if (!r) nota.textContent = 'Este producto no tiene receta genérica: se registra solo el consumo real, sin teórico.';
+      else if (kg === null || kg <= 0) nota.textContent = 'Receta: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + '). El teórico aparece al escribir el peso producido.';
+      else nota.textContent = 'Receta: ' + r.nombre + ' (base ' + fmt(parseFloat(r.base_kg), 'kg') + ').';
+    }
+    if (usar) usar.hidden = !hay;
+  }
+
+  // --- Diferencia real − teórico, con color por umbral (5 % aviso, 10 % falla).
+  function diferencias() {
+    filas.forEach(function (tr) {
+      var celda = tr.querySelector('[data-dif]');
+      var input = tr.querySelector('input[name="consumo_real"]');
+      var teo = tr.dataset.teorico ? parseFloat(tr.dataset.teorico) : null;
+      var real = num(input.value);
+      if (teo === null || real === null) { celda.textContent = '—'; celda.className = 'maquila-dif'; return; }
+      var d = real - teo, pct = teo > 0 ? Math.round(d / teo * 1000) / 10 : null;
+      celda.textContent = (d > 0 ? '+' : '') + fmt(d, tr.dataset.unidad) + (pct === null ? '' : ' (' + (d > 0 ? '+' : '') + pct + ' %)');
+      var ap = pct === null ? 0 : Math.abs(pct);
+      celda.className = 'maquila-dif ' + (ap > 10 ? 'maquila-desvio-falla' : ap > 5 ? 'maquila-desvio-aviso' : '');
+    });
+  }
+
+  // --- Vista previa del balance: lo mismo que calcula el servidor.
+  function previa() {
+    var consumido = 0;
+    filas.forEach(function (tr) {
+      if (tr.dataset.unidad !== 'kg') return;
+      var v = num(tr.querySelector('input[name="consumo_real"]').value);
+      if (v && v > 0) consumido += v;
+    });
+    var producido = num(peso.value) || 0;
+    var identificada = 0;
+    Array.prototype.forEach.call(form.querySelectorAll('input[name="merma_cantidad"]'), function (i) {
+      var v = num(i.value); if (v && v > 0) identificada += v;
+    });
+    function pon(k, txt) { var el = form.querySelector('[data-previa="' + k + '"]'); if (el) el.textContent = txt; }
+    pon('consumido', consumido > 0 ? fmt(consumido, 'kg') : '—');
+    pon('producido', producido > 0 ? fmt(producido, 'kg') : '—');
+    pon('identificada', identificada > 0 ? fmt(identificada, 'kg') : '—');
+    var mermaWrap = form.querySelector('[data-previa-merma]');
+    var sinWrap = form.querySelector('[data-previa-sin]');
+    if (consumido > 0) {
+      var merma = consumido - producido;
+      var pct = Math.round(merma / consumido * 1000) / 10;
+      pon('merma', fmt(merma, 'kg') + ' (' + pct + ' %)');
+      pon('sin', fmt(merma - identificada, 'kg'));
+      pon('rendimiento', (Math.round(producido / consumido * 1000) / 10) + ' %');
+      if (mermaWrap) mermaWrap.classList.toggle('is-falla', Math.abs(pct) > 10);
+      if (sinWrap) sinWrap.classList.toggle('is-falla', (merma - identificada) > 0.0005 && Math.abs(pct) > 10);
+    } else {
+      pon('merma', '—'); pon('sin', '—'); pon('rendimiento', '—');
+      if (mermaWrap) mermaWrap.classList.remove('is-falla');
+      if (sinWrap) sinWrap.classList.remove('is-falla');
+    }
+  }
+
+  function todo() { teoricos(); diferencias(); previa(); }
+  producto.addEventListener('change', todo);
+  peso.addEventListener('input', todo);
+  form.addEventListener('input', function (e) {
+    if (e.target.name === 'consumo_real' || e.target.name === 'merma_cantidad') { diferencias(); previa(); }
+  });
+  if (usar) usar.addEventListener('click', function () {
+    filas.forEach(function (tr) {
+      var input = tr.querySelector('input[name="consumo_real"]');
+      if (!input.value && tr.dataset.teorico) input.value = String(Math.round(parseFloat(tr.dataset.teorico) * 1000) / 1000);
+    });
+    diferencias(); previa();
+  });
+
+  // --- Mermas: filas que se agregan y se quitan sin recargar.
+  var cont = document.getElementById('merma-filas');
+  var tpl = document.getElementById('merma-tpl');
+  document.getElementById('btn-agregar-merma').addEventListener('click', function () {
+    cont.appendChild(tpl.content.cloneNode(true));
+    var ultima = cont.lastElementChild.querySelector('input[name="merma_cantidad"]');
+    if (ultima) ultima.focus();
+  });
+  cont.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-quitar-merma]');
+    if (!btn) return;
+    var fila = btn.closest('.prod-merma-linea');
+    if (fila) fila.remove();
+    previa();
+  });
+
+  todo();
+})();
+</script>
+{% endblock %}

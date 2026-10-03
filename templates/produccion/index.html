@@ -1,0 +1,107 @@
+{% extends "produccion/base_produccion.html" %}
+{% from "maquila/_macros.html" import chip, chip_estado %}
+{% from "produccion/_macros.html" import celda_rendimiento %}
+{% block title %}Producción{% endblock %}
+{% block produccion_title %}Producción{% endblock %}
+{% block produccion_body %}
+<section class="ops-card maquila-barra">
+  <p class="maquila-nota">Cada lote anota lo que entró, lo que salió y dónde se fue la diferencia. No descuenta inventario: el control es la merma y el rendimiento, no el saldo.</p>
+  {% if permiso_produccion('crear') %}
+  <a class="btn btn-primary" href="{{ url_for('produccion.lote_nuevo') }}">Nuevo lote</a>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  <div class="maquila-titulo-fila">
+    <h2>Últimos 30 días</h2>
+    <span class="maquila-meta">{{ desde.strftime('%d/%m') }} – {{ hoy.strftime('%d/%m/%Y') }} · {{ resumen.lotes }} lote{{ 's' if resumen.lotes != 1 else '' }} cerrado{{ 's' if resumen.lotes != 1 else '' }}</span>
+  </div>
+  {% if not resumen.lotes %}
+    <p class="ops-empty">Todavía no hay lotes cerrados en el periodo.</p>
+  {% else %}
+  <dl class="prod-kpis">
+    <div class="prod-kpi">
+      <dt>Producido</dt>
+      <dd>{{ resumen.producido|fmt_cant }}</dd>
+    </div>
+    <div class="prod-kpi">
+      <dt>Consumido en kg</dt>
+      <dd>{{ resumen.consumido|fmt_cant }}</dd>
+    </div>
+    <div class="prod-kpi">
+      <dt>Rendimiento</dt>
+      <dd>{{ resumen.rendimiento_pct if resumen.rendimiento_pct is not none else '—' }}{{ ' %' if resumen.rendimiento_pct is not none else '' }}</dd>
+    </div>
+    <div class="prod-kpi{{ ' is-falla' if resumen.merma_pct is not none and resumen.merma_pct|abs > 10 else '' }}">
+      <dt>Merma</dt>
+      <dd>{{ resumen.merma_total|fmt_cant }} <small>({{ resumen.merma_pct if resumen.merma_pct is not none else '—' }} %)</small></dd>
+    </div>
+    <div class="prod-kpi{{ ' is-aviso' if resumen.sin_identificar > 0 else '' }}">
+      <dt>Merma sin identificar</dt>
+      <dd>{{ resumen.sin_identificar|fmt_cant }}</dd>
+    </div>
+    <div class="prod-kpi{{ ' is-falla' if resumen.lotes_merma_alta else '' }}">
+      <dt>Lotes con merma alta</dt>
+      <dd>{{ resumen.lotes_merma_alta }}</dd>
+    </div>
+  </dl>
+  <div class="maquila-acciones">
+    <a class="btn" href="{{ url_for('produccion.reporte_rendimiento', desde=desde.strftime('%Y-%m-%d'), hasta=hoy.strftime('%Y-%m-%d')) }}">Rendimiento del periodo</a>
+    <a class="btn" href="{{ url_for('produccion.reporte_mermas', desde=desde.strftime('%Y-%m-%d'), hasta=hoy.strftime('%Y-%m-%d')) }}">Mermas del periodo</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  <div class="maquila-titulo-fila">
+    <h2>Lotes abiertos</h2>
+    <span class="maquila-meta">{{ abiertos|length }}</span>
+  </div>
+  {% if not abiertos %}
+    <p class="ops-empty">No hay lotes abiertos.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead><tr><th>Código</th><th>Lote</th><th>Producto</th><th>Fecha</th><th class="maquila-num">Producido</th><th></th></tr></thead>
+    <tbody>
+      {% for l in abiertos %}
+      <tr>
+        <td data-label="Código"><a href="{{ url_for('produccion.lote_detalle', lote_id=l.id) }}">{{ l.codigo }}</a></td>
+        <td data-label="Lote">{{ l.lote }}</td>
+        <td data-label="Producto">{{ l.producto.nombre }}</td>
+        <td data-label="Fecha">{{ l.fecha_produccion.strftime('%d/%m/%Y') }}</td>
+        <td data-label="Producido" class="maquila-num">{{ l.peso_producido|fmt_cant if l.peso_producido else '—' }}</td>
+        <td data-label=""><a class="btn btn-compact" href="{{ url_for('produccion.lote_detalle', lote_id=l.id) }}">Continuar</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<section class="ops-card">
+  <div class="maquila-titulo-fila">
+    <h2>Últimos lotes cerrados</h2>
+    <a class="maquila-salida" href="{{ url_for('produccion.lotes') }}">Ver todos</a>
+  </div>
+  {% if not recientes %}
+    <p class="ops-empty">Todavía no hay lotes cerrados.</p>
+  {% else %}
+  <table class="maquila-tabla">
+    <thead><tr><th>Código</th><th>Lote</th><th>Producto</th><th>Fecha</th><th class="maquila-num">Producido</th><th class="maquila-num">Rendimiento</th><th class="maquila-num">Merma</th></tr></thead>
+    <tbody>
+      {% for f in recientes %}
+      <tr>
+        <td data-label="Código"><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.codigo }}</a></td>
+        <td data-label="Lote">{{ f.lote }}</td>
+        <td data-label="Producto">{{ f.producto }}</td>
+        <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') }}</td>
+        <td data-label="Producido" class="maquila-num">{{ f.producido|fmt_cant }}</td>
+        <td data-label="Rendimiento" class="maquila-num">{{ celda_rendimiento(f) }}</td>
+        <td data-label="Merma" class="maquila-num {{ 'maquila-merma-alta' if f.merma_alta else '' }}">{{ f.merma_total|fmt_cant if f.merma_total is not none else '—' }}{% if f.merma_pct is not none %} <small>({{ f.merma_pct }} %)</small>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}
