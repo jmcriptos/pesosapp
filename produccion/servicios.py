@@ -91,7 +91,7 @@ def crear_insumo(*, nombre, unidad='kg', notas=None):
     if not nombre:
         raise InsumoInvalido('El insumo necesita un nombre')
     if unidad not in UNIDADES_VALIDAS:
-        raise InsumoInvalido('La unidad tiene que ser kg o ud')
+        raise InsumoInvalido('La unidad tiene que ser kg, m, ud o l')
     if Insumo.query.filter(func.lower(Insumo.nombre) == nombre.lower()).first():
         raise InsumoInvalido(f'Ya existe un insumo llamado {nombre}')
     try:
@@ -128,7 +128,7 @@ def cargar_insumos(texto):
             unidad = partes[-1].lower()
             if unidad not in UNIDADES_VALIDAS:
                 raise InsumoInvalido(
-                    f'Línea {numero}: la unidad «{partes[-1]}» no es kg ni ud')
+                    f'Línea {numero}: la unidad «{partes[-1]}» no es kg, m, ud ni l')
         filas.append((nombre, unidad))
 
     existentes = {i.nombre.lower() for i in Insumo.query.all()}
