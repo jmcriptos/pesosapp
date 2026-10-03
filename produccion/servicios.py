@@ -9,6 +9,7 @@ Regla que da nombre al módulo: NADA acá verifica disponibilidad de
 ingredientes. Lo declarado se anota tal cual. El control es a posteriori
 —merma y rendimiento por lote— no un bloqueo a la hora de registrar.
 """
+import re
 from datetime import date as _date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -98,6 +99,52 @@ def crear_insumo(*, nombre, unidad='kg', notas=None):
         db.session.add(insumo)
         db.session.commit()
         return insumo
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def cargar_insumos(texto):
+    """Carga masiva desde texto pegado: una línea por insumo, con la unidad
+    opcional al final separada por coma, punto y coma, tabulador o barra
+    («Sal fina, kg» · «Tripa natural; ud» · «Palatinata»). Sin unidad, kg.
+
+    Devuelve (creados, omitidos): los nombres que ya existían se omiten y se
+    informan, no se duplican ni se pisan. Una unidad inválida rechaza la
+    carga ENTERA con el número de línea, para corregir el texto y volver a
+    pegarlo: cargar la mitad y fallar en la otra deja al operario sin saber
+    qué entró. Comitea.
+    """
+    filas = []
+    for numero, cruda in enumerate((texto or '').splitlines(), start=1):
+        linea = cruda.strip().strip('-•*').strip()
+        if not linea:
+            continue
+        partes = [p.strip() for p in re.split(r'[,;|\t]', linea) if p.strip()]
+        if not partes:
+            continue
+        nombre, unidad = partes[0], 'kg'
+        if len(partes) > 1:
+            unidad = partes[-1].lower()
+            if unidad not in UNIDADES_VALIDAS:
+                raise InsumoInvalido(
+                    f'Línea {numero}: la unidad «{partes[-1]}» no es kg ni ud')
+        filas.append((nombre, unidad))
+
+    existentes = {i.nombre.lower() for i in Insumo.query.all()}
+    creados, omitidos, vistos = [], [], set()
+    try:
+        for nombre, unidad in filas:
+            clave = nombre.lower()
+            if clave in existentes or clave in vistos:
+                omitidos.append(nombre)
+                continue
+            vistos.add(clave)
+            insumo = Insumo(nombre=nombre, unidad=unidad)
+            db.session.add(insumo)
+            creados.append(insumo)
+        db.session.commit()
+        return creados, omitidos
     except Exception:
         db.session.rollback()
         raise
