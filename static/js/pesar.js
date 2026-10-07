@@ -513,6 +513,7 @@
       auto: document.getElementById('pesar-printer-auto'),
       test: document.getElementById('pesar-printer-test'),
       disconnect: document.getElementById('pesar-printer-disconnect'),
+      diag: document.getElementById('pesar-printer-diag'),
       ultimaImpresa: null,
     };
     const AUTO_KEY = 'pesar.imprimirAlPesar';
@@ -549,6 +550,7 @@
       printer.all.hidden = on || !(window.ZebraBLE && window.ZebraBLE.disponible());
       printer.autoWrap.hidden = !on;
       printer.test.hidden = !on;
+      if (printer.diag) printer.diag.hidden = !on;
       printer.disconnect.hidden = !on;
     }
 
@@ -633,6 +635,32 @@
           printerMsg(sinConfirmar ? 'Prueba enviada (sin confirmación de la app): mira si salió la etiqueta.' : 'Prueba enviada.');
         } catch (err) {
           printerMsg(`No se imprimió: ${err.message || err}`, true);
+        }
+      });
+      // Diagnóstico de arrastre (2026-10-06): la ZQ520 imprimía la etiqueta
+      // ZPL sin avanzar el medio. Salen cuatro etiquetas del formato real,
+      // A (control) y B, C, D con un cambio cada una; la que avance bien
+      // dice qué corregir en utils/zpl.py. C y D dejan velocidad y
+      // oscuridad cambiadas hasta apagar la impresora.
+      if (printer.diag) printer.diag.addEventListener('click', async () => {
+        if (!printerReady()) return;
+        printer.diag.disabled = true;
+        try {
+          const resp = await fetch('/impresora/diagnostico.zpl', {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+          if (!resp.ok) throw new Error(`PesosApp no devolvió el diagnóstico (${resp.status}).`);
+          const datos = await resp.json();
+          for (const v of datos.variantes) {
+            printerMsg(`Diagnóstico: imprimiendo ${v.letra} de ${datos.variantes.length}…`);
+            await transporte.imprimirZpl(v.zpl, null);
+          }
+          printerMsg('Diagnóstico enviado: cuatro etiquetas A, B, C y D. Anotá cuáles avanzaron bien y apagá y encendé la impresora al terminar.');
+        } catch (err) {
+          printerMsg(`Diagnóstico: ${err.message || err}`, true);
+        } finally {
+          printer.diag.disabled = false;
         }
       });
       transportes.forEach((t) => t.alCambiar((evento, detalle) => {

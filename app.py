@@ -9435,6 +9435,18 @@ def etiqueta_caja_zpl(caja_id):
     })
 
 
+@app.route('/impresora/diagnostico.zpl', methods=['GET'])
+@login_required
+@requiere_permiso_recurso('pedidos', 'leer')
+def diagnostico_impresora_zpl():
+    """Cuatro etiquetas de prueba para la barra de impresora de pesar, una
+    por variante del formato real (ver utils/zpl.py): sirven para ver en el
+    almacén qué hace que la ZQ520 arrastre el medio al imprimir ZPL."""
+    from utils.zpl import etiquetas_diagnostico
+
+    return jsonify({'variantes': etiquetas_diagnostico()})
+
+
 def _nombre_archivo_etiqueta_caja(caja):
     """etiqueta_<pedido>_<producto>_<numero>.pdf, sin espacios ni barras."""
     detalle = caja.detalle_pedido

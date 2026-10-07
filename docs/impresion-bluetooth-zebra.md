@@ -85,6 +85,31 @@ puede confirmar. La etiqueta sale igual.
 Browser Print no existe para iPhone. En iPhone la etiqueta sigue saliendo
 por «Imprimir etiqueta» y la app de Zebra, o se pesa con el Android.
 
+## Diagnóstico de arrastre (botón «Diagnóstico»)
+
+El 2026-10-06 la ZQ520 imprimía la etiqueta ZPL **sin arrastrar el medio**:
+todas las filas caían en el mismo sitio hasta halar la etiqueta a mano,
+mientras que el PDF de vencimiento por la app de Zebra (que va en CPCL) y el
+botón de alimentar sí avanzaban una etiqueta y paraban en el hueco. Es decir,
+sensor y tipo de medio estaban bien y el problema era algo que el formato ZPL
+le pide a la mecánica y CPCL no.
+
+Con la impresora conectada, «Diagnóstico» imprime cuatro etiquetas que salen
+del mismo generador que la de cada caja (`utils/zpl.py`,
+`etiquetas_diagnostico`), rotuladas con su letra:
+
+- **A** igual que la etiqueta real (control).
+- **B** con `^XB`: sin el retroceso que el modo tear-off (`^MMT`) hace antes
+  de imprimir. CPCL nunca retrocede.
+- **C** con `^PR2`: velocidad 2 ips, por si la velocidad guardada para ZPL
+  hace patinar el rodillo.
+- **D** con `^PR2` y `^MD-10`: además, menos oscuridad, por si el calor pega
+  la etiqueta al cabezal.
+
+La que avance bien dice qué línea corregir en `etiqueta_pedido_zpl`. Como
+`^PR` y `^MD` quedan vigentes en la impresora hasta reiniciarla, C y D van al
+final y hay que apagar y encender la impresora al terminar.
+
 ## Camino alternativo: Web Bluetooth (baja energía)
 
 Solo para impresoras cuyo modo de baja energía sí esté disponible (Zebra lo
