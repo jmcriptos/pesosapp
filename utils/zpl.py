@@ -217,3 +217,48 @@ def logo_a_grf(logo_bytes=None, logo_path=None, max_w=LOGO_MAX, max_h=LOGO_MAX):
     datos = ''.join(filas)
     total = bytes_por_fila * alto
     return nombre, f'~DG{nombre},{total},{bytes_por_fila},{datos}'
+
+
+# ---------------------------------------------------------------------------
+# Diagnóstico de arrastre: cuatro etiquetas, una variable por etiqueta
+# ---------------------------------------------------------------------------
+
+# El 2026-10-06 la ZQ520 del almacén imprimía la etiqueta ZPL sin arrastrar el
+# medio (todas las filas en el mismo sitio hasta halar la etiqueta), mientras
+# que el PDF por la app de Zebra (CPCL) y el botón de alimentar sí avanzaban.
+# Estas cuatro etiquetas salen del MISMO generador que la de cada caja: la A
+# es el control, y B, C y D cambian una sola cosa cada una (sin retroceso,
+# velocidad baja, menos oscuridad) para ver en el almacén cuál arrastra bien.
+# Se insertan justo después de ^MMT para no depender del resto del encabezado.
+CLIENTE_DIAGNOSTICO = 'Diagnostico PesosApp'
+ITEM_DIAGNOSTICO = {
+    'producto_nombre': '',
+    'temperatura': '-18 oC',
+    'medida_rotulo': 'Net Weight:',
+    'medida_valor': '16.90 kg',
+    'lote': '',
+    'fecha_fabricacion': '2026-10-06',
+    'fecha_expiracion': '2027-10-06',
+}
+VARIANTES_DIAGNOSTICO = (
+    # (letra, descripción que se imprime como producto, comandos extra)
+    ('A', 'A igual que la etiqueta', ''),
+    ('B', 'B sin retroceso XB', '^XB'),
+    ('C', 'C velocidad 2 PR2', '^PR2'),
+    ('D', 'D velocidad 2 y menos oscuridad', '^PR2\n^MD-10'),
+)
+
+
+def etiquetas_diagnostico():
+    """[{letra, nombre, zpl}] con las cuatro variantes, en el orden en que
+    deben imprimirse: ^PR y ^MD quedan vigentes en la impresora hasta que se
+    apaga, así que las que los tocan van al final."""
+    variantes = []
+    for letra, nombre, extra in VARIANTES_DIAGNOSTICO:
+        zpl = etiqueta_pedido_zpl(
+            dict(ITEM_DIAGNOSTICO, producto_nombre=nombre, lote=letra),
+            cliente=CLIENTE_DIAGNOSTICO, mostrar_cliente=True, logo_nombre=None)
+        if extra:
+            zpl = zpl.replace('^MMT\n', f'^MMT\n{extra}\n', 1)
+        variantes.append({'letra': letra, 'nombre': nombre, 'zpl': zpl})
+    return variantes

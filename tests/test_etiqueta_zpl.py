@@ -108,3 +108,34 @@ def test_el_nombre_cambia_si_cambia_el_logo():
     a, _ = logo_a_grf(logo_bytes=_png(16, 4))
     b, _ = logo_a_grf(logo_bytes=_png(16, 8))
     assert a != b
+
+
+def test_diagnostico_cuatro_variantes_sobre_el_formato_real():
+    """Cuatro etiquetas de prueba: la A es el formato real tal cual (control)
+    y las otras cambian UNA cosa cada una, para ver en el almacén cuál hace
+    que la ZQ520 arrastre el medio (2026-10-06: imprimía sin avanzar)."""
+    from utils.zpl import etiquetas_diagnostico
+
+    variantes = etiquetas_diagnostico()
+    assert [v['letra'] for v in variantes] == ['A', 'B', 'C', 'D']
+    for v in variantes:
+        assert v['zpl'].startswith('^XA') and v['zpl'].endswith('^XZ')
+        assert '^MNY' in v['zpl'] and '^MMT' in v['zpl']     # mismo encabezado que la etiqueta real
+        assert v['letra'] in v['zpl'] and v['nombre']
+
+    a, b, c, d = (v['zpl'] for v in variantes)
+    assert '^XB' not in a and '^PR' not in a and '^MD' not in a
+    assert '^MMT\n^XB' in b and '^PR' not in b                # B: sin retroceso
+    assert '^MMT\n^PR2' in c and '^XB' not in c and '^MD' not in c   # C: velocidad 2 ips
+    assert '^MMT\n^PR2\n^MD-10' in d and '^XB' not in d      # D: velocidad 2 + menos oscuridad
+
+
+def test_diagnostico_control_es_la_etiqueta_real():
+    """La variante A sale del mismo generador que la etiqueta de cada caja."""
+    from utils.zpl import etiquetas_diagnostico, ITEM_DIAGNOSTICO, CLIENTE_DIAGNOSTICO
+
+    a = etiquetas_diagnostico()[0]
+    esperado = etiqueta_pedido_zpl(
+        dict(ITEM_DIAGNOSTICO, producto_nombre=a['nombre'], lote=a['letra']),
+        cliente=CLIENTE_DIAGNOSTICO, mostrar_cliente=True, logo_nombre=None)
+    assert a['zpl'] == esperado

@@ -426,3 +426,23 @@ def test_deshacer_apunta_a_la_caja_de_numero_mas_alto(logged_client, app):
     assert ':last-of-type' not in js
     assert 'function ultimaCajaChip' in js
     assert 'dataset.numero' in js
+
+
+def test_diagnostico_de_impresora_zpl(logged_client, app):
+    """La barra de impresora imprime cuatro etiquetas de prueba, una por
+    variante del formato, para ver en el almacén cuál arrastra el medio."""
+    with app.app_context():
+        resp = logged_client.get('/impresora/diagnostico.zpl')
+        assert resp.status_code == 200
+        datos = resp.get_json()
+        assert [v['letra'] for v in datos['variantes']] == ['A', 'B', 'C', 'D']
+        assert all(v['zpl'].startswith('^XA') for v in datos['variantes'])
+
+
+def test_pesar_trae_boton_diagnostico(logged_client, app):
+    with app.app_context():
+        from app import Pedido
+
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+        assert 'id="pesar-printer-diag"' in html
