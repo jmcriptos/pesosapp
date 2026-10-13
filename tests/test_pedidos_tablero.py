@@ -646,3 +646,155 @@ def test_el_titulo_pegajoso_asoma_debajo_de_la_barra_superior():
         r'@media \(min-width: 1024px\)\s*\{\s*body\[data-pedidos-list-screen\] '
         r'\.tablero-titulo\s*\{\s*top: 78px;', css
     ), 'falta el desplazamiento de escritorio bajo la barra de 78px'
+
+
+# ── Pasada de UI (2026-10-13) ────────────────────────────────────────────────
+
+def _css_pedidos():
+    return open('static/css/pedidos_list.css', encoding='utf-8').read()
+
+
+def test_la_tarjeta_tiene_una_sola_columna_de_texto():
+    """`pedidos_inline.css` (la piel oscura vieja) le deja a `.pc-top` y a
+    `.pc-meta` un padding horizontal de 16px que se sumaba al de la tarjeta:
+    el cliente arrancaba en x=46 y las acciones en x=30. Se anulan."""
+    import re
+    css = _css_pedidos()
+    assert re.search(r'\.pc-top\s*\{\s*padding:\s*0\s*!important;', css)
+    assert re.search(r'\.pc-meta\s*\{\s*padding:\s*0\s*!important;', css)
+
+
+def test_la_tarjeta_hecha_del_tablero_es_compacta():
+    """Un entregado no necesita «entrega hoy», «2 líneas» ni la nota: ya
+    salió. Se esconden solo bajo `.tablero-hecho`, o sea solo en el tablero;
+    en el archivo la tarjeta sigue entera."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.tablero-hecho \.pc-nota,\s*body\[data-pedidos-list-screen\] '
+        r'\.tablero-hecho \.pc-meta\s*\{\s*display:\s*none\s*!important;', css
+    )
+
+
+def test_las_formas_de_accion_no_se_estiran():
+    """El <form> hereda un `width: 100%` global y como ítem flex se quedaba
+    con todo el sobrante: «Facturar» a la izquierda con un hueco, y Deshacer
+    solo en la punta. La acción principal va a la izquierda a propósito, con
+    `margin-right: auto`; el resto se agrupa a la derecha."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.pc-actions \.pc-action-form\s*\{\s*width:\s*auto\s*!important;\s*'
+        r'flex:\s*0 0 auto\s*!important;', css
+    )
+    assert '.pc-actions > .pc-action-form-main' in css
+    assert 'margin-right: auto !important' in css
+
+
+def test_facturar_y_entregar_llevan_la_clase_de_accion_principal(logged_client):
+    """Sin la clase, el <form> de «Facturar» o «Entregado» no recibe el
+    `margin-right: auto` y la fila vuelve a depender de la etiqueta HTML."""
+    from app import Producto, DetallePedido, db as _db
+    from decimal import Decimal
+    p = _crear('preparado', dias=0)
+    f = _crear('facturado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert html.count('pc-action-form pc-action-form-main') == 2, (
+        'Facturar (preparado) y Entregado (facturado) deben ser la acción '
+        'principal de su fila'
+    )
+
+
+# ── Crítica de diseño del 2026-10-13 ─────────────────────────────────────────
+
+def test_la_fila_entregar_llega_al_piso_de_toque():
+    """«Hoy», «Mañana» y el selector de fecha medían 34px: los únicos
+    controles de la tarjeta por debajo de los 48px que DESIGN.md fija como
+    mínimo. Medido en el render a 390px tras el cambio: 48px los tres y la
+    fila sigue en una sola línea (57px con padding y borde)."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.pc-entrega-btn\s*\{\s*min-height:\s*var\(--touch-min, 48px\);', css
+    ), 'los botones Hoy/Mañana volvieron a estar por debajo de 48px'
+    assert re.search(
+        r'input\.pc-entrega-fecha\s*\{\s*min-height:\s*var\(--touch-min, 48px\);\s*'
+        r'height:\s*var\(--touch-min, 48px\);', css
+    ), 'el selector de fecha volvió a estar por debajo de 48px'
+
+
+def test_el_nombre_del_cliente_se_lee_en_dos_lineas():
+    """4 de 10 nombres de la muestra se cortaban con elipsis a 390px. Es el
+    dato que el chofer busca; dos líneas antes que un `title` que en táctil
+    no existe."""
+    import re
+    css = _css_pedidos()
+    bloque = re.search(
+        r'\.pc-client\s*\{\s*white-space:\s*normal;[^}]*-webkit-line-clamp:\s*2;[^}]*\}',
+        css, re.S,
+    )
+    assert bloque, 'el nombre del cliente volvió a una sola línea con elipsis'
+    # La regla nueva tiene que ir DESPUÉS de la vieja (nowrap + ellipsis) para
+    # ganarle a igual especificidad.
+    assert css.find('text-overflow: ellipsis') < bloque.start()
+
+
+def test_el_buscador_comparte_fila_con_el_titulo(logged_client):
+    """Título, buscador y «Nuevo» van en un solo `<header class="hero">`:
+    medido a 390px, el hero de 68px más el buscador de 52px debajo dejaban
+    el primer grupo en y=244 y solo dos tarjetas en la primera pantalla.
+    Ahora el primer grupo arranca en y=140 y entran tres."""
+    import re
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    hero = re.search(r'<header class="hero">(.*?)</header>', html, re.S)
+    assert hero, 'falta el hero'
+    assert 'class="filter-bar"' in hero.group(1), 'el buscador salió del hero'
+    assert 'btn-nuevo-pedido' in hero.group(1), 'escritorio no tiene barra inferior: «Nuevo» tiene que seguir en el hero'
+    css = _css_pedidos()
+    assert re.search(
+        r'@media \(max-width: 1023px\)\s*\{\s*body\[data-pedidos-list-screen\] '
+        r'\.hero \.btn-nuevo-pedido\s*\{\s*display:\s*none\s*!important;', css
+    ), 'bajo 1024px la barra inferior ya tiene «Nuevo»: el del hero se esconde'
+
+
+# ── Lo que toca ahora pesa más ───────────────────────────────────────────────
+
+def test_atrasados_y_hoy_sin_entregar_son_ahora(logged_client):
+    """Tres niveles: «ahora» (Atrasados y Hoy sin entregar) lleva la acción
+    principal en sólido; Próximos y Sin fecha no; un entregado de Hoy es
+    «hecho», nunca «ahora»."""
+    import re
+    atrasado = _crear('pendiente', dias=-2)
+    hoy = _crear('preparado', dias=0)
+    hoy_hecho = _crear('entregado', dias=0)
+    proximo = _crear('pendiente', dias=3)
+    sin_fecha = _crear('pendiente', dias=None)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+
+    def clases_de(p):
+        # La tarjeta es el <div class="pedido-card …"> cuyo data-href termina
+        # en el id del pedido; la forma exacta de la ruta no importa acá.
+        m = re.search(r'<div class="(pedido-card[^"]*)"\s+data-href="/pedidos/%d/detalles"' % p.id, html)
+        assert m, f'no se encontró la tarjeta de PED-{p.id}'
+        return m.group(1).split()
+
+    assert 'tablero-ahora' in clases_de(atrasado)
+    assert 'tablero-ahora' in clases_de(hoy)
+    assert 'tablero-ahora' not in clases_de(hoy_hecho)
+    assert 'tablero-hecho' in clases_de(hoy_hecho)
+    assert 'tablero-ahora' not in clases_de(proximo)
+    assert 'tablero-ahora' not in clases_de(sin_fecha)
+
+
+def test_el_solido_de_ahora_pasa_aa():
+    """El botón sólido lleva texto de 13px/700 en blanco: necesita 4,5:1.
+    Índigo de Lectura nominal (#6366f1) da 4,07; Honda (#4f46e5) da 5,9.
+    Medido en el render: 6,29:1."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.tablero-ahora \.pc-actions \.pc-action-main\s*\{\s*background:\s*#4f46e5;\s*color:\s*#ffffff;',
+        css,
+    ), 'el sólido de «ahora» tiene que ir en #4f46e5 con texto blanco'
+    assert '#6366f1;\n  color: #ffffff' not in css
