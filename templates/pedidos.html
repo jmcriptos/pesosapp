@@ -146,6 +146,10 @@
       contenedorTarjetas.addEventListener('click', function (event) {
         var el = event.target.closest('.pedido-row[data-href], .pedido-card[data-href]');
         if (!el) return;
+        // El «⋯» y su panel viven en un <details>: tocarlo abre el menú, no
+        // el pedido. `summary` no está en la lista de abajo a propósito, para
+        // que ese string (que un test vigila) no cambie.
+        if (event.target.closest('details')) return;
         if (event.target.closest('a, button, form, input, label')) return;
         window.location.href = el.dataset.href;
       });
@@ -153,11 +157,24 @@
         if (event.key !== 'Enter' && event.key !== ' ') return;
         var el = event.target.closest('.pedido-row[data-href], .pedido-card[data-href]');
         if (!el) return;
+        if (event.target.closest('details')) return;
         if (event.target.closest('a, button, form, input, label')) return;
         event.preventDefault();
         window.location.href = el.dataset.href;
       });
     }
+
+    // Un solo «⋯» abierto por vez: abrir el de otra tarjeta cierra el
+    // anterior, así el tablero no se llena de paneles. `toggle` no burbujea,
+    // se escucha en captura sobre document; sobrevive al fetch de la lista.
+    // Va ANTES del `return` del tablero: vale en los dos modos.
+    document.addEventListener('toggle', function (event) {
+      var det = event.target;
+      if (!det.classList || !det.classList.contains('pc-mas') || !det.open) return;
+      document.querySelectorAll('details.pc-mas[open]').forEach(function (otro) {
+        if (otro !== det) otro.open = false;
+      });
+    }, true);
 
     // En el tablero no hay bloque de resultados que reemplazar: buscar navega
     // a la lista. Desde la lista sí se hace por fetch, para no cerrar el
