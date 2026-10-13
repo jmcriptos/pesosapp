@@ -1,25 +1,48 @@
-{# Cuerpo de la tarjeta de un pedido: cabecera, nota, metadatos y acciones.
-   Vive en su propio parcial porque lo usan la lista (_pedidos_resultados) y el
-   tablero (_pedidos_tablero), y son la misma tarjeta. Depende del contexto:
-   `pedido`, `hoy_local` y `url_actual`. #}
-      {# El CLIENTE abre la tarjeta (reestructura del 2026-10-13).
-         Antes la primera fila era chrome —«PED-1» y la píldora— y el nombre,
-         que es el dato que el chofer busca con la vista, iba segundo; el
-         importe competía con el id en la esquina. Ahora: fila 1 el cliente
-         con el id chico a la derecha; fila 2 UNA línea de contexto (estado,
-         fecha, líneas en escritorio, importe); después la nota, las acciones
-         y la fila de mover la entrega, que no cambian. #}
-      {# "Vencido" no es un estado de la tabla: es fecha_entrega pasada con
-         el pedido aún sin facturar. La guía lo muestra como un estado más
-         porque para el vendedor lo es.
-         La exclusión es `entregado`, no `facturado`: un facturado que
-         todavía no salió y tiene la entrega vencida SIGUE necesitando la
-         alerta — facturar no es entregar. #}
-      {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}
+{# Cuerpo de la tarjeta de un pedido. Vive en su propio parcial porque lo usan
+   la lista (_pedidos_resultados) y el tablero (_pedidos_tablero), y son la
+   misma tarjeta. Depende del contexto: `pedido`, `hoy_local` y `url_actual`.
+
+   Estructura «la tarjeta es el botón» (variante C, elegida por JM el
+   2026-10-13 sobre la página de exploración):
+
+     fila 1   el CLIENTE, con el id chico a la derecha y el «⋯» de más acciones
+     fila 2   una línea de contexto: estado · fecha · líneas · importe
+     nota     si la hay
+     acción   UNA, a lo ancho y de 56px (medida de guante): «Pesar este
+              pedido», «Facturar en QuickBooks», «Marcar entregado»
+     ⋯        lo demás —mover la entrega, editar, eliminar, factura PDF,
+              revisar precios, deshacer— se despliega bajo la tarjeta al
+              tocar el «⋯». Un <details> y no JS: sobrevive a la lista que se
+              reinyecta por fetch y funciona sin script.
+
+   Antes la tarjeta llevaba cinco filas con todos los controles a la vista
+   (acción + dos iconos + Hoy/Mañana/fecha). Lo frecuente es pesar, facturar
+   o entregar: eso es lo único que queda a un toque. #}
+{# "Vencido" no es un estado de la tabla: es fecha_entrega pasada con el
+   pedido aún sin entregar. La exclusión es `entregado`, no `facturado`: un
+   facturado que todavía no salió y tiene la entrega vencida SIGUE
+   necesitando la alerta — facturar no es entregar. #}
+{% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}
+{# `entregado` también es terminal (PEDIDO_INMUTABLE = facturado + entregado):
+   editar y mover la entrega los rechaza la ruta. #}
+{% set puede_editar   = pedido.estado not in ('facturado', 'entregado') %}
+{% set puede_facturar = pedido.estado == 'preparado' %}
+{% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
+{# La factura NO se pierde al entregar: `entregado` es un `facturado` que
+   además ya salió. Ambas rutas abortan 404 sin invoice_id_qbo. #}
+{% set tiene_factura  = pedido.estado in ('facturado', 'entregado') and pedido.invoice_id_qbo %}
+{# Entregar y deshacer cubren el MISMO conjunto a propósito: todo pedido al
+   que esta tarjeta le ofrece «Marcar entregado» tiene después su «Deshacer». #}
+{% set puede_entregar  = pedido.estado == 'facturado' %}
+{% set puede_deshacer  = pedido.estado == 'entregado' %}
+{% set puede_mover     = pedido.estado not in ('facturado', 'entregado') %}
+{% set tiene_mas = puede_mover or puede_editar or puede_eliminar or tiene_factura or puede_deshacer %}
+
       <div class="pc-top">
         <div class="pc-main">
-          {# `title` con el nombre completo: en escritorio —donde trabaja el
-             supervisor— aparece al pasar el mouse, y no cuesta nada. #}
+          {# `title` con el nombre completo: en escritorio aparece al pasar el
+             mouse, y no cuesta nada. En el teléfono el nombre va en dos
+             líneas como techo (CSS). #}
           <a class="pc-client" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
              title="{{ pedido.cliente.nombre if pedido.cliente else 'Sin cliente' }}">
             {{ pedido.cliente.nombre if pedido.cliente else '—' }}<span class="sr-only"> — abrir el pedido PED-{{ pedido.id }}</span>
@@ -28,16 +51,15 @@
         <span class="pc-id">PED-{{ pedido.id }}</span>
       </div>
 
-      {# La línea de contexto: qué estado, para cuándo, cuánto.
-         La píldora dice SIEMPRE el estado real, también cuando está vencido;
-         el atraso lo dicen la barra lateral y el «· N d tarde». #}
+      {# La línea de contexto: qué estado, para cuándo, cuánto. El estado va
+         SIEMPRE con palabra (regla del estado reservado: nunca solo color),
+         también cuando está vencido; el atraso lo dicen la barra lateral y
+         el «· N d tarde». #}
       <div class="pc-contexto">
         <span class="status-pill {{ (pedido.estado or '')|lower }}{% if vencido %} esta-vencido{% endif %}">{{ pedido.estado }}</span>
-        {# La ENTREGA manda sobre la fecha del pedido: al vendedor le importa
-           cuándo hay que llevarlo, no cuándo se tomó. Los pedidos históricos
-           no tienen fecha_entrega, así que se cae a fecha_pedido y se dice
-           cuál es cuál. La palabra «entrega» se esconde bajo 420px por CSS
-           (el icono del camión y el sr-only la mantienen). #}
+        {# La ENTREGA manda sobre la fecha del pedido. Los históricos no tienen
+           fecha_entrega, así que se cae a fecha_pedido y se dice cuál es cuál.
+           La palabra «entrega» se recorta bajo 420px (CSS); el camión queda. #}
         {% if pedido.fecha_entrega %}
         <span class="pc-fecha" title="Entrega {{ pedido.fecha_entrega.strftime('%d/%m/%Y') }}">
           <i class="fas fa-truck" aria-hidden="true"></i>
@@ -52,10 +74,12 @@
           <i class="fas fa-calendar" aria-hidden="true"></i> pedido {{ pedido.fecha_pedido.strftime('%d/%m') }}
         </span>
         {% endif %}
-        {# Las líneas solo en escritorio (CSS): en el teléfono no deciden
-           nada y le quitaban sitio a la fecha y al importe. #}
+        {# Las líneas solo en escritorio (CSS). #}
         {% if pedido.detalles is defined and pedido.detalles %}
         <span class="pc-lineas"><i class="fas fa-boxes" aria-hidden="true"></i> {{ pedido.detalles|length }} líneas</span>
+        {% endif %}
+        {% if tiene_factura %}
+        <span class="invoice-id-chip" title="QuickBooks Invoice">Fact. {{ pedido.doc_number_qbo or pedido.invoice_id_qbo }}</span>
         {% endif %}
         <span class="pc-amt">
           {{ '{:,.2f}'.format(pedido.total_calculado or 0) }}
@@ -63,17 +87,8 @@
         </span>
       </div>
 
-      {# Estado, metadatos y acciones en UNA fila. Antes el pie era un panel
-         gris aparte —herencia de cuando la tarjeta era un <a> y el parser
-         expulsaba el .pc-foot afuera—, y sumaba ~90px por tarjeta. Con los 910
-         pedidos de producción facturados y sin invoice_id_qbo, ese panel
-         quedaba VACÍO en toda la lista salvo por la píldora. #}
-      {# La nota, LEGIBLE. Era un icono de 13px cuyo title decía solamente «Este
-         pedido tiene una nota»: en el teléfono —el aparato donde se reparte— el
-         contenido era inalcanzable sin abrir el pedido, así que «entregar antes
-         de las 10» se enteraba el chofer cuando ya estaba en la puerta. En
-         escritorio el texto siempre se vio; era el dispositivo primario el que
-         no lo tenía. Cuesta una línea, y solo en los pedidos que sí tienen nota. #}
+      {# La nota, LEGIBLE y en la tarjeta: «entregar antes de las 10» se tiene
+         que ver antes de salir, no al abrir el pedido. Dos líneas como techo. #}
       {% if pedido.notas %}
       <p class="pc-nota">
         <i class="fa-solid fa-note-sticky" aria-hidden="true"></i>
@@ -82,237 +97,143 @@
       </p>
       {% endif %}
 
-      {# `entregado` también es terminal: la ruta editar_pedido rechaza
-         cualquier estado en PEDIDO_INMUTABLE (`_pedido_es_inmutable`, ambos
-         `facturado` y `entregado`) porque ya salió a QuickBooks. Comparar
-         solo contra `facturado` dejaba pasar el ícono de Editar sobre un
-         entregado; la ruta lo rechazaba igual, así que solo hacía rebotar
-         al vendedor. Se compara contra los dos estados en línea, como el
-         `vencido` de arriba, en vez de exponer el helper de Python al
-         contexto — no hay otro uso de `_pedido_es_inmutable` en templates
-         y esta plantilla ya decide todo con `pedido.estado` directo. #}
-      {% set puede_editar   = pedido.estado not in ('facturado', 'entregado') %}
-      {% set puede_facturar = pedido.estado == 'preparado' %}
-      {% set puede_eliminar = pedido.estado in ['pendiente', 'preparado'] %}
-      {# La factura NO se pierde al entregar. `entregado` es un `facturado` que
-         además ya salió: su factura sigue existiendo en QuickBooks y sigue
-         siendo lo que el cliente reclama en la puerta. Comparar solo contra
-         `facturado` le sacaba «Factura PDF» y «Revisar precios» a la tarjeta
-         —o sea al teléfono, donde el share-sheet del PDF es el ÚNICO camino a
-         la factura dentro de la PWA— mientras la tabla de escritorio
-         (`_pedidos_resultados.html`) sí las mostraba. Dos pantallas del mismo
-         pedido no pueden ofrecer cosas distintas, y la que perdía era la del
-         chofer. #}
-      {% set tiene_factura  = pedido.estado in ('facturado', 'entregado') and pedido.invoice_id_qbo %}
-      {# Entregar y deshacer cubren el MISMO conjunto a propósito: todo pedido
-         al que esta tarjeta le dibuja «Entregado» tiene después su «Deshacer»
-         en la misma tarjeta.
-         Antes `puede_deshacer` exigía además `fecha_entrega == hoy_local`, y
-         eso abría un callejón sin salida justo en el caso que esta rama vino a
-         hacer visible: el facturado ATRASADO. La tarjeta le ofrecía
-         «Entregado» en Atrasados y en Próximos, pero al tocarlo el pedido ya
-         no cumplía la condición del deshacer y el botón no se dibujaba nunca
-         más. Un toque irreversible, en un teléfono, con una mano, en la calle.
-         Se acota el deshacer por el estado y nada más —igual que la ruta, que
-         tampoco tiene ventana horaria— en vez de acotar el entregar, porque
-         acotar el entregar sería devolverle la invisibilidad al atrasado.
-         El costo es un ícono de más en las filas del archivo; deshacer vuelve
-         a `facturado` y es reversible, así que es el lado barato del error. #}
-      {% set puede_entregar  = pedido.estado == 'facturado' %}
-      {% set puede_deshacer  = pedido.estado == 'entregado' %}
-      {% set tiene_acciones = puede_editar or puede_facturar or puede_eliminar or tiene_factura or puede_entregar or puede_deshacer %}
-
+      {# LA acción. Una sola, a lo ancho, con verbo y objeto: dice qué pasa al
+         tocarla. Es lo único que la tarjeta ofrece a un toque; el resto va
+         detrás del «⋯». Sin data-stop-propagation: el handler de la tarjeta
+         ya ignora los clics sobre a/button/form, y stopPropagation mataría la
+         delegación de data-confirm y data-factura-share. #}
       <div class="pc-foot">
-        {# SIN data-stop-propagation.
-           base.js lo implementa como `ev.stopPropagation()` sobre el elemento,
-           y eso mata TODA delegación en document dentro del contenedor: el
-           clic en "Factura PDF" moría acá y nunca llegaba al handler de
-           `data-factura-share`. Por eso el PDF andaba desde el detalle del
-           pedido —donde no hay este contenedor— y no desde el listado.
-
-           Es innecesario además: el handler de navegación de la tarjeta ya
-           ignora los clics sobre `a, button, form, input, label`, así que
-           tocar un botón no abre el detalle igual. El borrado nunca se vio
-           afectado porque `data-confirm` se delega sobre `submit`. #}
-        {% if tiene_acciones %}
         <div class="pc-actions">
-          {# La acción principal de la tarjeta, CON palabra: la guía solo deja
-             iconos sin etiqueta para cerrar, volver, deshacer y borrar. Un
-             pedido pendiente se va a pesar; uno preparado, a facturar. Es lo
-             que el vendedor viene a hacer desde la lista. #}
           {% if pedido.estado == 'pendiente' %}
             {% if pedido.tiene_pesables %}
             <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
-               class="pc-action-main" aria-label="Pesar pedido PED-{{ pedido.id }}">
-              <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar
+               class="pc-action-main pc-go" aria-label="Pesar pedido PED-{{ pedido.id }}">
+              <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar este pedido
             </a>
             {% else %}
-            {# Sin nada que pesar no queda trabajo que capturar: las líneas de
-               preparación se crean solas al alta/edición y la validación solo
-               pide lote y fechas para pesables. Falta confirmarlo, y eso vive
-               en el detalle con su aviso. El botón LLEVA ahí; no cambia el
-               estado desde una lista que scrollea bajo el pulgar. #}
+            {# Sin nada que pesar no queda trabajo que capturar; falta
+               confirmarlo, y eso vive en el detalle con su aviso. #}
             <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-               class="pc-action-main" aria-label="Preparar pedido PED-{{ pedido.id }}">
-              <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Preparar
+               class="pc-action-main pc-go" aria-label="Preparar pedido PED-{{ pedido.id }}">
+              <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Preparar este pedido
             </a>
             {% endif %}
           {% endif %}
           {% if puede_facturar %}
-          {# Facturar es la única acción irreversible de la pantalla —crea la
-             factura del cliente en QuickBooks— y estaba a 8px del tacho sin
-             ningún aviso, mientras que eliminar (recuperable) sí confirmaba.
-             El `data-confirm` va en el <form> y NO en el <button>: base.js
-             delega sobre `submit`, donde `e.target` ya es el formulario, así
-             que un atributo en el botón no se lee nunca. Estuvo en el botón y
-             por eso facturaba sin preguntar. #}
+          {# Facturar es la única acción irreversible de la pantalla: crea la
+             factura en QuickBooks. El `data-confirm` va en el <form>, que es
+             donde base.js lo lee (delega sobre `submit`). #}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form pc-action-form-main"
                 data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-            <button type="submit" class="pc-action-main"
+            <button type="submit" class="pc-action-main pc-go"
                     data-submit-label="Facturando…"
                     aria-label="Facturar pedido PED-{{ pedido.id }}">
-              <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar
+              <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar en QuickBooks
             </button>
           </form>
           {% endif %}
-          {# La acción del chofer. Solo sobre un facturado: la ruta rechaza
-             cualquier otro estado, así que el botón en un pendiente solo
-             serviría para hacerlo rebotar. #}
           {% if puede_entregar %}
           <form action="{{ url_for('entregar_pedido', pedido_id=pedido.id) }}" method="POST"
                 class="pc-action-form pc-action-form-main">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-            <button type="submit" class="pc-action-main"
+            <button type="submit" class="pc-action-main pc-go"
                     aria-label="Marcar PED-{{ pedido.id }} como entregado">
-              <i class="fa-solid fa-truck" aria-hidden="true"></i> Entregado
+              <i class="fa-solid fa-truck" aria-hidden="true"></i> Marcar entregado
             </button>
           </form>
-          {% endif %}
-          {# Deshacer. Se dibuja en todo `entregado`, para que ninguna tarjeta
-             que ofreció «Entregado» se quede sin vuelta atrás (ver el porqué
-             largo arriba, en `puede_deshacer`). #}
-          {% if puede_deshacer %}
-          <form action="{{ url_for('deshacer_entrega_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-            <button type="submit" class="pc-action-btn" title="Deshacer la entrega"
-                    aria-label="Deshacer la entrega de PED-{{ pedido.id }}">
-              <i class="fa-solid fa-rotate-left"></i>
-            </button>
-          </form>
-          {% endif %}
-          {# Editar queda como icono aunque la guía pida palabra: el detalle del
-             pedido NO ofrece editar ni eliminar, así que sacarlos de acá los
-             dejaría inalcanzables. Es una regresión funcional, no un cambio de
-             estilo, y no corresponde meterla en un cambio de piel. #}
-          {% if puede_editar %}
-          <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
-             class="pc-action-btn edit" title="Editar" aria-label="Editar pedido PED-{{ pedido.id }}">
-            <i class="fa fa-edit"></i>
-          </a>
-          {% endif %}
-          {% if puede_eliminar %}
-          <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form"
-                data-confirm="Se eliminará PED-{{ pedido.id }} de {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }}{% if pedido.estado == 'preparado' %}, que ya está PREPARADO y puede tener pesos registrados{% endif %}. No se puede deshacer y no queda rastro. ¿Eliminarlo?"
-                >
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-            <button type="submit" class="pc-action-btn danger" title="Eliminar"
-                    aria-label="Eliminar pedido PED-{{ pedido.id }}">
-              <i class="fa fa-trash"></i>
-            </button>
-          </form>
-          {% endif %}
-          {# Un pedido facturado no tenía ninguna acción en el listado, y como en
-             producción todos los pedidos terminan facturados, la lista quedaba de
-             solo lectura. Estas dos son las que se usan sobre una factura ya
-             emitida. Ambas rutas abortan 404 sin invoice_id_qbo, así que se
-             condicionan a que exista. #}
-          {% if tiene_factura %}
-          <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
-             class="pc-action-btn" title="Revisar precios contra la factura"
-             aria-label="Revisar precios del pedido #{{ pedido.id }}">
-            <i class="fa-solid fa-tags"></i>
-          </a>
-          <button type="button" class="pc-action-btn"
-                  data-factura-share
-                  data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
-                  data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf"
-                  title="Factura PDF" aria-label="Factura PDF del pedido #{{ pedido.id }}">
-            <i class="fa-solid fa-file-invoice"></i>
-          </button>
-          <span class="invoice-id-chip" title="QuickBooks Invoice">{{ pedido.invoice_id_qbo }}</span>
           {% endif %}
         </div>
-        {% endif %}
       </div>
 
-      {# Mover la entrega SIN abrir el pedido.
-         El tablero agrupa por `fecha_entrega`, y hasta ahora la única puerta
-         para cambiarla era el formulario de 4 pasos —que además recotiza los
-         precios—. En la operación los pedidos se corren de día varias veces
-         por semana, así que esa puerta era demasiado cara y las fechas
-         envejecían: el tablero mostraba en «Atrasados» cosas que en realidad
-         se habían acordado para el jueves.
+      {# Lo demás, detrás del «⋯». El <summary> se pinta arriba a la derecha
+         de la tarjeta (CSS, position:absolute) y el panel se despliega bajo
+         la acción, en el flujo: nada flota ni se recorta. #}
+      {% if tiene_mas %}
+      <details class="pc-mas">
+        <summary class="pc-mas-btn" aria-label="Más acciones para PED-{{ pedido.id }}" title="Más acciones">
+          <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+        </summary>
+        <div class="pc-menu">
+          {# Mover la entrega SIN abrir el pedido: el tablero agrupa por
+             `fecha_entrega` y en la operación los pedidos se corren de día
+             varias veces por semana. Los botones son submits de ESTE
+             formulario y mandan `atajo`; la ruta le da prioridad al atajo.
+             `data-autosubmit` lo maneja base.js sobre `change` delegado en
+             document, así que también funciona en lo que reinyecta el fetch. #}
+          {% if puede_mover %}
+          <form class="pc-entrega" method="POST"
+                action="{{ url_for('mover_entrega_pedido', pedido_id=pedido.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
+            <span class="pc-entrega-label">
+              <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+              <span class="pc-entrega-label-txt">entregar</span>
+              <span class="sr-only">Mover la entrega de PED-{{ pedido.id }}</span>
+            </span>
+            {# El botón del día que el pedido YA tiene no se dibuja. #}
+            {% if pedido.fecha_entrega != hoy_local %}
+            <button type="submit" name="atajo" value="hoy" class="pc-entrega-btn"
+                    aria-label="Entregar PED-{{ pedido.id }} hoy">Hoy</button>
+            {% endif %}
+            {# Resta de fechas y no timedelta: Jinja no tiene los builtins. #}
+            {% if not pedido.fecha_entrega or (pedido.fecha_entrega - hoy_local).days != 1 %}
+            <button type="submit" name="atajo" value="manana" class="pc-entrega-btn"
+                    aria-label="Entregar PED-{{ pedido.id }} mañana">Mañana</button>
+            {% endif %}
+            <input type="date" name="fecha" class="pc-entrega-fecha" data-autosubmit
+                   value="{{ pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else '' }}"
+                   aria-label="Elegir el día de entrega de PED-{{ pedido.id }}">
+          </form>
+          {% endif %}
 
-         Va en fila propia y no dentro de `.pc-actions` porque ese pie ya
-         peleó por los 375px del teléfono, y ahí adentro competiría con
-         «Pesar»/«Facturar», que son a lo que el vendedor viene.
-
-         Visible y no escondida detrás de un toque: mover fechas es la
-         operación del día, no la excepción.
-
-         Los botones son submits de ESTE formulario, así que mandan `atajo`
-         junto con el `fecha` del selector; la ruta le da prioridad al atajo.
-
-         Un facturado no la lleva: ese trabajo cerró y la ruta lo rechaza, así
-         que el control solo serviría para hacer rebotar al vendedor.
-
-         Tampoco un entregado: mover_entrega_pedido rechaza con
-         `_pedido_es_inmutable` (PEDIDO_INMUTABLE = facturado + entregado),
-         por la misma razón que un facturado — ya salió a QuickBooks. Sin
-         esto, la tarjeta de un entregado mostraba «entregar [Mañana]
-         [fecha]» y no hacía nada: verificado en el navegador. #}
-      {% if pedido.estado not in ('facturado', 'entregado') %}
-      <form class="pc-entrega" method="POST"
-            action="{{ url_for('mover_entrega_pedido', pedido_id=pedido.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-        {# El icono queda siempre; la PALABRA se esconde bajo 420px por CSS.
-           Medido a 375px: con «entregar» completo la fila necesita 348px en los
-           315 disponibles y se parte en dos, sumando 40px a cada tarjeta del
-           teléfono, que es el aparato donde se reparte. El `sr-only` mantiene
-           el rótulo para lector de pantalla en los dos tamaños, y cada control
-           lleva su propio `aria-label`. #}
-        <span class="pc-entrega-label">
-          <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
-          <span class="pc-entrega-label-txt">entregar</span>
-          <span class="sr-only">Mover la entrega de PED-{{ pedido.id }}</span>
-        </span>
-        {# El botón del día que el pedido YA tiene no se dibuja: ofrecer «Hoy»
-           a algo que ya es de hoy es una acción que no hace nada. #}
-        {% if pedido.fecha_entrega != hoy_local %}
-        <button type="submit" name="atajo" value="hoy" class="pc-entrega-btn"
-                aria-label="Entregar PED-{{ pedido.id }} hoy">Hoy</button>
-        {% endif %}
-        {# La resta de fechas y no `hoy_local + timedelta(days=1)`: Jinja no
-           tiene los builtins de Python, así que `timedelta` acá adentro es un
-           500 —y solo en las tarjetas que se dibujan, o sea en producción—. #}
-        {% if not pedido.fecha_entrega or (pedido.fecha_entrega - hoy_local).days != 1 %}
-        <button type="submit" name="atajo" value="manana" class="pc-entrega-btn"
-                aria-label="Entregar PED-{{ pedido.id }} mañana">Mañana</button>
-        {% endif %}
-        {# `data-autosubmit` lo maneja base.js sobre `change` delegado en
-           document, así que también funciona en las tarjetas que la búsqueda
-           reinyecta por fetch. #}
-        <input type="date" name="fecha" class="pc-entrega-fecha" data-autosubmit
-               value="{{ pedido.fecha_entrega.isoformat() if pedido.fecha_entrega else '' }}"
-               aria-label="Elegir el día de entrega de PED-{{ pedido.id }}">
-      </form>
+          <div class="pc-menu-filas">
+            {% if tiene_factura %}
+            <button type="button" class="pc-menu-item"
+                    data-factura-share
+                    data-factura-url="{{ url_for('factura_pdf', pedido_id=pedido.id) }}"
+                    data-factura-nombre="Factura_{{ pedido.doc_number_qbo or pedido.id }}.pdf"
+                    aria-label="Factura PDF del pedido #{{ pedido.id }}">
+              <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Factura PDF
+            </button>
+            <a href="{{ url_for('revisar_precios_factura', pedido_id=pedido.id) }}"
+               class="pc-menu-item" aria-label="Revisar precios del pedido #{{ pedido.id }}">
+              <i class="fa-solid fa-tags" aria-hidden="true"></i> Revisar precios
+            </a>
+            {% endif %}
+            {% if puede_deshacer %}
+            <form action="{{ url_for('deshacer_entrega_pedido', pedido_id=pedido.id) }}" method="POST"
+                  class="pc-action-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
+              <button type="submit" class="pc-menu-item"
+                      aria-label="Deshacer la entrega de PED-{{ pedido.id }}">
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Deshacer la entrega
+              </button>
+            </form>
+            {% endif %}
+            {% if puede_editar %}
+            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
+               class="pc-menu-item" aria-label="Editar pedido PED-{{ pedido.id }}">
+              <i class="fa fa-edit" aria-hidden="true"></i> Editar el pedido
+            </a>
+            {% endif %}
+            {% if puede_eliminar %}
+            <form action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" method="POST"
+                  class="pc-action-form"
+                  data-confirm="Se eliminará PED-{{ pedido.id }} de {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }}{% if pedido.estado == 'preparado' %}, que ya está PREPARADO y puede tener pesos registrados{% endif %}. No se puede deshacer y no queda rastro. ¿Eliminarlo?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
+              <button type="submit" class="pc-menu-item pc-menu-item-danger"
+                      aria-label="Eliminar pedido PED-{{ pedido.id }}">
+                <i class="fa fa-trash" aria-hidden="true"></i> Eliminar el pedido
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </details>
       {% endif %}

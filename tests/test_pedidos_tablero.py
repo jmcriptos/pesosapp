@@ -842,3 +842,61 @@ def test_en_el_telefono_las_lineas_no_se_dibujan_y_las_tarjetas_miden_igual():
         r'\.pc-contexto \.pc-lineas\s*\{\s*display:\s*none;', css
     )
     assert re.search(r'\.pedidos-list\s*\{\s*padding:\s*0\s*!important;', css)
+
+
+# ── La tarjeta es el botón (variante C) ──────────────────────────────────────
+
+def test_la_tarjeta_ofrece_una_sola_accion_a_lo_ancho(logged_client):
+    """Una acción visible por tarjeta, con verbo y objeto. Lo demás va
+    detrás del «⋯» (un <details>, sin JS)."""
+    import re
+    from app import Producto, DetallePedido, db as _db
+    from decimal import Decimal
+    p = _crear('pendiente', dias=0)
+    prod = Producto(nombre='Pesable', temperatura='-18°C', se_pesa=True,
+                    tax_rate=10.0, qbo_id='Q-C')
+    _db.session.add(prod); _db.session.flush()
+    _db.session.add(DetallePedido(pedido_id=p.id, producto_id=prod.id, cajas=1,
+                                  cajas_pedidas=1, peso=0, precio_unitario=Decimal('10'),
+                                  subtotal=Decimal('10'), es_linea_pedido=True))
+    _db.session.commit()
+    _crear('preparado', dias=0)
+    _crear('facturado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert '> Pesar este pedido' in html
+    assert '> Facturar en QuickBooks' in html
+    assert '> Marcar entregado' in html
+    assert html.count('class="pc-action-main pc-go"') == 3
+    # Nada más a la vista: editar, eliminar y mover la entrega viven en el panel.
+    assert 'pc-action-btn' not in html
+    for tarjeta in re.findall(r'<details class="pc-mas">(.*?)</details>', html, re.S):
+        assert 'pc-menu' in tarjeta
+
+
+def test_el_panel_de_mas_lleva_lo_que_salio_de_la_tarjeta(logged_client):
+    import re
+    p = _crear('pendiente', dias=0)
+    f = _crear('entregado', dias=0)
+    f.invoice_id_qbo = '77'; f.doc_number_qbo = '1077'
+    from app import db as _db
+    _db.session.commit()
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    paneles = re.findall(r'<details class="pc-mas">(.*?)</details>', html, re.S)
+    assert len(paneles) == 2
+    pendiente = next(x for x in paneles if f'/pedidos/{p.id}/' in x or f'PED-{p.id}' in x)
+    assert 'pc-entrega' in pendiente and 'name="atajo"' in pendiente
+    assert 'Editar el pedido' in pendiente and 'Eliminar el pedido' in pendiente
+    entregado = next(x for x in paneles if x is not pendiente)
+    assert 'Factura PDF' in entregado and 'Revisar precios' in entregado
+    assert 'Deshacer la entrega' in entregado and 'fa-rotate-left' in entregado
+    assert 'pc-entrega' not in entregado, 'un entregado no se mueve de día'
+    assert 'Fact. 1077' in html, 'el número de factura va con palabra en la línea de contexto'
+
+
+def test_el_toque_sobre_el_menu_no_abre_el_pedido():
+    """La tarjeta entera navega al detalle, salvo lo que se toca dentro del
+    <details>. Y el cierre del «⋯» anterior tiene que estar ANTES del
+    `return` del tablero, si no solo valdría en el modo lista."""
+    html = open('templates/pedidos.html', encoding='utf-8').read()
+    assert html.count("if (event.target.closest('details')) return;") == 2
+    assert html.index("addEventListener('toggle'") < html.index('var enTablero')
