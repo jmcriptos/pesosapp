@@ -1859,3 +1859,77 @@ body[data-pedidos-list-screen] .pc-client {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+
+/* 4. La parte alta de la pantalla en UNA fila.
+   Medido a 390px: hero de 68px («Pedidos» a 28px + «Nuevo») y buscador de
+   52px debajo, con sus márgenes, dejaban el primer grupo en y=244 y solo dos
+   tarjetas en la primera pantalla. Y «Nuevo» aparecía dos veces en la misma
+   pantalla: en el hero y en la barra inferior.
+
+   Ahora título, buscador y «Nuevo» comparten fila. El título baja al rol
+   Screen de la guía (20px/600): sigue nombrando la pantalla, pero deja de
+   competir con los títulos de grupo, que son los que organizan el contenido.
+   Bajo 1024px —donde la barra inferior existe y ya tiene «Nuevo»— el botón
+   del hero se esconde; en escritorio, sin barra, se queda a la derecha. */
+body[data-pedidos-list-screen] .hero {
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 10px !important;
+}
+
+body[data-pedidos-list-screen] .hero .hero-title {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+/* Gana a `body[data-pedidos-list-screen] form.filter-bar` (pedidos_inline.css)
+   por el `.hero` de más en el selector; de ahí los !important espejados. */
+body[data-pedidos-list-screen] .hero form.filter-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+body[data-pedidos-list-screen] .hero .search-pill {
+  margin: 0;
+  height: var(--touch-min, 48px);
+}
+
+@media (max-width: 1023px) {
+  body[data-pedidos-list-screen] .hero .btn-nuevo-pedido {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  body[data-pedidos-list-screen] .hero .hero-title {
+    font-size: 1.5rem !important;
+  }
+
+  body[data-pedidos-list-screen] .hero form.filter-bar {
+    max-width: 440px;
+  }
+
+  body[data-pedidos-list-screen] .hero .btn-nuevo-pedido {
+    margin-left: auto;
+  }
+}
+
+/* El selector de fecha se adapta al ancho que queda, no al revés.
+   Con los botones a 48px la fila mide 302px de contenido; en el tablero la
+   tarjeta le da 332px y entra, pero en el modo lista (`?estado=todos`) la
+   tarjeta es 34px más angosta y la fila se partía en dos renglones —medido
+   a 390px: «Hoy» y «Mañana» arriba, la fecha sola abajo, 48px más por
+   tarjeta—. El `min-width: 132px` fijo del selector era el culpable: pasa a
+   crecer y encoger con un piso de 110px, que en iOS sigue dejando un
+   objetivo táctil cómodo y el texto despegado del borde. */
+body[data-pedidos-list-screen] .pc-entrega input.pc-entrega-fecha {
+  flex: 1 1 120px;
+  min-width: 110px;
+  max-width: 176px;
+}

@@ -10,13 +10,16 @@
 
 {% block content %}
 <div class="app-shell">
+  {# Título, buscador y «Nuevo» en UNA fila.
+     Medido a 390px: el hero (68px) y el buscador debajo (52px) dejaban el
+     primer grupo en y=244 y solo DOS tarjetas en la primera pantalla. Y
+     «Nuevo» estaba dos veces: acá y en la barra inferior, a 600px de
+     distancia. Ahora el buscador comparte fila con el título, y bajo 1024px
+     —donde la barra inferior existe— el «Nuevo» del hero se esconde por CSS
+     (el enlace se queda en el HTML para escritorio, que no tiene barra). El
+     primer grupo sube a ~y=130 y entran tres tarjetas. #}
   <header class="hero">
     <h1 class="hero-title">Pedidos</h1>
-    <a href="{{ url_for('nuevo_pedido') }}" class="hero-action btn-nuevo-pedido">
-      <i class="fa-solid fa-plus"></i>
-      <span>Nuevo</span>
-    </a>
-  </header>
 
   {# Toolbar: búsqueda. Single GET form, se submit cuando el usuario presiona
      Enter (con JS la búsqueda es en vivo y el submit se intercepta). #}
@@ -39,6 +42,12 @@
     <input type="hidden" name="orden" id="pedidos-orden" value="{{ filtros.orden or '' }}">
     {% if filtros.solo_notas %}<input type="hidden" name="solo_notas" value="1">{% endif %}
   </form>
+
+    <a href="{{ url_for('nuevo_pedido') }}" class="hero-action btn-nuevo-pedido">
+      <i class="fa-solid fa-plus"></i>
+      <span>Nuevo</span>
+    </a>
+  </header>
 
   {% if modo_tablero %}
   {% include '_pedidos_tablero.html' %}

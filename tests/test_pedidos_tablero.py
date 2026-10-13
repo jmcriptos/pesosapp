@@ -737,3 +737,22 @@ def test_el_nombre_del_cliente_se_lee_en_dos_lineas():
     # La regla nueva tiene que ir DESPUÉS de la vieja (nowrap + ellipsis) para
     # ganarle a igual especificidad.
     assert css.find('text-overflow: ellipsis') < bloque.start()
+
+
+def test_el_buscador_comparte_fila_con_el_titulo(logged_client):
+    """Título, buscador y «Nuevo» van en un solo `<header class="hero">`:
+    medido a 390px, el hero de 68px más el buscador de 52px debajo dejaban
+    el primer grupo en y=244 y solo dos tarjetas en la primera pantalla.
+    Ahora el primer grupo arranca en y=140 y entran tres."""
+    import re
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    hero = re.search(r'<header class="hero">(.*?)</header>', html, re.S)
+    assert hero, 'falta el hero'
+    assert 'class="filter-bar"' in hero.group(1), 'el buscador salió del hero'
+    assert 'btn-nuevo-pedido' in hero.group(1), 'escritorio no tiene barra inferior: «Nuevo» tiene que seguir en el hero'
+    css = _css_pedidos()
+    assert re.search(
+        r'@media \(max-width: 1023px\)\s*\{\s*body\[data-pedidos-list-screen\] '
+        r'\.hero \.btn-nuevo-pedido\s*\{\s*display:\s*none\s*!important;', css
+    ), 'bajo 1024px la barra inferior ya tiene «Nuevo»: el del hero se esconde'
