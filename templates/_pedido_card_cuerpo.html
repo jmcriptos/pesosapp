@@ -211,14 +211,14 @@
               <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
               <button type="submit" class="pc-menu-item"
                       aria-label="Deshacer la entrega de PED-{{ pedido.id }}">
-                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Deshacer la entrega
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Deshacer entrega
               </button>
             </form>
             {% endif %}
             {% if puede_editar %}
             <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}"
                class="pc-menu-item" aria-label="Editar pedido PED-{{ pedido.id }}">
-              <i class="fa fa-edit" aria-hidden="true"></i> Editar el pedido
+              <i class="fa fa-edit" aria-hidden="true"></i> Editar
             </a>
             {% endif %}
             {% if puede_eliminar %}
@@ -229,7 +229,7 @@
               <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
               <button type="submit" class="pc-menu-item pc-menu-item-danger"
                       aria-label="Eliminar pedido PED-{{ pedido.id }}">
-                <i class="fa fa-trash" aria-hidden="true"></i> Eliminar el pedido
+                <i class="fa fa-trash" aria-hidden="true"></i> Eliminar
               </button>
             </form>
             {% endif %}
