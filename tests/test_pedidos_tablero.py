@@ -885,10 +885,10 @@ def test_el_panel_de_mas_lleva_lo_que_salio_de_la_tarjeta(logged_client):
     assert len(paneles) == 2
     pendiente = next(x for x in paneles if f'/pedidos/{p.id}/' in x or f'PED-{p.id}' in x)
     assert 'pc-entrega' in pendiente and 'name="atajo"' in pendiente
-    assert 'Editar el pedido' in pendiente and 'Eliminar el pedido' in pendiente
+    assert '> Editar' in pendiente and '> Eliminar' in pendiente
     entregado = next(x for x in paneles if x is not pendiente)
     assert 'Factura PDF' in entregado and 'Revisar precios' in entregado
-    assert 'Deshacer la entrega' in entregado and 'fa-rotate-left' in entregado
+    assert 'Deshacer entrega' in entregado and 'fa-rotate-left' in entregado
     assert 'pc-entrega' not in entregado, 'un entregado no se mueve de día'
     assert 'Fact. 1077' in html, 'el número de factura va con palabra en la línea de contexto'
 
