@@ -1333,6 +1333,26 @@ body[data-pedidos-list-screen] .tablero-cuenta {
   color: var(--color-text-muted);
 }
 
+/* El avance del día, pegado al título de «Hoy». Peso normal y gris medio:
+   es contexto, no otro encabezado. `margin-left:auto` lo manda al borde
+   derecho para que la cuenta del grupo (que sí es parte del título) no se
+   confunda con él. Al cerrar el día cambia a verde de conforme: es la única
+   línea de la pantalla que celebra algo, y se la ganó. */
+body[data-pedidos-list-screen] .tablero-avance {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body[data-pedidos-list-screen] .tablero-avance-completo {
+  color: #065f46;
+}
+
 /* Atrasados es el único grupo que se pinta: es el único que significa
    «esto ya se pasó de fecha». Si se pintaran todos, ninguno destacaría. */
 body[data-pedidos-list-screen] .tablero-grupo-atrasados .tablero-titulo {
@@ -1534,11 +1554,26 @@ body[data-pedidos-list-screen] .filters button.filter-pill.is-active .filter-pil
    Sin esto, dos tercios del recorrido son tarjetas sin contexto. */
 body[data-pedidos-list-screen] .tablero-titulo {
   position: sticky;
-  top: 0;
+  /* Debajo de la barra superior, no debajo de `top: 0`.
+     `.app-topbar` también es sticky (forms.css), mide 48px más el safe-area
+     en el teléfono y 78px desde 1024px, y va con z-index 100/250 contra el 2
+     de este título. Con `top: 0` el título se pegaba exactamente DETRÁS de la
+     barra: medido con `elementFromPoint` en el centro del título a mitad del
+     grupo «Hoy», lo que había arriba era `.mobile-brand-mark` en el teléfono y
+     `.desktop-header-shell` en escritorio. O sea que el sticky, arreglado ya
+     dos veces, seguía sin verse nunca. Mismas medidas que la barra, para que
+     el título asome justo por debajo de ella. */
+  top: calc(48px + env(safe-area-inset-top, 0px));
   z-index: 2;
   background: #f8fafc;
   padding-block: var(--space-2, 8px);
   margin-block: 0 var(--space-2, 8px);
+}
+
+@media (min-width: 1024px) {
+  body[data-pedidos-list-screen] .tablero-titulo {
+    top: 78px;
+  }
 }
 
 

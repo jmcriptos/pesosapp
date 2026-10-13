@@ -544,3 +544,105 @@ def test_el_tablero_corta_en_50_por_grupo(logged_client):
     assert '<span class="tablero-cuenta">55</span>' in html, (
         'el encabezado del grupo miente sobre cuántos pedidos hay'
     )
+
+
+# ── Orden dentro del grupo y avance del día ──────────────────────────────────
+
+def test_dentro_de_hoy_lo_pendiente_va_arriba_y_lo_entregado_al_final():
+    """La consulta ordena por fecha y después por id descendente, y el id no
+    dice nada del trabajo: en «Hoy» —todos con la misma fecha— el orden
+    quedaba al azar del alta y en producción favorecía a lo terminado. Quien
+    abre el tablero busca qué toca ahora, no qué ya salió."""
+    grupos = _agrupar_tablero(
+        [_p('entregado', dias=0, id=9),
+         _p('facturado', dias=0, id=8),
+         _p('preparado', dias=0, id=7),
+         _p('pendiente', dias=0, id=6)],
+        HOY,
+    )
+    assert [p.estado for p in _pedidos_de(grupos, 'hoy')] == [
+        'pendiente', 'preparado', 'facturado', 'entregado',
+    ]
+
+
+def test_la_fecha_sigue_mandando_sobre_la_etapa():
+    """En Atrasados el más atrasado va primero sea cual sea su estado: un
+    facturado de hace una semana es más urgente que un pendiente de ayer."""
+    grupos = _agrupar_tablero(
+        [_p('pendiente', dias=-1, id=1),
+         _p('facturado', dias=-7, id=2)],
+        HOY,
+    )
+    assert [p.id for p in _pedidos_de(grupos, 'atrasados')] == [2, 1]
+
+
+def test_a_fecha_y_etapa_iguales_se_conserva_el_orden_de_la_consulta():
+    """El sort es estable: dos pendientes de hoy quedan como llegaron
+    (id descendente, que es lo que trae el SQL)."""
+    grupos = _agrupar_tablero(
+        [_p('pendiente', dias=0, id=5), _p('pendiente', dias=0, id=3)],
+        HOY,
+    )
+    assert [p.id for p in _pedidos_de(grupos, 'hoy')] == [5, 3]
+
+
+def test_un_estado_desconocido_no_se_hunde():
+    """Ante la duda, arriba, donde se ve: un estado que la tabla no conoce
+    ordena como pendiente, no como entregado."""
+    grupos = _agrupar_tablero(
+        [_p('entregado', dias=0, id=2), _p('raro', dias=0, id=1)],
+        HOY,
+    )
+    assert [p.id for p in _pedidos_de(grupos, 'hoy')] == [1, 2]
+
+
+def test_el_titulo_de_hoy_dice_cuantos_salieron(logged_client):
+    _crear('entregado', dias=0)
+    _crear('pendiente', dias=0)
+    _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert '1 de 3 entregados' in html, 'el título de «Hoy» no muestra el avance'
+
+
+def test_el_titulo_de_hoy_no_afirma_un_cero(logged_client):
+    """«0 de 2 entregados» pone un cero donde todavía no pasó nada."""
+    _crear('pendiente', dias=0)
+    _crear('preparado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'tablero-avance' not in _sin_scripts(html)
+
+
+def test_el_titulo_de_hoy_celebra_el_dia_cerrado(logged_client):
+    _crear('entregado', dias=0)
+    _crear('entregado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'todo entregado' in html
+    assert 'tablero-avance-completo' in html
+
+
+def test_el_avance_es_solo_de_hoy(logged_client):
+    """Atrasados y Próximos no llevan entregados (son archivo fuera de hoy),
+    así que un avance ahí sería siempre «0 de N»: no se dibuja."""
+    _crear('pendiente', dias=-1)
+    _crear('pendiente', dias=3)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert 'tablero-avance' not in _sin_scripts(html)
+
+
+def test_el_titulo_pegajoso_asoma_debajo_de_la_barra_superior():
+    """`.app-topbar` también es sticky, con 48px (+safe-area) en el teléfono
+    y 78px en escritorio, y un z-index mayor. Con `top: 0` el título se
+    pegaba detrás de la barra y nunca se veía. Se afirma sobre el CSS servido
+    porque no hay navegador en la suite; la medida real (elementFromPoint
+    sobre el título a mitad de scroll) se hizo a mano en los dos tamaños."""
+    import re
+    css = open('static/css/pedidos_list.css', encoding='utf-8').read()
+    bloque = re.search(
+        r'\.tablero-titulo\s*\{[^}]*position:\s*sticky;[^}]*\}', css, re.S
+    )
+    assert bloque, 'el título del grupo ya no es sticky'
+    assert 'top: calc(48px + env(safe-area-inset-top, 0px))' in bloque.group(0)
+    assert re.search(
+        r'@media \(min-width: 1024px\)\s*\{\s*body\[data-pedidos-list-screen\] '
+        r'\.tablero-titulo\s*\{\s*top: 78px;', css
+    ), 'falta el desplazamiento de escritorio bajo la barra de 78px'
