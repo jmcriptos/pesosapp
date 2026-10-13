@@ -4457,6 +4457,24 @@ def _agrupar_tablero(pedidos, hoy_local):
         else:
             proximos.append(pedido)
 
+    # Dentro de cada grupo, lo que FALTA HACER va arriba y lo hecho se hunde.
+    #
+    # La consulta ordena por `fecha_entrega` y después por id descendente, y
+    # el id no dice nada del trabajo: en «Hoy» —donde todos comparten fecha—
+    # el orden quedaba al azar del alta, y en producción el azar favorece a
+    # lo terminado (se entrega lo que se cargó último, así que el entregado
+    # cae arriba y el que todavía hay que pesar, abajo). Quien abre el
+    # tablero en ruta busca qué toca ahora, no qué ya salió; un entregado
+    # encabezando «Hoy» lo obligaba a scrollear más de una pantalla para
+    # llegar al primer pendiente.
+    #
+    # La fecha sigue mandando: en Atrasados el más atrasado va primero sea
+    # cual sea su estado, y en Próximos el más cercano. Solo a fecha igual
+    # decide la etapa, y el sort es estable, así que a fecha y etapa iguales
+    # se conserva el id descendente que trae la consulta.
+    for grupo in (atrasados, hoy, proximos, sin_fecha):
+        grupo.sort(key=_clave_orden_tablero)
+
     grupos = [
         ('atrasados', 'Atrasados', atrasados),
         ('hoy', 'Hoy', hoy),
@@ -4464,6 +4482,21 @@ def _agrupar_tablero(pedidos, hoy_local):
         ('sin_fecha', 'Sin fecha de entrega', sin_fecha),
     ]
     return [g for g in grupos if g[2]]
+
+
+# Etapas del pedido, de «más trabajo por delante» a «ya salió». Un estado
+# desconocido va con los pendientes: ante la duda, arriba, donde se ve.
+_ETAPA_TABLERO = {'pendiente': 0, 'preparado': 1, 'facturado': 2, 'entregado': 3}
+
+
+def _clave_orden_tablero(pedido):
+    """Fecha de entrega primero (sin fecha al final), después la etapa."""
+    entrega = pedido.fecha_entrega
+    return (
+        entrega is None,
+        entrega or date.min,
+        _ETAPA_TABLERO.get((pedido.estado or '').lower(), 0),
+    )
 
 
 def _decorar_pedido(pedido, total_sql):

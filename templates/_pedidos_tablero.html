@@ -7,6 +7,23 @@
   <section class="tablero-grupo tablero-grupo-{{ clave }}">
     <h2 class="tablero-titulo">
       {{ etiqueta }}<span class="tablero-cuenta">{{ pedidos_grupo|length }}</span>
+      {# Cómo va el día, en el único lugar que se queda a la vista (el título
+         es sticky). «Hoy» es el único grupo que mezcla trabajo con hecho
+         —los entregados se quedan a propósito, marcados— y para saber si el
+         día cerró había que recorrer las tarjetas una por una contando
+         grises. Solo se afirma cuando hay algo entregado: «0 de 4» pone
+         un cero donde todavía no pasó nada, y cuando salieron todos se dice
+         con palabras, que es lo que uno quiere leer a las cinco de la tarde. #}
+      {% if clave == 'hoy' %}
+        {% set entregados = pedidos_grupo|selectattr('estado', 'equalto', 'entregado')|list|length %}
+        {% if entregados and entregados == pedidos_grupo|length %}
+        <span class="tablero-avance tablero-avance-completo">
+          <i class="fa-solid fa-circle-check" aria-hidden="true"></i> todo entregado
+        </span>
+        {% elif entregados %}
+        <span class="tablero-avance">{{ entregados }} de {{ pedidos_grupo|length }} entregados</span>
+        {% endif %}
+      {% endif %}
     </h2>
 
     {% for pedido in pedidos_grupo[:50] %}
