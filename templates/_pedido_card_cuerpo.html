@@ -186,7 +186,7 @@
              que un atributo en el botón no se lee nunca. Estuvo en el botón y
              por eso facturaba sin preguntar. #}
           <form action="{{ url_for('facturar_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form"
+                class="pc-action-form pc-action-form-main"
                 data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
@@ -202,7 +202,7 @@
              serviría para hacerlo rebotar. #}
           {% if puede_entregar %}
           <form action="{{ url_for('entregar_pedido', pedido_id=pedido.id) }}" method="POST"
-                class="pc-action-form">
+                class="pc-action-form pc-action-form-main">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
             <button type="submit" class="pc-action-main"

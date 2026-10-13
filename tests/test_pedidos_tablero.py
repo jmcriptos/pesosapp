@@ -646,3 +646,60 @@ def test_el_titulo_pegajoso_asoma_debajo_de_la_barra_superior():
         r'@media \(min-width: 1024px\)\s*\{\s*body\[data-pedidos-list-screen\] '
         r'\.tablero-titulo\s*\{\s*top: 78px;', css
     ), 'falta el desplazamiento de escritorio bajo la barra de 78px'
+
+
+# ── Pasada de UI (2026-10-13) ────────────────────────────────────────────────
+
+def _css_pedidos():
+    return open('static/css/pedidos_list.css', encoding='utf-8').read()
+
+
+def test_la_tarjeta_tiene_una_sola_columna_de_texto():
+    """`pedidos_inline.css` (la piel oscura vieja) le deja a `.pc-top` y a
+    `.pc-meta` un padding horizontal de 16px que se sumaba al de la tarjeta:
+    el cliente arrancaba en x=46 y las acciones en x=30. Se anulan."""
+    import re
+    css = _css_pedidos()
+    assert re.search(r'\.pc-top\s*\{\s*padding:\s*0\s*!important;', css)
+    assert re.search(r'\.pc-meta\s*\{\s*padding:\s*0\s*!important;', css)
+
+
+def test_la_tarjeta_hecha_del_tablero_es_compacta():
+    """Un entregado no necesita «entrega hoy», «2 líneas» ni la nota: ya
+    salió. Se esconden solo bajo `.tablero-hecho`, o sea solo en el tablero;
+    en el archivo la tarjeta sigue entera."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.tablero-hecho \.pc-nota,\s*body\[data-pedidos-list-screen\] '
+        r'\.tablero-hecho \.pc-meta\s*\{\s*display:\s*none\s*!important;', css
+    )
+
+
+def test_las_formas_de_accion_no_se_estiran():
+    """El <form> hereda un `width: 100%` global y como ítem flex se quedaba
+    con todo el sobrante: «Facturar» a la izquierda con un hueco, y Deshacer
+    solo en la punta. La acción principal va a la izquierda a propósito, con
+    `margin-right: auto`; el resto se agrupa a la derecha."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.pc-actions \.pc-action-form\s*\{\s*width:\s*auto\s*!important;\s*'
+        r'flex:\s*0 0 auto\s*!important;', css
+    )
+    assert '.pc-actions > .pc-action-form-main' in css
+    assert 'margin-right: auto !important' in css
+
+
+def test_facturar_y_entregar_llevan_la_clase_de_accion_principal(logged_client):
+    """Sin la clase, el <form> de «Facturar» o «Entregado» no recibe el
+    `margin-right: auto` y la fila vuelve a depender de la etiqueta HTML."""
+    from app import Producto, DetallePedido, db as _db
+    from decimal import Decimal
+    p = _crear('preparado', dias=0)
+    f = _crear('facturado', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    assert html.count('pc-action-form pc-action-form-main') == 2, (
+        'Facturar (preparado) y Entregado (facturado) deben ser la acción '
+        'principal de su fila'
+    )

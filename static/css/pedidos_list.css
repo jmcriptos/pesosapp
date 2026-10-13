@@ -1708,3 +1708,107 @@ body[data-pedidos-list-screen] .pc-entrega input.pc-entrega-fecha {
     display: none;
   }
 }
+
+/* ────────────────────────────────────────────────────────────
+   Pasada de UI del tablero (2026-10-13)
+   ──────────────────────────────────────────────────────────── */
+
+/* UNA columna de texto por tarjeta.
+   Medido a 390px: la tarjeta empieza en x=13 y su padding la lleva a 30, pero
+   el id, el cliente y los metadatos arrancaban en x=46 mientras la nota, las
+   acciones y la fila de entrega arrancaban en 30. Tres bordes izquierdos
+   distintos en una tarjeta de 348px. El culpable es `pedidos_inline.css`, el
+   CSS de la piel oscura vieja, que le deja a `.pc-top` un `padding: 14px 16px
+   10px` y a `.pc-meta` un `0 16px 10px` que nadie anuló al pasar a claro: el
+   padding de la tarjeta (14/16) ya hace ese trabajo, así que iban DOBLES.
+   Quitarlos alinea todo en una columna y devuelve 24px de alto por tarjeta
+   —diez pedidos son una pantalla de teléfono menos—. */
+body[data-pedidos-list-screen] .pc-top {
+  padding: 0 !important;
+}
+
+body[data-pedidos-list-screen] .pc-meta {
+  padding: 0 !important;
+}
+
+/* La tarjeta hecha ocupa lo que vale.
+   Un entregado medía igual que un pendiente (197px contra 248 en el teléfono)
+   y a las cinco de la tarde «Hoy» son cuatro tarjetas grises de nada que hay
+   que leer. Lo que se le quita es lo que ya no informa: «entrega hoy» está
+   en el título del grupo que tiene arriba, «2 líneas» y la nota eran para
+   prepararlo, y ya salió. Se queda el encabezado (quién, cuánto, ENTREGADO)
+   y las acciones, que siguen vivas: deshacer, la factura PDF y revisar
+   precios. Solo en el tablero (`.tablero-hecho`); en el archivo la tarjeta
+   sigue entera, ahí sí se consulta. */
+body[data-pedidos-list-screen] .tablero-hecho .pc-nota,
+body[data-pedidos-list-screen] .tablero-hecho .pc-meta {
+  display: none !important;
+}
+
+body[data-pedidos-list-screen] .tablero-hecho .pc-top {
+  margin-bottom: 2px;
+}
+
+body[data-pedidos-list-screen] .tablero-hecho .pc-foot .pc-actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+/* La franja del título cubre también los márgenes.
+   El título sticky mide lo que el contenido (x=13 a 377) y las tarjetas
+   también, así que al pasar por debajo asomaban sus sombras y sus esquinas
+   por los 12px de margen de cada lado: se veía la tarjeta atravesando la
+   franja. Se extiende sobre el padding del `.app-shell` y lo compensa con su
+   propio padding, así el texto no se mueve ni un pixel. */
+body[data-pedidos-list-screen] .tablero-titulo {
+  margin-inline: -12px;
+  padding-inline: 12px;
+}
+
+/* Los iconos secundarios se callan.
+   La guía reserva el ámbar y el rojo para ESTADO. «Editar» llevaba borde
+   ámbar y «Eliminar» fondo rosa con borde rojo en cada tarjeta pendiente, o
+   sea dos avisos de color por tarjeta sin que nada estuviera mal: con diez
+   pedidos, veinte manchas de alerta compitiendo con la única que importa,
+   la franja de «Atrasados». Editar pasa a neutro. Eliminar conserva el rojo
+   en el icono —es destructivo y se sigue reconociendo— pero deja el fondo
+   y el borde en reposo; el aviso de verdad lo da el `data-confirm`. */
+body[data-pedidos-list-screen] .pc-action-btn.edit {
+  color: var(--color-text-muted) !important;
+  border-color: var(--color-border) !important;
+}
+
+body[data-pedidos-list-screen] .pc-action-btn.danger {
+  background: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+}
+
+body[data-pedidos-list-screen] .pc-action-btn.danger:hover,
+body[data-pedidos-list-screen] .pc-action-btn.danger:active {
+  background: color-mix(in srgb, #ef4444 10%, var(--color-bg-elevated)) !important;
+  border-color: color-mix(in srgb, #ef4444 22%, transparent) !important;
+}
+
+/* La fila de acciones, igual en todas las tarjetas.
+   Medido a 390px: en un pendiente, «Pesar» (un <a>) iba pegado a Editar y a
+   Eliminar en el borde izquierdo; en un preparado, «Facturar» (un <form>)
+   quedaba a la izquierda y los iconos a la derecha, con un hueco en el medio;
+   y en un entregado, Deshacer (otro <form>) se iba solo a la izquierda. Tres
+   tarjetas de la misma pantalla, tres filas distintas. La causa: el <form>
+   hereda un `width: 100%` global y, como ítem flex con `flex-shrink: 1`, se
+   queda con todo el espacio sobrante; el <a> no. O sea que la maqueta la
+   decidía la etiqueta HTML de cada acción, no el diseño.
+
+   Se fija UNA regla: la acción principal («Pesar», «Preparar», «Facturar»,
+   «Entregado») va a la izquierda, bajo el pulgar; los iconos secundarios se
+   agrupan a la derecha, y Eliminar queda lejos de la acción que se viene a
+   tocar. Sin acción principal (un entregado), todo se agrupa a la derecha. */
+body[data-pedidos-list-screen] .pc-actions .pc-action-form {
+  width: auto !important;
+  flex: 0 0 auto !important;
+}
+
+body[data-pedidos-list-screen] .pc-actions > .pc-action-main,
+body[data-pedidos-list-screen] .pc-actions > .pc-action-form-main {
+  margin-right: auto !important;
+}
