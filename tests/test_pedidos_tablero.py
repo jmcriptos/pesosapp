@@ -756,3 +756,45 @@ def test_el_buscador_comparte_fila_con_el_titulo(logged_client):
         r'@media \(max-width: 1023px\)\s*\{\s*body\[data-pedidos-list-screen\] '
         r'\.hero \.btn-nuevo-pedido\s*\{\s*display:\s*none\s*!important;', css
     ), 'bajo 1024px la barra inferior ya tiene «Nuevo»: el del hero se esconde'
+
+
+# ── Lo que toca ahora pesa más ───────────────────────────────────────────────
+
+def test_atrasados_y_hoy_sin_entregar_son_ahora(logged_client):
+    """Tres niveles: «ahora» (Atrasados y Hoy sin entregar) lleva la acción
+    principal en sólido; Próximos y Sin fecha no; un entregado de Hoy es
+    «hecho», nunca «ahora»."""
+    import re
+    atrasado = _crear('pendiente', dias=-2)
+    hoy = _crear('preparado', dias=0)
+    hoy_hecho = _crear('entregado', dias=0)
+    proximo = _crear('pendiente', dias=3)
+    sin_fecha = _crear('pendiente', dias=None)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+
+    def clases_de(p):
+        # La tarjeta es el <div class="pedido-card …"> cuyo data-href termina
+        # en el id del pedido; la forma exacta de la ruta no importa acá.
+        m = re.search(r'<div class="(pedido-card[^"]*)"\s+data-href="/pedidos/%d/detalles"' % p.id, html)
+        assert m, f'no se encontró la tarjeta de PED-{p.id}'
+        return m.group(1).split()
+
+    assert 'tablero-ahora' in clases_de(atrasado)
+    assert 'tablero-ahora' in clases_de(hoy)
+    assert 'tablero-ahora' not in clases_de(hoy_hecho)
+    assert 'tablero-hecho' in clases_de(hoy_hecho)
+    assert 'tablero-ahora' not in clases_de(proximo)
+    assert 'tablero-ahora' not in clases_de(sin_fecha)
+
+
+def test_el_solido_de_ahora_pasa_aa():
+    """El botón sólido lleva texto de 13px/700 en blanco: necesita 4,5:1.
+    Índigo de Lectura nominal (#6366f1) da 4,07; Honda (#4f46e5) da 5,9.
+    Medido en el render: 6,29:1."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.tablero-ahora \.pc-actions \.pc-action-main\s*\{\s*background:\s*#4f46e5;\s*color:\s*#ffffff;',
+        css,
+    ), 'el sólido de «ahora» tiene que ir en #4f46e5 con texto blanco'
+    assert '#6366f1;\n  color: #ffffff' not in css

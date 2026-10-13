@@ -1933,3 +1933,59 @@ body[data-pedidos-list-screen] .pc-entrega input.pc-entrega-fecha {
   min-width: 110px;
   max-width: 176px;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Lo que toca ahora pesa más (2026-10-13)
+   ──────────────────────────────────────────────────────────── */
+
+/* Tres niveles en la misma pantalla, y la diferencia la hace la ACCIÓN, no la
+   sombra: DESIGN.md dice que el cristal es el material del instrumento y no
+   una señal de jerarquía, así que todas las tarjetas conservan la suya.
+
+   Ahora  (Atrasados y Hoy sin entregar): acción principal en índigo sólido,
+          barra de estado de 5px, cliente a 19px/700.
+   Luego  (Próximos y Sin fecha): acción principal en índigo suave, barra de
+          3px, cliente al rol Client de la guía (17px/600).
+   Hecho  (entregados de Hoy): sin acción principal, texto atenuado, como ya
+          estaba.
+
+   El sólido va en Índigo de Lectura Honda (#4f46e5) y no en el nominal
+   (#6366f1): con blanco, el nominal da 4,07:1 y el texto del botón es de
+   13px/700, que necesita 4,5. Honda da 5,9:1. Es el token que la guía ya
+   usa para el hover de la acción principal. */
+body[data-pedidos-list-screen] .tablero-ahora::before {
+  width: 5px;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-client {
+  font-size: 1.1875rem;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 8px 20px -10px rgba(79, 70, 229, 0.55);
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main:hover {
+  background: #4338ca;
+  color: #ffffff;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main:active {
+  background: #3730a3;
+  color: #ffffff;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main:focus-visible {
+  outline: 2px solid #4338ca;
+  outline-offset: 3px;
+}
+
+/* Luego: el cliente baja al rol Client de la guía. Sigue siendo el dato que
+   manda en la tarjeta, pero deja de competir con el de las tarjetas de hoy. */
+body[data-pedidos-list-screen] .tablero-grupo-proximos .pc-client,
+body[data-pedidos-list-screen] .tablero-grupo-sin_fecha .pc-client {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
