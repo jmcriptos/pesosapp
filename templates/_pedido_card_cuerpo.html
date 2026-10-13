@@ -2,45 +2,65 @@
    Vive en su propio parcial porque lo usan la lista (_pedidos_resultados) y el
    tablero (_pedidos_tablero), y son la misma tarjeta. Depende del contexto:
    `pedido`, `hoy_local` y `url_actual`. #}
+      {# El CLIENTE abre la tarjeta (reestructura del 2026-10-13).
+         Antes la primera fila era chrome —«PED-1» y la píldora— y el nombre,
+         que es el dato que el chofer busca con la vista, iba segundo; el
+         importe competía con el id en la esquina. Ahora: fila 1 el cliente
+         con el id chico a la derecha; fila 2 UNA línea de contexto (estado,
+         fecha, líneas en escritorio, importe); después la nota, las acciones
+         y la fila de mover la entrega, que no cambian. #}
+      {# "Vencido" no es un estado de la tabla: es fecha_entrega pasada con
+         el pedido aún sin facturar. La guía lo muestra como un estado más
+         porque para el vendedor lo es.
+         La exclusión es `entregado`, no `facturado`: un facturado que
+         todavía no salió y tiene la entrega vencida SIGUE necesitando la
+         alerta — facturar no es entregar. #}
+      {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}
       <div class="pc-top">
         <div class="pc-main">
-          {# La píldora va acá y no abajo: en la fila de metadatos no entraban
-             estado + líneas + fecha + acciones en 375px (339px necesarios en
-             283 disponibles) y el estado saltaba a una línea propia. #}
-          {# "Vencido" no es un estado de la tabla: es fecha_entrega pasada con
-             el pedido aún sin facturar. La guía lo muestra como un estado más
-             porque para el vendedor lo es.
-             La exclusión es `entregado`, no `facturado`: un facturado que
-             todavía no salió y tiene la entrega vencida SIGUE necesitando la
-             alerta — facturar no es entregar. Con la exclusión vieja, la
-             píldora dejaba de marcar «vencido» justo al facturar, que es
-             cuando el pedido puede quedar pendiente más tiempo. #}
-          {% set vencido = pedido.fecha_entrega and pedido.fecha_entrega < hoy_local and pedido.estado != 'entregado' %}
-          <div class="pc-idrow">
-            <span class="pc-id">PED-{{ pedido.id }}</span>
-            {# La píldora dice SIEMPRE el estado real, también cuando está
-               vencido. Antes lo reemplazaba por «Vencido», y entonces un
-               atrasado que hay que pesar y uno listo para facturar se veían
-               idénticos: misma barra rosa, misma píldora, y lo único que los
-               distinguía era la etiqueta del botón. Encima el atraso ya se
-               afirma tres veces —el encabezado del grupo, la barra lateral y
-               el «· N d tarde»—, así que la píldora estaba gastando el único
-               lugar donde cabía el dato que faltaba. #}
-            <span class="status-pill {{ (pedido.estado or '')|lower }}{% if vencido %} esta-vencido{% endif %}">{{ pedido.estado }}</span>
-          </div>
-          {# `title` con el nombre completo: se trunca a una línea con elipsis
-             («Van den Tweel Supermar…») y sin esto no había forma de ver el
-             resto sin abrir el pedido. En táctil el title no aparece, pero en
-             escritorio —donde trabaja el supervisor— sí, y no cuesta nada. #}
+          {# `title` con el nombre completo: en escritorio —donde trabaja el
+             supervisor— aparece al pasar el mouse, y no cuesta nada. #}
           <a class="pc-client" href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
              title="{{ pedido.cliente.nombre if pedido.cliente else 'Sin cliente' }}">
             {{ pedido.cliente.nombre if pedido.cliente else '—' }}<span class="sr-only"> — abrir el pedido PED-{{ pedido.id }}</span>
           </a>
         </div>
-        <div class="pc-amt">
+        <span class="pc-id">PED-{{ pedido.id }}</span>
+      </div>
+
+      {# La línea de contexto: qué estado, para cuándo, cuánto.
+         La píldora dice SIEMPRE el estado real, también cuando está vencido;
+         el atraso lo dicen la barra lateral y el «· N d tarde». #}
+      <div class="pc-contexto">
+        <span class="status-pill {{ (pedido.estado or '')|lower }}{% if vencido %} esta-vencido{% endif %}">{{ pedido.estado }}</span>
+        {# La ENTREGA manda sobre la fecha del pedido: al vendedor le importa
+           cuándo hay que llevarlo, no cuándo se tomó. Los pedidos históricos
+           no tienen fecha_entrega, así que se cae a fecha_pedido y se dice
+           cuál es cuál. La palabra «entrega» se esconde bajo 420px por CSS
+           (el icono del camión y el sr-only la mantienen). #}
+        {% if pedido.fecha_entrega %}
+        <span class="pc-fecha" title="Entrega {{ pedido.fecha_entrega.strftime('%d/%m/%Y') }}">
+          <i class="fas fa-truck" aria-hidden="true"></i>
+          <span class="pc-fecha-palabra">entrega</span>
+          {{ 'hoy' if pedido.fecha_entrega == hoy_local else pedido.fecha_entrega.strftime('%d/%m') }}
+          {% if vencido %}
+          <strong class="pc-tarde">· {{ (hoy_local - pedido.fecha_entrega).days }} d tarde</strong>
+          {% endif %}
+        </span>
+        {% elif pedido.fecha_pedido %}
+        <span class="pc-fecha" title="Pedido tomado el {{ pedido.fecha_pedido.strftime('%d/%m/%Y') }} · sin fecha de entrega cargada">
+          <i class="fas fa-calendar" aria-hidden="true"></i> pedido {{ pedido.fecha_pedido.strftime('%d/%m') }}
+        </span>
+        {% endif %}
+        {# Las líneas solo en escritorio (CSS): en el teléfono no deciden
+           nada y le quitaban sitio a la fecha y al importe. #}
+        {% if pedido.detalles is defined and pedido.detalles %}
+        <span class="pc-lineas"><i class="fas fa-boxes" aria-hidden="true"></i> {{ pedido.detalles|length }} líneas</span>
+        {% endif %}
+        <span class="pc-amt">
           {{ '{:,.2f}'.format(pedido.total_calculado or 0) }}
           <small>{{ (pedido.cliente.moneda if pedido.cliente else 'XCG') or 'XCG' }}</small>
-        </div>
+        </span>
       </div>
 
       {# Estado, metadatos y acciones en UNA fila. Antes el pie era un panel
@@ -103,45 +123,6 @@
       {% set tiene_acciones = puede_editar or puede_facturar or puede_eliminar or tiene_factura or puede_entregar or puede_deshacer %}
 
       <div class="pc-foot">
-        <div class="pc-meta">
-          {# La ENTREGA manda sobre la fecha del pedido: al vendedor le importa
-             cuándo hay que llevarlo, no cuándo se tomó. Los 910 pedidos
-             históricos no tienen fecha_entrega (la columna es del 16/08), así
-             que se cae a fecha_pedido y se dice cuál es cuál. #}
-          {% if pedido.fecha_entrega %}
-          <span title="Entrega {{ pedido.fecha_entrega.strftime('%d/%m/%Y') }}">
-            <i class="fas fa-truck" aria-hidden="true"></i>
-            entrega {{ 'hoy' if pedido.fecha_entrega == hoy_local else pedido.fecha_entrega.strftime('%d/%m') }}
-            {# CUÁNTO se pasó, no solo la fecha: la tabla de escritorio ya lo
-               decía y el teléfono —el aparato que el vendedor lleva encima— no.
-               Sin esto, un día de atraso y tres semanas se ven igual.
-               Reusa `vencido` (definido arriba) en vez de repetir la condición:
-               tenerla dos veces en el mismo archivo, con exclusiones que
-               podían divergir, fue justo el agujero que esta tarea vino a
-               cerrar. #}
-            {% if vencido %}
-            <strong class="pc-tarde">· {{ (hoy_local - pedido.fecha_entrega).days }} d tarde</strong>
-            {% endif %}
-          </span>
-          {% elif pedido.fecha_pedido %}
-          {# Lleva la palabra «pedido», no solo el icono de calendario.
-             Sin ella, una tarjeta del grupo «Sin fecha de entrega» mostraba
-             «02/04» al lado de un almanaque y se contradecía con su propio
-             encabezado: el grupo afirmaba que no había fecha y la tarjeta
-             mostraba una. La distinción vivía únicamente en el `title`, que en
-             el teléfono no existe.
-             Formato corto (dd/mm) como la entrega: tres formatos de fecha en
-             una sola pantalla obligaban a leer dos veces para saber si «08/09»
-             era septiembre o el año. El año completo queda en el title. #}
-          <span title="Pedido tomado el {{ pedido.fecha_pedido.strftime('%d/%m/%Y') }} · sin fecha de entrega cargada">
-            <i class="fas fa-calendar" aria-hidden="true"></i> pedido {{ pedido.fecha_pedido.strftime('%d/%m') }}
-          </span>
-          {% endif %}
-          {% if pedido.detalles is defined and pedido.detalles %}
-          <span><i class="fas fa-boxes" aria-hidden="true"></i> {{ pedido.detalles|length }} líneas</span>
-          {% endif %}
-        </div>
-
         {# SIN data-stop-propagation.
            base.js lo implementa como `ev.stopPropagation()` sobre el elemento,
            y eso mata TODA delegación en document dentro del contenedor: el

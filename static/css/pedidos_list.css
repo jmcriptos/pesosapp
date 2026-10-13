@@ -1989,3 +1989,120 @@ body[data-pedidos-list-screen] .tablero-grupo-sin_fecha .pc-client {
   font-size: 1.0625rem;
   font-weight: 600;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Reestructura de la tarjeta (2026-10-13): el cliente primero
+   ──────────────────────────────────────────────────────────── */
+
+/* Fila 1: cliente a la izquierda, id chico a la derecha. */
+body[data-pedidos-list-screen] .pc-top > .pc-id {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+/* Fila 2: UNA línea de contexto. Estado, fecha e importe, en el rol Meta de
+   la guía (13px). El importe se va al borde derecho; si la fila se queda sin
+   sitio, lo primero que se esconde es la palabra «entrega» (abajo) y las
+   líneas, que en el teléfono no se dibujan. */
+body[data-pedidos-list-screen] .pc-contexto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* 8px y no 10: medido a 390px, un atrasado («10/10 · 3 d tarde») sumaba
+     334px en 332 disponibles y el importe caía a un segundo renglón. */
+  gap: 6px 8px;
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+body[data-pedidos-list-screen] .pc-contexto .pc-fecha,
+body[data-pedidos-list-screen] .pc-contexto .pc-lineas {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+body[data-pedidos-list-screen] .pc-contexto i {
+  color: var(--color-text-subtle);
+  font-size: 0.8rem;
+}
+
+body[data-pedidos-list-screen] .pc-contexto .pc-amt {
+  margin-left: auto;
+  text-align: right;
+}
+
+/* Bajo 420px la palabra se esconde solo VISUALMENTE (recorte, no
+   display:none): el lector de pantalla la sigue leyendo y no hace falta un
+   duplicado sr-only que arriba de 420 se leería dos veces. */
+@media (max-width: 419px) {
+  body[data-pedidos-list-screen] .pc-fecha-palabra {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Con `.pc-contexto` en el selector: la regla de arriba que pone
+   `inline-flex` a `.pc-contexto .pc-lineas` tiene más especificidad que un
+   `.pc-lineas` suelto y la ganaba — medido: «2 líneas» seguía visible a
+   390px y era lo que empujaba el importe a un segundo renglón. */
+@media (max-width: 479px) {
+  body[data-pedidos-list-screen] .pc-contexto .pc-lineas {
+    display: none;
+  }
+}
+
+/* El pie ya no lleva metadatos: solo las acciones, a lo ancho. */
+body[data-pedidos-list-screen] .pc-foot .pc-actions {
+  width: 100%;
+}
+
+/* La tarjeta hecha del tablero: se queda con estado e importe; la fecha y
+   las líneas ya no informan (está en «Hoy» y ya salió). */
+body[data-pedidos-list-screen] .tablero-hecho .pc-fecha,
+body[data-pedidos-list-screen] .tablero-hecho .pc-lineas {
+  display: none !important;
+}
+
+body[data-pedidos-list-screen] .tablero-hecho .pc-contexto {
+  color: #64748b !important;
+}
+
+/* La píldora, dentro de la línea de contexto, un poco más apretada a los
+   lados (10px y no 12): son los 4px que le faltaban al atrasado para entrar
+   en un renglón. Fuera de esa línea (tabla de escritorio) no cambia. */
+body[data-pedidos-list-screen] .pc-contexto .status-pill {
+  padding: 4px 10px;
+}
+
+/* El importe en UNA línea dentro del contexto: «273.00 XCG», no el número
+   arriba y la moneda abajo como en la esquina vieja (esa pila costaba 33px
+   donde ahora hay una fila de 20). */
+body[data-pedidos-list-screen] .pc-contexto .pc-amt {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+body[data-pedidos-list-screen] .pc-contexto .pc-amt small {
+  display: inline;
+  margin: 0;
+}
+
+/* La tarjeta del modo lista mide lo mismo que la del tablero.
+   `.pedidos-list` traía un padding lateral de 16px de una hoja global, así
+   que la MISMA tarjeta era 34px más angosta en `?estado=todos` que en
+   `/pedidos` (298 contra 332 de ancho interior a 390px). Esa diferencia era
+   la que partía en dos renglones la fila «entregar» primero y la línea de
+   contexto de un atrasado después, solo en la lista. El `.app-shell` ya
+   pone los 12px de margen de la pantalla; la lista no necesita los suyos. */
+body[data-pedidos-list-screen] .pedidos-list {
+  padding: 0 !important;
+}

@@ -798,3 +798,47 @@ def test_el_solido_de_ahora_pasa_aa():
         css,
     ), 'el sólido de «ahora» tiene que ir en #4f46e5 con texto blanco'
     assert '#6366f1;\n  color: #ffffff' not in css
+
+
+# ── Reestructura de la tarjeta: el cliente primero ───────────────────────────
+
+def test_la_tarjeta_abre_con_el_cliente_y_el_id_va_a_la_derecha(logged_client):
+    """Antes la primera fila era «PED-1» más la píldora y el cliente iba
+    segundo. Ahora `.pc-top` lleva el cliente a la izquierda y el id a la
+    derecha, y la píldora baja a la línea de contexto."""
+    import re
+    p = _crear('pendiente', dias=0)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    top = re.search(r'<div class="pc-top">(.*?)</div>\s*<div class="pc-contexto">', html, re.S)
+    assert top, 'falta la cabecera o la línea de contexto'
+    assert 'pc-client' in top.group(1)
+    assert f'<span class="pc-id">PED-{p.id}</span>' in top.group(1)
+    assert 'status-pill' not in top.group(1), 'la píldora ya no va en la cabecera'
+    assert 'pc-amt' not in top.group(1), 'el importe ya no va en la esquina'
+
+
+def test_la_linea_de_contexto_lleva_estado_fecha_e_importe(logged_client):
+    import re
+    _crear('pendiente', dias=-2)
+    html = logged_client.get('/pedidos').get_data(as_text=True)
+    ctx = re.search(r'<div class="pc-contexto">(.*?)</div>\s*(?:<p class="pc-nota"|<div class="pc-foot">)', html, re.S)
+    assert ctx, 'falta la línea de contexto'
+    c = ctx.group(1)
+    assert 'status-pill pendiente' in c
+    assert 'pc-fecha' in c and 'd tarde' in c
+    assert 'pc-amt' in c
+
+
+def test_en_el_telefono_las_lineas_no_se_dibujan_y_las_tarjetas_miden_igual():
+    """«N líneas» no decide nada en ruta y le quitaba sitio a la fecha y al
+    importe; se esconde bajo 480px CON `.pc-contexto` en el selector, porque
+    un `.pc-lineas` suelto perdía contra la regla que lo pone inline-flex.
+    Y la lista deja de traer un padding de 16px que hacía su tarjeta 34px más
+    angosta que la del tablero: medido, 364px en los dos modos."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'@media \(max-width: 479px\)\s*\{\s*body\[data-pedidos-list-screen\] '
+        r'\.pc-contexto \.pc-lineas\s*\{\s*display:\s*none;', css
+    )
+    assert re.search(r'\.pedidos-list\s*\{\s*padding:\s*0\s*!important;', css)
