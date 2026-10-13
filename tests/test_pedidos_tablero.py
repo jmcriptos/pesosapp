@@ -703,3 +703,37 @@ def test_facturar_y_entregar_llevan_la_clase_de_accion_principal(logged_client):
         'Facturar (preparado) y Entregado (facturado) deben ser la acción '
         'principal de su fila'
     )
+
+
+# ── Crítica de diseño del 2026-10-13 ─────────────────────────────────────────
+
+def test_la_fila_entregar_llega_al_piso_de_toque():
+    """«Hoy», «Mañana» y el selector de fecha medían 34px: los únicos
+    controles de la tarjeta por debajo de los 48px que DESIGN.md fija como
+    mínimo. Medido en el render a 390px tras el cambio: 48px los tres y la
+    fila sigue en una sola línea (57px con padding y borde)."""
+    import re
+    css = _css_pedidos()
+    assert re.search(
+        r'\.pc-entrega-btn\s*\{\s*min-height:\s*var\(--touch-min, 48px\);', css
+    ), 'los botones Hoy/Mañana volvieron a estar por debajo de 48px'
+    assert re.search(
+        r'input\.pc-entrega-fecha\s*\{\s*min-height:\s*var\(--touch-min, 48px\);\s*'
+        r'height:\s*var\(--touch-min, 48px\);', css
+    ), 'el selector de fecha volvió a estar por debajo de 48px'
+
+
+def test_el_nombre_del_cliente_se_lee_en_dos_lineas():
+    """4 de 10 nombres de la muestra se cortaban con elipsis a 390px. Es el
+    dato que el chofer busca; dos líneas antes que un `title` que en táctil
+    no existe."""
+    import re
+    css = _css_pedidos()
+    bloque = re.search(
+        r'\.pc-client\s*\{\s*white-space:\s*normal;[^}]*-webkit-line-clamp:\s*2;[^}]*\}',
+        css, re.S,
+    )
+    assert bloque, 'el nombre del cliente volvió a una sola línea con elipsis'
+    # La regla nueva tiene que ir DESPUÉS de la vieja (nowrap + ellipsis) para
+    # ganarle a igual especificidad.
+    assert css.find('text-overflow: ellipsis') < bloque.start()

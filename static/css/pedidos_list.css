@@ -1812,3 +1812,50 @@ body[data-pedidos-list-screen] .pc-actions > .pc-action-main,
 body[data-pedidos-list-screen] .pc-actions > .pc-action-form-main {
   margin-right: auto !important;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Crítica de diseño del 2026-10-13 (design-critique), tres cambios
+   ──────────────────────────────────────────────────────────── */
+
+/* 1. La fila «entregar» sube al piso de toque de la guía.
+   Medía 34px: «Hoy», «Mañana» y el selector de fecha eran los únicos
+   controles de la tarjeta por debajo de los 48px que DESIGN.md fija como
+   mínimo para cualquier destino de toque —y mover la entrega es lo que más
+   se repite en la semana, en ruta, a veces con guante—. El comentario
+   original los quería «apagados» para no competir con «Pesar»/«Facturar»;
+   eso lo siguen haciendo el fondo y el borde, no la altura. Cuesta 14px por
+   tarjeta pendiente o preparada; es el intercambio que la guía elige. */
+body[data-pedidos-list-screen] .pc-entrega-btn {
+  min-height: var(--touch-min, 48px);
+  padding: 0 14px;
+}
+
+body[data-pedidos-list-screen] .pc-entrega input.pc-entrega-fecha {
+  min-height: var(--touch-min, 48px);
+  height: var(--touch-min, 48px);
+  padding: 0 10px !important;
+}
+
+/* El icono del calendario que etiqueta la fila iba en Tinta Sutil (#94a3b8,
+   2,56:1 sobre la tarjeta). Es el único texto de la tarjeta por debajo de AA.
+   La Regla de los Dos Grises: sobre tarjeta blanca, el secundario es Tinta
+   Tenue (#64748b, 4,76:1). */
+body[data-pedidos-list-screen] .pc-entrega-label {
+  color: #64748b;
+}
+
+/* 3. El nombre del cliente en dos líneas, no cortado.
+   Medido a 390px: 4 de 10 nombres de la muestra terminaban en elipsis («Van
+   den Tweel Supermarkt …», «Centrum Supermarket Pisc…»), y el nombre
+   completo solo vivía en el `title`, que en táctil no existe. Es el dato que
+   el chofer busca con la vista. Dos líneas como techo: cuesta 21px solo en
+   las tarjetas que lo necesitan, y un nombre de tres renglones no existe en
+   los 49 clientes. La elipsis se queda para la tercera línea. */
+body[data-pedidos-list-screen] .pc-client {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
