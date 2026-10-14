@@ -95,11 +95,14 @@ def armar_payload_nuevo_pedido(pedido_id, cliente, cajas, total, moneda,
         partes.append(f'{_fmt_num(cajas)} cajas')
     if total:
         partes.append(f'{_fmt_num(total, 2)} {moneda or "XCG"}')
-    cuerpo = ' · '.join(partes)
     if fecha_entrega:
-        cuerpo += f' · entrega {fecha_entrega.strftime("%d/%m")}'
+        partes.append(f'entrega {fecha_entrega.strftime("%d/%m")}')
+    # Una sola línea, sin saltos: en la vista plegada del teléfono (lo que
+    # se ve sin tocar la notificación) entra el título y una o dos líneas
+    # del cuerpo; una segunda línea se cortaba y el vendedor quedaba oculto.
     if vendedor:
-        cuerpo += f'\nTomado por {vendedor}'
+        partes.append(f'por {vendedor}')
+    cuerpo = ' · '.join(partes)
     return {
         'title': 'Nuevo Pedido Registrado',
         'body': cuerpo,

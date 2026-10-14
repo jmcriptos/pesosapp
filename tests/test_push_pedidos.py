@@ -255,7 +255,8 @@ def test_pedido_nuevo_avisa_a_los_demas_no_al_autor_ni_a_inactivos(app):
         assert payload['body'].startswith(f'#{pedido.id} Cliente A')
         assert '3 cajas' in payload['body']
         assert '39.00 XCG' in payload['body']
-        assert 'Vend_A' in payload['body']
+        assert payload['body'].endswith('· por Vend_A')
+        assert '\n' not in payload['body']
         assert payload['url'] == f'/pedidos/{pedido.id}/detalles'
         assert payload['tag'] == f'pedido-{pedido.id}'
 
@@ -363,7 +364,7 @@ def test_armar_payload():
         total=Decimal('1234.5'), moneda='XCG', vendedor='Carlos',
         fecha_entrega=date(2026, 10, 15), url='/pedidos/5890/detalles')
     assert p['title'] == 'Nuevo Pedido Registrado'
-    assert p['body'] == '#5890 Luna Park · 12.5 cajas · 1,234.50 XCG · entrega 15/10\nTomado por Carlos'
+    assert p['body'] == '#5890 Luna Park · 12.5 cajas · 1,234.50 XCG · entrega 15/10 · por Carlos'
     assert p['tag'] == 'pedido-5890'
     assert p['url'] == '/pedidos/5890/detalles'
 
