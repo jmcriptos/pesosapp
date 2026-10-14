@@ -866,7 +866,12 @@ def test_la_tarjeta_ofrece_una_sola_accion_a_lo_ancho(logged_client):
     assert '> Pesar este pedido' in html
     assert '> Facturar en QuickBooks' in html
     assert '> Marcar entregado' in html
-    assert html.count('class="pc-action-main pc-go"') == 3
+    # Cada etapa con su clase (y su color): pesar/preparar ámbar, facturar
+    # índigo, entregar verde. Eran los tres el mismo índigo y se confundían.
+    assert 'class="pc-action-main pc-go pc-go-pesar"' in html
+    assert 'class="pc-action-main pc-go pc-go-facturar"' in html
+    assert 'class="pc-action-main pc-go pc-go-entregar"' in html
+    assert html.count('class="pc-action-main pc-go pc-go-') == 3
     # Nada más a la vista: editar, eliminar y mover la entrega viven en el panel.
     assert 'pc-action-btn' not in html
     for tarjeta in re.findall(r'<details class="pc-mas">(.*?)</details>', html, re.S):
@@ -900,3 +905,15 @@ def test_el_toque_sobre_el_menu_no_abre_el_pedido():
     html = open('templates/pedidos.html', encoding='utf-8').read()
     assert html.count("if (event.target.closest('details')) return;") == 2
     assert html.index("addEventListener('toggle'") < html.index('var enTablero')
+
+
+def test_cada_etapa_tiene_su_color_y_pasa_aa():
+    """Medido en el render a 390px: pesar/preparar ámbar con tinta oscura
+    8,3:1, facturar índigo 6,3:1, entregar verde 5,5:1; las versiones suaves
+    de «luego» 6,4:1. El ámbar con texto blanco daría 2,3:1: por eso lleva
+    texto oscuro, y este test lo vigila."""
+    import re
+    css = _css_pedidos()
+    assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-pesar,\s*body\[data-pedidos-list-screen\] '
+                     r'\.tablero-ahora \.pc-actions \.pc-go-preparar\s*\{\s*background:\s*#f59e0b;\s*color:\s*#0f172a;', css)
+    assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-entregar\s*\{\s*background:\s*#047857;\s*color:\s*#ffffff;', css)
