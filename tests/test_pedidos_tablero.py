@@ -907,13 +907,16 @@ def test_el_toque_sobre_el_menu_no_abre_el_pedido():
     assert html.index("addEventListener('toggle'") < html.index('var enTablero')
 
 
-def test_cada_etapa_tiene_su_color_y_pasa_aa():
-    """Medido en el render a 390px: pesar/preparar ámbar con tinta oscura
-    8,3:1, facturar índigo 6,3:1, entregar verde 5,5:1; las versiones suaves
-    de «luego» 6,4:1. El ámbar con texto blanco daría 2,3:1: por eso lleva
-    texto oscuro, y este test lo vigila."""
+def test_cada_etapa_tiene_su_color_sin_gritar():
+    """Primero fueron tres bloques sólidos (ámbar, índigo, verde) y el
+    cliente quedaba como subtítulo. Ahora «ahora» lleva fondo suave con la
+    tinta oscura de su etapa y «luego» solo contorno. Medido en el render:
+    tintas sobre fondo suave 6,4:1 y más; el cliente sigue siendo lo más
+    pesado de la tarjeta. Este test vigila que nadie vuelva al sólido."""
     import re
     css = _css_pedidos()
+    tramo = css[css.index('Los botones bajan de intensidad'):]
     assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-pesar,\s*body\[data-pedidos-list-screen\] '
-                     r'\.tablero-ahora \.pc-actions \.pc-go-preparar\s*\{\s*background:\s*#f59e0b;\s*color:\s*#0f172a;', css)
-    assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-entregar\s*\{\s*background:\s*#047857;\s*color:\s*#ffffff;', css)
+                     r'\.tablero-ahora \.pc-actions \.pc-go-preparar\s*\{\s*background:\s*#fef3c7;\s*color:\s*#92400e;', tramo)
+    assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-entregar\s*\{\s*background:\s*#d1fae5;\s*color:\s*#065f46;', tramo)
+    assert re.search(r'\.pedido-card:not\(\.tablero-ahora\) \.pc-actions \.pc-go\s*\{\s*background:\s*#ffffff;\s*border:', tramo)
