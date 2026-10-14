@@ -170,6 +170,23 @@
     }).catch(function () { /* sin red o sin configurar: la próxima vez */ });
   }
 
+  /* Al tocar una notificación, el service worker le pide a la ventana que
+     ya está abierta que vaya al pedido (ver notificationclick en sw.js).
+     Se navega desde acá porque la página siempre puede; el SW solo cuando
+     la controla. Solo URLs del propio origen, por las dudas. */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function (ev) {
+      var datos = ev.data || {};
+      if (datos.tipo !== 'abrir' || typeof datos.url !== 'string') return;
+      try {
+        var destino = new URL(datos.url, window.location.origin);
+        if (destino.origin !== window.location.origin) return;
+        if (destino.href === window.location.href) return;
+        window.location.href = destino.href;
+      } catch (e) { /* URL rara: se ignora */ }
+    });
+  }
+
   window.PesosPush = {
     soportado: soportado,
     estado: estado,
