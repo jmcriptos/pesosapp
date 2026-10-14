@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Notificaciones{% endblock %}
+
+{% block header_title %}
+    <span class="fw-700 color-white">Notificaciones</span>
+{% endblock %}
+
+{% block content %}
+{# Lo necesita window.mostrarMensaje (base.js); sin este div cae a alert(). #}
+<div id="flash-message" class="flash-message" style="display:none" role="status"></div>
+<div class="mobile-form-container" id="push-pantalla" data-push-configurado="{{ '1' if push_configurado else '0' }}">
+
+  {% if not push_configurado %}
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-bell-slash"></i> Sin configurar en el servidor</div>
+    <div class="mobile-card-body">
+      <p>Las notificaciones push todavía no están activadas en PesosApp. Un administrador tiene que generar las claves con <code>flask push-generar-claves</code> y cargarlas como variables de entorno (<code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code> y <code>VAPID_CLAIMS_EMAIL</code>).</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-bell"></i> Pedidos nuevos</div>
+    <div class="mobile-card-body">
+      <p>Cada vez que un compañero registre un pedido te llega un aviso al teléfono, aunque la app esté cerrada. Los pedidos que cargás vos no te avisan.</p>
+
+      <p id="push-estado" class="text-muted" aria-live="polite">Comprobando este dispositivo…</p>
+
+      <p id="push-ayuda-ios" class="text-muted" style="display:none">
+        <strong>En iPhone:</strong> las notificaciones solo funcionan con la app instalada en la pantalla de inicio. En Safari tocá <i class="fas fa-arrow-up-from-bracket"></i> Compartir → «Agregar a inicio», y abrí PesosApp desde ese icono.
+      </p>
+
+      <div class="mobile-form-group" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+        <button type="button" id="push-activar" class="mobile-btn mobile-btn-primary" style="display:none" {% if not push_configurado %}disabled{% endif %}>
+          <i class="fas fa-bell"></i> Activar en este dispositivo
+        </button>
+        <button type="button" id="push-desactivar" class="mobile-btn mobile-btn-secondary" style="display:none">
+          <i class="fas fa-bell-slash"></i> Desactivar en este dispositivo
+        </button>
+        <button type="button" id="push-probar" class="mobile-btn mobile-btn-secondary" style="display:none">
+          <i class="fas fa-paper-plane"></i> Enviar una prueba
+        </button>
+      </div>
+
+      <p class="text-muted" style="margin-top:12px">
+        Dispositivos tuyos con notificaciones activas: <strong id="push-dispositivos">{{ dispositivos }}</strong>.
+      </p>
+    </div>
+  </div>
+
+  <div class="mobile-card">
+    <div class="mobile-card-header"><i class="fas fa-circle-info"></i> Cómo funciona</div>
+    <div class="mobile-card-body">
+      <p>El aviso lo manda el servicio de notificaciones del propio teléfono (Apple o Google); PesosApp no usa ningún servicio de terceros. Al tocar la notificación se abre el pedido.</p>
+      <p>Si en algún momento no querés más avisos, volvé acá y tocá «Desactivar», o quitá el permiso desde los ajustes del teléfono.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce() }}">
+/* Este bloque se inserta ANTES de base.min.js y push.js (orden de base.html),
+   así que todo espera a DOMContentLoaded: recién ahí existe window.PesosPush. */
+document.addEventListener('DOMContentLoaded', function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var estadoEl = $('push-estado');
+  var ayudaIos = $('push-ayuda-ios');
+  var btnActivar = $('push-activar');
+  var btnDesactivar = $('push-desactivar');
+  var btnProbar = $('push-probar');
+  var dispositivosEl = $('push-dispositivos');
+  var configurado = $('push-pantalla').dataset.pushConfigurado === '1';
+
+  // Por style y no por `hidden`: .mobile-btn declara display:inline-flex y
+  // ese display gana sobre el atributo.
+  function mostrar(el, si) { if (el) el.style.display = si ? '' : 'none'; }
+  function ocupado(si) {
+    [btnActivar, btnDesactivar, btnProbar].forEach(function (b) { if (b) b.disabled = si; });
+    if (!si && btnActivar && !configurado) btnActivar.disabled = true;
+  }
+  function aviso(msg, tipo) {
+    if (typeof window.mostrarMensaje === 'function') window.mostrarMensaje(msg, tipo);
+    else alert(msg);
+  }
+
+  function pintar() {
+    if (!window.PesosPush) {
+      estadoEl.textContent = 'No se pudo cargar el módulo de notificaciones.';
+      return;
+    }
+    window.PesosPush.estado().then(function (e) {
+      mostrar(ayudaIos, e.ios && !e.standalone && !e.soportado);
+      if (!e.soportado) {
+        estadoEl.textContent = e.ios
+          ? 'Este navegador no puede recibir notificaciones: instalá la app como se explica abajo.'
+          : 'Este navegador no soporta notificaciones push.';
+        mostrar(btnActivar, false); mostrar(btnDesactivar, false); mostrar(btnProbar, false);
+        return;
+      }
+      if (e.permiso === 'denied') {
+        estadoEl.textContent = 'El permiso de notificaciones está bloqueado en este navegador. Habilitalo desde los ajustes del sitio y volvé a intentar.';
+        mostrar(btnActivar, false); mostrar(btnDesactivar, false); mostrar(btnProbar, false);
+        return;
+      }
+      if (e.suscrito && e.permiso === 'granted') {
+        estadoEl.textContent = 'Notificaciones activas en este dispositivo.';
+        mostrar(btnActivar, false); mostrar(btnDesactivar, true); mostrar(btnProbar, true);
+      } else {
+        estadoEl.textContent = configurado
+          ? 'Las notificaciones no están activas en este dispositivo.'
+          : 'Las notificaciones no están activas en este dispositivo (faltan las claves en el servidor).';
+        mostrar(btnActivar, true); mostrar(btnDesactivar, false); mostrar(btnProbar, false);
+      }
+    });
+  }
+
+  function conDispositivos(datos) {
+    if (datos && typeof datos.dispositivos === 'number') dispositivosEl.textContent = datos.dispositivos;
+  }
+
+  btnActivar.addEventListener('click', function () {
+    ocupado(true);
+    window.PesosPush.activar().then(function (datos) {
+      conDispositivos(datos);
+      aviso('Listo: este dispositivo va a recibir los pedidos nuevos.', 'success');
+    }).catch(function (err) {
+      aviso(err && err.message ? err.message : 'No se pudieron activar las notificaciones.', 'error');
+    }).then(function () { ocupado(false); pintar(); });
+  });
+
+  btnDesactivar.addEventListener('click', function () {
+    ocupado(true);
+    window.PesosPush.desactivar().then(function (datos) {
+      conDispositivos(datos);
+      aviso('Este dispositivo ya no recibe notificaciones.', 'success');
+    }).catch(function (err) {
+      aviso(err && err.message ? err.message : 'No se pudieron desactivar.', 'error');
+    }).then(function () { ocupado(false); pintar(); });
+  });
+
+  btnProbar.addEventListener('click', function () {
+    ocupado(true);
+    window.PesosPush.probar().then(function (r) {
+      if (r.ok) aviso('Prueba enviada: debería llegar en unos segundos.', 'success');
+      else aviso('No llegó a ningún dispositivo (' + (r.errores || 0) + ' con error, ' + (r.bajas || 0) + ' dados de baja).', 'error');
+    }).catch(function (err) {
+      aviso(err && err.message ? err.message : 'No se pudo enviar la prueba.', 'error');
+    }).then(function () { ocupado(false); pintar(); });
+  });
+
+  pintar();
+});
+</script>
+{% endblock %}

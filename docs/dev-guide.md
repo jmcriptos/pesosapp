@@ -224,3 +224,45 @@ heroku run flask db upgrade
 ### CSRF en AJAX
 
 El `base.js` auto-inyecta `X-CSRFToken` header en todas las llamadas `fetch()` y jQuery AJAX. El token viene del meta tag `<meta name="csrf-token">` en `base.html`.
+
+---
+
+## 7. Notificaciones Push (pedidos nuevos)
+
+Diseño completo: `docs/superpowers/specs/2026-10-14-push-pedidos-nuevos-design.md`.
+
+Cuando se guarda un pedido en `/pedidos/nuevo`, los demás usuarios activos que
+hayan activado los avisos en su teléfono reciben una notificación (Web Push +
+VAPID, sin servicios de terceros). Al tocarla se abre el detalle del pedido.
+
+### Activar en un entorno
+
+```bash
+# 1. Generar el par de claves UNA sola vez
+flask push-generar-claves
+
+# 2. Cargar las tres variables (local: .env; Heroku: config:set)
+heroku config:set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_CLAIMS_EMAIL=mailto:jm@jomarfoods.com --app pesosapp
+```
+
+La tabla `suscripcion_push` se crea sola al arrancar (`_asegurar_tabla_push`);
+`scripts/push_migracion.sql` la crea a mano si hiciera falta. Sin las variables
+la función queda apagada y la pantalla **Mi cuenta → Notificaciones** lo dice.
+
+### Piezas
+
+| Pieza | Archivo |
+|---|---|
+| Modelo `SuscripcionPush`, rutas `/api/push/*`, `/sw.js`, gancho `_notificar_nuevo_pedido` | `app.py` |
+| Claves, texto del aviso, envío con `pywebpush` | `utils/push_notificaciones.py` |
+| Service worker (solo push, sin caché) | `static/sw.js` |
+| `window.PesosPush` (activar / desactivar / probar / re-sincronizar) | `static/js/push.js` |
+| Pantalla de activación | `templates/cuenta_notificaciones.html` |
+| Tests | `tests/test_push_pedidos.py` |
+
+### Reglas
+
+- El aviso sale **después** del commit y nunca interrumpe la creación del pedido.
+- No se avisa a quien cargó el pedido ni a usuarios inactivos.
+- Un 404/410 del servicio de push borra la suscripción; un error de red no.
+- En iPhone solo funciona con la app agregada a la pantalla de inicio (iOS 16.4+).
