@@ -88,7 +88,9 @@ def armar_payload_nuevo_pedido(pedido_id, cliente, cajas, total, moneda,
 
     `cajas` y `total` ya vienen como número; acá solo se formatean. El total
     sigue la convención del dashboard (coma de miles, punto decimal)."""
-    partes = [cliente]
+    # El título lo pidió JM tal cual: «Nuevo Pedido Registrado». El número
+    # del pedido pasa a abrir el cuerpo para no perderlo.
+    partes = [f'#{pedido_id} {cliente}']
     if cajas:
         partes.append(f'{_fmt_num(cajas)} cajas')
     if total:
@@ -99,7 +101,7 @@ def armar_payload_nuevo_pedido(pedido_id, cliente, cajas, total, moneda,
     if vendedor:
         cuerpo += f'\nTomado por {vendedor}'
     return {
-        'title': f'Nuevo pedido #{pedido_id}',
+        'title': 'Nuevo Pedido Registrado',
         'body': cuerpo,
         'url': url,
         # Mismo tag = la segunda notificación del mismo pedido reemplaza a la

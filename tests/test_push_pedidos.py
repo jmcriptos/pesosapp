@@ -251,8 +251,8 @@ def test_pedido_nuevo_avisa_a_los_demas_no_al_autor_ni_a_inactivos(app):
     with app.app_context():
         pedido = Pedido.query.one()
         _, payload = doble.llamadas[0]
-        assert payload['title'] == f'Nuevo pedido #{pedido.id}'
-        assert 'Cliente A' in payload['body']
+        assert payload['title'] == 'Nuevo Pedido Registrado'
+        assert payload['body'].startswith(f'#{pedido.id} Cliente A')
         assert '3 cajas' in payload['body']
         assert '39.00 XCG' in payload['body']
         assert 'Vend_A' in payload['body']
@@ -362,14 +362,14 @@ def test_armar_payload():
         pedido_id=5890, cliente='Luna Park', cajas=Decimal('12.5'),
         total=Decimal('1234.5'), moneda='XCG', vendedor='Carlos',
         fecha_entrega=date(2026, 10, 15), url='/pedidos/5890/detalles')
-    assert p['title'] == 'Nuevo pedido #5890'
-    assert p['body'] == 'Luna Park · 12.5 cajas · 1,234.50 XCG · entrega 15/10\nTomado por Carlos'
+    assert p['title'] == 'Nuevo Pedido Registrado'
+    assert p['body'] == '#5890 Luna Park · 12.5 cajas · 1,234.50 XCG · entrega 15/10\nTomado por Carlos'
     assert p['tag'] == 'pedido-5890'
     assert p['url'] == '/pedidos/5890/detalles'
 
     # Sin total ni cajas ni vendedor: solo el cliente, sin separadores sueltos.
     p = push.armar_payload_nuevo_pedido(pedido_id=1, cliente='X', cajas=0, total=0, moneda='USD')
-    assert p['body'] == 'X'
+    assert p['body'] == '#1 X'
 
 
 def test_enviar_mapea_respuestas_de_pywebpush(monkeypatch):
