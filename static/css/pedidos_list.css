@@ -2352,3 +2352,106 @@ body[data-pedidos-list-screen] .pc-actions .pc-go-entregar {
 body[data-pedidos-list-screen] .pc-go i {
   font-size: 1.3rem;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Los botones bajan de intensidad (2026-10-14, segunda vuelta)
+   ──────────────────────────────────────────────────────────── */
+
+/* Tres bloques sólidos de 56px por pantalla se comían la tarjeta: el
+   nombre del cliente, que es el dato que se busca, quedaba como subtítulo
+   (reportado por JM). La etapa se sigue distinguiendo por el color, pero
+   el botón ya no es la mancha más fuerte de la tarjeta:
+
+     ahora  fondo suave del color de la etapa con su tinta oscura
+            (ámbar #fef3c7/#92400e, índigo #e0e7ff/#4338ca, verde
+            #d1fae5/#065f46), sin sombra
+     luego  solo contorno de ese color sobre blanco, con la misma tinta
+
+   El cliente (19px/700, Tinta) vuelve a ser lo más pesado de la tarjeta.
+   Contraste medido de las tintas sobre su fondo suave: 6,4:1 y más. */
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-facturar {
+  background: #e0e7ff;
+  color: #4338ca;
+  box-shadow: none;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-pesar,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-preparar {
+  background: #fef3c7;
+  color: #92400e;
+  box-shadow: none;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar {
+  background: #d1fae5;
+  color: #065f46;
+  box-shadow: none;
+}
+
+/* Al tocar, el fondo se hunde un tono (misma tinta). */
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-action-main:active,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-facturar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-facturar:active {
+  background: #c7d2fe;
+  color: #3730a3;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-pesar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-preparar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-pesar:active,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-preparar:active {
+  background: #fde68a;
+  color: #78350f;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar:active {
+  background: #a7f3d0;
+  color: #064e3b;
+}
+
+/* Luego (Próximos, Sin fecha, archivo): el MISMO fondo suave que «ahora».
+   Hubo una vuelta con contorno sin relleno para distinguir los niveles, y
+   JM prefirió todos con fondo suave: la urgencia ya la dicen el grupo y la
+   barra lateral, el botón no tiene que repetirla. */
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go {
+  background: #e0e7ff;
+  border: 0;
+  color: #4338ca;
+  box-shadow: none;
+}
+
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-pesar,
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-preparar {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-entregar {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go:hover,
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go:active {
+  background: #c7d2fe;
+}
+
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-pesar:hover,
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-preparar:hover,
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-pesar:active,
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-preparar:active {
+  background: #fde68a;
+}
+
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-entregar:hover,
+body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-entregar:active {
+  background: #a7f3d0;
+}
+
+/* Y el botón habla un poco más bajo: 15px, no 16. El cliente va a 19. */
+body[data-pedidos-list-screen] .pc-actions .pc-action-main.pc-go {
+  font-size: 0.9375rem;
+}
