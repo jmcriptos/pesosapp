@@ -328,6 +328,9 @@
                 <a href="{{ url_for('cuenta_2fa') }}" class="drawer-item {{ 'active' if request.path.startswith('/mi-cuenta/2fa') }}">
                     <i class="fas fa-shield-alt"></i><span>Segundo factor</span>
                 </a>
+                <a href="{{ url_for('cuenta_notificaciones') }}" class="drawer-item {{ 'active' if request.path.startswith('/mi-cuenta/notificaciones') }}">
+                    <i class="fas fa-bell"></i><span>Notificaciones</span>
+                </a>
                 <form method="POST" action="/logout" style="display:contents">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="drawer-item drawer-item-logout" style="border:none;background:none;width:100%;text-align:left;cursor:pointer;font:inherit">
@@ -355,12 +358,14 @@
                 <a href="/pedidos" class="nav-pill" aria-label="Buscar pedido" title="Buscar pedido">
                     <i class="fas fa-search" aria-hidden="true"></i>
                 </a>
-                <button type="button" class="nav-pill nav-pill-bell" aria-label="Notificaciones" title="Notificaciones">
+                {# La campana era un botón sin acción. Ahora lleva a Mi cuenta →
+                   Notificaciones, donde se activan los avisos push de pedidos nuevos. #}
+                <a href="{{ url_for('cuenta_notificaciones') }}" class="nav-pill nav-pill-bell" aria-label="Notificaciones" title="Notificaciones">
                     <i class="fas fa-bell" aria-hidden="true"></i>
                     {% if pedidos_pendientes and pedidos_pendientes > 0 %}
                     <span class="nav-pill-dot" aria-hidden="true"></span>
                     {% endif %}
-                </button>
+                </a>
                 {# El toggle de tema se eliminó el 2026-08-28 (decisión de JM:
                    la app no lleva modo oscuro). Era además un control muerto en
                    la práctica: el contenido de todas las pantallas está clavado
@@ -527,6 +532,7 @@
                                     <i class="fas fa-key"></i><span>Cambiar contraseña</span>
                                 </a>
                                 <a href="{{ url_for('cuenta_2fa') }}" class="dropdown-item"><i class="fas fa-shield-alt"></i> Segundo factor</a>
+                                <a href="{{ url_for('cuenta_notificaciones') }}" class="dropdown-item"><i class="fas fa-bell"></i> Notificaciones</a>
                                 <form method="POST" action="/logout" style="display:contents">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="dropdown-item logout-item" style="border:none;background:none;width:100%;text-align:left;cursor:pointer;font:inherit">
@@ -613,6 +619,11 @@
     <!-- Scripts optimizados - FORZAR MINIFICADOS -->
     {% block scripts %}{% endblock %}
     <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/base.min.js') }}"></script>
+    {% if current_user and current_user.is_authenticated %}
+    {# Push de pedidos nuevos: va DESPUÉS de base.min.js, que es quien parchea
+       fetch con el token CSRF. Solo con sesión: sin usuario no hay a quién suscribir. #}
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/push.js') }}"></script>
+    {% endif %}
     <script nonce="{{ csp_nonce() }}" src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <script nonce="{{ csp_nonce() }}">
     /* Auto-init Tom Select en todo select.ts-select.

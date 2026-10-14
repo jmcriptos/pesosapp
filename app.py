@@ -1178,8 +1178,11 @@ def forzar_segundo_factor():
     if current_user.totp_activo or not _2fa_obligatorio_para(current_user) or _2fa_pausado():
         return
     ep = request.endpoint or ''
+    # `sw_js` también: el navegador lo pide solo, sin que el usuario toque
+    # nada, para actualizar el service worker; un redirect a HTML ahí rompe
+    # el registro de push y no le muestra ningún aviso a nadie.
     if ep in ('cuenta_2fa', 'cuenta_2fa_activar', 'logout', 'login', 'csrf_ping',
-              'cambiar_password') or ep.startswith('static'):
+              'cambiar_password', 'sw_js') or ep.startswith('static'):
         return
     flash('Tu rol requiere segundo factor. Activalo para continuar.', 'warning')
     return redirect(url_for('cuenta_2fa'))
@@ -1338,8 +1341,11 @@ def cambiar_password():
 @app.before_request
 def require_login():
     allowed_endpoints = ['login', 'logout', 'static', 'privacidad']
-    # Endpoints que se autentican por su cuenta (CSRF ping, webhook con token propio)
-    if request.endpoint in ('csrf_ping', 'webhook_actualizacion_precios'):
+    # Endpoints que se autentican por su cuenta (CSRF ping, webhook con token
+    # propio) o que no tienen nada que proteger: `sw_js` es el service worker
+    # de las notificaciones push, un archivo público que el navegador pide
+    # por su cuenta (y con un redirect a /login el registro falla en silencio).
+    if request.endpoint in ('csrf_ping', 'webhook_actualizacion_precios', 'sw_js'):
         return
 
     if request.endpoint and not any(request.endpoint.startswith(ep) for ep in allowed_endpoints):
@@ -1354,7 +1360,7 @@ def forzar_cambio_password():
     if not getattr(current_user, 'debe_cambiar_password', False):
         return
     ep = request.endpoint or ''
-    if ep in ('cambiar_password', 'logout', 'login', 'csrf_ping') or ep.startswith('static'):
+    if ep in ('cambiar_password', 'logout', 'login', 'csrf_ping', 'sw_js') or ep.startswith('static'):
         return
     flash('Debes establecer una nueva contraseña para continuar.', 'warning')
     return redirect(url_for('cambiar_password'))
@@ -3525,6 +3531,45 @@ class PedidoEvento(db.Model):
 
     def __repr__(self):
         return f'<PedidoEvento {self.id} pedido={self.pedido_id} tipo={self.tipo}>'
+
+
+class SuscripcionPush(db.Model):
+    """Un dispositivo que aceptó recibir notificaciones push.
+
+    Una fila por navegador/teléfono, no por usuario: JM puede tener el
+    iPhone y la PC suscritos a la vez. El `endpoint` lo da el servicio de
+    push del navegador y es único en el mundo, por eso es la clave natural:
+    si el mismo teléfono se vuelve a suscribir (o entra otro usuario en él),
+    se actualiza esa fila en vez de duplicarla.
+
+    `p256dh` y `auth` son las claves con las que se cifra CADA mensaje para
+    ese dispositivo (Web Push los exige); sin ellas el navegador descarta el
+    push. No sirven para nada fuera de ese endpoint.
+    """
+    __tablename__ = 'suscripcion_push'
+
+    id = db.Column(db.Integer, primary_key=True)
+    vendedor_id = db.Column(db.Integer, db.ForeignKey('vendedor.id', ondelete='CASCADE'),
+                            nullable=False, index=True)
+    endpoint = db.Column(db.String(1000), nullable=False, unique=True)
+    p256dh = db.Column(db.String(255), nullable=False)
+    auth = db.Column(db.String(255), nullable=False)
+    user_agent = db.Column(db.String(255), nullable=True)
+    creado_en = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ultimo_envio_en = db.Column(db.DateTime, nullable=True)
+
+    vendedor = db.relationship(
+        'Vendedor',
+        backref=db.backref('suscripciones_push', cascade='all, delete-orphan'),
+    )
+
+    def como_dict(self):
+        """Dato plano para mandar desde un hilo sin sesión de base."""
+        return {'id': self.id, 'endpoint': self.endpoint,
+                'p256dh': self.p256dh, 'auth': self.auth}
+
+    def __repr__(self):
+        return f'<SuscripcionPush {self.id} vendedor={self.vendedor_id}>'
 
 ############################################
 # MODELOS MULTI-VENDEDOR (AGREGAR AL FINAL DE APP.PY)
@@ -8489,6 +8534,12 @@ def nuevo_pedido():
                 return jsonify(_pedido_confirmacion_json_desde_pedido(existente))
             flash('Pedido creado con precios registrados.', 'success')
             return redirect(url_for('lista_pedidos'))
+
+        # Recién DESPUÉS del commit: el aviso lleva un enlace al pedido y
+        # tiene que existir cuando alguien lo toque. Nunca interrumpe la
+        # creación —el pedido ya está guardado— y el envío real sale en
+        # segundo plano para no sumar latencia a la respuesta del vendedor.
+        _notificar_nuevo_pedido(pedido, cliente_post, lineas_form)
 
         # El flash ya no dice siempre "con precios registrados": un pedido
         # con líneas SIN precio de lista (total en 0.00 en el peor caso) se
@@ -15813,11 +15864,273 @@ def limpieza_config():
     return render_template('registros/limpieza_config.html', cfg=cfg)
 
 
+############################################
+# NOTIFICACIONES PUSH — pedidos nuevos
+############################################
+# Diseño: docs/superpowers/specs/2026-10-14-push-pedidos-nuevos-design.md
+# Lo puro (claves, texto, envío) vive en utils/push_notificaciones.py; acá
+# quedan el modelo (arriba, SuscripcionPush), las rutas y el gancho que
+# dispara el aviso cuando se guarda un pedido.
+from flask import has_app_context, send_from_directory  # noqa: E402
+from utils import push_notificaciones as _push  # noqa: E402
+
+
+def _asegurar_tabla_push():
+    """Crea `suscripcion_push` si falta. Mismo criterio que evento_auditoria y
+    el módulo de producción: la app se asegura su tabla al arrancar en vez de
+    depender de `flask db upgrade` (el historial de Alembic tiene dos heads
+    y no se usa para las tablas nuevas)."""
+    try:
+        SuscripcionPush.__table__.create(bind=db.engine, checkfirst=True)
+    except Exception as e:
+        app.logger.warning(f'[push] no se pudo asegurar la tabla suscripcion_push: {e}')
+
+
+@app.route('/sw.js')
+def sw_js():
+    """El service worker se sirve desde la raíz a propósito: el alcance de un
+    SW es la carpeta donde vive, y desde /static/ no podría controlar la app
+    entera (haría falta Service-Worker-Allowed y Chrome igual lo mira con
+    recelo). Sin login: lo pide el navegador solo, al actualizar, y no
+    contiene nada que no sea público."""
+    resp = make_response(send_from_directory(app.static_folder, 'sw.js',
+                                             mimetype='application/javascript'))
+    # Un SW cacheado una semana significaría una semana sin ver un fix: el
+    # navegador igual revalida cada 24 h, pero mejor que lo pida siempre.
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+
+def _push_json_error(mensaje, status):
+    return jsonify({'ok': False, 'error': mensaje}), status
+
+
+@app.route('/api/push/clave-publica')
+@login_required
+def push_clave_publica():
+    claves = _push.claves_vapid()
+    if claves is None:
+        return _push_json_error('Las notificaciones push no están configuradas en el servidor.', 503)
+    return jsonify({'ok': True, 'clave': claves[0]})
+
+
+@app.route('/api/push/suscribir', methods=['POST'])
+@login_required
+def push_suscribir():
+    """Guarda (o actualiza) la suscripción de ESTE dispositivo para el usuario
+    logueado. El navegador manda el objeto `PushSubscription` tal cual:
+    {endpoint, keys: {p256dh, auth}}."""
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    if not _push.push_configurado():
+        return _push_json_error('Las notificaciones push no están configuradas en el servidor.', 503)
+
+    datos = request.get_json(silent=True) or {}
+    endpoint = str(datos.get('endpoint') or '').strip()
+    keys = datos.get('keys') or {}
+    p256dh = str(keys.get('p256dh') or '').strip()
+    auth = str(keys.get('auth') or '').strip()
+    if (not endpoint.startswith('https://') or len(endpoint) > 1000
+            or not p256dh or not auth or len(p256dh) > 255 or len(auth) > 255):
+        return _push_json_error('Suscripción inválida.', 400)
+
+    user_agent = (request.headers.get('User-Agent') or '')[:255] or None
+    sus = SuscripcionPush.query.filter_by(endpoint=endpoint).first()
+    if sus is None:
+        sus = SuscripcionPush(vendedor_id=current_user.id, endpoint=endpoint,
+                              p256dh=p256dh, auth=auth, user_agent=user_agent)
+        db.session.add(sus)
+    else:
+        # Mismo teléfono, quizá otro usuario (un celular compartido en el
+        # almacén): el aviso va a quien esté logueado AHORA, no al anterior.
+        sus.vendedor_id = current_user.id
+        sus.p256dh = p256dh
+        sus.auth = auth
+        sus.user_agent = user_agent
+    db.session.commit()
+    total = SuscripcionPush.query.filter_by(vendedor_id=current_user.id).count()
+    return jsonify({'ok': True, 'dispositivos': total})
+
+
+@app.route('/api/push/desuscribir', methods=['POST'])
+@login_required
+def push_desuscribir():
+    """Borra la suscripción de este dispositivo. Idempotente: si ya no estaba
+    (la borró un 410 del servicio de push) igual responde ok."""
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    datos = request.get_json(silent=True) or {}
+    endpoint = str(datos.get('endpoint') or '').strip()
+    if endpoint:
+        SuscripcionPush.query.filter_by(endpoint=endpoint, vendedor_id=current_user.id)\
+            .delete(synchronize_session=False)
+        db.session.commit()
+    total = SuscripcionPush.query.filter_by(vendedor_id=current_user.id).count()
+    return jsonify({'ok': True, 'dispositivos': total})
+
+
+@app.route('/api/push/probar', methods=['POST'])
+@login_required
+def push_probar():
+    """Manda una notificación de prueba a los dispositivos del usuario
+    logueado. En línea (sin hilo): el usuario está mirando la pantalla y
+    quiere saber ahora si le llegó."""
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    if not _push.push_configurado():
+        return _push_json_error('Las notificaciones push no están configuradas en el servidor.', 503)
+    suscripciones = [s.como_dict() for s in
+                     SuscripcionPush.query.filter_by(vendedor_id=current_user.id).all()]
+    if not suscripciones:
+        return _push_json_error('Este usuario no tiene ningún dispositivo suscrito.', 404)
+    payload = {
+        'title': 'PesosApp: notificaciones activas',
+        'body': 'Así vas a ver cada pedido nuevo que se registre.',
+        'url': url_for('lista_pedidos'),
+        'tag': 'prueba-push',
+    }
+    resultado = _enviar_push_a(suscripciones, payload)
+    return jsonify({'ok': resultado['enviados'] > 0, **resultado})
+
+
+@app.route('/mi-cuenta/notificaciones')
+@login_required
+def cuenta_notificaciones():
+    if not isinstance(current_user, Vendedor):
+        abort(403)
+    return render_template(
+        'cuenta_notificaciones.html',
+        push_configurado=_push.push_configurado(),
+        dispositivos=SuscripcionPush.query.filter_by(vendedor_id=current_user.id).count(),
+    )
+
+
+def _suscripciones_para_aviso(excluir_vendedor_id=None):
+    """Todos los dispositivos de usuarios activos, menos los de quien generó
+    el aviso: el vendedor que acaba de cargar el pedido ya lo sabe."""
+    consulta = (SuscripcionPush.query.join(Vendedor, Vendedor.id == SuscripcionPush.vendedor_id)
+                .filter(Vendedor.activo.is_(True)))
+    if excluir_vendedor_id is not None:
+        consulta = consulta.filter(SuscripcionPush.vendedor_id != excluir_vendedor_id)
+    return [s.como_dict() for s in consulta.all()]
+
+
+def _enviar_push_a(suscripciones, payload):
+    """Manda `payload` a cada suscripción y deja la base al día: borra las que
+    el servicio de push dio de baja (404/410) y marca la hora del último
+    envío en las que sí llegaron. Devuelve el conteo por resultado.
+
+    Corre tanto en línea (prueba, tests) como desde un hilo: si no hay app
+    context (hilo) lo abre; si lo hay, usa la sesión que ya está."""
+    claves = _push.claves_vapid()
+    enviados, bajas, errores = [], [], 0
+    for sus in suscripciones:
+        estado, motivo = _push.enviar(sus, payload, claves)
+        if estado == 'ok':
+            enviados.append(sus['id'])
+        elif estado == 'baja':
+            bajas.append(sus['id'])
+            app.logger.info(f'[push] suscripción {sus["id"]} dada de baja: {motivo}')
+        else:
+            errores += 1
+            app.logger.warning(f'[push] no se pudo enviar a {sus["id"]}: {motivo}')
+
+    def _persistir():
+        try:
+            if bajas:
+                SuscripcionPush.query.filter(SuscripcionPush.id.in_(bajas))\
+                    .delete(synchronize_session=False)
+            if enviados:
+                SuscripcionPush.query.filter(SuscripcionPush.id.in_(enviados))\
+                    .update({'ultimo_envio_en': datetime.utcnow()}, synchronize_session=False)
+            if bajas or enviados:
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f'[push] no se pudo actualizar suscripciones: {e}')
+
+    if has_app_context():
+        _persistir()
+    else:
+        with app.app_context():
+            _persistir()
+    return {'enviados': len(enviados), 'bajas': len(bajas), 'errores': errores}
+
+
+def _despachar_push(suscripciones, payload):
+    """Envío en segundo plano (hilo daemon, como el webhook HACCP). En tests
+    corre en línea para poder afirmar sobre el resultado."""
+    if not suscripciones:
+        return
+    if app.testing or app.config.get('PUSH_SINCRONO'):
+        _enviar_push_a(suscripciones, payload)
+        return
+
+    def _correr():
+        try:
+            resultado = _enviar_push_a(suscripciones, payload)
+            app.logger.info(f'[push] {payload.get("title")}: {resultado}')
+        except Exception as e:
+            app.logger.warning(f'[push] envío en segundo plano falló: {e}')
+    try:
+        threading.Thread(target=_correr, daemon=True).start()
+    except Exception as e:
+        app.logger.warning(f'[push] no se pudo lanzar hilo: {e}')
+
+
+def _notificar_nuevo_pedido(pedido, cliente, lineas_form):
+    """Avisa a los demás usuarios que entró un pedido. Se llama DESPUÉS del
+    commit de `nuevo_pedido` y nunca levanta: el pedido ya está guardado y
+    un aviso que falla no puede convertir eso en un error para el vendedor."""
+    try:
+        if not _push.push_configurado():
+            return
+        actor_id = current_user.id if isinstance(current_user, Vendedor) else None
+        suscripciones = _suscripciones_para_aviso(excluir_vendedor_id=actor_id)
+        if not suscripciones:
+            return
+        actor = None
+        if isinstance(current_user, Vendedor):
+            actor = current_user.nombre_completo or current_user.username
+        payload = _push.armar_payload_nuevo_pedido(
+            pedido_id=pedido.id,
+            cliente=cliente.nombre,
+            cajas=sum((l.get('cajas') or 0 for l in lineas_form), 0),
+            total=sum((l.get('subtotal') or 0 for l in lineas_form), Decimal('0')),
+            moneda=cliente.moneda,
+            vendedor=actor,
+            fecha_entrega=pedido.fecha_entrega,
+            url=url_for('detalles_pedido', pedido_id=pedido.id),
+        )
+        _despachar_push(suscripciones, payload)
+    except Exception as e:
+        app.logger.warning(f'[push] no se pudo avisar del pedido {getattr(pedido, "id", "?")}: {e}')
+
+
+@app.cli.command('push-generar-claves')
+def push_generar_claves():
+    """Genera el par de claves VAPID para las notificaciones push.
+
+    Se corre UNA vez; las claves van a las variables de entorno (en Heroku,
+    `heroku config:set`). Cambiarlas después invalida todas las suscripciones
+    guardadas: cada teléfono tendría que volver a activar las notificaciones.
+    """
+    publica, privada = _push.generar_claves()
+    click.echo('Claves VAPID generadas. Configuralas así (una sola vez):')
+    click.echo('')
+    click.echo(f'  VAPID_PUBLIC_KEY={publica}')
+    click.echo(f'  VAPID_PRIVATE_KEY={privada}')
+    click.echo('  VAPID_CLAIMS_EMAIL=mailto:tu-correo@jomarfoods.com')
+    click.echo('')
+    click.echo('En Heroku: heroku config:set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_CLAIMS_EMAIL=... --app pesosapp')
+
+
 # Asegura columnas/tablas nuevas de HACCP en cada arranque (idempotente).
 # Se ejecuta aquí, después de definir todos los modelos.
 with app.app_context():
     _ensure_haccp_columns()
     _seed_catalogo_limpieza()
+    _asegurar_tabla_push()
 
 
 @app.route('/registros')
