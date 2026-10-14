@@ -919,4 +919,5 @@ def test_cada_etapa_tiene_su_color_sin_gritar():
     assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-pesar,\s*body\[data-pedidos-list-screen\] '
                      r'\.tablero-ahora \.pc-actions \.pc-go-preparar\s*\{\s*background:\s*#fef3c7;\s*color:\s*#92400e;', tramo)
     assert re.search(r'\.tablero-ahora \.pc-actions \.pc-go-entregar\s*\{\s*background:\s*#d1fae5;\s*color:\s*#065f46;', tramo)
-    assert re.search(r'\.pedido-card:not\(\.tablero-ahora\) \.pc-actions \.pc-go\s*\{\s*background:\s*#ffffff;\s*border:', tramo)
+    # «Luego» lleva el mismo fondo suave, no contorno (decisión de JM).
+    assert re.search(r'\.pedido-card:not\(\.tablero-ahora\) \.pc-actions \.pc-go\s*\{\s*background:\s*#e0e7ff;\s*border:\s*0;', tramo)
