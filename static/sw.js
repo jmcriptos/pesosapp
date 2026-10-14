@@ -45,22 +45,44 @@ self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var url = (event.notification.data && event.notification.data.url) || '/pedidos';
   var destino = new URL(url, self.location.origin).href;
+
+  function abrirVentanaNueva() {
+    return self.clients.openWindow ? self.clients.openWindow(destino) : null;
+  }
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (ventanas) {
       // Si la app ya está abierta (la PWA en segundo plano), se la trae al
       // frente y se la lleva al pedido; si no, se abre una ventana nueva.
+      //
+      // Llevarla al pedido tiene dos caminos, porque `WindowClient.navigate`
+      // solo funciona sobre una ventana que ESTE service worker controla y
+      // en iOS falla seguido: la primera versión hacía navigate → focus, y
+      // cuando navigate fallaba el usuario veía la app tal como la dejó (el
+      // listado) y no el pedido. Ahora:
+      //   1. se le manda un mensaje a la página, que navega por su cuenta
+      //      (push.js escucha `tipo: 'abrir'`); eso no depende de que el SW
+      //      la controle;
+      //   2. si además navigate está disponible, se usa; si falla, no pasa
+      //      nada porque el mensaje ya salió;
+      //   3. si no hay ninguna ventana, o no se la pudo enfocar, se abre
+      //      una nueva directamente en el pedido.
+      var ventana = null;
       for (var i = 0; i < ventanas.length; i++) {
-        var v = ventanas[i];
-        if ('focus' in v) {
-          if ('navigate' in v) {
-            return v.navigate(destino).then(function (w) { return w ? w.focus() : null; })
-              .catch(function () { return v.focus(); });
-          }
-          return v.focus();
-        }
+        if ('focus' in ventanas[i]) { ventana = ventanas[i]; break; }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(destino);
-      return null;
+      if (!ventana) return abrirVentanaNueva();
+
+      return ventana.focus().then(function (enfocada) {
+        var v = enfocada || ventana;
+        try { v.postMessage({ tipo: 'abrir', url: destino }); } catch (e) { /* sin mensaje */ }
+        if ('navigate' in v) {
+          return v.navigate(destino).catch(function () { return null; });
+        }
+        return null;
+      }).catch(function () {
+        return abrirVentanaNueva();
+      });
     })
   );
 });
