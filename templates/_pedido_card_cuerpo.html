@@ -107,14 +107,14 @@
           {% if pedido.estado == 'pendiente' %}
             {% if pedido.tiene_pesables %}
             <a href="{{ url_for('pesar_pedido', pedido_id=pedido.id) }}"
-               class="pc-action-main pc-go" aria-label="Pesar pedido PED-{{ pedido.id }}">
+               class="pc-action-main pc-go pc-go-pesar" aria-label="Pesar pedido PED-{{ pedido.id }}">
               <i class="fa-solid fa-weight-hanging" aria-hidden="true"></i> Pesar este pedido
             </a>
             {% else %}
             {# Sin nada que pesar no queda trabajo que capturar; falta
                confirmarlo, y eso vive en el detalle con su aviso. #}
             <a href="{{ url_for('detalles_pedido', pedido_id=pedido.id) }}"
-               class="pc-action-main pc-go" aria-label="Preparar pedido PED-{{ pedido.id }}">
+               class="pc-action-main pc-go pc-go-preparar" aria-label="Preparar pedido PED-{{ pedido.id }}">
               <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Preparar este pedido
             </a>
             {% endif %}
@@ -128,7 +128,7 @@
                 data-confirm="Se creará una factura en QuickBooks para {{ pedido.cliente.nombre if pedido.cliente else 'este cliente' }} por {{ '{:,.2f}'.format(pedido.total_calculado or 0) }} {{ pedido.moneda }} ({{ pedido.detalles|selectattr('es_linea_pedido')|list|length }} líneas). No se puede deshacer. ¿Facturar PED-{{ pedido.id }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-            <button type="submit" class="pc-action-main pc-go"
+            <button type="submit" class="pc-action-main pc-go pc-go-facturar"
                     data-submit-label="Facturando…"
                     aria-label="Facturar pedido PED-{{ pedido.id }}">
               <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Facturar en QuickBooks
@@ -140,7 +140,7 @@
                 class="pc-action-form pc-action-form-main">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ url_actual or url_for('lista_pedidos') }}">
-            <button type="submit" class="pc-action-main pc-go"
+            <button type="submit" class="pc-action-main pc-go pc-go-entregar"
                     aria-label="Marcar PED-{{ pedido.id }} como entregado">
               <i class="fa-solid fa-truck" aria-hidden="true"></i> Marcar entregado
             </button>

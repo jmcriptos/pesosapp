@@ -2286,3 +2286,69 @@ body[data-pedidos-list-screen] .pc-menu-item-danger i {
 body[data-pedidos-list-screen] .tablero-ahora .pc-client {
   font-size: 1.1875rem;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Cada etapa con su color (2026-10-14)
+   ──────────────────────────────────────────────────────────── */
+
+/* Los cuatro botones eran el mismo índigo a lo ancho y solo cambiaba el
+   texto: había que leer para saber en qué etapa estaba cada pedido
+   (reportado por JM). Ahora el botón lleva el color de la etapa que la
+   barra lateral de la tarjeta ya usa: ámbar para lo que hay que pesar o
+   preparar, índigo para facturar, verde para entregar. La barra y el botón
+   de una misma tarjeta hablan el mismo idioma, y tres tarjetas en distinta
+   etapa se distinguen de un vistazo sin leer.
+
+   Sigue siendo la Regla del Estado Reservado: el color dice ESTADO (la
+   etapa en la que está el pedido) y siempre va con palabra e icono. Los
+   valores son los de DESIGN.md y se eligieron por contraste con el texto
+   del botón (16px/700, que necesita 4,5:1):
+     pesar/preparar  ámbar #f59e0b con Tinta #0f172a  → 9,6:1
+     facturar        Índigo Honda #4f46e5 con blanco  → 5,9:1
+     entregar        #047857 (el verde de «Nuevo») con blanco → 5,5:1
+   El ámbar con blanco daría 2,3:1, por eso ése lleva texto oscuro. */
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-pesar,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-preparar {
+  background: #f59e0b;
+  color: #0f172a;
+  box-shadow: 0 8px 20px -10px rgba(217, 119, 6, 0.55);
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-pesar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-preparar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-pesar:active,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-preparar:active {
+  background: #d97706;
+  color: #0f172a;
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar {
+  background: #047857;
+  color: #ffffff;
+  box-shadow: 0 8px 20px -10px rgba(4, 120, 87, 0.55);
+}
+
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar:hover,
+body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar:active {
+  background: #065f46;
+  color: #ffffff;
+}
+
+/* Y en «luego» (Próximos, Sin fecha) y en el archivo, la versión suave de
+   cada etapa: mismo hue, fondo claro y tinta oscura. Pares de DESIGN.md. */
+body[data-pedidos-list-screen] .pc-actions .pc-go-pesar,
+body[data-pedidos-list-screen] .pc-actions .pc-go-preparar {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+body[data-pedidos-list-screen] .pc-actions .pc-go-entregar {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* El icono, más grande: es la otra mitad de la diferencia. Balanza, lista,
+   factura y camión se reconocen antes que la palabra. */
+body[data-pedidos-list-screen] .pc-go i {
+  font-size: 1.3rem;
+}
