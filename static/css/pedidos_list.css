@@ -2412,43 +2412,31 @@ body[data-pedidos-list-screen] .tablero-ahora .pc-actions .pc-go-entregar:active
   color: #064e3b;
 }
 
-/* Luego (Próximos, Sin fecha, archivo): el MISMO fondo suave que «ahora».
-   Hubo una vuelta con contorno sin relleno para distinguir los niveles, y
-   JM prefirió todos con fondo suave: la urgencia ya la dicen el grupo y la
-   barra lateral, el botón no tiene que repetirla. */
+/* Luego (Próximos, Sin fecha, archivo): solo contorno del color de la
+   etapa, sin relleno. Es lo que separa a simple vista lo de hoy (fondo
+   suave) de lo que viene después. Hubo una vuelta con todos rellenos y JM
+   volvió a ésta. */
 body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go {
-  background: #e0e7ff;
-  border: 0;
+  background: #ffffff;
+  border: 1.5px solid #c7d2fe;
   color: #4338ca;
   box-shadow: none;
 }
 
 body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-pesar,
 body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-preparar {
-  background: #fef3c7;
+  border-color: #fcd34d;
   color: #92400e;
 }
 
 body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-entregar {
-  background: #d1fae5;
+  border-color: #6ee7b7;
   color: #065f46;
 }
 
 body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go:hover,
 body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go:active {
-  background: #c7d2fe;
-}
-
-body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-pesar:hover,
-body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-preparar:hover,
-body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-pesar:active,
-body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-preparar:active {
-  background: #fde68a;
-}
-
-body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-entregar:hover,
-body[data-pedidos-list-screen] .pedido-card:not(.tablero-ahora) .pc-actions .pc-go-entregar:active {
-  background: #a7f3d0;
+  background: var(--color-bg-subtle);
 }
 
 /* Y el botón habla un poco más bajo: 15px, no 16. El cliente va a 19. */
