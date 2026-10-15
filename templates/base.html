@@ -605,10 +605,12 @@
         <i class="fas fa-plus" aria-hidden="true"></i>
         Nuevo
       </a>
-      <a href="/clientes" class="tab {% if request.endpoint == 'clientes' %}active{% endif %}">
-        <i class="fas fa-users" aria-hidden="true"></i>
-        Clientes
+      {% if puede_produccion %}
+      <a href="{{ url_for('produccion.index') }}" class="tab {% if is_produccion %}active{% endif %}"{% if is_produccion %} aria-current="page"{% endif %}>
+        <i class="fas fa-industry" aria-hidden="true"></i>
+        Producción
       </a>
+      {% endif %}
       <a href="#" class="tab" data-drawer-open>
         <i class="fas fa-ellipsis-h" aria-hidden="true"></i>
         Más

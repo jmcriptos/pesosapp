@@ -34,8 +34,8 @@ def app():
         vend = Vendedor(username='vend', email='v@t.com', nombre_completo='Vend',
                         rol_id=rv.id, territorio_id=terr.id, activo=True)
         vend.set_password('pw')
-        chorizo = Producto(nombre='Chorizo', se_pesa=True, tax_rate=10)
-        jamon = Producto(nombre='Jamón', se_pesa=True, tax_rate=10)
+        chorizo = Producto(nombre='Chorizo', se_pesa=True, tax_rate=10, clase_qbo='600000000005541105')
+        jamon = Producto(nombre='Jamón', se_pesa=True, tax_rate=10, clase_qbo='600000000005541105')
         carne = Insumo(nombre='Carne de cerdo', unidad='kg')
         sal = Insumo(nombre='Sal', unidad='kg')
         tripa = Insumo(nombre='Tripa', unidad='ud')
@@ -1143,3 +1143,20 @@ def test_busqueda_paginada_conserva_filtros_y_escapa_comodines(app):
     assert 'BUSCAR-00' in html and 'BUSCAR-26' not in html
     assert '0 lotes encontrados' in c.get('/produccion/lotes?q=%25').get_data(as_text=True)
     assert '28 lotes encontrados' in c.get('/produccion/lotes?q=chorizo').get_data(as_text=True)
+
+
+def test_selector_solo_fabricados_y_edicion_conserva_producto_historico(app):
+    from app import Producto
+    from produccion import routes
+    importado = Producto(nombre='Atún importado', clase_qbo='600000000005391641')
+    _db.session.add(importado)
+    _db.session.commit()
+    assert {p.id for p in routes._productos()} == {IDS['chorizo'], IDS['jamon']}
+    historico = _lote(producto_id=importado.id)
+    assert importado.id in {p.id for p in routes._productos(historico)}
+    c = _login(app, 'admin')
+    html = c.get('/produccion/lotes/nuevo').get_data(as_text=True)
+    assert 'Atún importado' not in html
+    assert 'Buscar producto' in html
+    html = c.get(f'/produccion/lotes/{historico.id}/editar').get_data(as_text=True)
+    assert 'Atún importado' in html

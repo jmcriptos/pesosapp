@@ -16,13 +16,13 @@
     <h2>Lote</h2>
     <div class="ops-field">
       <label for="producto_id">Producto</label>
-      <select id="producto_id" name="producto_id" required>
+      <select id="producto_id" name="producto_id" class="ts-select" data-ts-placeholder="Buscar producto…" required>
         <option value="" disabled {{ 'selected' if not form.get('producto_id') else '' }}>Elegí un producto</option>
         {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if form.get('producto_id') == p.id|string else '' }}>{{ p.nombre }}</option>{% endfor %}
       </select>
       <p class="maquila-nota" id="formula-nota" aria-live="polite"></p>
     </div>
-    <div class="ops-grid-2">
+    <div class="ops-grid-2 prod-fechas">
       <div class="ops-field">
         <label for="fecha_produccion">Fecha de producción</label>
         <input type="date" id="fecha_produccion" name="fecha_produccion" required

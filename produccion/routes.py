@@ -89,8 +89,14 @@ def _en(lista, i):
     return lista[i] if i < len(lista) else ''
 
 
-def _productos():
-    return Producto.query.order_by(Producto.nombre).all()
+CLASE_PRODUCCION_PROPIA = '600000000005541105'
+
+
+def _productos(lote=None):
+    condiciones = Producto.clase_qbo == CLASE_PRODUCCION_PROPIA
+    if lote is not None:
+        condiciones = or_(condiciones, Producto.id == lote.producto_id)
+    return Producto.query.filter(condiciones).order_by(Producto.nombre).all()
 
 
 def _insumos_activos():
@@ -229,7 +235,7 @@ def _render_form(lote=None, form=None, consumos=None, mermas=None):
     return render_template(
         'produccion/lote_form.html',
         lote=lote, form=form, consumos=consumos_str, mermas=mermas,
-        productos=_productos(),
+        productos=_productos(lote),
         insumos=_insumos_para(lote),
         formulas_json=reportes.formulas_json(),
         tipos_merma=TIPOS_MERMA,

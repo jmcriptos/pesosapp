@@ -215,3 +215,16 @@
     text-align: right;
   }
 }
+
+/* Safari conserva un ancho intrínseco en los controles de fecha. */
+.produccion-wrap .ops-field { min-width: 0; }
+.produccion-wrap input[type="date"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .produccion-wrap .prod-fechas { grid-template-columns: minmax(0, 1fr); }
+  .produccion-wrap .prod-filtros > .ops-field:has(input[type="date"]) { grid-column: 1 / -1; }
+}

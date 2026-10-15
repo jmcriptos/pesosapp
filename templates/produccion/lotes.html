@@ -12,7 +12,7 @@
     </div>
     <div class="ops-field">
       <label for="producto_id">Producto</label>
-      <select id="producto_id" name="producto_id">
+      <select id="producto_id" name="producto_id" class="ts-select" data-ts-placeholder="Buscar producto…">
         <option value="">Todos los productos</option>
         {% for p in productos %}
         <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>
