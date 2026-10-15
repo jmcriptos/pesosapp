@@ -232,9 +232,12 @@ def _render_form(lote=None, form=None, consumos=None, mermas=None):
                    'motivo': _en(form.getlist('merma_motivo'), i)}
                   for i, t in enumerate(form.getlist('merma_tipo'))]
     consumos_str = {str(k): ('' if v is None else str(v)) for k, v in consumos.items()}
+    fecha_base = _fecha(form.get('fecha_produccion'))
+    vencimiento_calculado = servicios.vencimiento_por_defecto(fecha_base) if fecha_base else None
     return render_template(
         'produccion/lote_form.html',
         lote=lote, form=form, consumos=consumos_str, mermas=mermas,
+        vencimiento_calculado=vencimiento_calculado,
         productos=_productos(lote),
         insumos=_insumos_para(lote),
         formulas_json=reportes.formulas_json(),

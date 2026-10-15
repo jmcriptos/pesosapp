@@ -30,7 +30,7 @@
       </div>
       <div class="ops-field">
         <label for="fecha_vencimiento">Fecha de vencimiento</label>
-        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" readonly value="{{ form.get('fecha_vencimiento', '') }}">
+        <output id="fecha_vencimiento" for="fecha_produccion" class="prod-fecha-calculada">{{ vencimiento_calculado.strftime('%d/%m/%Y') if vencimiento_calculado else '—' }}</output>
       </div>
     </div>
     {#- L-DDMMAAAA + correlativo del día: lo propone el servidor para la
@@ -293,7 +293,7 @@
   var fechaProd = document.getElementById('fecha_produccion');
   var fechaVenc = document.getElementById('fecha_vencimiento');
   var loteInput = document.getElementById('lote');
-  var auto = { lote: loteInput.value, venc: fechaVenc.value };
+  var auto = { lote: loteInput.value };
   var sugerenciaVersion = 0;
   function masUnAnio(iso) {
     var p = iso.split('-'); if (p.length !== 3) return '';
@@ -304,9 +304,9 @@
   function seguirFecha() {
     var version = ++sugerenciaVersion;
     var iso = fechaProd.value;
-    if (!iso) { fechaVenc.value = ''; return; }
+    if (!iso) { fechaVenc.value = '—'; return; }
     var loteEraAuto = !loteInput.value || loteInput.value === auto.lote;
-    auto.venc = masUnAnio(iso); fechaVenc.value = auto.venc;
+    fechaVenc.value = masUnAnio(iso).split('-').reverse().join('/');
     if (!loteEraAuto) return;
     var url = loteInput.dataset.sugerirUrl + '?fecha=' + encodeURIComponent(iso)
             + (loteInput.dataset.excluir ? '&excluir=' + loteInput.dataset.excluir : '');
@@ -327,7 +327,10 @@
       });
   }
   fechaProd.addEventListener('change', seguirFecha);
-  if (fechaProd.value) { auto.venc = masUnAnio(fechaProd.value); fechaVenc.value = auto.venc; }
+  fechaProd.addEventListener('input', function () {
+    fechaVenc.value = fechaProd.value ? masUnAnio(fechaProd.value).split('-').reverse().join('/') : '—';
+  });
+  if (fechaProd.value) { fechaVenc.value = masUnAnio(fechaProd.value).split('-').reverse().join('/'); }
 
   function todo() { teoricos(); diferencias(); previa(); }
   producto.addEventListener('change', todo);
