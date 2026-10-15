@@ -652,6 +652,19 @@
             /* Mountar el dropdown en <body> escapa el overflow:hidden de
                las tarjetas y evita que las opciones queden clippeadas. */
             dropdownParent: el.dataset.tsInline ? null : 'body',
+            /* Inline, la lista es hija del .ts-wrapper y el CSS de Tom Select
+               la pone a `top:100%; left:0; width:100%` DEL WRAPPER. Como el
+               wrapper hereda las clases del <select> (mobile-form-control,
+               etiq-input…) y esas traen padding, salía 18px más abajo y 36px
+               más ancha que el campo. Se alinea con el control por sus
+               offsets (coordenadas del wrapper, nada de viewport). El
+               `important` le gana al `width:100% !important` de etiquetas. */
+            onDropdownOpen: el.dataset.tsInline ? function (dropdown) {
+                var c = this.control;
+                dropdown.style.setProperty('left', c.offsetLeft + 'px', 'important');
+                dropdown.style.setProperty('width', c.offsetWidth + 'px', 'important');
+                dropdown.style.setProperty('top', (c.offsetTop + c.offsetHeight) + 'px', 'important');
+            } : undefined,
             sortField: { field: 'text', direction: 'asc' },
             /* Alfabético DENTRO de cada <optgroup>, pero los grupos conservan
                el orden del <select>: quien los escribe ya decidió ese orden
