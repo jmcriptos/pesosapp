@@ -41,3 +41,34 @@
 {% macro celda_rendimiento(f) -%}
 {% if f.rendimiento_pct is none %}—{% else %}{{ f.rendimiento_pct }} %{% if f.merma_alta %} {{ chip('Alta', 'falla') }}{% endif %}{% endif %}
 {%- endmacro %}
+
+{% macro tarjeta_lote(f, puede_editar=false) -%}
+<article class="prod-lote-card" data-estado="{{ f.estado }}" aria-label="Lote {{ f.lote }}">
+  <div class="prod-lote-top">
+    <h3><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.producto }}</a></h3>
+  </div>
+  <div class="prod-lote-contexto">
+    {% from "maquila/_macros.html" import chip_estado %}
+    {{ chip_estado(f.estado) }}
+    <span>{{ f.producido|fmt_cant if f.producido else 'Sin peso' }}</span>
+  </div>
+  <p class="prod-lote-numero">Lote <strong>{{ f.lote }}</strong></p>
+  {% if f.merma_alta|default(false) %}<p class="prod-lote-alerta">Merma alta</p>{% endif %}
+  {% if f.estado == 'abierta' and puede_editar %}
+  <a class="prod-lote-accion" href="{{ url_for('produccion.lote_editar', lote_id=f.lote_id) }}">Completar lote<span class="sr-only"> {{ f.lote }}</span><i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+  {% else %}
+  <a class="prod-lote-accion" href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">Ver detalle<span class="sr-only"> del lote {{ f.lote }}</span><i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+  {% endif %}
+  <details class="prod-lote-mas">
+    <summary aria-label="Más información del lote {{ f.lote }}"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></summary>
+    <dl class="prod-lote-cifras">
+      <div><dt>Código</dt><dd>{{ f.codigo }}</dd></div>
+      <div><dt>Fabricación</dt><dd><time datetime="{{ f.fecha.isoformat() }}">{{ f.fecha.strftime('%d/%m/%Y') }}</time></dd></div>
+      {% if f.rendimiento_pct is defined %}<div><dt>Rendimiento</dt><dd>{{ f.rendimiento_pct ~ ' %' if f.rendimiento_pct is not none else '—' }}</dd></div>{% endif %}
+      {% if f.consumido is defined %}<div><dt>Consumido</dt><dd>{{ f.consumido|fmt_cant }}</dd></div>{% endif %}
+      {% if f.merma_pct is defined %}<div><dt>Merma</dt><dd>{{ f.merma_pct ~ ' %' if f.merma_pct is not none else '—' }}</dd></div>{% endif %}
+    </dl>
+    <a class="prod-lote-detalle" href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">Ver información completa</a>
+  </details>
+</article>
+{%- endmacro %}

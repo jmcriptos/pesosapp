@@ -1,6 +1,6 @@
 {% extends "produccion/base_produccion.html" %}
 {% from "maquila/_macros.html" import chip_estado %}
-{% from "produccion/_macros.html" import celda_rendimiento %}
+{% from "produccion/_macros.html" import tarjeta_lote %}
 {% block title %}Lotes de producción{% endblock %}
 {% block produccion_title %}Lotes{% endblock %}
 {% block produccion_body %}
@@ -44,7 +44,7 @@
     </div>
   </form>
   {% if permiso_produccion('crear') %}
-  <a class="btn btn-primary" href="{{ url_for('produccion.lote_nuevo', producto_id=producto_id) if producto_id else url_for('produccion.lote_nuevo') }}">Nuevo lote</a>
+  <a class="btn prod-nuevo-lote" href="{{ url_for('produccion.lote_nuevo', producto_id=producto_id) if producto_id else url_for('produccion.lote_nuevo') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Nuevo lote</span></a>
   {% endif %}
 </section>
 
@@ -53,32 +53,9 @@
   {% if not filas %}
     <p class="ops-empty">No hay lotes para este filtro.</p>
   {% else %}
-  <table class="maquila-tabla">
-    <thead>
-      <tr>
-        <th>Lote</th><th>Producto</th><th>Fecha</th>
-        <th class="maquila-num">Producido</th>
-        <th class="maquila-num">Rendimiento</th><th>Estado</th><th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in filas %}
-      <tr class="{{ 'maquila-anulada' if f.estado == 'anulada' else '' }}">
-        <td data-label="Lote"><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.lote }}</a><small class="prod-list-meta">{{ f.codigo }}</small></td>
-        <td data-label="Producto">{{ f.producto }}</td>
-        <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') }}</td>
-        <td data-label="Producido" class="maquila-num">{{ f.producido|fmt_cant if f.producido else '—' }}</td>
-        <td data-label="Rendimiento" class="maquila-num">{{ celda_rendimiento(f) }}</td>
-        <td data-label="Estado">{{ chip_estado(f.estado) }}</td>
-        <td data-label="Acciones">
-          {% if f.estado == 'abierta' and permiso_produccion('editar') %}
-          <a class="btn" href="{{ url_for('produccion.lote_editar', lote_id=f.lote_id) }}">Completar lote</a>
-          {% else %}<a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">Ver detalle</a>{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="prod-lotes-grid">
+    {% for f in filas %}{{ tarjeta_lote(f, permiso_produccion('editar')) }}{% endfor %}
+  </div>
   {% if pagina.pages > 1 %}
   <nav class="maquila-acciones" aria-label="Páginas de lotes">
     {% if anterior %}<a class="btn" href="{{ anterior }}">Anterior</a>{% endif %}

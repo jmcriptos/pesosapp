@@ -297,3 +297,91 @@ html body[data-produccion-screen] .ts-dropdown .optgroup-header {
   color: #0f172a;
   font-variant-numeric: tabular-nums;
 }
+
+body[data-produccion-screen] .prod-nuevo-lote {
+  background: #047857 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  min-height: var(--touch-min, 48px) !important;
+  padding: 0 18px !important;
+  font-weight: 700 !important;
+  font-size: .9rem !important;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 10px 24px -10px rgba(16, 185, 129, .5);
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) {
+  body[data-produccion-screen] .prod-nuevo-lote:hover {
+    transform: translateY(-1px);
+    background: #065f46 !important;
+    box-shadow: 0 14px 28px -10px rgba(4, 120, 87, .55);
+  }
+}
+
+.produccion-wrap .prod-lotes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.produccion-wrap .prod-lote-card {
+  position: relative;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #dbe2ea;
+  border-radius: 16px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 4px 16px -10px rgba(15, 23, 42, .2);
+}
+.produccion-wrap .prod-lote-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 3px;
+  border-radius: 99px;
+  background: #94a3b8;
+}
+.produccion-wrap .prod-lote-card[data-estado="abierta"]::before { background: #d97706; }
+.produccion-wrap .prod-lote-card[data-estado="cerrada"]::before { background: #047857; }
+.produccion-wrap .prod-lote-top { display: flex; gap: 12px; align-items: start; justify-content: space-between; }
+.produccion-wrap .prod-lote-top h3 { margin: 0; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+.produccion-wrap .prod-lote-top h3 a { color: #0f172a; text-decoration: none; }
+.produccion-wrap .prod-lote-codigo { color: #475569; font-size: 12px; white-space: nowrap; padding-top: 3px; }
+.produccion-wrap .prod-lote-contexto { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; color: #475569; font-size: 13px; }
+.produccion-wrap .prod-lote-numero { margin: 12px 0; font-size: 14px; color: #475569; overflow-wrap: anywhere; }
+.produccion-wrap .prod-lote-numero strong { color: #0f172a; }
+.produccion-wrap .prod-lote-cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.produccion-wrap .prod-lote-cifras dt { color: #475569; font-size: 12px; }
+.produccion-wrap .prod-lote-cifras dd { margin: 4px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.produccion-wrap .prod-lote-alerta { margin: 10px 0; color: #9f1239; font-size: 13px; font-weight: 600; }
+.produccion-wrap .prod-lote-accion {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 56px; margin-top: 14px; padding: 8px 12px; box-sizing: border-box;
+  border: 1px solid #c7d2fe; border-radius: 12px; background: #eef2ff;
+  color: #3730a3; font-size: 15px; font-weight: 700; text-decoration: none;
+}
+.produccion-wrap .prod-lote-accion:focus-visible,
+.produccion-wrap .prod-lote-top a:focus-visible { outline: 2px solid #4338ca; outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  .produccion-wrap .prod-lote-accion:hover { background: #e0e7ff; }
+}
+
+.produccion-wrap .prod-lote-top { padding-right: 40px; }
+.produccion-wrap .prod-lote-mas { margin: 0; }
+.produccion-wrap .prod-lote-mas > summary {
+  position: absolute; top: 6px; right: 6px;
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 12px; cursor: pointer; list-style: none; color: #475569;
+}
+.produccion-wrap .prod-lote-mas > summary::-webkit-details-marker { display: none; }
+.produccion-wrap .prod-lote-mas[open] > summary { background: #eef2ff; color: #3730a3; }
+.produccion-wrap .prod-lote-mas > summary:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+.produccion-wrap .prod-lote-mas[open] { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+.produccion-wrap .prod-lote-mas dd { font-size: 14px; overflow-wrap: anywhere; }
+.produccion-wrap .prod-lote-detalle { display: flex; align-items: center; min-height: 48px; color: #3730a3; font-weight: 600; }
