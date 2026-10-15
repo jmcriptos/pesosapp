@@ -229,37 +229,59 @@
   .produccion-wrap .prod-filtros > .ops-field:has(input[type="date"]) { grid-column: 1 / -1; }
 }
 
-/* El desplegable vive en body: el scope incluye su superficie flotante. */
-body[data-produccion-screen] .ts-wrapper .ts-control,
-body[data-produccion-screen] .ts-dropdown,
-body[data-produccion-screen] .ts-dropdown .option {
+/* Superficies de Tom Select, incluidos foco y dropdown fuera de la tarjeta. */
+html body[data-produccion-screen] .ts-wrapper.single .ts-control,
+html body[data-produccion-screen] .ts-wrapper.single.focus .ts-control,
+html body[data-produccion-screen] .ts-wrapper.multi .ts-control,
+html body[data-produccion-screen] .ts-wrapper.multi.focus .ts-control {
   background: #ffffff !important;
   color: #0f172a !important;
-  border-color: #94a3b8 !important;
-}
-body[data-produccion-screen] .ts-wrapper .ts-control {
+  border: 1px solid #94a3b8 !important;
   min-height: 48px;
   border-radius: 10px;
+  color-scheme: light;
 }
-body[data-produccion-screen] .ts-wrapper .ts-control input,
-body[data-produccion-screen] .ts-wrapper .ts-control .item {
+html body[data-produccion-screen] .ts-wrapper.single .ts-control input,
+html body[data-produccion-screen] .ts-wrapper.single .ts-control .item,
+html body[data-produccion-screen] .ts-wrapper.multi .ts-control input,
+html body[data-produccion-screen] .ts-wrapper.multi .ts-control .item {
   color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a;
 }
-body[data-produccion-screen] .ts-wrapper .ts-control input::placeholder {
+html body[data-produccion-screen] .ts-wrapper.single .ts-control input::placeholder {
   color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
   opacity: 1;
 }
-body[data-produccion-screen] .ts-wrapper.focus .ts-control {
+html body[data-produccion-screen] .ts-wrapper.single.focus .ts-control,
+html body[data-produccion-screen] .ts-wrapper.multi.focus .ts-control {
   border-color: #4338ca !important;
   box-shadow: 0 0 0 3px rgba(67, 56, 202, .2) !important;
 }
-body[data-produccion-screen] .ts-dropdown .option.active,
-body[data-produccion-screen] .ts-dropdown .option:hover,
-body[data-produccion-screen] .ts-dropdown .option.selected {
+html body[data-produccion-screen] .ts-dropdown.single,
+html body[data-produccion-screen] .ts-dropdown.multi,
+html body[data-produccion-screen] .ts-dropdown .ts-dropdown-content,
+html body[data-produccion-screen] .ts-dropdown .ts-dropdown-content .option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border-color: #94a3b8 !important;
+  color-scheme: light;
+}
+html body[data-produccion-screen] .ts-dropdown .ts-dropdown-content .option.active,
+html body[data-produccion-screen] .ts-dropdown .ts-dropdown-content .option:hover,
+html body[data-produccion-screen] .ts-dropdown .ts-dropdown-content .option.selected {
   background: #e0e7ff !important;
   color: #1e1b4b !important;
+  -webkit-text-fill-color: #1e1b4b !important;
 }
-body[data-produccion-screen] .ts-dropdown .highlight {
+html body[data-produccion-screen] .ts-dropdown .option .highlight {
   background: #c7d2fe !important;
   color: #1e1b4b !important;
+}
+html body[data-produccion-screen] .ts-dropdown .no-results,
+html body[data-produccion-screen] .ts-dropdown .optgroup-header {
+  background: #ffffff !important;
+  color: #475569 !important;
 }
