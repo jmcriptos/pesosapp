@@ -631,6 +631,16 @@
     /* Auto-init Tom Select en todo select.ts-select.
        - data-ts-placeholder="..."  → placeholder del input de búsqueda
        - data-no-auto-ts="1"        → opt-out: la pantalla hace su propio init
+       - data-ts-inline="1"         → la lista cuelga del propio campo en vez
+         de montarse en <body>. Montada en <body>, Tom Select la posiciona con
+         `rect.top + window.scrollY`, y en iPhone al subir el teclado esas dos
+         cifras dejan de ser coherentes (en Safari cayó un viewport entero más
+         abajo; en la PWA quedó 150px descolgada, detrás del teclado: medido
+         con ?tsdebug=1 el 2026-10-14). Además, en las pantallas ops-* el que
+         scrollea es el <body>, no la ventana, y Tom Select solo reposiciona
+         con el scroll de la ventana. Inline no hay coordenadas que calcular:
+         la lista scrollea con el campo. Solo para pantallas cuyas tarjetas no
+         recortan el desborde vertical (overflow visible/clip).
        - allowEmptyOption: false (default) → la opción vacía no aparece
          como fila en el dropdown (sí queda como valor inicial del form). */
     document.querySelectorAll('select.ts-select').forEach(function(el) {
@@ -641,7 +651,7 @@
             placeholder: el.dataset.tsPlaceholder || 'Buscar…',
             /* Mountar el dropdown en <body> escapa el overflow:hidden de
                las tarjetas y evita que las opciones queden clippeadas. */
-            dropdownParent: 'body',
+            dropdownParent: el.dataset.tsInline ? null : 'body',
             sortField: { field: 'text', direction: 'asc' },
             /* Alfabético DENTRO de cada <optgroup>, pero los grupos conservan
                el orden del <select>: quien los escribe ya decidió ese orden
