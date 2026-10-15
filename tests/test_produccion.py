@@ -1160,3 +1160,22 @@ def test_selector_solo_fabricados_y_edicion_conserva_producto_historico(app):
     assert 'Buscar producto' in html
     html = c.get(f'/produccion/lotes/{historico.id}/editar').get_data(as_text=True)
     assert 'Atún importado' in html
+
+
+@pytest.mark.parametrize('fecha,esperada', [('2026-10-14', date(2027, 10, 14)),
+                                          ('2028-02-29', date(2029, 2, 28))])
+def test_formulario_calcula_vencimiento_aunque_se_envie_otro(app, fecha, esperada):
+    from produccion.models import LoteProduccion
+    c = _login(app, 'admin')
+    respuesta = c.post('/produccion/lotes/nuevo', data=dict(
+        producto_id=IDS['chorizo'], fecha_produccion=fecha,
+        fecha_vencimiento='2000-01-01', lote='AUTO-VENC'))
+    assert respuesta.status_code == 302
+    lote = LoteProduccion.query.filter_by(lote='AUTO-VENC').one()
+    assert lote.fecha_vencimiento == esperada
+    respuesta = c.post(f'/produccion/lotes/{lote.id}/editar', data=dict(
+        producto_id=IDS['chorizo'], fecha_produccion='2027-03-01',
+        fecha_vencimiento='invalida', lote='AUTO-VENC'))
+    assert respuesta.status_code == 302
+    _db.session.refresh(lote)
+    assert lote.fecha_vencimiento == date(2028, 3, 1)

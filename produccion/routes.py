@@ -144,16 +144,16 @@ def _validar_form_lote(form):
     for campo in ('unidades_producidas', 'cajas_producidas'):
         if (form.get(campo) or '').strip() and _entero(form.get(campo)) is None:
             raise servicios.LoteInvalido('Las unidades y cajas deben ser números enteros')
-    if form.get('fecha_vencimiento') and _fecha(form.get('fecha_vencimiento')) is None:
-        raise servicios.LoteInvalido('La fecha de vencimiento no es válida')
 
 
 def _leer_cabecera(form):
+    fecha_produccion = _fecha(form.get('fecha_produccion'))
     return {
         'producto_id': _entero(form.get('producto_id')),
         'lote': (form.get('lote') or '').strip(),
-        'fecha_produccion': _fecha(form.get('fecha_produccion')),
-        'fecha_vencimiento': _fecha(form.get('fecha_vencimiento')),
+        'fecha_produccion': fecha_produccion,
+        'fecha_vencimiento': (servicios.vencimiento_por_defecto(fecha_produccion)
+                              if fecha_produccion else None),
         'peso_adicional': _decimal(form.get('peso_adicional')),
         'unidades_producidas': _entero(form.get('unidades_producidas')),
         'cajas_producidas': _entero(form.get('cajas_producidas')),

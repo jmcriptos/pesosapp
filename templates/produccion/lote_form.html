@@ -30,7 +30,7 @@
       </div>
       <div class="ops-field">
         <label for="fecha_vencimiento">Fecha de vencimiento</label>
-        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" value="{{ form.get('fecha_vencimiento', '') }}">
+        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" readonly value="{{ form.get('fecha_vencimiento', '') }}">
       </div>
     </div>
     {#- L-DDMMAAAA + correlativo del día: lo propone el servidor para la
@@ -304,10 +304,9 @@
   function seguirFecha() {
     var version = ++sugerenciaVersion;
     var iso = fechaProd.value;
-    if (!iso) return;
+    if (!iso) { fechaVenc.value = ''; return; }
     var loteEraAuto = !loteInput.value || loteInput.value === auto.lote;
-    var vencEraAuto = !fechaVenc.value || fechaVenc.value === auto.venc;
-    if (vencEraAuto) { auto.venc = masUnAnio(iso); fechaVenc.value = auto.venc; }
+    auto.venc = masUnAnio(iso); fechaVenc.value = auto.venc;
     if (!loteEraAuto) return;
     var url = loteInput.dataset.sugerirUrl + '?fecha=' + encodeURIComponent(iso)
             + (loteInput.dataset.excluir ? '&excluir=' + loteInput.dataset.excluir : '');
@@ -328,7 +327,7 @@
       });
   }
   fechaProd.addEventListener('change', seguirFecha);
-  if (!fechaVenc.value && fechaProd.value) { auto.venc = masUnAnio(fechaProd.value); fechaVenc.value = auto.venc; }
+  if (fechaProd.value) { auto.venc = masUnAnio(fechaProd.value); fechaVenc.value = auto.venc; }
 
   function todo() { teoricos(); diferencias(); previa(); }
   producto.addEventListener('change', todo);
