@@ -32,7 +32,7 @@
 
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="cliente_id">Cliente:</label>
-          <select id="cliente_id" name="cliente_id" class="mobile-form-control ts-select"
+          <select id="cliente_id" name="cliente_id" class="mobile-form-control ts-select" data-ts-inline="1"
                   data-ts-placeholder="Buscar cliente…" required>
             <option value=""></option>
             {% for cliente in clientes %}
@@ -43,7 +43,7 @@
 
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="producto_id">Producto:</label>
-          <select id="producto_id" name="producto_id" class="mobile-form-control ts-select"
+          <select id="producto_id" name="producto_id" class="mobile-form-control ts-select" data-ts-inline="1"
                   data-ts-placeholder="Buscar producto…" required>
             <option value=""></option>
             {% for producto in productos %}

@@ -117,7 +117,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="nuevo_producto_id">Producto:</label>
-          <select id="nuevo_producto_id" name="producto_id" class="mobile-form-control ts-select"
+          <select id="nuevo_producto_id" name="producto_id" class="mobile-form-control ts-select" data-ts-inline="1"
                   data-ts-placeholder="Buscar producto…" required>
             <option value=""></option>
             {% for producto in productos_disponibles %}

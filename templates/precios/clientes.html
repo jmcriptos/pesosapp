@@ -25,7 +25,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="cliente_id">Cliente:</label>
-          <select id="cliente_id" name="cliente_id" class="mobile-form-control ts-select"
+          <select id="cliente_id" name="cliente_id" class="mobile-form-control ts-select" data-ts-inline="1"
                   data-ts-placeholder="Buscar cliente…" required>
             <option value=""></option>
             {% for cliente in clientes %}
@@ -35,7 +35,7 @@
         </div>
         <div class="mobile-form-group">
           <label class="mobile-form-label" for="lista_precio_id">Lista de Precios:</label>
-          <select id="lista_precio_id" name="lista_precio_id" class="mobile-form-control ts-select"
+          <select id="lista_precio_id" name="lista_precio_id" class="mobile-form-control ts-select" data-ts-inline="1"
                   data-ts-placeholder="Buscar lista…" required>
             <option value=""></option>
             {% for lista in listas %}
