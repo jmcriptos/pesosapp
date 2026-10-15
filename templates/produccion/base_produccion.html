@@ -9,7 +9,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/operaciones.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/maquila.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/produccion.css', v='20261015-lotes-mas') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/produccion.css', v='20261015-filtros-compactos') }}">
 {% endblock %}
 {% block scripts %}
 {#- Los campos de kilos son type="text": un type="number" descarta la coma
@@ -19,7 +19,10 @@
 {% block content %}
 <div class="ops-wrap maquila-wrap produccion-wrap">
   <header class="ops-head">
-    <h1 class="ops-title">{% block produccion_title %}Producción{% endblock %}</h1>
+    <div class="prod-page-title-row">
+      <h1 class="ops-title">{% block produccion_title %}Producción{% endblock %}</h1>
+      {% block produccion_heading_actions %}{% endblock %}
+    </div>
     {%- set ruta = request.path -%}
     {%- set operar = [
          ('produccion.index',               'Resumen',     '/produccion'),

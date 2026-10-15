@@ -3,49 +3,52 @@
 {% from "produccion/_macros.html" import tarjeta_lote %}
 {% block title %}Lotes de producción{% endblock %}
 {% block produccion_title %}Lotes{% endblock %}
-{% block produccion_body %}
-<section class="ops-card maquila-barra">
-  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid prod-filtros">
-    <div class="ops-field">
-      <label for="buscar-lote">Buscar lote</label>
-      <input type="search" id="buscar-lote" name="q" value="{{ buscar }}" placeholder="Número, código o producto" maxlength="100">
-    </div>
-    <div class="ops-field">
-      <label for="producto_id">Producto</label>
-      <select id="producto_id" name="producto_id" class="ts-select" data-ts-placeholder="Buscar producto…">
-        <option value="">Todos los productos</option>
-        {% for p in productos %}
-        <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="ops-field">
-      <label for="estado">Estado</label>
-      <select id="estado" name="estado">
-        <option value="" {{ 'selected' if not estado else '' }}>Todos</option>
-        <option value="abierta" {{ 'selected' if estado == 'abierta' else '' }}>Abiertos</option>
-        <option value="cerrada" {{ 'selected' if estado == 'cerrada' else '' }}>Cerrados</option>
-        <option value="anulada" {{ 'selected' if estado == 'anulada' else '' }}>Anulados</option>
-      </select>
-    </div>
-    <div class="ops-field">
-      <label for="desde">Desde</label>
-      <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
-    </div>
-    <div class="ops-field">
-      <label for="hasta">Hasta</label>
-      <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
-    </div>
-    <div class="maquila-acciones">
-      <button type="submit" class="btn">Aplicar filtros</button>
-      {% if buscar or producto_id or estado or args.get('desde') or args.get('hasta') %}
-      <a class="btn" href="{{ url_for('produccion.lotes') }}">Limpiar filtros</a>
-      {% endif %}
-    </div>
-  </form>
+{% block produccion_heading_actions %}
   {% if permiso_produccion('crear') %}
   <a class="btn prod-nuevo-lote" href="{{ url_for('produccion.lote_nuevo', producto_id=producto_id) if producto_id else url_for('produccion.lote_nuevo') }}"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Nuevo lote</span></a>
   {% endif %}
+{% endblock %}
+{% block produccion_body %}
+{% set filtros_activos = (1 if producto_id else 0) + (1 if estado else 0) + (1 if args.get('desde') else 0) + (1 if args.get('hasta') else 0) %}
+<section class="ops-card prod-search-card">
+  <form method="GET" class="ops-sheet-form prod-search-form">
+    <div class="ops-field prod-search-field">
+      <label for="buscar-lote">Buscar lote</label>
+      <input type="search" id="buscar-lote" name="q" value="{{ buscar }}" placeholder="Número o producto" maxlength="100">
+    </div>
+    <button type="submit" class="btn prod-buscar">Buscar</button>
+    <details class="prod-filter-panel"{{ ' open' if filtros_activos else '' }}>
+      <summary><i class="fas fa-sliders-h" aria-hidden="true"></i> Filtros{% if filtros_activos %} <span>({{ filtros_activos }})</span>{% endif %}</summary>
+      <div class="prod-filter-fields">
+        <div class="ops-field prod-filter-producto">
+          <label for="producto_id">Producto</label>
+          <select id="producto_id" name="producto_id" class="ts-select" data-ts-placeholder="Todos los productos">
+            <option value="">Todos los productos</option>
+            {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="ops-field">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado">
+            <option value="" {{ 'selected' if not estado else '' }}>Todos</option>
+            <option value="abierta" {{ 'selected' if estado == 'abierta' else '' }}>Abiertos</option>
+            <option value="cerrada" {{ 'selected' if estado == 'cerrada' else '' }}>Cerrados</option>
+            <option value="anulada" {{ 'selected' if estado == 'anulada' else '' }}>Anulados</option>
+          </select>
+        </div>
+        <div class="ops-field">
+          <label for="desde">Desde</label>
+          <input type="date" id="desde" name="desde" value="{{ args.get('desde', '') }}">
+        </div>
+        <div class="ops-field">
+          <label for="hasta">Hasta</label>
+          <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
+        </div>
+      </div>
+      <button type="submit" class="btn prod-aplicar">Aplicar filtros</button>
+    </details>
+    {% if buscar or filtros_activos %}<a class="prod-filter-clear" href="{{ url_for('produccion.lotes') }}">Limpiar filtros</a>{% endif %}
+  </form>
 </section>
 
 <section class="ops-card">
