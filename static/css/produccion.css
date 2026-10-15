@@ -419,3 +419,40 @@ html body[data-produccion-screen] .prod-filter-fields .ts-wrapper.single .ts-con
 }
 
 html body[data-produccion-screen] .ts-dropdown .ts-dropdown-content .option { min-height: 48px; box-sizing: border-box; display: flex; align-items: center; }
+
+body[data-produccion-screen] .prod-search-form .prod-buscar,
+body[data-produccion-screen] .prod-search-form .prod-aplicar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid #c7d2fe !important;
+  border-radius: 12px !important;
+  background: #eef2ff !important;
+  background-image: none !important;
+  color: #3730a3 !important;
+  -webkit-text-fill-color: #3730a3;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  box-shadow: none !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+body[data-produccion-screen] .prod-search-form .prod-buscar:focus-visible,
+body[data-produccion-screen] .prod-search-form .prod-aplicar:focus-visible {
+  outline: 2px solid #4338ca;
+  outline-offset: 3px;
+}
+body[data-produccion-screen] .prod-search-form .prod-buscar:active,
+body[data-produccion-screen] .prod-search-form .prod-aplicar:active {
+  background: #c7d2fe !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  body[data-produccion-screen] .prod-search-form .prod-buscar:hover,
+  body[data-produccion-screen] .prod-search-form .prod-aplicar:hover {
+    background: #e0e7ff !important;
+    border-color: #a5b4fc !important;
+  }
+}
