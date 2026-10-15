@@ -5,10 +5,14 @@
 {% block produccion_title %}Lotes{% endblock %}
 {% block produccion_body %}
 <section class="ops-card maquila-barra">
-  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid">
+  <form method="GET" class="ops-sheet-form maquila-filtro maquila-filtro-grid prod-filtros">
+    <div class="ops-field">
+      <label for="buscar-lote">Buscar lote</label>
+      <input type="search" id="buscar-lote" name="q" value="{{ buscar }}" placeholder="Número, código o producto" maxlength="100">
+    </div>
     <div class="ops-field">
       <label for="producto_id">Producto</label>
-      <select id="producto_id" name="producto_id" data-autosubmit>
+      <select id="producto_id" name="producto_id">
         <option value="">Todos los productos</option>
         {% for p in productos %}
         <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id else '' }}>{{ p.nombre }}</option>
@@ -17,7 +21,7 @@
     </div>
     <div class="ops-field">
       <label for="estado">Estado</label>
-      <select id="estado" name="estado" data-autosubmit>
+      <select id="estado" name="estado">
         <option value="" {{ 'selected' if not estado else '' }}>Todos</option>
         <option value="abierta" {{ 'selected' if estado == 'abierta' else '' }}>Abiertos</option>
         <option value="cerrada" {{ 'selected' if estado == 'cerrada' else '' }}>Cerrados</option>
@@ -33,7 +37,10 @@
       <input type="date" id="hasta" name="hasta" value="{{ args.get('hasta', '') }}">
     </div>
     <div class="maquila-acciones">
-      <button type="submit" class="btn">Filtrar</button>
+      <button type="submit" class="btn">Aplicar filtros</button>
+      {% if buscar or producto_id or estado or args.get('desde') or args.get('hasta') %}
+      <a class="btn" href="{{ url_for('produccion.lotes') }}">Limpiar filtros</a>
+      {% endif %}
     </div>
   </form>
   {% if permiso_produccion('crear') %}
@@ -42,33 +49,43 @@
 </section>
 
 <section class="ops-card">
+  <p class="maquila-nota" role="status">{{ pagina.total }} lote{{ 's' if pagina.total != 1 else '' }} encontrado{{ 's' if pagina.total != 1 else '' }}</p>
   {% if not filas %}
     <p class="ops-empty">No hay lotes para este filtro.</p>
   {% else %}
   <table class="maquila-tabla">
     <thead>
       <tr>
-        <th>Código</th><th>Lote</th><th>Producto</th><th>Fecha</th>
-        <th class="maquila-num">Consumido</th><th class="maquila-num">Producido</th>
-        <th class="maquila-num">Rendimiento</th><th class="maquila-num">Merma %</th><th>Estado</th>
+        <th>Lote</th><th>Producto</th><th>Fecha</th>
+        <th class="maquila-num">Producido</th>
+        <th class="maquila-num">Rendimiento</th><th>Estado</th><th>Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for f in filas %}
       <tr class="{{ 'maquila-anulada' if f.estado == 'anulada' else '' }}">
-        <td data-label="Código"><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.codigo }}</a></td>
-        <td data-label="Lote">{{ f.lote }}</td>
+        <td data-label="Lote"><a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">{{ f.lote }}</a><small class="prod-list-meta">{{ f.codigo }}</small></td>
         <td data-label="Producto">{{ f.producto }}</td>
         <td data-label="Fecha">{{ f.fecha.strftime('%d/%m/%Y') }}</td>
-        <td data-label="Consumido" class="maquila-num">{{ f.consumido|fmt_cant if f.consumido else '—' }}</td>
         <td data-label="Producido" class="maquila-num">{{ f.producido|fmt_cant if f.producido else '—' }}</td>
         <td data-label="Rendimiento" class="maquila-num">{{ celda_rendimiento(f) }}</td>
-        <td data-label="Merma %" class="maquila-num {{ 'maquila-merma-alta' if f.merma_alta else '' }}">{{ f.merma_pct ~ ' %' if f.merma_pct is not none else '—' }}</td>
         <td data-label="Estado">{{ chip_estado(f.estado) }}</td>
+        <td data-label="Acciones">
+          {% if f.estado == 'abierta' and permiso_produccion('editar') %}
+          <a class="btn" href="{{ url_for('produccion.lote_editar', lote_id=f.lote_id) }}">Completar lote</a>
+          {% else %}<a href="{{ url_for('produccion.lote_detalle', lote_id=f.lote_id) }}">Ver detalle</a>{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  {% if pagina.pages > 1 %}
+  <nav class="maquila-acciones" aria-label="Páginas de lotes">
+    {% if anterior %}<a class="btn" href="{{ anterior }}">Anterior</a>{% endif %}
+    <span>Página {{ pagina.page }} de {{ pagina.pages }}</span>
+    {% if siguiente %}<a class="btn" href="{{ siguiente }}">Siguiente</a>{% endif %}
+  </nav>
+  {% endif %}
   {% endif %}
 </section>
 {% endblock %}

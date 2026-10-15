@@ -124,7 +124,12 @@
   <form method="POST" action="{{ url_for('produccion.lote_cerrar', lote_id=lote.id) }}"
         class="ops-sheet-form" data-confirm="¿Cerrar el lote {{ lote.codigo }}? Después solo se corrige reabriéndolo con motivo.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if balance.producido <= 0 or balance.consumido <= 0 %}
+    <p id="detalle-cierre-requisitos" role="status">Para cerrar falta: {% if balance.producido <= 0 %}peso producido{% endif %}{% if balance.producido <= 0 and balance.consumido <= 0 %} y {% endif %}{% if balance.consumido <= 0 %}consumo de al menos un insumo en kg{% endif %}. <a href="{{ url_for('produccion.lote_editar', lote_id=lote.id) }}">Completar lote</a></p>
+    <button type="submit" class="btn" disabled aria-describedby="detalle-cierre-requisitos">Cerrar lote</button>
+    {% else %}
     <button type="submit" class="btn btn-primary">Cerrar lote</button>
+    {% endif %}
   </form>
   {% endif %}
 

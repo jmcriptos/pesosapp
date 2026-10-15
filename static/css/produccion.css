@@ -148,3 +148,70 @@
   background: var(--color-surface-muted, #f8fafc);
   color: var(--color-text, #0f172a);
 }
+
+/* Registro breve y ampliación progresiva de la producción. */
+.produccion-wrap .prod-completar {
+  margin: 16px 0;
+  border: 1px solid var(--color-border-subtle, #dbe2ea);
+  border-radius: 14px;
+}
+.produccion-wrap .prod-completar > summary {
+  padding: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 48px;
+}
+.produccion-wrap .prod-completar > summary .maquila-meta {
+  display: block;
+  margin: 4px 0 0 20px;
+  font-weight: 400;
+}
+.produccion-wrap .prod-completar > .ops-card {
+  margin: 12px;
+}
+.produccion-wrap .prod-balance-extra { flex: 1 1 100%; }
+.produccion-wrap .prod-balance-extra summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.produccion-wrap .prod-cierre-nota {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--color-text-muted, #475569);
+  font-size: 13px;
+}
+.produccion-wrap #guardar-cerrar:disabled { opacity: .55; cursor: not-allowed; }
+.produccion-wrap .prod-list-meta {
+  display: block;
+  color: var(--color-text-muted, #64748b);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.produccion-wrap summary:focus-visible {
+  outline: 2px solid var(--color-primary, #4f46e5);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  /* El balance ampliado vuelve al flujo para dejar espacio a los campos. */
+  .produccion-wrap .ops-sticky-footer:has(.prod-balance-extra[open]) { position: static; }
+  .produccion-wrap .prod-completar > .ops-card { margin: 8px; }
+  .produccion-wrap .ops-sticky-footer .btn { flex: 1 1 140px; min-height: 48px; white-space: normal; }
+}
+
+@media (max-width: 767px) {
+  .produccion-wrap .prod-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .produccion-wrap .prod-filtros > .ops-field:first-child { grid-column: 1 / -1; }
+  .produccion-wrap .prod-filtros input,
+  .produccion-wrap .prod-filtros select { min-width: 0; width: 100%; }
+}
+@media (max-width: 767px) {
+  .produccion-wrap .maquila-tabla td[data-label="Lote"] { flex-wrap: wrap; }
+  .produccion-wrap .maquila-tabla td[data-label="Lote"] .prod-list-meta {
+    flex-basis: 100%;
+    text-align: right;
+  }
+}

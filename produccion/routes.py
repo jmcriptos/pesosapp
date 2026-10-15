@@ -8,6 +8,7 @@ import xlsxwriter
 from flask import (Blueprint, Response, abort, flash, jsonify, redirect,
                    render_template, request, url_for)
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 
 from . import app_module, reportes, servicios
@@ -124,6 +125,23 @@ def _insumos_para_formula(formula=None):
     return sorted(activos + faltantes, key=lambda i: i.nombre.lower())
 
 
+def _validar_form_lote(form):
+    for campo, etiqueta in (('peso_adicional', 'peso adicional'),
+                            ('consumo_real', 'consumo de insumos'),
+                            ('merma_cantidad', 'cantidad de merma')):
+        for raw in form.getlist(campo):
+            if not raw.strip():
+                continue
+            valor = _decimal(raw)
+            if valor is None or not valor.is_finite():
+                raise servicios.LoteInvalido(f'Revisá el {etiqueta}: debe ser un número válido')
+    for campo in ('unidades_producidas', 'cajas_producidas'):
+        if (form.get(campo) or '').strip() and _entero(form.get(campo)) is None:
+            raise servicios.LoteInvalido('Las unidades y cajas deben ser números enteros')
+    if form.get('fecha_vencimiento') and _fecha(form.get('fecha_vencimiento')) is None:
+        raise servicios.LoteInvalido('La fecha de vencimiento no es válida')
+
+
 def _leer_cabecera(form):
     return {
         'producto_id': _entero(form.get('producto_id')),
@@ -202,6 +220,11 @@ def _render_form(lote=None, form=None, consumos=None, mermas=None):
     mermas = mermas or []
     # Las claves del dict de consumos viajan como str: la plantilla compara
     # contra `i.id|string` y así da igual si vienen del POST o de la base.
+    if form is request.form:
+        consumos = dict(zip(form.getlist('consumo_insumo_id'), form.getlist('consumo_real')))
+        mermas = [{'tipo': t, 'cantidad': _en(form.getlist('merma_cantidad'), i),
+                   'motivo': _en(form.getlist('merma_motivo'), i)}
+                  for i, t in enumerate(form.getlist('merma_tipo'))]
     consumos_str = {str(k): ('' if v is None else str(v)) for k, v in consumos.items()}
     return render_template(
         'produccion/lote_form.html',
@@ -273,12 +296,24 @@ def lotes():
     desde = _fecha(request.args.get('desde'))
     hasta = _fecha(request.args.get('hasta'))
     estados = (estado,) if estado in ('abierta', 'cerrada', 'anulada') else None
-    filas = [reportes.fila_de_lote(l)
-             for l in reportes._lotes(producto_id, desde, hasta, estados=estados)]
+    buscar = (request.args.get('q') or '').strip()[:100]
+    query = reportes.consulta_lotes(producto_id, desde, hasta, estados=estados)
+    if buscar:
+        query = query.join(Producto).filter(or_(
+            LoteProduccion.lote.icontains(buscar, autoescape=True),
+            LoteProduccion.codigo.icontains(buscar, autoescape=True),
+            Producto.nombre.icontains(buscar, autoescape=True)))
+    pagina = query.paginate(page=max(1, request.args.get('page', 1, type=int)),
+                            per_page=25, error_out=False)
+    filtros = dict(producto_id=producto_id or '', estado=estado,
+                   desde=request.args.get('desde', ''), hasta=request.args.get('hasta', ''), q=buscar)
     return render_template(
         'produccion/lotes.html',
-        filas=filas, productos=_productos(),
-        producto_id=producto_id, estado=estado, args=request.args)
+        filas=[reportes.fila_de_lote(l) for l in pagina.items], productos=_productos(),
+        producto_id=producto_id, estado=estado, args=request.args, buscar=buscar,
+        pagina=pagina,
+        anterior=url_for('produccion.lotes', page=pagina.prev_num, **filtros) if pagina.has_prev else None,
+        siguiente=url_for('produccion.lotes', page=pagina.next_num, **filtros) if pagina.has_next else None)
 
 
 @bp.route('/lotes/nuevo', methods=['GET', 'POST'])
@@ -290,6 +325,7 @@ def lote_nuevo():
         consumos = _leer_consumos(request.form)
         mermas = _leer_mermas(request.form)
         try:
+            _validar_form_lote(request.form)
             lote = servicios.crear_lote(
                 vendedor_id=current_user.id, consumos=consumos, mermas=mermas,
                 **cabecera)
@@ -391,6 +427,7 @@ def lote_editar(lote_id):
         consumos = _leer_consumos(request.form)
         mermas = _leer_mermas(request.form)
         try:
+            _validar_form_lote(request.form)
             servicios.editar_lote(lote, cabecera=cabecera,
                                   consumos=consumos, mermas=mermas)
         except (servicios.LoteInvalido, servicios.LoteNoEditable) as exc:

@@ -275,6 +275,8 @@ def lote_repetido(producto_id, lote, excluir_id=None):
 def _validar_cabecera(producto_id, lote, fecha_produccion, peso_adicional,
                       unidades, cajas, excluir_id=None):
     lote = (lote or '').strip()
+    if len(lote) > 50:
+        raise LoteInvalido('El número de lote admite hasta 50 caracteres')
     if not lote:
         raise LoteInvalido('El lote necesita un número, como va en la etiqueta')
     if fecha_produccion is None:
@@ -286,6 +288,8 @@ def _validar_cabecera(producto_id, lote, fecha_produccion, peso_adicional,
         raise LoteInvalido(
             f'Ya existe {repetido.codigo} con el lote {lote} para ese producto')
     peso = _dec(peso_adicional)
+    if not peso.is_finite():
+        raise LoteInvalido('El peso adicional debe ser un número válido')
     if peso < CERO:
         raise LoteInvalido('El peso adicional no puede ser negativo')
     for nombre, valor in (('unidades', unidades), ('cajas', cajas)):
@@ -300,6 +304,8 @@ def _validar_consumos(consumos):
     limpios = {}
     for insumo_id, cantidad in (consumos or {}).items():
         cantidad = _dec(cantidad)
+        if not cantidad.is_finite():
+            raise LoteInvalido('El consumo debe ser un número válido')
         if cantidad < CERO:
             raise LoteInvalido('El consumo de un insumo no puede ser negativo')
         if cantidad == CERO:
@@ -315,6 +321,8 @@ def _validar_mermas(mermas):
     limpias = []
     for fila in (mermas or []):
         cantidad = _dec(fila.get('cantidad'))
+        if not cantidad.is_finite():
+            raise LoteInvalido('La merma debe ser un número válido')
         tipo = (fila.get('tipo') or '').strip()
         motivo = (fila.get('motivo') or '').strip() or None
         if cantidad == CERO and not motivo:
@@ -374,6 +382,8 @@ def crear_lote(*, producto_id, lote, fecha_produccion, vendedor_id,
     lote, peso = _validar_cabecera(producto_id, lote, fecha_produccion,
                                    peso_adicional, unidades_producidas,
                                    cajas_producidas)
+    if fecha_vencimiento and fecha_vencimiento < fecha_produccion:
+        raise LoteInvalido('El vencimiento no puede ser anterior a la producción')
     consumos = _validar_consumos(consumos)
     mermas = _validar_mermas(mermas)
     formula = formula_para(producto_id)
@@ -416,6 +426,12 @@ def editar_lote(lote, *, cabecera, consumos=None, mermas=None):
         cabecera['lote'] = sugerir_lote(cabecera['fecha_produccion'], excluir_id=lote.id)
     if cabecera.get('fecha_vencimiento') is None and cabecera.get('fecha_produccion'):
         cabecera['fecha_vencimiento'] = vencimiento_por_defecto(cabecera['fecha_produccion'])
+    if cabecera.get('producto_id') != lote.producto_id and lote.cajas:
+        raise LoteInvalido('No se puede cambiar el producto de un lote con cajas vinculadas')
+    vencimiento = cabecera.get('fecha_vencimiento')
+    produccion = cabecera.get('fecha_produccion')
+    if vencimiento and produccion and vencimiento < produccion:
+        raise LoteInvalido('El vencimiento no puede ser anterior a la producción')
     numero, peso = _validar_cabecera(
         cabecera.get('producto_id'), cabecera.get('lote'),
         cabecera.get('fecha_produccion'), cabecera.get('peso_adicional'),

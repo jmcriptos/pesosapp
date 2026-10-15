@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy.orm import selectinload
 
 from . import app_module, servicios
-from .models import Formula, LoteConsumo, LoteProduccion, TIPOS_MERMA
+from .models import Formula, LoteCaja, LoteConsumo, LoteProduccion, TIPOS_MERMA
 from .servicios import CERO, _dec, _pct
 
 db = app_module.db
@@ -22,12 +22,13 @@ def _local(dt):
     return dt.replace(tzinfo=timezone.utc).astimezone(DASHBOARD_TIMEZONE)
 
 
-def _lotes(producto_id=None, desde=None, hasta=None, estados=('cerrada',)):
+def consulta_lotes(producto_id=None, desde=None, hasta=None, estados=('cerrada',)):
     """Los lotes del filtro con todo lo que el balance toca precargado:
     sin esto cada fila costaba cuatro consultas."""
     query = (LoteProduccion.query
              .options(selectinload(LoteProduccion.producto),
-                      selectinload(LoteProduccion.formula),
+                      selectinload(LoteProduccion.formula).selectinload(Formula.insumos),
+                      selectinload(LoteProduccion.cajas).selectinload(LoteCaja.caja_pesada),
                       selectinload(LoteProduccion.mermas),
                       selectinload(LoteProduccion.consumos)
                       .selectinload(LoteConsumo.insumo)))
@@ -40,7 +41,11 @@ def _lotes(producto_id=None, desde=None, hasta=None, estados=('cerrada',)):
     if hasta:
         query = query.filter(LoteProduccion.fecha_produccion <= hasta)
     return query.order_by(LoteProduccion.fecha_produccion.desc(),
-                          LoteProduccion.id.desc()).all()
+                          LoteProduccion.id.desc())
+
+
+def _lotes(producto_id=None, desde=None, hasta=None, estados=('cerrada',)):
+    return consulta_lotes(producto_id, desde, hasta, estados).all()
 
 
 def fila_de_lote(lote):

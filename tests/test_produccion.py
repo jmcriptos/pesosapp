@@ -1080,3 +1080,66 @@ def test_etiquetas_de_vencimiento_listan_los_lotes_y_usan_sus_datos(app):
     r = c.post('/etiquetas_vencimiento_4x2', data={'lote_produccion_id': str(ids[0]), 'producto_id': '',
                                                    'fecha_fabricacion': '', 'lote': '', 'cantidad_etiquetas': '1'})
     assert r.status_code == 200 and r.mimetype == 'application/pdf'
+
+
+@pytest.mark.parametrize('campo,valor', [
+    ('peso_adicional', 'abc'), ('peso_adicional', 'NaN'),
+    ('consumo_real', '12basura'), ('merma_cantidad', 'Infinity'),
+    ('unidades_producidas', '1.5'),
+])
+def test_registro_rechaza_numeros_invalidos_sin_perder_datos(app, campo, valor):
+    from produccion.models import LoteProduccion
+    c = _login(app, 'admin')
+    datos = dict(producto_id=str(IDS['chorizo']), lote='REVISAR-123',
+                 fecha_produccion='2026-10-01', consumo_insumo_id=str(IDS['carne']),
+                 consumo_real='100', merma_tipo='otro', merma_cantidad='', merma_motivo='')
+    datos[campo] = valor
+    respuesta = c.post('/produccion/lotes/nuevo', data=datos)
+    html = respuesta.get_data(as_text=True)
+    assert respuesta.status_code == 200
+    assert 'Lo tecleado se conserva' in html
+    assert 'value="REVISAR-123"' in html
+    assert f'value="{valor}"' in html
+    assert LoteProduccion.query.count() == 0
+
+
+def test_vencimiento_anterior_rechazado_en_alta_y_edicion(app):
+    from produccion import servicios
+    with pytest.raises(servicios.LoteInvalido, match='vencimiento'):
+        _lote(fecha_vencimiento=date(2026, 9, 30))
+    lote = _lote()
+    with pytest.raises(servicios.LoteInvalido, match='vencimiento'):
+        servicios.editar_lote(lote, cabecera=dict(producto_id=IDS['chorizo'],
+            lote=lote.lote, fecha_produccion=date(2026, 10, 1),
+            fecha_vencimiento=date(2026, 9, 30)))
+    assert lote.fecha_vencimiento == date(2027, 10, 1)
+
+
+def test_no_cambia_producto_con_cajas_vinculadas(app):
+    from produccion import servicios
+    lote = _lote()
+    _, detalle = _pedido_con_detalle(IDS['chorizo'])
+    caja = _caja(detalle, 1, '10')
+    servicios.vincular_caja(lote, caja)
+    _db.session.commit()
+    with pytest.raises(servicios.LoteInvalido, match='cajas vinculadas'):
+        servicios.editar_lote(lote, cabecera=dict(producto_id=IDS['jamon'],
+            lote=lote.lote, fecha_produccion=date(2026, 10, 1)))
+    assert lote.producto_id == IDS['chorizo']
+    assert lote.peso_pesado == Decimal('10')
+
+
+def test_busqueda_paginada_conserva_filtros_y_escapa_comodines(app):
+    c = _login(app, 'admin')
+    for i in range(27):
+        _lote(lote=f'BUSCAR-{i:02d}')
+    _lote(lote='OTRO')
+    html = c.get('/produccion/lotes?q=BUSCAR&estado=abierta').get_data(as_text=True)
+    assert '27 lotes encontrados' in html
+    assert 'Página 1 de 2' in html
+    assert 'BUSCAR-26' in html and 'BUSCAR-00' not in html
+    assert 'q=BUSCAR' in html and 'estado=abierta' in html
+    html = c.get('/produccion/lotes?q=BUSCAR&estado=abierta&page=2').get_data(as_text=True)
+    assert 'BUSCAR-00' in html and 'BUSCAR-26' not in html
+    assert '0 lotes encontrados' in c.get('/produccion/lotes?q=%25').get_data(as_text=True)
+    assert '28 lotes encontrados' in c.get('/produccion/lotes?q=chorizo').get_data(as_text=True)
