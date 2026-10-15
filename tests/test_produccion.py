@@ -1179,3 +1179,20 @@ def test_formulario_calcula_vencimiento_aunque_se_envie_otro(app, fecha, esperad
     assert respuesta.status_code == 302
     _db.session.refresh(lote)
     assert lote.fecha_vencimiento == date(2028, 3, 1)
+
+
+def test_selector_de_producto_se_monta_junto_al_campo(app):
+    """En iPhone, Tom Select montado en <body> (el default de la app) calcula
+    la posición con `window.scrollY`, y al subir el teclado la lista caía un
+    viewport más abajo o descolgada del campo (medido con ?tsdebug=1 el
+    2026-10-14). El select de producto se marca `data-ts-inline` para que la
+    lista cuelgue del propio campo y scrollee con él. Alta y corrección."""
+    import re
+    c = _login(app, 'admin')
+    with app.app_context():
+        lote_id = _lote().id
+    for url in ('/produccion/lotes/nuevo', f'/produccion/lotes/{lote_id}/editar'):
+        html = c.get(url).get_data(as_text=True)
+        m = re.search(r'<select[^>]*id="producto_id"[^>]*>', html)
+        assert m, url
+        assert 'data-ts-inline' in m.group(0), url

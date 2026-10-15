@@ -16,7 +16,10 @@
     <h2>Lote</h2>
     <div class="ops-field">
       <label for="producto_id">Producto</label>
-      <select id="producto_id" name="producto_id" class="ts-select" data-ts-placeholder="Buscar producto…" required>
+      {#- `data-ts-inline`: la lista cuelga del campo, no de <body>. Montada en
+          <body>, en iPhone al subir el teclado quedaba descolgada o fuera de
+          pantalla (ver el auto-init en base.html). -#}
+      <select id="producto_id" name="producto_id" class="ts-select" data-ts-placeholder="Buscar producto…" data-ts-inline="1" required>
         <option value="" disabled {{ 'selected' if not form.get('producto_id') else '' }}>Elegí un producto</option>
         {% for p in productos %}<option value="{{ p.id }}" {{ 'selected' if form.get('producto_id') == p.id|string else '' }}>{{ p.nombre }}</option>{% endfor %}
       </select>
