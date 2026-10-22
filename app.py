@@ -3071,6 +3071,10 @@ class Producto(db.Model):
     # en orden decreciente de peso, alérgenos como se quieran destacar).
     # NULL = sin declarar: la etiqueta con ingredientes no se puede generar.
     ingredientes = db.Column(db.Text, nullable=True)
+    # Fabricación propia: solo estos aparecen en «Generar etiquetas». Al
+    # crear la columna (2026-10-21) se precargó con se_pesa o unidades por
+    # caja declaradas; después lo decide la ficha del producto.
+    fabricado = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     def to_dict(self):
         return {
@@ -3085,6 +3089,7 @@ class Producto(db.Model):
             'proveedor': self.proveedor,
             'unidades_por_caja': self.unidades_por_caja,
             'ingredientes': self.ingredientes,
+            'fabricado': self.fabricado,
         }
 
 class Cliente(db.Model):
@@ -12228,6 +12233,7 @@ def productos():
 
             nuevo = Producto(
                 ingredientes=_parse_ingredientes(request.form.get('ingredientes')),
+                fabricado='fabricado' in request.form,
                 nombre=nombre,
                 descripcion=descripcion,
                 temperatura=temperatura,
@@ -12292,6 +12298,7 @@ def editar_producto(producto_id):
         producto.se_pesa     = 'se_pesa' in request.form
         producto.proveedor   = request.form.get('proveedor', '').strip() or None
         producto.ingredientes = _parse_ingredientes(request.form.get('ingredientes'))
+        producto.fabricado   = 'fabricado' in request.form
 
         unidades_por_caja, error_unidades = _parse_unidades_por_caja(
             request.form.get('unidades_por_caja')
@@ -13645,6 +13652,15 @@ def _build_datos_etiqueta_vencimiento(form):
     return datos, int(form['cantidad_etiquetas'])
 
 
+def _nombre_archivo_etiquetas(nombre_base, datos, sufijo=''):
+    """`etiquetas_ingredientes_Chorizo_Criollo_L-2110202601_4x2.pdf`: el
+    tipo, el producto y el lote, para que el archivo se reconozca solo."""
+    def limpio(texto):
+        return re.sub(r'[^A-Za-z0-9._-]+', '_', (texto or '').strip()).strip('_')
+    partes = [nombre_base, limpio(datos.get('nombre_producto')), limpio(datos.get('lote'))]
+    return '_'.join(p for p in partes if p) + sufijo + '.pdf'
+
+
 class EtiquetaSinIngredientes(ValueError):
     """Se pidió la etiqueta con ingredientes de un producto que no los tiene."""
 
@@ -13692,7 +13708,7 @@ def etiquetas_vencimiento():
             return str(e), 400
         return generar_pdf_etiquetas(datos, cantidad, dibujar=dibujar, nombre_base=nombre_base)
 
-    productos = Producto.query.all()
+    productos = Producto.query.filter_by(fabricado=True).order_by(Producto.nombre).all()
     return render_template('form_generar_etiquetas.html', productos=productos,
                            lotes_produccion=_lotes_produccion_para_etiquetas())
 
@@ -13723,7 +13739,7 @@ def generar_pdf_etiquetas_4x2(datos, cantidad, dibujar=draw_expiration_label,
     return send_file(
         output,
         as_attachment=not _is_ios_request(),
-        download_name=f"{nombre_base}_4x2.pdf",
+        download_name=_nombre_archivo_etiquetas(nombre_base, datos, '_4x2'),
         mimetype='application/pdf',
     )
 
@@ -13758,7 +13774,8 @@ def generar_pdf_etiquetas(datos, cantidad, dibujar=draw_expiration_label,
 
     c.save()
     output.seek(0)
-    return send_file(output, as_attachment=not _is_ios_request(), download_name=f"{nombre_base}.pdf", mimetype='application/pdf')
+    return send_file(output, as_attachment=not _is_ios_request(),
+                     download_name=_nombre_archivo_etiquetas(nombre_base, datos), mimetype='application/pdf')
 
 
 try:

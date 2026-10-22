@@ -46,6 +46,11 @@
     }
 
     const blob = await resp.blob();
+    // El servidor nombra el archivo con tipo, producto y lote
+    // (Content-Disposition); `filename` queda de respaldo.
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
+    if (m) { try { filename = decodeURIComponent(m[1]); } catch (e) { filename = m[1]; } }
     const file = new File([blob], filename, { type: 'application/pdf' });
 
     // Camino principal: hoja de compartir nativa (iOS 15+).

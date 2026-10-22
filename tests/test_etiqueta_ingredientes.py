@@ -38,11 +38,13 @@ def app():
                             territorio_id=territorio.id, activo=True)
         vendedor.set_password('testpass')
         con = Producto(nombre='Chorizo Criollo', temperatura='-18°C', tax_rate=6.0,
-                       ingredientes=INGREDIENTES)
-        sin = Producto(nombre='Jamón', temperatura='4°C', tax_rate=6.0)
-        _db.session.add_all([vendedor, con, sin])
+                       ingredientes=INGREDIENTES, fabricado=True)
+        sin = Producto(nombre='Jamón', temperatura='4°C', tax_rate=6.0, fabricado=True)
+        comprado = Producto(nombre='Atún en Agua 160g', temperatura='', tax_rate=6.0,
+                            ingredientes='Tuna, water, salt.')
+        _db.session.add_all([vendedor, con, sin, comprado])
         _db.session.commit()
-        flask_app.config['_IDS'] = {'con': con.id, 'sin': sin.id}
+        flask_app.config['_IDS'] = {'con': con.id, 'sin': sin.id, 'comprado': comprado.id}
         yield flask_app
         _db.drop_all()
 
@@ -58,12 +60,14 @@ def client(app):
 
 def test_producto_guarda_ingredientes_al_crear_y_editar(client, app):
     r = client.post('/productos', data={'nombre': 'Salami', 'temperatura': '4°C',
-                                        'tax_rate': '6', 'ingredientes': '  Pork, salt.  '})
+                                        'tax_rate': '6', 'ingredientes': '  Pork, salt.  ',
+                                        'fabricado': '1'})
     assert r.status_code == 302
     with app.app_context():
         from app import Producto
         p = Producto.query.filter_by(nombre='Salami').one()
         assert p.ingredientes == 'Pork, salt.'
+        assert p.fabricado is True
         pid = p.id
     r = client.post(f'/productos/{pid}/editar',
                     data={'nombre': 'Salami', 'temperatura': '4°C', 'tax_rate': '6',
@@ -71,7 +75,9 @@ def test_producto_guarda_ingredientes_al_crear_y_editar(client, app):
     assert r.status_code == 302
     with app.app_context():
         from app import Producto
-        assert _db.session.get(Producto, pid).ingredientes == 'Pork, salt, pepper.'
+        p = _db.session.get(Producto, pid)
+        assert p.ingredientes == 'Pork, salt, pepper.'
+        assert p.fabricado is False  # la casilla sin marcar lo desmarca
     # Vaciarlo lo deja en NULL, no en cadena vacía.
     client.post(f'/productos/{pid}/editar',
                 data={'nombre': 'Salami', 'temperatura': '4°C', 'tax_rate': '6', 'ingredientes': '  '})
@@ -82,11 +88,12 @@ def test_producto_guarda_ingredientes_al_crear_y_editar(client, app):
 
 def test_formularios_de_producto_tienen_campo_ingredientes(client, app):
     html = client.get('/productos').get_data(as_text=True)
-    assert 'name="ingredientes"' in html
+    assert 'name="ingredientes"' in html and 'name="fabricado"' in html
     pid = app.config['_IDS']['con']
     html = client.get(f'/productos/{pid}/editar').get_data(as_text=True)
     assert 'name="ingredientes"' in html
     assert 'CONTAINS: SOY, MILK.' in html
+    assert 'name="fabricado"' in html and 'checked' in html.split('name="fabricado"')[1][:200]
 
 
 # ---------------------------------------------------------------- formulario
@@ -98,6 +105,9 @@ def test_form_etiquetas_ofrece_tipo_y_marca_productos_con_ingredientes(client, a
     ids = app.config['_IDS']
     assert f'<option value="{ids["con"]}" data-ingredientes="1"' in html
     assert f'<option value="{ids["sin"]}" data-ingredientes="0"' in html
+    # Solo fabricación propia: lo comprado no se etiqueta.
+    assert f'<option value="{ids["comprado"]}"' not in html
+    assert 'Atún en Agua' not in html
 
 
 # ---------------------------------------------------------------- datos
@@ -113,8 +123,8 @@ def test_build_datos_incluye_ingredientes(app):
 
 
 @pytest.mark.parametrize('ruta,nombre', [
-    ('/etiquetas_vencimiento', 'etiquetas_ingredientes.pdf'),
-    ('/etiquetas_vencimiento_4x2', 'etiquetas_ingredientes_4x2.pdf'),
+    ('/etiquetas_vencimiento', 'etiquetas_ingredientes_Chorizo_Criollo_L-1.pdf'),
+    ('/etiquetas_vencimiento_4x2', 'etiquetas_ingredientes_Chorizo_Criollo_L-1_4x2.pdf'),
 ])
 def test_etiqueta_ingredientes_genera_pdf(client, app, ruta, nombre):
     r = client.post(ruta, data={'tipo': 'ingredientes', 'producto_id': str(app.config['_IDS']['con']),
@@ -142,7 +152,16 @@ def test_tipo_vencimiento_sigue_igual(client, app):
                               'fecha_fabricacion': '2026-10-01', 'lote': 'L-1',
                               'cantidad_etiquetas': '1', **data})
         assert r.status_code == 200 and r.mimetype == 'application/pdf'
-        assert 'etiquetas_vencimiento_4x2.pdf' in r.headers['Content-Disposition']
+        assert 'etiquetas_vencimiento_Jam_n_L-1_4x2.pdf' in r.headers['Content-Disposition']
+
+
+def test_nombre_archivo_etiquetas_limpia_lo_raro():
+    from app import _nombre_archivo_etiquetas
+    datos = {'nombre_producto': 'Ham di Pasku / Turkey 500 gr', 'lote': ' L-2110202601 '}
+    assert _nombre_archivo_etiquetas('etiquetas_ingredientes', datos, '_4x2') == \
+        'etiquetas_ingredientes_Ham_di_Pasku_Turkey_500_gr_L-2110202601_4x2.pdf'
+    assert _nombre_archivo_etiquetas('etiquetas_vencimiento', {'nombre_producto': '', 'lote': ''}) == \
+        'etiquetas_vencimiento.pdf'
 
 
 # ---------------------------------------------------------------- dibujo

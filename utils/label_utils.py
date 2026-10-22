@@ -596,22 +596,49 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
 # ETIQUETA CON INGREDIENTES (4" x 2")
 # =============================================================================
 #
-# Misma etiqueta que la de vencimiento pero con la mitad inferior dedicada al
-# listado de ingredientes: el logo se achica, el nombre del producto pasa a la
-# derecha del logo y las fechas quedan debajo del nombre, compactas.
+# Marco con esquinas redondeadas; arriba una banda negra con el logo (en
+# blanco, a la izquierda) y el nombre del producto; debajo Lot / Manufactured /
+# Expiration / Keep at en cuatro columnas y, bajo el separador, el párrafo
+# «Ingredients: …» a todo el ancho.
 
-ING_LOGO_SIZE = 0.80 * inch
-ING_COL_X = MARGIN + ING_LOGO_SIZE + 6          # columna derecha (nombre y filas)
-ING_LABEL_X_RIGHT = ING_COL_X + 0.76 * inch     # rótulos alineados a la derecha
-ING_VALUE_X = ING_LABEL_X_RIGHT + 0.06 * inch
-ING_ROW_FONT = 8
-ING_ROW_STEP = 9.2
-ING_NAME_Y_TOP = LABEL_HEIGHT - MARGIN_TOP_VENC - 2
-ING_NAME_Y_BOTTOM = ING_NAME_Y_TOP - 29
-ING_FIRST_ROW_Y = ING_NAME_Y_BOTTOM - 7
-ING_SEPARATOR_Y = ING_FIRST_ROW_Y - 3 * ING_ROW_STEP - 6
-ING_TEXT_Y_TOP = ING_SEPARATOR_Y - 5
-ING_TEXT_Y_BOTTOM = MARGIN
+ING_INSET = 4                      # el marco entra 4 pt para que la térmica no lo corte
+ING_RADIO = 9
+ING_PAD = 6                        # margen interior respecto del marco
+ING_BAND_H = 36
+ING_X0 = ING_INSET + ING_PAD
+ING_X1 = LABEL_WIDTH - ING_INSET - ING_PAD
+ING_BAND_Y = LABEL_HEIGHT - ING_INSET - ING_BAND_H
+ING_LOGO_H = ING_BAND_H - 8
+ING_TABLE_H = 24                   # tabla de lote / fechas / temperatura, pegada a la banda
+ING_TABLE_TOP = ING_BAND_Y
+ING_TABLE_BOTTOM = ING_TABLE_TOP - ING_TABLE_H
+ING_TEXT_Y_TOP = ING_TABLE_BOTTOM - 7
+ING_TEXT_Y_BOTTOM = ING_INSET + ING_PAD
+
+_LOGO_INVERTIDO_CACHE = {}
+
+
+def _logo_invertido(logo):
+    """El logo en blanco (RGB invertido, misma transparencia) para dibujarlo
+    sobre la banda negra. Acepta una ruta o un ImageReader; None si no hay
+    imagen utilizable."""
+    if isinstance(logo, ImageReader):
+        imagen = getattr(logo, '_image', None)
+        if imagen is None:
+            return None
+        clave = id(logo)
+    elif logo and os.path.exists(logo):
+        imagen = None
+        clave = (logo, os.path.getmtime(logo))
+    else:
+        return None
+    if clave not in _LOGO_INVERTIDO_CACHE:
+        from PIL import ImageOps
+        im = (imagen or PILImage.open(logo)).convert('RGBA')
+        rgb = ImageOps.invert(im.convert('RGB'))
+        rgb.putalpha(im.getchannel('A'))
+        _LOGO_INVERTIDO_CACHE[clave] = ImageReader(rgb)
+    return _LOGO_INVERTIDO_CACHE[clave]
 
 
 def _wrap_words(text, font_name, font_size, width_for_line):
@@ -698,60 +725,98 @@ def draw_ingredients_label(canvas_obj, logo_path, datos, x_base=0, y_base=0):
     """
     Etiqueta 4"x2" con listado de ingredientes.
 
-    Arriba: logo chico, nombre del producto y las filas Lot / Manufactured /
-    Expiration / When Kept at. Abajo, separado por la línea punteada, el
-    párrafo "Ingredients: …" a todo el ancho.
+    Marco redondeado; banda negra arriba con el logo en blanco (izquierda) y
+    el nombre del producto; debajo Lot / Manufactured / Expiration / Keep at
+    en cuatro columnas y, bajo la línea punteada, «Ingredients: …».
 
     Args:
         datos: como en draw_expiration_label, más `ingredientes` (texto).
     """
-    if _logo_dibujable(logo_path):
-        canvas_obj.drawImage(
-            logo_path,
-            x_base + MARGIN,
-            y_base + LABEL_HEIGHT - MARGIN_TOP_VENC - ING_LOGO_SIZE,
-            width=ING_LOGO_SIZE, height=ING_LOGO_SIZE,
-            preserveAspectRatio=True, mask='auto',
-        )
+    inner_w = LABEL_WIDTH - 2 * ING_INSET
+    inner_h = LABEL_HEIGHT - 2 * ING_INSET
 
-    col_width = LABEL_WIDTH - MARGIN - ING_COL_X
+    # Banda: el marco entero en negro y luego la parte de abajo en blanco,
+    # así la banda hereda las esquinas redondeadas del marco.
+    canvas_obj.saveState()
+    canvas_obj.setFillColorRGB(0, 0, 0)
+    canvas_obj.roundRect(x_base + ING_INSET, y_base + ING_INSET, inner_w, inner_h, ING_RADIO,
+                         stroke=0, fill=1)
+    canvas_obj.setFillColorRGB(1, 1, 1)
+    canvas_obj.rect(x_base + ING_INSET, y_base + ING_INSET, inner_w, inner_h - ING_BAND_H,
+                    stroke=0, fill=1)
+    canvas_obj.setLineWidth(0.8)
+    canvas_obj.setStrokeColorRGB(0, 0, 0)
+    canvas_obj.roundRect(x_base + ING_INSET, y_base + ING_INSET, inner_w, inner_h, ING_RADIO,
+                         stroke=1, fill=0)
+
+    # Logo en blanco dentro de la banda, a la izquierda.
+    logo_blanco = _logo_invertido(logo_path)
+    x_texto = ING_X0
+    if logo_blanco is not None:
+        ancho, alto = logo_blanco.getSize()
+        logo_w = ING_LOGO_H * ancho / alto
+        canvas_obj.drawImage(logo_blanco, x_base + ING_X0, y_base + ING_BAND_Y + 4,
+                             width=logo_w, height=ING_LOGO_H, preserveAspectRatio=True, mask='auto')
+        x_texto = ING_X0 + logo_w + ING_PAD
+
+    canvas_obj.setFillColorRGB(1, 1, 1)
     draw_center_wrap_text(
         canvas_obj,
         datos.get('nombre_producto', 'N/A'),
-        center_x=x_base + ING_COL_X + col_width / 2,
-        y_bottom=y_base + ING_NAME_Y_BOTTOM,
-        y_top=y_base + ING_NAME_Y_TOP,
-        max_width=col_width,
+        center_x=x_base + x_texto + (ING_X1 - x_texto) / 2,
+        y_bottom=y_base + ING_BAND_Y + 4,
+        y_top=y_base + ING_BAND_Y + ING_BAND_H - 4,
+        max_width=ING_X1 - x_texto,
         font_name="Helvetica-Bold",
-        max_font=13,
+        max_font=16,
         min_font=9,
         line_gap=1,
     )
+    canvas_obj.restoreState()
 
-    filas = [
-        ("Lot:", datos.get('lote', '') or ""),
-        ("Manufactured:", datos.get('fecha_fabricacion', '') or ""),
-        ("Expiration:", datos.get('fecha_expiracion', '') or ""),
-        ("When Kept at:", normalize_temperature(datos.get('temperatura', ''))),
-    ]
-    y = y_base + ING_FIRST_ROW_Y
-    for rotulo, valor in filas:
-        canvas_obj.setFont("Helvetica-Bold", ING_ROW_FONT)
-        canvas_obj.drawRightString(x_base + ING_LABEL_X_RIGHT, y, rotulo)
-        canvas_obj.setFont("Helvetica", ING_ROW_FONT)
-        canvas_obj.drawString(x_base + ING_VALUE_X, y, valor)
-        y -= ING_ROW_STEP
-
-    draw_separator(canvas_obj, x_base, y_base, ING_SEPARATOR_Y)
+    draw_ingredients_data_table(canvas_obj, datos, x_base, y_base)
 
     draw_wrap_paragraph(
         canvas_obj,
         datos.get('ingredientes', '') or '',
-        x=x_base + MARGIN,
+        x=x_base + ING_X0,
         y_bottom=y_base + ING_TEXT_Y_BOTTOM,
         y_top=y_base + ING_TEXT_Y_TOP,
-        max_width=LABEL_WIDTH - 2 * MARGIN,
-        max_font=9,
-        min_font=5.5,
+        max_width=ING_X1 - ING_X0,
+        max_font=7.5,
+        min_font=5,
         prefix="Ingredients: ",
     )
+
+
+def _filas_datos_etiqueta(datos):
+    return [
+        ("LOT:", datos.get('lote', '') or ""),
+        ("MANUFACTURED:", datos.get('fecha_fabricacion', '') or ""),
+        ("EXPIRATION:", datos.get('fecha_expiracion', '') or ""),
+        ("KEEP AT:", normalize_temperature(datos.get('temperatura', ''))),
+    ]
+
+
+def draw_ingredients_data_table(canvas_obj, datos, x_base=0, y_base=0):
+    """Lote, fechas y temperatura en una tabla de cuatro columnas pegada a
+    la banda negra y a los bordes laterales del marco: rótulo en negrita
+    arriba, valor debajo, divisores entre columnas y regla inferior."""
+    filas = _filas_datos_etiqueta(datos)
+    x0 = x_base + ING_INSET
+    x1 = x_base + LABEL_WIDTH - ING_INSET
+    top = y_base + ING_TABLE_TOP
+    bot = y_base + ING_TABLE_BOTTOM
+    col = (x1 - x0) / len(filas)
+    canvas_obj.setStrokeColorRGB(0, 0, 0)
+    canvas_obj.setLineWidth(0.6)
+    canvas_obj.line(x0, bot, x1, bot)
+    canvas_obj.setLineWidth(0.4)
+    for i, (rotulo, valor) in enumerate(filas):
+        x = x0 + i * col
+        if i:
+            canvas_obj.line(x, bot, x, top)
+        canvas_obj.setFont("Helvetica-Bold", 6)
+        canvas_obj.drawString(x + ING_PAD, top - 9, rotulo)
+        canvas_obj.setFont("Helvetica", 9)
+        canvas_obj.drawString(x + ING_PAD, bot + 5.5, valor)
