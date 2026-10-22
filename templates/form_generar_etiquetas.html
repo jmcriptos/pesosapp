@@ -28,6 +28,19 @@
 
       <div class="etiq-card-body">
         <div class="etiq-form-grid">
+          {#- El producto va primero: de él dependen el tipo (solo si tiene
+              ingredientes cargados) y los lotes de producción que se listan. -#}
+          <div class="etiq-row etiq-row-full">
+            <label class="etiq-label" for="producto_id">Producto</label>
+            <select name="producto_id" id="producto_id"
+                    class="etiq-input ts-select" data-ts-inline="1"
+                    data-ts-placeholder="Buscar producto…" required>
+              <option value=""></option>
+              {% for producto in productos %}
+              <option value="{{ producto.id }}" data-ingredientes="{{ 1 if producto.ingredientes else 0 }}">{{ producto.nombre }}{% if producto.codigo %} — {{ producto.codigo }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
           {#- Tipo: la de vencimiento de siempre o la que además imprime los
               ingredientes del producto (texto cargado en su ficha). -#}
           <div class="etiq-row etiq-row-full">
@@ -61,17 +74,6 @@
             </select>
           </div>
           {% endif %}
-          <div class="etiq-row etiq-row-full">
-            <label class="etiq-label" for="producto_id">Producto</label>
-            <select name="producto_id" id="producto_id"
-                    class="etiq-input ts-select" data-ts-inline="1"
-                    data-ts-placeholder="Buscar producto…" required>
-              <option value=""></option>
-              {% for producto in productos %}
-              <option value="{{ producto.id }}" data-ingredientes="{{ 1 if producto.ingredientes else 0 }}">{{ producto.nombre }}{% if producto.codigo %} — {{ producto.codigo }}{% endif %}</option>
-              {% endfor %}
-            </select>
-          </div>
 
           <div class="etiq-row">
             <label class="etiq-label" for="fecha_fabricacion">Fecha de fabricación</label>
