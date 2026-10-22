@@ -276,3 +276,64 @@ body[data-etiquetas-form-screen] .etiq-btn-primary:hover {
   }
   body[data-etiquetas-form-screen] .etiq-btn { width: 100%; }
 }
+
+/* ─── Tipo de etiqueta (segmentado: Vencimiento | Con ingredientes) ─── */
+body[data-etiquetas-form-screen] .etiq-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+body[data-etiquetas-form-screen] .etiq-seg {
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+}
+body[data-etiquetas-form-screen] .etiq-seg input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+body[data-etiquetas-form-screen] .etiq-seg span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #475569;
+  background: transparent;
+  transition: background 140ms ease, color 140ms ease, box-shadow 160ms ease;
+}
+body[data-etiquetas-form-screen] .etiq-seg input:checked + span {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.18);
+}
+body[data-etiquetas-form-screen] .etiq-seg input:focus-visible + span {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+body[data-etiquetas-form-screen] .etiq-aviso {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+body[data-etiquetas-form-screen] .etiq-aviso a {
+  color: #92400e;
+  font-weight: 700;
+  text-decoration: underline;
+}
+body[data-etiquetas-form-screen] .etiq-aviso[hidden] { display: none; }

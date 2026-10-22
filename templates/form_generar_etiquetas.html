@@ -14,7 +14,7 @@
 <div class="etiq-shell">
   <header class="etiq-hero">
     <h1 class="etiq-hero-title">Generar etiquetas</h1>
-    <p class="etiq-hero-sub">Imprime etiquetas de vencimiento para un lote.</p>
+    <p class="etiq-hero-sub">Imprime etiquetas de vencimiento, o con el listado de ingredientes, para un lote.</p>
   </header>
 
   <section class="etiq-card">
@@ -28,6 +28,25 @@
 
       <div class="etiq-card-body">
         <div class="etiq-form-grid">
+          {#- Tipo: la de vencimiento de siempre o la que además imprime los
+              ingredientes del producto (texto cargado en su ficha). -#}
+          <div class="etiq-row etiq-row-full">
+            <span class="etiq-label" id="tipo-label">Tipo de etiqueta</span>
+            <div class="etiq-segmented" role="radiogroup" aria-labelledby="tipo-label">
+              <label class="etiq-seg">
+                <input type="radio" name="tipo" value="vencimiento" checked>
+                <span><i class="fas fa-calendar-day"></i> Vencimiento</span>
+              </label>
+              <label class="etiq-seg">
+                <input type="radio" name="tipo" value="ingredientes">
+                <span><i class="fas fa-list-ul"></i> Con ingredientes</span>
+              </label>
+            </div>
+            <p class="etiq-aviso" id="aviso-ingredientes" hidden>
+              Este producto no tiene ingredientes cargados.
+              <a id="aviso-ingredientes-link" href="#">Agregalos en su ficha</a> y volvé a generar la etiqueta.
+            </p>
+          </div>
           {#- Lote de producción: elegirlo pone producto, fecha y número de
               lote, y la etiqueta sale con las fechas del lote. Sin lotes
               recientes, no se muestra y el formulario queda como siempre. -#}
@@ -49,7 +68,7 @@
                     data-ts-placeholder="Buscar producto…" required>
               <option value=""></option>
               {% for producto in productos %}
-              <option value="{{ producto.id }}">{{ producto.nombre }}{% if producto.codigo %} — {{ producto.codigo }}{% endif %}</option>
+              <option value="{{ producto.id }}" data-ingredientes="{{ 1 if producto.ingredientes else 0 }}">{{ producto.nombre }}{% if producto.codigo %} — {{ producto.codigo }}{% endif %}</option>
               {% endfor %}
             </select>
           </div>
@@ -104,6 +123,30 @@ document.addEventListener('DOMContentLoaded', function () {
   const cantidadInput = document.getElementById('cantidad_etiquetas');
   const form = document.getElementById('form-etiquetas');
 
+  // ---- Tipo "con ingredientes": solo para productos que los tengan cargados.
+  // El aviso se muestra al elegir tipo o producto, y el submit se frena.
+  const tipoRadios = Array.from(form.querySelectorAll('input[name="tipo"]'));
+  const avisoIngredientes = document.getElementById('aviso-ingredientes');
+  const avisoLink = document.getElementById('aviso-ingredientes-link');
+  const productoSelect = document.getElementById('producto_id');
+  function tipoElegido() {
+    const r = tipoRadios.find(function (x) { return x.checked; });
+    return r ? r.value : 'vencimiento';
+  }
+  function faltanIngredientes() {
+    if (tipoElegido() !== 'ingredientes' || !productoSelect.value) return false;
+    const o = productoSelect.options[productoSelect.selectedIndex];
+    return !o || o.dataset.ingredientes !== '1';
+  }
+  function refrescarAviso() {
+    const falta = faltanIngredientes();
+    avisoIngredientes.hidden = !falta;
+    if (falta) avisoLink.href = '/productos/' + productoSelect.value + '/editar';
+  }
+  tipoRadios.forEach(function (r) { r.addEventListener('change', refrescarAviso); });
+  productoSelect.addEventListener('change', refrescarAviso);
+  refrescarAviso();
+
   // iOS (incluida la app en modo standalone, sin navegador) usa la hoja de
   // compartir nativa en vez de descargar a un iframe. Android/escritorio
   // mantienen el submit nativo al iframe.
@@ -115,12 +158,19 @@ document.addEventListener('DOMContentLoaded', function () {
       cantidadInput.focus();
       return;
     }
+    if (faltanIngredientes()) {
+      e.preventDefault();
+      refrescarAviso();
+      avisoIngredientes.scrollIntoView({ block: 'center' });
+      return;
+    }
     if (window.esDispositivoIOS && window.esDispositivoIOS()) {
       e.preventDefault();
       // El botón 4x2 trae formaction; el A4 usa el action del form.
       const url = (e.submitter && e.submitter.formAction) ? e.submitter.formAction : form.action;
       const fd = new FormData(form);
-      window.compartirEtiquetaIOS(url, fd, 'etiquetas_vencimiento.pdf');
+      const nombre = tipoElegido() === 'ingredientes' ? 'etiquetas_ingredientes.pdf' : 'etiquetas_vencimiento.pdf';
+      window.compartirEtiquetaIOS(url, fd, nombre);
     }
   });
 
