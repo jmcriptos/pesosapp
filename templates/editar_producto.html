@@ -68,6 +68,15 @@
                 </div>
 
                 <div class="mobile-form-group">
+                    <label class="mobile-checkbox-label">
+                        <input type="checkbox" name="fabricado" value="1"
+                               class="mobile-checkbox"
+                               {% if producto.fabricado %}checked{% endif %}>
+                        Fabricación propia (aparece en «Generar etiquetas»)
+                    </label>
+                </div>
+
+                <div class="mobile-form-group">
                     <label class="mobile-form-label" for="unidades_por_caja">Unidades por caja:</label>
                     <input type="number" id="unidades_por_caja" name="unidades_por_caja"
                            value="{{ producto.unidades_por_caja or '' }}"

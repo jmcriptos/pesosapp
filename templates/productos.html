@@ -88,6 +88,12 @@
             Se pesa (producto de manufactura que se pesa por caja)
           </label>
         </div>
+        <div class="mobile-form-group">
+          <label class="mobile-checkbox-label">
+            <input type="checkbox" name="fabricado" value="1" class="mobile-checkbox">
+            Fabricación propia (aparece en «Generar etiquetas»)
+          </label>
+        </div>
         <div class="mobile-form-actions">
           <button type="button" id="btn-cancelar-producto" class="mobile-btn mobile-btn-secondary">
             <i class="fas fa-times"></i> Cancelar
@@ -115,6 +121,7 @@
         </span>
         <span class="gestion-row-badges">
           {% if producto.se_pesa %}<span class="chip chip-info"><i class="fas fa-weight-hanging"></i> Se pesa</span>{% endif %}
+          {% if producto.fabricado %}<span class="chip chip-info"><i class="fas fa-industry"></i> Fabricado</span>{% endif %}
           <span class="chip">{{ ob_de_codigo(producto.tax_rate).etiqueta }}</span>
           {% if producto.qbo_id %}
           {% set comparten = conteo_qbo.get(producto.qbo_id, 1) if conteo_qbo else 1 %}
