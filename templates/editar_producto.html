@@ -81,6 +81,16 @@
                 </div>
 
                 <div class="mobile-form-group">
+                    <label class="mobile-form-label" for="ingredientes">Ingredientes (etiqueta):</label>
+                    <textarea id="ingredientes" name="ingredientes" rows="3" class="mobile-form-control"
+                              placeholder="Ej: Pork, water, salt, sugar, spices, sodium nitrite. CONTAINS: SOY.">{{ producto.ingredientes or '' }}</textarea>
+                    <small class="fs-08" style="color:#64748b;">
+                        Tal como debe salir en la etiqueta «con ingredientes»: en orden
+                        decreciente de peso, con los alérgenos destacados. Vacío = sin declarar.
+                    </small>
+                </div>
+
+                <div class="mobile-form-group">
                     <label class="mobile-form-label" for="proveedor">Proveedor:</label>
                     <input type="text" id="proveedor" name="proveedor" value="{{ producto.proveedor or '' }}"
                            class="mobile-form-control" placeholder="Ej: Distribuidora ABC">

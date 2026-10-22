@@ -55,7 +55,7 @@ from urllib.parse import urlparse, urljoin
 from markupsafe import Markup
 from zoneinfo import ZoneInfo
 from utils.label_utils import (
-    draw_order_label, draw_expiration_label, get_logo_path, resolve_label_logo,
+    draw_order_label, draw_expiration_label, draw_ingredients_label, get_logo_path, resolve_label_logo,
     logo_tiene_fondo_de_color,
     create_single_label_pdf, create_letter_page_pdf, get_centered_x,
     LABEL_WIDTH, LABEL_HEIGHT,
@@ -3067,6 +3067,10 @@ class Producto(db.Model):
     # Solo para etiquetas: cuántas unidades trae una caja. NULL = sin declarar.
     # NO participa en precios, subtotales ni en el payload de facturación.
     unidades_por_caja = db.Column(db.Integer, nullable=True)
+    # Listado de ingredientes tal como debe salir en la etiqueta (texto libre,
+    # en orden decreciente de peso, alérgenos como se quieran destacar).
+    # NULL = sin declarar: la etiqueta con ingredientes no se puede generar.
+    ingredientes = db.Column(db.Text, nullable=True)
 
     def to_dict(self):
         return {
@@ -3079,7 +3083,8 @@ class Producto(db.Model):
             'tax_rate': self.tax_rate,
             'se_pesa': self.se_pesa,
             'proveedor': self.proveedor,
-            'unidades_por_caja': self.unidades_por_caja
+            'unidades_por_caja': self.unidades_por_caja,
+            'ingredientes': self.ingredientes,
         }
 
 class Cliente(db.Model):
@@ -12133,6 +12138,12 @@ def api_precios_cliente(cliente_id):
 ############################################
 
 
+def _parse_ingredientes(raw):
+    """Texto de ingredientes limpio; vacío → None (sin declarar)."""
+    texto = ' '.join((raw or '').split())
+    return texto or None
+
+
 def _parse_unidades_por_caja(raw):
     """Normaliza el campo del form. Devuelve (valor, motivo_del_error).
 
@@ -12216,6 +12227,7 @@ def productos():
                 flash(error_unidades, 'warning')
 
             nuevo = Producto(
+                ingredientes=_parse_ingredientes(request.form.get('ingredientes')),
                 nombre=nombre,
                 descripcion=descripcion,
                 temperatura=temperatura,
@@ -12279,6 +12291,7 @@ def editar_producto(producto_id):
         producto.tax_rate    = float(request.form.get('tax_rate', 0.0))
         producto.se_pesa     = 'se_pesa' in request.form
         producto.proveedor   = request.form.get('proveedor', '').strip() or None
+        producto.ingredientes = _parse_ingredientes(request.form.get('ingredientes'))
 
         unidades_por_caja, error_unidades = _parse_unidades_por_caja(
             request.form.get('unidades_por_caja')
@@ -13627,8 +13640,26 @@ def _build_datos_etiqueta_vencimiento(form):
         "fecha_fabricacion": fecha_fabricacion_date.strftime('%d/%m/%Y'),
         "fecha_expiracion": fecha_expiracion.strftime('%d/%m/%Y'),
         "temperatura": producto.temperatura,
+        "ingredientes": producto.ingredientes,
     }
     return datos, int(form['cantidad_etiquetas'])
+
+
+class EtiquetaSinIngredientes(ValueError):
+    """Se pidió la etiqueta con ingredientes de un producto que no los tiene."""
+
+
+def _variante_etiqueta(form, datos):
+    """(dibujar, nombre_base) según `tipo` del form: 'ingredientes' usa la
+    etiqueta con listado y exige que el producto lo tenga; cualquier otra
+    cosa es la de vencimiento de siempre."""
+    if form.get('tipo') == 'ingredientes':
+        if not (datos.get('ingredientes') or '').strip():
+            raise EtiquetaSinIngredientes(
+                f"El producto «{datos.get('nombre_producto', '')}» no tiene ingredientes "
+                "cargados. Agregalos en la ficha del producto y volvé a generar la etiqueta.")
+        return draw_ingredients_label, 'etiquetas_ingredientes'
+    return draw_expiration_label, 'etiquetas_vencimiento'
 
 
 def _lotes_produccion_para_etiquetas():
@@ -13655,7 +13686,11 @@ def etiquetas_vencimiento():
     """Genera etiquetas de vencimiento en formato A4 (2 por página)."""
     if request.method == 'POST':
         datos, cantidad = _build_datos_etiqueta_vencimiento(request.form)
-        return generar_pdf_etiquetas(datos, cantidad)
+        try:
+            dibujar, nombre_base = _variante_etiqueta(request.form, datos)
+        except EtiquetaSinIngredientes as e:
+            return str(e), 400
+        return generar_pdf_etiquetas(datos, cantidad, dibujar=dibujar, nombre_base=nombre_base)
 
     productos = Producto.query.all()
     return render_template('form_generar_etiquetas.html', productos=productos,
@@ -13667,30 +13702,38 @@ def etiquetas_vencimiento():
 def etiquetas_vencimiento_4x2():
     """Genera etiquetas de vencimiento en formato 4"x2" (térmica, una por página)."""
     datos, cantidad = _build_datos_etiqueta_vencimiento(request.form)
-    return generar_pdf_etiquetas_4x2(datos, cantidad)
+    try:
+        dibujar, nombre_base = _variante_etiqueta(request.form, datos)
+    except EtiquetaSinIngredientes as e:
+        return str(e), 400
+    return generar_pdf_etiquetas_4x2(datos, cantidad, dibujar=dibujar, nombre_base=nombre_base)
 
 
-def generar_pdf_etiquetas_4x2(datos, cantidad):
-    """Genera PDF térmico 4"x2" (una etiqueta por página) con datos de vencimiento."""
+def generar_pdf_etiquetas_4x2(datos, cantidad, dibujar=draw_expiration_label,
+                              nombre_base='etiquetas_vencimiento'):
+    """Genera PDF térmico 4"x2" (una etiqueta por página). `dibujar` es la
+    función de etiqueta (vencimiento o con ingredientes)."""
     output, c = create_single_label_pdf()
     logo_path = get_logo_path(basedir)
     for _ in range(cantidad):
-        draw_expiration_label(c, logo_path, datos, 0, 0)
+        dibujar(c, logo_path, datos, 0, 0)
         c.showPage()
     c.save()
     output.seek(0)
     return send_file(
         output,
         as_attachment=not _is_ios_request(),
-        download_name="etiquetas_vencimiento_4x2.pdf",
+        download_name=f"{nombre_base}_4x2.pdf",
         mimetype='application/pdf',
     )
 
 
-def generar_pdf_etiquetas(datos, cantidad):
+def generar_pdf_etiquetas(datos, cantidad, dibujar=draw_expiration_label,
+                          nombre_base='etiquetas_vencimiento'):
     """
     Genera PDF con etiquetas 4"x2" (dos por página, una arriba y otra abajo).
-    Formato para etiquetas de vencimiento (sin cliente ni peso).
+    Formato para etiquetas sin cliente ni peso (vencimiento o con
+    ingredientes, según `dibujar`).
     """
     output, c, page_width, page_height = create_letter_page_pdf()
     logo_path = get_logo_path(basedir)
@@ -13700,13 +13743,13 @@ def generar_pdf_etiquetas(datos, cantidad):
     while etiqueta_num < cantidad:
         # Primera etiqueta: arriba
         y_pos_1 = page_height - LABEL_HEIGHT
-        draw_expiration_label(c, logo_path, datos, x_centrado, y_pos_1)
+        dibujar(c, logo_path, datos, x_centrado, y_pos_1)
         etiqueta_num += 1
 
         # Segunda etiqueta: abajo
         if etiqueta_num < cantidad:
             y_pos_2 = page_height - 2 * LABEL_HEIGHT
-            draw_expiration_label(c, logo_path, datos, x_centrado, y_pos_2)
+            dibujar(c, logo_path, datos, x_centrado, y_pos_2)
             etiqueta_num += 1
 
         # Nueva página si hay más etiquetas
@@ -13715,7 +13758,7 @@ def generar_pdf_etiquetas(datos, cantidad):
 
     c.save()
     output.seek(0)
-    return send_file(output, as_attachment=not _is_ios_request(), download_name="etiquetas_vencimiento.pdf", mimetype='application/pdf')
+    return send_file(output, as_attachment=not _is_ios_request(), download_name=f"{nombre_base}.pdf", mimetype='application/pdf')
 
 
 try:

@@ -589,6 +589,14 @@
     cursor: default;
 }
 
+/* Un textarea hereda la fuente del formulario (el navegador le pone
+   monoespaciada por defecto) y solo se estira en vertical. */
+textarea.mobile-form-control {
+    font-family: inherit;
+    line-height: 1.4;
+    resize: vertical;
+}
+
 /* ==== SELECT WRAPPER ==== */
 .mobile-select-wrapper {
     position: relative;

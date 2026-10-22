@@ -590,3 +590,168 @@ def draw_order_label_a4(canvas_obj, logo_path, client, product, temperature, lot
         max_font=19.2,
         min_font=12
     )
+
+
+# =============================================================================
+# ETIQUETA CON INGREDIENTES (4" x 2")
+# =============================================================================
+#
+# Misma etiqueta que la de vencimiento pero con la mitad inferior dedicada al
+# listado de ingredientes: el logo se achica, el nombre del producto pasa a la
+# derecha del logo y las fechas quedan debajo del nombre, compactas.
+
+ING_LOGO_SIZE = 0.80 * inch
+ING_COL_X = MARGIN + ING_LOGO_SIZE + 6          # columna derecha (nombre y filas)
+ING_LABEL_X_RIGHT = ING_COL_X + 0.76 * inch     # rótulos alineados a la derecha
+ING_VALUE_X = ING_LABEL_X_RIGHT + 0.06 * inch
+ING_ROW_FONT = 8
+ING_ROW_STEP = 9.2
+ING_NAME_Y_TOP = LABEL_HEIGHT - MARGIN_TOP_VENC - 2
+ING_NAME_Y_BOTTOM = ING_NAME_Y_TOP - 29
+ING_FIRST_ROW_Y = ING_NAME_Y_BOTTOM - 7
+ING_SEPARATOR_Y = ING_FIRST_ROW_Y - 3 * ING_ROW_STEP - 6
+ING_TEXT_Y_TOP = ING_SEPARATOR_Y - 5
+ING_TEXT_Y_BOTTOM = MARGIN
+
+
+def _wrap_words(text, font_name, font_size, width_for_line):
+    """Corta `text` en líneas que quepan; `width_for_line(i)` da el ancho de
+    la línea i (la primera puede ser más corta por el rótulo en negrita).
+    Una palabra más ancha que la línea se parte por letras."""
+    lines = []
+    current = ''
+    for word in text.split():
+        candidate = f'{current} {word}'.strip()
+        if pdfmetrics.stringWidth(candidate, font_name, font_size) <= width_for_line(len(lines)):
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+            current = ''
+        # La palabra sola: ¿cabe en una línea vacía? Si no, por letras.
+        while pdfmetrics.stringWidth(word, font_name, font_size) > width_for_line(len(lines)):
+            cut = len(word)
+            while cut > 1 and pdfmetrics.stringWidth(word[:cut], font_name, font_size) > width_for_line(len(lines)):
+                cut -= 1
+            lines.append(word[:cut])
+            word = word[cut:]
+        current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def draw_wrap_paragraph(canvas_obj, text, x, y_bottom, y_top, max_width,
+                        font_name="Helvetica", max_font=7.5, min_font=5.5,
+                        leading=1.18, prefix=None, prefix_font="Helvetica-Bold"):
+    """Dibuja un párrafo alineado a la izquierda que ocupa todo el ancho,
+    bajando la fuente de `max_font` a `min_font` (de a 0.5) hasta que quepa en
+    alto. Si ni con la mínima cabe, recorta y termina en «…».
+
+    `prefix` (p. ej. "Ingredients: ") va en negrita al inicio de la primera
+    línea, y el texto sigue en la misma línea.
+
+    Returns:
+        (font_size, lines): lo que efectivamente se dibujó.
+    """
+    txt = ' '.join((text or '').split())
+    if not txt:
+        return max_font, []
+    avail_h = y_top - y_bottom
+
+    def layout(font):
+        prefix_w = pdfmetrics.stringWidth(prefix, prefix_font, font) if prefix else 0
+        lines = _wrap_words(txt, font_name, font,
+                            lambda i: max_width - (prefix_w if i == 0 else 0))
+        return prefix_w, lines
+
+    font = max_font
+    while True:
+        prefix_w, lines = layout(font)
+        if len(lines) * font * leading <= avail_h or font <= min_font:
+            break
+        font = max(min_font, round(font - 0.5, 1))
+
+    max_lines = max(1, int(avail_h // (font * leading)))
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        last = lines[-1]
+        width_last = max_width - (prefix_w if max_lines == 1 else 0)
+        while last and pdfmetrics.stringWidth(last + '…', font_name, font) > width_last:
+            last = last[:-1].rstrip()
+        lines[-1] = last + '…'
+
+    y = y_top - font
+    for i, line in enumerate(lines):
+        x_line = x
+        if i == 0 and prefix:
+            canvas_obj.setFont(prefix_font, font)
+            canvas_obj.drawString(x, y, prefix)
+            x_line = x + prefix_w
+        canvas_obj.setFont(font_name, font)
+        canvas_obj.drawString(x_line, y, line)
+        y -= font * leading
+    return font, lines
+
+
+def draw_ingredients_label(canvas_obj, logo_path, datos, x_base=0, y_base=0):
+    """
+    Etiqueta 4"x2" con listado de ingredientes.
+
+    Arriba: logo chico, nombre del producto y las filas Lot / Manufactured /
+    Expiration / When Kept at. Abajo, separado por la línea punteada, el
+    párrafo "Ingredients: …" a todo el ancho.
+
+    Args:
+        datos: como en draw_expiration_label, más `ingredientes` (texto).
+    """
+    if _logo_dibujable(logo_path):
+        canvas_obj.drawImage(
+            logo_path,
+            x_base + MARGIN,
+            y_base + LABEL_HEIGHT - MARGIN_TOP_VENC - ING_LOGO_SIZE,
+            width=ING_LOGO_SIZE, height=ING_LOGO_SIZE,
+            preserveAspectRatio=True, mask='auto',
+        )
+
+    col_width = LABEL_WIDTH - MARGIN - ING_COL_X
+    draw_center_wrap_text(
+        canvas_obj,
+        datos.get('nombre_producto', 'N/A'),
+        center_x=x_base + ING_COL_X + col_width / 2,
+        y_bottom=y_base + ING_NAME_Y_BOTTOM,
+        y_top=y_base + ING_NAME_Y_TOP,
+        max_width=col_width,
+        font_name="Helvetica-Bold",
+        max_font=13,
+        min_font=9,
+        line_gap=1,
+    )
+
+    filas = [
+        ("Lot:", datos.get('lote', '') or ""),
+        ("Manufactured:", datos.get('fecha_fabricacion', '') or ""),
+        ("Expiration:", datos.get('fecha_expiracion', '') or ""),
+        ("When Kept at:", normalize_temperature(datos.get('temperatura', ''))),
+    ]
+    y = y_base + ING_FIRST_ROW_Y
+    for rotulo, valor in filas:
+        canvas_obj.setFont("Helvetica-Bold", ING_ROW_FONT)
+        canvas_obj.drawRightString(x_base + ING_LABEL_X_RIGHT, y, rotulo)
+        canvas_obj.setFont("Helvetica", ING_ROW_FONT)
+        canvas_obj.drawString(x_base + ING_VALUE_X, y, valor)
+        y -= ING_ROW_STEP
+
+    draw_separator(canvas_obj, x_base, y_base, ING_SEPARATOR_Y)
+
+    draw_wrap_paragraph(
+        canvas_obj,
+        datos.get('ingredientes', '') or '',
+        x=x_base + MARGIN,
+        y_bottom=y_base + ING_TEXT_Y_BOTTOM,
+        y_top=y_base + ING_TEXT_Y_TOP,
+        max_width=LABEL_WIDTH - 2 * MARGIN,
+        max_font=9,
+        min_font=5.5,
+        prefix="Ingredients: ",
+    )
