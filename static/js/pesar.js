@@ -462,9 +462,11 @@
       if (parseWeight(state.weight) <= 0) return;
       if (!String(loteInput.value || '').trim()) return;
       marcar('toque');
-      // Pulso háptico corto en el toque (Android; iOS no lo expone al navegador).
+      // Pulso háptico en el toque (Android; iOS no lo expone al navegador).
+      // 40 ms: con 12 ms el motor de un gama baja (Galaxy A12) ni arranca y
+      // no se sentía nada.
       if (navigator.vibrate) {
-        try { navigator.vibrate(12); } catch (err) { /* sin vibración */ }
+        try { navigator.vibrate(40); } catch (err) { /* sin vibración */ }
       }
       form.requestSubmit();
     }
