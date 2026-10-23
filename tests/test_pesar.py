@@ -499,3 +499,22 @@ def test_tecla_caja_da_sensacion_de_accion():
     assert 'pesar-key-spinner' in css
     reducido = css[css.index('prefers-reduced-motion'):]
     assert '.pesar-key:active' in reducido and 'transform: none' in reducido
+
+
+def test_pesar_traza_de_tiempos_solo_con_parametro(logged_client, app):
+    """`?tiempos=1` muestra cuánto tardó cada tramo de la última caja (toque,
+    red, swap, settle, etiqueta) para diagnosticar en el almacén con la Zebra
+    conectada (Galaxy A12, 2026-10-22). Sin el parámetro, el panel ni se ve."""
+    with app.app_context():
+        from app import Pedido
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+    assert 'id="pesar-tiempos"' in html
+    panel = html[html.index('id="pesar-tiempos"') - 80:html.index('id="pesar-tiempos"') + 80]
+    assert ' hidden' in panel
+    raiz = os.path.join(os.path.dirname(__file__), '..', 'static')
+    with open(os.path.join(raiz, 'js', 'pesar.js'), encoding='utf-8') as fh:
+        js = fh.read()
+    assert "get('tiempos') === '1'" in js
+    for tramo in ('toque→envío', 'red (servidor)', 'swap', 'settle', 'etiqueta'):
+        assert tramo in js, tramo
