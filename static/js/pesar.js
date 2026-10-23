@@ -518,6 +518,25 @@
     };
     const AUTO_KEY = 'pesar.imprimirAlPesar';
 
+    // ---- «Modo rápido»: sin desenfoque ni sombras pesadas. El CSS cuelga
+    // de body[data-modo-rapido="1"]; la preferencia vive en el navegador.
+    const RAPIDO_KEY = 'pesar.modoRapido';
+    const rapido = document.getElementById('pesar-modo-rapido');
+    function aplicarModoRapido(on) {
+      if (on) document.body.setAttribute('data-modo-rapido', '1');
+      else document.body.removeAttribute('data-modo-rapido');
+    }
+    if (rapido) {
+      let guardado = false;
+      try { guardado = localStorage.getItem(RAPIDO_KEY) === '1'; } catch (err) { /* sin localStorage */ }
+      rapido.checked = guardado;
+      aplicarModoRapido(guardado);
+      rapido.addEventListener('change', () => {
+        aplicarModoRapido(rapido.checked);
+        try { localStorage.setItem(RAPIDO_KEY, rapido.checked ? '1' : '0'); } catch (err) { /* idem */ }
+      });
+    }
+
     // Dos formas de llegar a la Zebra, en este orden:
     //  1. Zebra Browser Print: app de Zebra en el mismo Android (o PC),
     //     emparejada con la impresora por Bluetooth clásico. Es lo que Zebra

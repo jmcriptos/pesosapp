@@ -460,3 +460,24 @@ def test_pesar_trae_boton_diagnostico(logged_client, app):
         pedido = Pedido.query.first()
         html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
         assert 'id="pesar-printer-diag"' in html
+
+
+def test_pesar_ofrece_modo_rapido_sin_desenfoque(logged_client, app):
+    """Un Samsung viejo tardaba segundos en mostrar la caja registrada
+    (2026-10-22) con el servidor en 33 ms: el desenfoque de fondo de las
+    tarjetas le cuesta a la GPU en cada repintado. «Modo rápido» lo quita y
+    se recuerda por navegador."""
+    with app.app_context():
+        from app import Pedido
+        pedido = Pedido.query.first()
+        html = logged_client.get(f'/pedidos/{pedido.id}/pesar').data.decode('utf-8')
+    assert 'id="pesar-modo-rapido"' in html
+    raiz = os.path.join(os.path.dirname(__file__), '..', 'static')
+    with open(os.path.join(raiz, 'js', 'pesar.js'), encoding='utf-8') as fh:
+        js = fh.read()
+    assert "'pesar.modoRapido'" in js and 'data-modo-rapido' in js
+    with open(os.path.join(raiz, 'css', 'pesar_redesign.css'), encoding='utf-8') as fh:
+        css = fh.read()
+    bloque = css[css.index('[data-modo-rapido="1"]'):]
+    assert 'backdrop-filter: none !important' in bloque
+    assert '.pesar-modal-overlay' in bloque and '#pesar-summary' in bloque
