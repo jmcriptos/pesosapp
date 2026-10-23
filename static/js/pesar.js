@@ -344,6 +344,13 @@
       readoutProduct.classList.add('is-flash');
     }
 
+    // La tecla «Caja» se toca decenas de veces al día: feedback sutil e
+    // inmediato. Mientras el servidor responde no se apaga en gris: muestra
+    // el peso que está enviando con un indicador, para que en un teléfono
+    // lento (Galaxy A12, 2026-10-22) se vea que está trabajando.
+    const submitKey = screen.querySelector('.pesar-key.is-submit');
+    const submitKeyHtml = submitKey ? submitKey.innerHTML : '';
+
     function setBusy(busy) {
       screen.classList.toggle('is-busy', busy);
       screen.querySelectorAll('.pesar-key').forEach((key) => {
@@ -353,6 +360,21 @@
           key.disabled = false;
         }
       });
+      if (submitKey) {
+        submitKey.classList.toggle('is-sending', busy);
+        if (busy) {
+          const peso = document.createElement('span');
+          peso.textContent = `${state.weight} kg`;
+          const spinner = document.createElement('span');
+          spinner.className = 'pesar-key-spinner';
+          spinner.setAttribute('aria-hidden', 'true');
+          submitKey.replaceChildren(spinner, peso);
+          submitKey.setAttribute('aria-busy', 'true');
+        } else {
+          submitKey.innerHTML = submitKeyHtml;
+          submitKey.removeAttribute('aria-busy');
+        }
+      }
       if (!busy) renderWeight();
     }
 
@@ -397,6 +419,10 @@
       if (!form) return;
       if (parseWeight(state.weight) <= 0) return;
       if (!String(loteInput.value || '').trim()) return;
+      // Pulso háptico corto en el toque (Android; iOS no lo expone al navegador).
+      if (navigator.vibrate) {
+        try { navigator.vibrate(12); } catch (err) { /* sin vibración */ }
+      }
       form.requestSubmit();
     }
 
@@ -760,7 +786,7 @@
       document.body.addEventListener('htmx:beforeRequest', (event) => {
         const formEl = event.target.closest('#pesar-add-form');
         if (formEl) {
-          showFeedbackMessage('');
+          showFeedbackMessage(`Registrando ${state.weight} kg…`);
           // Teclado y chips quietos hasta que el servidor confirme la caja:
           // sin esto, un peso tecleado durante el envío se borraba al llegar
           // la respuesta, y un doble toque encolaba una segunda caja.

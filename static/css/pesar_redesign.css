@@ -1070,3 +1070,46 @@ body[data-pesar-screen][data-modo-rapido="1"] .pesar-date-sheet {
   -webkit-backdrop-filter: none !important;
   background: rgba(15, 23, 42, 0.55) !important;
 }
+
+
+/* ─── Tecla «Caja»: sensación de acción ──────────────────────────────────
+   Se toca decenas de veces al día: feedback sutil, 120 ms, solo transform
+   (barato para la GPU). Mientras responde el servidor no se apaga en gris:
+   sigue en su color con el peso que envía y un indicador girando (animación
+   CSS, fuera del hilo principal, así no se congela en un teléfono lento). */
+body[data-pesar-screen] .pesar-key {
+  transition: background 120ms ease, transform var(--duration-fast) var(--ease-out-quart);
+}
+body[data-pesar-screen] .pesar-key:active {
+  transform: scale(0.96);
+}
+body[data-pesar-screen] .pesar-key.is-submit.is-sending,
+body[data-pesar-screen] .pesar-key.is-submit.is-sending:disabled {
+  background: linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%) !important;
+  background-image: linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  cursor: progress;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.95rem !important;
+}
+body[data-pesar-screen] .pesar-key-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+  animation: pesar-key-girar 700ms linear infinite;
+}
+@keyframes pesar-key-girar {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-pesar-screen] .pesar-key:active {
+    transform: none;
+  }
+}
