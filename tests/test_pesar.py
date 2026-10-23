@@ -512,9 +512,11 @@ def test_pesar_traza_de_tiempos_solo_con_parametro(logged_client, app):
     assert 'id="pesar-tiempos"' in html
     panel = html[html.index('id="pesar-tiempos"') - 80:html.index('id="pesar-tiempos"') + 80]
     assert ' hidden' in panel
+    # En la PWA no hay barra de direcciones: casilla «Medir tiempos».
+    assert 'id="pesar-medir-tiempos"' in html
     raiz = os.path.join(os.path.dirname(__file__), '..', 'static')
     with open(os.path.join(raiz, 'js', 'pesar.js'), encoding='utf-8') as fh:
         js = fh.read()
-    assert "get('tiempos') === '1'" in js
+    assert "get('tiempos') === '1'" in js and "'pesar.tiempos'" in js
     for tramo in ('toque→envío', 'red (servidor)', 'swap', 'settle', 'etiqueta'):
         assert tramo in js, tramo

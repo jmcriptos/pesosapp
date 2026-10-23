@@ -63,6 +63,14 @@
           <input type="checkbox" id="pesar-modo-rapido">
           Modo rápido
         </label>
+        {# «Medir tiempos»: enciende la traza de tiempos desde la propia
+           pantalla (en la PWA no hay barra de direcciones para ?tiempos=1).
+           Se recuerda por navegador. #}
+        <label class="pesar-printer-auto pesar-modo-rapido" id="pesar-medir-tiempos-wrap"
+               title="Muestra cuánto tardó cada tramo de la última caja: toque, red, dibujo y etiqueta.">
+          <input type="checkbox" id="pesar-medir-tiempos">
+          Medir tiempos
+        </label>
 
         {# Impresora Zebra: por Zebra Browser Print (app de Zebra en el
            Android, Bluetooth clásico) o por Web Bluetooth. pesar.js muestra
