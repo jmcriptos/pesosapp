@@ -9484,10 +9484,13 @@ def etiqueta_caja_zpl(caja_id):
     de la página (ver static/js/zebra_ble.js).
 
     Devuelve {"zpl": ..., "logo": {"nombre", "zpl"} | null}. El logo va
-    aparte porque el navegador lo carga UNA vez por conexión en la memoria
-    de la impresora y las etiquetas solo lo invocan por nombre.
+    aparte porque las etiquetas solo lo invocan por nombre: por Bluetooth de
+    baja energía el navegador lo carga UNA vez por conexión en la flash
+    (`E:`); Browser Print pide `?logo=inline` y lo recibe en RAM (`R:`) para
+    mandarlo junto con cada etiqueta (ver utils/zpl.py).
     """
     from utils.zpl import etiqueta_pedido_zpl, logo_a_grf
+    dispositivo_logo = 'R:' if request.args.get('logo') == 'inline' else 'E:'
 
     caja = (
         CajaPesada.query.options(
@@ -9508,6 +9511,7 @@ def etiqueta_caja_zpl(caja_id):
         logo_nombre, logo_zpl = logo_a_grf(
             logo_bytes=logo_cliente,
             logo_path=None if logo_cliente else get_logo_path(basedir),
+            dispositivo=dispositivo_logo,
         )
     except Exception:
         # Imprimir es operativo: un logo ilegible no frena la etiqueta.

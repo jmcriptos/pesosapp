@@ -343,6 +343,20 @@ def test_etiqueta_zpl_de_una_caja(logged_client, app):
         assert f"^XG{datos['logo']['nombre']},1,1^FS" in datos['zpl']
 
 
+def test_etiqueta_zpl_inline_guarda_el_logo_en_ram(logged_client, app):
+    """Browser Print pide `?logo=inline`: el logo va con cada etiqueta y se
+    guarda en R: (RAM), no en la flash. Sin el parámetro, E: como siempre."""
+    with app.app_context():
+        pedido, detalle, caja, _ = _registrar_caja(logged_client, app, peso='16.9')
+        datos = logged_client.get(f'/cajas/{caja.id}/etiqueta.zpl?logo=inline').get_json()
+        assert datos['logo']['nombre'].startswith('R:J')
+        assert datos['logo']['zpl'].startswith('~DGR:J')
+        assert f"^XG{datos['logo']['nombre']},1,1^FS" in datos['zpl']
+        normal = logged_client.get(f'/cajas/{caja.id}/etiqueta.zpl').get_json()
+        assert normal['logo']['nombre'].startswith('E:J')
+        assert normal['logo']['nombre'][2:] == datos['logo']['nombre'][2:]
+
+
 def test_etiqueta_zpl_caja_inexistente_da_404(logged_client, app):
     with app.app_context():
         assert logged_client.get('/cajas/999999/etiqueta.zpl').status_code == 404
