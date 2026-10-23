@@ -178,6 +178,35 @@
 
     const frame = screen.querySelector('.pesar-frame');
     const form = document.getElementById('pesar-add-form');
+
+    // ---- Traza de tiempos (?tiempos=1). En un Galaxy A12 «tardaba mucho en
+    // registrar el peso» con la Zebra conectada y el servidor en 33 ms; sin
+    // la impresora iba rápido. Esto mide cada tramo de la última caja en el
+    // propio teléfono: toque → envío → respuesta → swap → settle → etiqueta.
+    const TIEMPOS = new URLSearchParams(location.search).get('tiempos') === '1';
+    const tiemposEl = document.getElementById('pesar-tiempos');
+    let traza = {};
+    function marcar(nombre) {
+      if (!TIEMPOS) return;
+      if (nombre === 'toque') traza = {};
+      traza[nombre] = performance.now();
+    }
+    function pintarTiempos() {
+      if (!TIEMPOS || !tiemposEl) return;
+      const ms = (a, b) => (traza[a] != null && traza[b] != null)
+        ? `${Math.round(traza[b] - traza[a])} ms` : '—';
+      const lineas = [
+        `toque→envío       ${ms('toque', 'envio')}`,
+        `red (servidor)    ${ms('envio', 'respuesta')}`,
+        `swap              ${ms('respuesta', 'swap')}`,
+        `settle            ${ms('swap', 'settle')}`,
+        `total toque→caja  ${ms('toque', 'settle')}`,
+        `etiqueta          ${ms('impresionInicio', 'impresionFin')}`,
+      ];
+      tiemposEl.textContent = lineas.join('\n');
+      tiemposEl.hidden = false;
+      console.log('[pesar tiempos] ' + lineas.join(' | ').replace(/\s+/g, ' '));
+    }
     const chipRow = document.getElementById('pesar-chip-row');
     const loteInput = document.getElementById('pesar-lote-input');
     const loteProdSelect = document.getElementById('pesar-lote-prod');
@@ -419,6 +448,7 @@
       if (!form) return;
       if (parseWeight(state.weight) <= 0) return;
       if (!String(loteInput.value || '').trim()) return;
+      marcar('toque');
       // Pulso háptico corto en el toque (Android; iOS no lo expone al navegador).
       if (navigator.vibrate) {
         try { navigator.vibrate(12); } catch (err) { /* sin vibración */ }
@@ -645,6 +675,7 @@
     async function printerPrintCaja(cajaId, etiqueta) {
       if (!printerReady()) return false;
       printerMsg(`Imprimiendo ${etiqueta || 'etiqueta'}…`);
+      marcar('impresionInicio');
       try {
         const datos = await transporte.imprimirCaja(cajaId);
         const sinConfirmar = transporte.ultimoEnvioSinConfirmar && transporte.ultimoEnvioSinConfirmar();
@@ -653,6 +684,9 @@
       } catch (err) {
         printerMsg(`No se imprimió: ${err.message || err}`, true);
         return false;
+      } finally {
+        marcar('impresionFin');
+        pintarTiempos();
       }
     }
 
@@ -786,6 +820,7 @@
       document.body.addEventListener('htmx:beforeRequest', (event) => {
         const formEl = event.target.closest('#pesar-add-form');
         if (formEl) {
+          marcar('envio');
           showFeedbackMessage(`Registrando ${state.weight} kg…`);
           // Teclado y chips quietos hasta que el servidor confirme la caja:
           // sin esto, un peso tecleado durante el envío se borraba al llegar
@@ -796,6 +831,7 @@
 
       document.body.addEventListener('htmx:afterRequest', (event) => {
         if (event.target.closest && event.target.closest('#pesar-add-form')) {
+          marcar('respuesta');
           setBusy(false);
         }
       });
@@ -806,6 +842,7 @@
           return;
         }
         if (event.target.id && event.target.id.startsWith('cajas-list-producto-')) {
+          marcar('swap');
           closeModal();
           resetWeight();
           refreshActivePanel();
@@ -815,6 +852,10 @@
       // Los chips llegan por OOB y pueden aplicarse después de `afterSwap`:
       // se vuelve a marcar el activo cuando todo quedó asentado.
       document.body.addEventListener('htmx:afterSettle', () => {
+        if (traza.swap != null && traza.settle == null) {
+          marcar('settle');
+          pintarTiempos();
+        }
         screen.querySelectorAll('.pesar-chip').forEach((chip) => {
           chip.classList.toggle('is-active', Number.parseInt(chip.dataset.detalleId, 10) === state.activeId);
         });

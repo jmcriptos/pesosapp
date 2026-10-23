@@ -87,6 +87,12 @@
           <div class="pesar-printer-msg" id="pesar-printer-msg" aria-live="polite"></div>
         </div>
 
+        {# Traza de tiempos (?tiempos=1): cuánto tardó cada tramo de la última
+           caja, para ver en el almacén dónde se van los segundos en un
+           teléfono lento con la Zebra conectada. pesar.js la muestra solo
+           con el parámetro. #}
+        <pre class="pesar-tiempos" id="pesar-tiempos" hidden></pre>
+
         <div class="pesar-lote-card">
           <div class="pesar-lote-head">
             <span>Lote activo</span>

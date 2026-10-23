@@ -1113,3 +1113,21 @@ body[data-pesar-screen] .pesar-key-spinner {
     transform: none;
   }
 }
+
+
+/* ─── Traza de tiempos (?tiempos=1) ───────────────────────────────────── */
+body[data-pesar-screen] .pesar-tiempos {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+body[data-pesar-screen] .pesar-tiempos[hidden] {
+  display: none !important;
+}
