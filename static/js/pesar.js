@@ -183,8 +183,21 @@
     // registrar el peso» con la Zebra conectada y el servidor en 33 ms; sin
     // la impresora iba rápido. Esto mide cada tramo de la última caja en el
     // propio teléfono: toque → envío → respuesta → swap → settle → etiqueta.
-    const TIEMPOS = new URLSearchParams(location.search).get('tiempos') === '1';
+    // Se enciende con ?tiempos=1 o con la casilla «Medir tiempos» (la PWA no
+    // tiene barra de direcciones); la casilla se recuerda en localStorage.
+    const TIEMPOS_KEY = 'pesar.tiempos';
     const tiemposEl = document.getElementById('pesar-tiempos');
+    const medirTiempos = document.getElementById('pesar-medir-tiempos');
+    let TIEMPOS = new URLSearchParams(location.search).get('tiempos') === '1';
+    try { TIEMPOS = TIEMPOS || localStorage.getItem(TIEMPOS_KEY) === '1'; } catch (err) { /* sin localStorage */ }
+    if (medirTiempos) {
+      medirTiempos.checked = TIEMPOS;
+      medirTiempos.addEventListener('change', () => {
+        TIEMPOS = medirTiempos.checked;
+        try { localStorage.setItem(TIEMPOS_KEY, TIEMPOS ? '1' : '0'); } catch (err) { /* idem */ }
+        if (!TIEMPOS && tiemposEl) tiemposEl.hidden = true;
+      });
+    }
     let traza = {};
     function marcar(nombre) {
       if (!TIEMPOS) return;
@@ -449,9 +462,11 @@
       if (parseWeight(state.weight) <= 0) return;
       if (!String(loteInput.value || '').trim()) return;
       marcar('toque');
-      // Pulso háptico corto en el toque (Android; iOS no lo expone al navegador).
+      // Pulso háptico en el toque (Android; iOS no lo expone al navegador).
+      // 40 ms: con 12 ms el motor de un gama baja (Galaxy A12) ni arranca y
+      // no se sentía nada.
       if (navigator.vibrate) {
-        try { navigator.vibrate(12); } catch (err) { /* sin vibración */ }
+        try { navigator.vibrate(40); } catch (err) { /* sin vibración */ }
       }
       form.requestSubmit();
     }
