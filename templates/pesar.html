@@ -54,6 +54,16 @@
           {% include 'maquila/_asignar_cajas.html' %}
         {% endif %}
 
+        {# «Modo rápido»: quita el desenfoque de fondo y las sombras grandes
+           de las tarjetas. En un teléfono con GPU vieja cada caja registrada
+           repinta casi toda la pantalla y tardaba segundos en aparecer con el
+           servidor en 33 ms (Samsung, 2026-10-22). Se recuerda por navegador. #}
+        <label class="pesar-printer-auto pesar-modo-rapido" id="pesar-modo-rapido-wrap"
+               title="Quita transparencias y sombras. Para teléfonos que tardan en mostrar la caja registrada.">
+          <input type="checkbox" id="pesar-modo-rapido">
+          Modo rápido
+        </label>
+
         {# Impresora Zebra: por Zebra Browser Print (app de Zebra en el
            Android, Bluetooth clásico) o por Web Bluetooth. pesar.js muestra
            la barra solo donde alguno de los dos puede funcionar; en iPhone
