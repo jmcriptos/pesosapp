@@ -481,3 +481,21 @@ def test_pesar_ofrece_modo_rapido_sin_desenfoque(logged_client, app):
     bloque = css[css.index('[data-modo-rapido="1"]'):]
     assert 'backdrop-filter: none !important' in bloque
     assert '.pesar-modal-overlay' in bloque and '#pesar-summary' in bloque
+
+
+def test_tecla_caja_da_sensacion_de_accion():
+    """La tecla «Caja» se toca decenas de veces al día: feedback sutil e
+    inmediato (vibración, hundido de 120 ms, estado «registrando» con el
+    peso) en vez de pasar a gris como apagada mientras responde el servidor."""
+    raiz = os.path.join(os.path.dirname(__file__), '..', 'static')
+    with open(os.path.join(raiz, 'js', 'pesar.js'), encoding='utf-8') as fh:
+        js = fh.read()
+    assert 'navigator.vibrate' in js
+    assert "'is-sending'" in js and 'Registrando' in js
+    with open(os.path.join(raiz, 'css', 'pesar_redesign.css'), encoding='utf-8') as fh:
+        css = fh.read()
+    assert 'body[data-pesar-screen] .pesar-key:active {\n  transform: scale(0.96);' in css
+    assert '.pesar-key.is-submit.is-sending' in css
+    assert 'pesar-key-spinner' in css
+    reducido = css[css.index('prefers-reduced-motion'):]
+    assert '.pesar-key:active' in reducido and 'transform: none' in reducido
