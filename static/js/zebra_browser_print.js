@@ -25,7 +25,6 @@
   let base = null;
   let dispositivo = null;
   let cola = Promise.resolve();
-  const logosEnviados = new Set();
   const oyentes = [];
 
   function esIOS() {
@@ -126,14 +125,12 @@
       throw new Error('Browser Print está abierto pero no tiene ninguna impresora. Empareja la Zebra en la app.');
     }
     dispositivo = elegida;
-    logosEnviados.clear();
     avisar('conectada', { nombre: nombre() });
     return nombre();
   }
 
   function desconectar() {
     dispositivo = null;
-    logosEnviados.clear();
     avisar('desconectada');
   }
 
@@ -177,21 +174,26 @@
     return siguiente;
   }
 
+  // El logo viaja con CADA etiqueta y en el MISMO envío. Browser Print no
+  // tiene conexión real con la impresora: «ya mandé el logo» no garantiza
+  // que siga en su memoria (carga interrumpida, impresora apagada), y el
+  // pedido 1444 (2026-10-22) salió entero sin logo por confiar en eso. Son
+  // 7,5 KB más por etiqueta, nada por Bluetooth clásico; el servidor lo
+  // manda en RAM (`?logo=inline`) para no reescribir la flash caja por caja.
   async function imprimirZpl(zpl, logo) {
     return encolar(async () => {
-      if (logo && logo.nombre && logo.zpl && !logosEnviados.has(logo.nombre)) {
-        avisar('progreso', { mensaje: 'Cargando logo en la impresora…' });
-        await escribir(logo.zpl);
-        logosEnviados.add(logo.nombre);
+      if (logo && logo.zpl) {
+        await escribir(logo.zpl + '\n' + zpl);
+      } else {
+        await escribir(zpl);
       }
-      await escribir(zpl);
     });
   }
 
   async function imprimirCaja(cajaId) {
     let resp;
     try {
-      resp = await fetch(`/cajas/${cajaId}/etiqueta.zpl`, {
+      resp = await fetch(`/cajas/${cajaId}/etiqueta.zpl?logo=inline`, {
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });

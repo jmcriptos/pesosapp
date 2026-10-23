@@ -1,5 +1,7 @@
 """Etiqueta 4x2 en ZPL para la Zebra por Bluetooth (utils/zpl.py)."""
 import os
+
+import pytest
 from io import BytesIO
 
 from PIL import Image
@@ -98,6 +100,35 @@ def test_logo_de_jomar_se_convierte():
     nombre, zpl = logo_a_grf(logo_path=ruta)
     assert nombre and zpl.startswith('~DG')
     assert len(zpl) < 40000          # cabe en segundos por Bluetooth
+
+
+def test_logo_a_grf_puede_guardarse_en_ram():
+    """Browser Print manda el logo con cada etiqueta: va a R: (RAM) para no
+    reescribir la flash en cada caja. BLE sigue en E:, una vez por conexión."""
+    nombre, zpl = logo_a_grf(logo_bytes=_png(16, 4), dispositivo='R:')
+    assert nombre.startswith('R:J') and nombre.endswith('.GRF')
+    assert zpl.startswith(f'~DG{nombre},')
+    en_flash, _ = logo_a_grf(logo_bytes=_png(16, 4))
+    assert en_flash == 'E:' + nombre[2:]        # mismo hash, otro dispositivo
+    with pytest.raises(ValueError):
+        logo_a_grf(logo_bytes=_png(16, 4), dispositivo='Z:')
+
+
+def test_browser_print_manda_el_logo_con_cada_etiqueta():
+    """Regresión del pedido 1444 (2026-10-22): por Browser Print la app no
+    tiene conexión real con la impresora, así que «ya mandé el logo» no
+    garantiza nada. Cada etiqueta viaja con su logo en UN solo envío, y lo
+    pide en RAM. BLE conserva el envío único por conexión."""
+    raiz = os.path.join(os.path.dirname(__file__), '..', 'static', 'js')
+    with open(os.path.join(raiz, 'zebra_browser_print.js'), encoding='utf-8') as fh:
+        bp = fh.read()
+    with open(os.path.join(raiz, 'zebra_ble.js'), encoding='utf-8') as fh:
+        ble = fh.read()
+    assert 'logosEnviados' not in bp
+    assert 'etiqueta.zpl?logo=inline' in bp
+    assert "escribir(logo.zpl + '\\n' + zpl)" in bp
+    assert 'logosEnviados.has(logo.nombre)' in ble
+    assert 'logo=inline' not in ble
 
 
 def test_sin_logo_devuelve_none():

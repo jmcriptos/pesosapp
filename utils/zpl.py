@@ -11,10 +11,18 @@ izquierda, columna de filas a la derecha, medida grande, separador y el
 producto centrado abajo. Las medidas están en puntos de impresora a 203 dpi
 (4 x 2 pulgadas = 812 x 406 puntos).
 
-El logo NO viaja en cada etiqueta: se carga una vez en la memoria flash de
-la impresora (`~DG E:...`) y cada etiqueta lo invoca (`^XG`). Por Bluetooth
-de baja energía se escriben 20 bytes por paquete, así que mandar el logo
-con cada caja tardaría más que pesarla.
+El logo va aparte de la etiqueta como objeto gráfico (`~DG`) que la
+etiqueta invoca por nombre (`^XG`). Cómo y cuándo se manda depende del
+transporte:
+
+- Bluetooth de baja energía (zebra_ble.js) escribe 20 bytes por paquete:
+  mandar el logo con cada caja tardaría más que pesarla. Se carga UNA vez
+  por conexión en la flash (`E:`), y una desconexión obliga a reenviarlo.
+- Zebra Browser Print (zebra_browser_print.js) no tiene conexión real con
+  la impresora: no se entera si la carga falló o la impresora se apagó. El
+  pedido 1444 (2026-10-22) salió entero sin logo por eso. Ahí el logo viaja
+  con CADA etiqueta, en el mismo envío, y se guarda en RAM (`R:`) para no
+  reescribir la flash caja por caja.
 """
 import hashlib
 import os
@@ -184,20 +192,27 @@ def _fila_hex(fila_bytes):
     return hexs
 
 
-def logo_a_grf(logo_bytes=None, logo_path=None, max_w=LOGO_MAX, max_h=LOGO_MAX):
-    """(nombre, zpl) del logo como objeto gráfico en memoria flash.
+DISPOSITIVOS_LOGO = ('E:', 'R:')   # flash (persiste apagado) / RAM (se pierde)
+
+
+def logo_a_grf(logo_bytes=None, logo_path=None, max_w=LOGO_MAX, max_h=LOGO_MAX,
+               dispositivo='E:'):
+    """(nombre, zpl) del logo como objeto gráfico en la impresora.
 
     El nombre lleva un hash del contenido: si el cliente cambia de logo, el
     nombre cambia y la impresora recibe el nuevo en vez de reutilizar el
-    viejo. `zpl` es el comando ~DG completo; se manda una sola vez por
-    conexión y persiste apagado (E: es flash).
+    viejo. `zpl` es el comando ~DG completo. `dispositivo` es `E:` (flash,
+    persiste apagado: para mandarlo una vez por conexión) o `R:` (RAM: para
+    mandarlo con cada etiqueta sin desgastar la flash).
     """
+    if dispositivo not in DISPOSITIVOS_LOGO:
+        raise ValueError(f'dispositivo de logo desconocido: {dispositivo!r}')
     if not logo_bytes and not (logo_path and os.path.exists(logo_path)):
         return None, None
 
     fuente = logo_bytes if logo_bytes else open(logo_path, 'rb').read()
     digest = hashlib.sha1(fuente).hexdigest()[:6].upper()
-    nombre = f'E:J{digest}.GRF'
+    nombre = f'{dispositivo}J{digest}.GRF'
 
     imagen = _binarizar(_abrir_logo_para_zpl(logo_bytes, logo_path), max_w, max_h)
     ancho, alto = imagen.size
